@@ -1,185 +1,188 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SautiLink — Coming Soon</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;700;800&display=swap" rel="stylesheet">
+
   <style>
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       font-family: 'Bricolage Grotesque', sans-serif;
-      min-height: 100vh;
+      background: linear-gradient(135deg, #ffffff, #f0f4ff, #fff8e6);
+      color: #111;
       display: flex;
       flex-direction: column;
-      background: linear-gradient(135deg, #ffffff 0%, #f7f9ff 60%, #fff9e6 100%);
-      color: #1a1a1a;
+      min-height: 100vh;
     }
+
     header {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 24px 8%;
-      border-bottom: 1px solid rgba(0,0,0,0.06);
-      background: rgba(255,255,255,0.8);
-      backdrop-filter: blur(8px);
-      position: sticky;
-      top: 0;
+      gap: 12px;
+      padding: 20px 8%;
     }
+
+    header img {
+      height: 42px;
+    }
+
     .brand {
-      font-size: 2rem;
+      font-size: 1.6rem;
       font-weight: 800;
       color: #e11d48;
-      letter-spacing: -0.03em;
     }
+
     main {
       flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 60px 8%;
-      flex-direction: column;
-    }
-    .hero {
-      max-width: 820px;
+      padding: 40px 20px;
       text-align: center;
+    }
+
+    .card {
       background: white;
-      padding: 56px 40px;
-      border-radius: 28px;
-      box-shadow: 0 10px 40px rgba(37, 99, 235, 0.08);
-      border: 1px solid rgba(37, 99, 235, 0.08);
+      padding: 50px 30px;
+      border-radius: 20px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
     }
-    .badge {
-      display: inline-block;
-      padding: 8px 14px;
-      border-radius: 999px;
-      background: #dbeafe;
-      color: #1d4ed8;
-      font-size: 0.9rem;
-      font-weight: 700;
-      margin-bottom: 20px;
-    }
+
     h1 {
-      font-size: clamp(2.2rem, 6vw, 4.6rem);
-      margin: 0 0 18px;
-      line-height: 1;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
     }
-    .sauti { color: #e11d48; }
-    .link { color: #2563eb; }
+
+    .highlight-red { color: #e11d48; }
+    .highlight-blue { color: #2563eb; }
+
     p {
-      font-size: 1.1rem;
-      line-height: 1.8;
       color: #444;
-      margin: 0 auto;
-      max-width: 700px;
+      line-height: 1.6;
+      margin-bottom: 25px;
     }
-    .accent-line {
-      width: 120px;
-      height: 6px;
-      margin: 28px auto;
-      border-radius: 999px;
-      background: linear-gradient(90deg, #e11d48, #2563eb, #facc15);
-    }
+
     form {
       display: flex;
       flex-direction: column;
-      gap: 14px;
-      margin-top: 32px;
-      max-width: 500px;
-      margin-left: auto;
-      margin-right: auto;
+      gap: 12px;
     }
-    input[type="email"], input[type="text"] {
-      padding: 14px 16px;
-      border: 1px solid #cbd5e1;
-      border-radius: 14px;
-      font-family: inherit;
+
+    input {
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
       font-size: 1rem;
     }
+
     button {
       padding: 14px;
       border: none;
-      border-radius: 14px;
-      font-weight: 700;
+      border-radius: 10px;
+      background: linear-gradient(90deg, #2563eb, #e11d48);
       color: white;
+      font-weight: bold;
       cursor: pointer;
-      font-family: inherit;
     }
-    .login-btn { background: #2563eb; }
-    .signup-btn { background: #e11d48; }
-    #soon-message {
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .privacy {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    #success {
       display: none;
-      margin-top: 18px;
+      margin-top: 15px;
       color: #2563eb;
-      font-weight: 700;
+      font-weight: bold;
     }
+
     footer {
-      padding: 28px 8%;
       text-align: center;
-      border-top: 1px solid rgba(0,0,0,0.06);
-      background: #fff;
+      padding: 20px;
+      font-size: 0.9rem;
+      color: #666;
     }
-    .footer-links {
-      display: flex;
-      gap: 18px;
-      justify-content: center;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
+
+    .links {
+      margin-bottom: 10px;
     }
-    .footer-links a {
-      color: #475569;
+
+    .links a {
+      margin: 0 10px;
       text-decoration: none;
+      color: #444;
       font-weight: 600;
     }
-    .footer-links a:hover {
+
+    .links a:hover {
       color: #2563eb;
-    }
-    .copyright {
-      color: #64748b;
-      font-size: 0.95rem;
     }
   </style>
 </head>
+
 <body>
+
   <header>
+    <img src="assets/logo.svg" alt="SautiLink Logo">
     <div class="brand">SautiLink</div>
-  </header>  <main>
-    <section class="hero">
-      <div class="badge">Privacy First Social Network</div>
-      <h1><span class="sauti">Sauti</span><span class="link">Link</span> is coming soon</h1>
-      <div class="accent-line"></div>
+  </header>
+
+  <main>
+    <div class="card">
+      <h1>
+        <span class="highlight-red">Sauti</span><span class="highlight-blue">Link</span>
+      </h1>
+
       <p>
-        After completing all government approvals in Tanzania and finalizing our security,
-        infrastructure, and user privacy systems, <strong>SautiLink</strong> will be officially live.
-        We are building a social network that prioritizes <strong>privacy, freedom, and data security</strong>.
-        Thank you for joining us on this journey.
+        A privacy-first social network is coming soon.<br>
+        Join the early waitlist and be among the first to experience it.
       </p>
+
       <form action="https://formspree.io/f/mqegqrya" method="POST">
-        <input type="email" name="email" placeholder="Enter your email" required />
-        <input type="text" name="username" placeholder="Username" required />
-        <div style="display:flex; gap:12px;">
-          <button type="submit" class="login-btn">Login</button>
-          <button type="submit" class="signup-btn">Sign Up</button>
-        </div>
+        <input type="email" name="email" placeholder="Enter your email" required>
+        <input type="text" name="username" placeholder="Choose a username" required>
+        <button type="submit">Join Waitlist</button>
       </form>
-      <p id="soon-message">🚀 SautiLink services will be available soon. You are on the early waitlist.</p>
-    </section>
-  </main>  <footer>
-    <div class="footer-links">
+
+      <div id="success">🚀 You're on the SautiLink early access list.</div>
+
+      <div class="privacy">
+        We respect your privacy. No spam. Ever.
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="links">
       <a href="#">Terms</a>
       <a href="#">Privacy</a>
-      <a href="#">Contact Us</a>
+      <a href="#">Contact</a>
       <a href="#">About</a>
-      <a href="#">Security</a>
     </div>
-    <div class="copyright">© 2026 - SautiLink Corporation</div>
-  </footer>  <script>
-    const form = document.querySelector('form');
-    const message = document.getElementById('soon-message');
-    form.addEventListener('submit', function(event) {
-      message.style.display = 'block';
+    © 2026 - SautiLink Corporation
+  </footer>
+
+  <script>
+    const form = document.querySelector("form");
+    const success = document.getElementById("success");
+
+    form.addEventListener("submit", () => {
+      success.style.display = "block";
     });
-  </script></body>
+  </script>
+
+</body>
 </html>
