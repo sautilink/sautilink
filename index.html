@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SautiLink - Social Network</title>
+<title>SautiLink - Social Feed</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@300;400;600;700&display=swap" rel="stylesheet">
 
@@ -12,7 +12,6 @@
   --bg:#0b0f1a;
   --card:rgba(255,255,255,0.06);
   --text:#fff;
-  --red:#ff2d2d;
   --blue:#2d6bff;
   --border:rgba(255,255,255,0.1);
 }
@@ -29,64 +28,82 @@ body{
   color:var(--text);
 }
 
-/* Layout */
-.wrapper{
-  display:grid;
-  grid-template-columns: 1fr 2fr 1fr;
-  max-width:1200px;
-  margin:auto;
-  gap:15px;
-  padding:20px;
-}
-
-/* LEFT */
-.left, .right{
+/* TOP BAR (Facebook-style) */
+.topbar{
+  position:sticky;
+  top:0;
   background:var(--card);
-  border-radius:15px;
-  padding:15px;
   backdrop-filter:blur(12px);
-  height:fit-content;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:12px 20px;
+  border-bottom:1px solid var(--border);
 }
 
-/* CENTER */
-.center{
-  background:var(--card);
-  border-radius:15px;
-  padding:15px;
-  backdrop-filter:blur(12px);
-}
-
-/* Logo */
 .logo{
   display:flex;
   align-items:center;
   gap:10px;
-  font-size:22px;
   font-weight:700;
   color:var(--blue);
+  font-size:20px;
 }
 
 .logo img{
   width:35px;
 }
 
-/* Post box */
+/* SEARCH */
+.search{
+  flex:1;
+  margin:0 20px;
+}
+
+.search input{
+  width:100%;
+  padding:8px 12px;
+  border-radius:20px;
+  border:none;
+  outline:none;
+  background:rgba(255,255,255,0.08);
+  color:white;
+}
+
+/* LAYOUT */
+.container{
+  display:grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap:15px;
+  max-width:1200px;
+  margin:auto;
+  padding:20px;
+}
+
+/* SIDES */
+.side, .center{
+  background:var(--card);
+  border-radius:14px;
+  padding:15px;
+  backdrop-filter:blur(12px);
+  height:fit-content;
+}
+
+/* POST BOX */
 .postBox{
   border:1px solid var(--border);
   padding:10px;
   border-radius:12px;
-  margin-top:15px;
 }
 
 textarea{
   width:100%;
-  height:60px;
+  height:70px;
   background:transparent;
   border:none;
   color:white;
   resize:none;
   outline:none;
-  font-size:14px;
 }
 
 .btn{
@@ -95,16 +112,18 @@ textarea{
   padding:8px;
   border:none;
   border-radius:8px;
-  font-weight:600;
   cursor:pointer;
+  font-weight:600;
   color:white;
-  background:linear-gradient(45deg,var(--red),var(--blue));
+  background:linear-gradient(45deg,#ff2d2d,#2d6bff);
 }
 
 /* POST */
 .post{
-  border-bottom:1px solid var(--border);
-  padding:15px 0;
+  margin-top:15px;
+  padding:12px;
+  border-radius:12px;
+  border:1px solid var(--border);
 }
 
 .user{
@@ -115,7 +134,7 @@ textarea{
 .actions{
   display:flex;
   justify-content:space-between;
-  margin-top:8px;
+  margin-top:10px;
   font-size:13px;
   opacity:0.8;
 }
@@ -156,75 +175,75 @@ textarea{
 }
 
 .box h2{
-  color:var(--red);
+  color:#ff2d2d;
 }
 </style>
 </head>
 
 <body>
 
-<div class="wrapper">
-
-<!-- LEFT -->
-<div class="left">
+<!-- TOP BAR -->
+<div class="topbar">
 
   <div class="logo">
     <img src="/assets/logo.svg">
     SautiLink
   </div>
 
-  <div class="item" onclick="comingSoon()">Home</div>
-  <div class="item" onclick="comingSoon()">Explore</div>
-  <div class="item" onclick="comingSoon()">Notifications</div>
-  <div class="item" onclick="comingSoon()">Messages</div>
-  <div class="item" onclick="comingSoon()">Profile</div>
+  <div class="search">
+    <input placeholder="Search SautiLink..." onclick="comingSoon()">
+  </div>
 
+</div>
+
+<!-- MAIN -->
+<div class="container">
+
+<!-- LEFT -->
+<div class="side">
+  <div class="item" onclick="comingSoon()">Home</div>
+  <div class="item" onclick="comingSoon()">Friends</div>
+  <div class="item" onclick="comingSoon()">Watch</div>
+  <div class="item" onclick="comingSoon()">Groups</div>
+  <div class="item" onclick="comingSoon()">Profile</div>
 </div>
 
 <!-- CENTER -->
 <div class="center">
 
-  <h3>Home</h3>
-
-  <!-- POST BOX -->
   <div class="postBox">
-    <textarea placeholder="What is happening?" onclick="comingSoon()"></textarea>
+    <textarea placeholder="What's on your mind?" onclick="comingSoon()"></textarea>
     <button class="btn" onclick="comingSoon()">Post (Coming Soon)</button>
   </div>
 
-  <!-- FEED -->
   <div class="post">
     <div class="user">@sautilink</div>
-    <p>Welcome to SautiLink — a next-generation free speech platform under development.</p>
+    <p>This is a Facebook-style preview of SautiLink social experience.</p>
     <div class="actions">
-      <span onclick="comingSoon()">❤️ Like</span>
+      <span onclick="comingSoon()">👍 Like</span>
       <span onclick="comingSoon()">💬 Comment</span>
-      <span onclick="comingSoon()">🔁 Share</span>
+      <span onclick="comingSoon()">↗ Share</span>
     </div>
   </div>
 
   <div class="post">
     <div class="user">@system</div>
-    <p>This interface is a preview of SautiLink experience. Full features coming soon.</p>
+    <p>All interactions are currently under development. Stay tuned.</p>
     <div class="actions">
-      <span onclick="comingSoon()">❤️ Like</span>
+      <span onclick="comingSoon()">👍 Like</span>
       <span onclick="comingSoon()">💬 Comment</span>
-      <span onclick="comingSoon()">🔁 Share</span>
+      <span onclick="comingSoon()">↗ Share</span>
     </div>
   </div>
 
 </div>
 
 <!-- RIGHT -->
-<div class="right">
-
-  <h3>Trends</h3>
-
-  <div class="item" onclick="comingSoon()">#FreeSpeech</div>
-  <div class="item" onclick="comingSoon()">#SautiLink</div>
-  <div class="item" onclick="comingSoon()">#FutureOfSocial</div>
-  <div class="item" onclick="comingSoon()">#OpenInternet</div>
-
+<div class="side">
+  <h3>Contacts</h3>
+  <div class="item" onclick="comingSoon()">Friend Suggestions</div>
+  <div class="item" onclick="comingSoon()">Pages</div>
+  <div class="item" onclick="comingSoon()">Events</div>
 </div>
 
 </div>
@@ -233,13 +252,12 @@ textarea{
 <div class="modal" id="modal">
   <div class="box">
     <h2>Coming Soon</h2>
-    <p>This feature is under development.</p>
+    <p>This feature is under construction.</p>
     <button class="btn" onclick="closeModal()">Close</button>
   </div>
 </div>
 
 <script>
-
 function comingSoon(){
   document.getElementById("modal").style.display="flex";
 }
@@ -247,7 +265,6 @@ function comingSoon(){
 function closeModal(){
   document.getElementById("modal").style.display="none";
 }
-
 </script>
 
 </body>
