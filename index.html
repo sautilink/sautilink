@@ -95,12 +95,12 @@
       </div>
 
       <!-- Feed -->
-      <div class="flex-1 overflow-y-auto p-4 md:p-0" id="feed"></div>
+      <div class="flex-1 overflow-y-auto" id="feed"></div>
 
-      <!-- Footer - Visible on all devices -->
+      <!-- Footer -->
       <footer class="border-t border-zinc-800 bg-black py-8 px-6 text-sm text-zinc-500">
         <div class="max-w-7xl mx-auto">
-          <!-- Social Icons -->
+          <!-- Social Media Icons -->
           <div class="flex justify-center gap-8 mb-8 text-2xl">
             <a href="https://linktr.ee/sautilink" target="_blank" class="hover:text-white transition"><i class="fa-brands fa-facebook-f"></i></a>
             <a href="https://linktr.ee/sautilink" target="_blank" class="hover:text-white transition"><i class="fa-brands fa-x-twitter"></i></a>
@@ -114,7 +114,7 @@
             <a href="#" onclick="showToast('Terms of Service - Coming soon')" class="hover:text-zinc-300">Terms of Service</a>
             <a href="#" onclick="showToast('Help Center - Coming soon')" class="hover:text-zinc-300">Help Center</a>
             <a href="#" onclick="showToast('Contacts - Coming soon')" class="hover:text-zinc-300">Contacts</a>
-            <a href="#" onclick="showToast('Report - Coming soon')" class="hover:text-zinc-300">Report</a>
+            <a href="#" onclick="showToast('Report a problem - Coming soon')" class="hover:text-zinc-300">Report</a>
           </div>
 
           <!-- Copyright -->
@@ -125,7 +125,7 @@
       </footer>
     </div>
 
-    <!-- Right Sidebar (Large screens only) -->
+    <!-- Right Sidebar -->
     <div class="w-80 hidden xl:block border-l border-zinc-800 p-6">
       <div class="bg-zinc-900 rounded-3xl p-6">
         <h2 class="font-bold text-xl mb-4">Trending now</h2>
@@ -144,7 +144,7 @@
     <div class="flex justify-around py-3">
       <a href="#" onclick="navigateTo('home')" class="text-blue-500"><i class="fa-solid fa-house text-3xl"></i></a>
       <a href="#" onclick="navigateTo('explore')" class="text-zinc-400"><i class="fa-solid fa-magnifying-glass text-3xl"></i></a>
-      <a href="#" onclick="createPost()" class=" -mt-9">
+      <a href="#" onclick="createPost()" class="-mt-9">
         <div class="bg-blue-600 w-16 h-16 rounded-full flex items-center justify-center shadow-2xl border-4 border-black">
           <i class="fa-solid fa-plus text-4xl"></i>
         </div>
@@ -169,7 +169,7 @@
     </div>
   </div>
 
-  <!-- Toast Notification -->
+  <!-- Toast -->
   <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-zinc-900 border border-zinc-700 px-6 py-4 rounded-3xl shadow-2xl z-[110]">
     <span id="toastText" class="font-medium"></span>
   </div>
@@ -184,9 +184,15 @@
             <div class="flex-1">
               <div class="flex items-center gap-2">
                 <span class="font-bold">Sauti Community</span>
+                <span class="text-blue-500">
+                  <i class="fa-solid fa-circle-check"></i>
+                </span>
                 <span class="text-zinc-500">@sautilink • 1h</span>
               </div>
-              <p class="mt-3 text-[17px]">Welcome to SautiLink — the platform where African voices connect, create, and grow together.</p>
+              <p class="mt-3 text-[17px] leading-relaxed">
+                Welcome to SautiLink - The platform where Tanzanians can raise their voices for justice, freedom, transparency, and equality. 
+                A 100% free speech platform shaping the future of Tanzania.
+              </p>
               <div class="flex justify-between mt-6 text-zinc-500">
                 <button onclick="showToast()" class="flex items-center gap-2 hover:text-blue-400"><i class="fa-regular fa-comment"></i> 24</button>
                 <button onclick="showToast()" class="flex items-center gap-2 hover:text-green-400"><i class="fa-solid fa-retweet"></i> 142</button>
