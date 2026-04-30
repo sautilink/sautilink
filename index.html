@@ -1,251 +1,208 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SautiLink - Connect Your Voice</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"/>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  
-  <style>
-    body { font-family: 'Inter', system-ui, sans-serif; }
-    .logo-font { font-family: 'Bricolage Grotesque', sans-serif; }
-    .feed-item { transition: all 0.2s ease; }
-    .feed-item:hover { background-color: #1a1a1a; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SautiLink — Coming Soon</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;700;800&display=swap" rel="stylesheet">
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  background: linear-gradient(135deg, #ffffff, #eef2ff);
+  color: #111;
+  transition: 0.3s;
+}
+
+.dark {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 8%;
+}
+
+.brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-wrap img {
+  height: 40px;
+}
+
+.brand {
+  font-weight: 800;
+  color: #e11d48;
+}
+
+.toggle {
+  cursor: pointer;
+  padding: 8px 14px;
+  border-radius: 20px;
+  background: #2563eb;
+  color: white;
+  font-weight: bold;
+}
+
+main {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.card {
+  max-width: 600px;
+  margin: auto;
+  background: white;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.dark .card {
+  background: #1e293b;
+}
+
+h1 {
+  font-size: 2.5rem;
+}
+
+.red { color: #e11d48; }
+.blue { color: #2563eb; }
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+input {
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+}
+
+button {
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #2563eb, #e11d48);
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#success {
+  display: none;
+  margin-top: 15px;
+  color: #22c55e;
+}
+
+.socials {
+  margin-top: 25px;
+}
+
+.socials a {
+  margin: 0 8px;
+  font-size: 20px;
+  text-decoration: none;
+}
+
+footer {
+  text-align: center;
+  padding: 30px;
+  font-size: 0.9rem;
+}
+
+.links a {
+  margin: 0 10px;
+  text-decoration: none;
+}
+
+.donate {
+  margin-top: 15px;
+  font-weight: bold;
+}
+</style>
 </head>
-<body class="bg-black text-white min-h-screen">
 
-  <div class="flex max-w-7xl mx-auto min-h-screen">
+<body>
 
-    <!-- Desktop Left Sidebar -->
-    <div class="w-20 lg:w-72 border-r border-zinc-800 flex flex-col hidden md:flex">
-      <div class="p-6">
-        <span class="logo-font text-4xl font-semibold tracking-tighter cursor-pointer" onclick="window.location.reload()">
-          <span class="text-red-600">Sauti</span><span class="text-blue-500">Link</span>
-        </span>
-      </div>
-
-      <nav class="flex-1 px-4 space-y-2">
-        <a href="#" onclick="navigateTo('home')" class="flex items-center gap-5 px-6 py-4 text-xl font-medium hover:bg-zinc-900 rounded-3xl">
-          <i class="fa-solid fa-house w-6"></i>
-          <span class="hidden lg:block">Home</span>
-        </a>
-        <a href="#" onclick="navigateTo('explore')" class="flex items-center gap-5 px-6 py-4 text-xl font-medium hover:bg-zinc-900 rounded-3xl">
-          <i class="fa-solid fa-magnifying-glass w-6"></i>
-          <span class="hidden lg:block">Explore</span>
-        </a>
-        <a href="#" onclick="navigateTo('notifications')" class="flex items-center gap-5 px-6 py-4 text-xl font-medium hover:bg-zinc-900 rounded-3xl">
-          <i class="fa-solid fa-bell w-6"></i>
-          <span class="hidden lg:block">Notifications</span>
-        </a>
-        <a href="#" onclick="navigateTo('messages')" class="flex items-center gap-5 px-6 py-4 text-xl font-medium hover:bg-zinc-900 rounded-3xl">
-          <i class="fa-solid fa-envelope w-6"></i>
-          <span class="hidden lg:block">Messages</span>
-        </a>
-        <a href="#" onclick="navigateTo('profile')" class="flex items-center gap-5 px-6 py-4 text-xl font-medium hover:bg-zinc-900 rounded-3xl">
-          <i class="fa-solid fa-user w-6"></i>
-          <span class="hidden lg:block">Profile</span>
-        </a>
-      </nav>
-
-      <div class="p-6">
-        <button onclick="createPost()" 
-                class="w-full bg-blue-600 hover:bg-blue-700 font-bold py-4 rounded-3xl text-lg">
-          Create Post
-        </button>
-      </div>
-
-      <div class="px-6 pb-8 flex gap-3">
-        <button onclick="showAuth('login')" class="flex-1 border border-zinc-700 hover:border-zinc-400 py-3 rounded-3xl font-semibold">Log in</button>
-        <button onclick="showAuth('signup')" class="flex-1 bg-white text-black hover:bg-gray-200 py-3 rounded-3xl font-semibold">Sign up</button>
-      </div>
-    </div>
-
-    <!-- Main Content -->
-    <div class="flex-1 flex flex-col w-full">
-      <!-- Mobile Top Bar -->
-      <div class="md:hidden border-b border-zinc-800 p-4 flex items-center justify-between bg-black sticky top-0 z-50">
-        <span class="logo-font text-3xl font-semibold tracking-tighter">
-          <span class="text-red-600">Sauti</span><span class="text-blue-500">Link</span>
-        </span>
-      </div>
-
-      <!-- Desktop Header -->
-      <div class="hidden md:block border-b border-zinc-800 p-5">
-        <h1 class="text-2xl font-bold">Home</h1>
-      </div>
-
-      <!-- Compose Box -->
-      <div class="border-b border-zinc-800 p-4 md:p-6">
-        <div class="flex gap-4">
-          <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full"></div>
-          <div class="flex-1">
-            <textarea id="postText" rows="3" 
-                      class="w-full bg-transparent border-none focus:outline-none text-lg placeholder-zinc-500 resize-none" 
-                      placeholder="What’s happening?"></textarea>
-            <div class="flex justify-between items-center pt-4 border-t border-zinc-800">
-              <i onclick="showToast()" class="fa-regular fa-image text-2xl text-blue-500 cursor-pointer"></i>
-              <button onclick="fakePost()" 
-                      class="bg-blue-600 hover:bg-blue-700 px-8 py-2 rounded-3xl font-bold">Post</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Feed -->
-      <div class="flex-1 overflow-y-auto" id="feed"></div>
-
-      <!-- Footer with Copyright -->
-      <footer class="border-t border-zinc-800 bg-black py-8 px-6 text-sm text-zinc-500 mt-auto">
-        <div class="max-w-7xl mx-auto">
-          <!-- Social Media Icons -->
-          <div class="flex justify-center gap-8 mb-8 text-2xl">
-            <a href="https://linktr.ee/sautilink" target="_blank" class="hover:text-white transition"><i class="fa-brands fa-facebook-f"></i></a>
-            <a href="https://linktr.ee/sautilink" target="_blank" class="hover:text-white transition"><i class="fa-brands fa-x-twitter"></i></a>
-            <a href="https://linktr.ee/sautilink" target="_blank" class="hover:text-white transition"><i class="fa-brands fa-youtube"></i></a>
-            <a href="https://linktr.ee/sautilink" target="_blank" class="hover:text-white transition"><i class="fa-brands fa-tiktok"></i></a>
-          </div>
-
-          <!-- Footer Links -->
-          <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-center mb-6">
-            <a href="#" onclick="showToast('Privacy Policy - Coming soon')" class="hover:text-zinc-300">Privacy Policy</a>
-            <a href="#" onclick="showToast('Terms of Service - Coming soon')" class="hover:text-zinc-300">Terms of Service</a>
-            <a href="#" onclick="showToast('Help Center - Coming soon')" class="hover:text-zinc-300">Help Center</a>
-            <a href="#" onclick="showToast('Contacts - Coming soon')" class="hover:text-zinc-300">Contacts</a>
-            <a href="#" onclick="showToast('Report a problem - Coming soon')" class="hover:text-zinc-300">Report</a>
-          </div>
-
-          <!-- Copyright -->
-          <div class="text-center text-xs">
-            Copyright © 2026 SautiLink Corporation. All rights reserved.
-          </div>
-        </div>
-      </footer>
-    </div>
-
-    <!-- Right Sidebar -->
-    <div class="w-80 hidden xl:block border-l border-zinc-800 p-6">
-      <div class="bg-zinc-900 rounded-3xl p-6">
-        <h2 class="font-bold text-xl mb-4">Trending now</h2>
-        <div class="space-y-4">
-          <div class="hover:bg-zinc-800 p-3 rounded-2xl cursor-pointer">
-            <p class="text-blue-400">#SautiLink</p>
-            <p class="font-medium">Trending in East Africa • 24.8K posts</p>
-          </div>
-        </div>
-      </div>
-    </div>
+<header>
+  <div class="brand-wrap">
+    <img src="assets/logo.svg">
+    <div class="brand">SautiLink</div>
   </div>
+  <div class="toggle" onclick="toggleDark()">🌙 Dark</div>
+</header>
 
-  <!-- Bottom Navigation - Mobile Only -->
-  <div class="fixed bottom-0 left-0 right-0 bg-black border-t border-zinc-800 z-50 md:hidden">
-    <div class="flex justify-around py-3">
-      <a href="#" onclick="navigateTo('home')" class="text-blue-500"><i class="fa-solid fa-house text-3xl"></i></a>
-      <a href="#" onclick="navigateTo('explore')" class="text-zinc-400"><i class="fa-solid fa-magnifying-glass text-3xl"></i></a>
-      <a href="#" onclick="createPost()" class="-mt-9">
-        <div class="bg-blue-600 w-16 h-16 rounded-full flex items-center justify-center shadow-2xl border-4 border-black">
-          <i class="fa-solid fa-plus text-4xl"></i>
-        </div>
-      </a>
-      <a href="#" onclick="navigateTo('notifications')" class="text-zinc-400"><i class="fa-solid fa-bell text-3xl"></i></a>
-      <a href="#" onclick="navigateTo('profile')" class="text-zinc-400"><i class="fa-solid fa-user text-3xl"></i></a>
+<main>
+  <div class="card">
+    <h1><span class="red">Sauti</span><span class="blue">Link</span></h1>
+
+    <p>
+      A privacy-first social network is coming soon.<br>
+      Join the early waitlist and be part of the future.
+    </p>
+
+    <form action="https://formspree.io/f/mqegqrya" method="POST">
+      <input type="email" name="email" placeholder="Enter your email" required>
+      <input type="text" name="username" placeholder="Choose a username" required>
+      <button type="submit">Join Waitlist</button>
+    </form>
+
+    <div id="success">🚀 You are on the early access list!</div>
+
+    <div class="socials">
+      <a href="#">📸</a>
+      <a href="#">🐦</a>
+      <a href="#">🎵</a>
+      <a href="#">📘</a>
+      <a href="#">💼</a>
+      <a href="#">💬</a>
+      <a href="#">🧵</a>
+      <a href="#">▶️</a>
     </div>
-  </div>
 
-  <!-- Create Post Modal -->
-  <div id="postModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
-    <div class="bg-zinc-900 w-full max-w-lg mx-4 rounded-3xl p-6">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold">Create Post</h2>
-        <button onclick="closeModal()" class="text-4xl text-zinc-400 hover:text-white">&times;</button>
-      </div>
-      <textarea id="modalText" rows="6" class="w-full bg-zinc-800 rounded-2xl p-5 text-lg focus:outline-none" placeholder="What do you want to share?"></textarea>
-      <div class="flex justify-end gap-4 mt-6">
-        <button onclick="closeModal()" class="px-6 py-2 text-zinc-400">Cancel</button>
-        <button onclick="fakePostFromModal()" class="bg-blue-600 hover:bg-blue-700 px-8 py-2 rounded-3xl font-bold">Post</button>
-      </div>
+    <div class="donate">
+      💙 Support us: donate@sautilink.com
     </div>
+
   </div>
+</main>
 
-  <!-- Toast -->
-  <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-zinc-900 border border-zinc-700 px-6 py-4 rounded-3xl shadow-2xl z-[110]">
-    <span id="toastText" class="font-medium"></span>
+<footer>
+  <div class="links">
+    <a href="#">Terms</a>
+    <a href="#">Privacy</a>
+    <a href="#">Contact</a>
+    <a href="#">About</a>
   </div>
+  © 2026 - SautiLink Corporation
+</footer>
 
-  <script>
-    function renderFeed() {
-      const feed = document.getElementById('feed');
-      feed.innerHTML = `
-        <div class="feed-item border-b border-zinc-800 p-6">
-          <div class="flex gap-4">
-            <div class="w-11 h-11 bg-gradient-to-br from-red-500 to-blue-600 rounded-full flex-shrink-0"></div>
-            <div class="flex-1">
-              <div class="flex items-center gap-2">
-                <span class="font-bold">Sauti Community</span>
-                <span class="text-blue-500">
-                  <i class="fa-solid fa-circle-check"></i>
-                </span>
-                <span class="text-zinc-500">@sautilink • 1h</span>
-              </div>
-              <p class="mt-3 text-[17px] leading-relaxed">
-                Welcome to SautiLink - The platform where Tanzanians can raise their voices for justice, freedom, transparency, and equality. 
-                A 100% free speech platform shaping the future of Tanzania.
-              </p>
-              <div class="flex justify-between mt-6 text-zinc-500">
-                <button onclick="showToast()" class="flex items-center gap-2 hover:text-blue-400"><i class="fa-regular fa-comment"></i> 24</button>
-                <button onclick="showToast()" class="flex items-center gap-2 hover:text-green-400"><i class="fa-solid fa-retweet"></i> 142</button>
-                <button onclick="showToast()" class="flex items-center gap-2 hover:text-red-400"><i class="fa-regular fa-heart"></i> 892</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-    }
+<script>
+function toggleDark() {
+  document.body.classList.toggle("dark");
+}
 
-    function createPost() {
-      document.getElementById('postModal').classList.remove('hidden');
-    }
+const form = document.querySelector("form");
+const success = document.getElementById("success");
 
-    function closeModal() {
-      document.getElementById('postModal').classList.add('hidden');
-    }
+form.addEventListener("submit", () => {
+  success.style.display = "block";
+});
+</script>
 
-    function fakePost() {
-      if (document.getElementById('postText').value.trim()) {
-        showToast("Post submitted successfully (Demo mode)");
-        document.getElementById('postText').value = '';
-      } else {
-        showToast("Write something first");
-      }
-    }
-
-    function fakePostFromModal() {
-      closeModal();
-      showToast("Your post has been published!");
-    }
-
-    function showAuth(type) {
-      showToast(type === 'login' ? "Login coming soon" : "Sign up coming soon");
-    }
-
-    function showToast(msg = "This feature is under construction") {
-      const toast = document.getElementById('toast');
-      document.getElementById('toastText').innerHTML = msg;
-      toast.classList.remove('hidden');
-      setTimeout(() => toast.classList.add('hidden'), 4000);
-    }
-
-    function navigateTo(page) {
-      if (page === 'home') return;
-      showToast(page.charAt(0).toUpperCase() + page.slice(1) + " is coming soon");
-    }
-
-    // Initialize
-    window.onload = () => {
-      renderFeed();
-    };
-  </script>
 </body>
 </html>
