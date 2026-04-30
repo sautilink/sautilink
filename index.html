@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SautiLink - AI Challenges</title>
+<title>SautiLink - Social Network</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@300;400;600;700&display=swap" rel="stylesheet">
 
@@ -14,6 +14,7 @@
   --text:#fff;
   --red:#ff2d2d;
   --blue:#2d6bff;
+  --border:rgba(255,255,255,0.1);
 }
 
 *{
@@ -28,185 +29,224 @@ body{
   color:var(--text);
 }
 
-/* Background */
-.bg{
-  position:fixed;
-  inset:0;
-  background:url('https://images.unsplash.com/photo-1520607162513-77705c0f0d4a') center/cover no-repeat;
-  filter:blur(18px) brightness(0.35);
-  z-index:-1;
+/* Layout */
+.wrapper{
+  display:grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  max-width:1200px;
+  margin:auto;
+  gap:15px;
+  padding:20px;
 }
 
-/* Layout */
-.container{
-  max-width:850px;
-  margin:auto;
-  padding:40px 20px;
-  text-align:center;
+/* LEFT */
+.left, .right{
+  background:var(--card);
+  border-radius:15px;
+  padding:15px;
+  backdrop-filter:blur(12px);
+  height:fit-content;
+}
+
+/* CENTER */
+.center{
+  background:var(--card);
+  border-radius:15px;
+  padding:15px;
+  backdrop-filter:blur(12px);
 }
 
 /* Logo */
 .logo{
   display:flex;
-  justify-content:center;
   align-items:center;
-  gap:12px;
-  font-size:28px;
+  gap:10px;
+  font-size:22px;
   font-weight:700;
   color:var(--blue);
 }
 
 .logo img{
-  width:45px;
+  width:35px;
 }
 
-/* Card */
-.card{
-  margin-top:30px;
-  padding:25px;
-  background:var(--card);
-  border-radius:16px;
-  backdrop-filter:blur(12px);
+/* Post box */
+.postBox{
+  border:1px solid var(--border);
+  padding:10px;
+  border-radius:12px;
+  margin-top:15px;
 }
 
-/* Title */
-h1{
-  font-size:30px;
-  margin-bottom:10px;
-}
-
-p{
-  opacity:0.8;
-  line-height:1.6;
-}
-
-/* Button */
-.btn{
-  margin-top:20px;
-  padding:10px 16px;
+textarea{
+  width:100%;
+  height:60px;
+  background:transparent;
   border:none;
-  border-radius:10px;
-  cursor:pointer;
+  color:white;
+  resize:none;
+  outline:none;
+  font-size:14px;
+}
+
+.btn{
+  margin-top:8px;
+  width:100%;
+  padding:8px;
+  border:none;
+  border-radius:8px;
   font-weight:600;
+  cursor:pointer;
   color:white;
   background:linear-gradient(45deg,var(--red),var(--blue));
 }
 
-/* Challenge */
-.challenge{
-  margin-top:30px;
-  padding:20px;
-  background:var(--card);
-  border-radius:16px;
-  backdrop-filter:blur(10px);
-  min-height:120px;
+/* POST */
+.post{
+  border-bottom:1px solid var(--border);
+  padding:15px 0;
 }
 
-.challenge h3{
+.user{
   color:var(--blue);
-  margin-bottom:10px;
+  font-weight:700;
 }
 
-#text{
-  font-size:15px;
-  opacity:0.95;
-  transition:0.3s;
-}
-
-/* Footer */
-footer{
-  margin-top:50px;
+.actions{
+  display:flex;
+  justify-content:space-between;
+  margin-top:8px;
   font-size:13px;
-  opacity:0.6;
+  opacity:0.8;
+}
+
+.actions span{
+  cursor:pointer;
+}
+
+/* SIDEBAR ITEMS */
+.item{
+  padding:10px;
+  border-radius:10px;
+  margin-top:10px;
+  background:rgba(255,255,255,0.03);
+  cursor:pointer;
+}
+
+.item:hover{
+  background:rgba(255,255,255,0.08);
+}
+
+/* MODAL */
+.modal{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,0.7);
+}
+
+.box{
+  padding:25px;
+  border-radius:14px;
+  background:rgba(255,255,255,0.08);
+  backdrop-filter:blur(10px);
+  text-align:center;
+}
+
+.box h2{
+  color:var(--red);
 }
 </style>
 </head>
 
 <body>
 
-<div class="bg"></div>
+<div class="wrapper">
 
-<div class="container">
+<!-- LEFT -->
+<div class="left">
 
-<!-- LOGO -->
-<div class="logo">
-  <img src="/assets/logo.svg" alt="logo">
-  SautiLink AI
+  <div class="logo">
+    <img src="/assets/logo.svg">
+    SautiLink
+  </div>
+
+  <div class="item" onclick="comingSoon()">Home</div>
+  <div class="item" onclick="comingSoon()">Explore</div>
+  <div class="item" onclick="comingSoon()">Notifications</div>
+  <div class="item" onclick="comingSoon()">Messages</div>
+  <div class="item" onclick="comingSoon()">Profile</div>
+
 </div>
 
-<!-- MAIN -->
-<div class="card">
-  <h1>Smart Challenge Engine</h1>
-  <p>
-    Every refresh generates a new AI-style challenge to keep your mind active while we build SautiLink.
-  </p>
+<!-- CENTER -->
+<div class="center">
 
-  <button class="btn" onclick="generateChallenge()">New Challenge</button>
+  <h3>Home</h3>
+
+  <!-- POST BOX -->
+  <div class="postBox">
+    <textarea placeholder="What is happening?" onclick="comingSoon()"></textarea>
+    <button class="btn" onclick="comingSoon()">Post (Coming Soon)</button>
+  </div>
+
+  <!-- FEED -->
+  <div class="post">
+    <div class="user">@sautilink</div>
+    <p>Welcome to SautiLink — a next-generation free speech platform under development.</p>
+    <div class="actions">
+      <span onclick="comingSoon()">❤️ Like</span>
+      <span onclick="comingSoon()">💬 Comment</span>
+      <span onclick="comingSoon()">🔁 Share</span>
+    </div>
+  </div>
+
+  <div class="post">
+    <div class="user">@system</div>
+    <p>This interface is a preview of SautiLink experience. Full features coming soon.</p>
+    <div class="actions">
+      <span onclick="comingSoon()">❤️ Like</span>
+      <span onclick="comingSoon()">💬 Comment</span>
+      <span onclick="comingSoon()">🔁 Share</span>
+    </div>
+  </div>
+
 </div>
 
-<!-- CHALLENGE -->
-<div class="challenge">
-  <h3>Today's Prompt</h3>
-  <div id="text">Loading intelligence...</div>
+<!-- RIGHT -->
+<div class="right">
+
+  <h3>Trends</h3>
+
+  <div class="item" onclick="comingSoon()">#FreeSpeech</div>
+  <div class="item" onclick="comingSoon()">#SautiLink</div>
+  <div class="item" onclick="comingSoon()">#FutureOfSocial</div>
+  <div class="item" onclick="comingSoon()">#OpenInternet</div>
+
 </div>
 
-<footer>
-© 2026 SautiLink Corporation. All rights reserved.
-</footer>
+</div>
 
+<!-- MODAL -->
+<div class="modal" id="modal">
+  <div class="box">
+    <h2>Coming Soon</h2>
+    <p>This feature is under development.</p>
+    <button class="btn" onclick="closeModal()">Close</button>
+  </div>
 </div>
 
 <script>
 
-/*
-  AI-STYLE GENERATOR (NO API)
-  - mixes topics + tones + intensity
-  - simulates "thinking variation"
-*/
-
-const topics = [
-  "free speech", "technology", "social media", "truth", "privacy",
-  "AI future", "power of information", "digital identity", "online influence",
-  "human behavior", "censorship", "internet freedom"
-];
-
-const actions = [
-  "argue about", "explain", "challenge beliefs about", "imagine a world with",
-  "defend", "critique", "rethink", "question deeply"
-];
-
-const tones = [
-  "in one sentence", "as a bold statement", "like a viral post",
-  "as a philosophical thought", "in a controversial way",
-  "as if you're speaking to the world"
-];
-
-const extras = [
-  "Make it powerful.",
-  "Keep it short but meaningful.",
-  "Make it thought-provoking.",
-  "Make it sound like it could go viral.",
-  "Make it extremely original.",
-  "Make it feel like a headline."
-];
-
-function pick(arr){
-  return arr[Math.floor(Math.random() * arr.length)];
+function comingSoon(){
+  document.getElementById("modal").style.display="flex";
 }
 
-// CORE AI SIMULATION
-function generateChallenge(){
-  let challenge =
-    `Your task: ${pick(actions)} ${pick(topics)} ${pick(tones)}. ${pick(extras)}`;
-
-  document.getElementById("text").innerText = challenge;
+function closeModal(){
+  document.getElementById("modal").style.display="none";
 }
-
-// auto generate on load
-generateChallenge();
-
-// auto refresh every 15 seconds (feels alive)
-setInterval(generateChallenge, 15000);
 
 </script>
 
