@@ -1,156 +1,215 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SautiLink - Free Speech Network</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SautiLink - Social Network</title>
 
-<!-- Google Font -->
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<!-- Font -->
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<!-- Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
 :root{
-  --bg: #0f172a;
-  --card: rgba(255,255,255,0.08);
-  --text: #ffffff;
-  --accent: #00e5ff;
-}
-
-body.light{
-  --bg: #f5f7fb;
-  --card: rgba(0,0,0,0.06);
-  --text: #111;
-  --accent: #0077ff;
+  --bg:#0b0f1a;
+  --card:rgba(255,255,255,0.06);
+  --text:#fff;
+  --red:#ff2d2d;
+  --blue:#2d6bff;
 }
 
 *{
   margin:0;
   padding:0;
   box-sizing:border-box;
-  font-family:'Poppins', sans-serif;
+  font-family:'Bricolage Grotesque', sans-serif;
 }
 
 body{
-  background: var(--bg);
-  color: var(--text);
-  transition:0.3s;
-  min-height:100vh;
+  background:var(--bg);
+  color:var(--text);
   overflow-x:hidden;
 }
 
-/* Background Image + Blur Layer */
+/* Background */
 .bg{
   position:fixed;
-  top:0;left:0;
-  width:100%;
-  height:100%;
+  inset:0;
   background:url('https://images.unsplash.com/photo-1520607162513-77705c0f0d4a') center/cover no-repeat;
-  filter: blur(12px) brightness(0.5);
+  filter:blur(18px) brightness(0.35);
   z-index:-1;
 }
 
-/* Glass Container */
+/* Layout */
 .container{
-  max-width:1100px;
+  max-width:950px;
   margin:auto;
-  padding:40px 20px;
+  padding:20px;
 }
 
-/* Navbar */
-nav{
+/* Top Bar */
+.topbar{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  padding:15px 25px;
+  padding:15px;
+  border-radius:14px;
   background:var(--card);
-  backdrop-filter: blur(15px);
-  border-radius:12px;
+  backdrop-filter:blur(15px);
 }
 
 .logo{
-  font-size:22px;
+  display:flex;
+  align-items:center;
+  gap:10px;
   font-weight:700;
-  color:var(--accent);
+  font-size:20px;
+  color:var(--blue);
 }
 
-.toggle{
-  cursor:pointer;
+.logo img{
+  width:35px;
+  height:35px;
+}
+
+/* Buttons */
+.btn{
   padding:8px 12px;
+  border:none;
   border-radius:8px;
-  background:var(--accent);
-  color:#000;
+  cursor:pointer;
   font-weight:600;
+  background:linear-gradient(45deg,var(--red),var(--blue));
+  color:#fff;
 }
 
-/* Hero */
-.hero{
-  text-align:center;
-  margin-top:60px;
+/* Post Box */
+.post-box{
+  margin-top:20px;
+  padding:15px;
+  background:var(--card);
+  border-radius:14px;
+  backdrop-filter:blur(10px);
 }
 
-.hero h1{
-  font-size:45px;
+.post-box textarea{
+  width:100%;
+  height:90px;
+  border:none;
+  outline:none;
+  resize:none;
+  padding:10px;
+  border-radius:10px;
+  background:transparent;
+  color:#fff;
+  font-size:14px;
+}
+
+.post-box button{
+  margin-top:10px;
+}
+
+/* Feed */
+.feed{
+  margin-top:20px;
+  display:flex;
+  flex-direction:column;
+  gap:15px;
+}
+
+.post{
+  padding:15px;
+  border-radius:14px;
+  background:var(--card);
+  backdrop-filter:blur(10px);
+  animation:fade 0.3s ease;
+}
+
+.user{
+  color:var(--blue);
   font-weight:700;
 }
 
-.hero p{
+.post p{
+  margin-top:8px;
+  font-size:14px;
+}
+
+.actions{
   margin-top:10px;
+  display:flex;
+  gap:15px;
+}
+
+.action{
+  cursor:pointer;
   opacity:0.8;
 }
 
-/* Social Icons */
-.socials{
-  display:flex;
-  flex-wrap:wrap;
-  justify-content:center;
-  gap:15px;
-  margin-top:40px;
+.action:hover{
+  opacity:1;
+  color:var(--red);
 }
 
-.socials a{
-  text-decoration:none;
-  padding:12px 18px;
+/* Social Bar */
+.social-bar{
+  margin-top:40px;
+  display:flex;
+  justify-content:center;
+  gap:20px;
+  flex-wrap:wrap;
+}
+
+.social-bar a{
+  font-size:22px;
+  color:#fff;
+  padding:10px;
   border-radius:10px;
   background:var(--card);
-  backdrop-filter: blur(10px);
-  color:var(--text);
+  backdrop-filter:blur(10px);
   transition:0.3s;
-  font-weight:500;
 }
 
-.socials a:hover{
-  transform:scale(1.08);
-  background:var(--accent);
-  color:#000;
-}
-
-/* Donate */
-.donate{
-  margin-top:50px;
-  text-align:center;
-  padding:20px;
-  background:var(--card);
-  border-radius:12px;
-  backdrop-filter: blur(10px);
-}
-
-.donate h2{
-  margin-bottom:10px;
-}
-
-.donate code{
-  background:rgba(0,0,0,0.2);
-  padding:8px 12px;
-  border-radius:8px;
-  display:inline-block;
-  margin-top:10px;
+.social-bar a:hover{
+  transform:scale(1.2);
+  color:var(--blue);
 }
 
 /* Footer */
 footer{
+  margin-top:40px;
   text-align:center;
-  margin-top:60px;
   opacity:0.6;
+  font-size:13px;
+}
+
+/* Modal */
+.modal{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,0.7);
+}
+
+.modal-content{
+  background:rgba(255,255,255,0.08);
+  padding:25px;
+  border-radius:14px;
+  backdrop-filter:blur(10px);
+  text-align:center;
+}
+
+.modal-content h2{
+  color:var(--red);
+}
+
+@keyframes fade{
+  from{opacity:0;transform:translateY(10px);}
+  to{opacity:1;transform:translateY(0);}
 }
 </style>
 </head>
@@ -161,47 +220,97 @@ footer{
 
 <div class="container">
 
-<!-- NAV -->
-<nav>
-  <div class="logo">⚡ SautiLink</div>
-  <div class="toggle" onclick="toggleMode()">Dark/Light</div>
-</nav>
-
-<!-- HERO -->
-<section class="hero">
-  <h1>Free Speech. No Limits. No Fear.</h1>
-  <p>A modern decentralized social platform for voices that matter.</p>
-</section>
-
-<!-- SOCIAL LINKS -->
-<div class="socials">
-  <a href="#">Instagram</a>
-  <a href="#">X (Twitter)</a>
-  <a href="#">TikTok</a>
-  <a href="#">Facebook</a>
-  <a href="#">LinkedIn</a>
-  <a href="#">WhatsApp</a>
-  <a href="#">Threads</a>
-  <a href="#">YouTube</a>
+<!-- TOP -->
+<div class="topbar">
+  <div class="logo">
+    <img src="https://raw.githubusercontent.com/sautilink/assets/main/logo.svg" alt="logo">
+    SautiLink
+  </div>
+  <button class="btn" onclick="showModal()">Explore</button>
 </div>
 
-<!-- DONATE -->
-<div class="donate">
-  <h2>Support SautiLink ❤️</h2>
-  <p>If you believe in free speech, support development:</p>
-  <code>paypal: donate@sautilink.com</code>
+<!-- POST -->
+<div class="post-box">
+  <textarea id="postInput" placeholder="Share something on SautiLink..."></textarea>
+  <button class="btn" onclick="createPost()">Post</button>
+</div>
+
+<!-- FEED -->
+<div class="feed" id="feed">
+  <div class="post">
+    <div class="user">@sautilink</div>
+    <p>Welcome to SautiLink — a free speech social network.</p>
+    <div class="actions">
+      <div class="action" onclick="react()">❤️ Like</div>
+      <div class="action" onclick="showModal()">💬 Comment</div>
+      <div class="action" onclick="showModal()">🔁 Share</div>
+    </div>
+  </div>
+</div>
+
+<!-- SOCIAL -->
+<div class="social-bar">
+  <a href="https://facebook.com/sautilink" target="_blank"><i class="fab fa-facebook"></i></a>
+  <a href="https://twitter.com/sautilink" target="_blank"><i class="fab fa-x-twitter"></i></a>
+  <a href="https://instagram.com/sautilink" target="_blank"><i class="fab fa-instagram"></i></a>
+  <a href="https://youtube.com/@sautilink" target="_blank"><i class="fab fa-youtube"></i></a>
+  <a href="https://linkedin.com/company/sautilink" target="_blank"><i class="fab fa-linkedin"></i></a>
+  <a href="https://tiktok.com/@sautilink" target="_blank"><i class="fab fa-tiktok"></i></a>
+  <a href="mailto:info@sautilink.com"><i class="fas fa-envelope"></i></a>
 </div>
 
 <footer>
-  © 2026 SautiLink. Built for free voices.
+© 2026 SautiLink Corporation. All rights reserved.
 </footer>
 
 </div>
 
+<!-- MODAL -->
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h2>Coming Soon</h2>
+    <p>This feature will be available shortly on SautiLink.</p>
+    <button class="btn" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
 <script>
-function toggleMode(){
-  document.body.classList.toggle("light");
+
+function createPost(){
+  let input = document.getElementById("postInput");
+  if(!input.value.trim()) return;
+
+  let feed = document.getElementById("feed");
+
+  let post = document.createElement("div");
+  post.className = "post";
+
+  post.innerHTML = `
+    <div class="user">@you</div>
+    <p>${input.value}</p>
+    <div class="actions">
+      <div class="action" onclick="react()">❤️ Like</div>
+      <div class="action" onclick="showModal()">💬 Comment</div>
+      <div class="action" onclick="showModal()">🔁 Share</div>
+    </div>
+  `;
+
+  feed.prepend(post);
+  input.value = "";
 }
+
+function react(){
+  alert("Reacted ❤️");
+}
+
+function showModal(){
+  document.getElementById("modal").style.display="flex";
+}
+
+function closeModal(){
+  document.getElementById("modal").style.display="none";
+}
+
 </script>
 
 </body>
