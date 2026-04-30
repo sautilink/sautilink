@@ -3,19 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SautiLink - Free Speech Network</title>
+<title>SautiLink - Coming Soon</title>
 
-<!-- Font -->
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@300;400;600;700&display=swap" rel="stylesheet">
-
-<!-- Icons -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
 :root{
   --bg:#0b0f1a;
   --card:rgba(255,255,255,0.06);
-  --text:#ffffff;
+  --text:#fff;
   --red:#ff2d2d;
   --blue:#2d6bff;
 }
@@ -43,154 +39,83 @@ body{
 
 /* Container */
 .container{
-  max-width:950px;
+  max-width:850px;
   margin:auto;
-  padding:20px;
+  padding:40px 20px;
+  text-align:center;
 }
 
-/* Topbar */
-.topbar{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:15px;
-  background:var(--card);
-  border-radius:14px;
-  backdrop-filter:blur(15px);
-}
-
+/* Logo */
 .logo{
   display:flex;
+  justify-content:center;
   align-items:center;
-  gap:10px;
-  font-size:20px;
+  gap:12px;
+  font-size:28px;
   font-weight:700;
   color:var(--blue);
 }
 
 .logo img{
-  width:38px;
-  height:38px;
+  width:45px;
+}
+
+/* Card */
+.card{
+  margin-top:30px;
+  padding:25px;
+  background:var(--card);
+  border-radius:16px;
+  backdrop-filter:blur(12px);
+}
+
+/* Main message */
+h1{
+  font-size:32px;
+  margin-bottom:10px;
+}
+
+p{
+  opacity:0.8;
+  line-height:1.6;
 }
 
 /* Button */
 .btn{
-  padding:8px 14px;
+  margin-top:20px;
+  padding:10px 16px;
   border:none;
-  border-radius:8px;
+  border-radius:10px;
   cursor:pointer;
   font-weight:600;
   color:white;
   background:linear-gradient(45deg,var(--red),var(--blue));
 }
 
-/* Post box */
-.post-box{
-  margin-top:20px;
-  padding:15px;
+/* Challenge box */
+.challenge{
+  margin-top:30px;
+  padding:20px;
   background:var(--card);
-  border-radius:14px;
+  border-radius:16px;
   backdrop-filter:blur(10px);
 }
 
-textarea{
-  width:100%;
-  height:90px;
-  border:none;
-  outline:none;
-  background:transparent;
-  color:white;
-  resize:none;
-  padding:10px;
+.challenge h3{
+  margin-bottom:10px;
+  color:var(--blue);
+}
+
+.challenge p{
   font-size:14px;
-}
-
-.feed{
-  margin-top:20px;
-  display:flex;
-  flex-direction:column;
-  gap:15px;
-}
-
-.post{
-  padding:15px;
-  background:var(--card);
-  border-radius:14px;
-  backdrop-filter:blur(10px);
-}
-
-.user{
-  color:var(--blue);
-  font-weight:700;
-}
-
-.actions{
-  margin-top:10px;
-  display:flex;
-  gap:15px;
-}
-
-.action{
-  cursor:pointer;
-  opacity:0.8;
-}
-
-.action:hover{
-  color:var(--red);
-  opacity:1;
-}
-
-/* Social */
-.social{
-  margin-top:40px;
-  display:flex;
-  justify-content:center;
-  flex-wrap:wrap;
-  gap:15px;
-}
-
-.social a{
-  font-size:22px;
-  padding:10px;
-  border-radius:10px;
-  background:var(--card);
-  color:white;
-  transition:0.3s;
-}
-
-.social a:hover{
-  transform:scale(1.2);
-  color:var(--blue);
+  opacity:0.9;
 }
 
 /* Footer */
 footer{
-  margin-top:40px;
-  text-align:center;
-  opacity:0.6;
+  margin-top:50px;
   font-size:13px;
-}
-
-/* Modal */
-.modal{
-  position:fixed;
-  inset:0;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  background:rgba(0,0,0,0.7);
-}
-
-.modal-box{
-  padding:25px;
-  border-radius:14px;
-  background:rgba(255,255,255,0.08);
-  backdrop-filter:blur(10px);
-  text-align:center;
-}
-
-.modal-box h2{
-  color:var(--red);
+  opacity:0.6;
 }
 </style>
 </head>
@@ -201,43 +126,27 @@ footer{
 
 <div class="container">
 
-<!-- TOP -->
-<div class="topbar">
-  <div class="logo">
-    <img src="/assets/logo.svg" alt="SautiLink Logo">
-    SautiLink
-  </div>
-  <button class="btn" onclick="openModal()">Explore</button>
+<!-- LOGO -->
+<div class="logo">
+  <img src="/assets/logo.svg" alt="logo">
+  SautiLink
 </div>
 
-<!-- POST -->
-<div class="post-box">
-  <textarea id="postInput" placeholder="Share your thoughts on SautiLink..."></textarea>
-  <button class="btn" onclick="addPost()">Post</button>
+<!-- MAIN MESSAGE -->
+<div class="card">
+  <h1>Service Under Development</h1>
+  <p>
+    SautiLink is currently being built into a next-generation free speech platform.
+    We are working hard to bring you a powerful, interactive social experience.
+  </p>
+
+  <button class="btn" onclick="refreshChallenge()">Refresh Experience</button>
 </div>
 
-<!-- FEED -->
-<div class="feed" id="feed">
-  <div class="post">
-    <div class="user">@sautilink</div>
-    <p>Welcome to SautiLink — free speech social network prototype.</p>
-    <div class="actions">
-      <div class="action" onclick="like()">❤️ Like</div>
-      <div class="action" onclick="openModal()">💬 Comment</div>
-      <div class="action" onclick="openModal()">🔁 Share</div>
-    </div>
-  </div>
-</div>
-
-<!-- SOCIAL -->
-<div class="social">
-  <a href="https://facebook.com/sautilink" target="_blank"><i class="fab fa-facebook"></i></a>
-  <a href="https://twitter.com/sautilink" target="_blank"><i class="fab fa-x-twitter"></i></a>
-  <a href="https://instagram.com/sautilink" target="_blank"><i class="fab fa-instagram"></i></a>
-  <a href="https://youtube.com/@sautilink" target="_blank"><i class="fab fa-youtube"></i></a>
-  <a href="https://linkedin.com/company/sautilink" target="_blank"><i class="fab fa-linkedin"></i></a>
-  <a href="https://tiktok.com/@sautilink" target="_blank"><i class="fab fa-tiktok"></i></a>
-  <a href="mailto:info@sautilink.com"><i class="fas fa-envelope"></i></a>
+<!-- CHALLENGE -->
+<div class="challenge">
+  <h3>Try This While You Wait</h3>
+  <p id="challengeText">Loading challenge...</p>
 </div>
 
 <footer>
@@ -246,51 +155,33 @@ footer{
 
 </div>
 
-<!-- MODAL -->
-<div class="modal" id="modal">
-  <div class="modal-box">
-    <h2>Coming Soon</h2>
-    <p>This feature will be available shortly.</p>
-    <button class="btn" onclick="closeModal()">Close</button>
-  </div>
-</div>
-
 <script>
 
-function addPost(){
-  let input = document.getElementById("postInput");
-  if(!input.value.trim()) return;
+// Dynamic challenges (NO DATABASE - refresh = new experience)
+const challenges = [
+  "Think of one idea you would post if this platform was live right now.",
+  "Write a one-line opinion about free speech.",
+  "If you could ask AI anything, what would it be?",
+  "Imagine a post that could go viral — what would it say?",
+  "Describe your dream social network in one sentence.",
+  "What is one problem social media should fix today?",
+  "Write a powerful statement about truth and information.",
+  "If you had 10 seconds of global attention, what would you say?"
+];
 
-  let feed = document.getElementById("feed");
-
-  let post = document.createElement("div");
-  post.className = "post";
-
-  post.innerHTML = `
-    <div class="user">@you</div>
-    <p>${input.value}</p>
-    <div class="actions">
-      <div class="action">❤️ Like</div>
-      <div class="action" onclick="openModal()">💬 Comment</div>
-      <div class="action" onclick="openModal()">🔁 Share</div>
-    </div>
-  `;
-
-  feed.prepend(post);
-  input.value = "";
+// show random challenge
+function loadChallenge(){
+  let random = Math.floor(Math.random() * challenges.length);
+  document.getElementById("challengeText").innerText = challenges[random];
 }
 
-function like(){
-  alert("Liked ❤️");
+// refresh button
+function refreshChallenge(){
+  loadChallenge();
 }
 
-function openModal(){
-  document.getElementById("modal").style.display="flex";
-}
-
-function closeModal(){
-  document.getElementById("modal").style.display="none";
-}
+// auto load on refresh
+loadChallenge();
 
 </script>
 
