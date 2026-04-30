@@ -1,188 +1,208 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SautiLink — Coming Soon</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SautiLink - Free Speech Network</title>
 
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;700;800&display=swap" rel="stylesheet">
+<!-- Google Font -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-  <style>
-    * { box-sizing: border-box; }
+<style>
+:root{
+  --bg: #0f172a;
+  --card: rgba(255,255,255,0.08);
+  --text: #ffffff;
+  --accent: #00e5ff;
+}
 
-    body {
-      margin: 0;
-      font-family: 'Bricolage Grotesque', sans-serif;
-      background: linear-gradient(135deg, #ffffff, #f0f4ff, #fff8e6);
-      color: #111;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
+body.light{
+  --bg: #f5f7fb;
+  --card: rgba(0,0,0,0.06);
+  --text: #111;
+  --accent: #0077ff;
+}
 
-    header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 20px 8%;
-    }
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  font-family:'Poppins', sans-serif;
+}
 
-    header img {
-      height: 42px;
-    }
+body{
+  background: var(--bg);
+  color: var(--text);
+  transition:0.3s;
+  min-height:100vh;
+  overflow-x:hidden;
+}
 
-    .brand {
-      font-size: 1.6rem;
-      font-weight: 800;
-      color: #e11d48;
-    }
+/* Background Image + Blur Layer */
+.bg{
+  position:fixed;
+  top:0;left:0;
+  width:100%;
+  height:100%;
+  background:url('https://images.unsplash.com/photo-1520607162513-77705c0f0d4a') center/cover no-repeat;
+  filter: blur(12px) brightness(0.5);
+  z-index:-1;
+}
 
-    main {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 40px 20px;
-      text-align: center;
-    }
+/* Glass Container */
+.container{
+  max-width:1100px;
+  margin:auto;
+  padding:40px 20px;
+}
 
-    .card {
-      background: white;
-      padding: 50px 30px;
-      border-radius: 20px;
-      max-width: 600px;
-      width: 100%;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-    }
+/* Navbar */
+nav{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:15px 25px;
+  background:var(--card);
+  backdrop-filter: blur(15px);
+  border-radius:12px;
+}
 
-    h1 {
-      font-size: 2.5rem;
-      margin-bottom: 10px;
-    }
+.logo{
+  font-size:22px;
+  font-weight:700;
+  color:var(--accent);
+}
 
-    .highlight-red { color: #e11d48; }
-    .highlight-blue { color: #2563eb; }
+.toggle{
+  cursor:pointer;
+  padding:8px 12px;
+  border-radius:8px;
+  background:var(--accent);
+  color:#000;
+  font-weight:600;
+}
 
-    p {
-      color: #444;
-      line-height: 1.6;
-      margin-bottom: 25px;
-    }
+/* Hero */
+.hero{
+  text-align:center;
+  margin-top:60px;
+}
 
-    form {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
+.hero h1{
+  font-size:45px;
+  font-weight:700;
+}
 
-    input {
-      padding: 14px;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-      font-size: 1rem;
-    }
+.hero p{
+  margin-top:10px;
+  opacity:0.8;
+}
 
-    button {
-      padding: 14px;
-      border: none;
-      border-radius: 10px;
-      background: linear-gradient(90deg, #2563eb, #e11d48);
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-    }
+/* Social Icons */
+.socials{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:15px;
+  margin-top:40px;
+}
 
-    button:hover {
-      opacity: 0.9;
-    }
+.socials a{
+  text-decoration:none;
+  padding:12px 18px;
+  border-radius:10px;
+  background:var(--card);
+  backdrop-filter: blur(10px);
+  color:var(--text);
+  transition:0.3s;
+  font-weight:500;
+}
 
-    .privacy {
-      margin-top: 10px;
-      font-size: 0.9rem;
-      color: #666;
-    }
+.socials a:hover{
+  transform:scale(1.08);
+  background:var(--accent);
+  color:#000;
+}
 
-    #success {
-      display: none;
-      margin-top: 15px;
-      color: #2563eb;
-      font-weight: bold;
-    }
+/* Donate */
+.donate{
+  margin-top:50px;
+  text-align:center;
+  padding:20px;
+  background:var(--card);
+  border-radius:12px;
+  backdrop-filter: blur(10px);
+}
 
-    footer {
-      text-align: center;
-      padding: 20px;
-      font-size: 0.9rem;
-      color: #666;
-    }
+.donate h2{
+  margin-bottom:10px;
+}
 
-    .links {
-      margin-bottom: 10px;
-    }
+.donate code{
+  background:rgba(0,0,0,0.2);
+  padding:8px 12px;
+  border-radius:8px;
+  display:inline-block;
+  margin-top:10px;
+}
 
-    .links a {
-      margin: 0 10px;
-      text-decoration: none;
-      color: #444;
-      font-weight: 600;
-    }
-
-    .links a:hover {
-      color: #2563eb;
-    }
-  </style>
+/* Footer */
+footer{
+  text-align:center;
+  margin-top:60px;
+  opacity:0.6;
+}
+</style>
 </head>
 
 <body>
 
-  <header>
-    <img src="assets/logo.svg" alt="SautiLink Logo">
-    <div class="brand">SautiLink</div>
-  </header>
+<div class="bg"></div>
 
-  <main>
-    <div class="card">
-      <h1>
-        <span class="highlight-red">Sauti</span><span class="highlight-blue">Link</span>
-      </h1>
+<div class="container">
 
-      <p>
-        A privacy-first social network is coming soon.<br>
-        Join the early waitlist and be among the first to experience it.
-      </p>
+<!-- NAV -->
+<nav>
+  <div class="logo">⚡ SautiLink</div>
+  <div class="toggle" onclick="toggleMode()">Dark/Light</div>
+</nav>
 
-      <form action="https://formspree.io/f/mqegqrya" method="POST">
-        <input type="email" name="email" placeholder="Enter your email" required>
-        <input type="text" name="username" placeholder="Choose a username" required>
-        <button type="submit">Join Waitlist</button>
-      </form>
+<!-- HERO -->
+<section class="hero">
+  <h1>Free Speech. No Limits. No Fear.</h1>
+  <p>A modern decentralized social platform for voices that matter.</p>
+</section>
 
-      <div id="success">🚀 You're on the SautiLink early access list.</div>
+<!-- SOCIAL LINKS -->
+<div class="socials">
+  <a href="#">Instagram</a>
+  <a href="#">X (Twitter)</a>
+  <a href="#">TikTok</a>
+  <a href="#">Facebook</a>
+  <a href="#">LinkedIn</a>
+  <a href="#">WhatsApp</a>
+  <a href="#">Threads</a>
+  <a href="#">YouTube</a>
+</div>
 
-      <div class="privacy">
-        We respect your privacy. No spam. Ever.
-      </div>
-    </div>
-  </main>
+<!-- DONATE -->
+<div class="donate">
+  <h2>Support SautiLink ❤️</h2>
+  <p>If you believe in free speech, support development:</p>
+  <code>paypal: donate@sautilink.com</code>
+</div>
 
-  <footer>
-    <div class="links">
-      <a href="#">Terms</a>
-      <a href="#">Privacy</a>
-      <a href="#">Contact</a>
-      <a href="#">About</a>
-    </div>
-    © 2026 - SautiLink Corporation
-  </footer>
+<footer>
+  © 2026 SautiLink. Built for free voices.
+</footer>
 
-  <script>
-    const form = document.querySelector("form");
-    const success = document.getElementById("success");
+</div>
 
-    form.addEventListener("submit", () => {
-      success.style.display = "block";
-    });
-  </script>
+<script>
+function toggleMode(){
+  document.body.classList.toggle("light");
+}
+</script>
 
 </body>
 </html>
