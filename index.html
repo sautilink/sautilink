@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SautiLink - Social Network</title>
+<title>SautiLink - Free Speech Network</title>
 
 <!-- Font -->
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -15,7 +15,7 @@
 :root{
   --bg:#0b0f1a;
   --card:rgba(255,255,255,0.06);
-  --text:#fff;
+  --text:#ffffff;
   --red:#ff2d2d;
   --blue:#2d6bff;
 }
@@ -30,7 +30,6 @@
 body{
   background:var(--bg);
   color:var(--text);
-  overflow-x:hidden;
 }
 
 /* Background */
@@ -42,21 +41,21 @@ body{
   z-index:-1;
 }
 
-/* Layout */
+/* Container */
 .container{
   max-width:950px;
   margin:auto;
   padding:20px;
 }
 
-/* Top Bar */
+/* Topbar */
 .topbar{
   display:flex;
   justify-content:space-between;
   align-items:center;
   padding:15px;
-  border-radius:14px;
   background:var(--card);
+  border-radius:14px;
   backdrop-filter:blur(15px);
 }
 
@@ -64,28 +63,28 @@ body{
   display:flex;
   align-items:center;
   gap:10px;
-  font-weight:700;
   font-size:20px;
+  font-weight:700;
   color:var(--blue);
 }
 
 .logo img{
-  width:35px;
-  height:35px;
+  width:38px;
+  height:38px;
 }
 
-/* Buttons */
+/* Button */
 .btn{
-  padding:8px 12px;
+  padding:8px 14px;
   border:none;
   border-radius:8px;
   cursor:pointer;
   font-weight:600;
+  color:white;
   background:linear-gradient(45deg,var(--red),var(--blue));
-  color:#fff;
 }
 
-/* Post Box */
+/* Post box */
 .post-box{
   margin-top:20px;
   padding:15px;
@@ -94,24 +93,18 @@ body{
   backdrop-filter:blur(10px);
 }
 
-.post-box textarea{
+textarea{
   width:100%;
   height:90px;
   border:none;
   outline:none;
+  background:transparent;
+  color:white;
   resize:none;
   padding:10px;
-  border-radius:10px;
-  background:transparent;
-  color:#fff;
   font-size:14px;
 }
 
-.post-box button{
-  margin-top:10px;
-}
-
-/* Feed */
 .feed{
   margin-top:20px;
   display:flex;
@@ -121,20 +114,14 @@ body{
 
 .post{
   padding:15px;
-  border-radius:14px;
   background:var(--card);
+  border-radius:14px;
   backdrop-filter:blur(10px);
-  animation:fade 0.3s ease;
 }
 
 .user{
   color:var(--blue);
   font-weight:700;
-}
-
-.post p{
-  margin-top:8px;
-  font-size:14px;
 }
 
 .actions{
@@ -149,30 +136,29 @@ body{
 }
 
 .action:hover{
-  opacity:1;
   color:var(--red);
+  opacity:1;
 }
 
-/* Social Bar */
-.social-bar{
+/* Social */
+.social{
   margin-top:40px;
   display:flex;
   justify-content:center;
-  gap:20px;
   flex-wrap:wrap;
+  gap:15px;
 }
 
-.social-bar a{
+.social a{
   font-size:22px;
-  color:#fff;
   padding:10px;
   border-radius:10px;
   background:var(--card);
-  backdrop-filter:blur(10px);
+  color:white;
   transition:0.3s;
 }
 
-.social-bar a:hover{
+.social a:hover{
   transform:scale(1.2);
   color:var(--blue);
 }
@@ -195,21 +181,16 @@ footer{
   background:rgba(0,0,0,0.7);
 }
 
-.modal-content{
-  background:rgba(255,255,255,0.08);
+.modal-box{
   padding:25px;
   border-radius:14px;
+  background:rgba(255,255,255,0.08);
   backdrop-filter:blur(10px);
   text-align:center;
 }
 
-.modal-content h2{
+.modal-box h2{
   color:var(--red);
-}
-
-@keyframes fade{
-  from{opacity:0;transform:translateY(10px);}
-  to{opacity:1;transform:translateY(0);}
 }
 </style>
 </head>
@@ -223,33 +204,33 @@ footer{
 <!-- TOP -->
 <div class="topbar">
   <div class="logo">
-    <img src="https://raw.githubusercontent.com/sautilink/assets/main/logo.svg" alt="logo">
+    <img src="/assets/logo.svg" alt="SautiLink Logo">
     SautiLink
   </div>
-  <button class="btn" onclick="showModal()">Explore</button>
+  <button class="btn" onclick="openModal()">Explore</button>
 </div>
 
 <!-- POST -->
 <div class="post-box">
-  <textarea id="postInput" placeholder="Share something on SautiLink..."></textarea>
-  <button class="btn" onclick="createPost()">Post</button>
+  <textarea id="postInput" placeholder="Share your thoughts on SautiLink..."></textarea>
+  <button class="btn" onclick="addPost()">Post</button>
 </div>
 
 <!-- FEED -->
 <div class="feed" id="feed">
   <div class="post">
     <div class="user">@sautilink</div>
-    <p>Welcome to SautiLink — a free speech social network.</p>
+    <p>Welcome to SautiLink — free speech social network prototype.</p>
     <div class="actions">
-      <div class="action" onclick="react()">❤️ Like</div>
-      <div class="action" onclick="showModal()">💬 Comment</div>
-      <div class="action" onclick="showModal()">🔁 Share</div>
+      <div class="action" onclick="like()">❤️ Like</div>
+      <div class="action" onclick="openModal()">💬 Comment</div>
+      <div class="action" onclick="openModal()">🔁 Share</div>
     </div>
   </div>
 </div>
 
 <!-- SOCIAL -->
-<div class="social-bar">
+<div class="social">
   <a href="https://facebook.com/sautilink" target="_blank"><i class="fab fa-facebook"></i></a>
   <a href="https://twitter.com/sautilink" target="_blank"><i class="fab fa-x-twitter"></i></a>
   <a href="https://instagram.com/sautilink" target="_blank"><i class="fab fa-instagram"></i></a>
@@ -267,16 +248,16 @@ footer{
 
 <!-- MODAL -->
 <div class="modal" id="modal">
-  <div class="modal-content">
+  <div class="modal-box">
     <h2>Coming Soon</h2>
-    <p>This feature will be available shortly on SautiLink.</p>
+    <p>This feature will be available shortly.</p>
     <button class="btn" onclick="closeModal()">Close</button>
   </div>
 </div>
 
 <script>
 
-function createPost(){
+function addPost(){
   let input = document.getElementById("postInput");
   if(!input.value.trim()) return;
 
@@ -289,9 +270,9 @@ function createPost(){
     <div class="user">@you</div>
     <p>${input.value}</p>
     <div class="actions">
-      <div class="action" onclick="react()">❤️ Like</div>
-      <div class="action" onclick="showModal()">💬 Comment</div>
-      <div class="action" onclick="showModal()">🔁 Share</div>
+      <div class="action">❤️ Like</div>
+      <div class="action" onclick="openModal()">💬 Comment</div>
+      <div class="action" onclick="openModal()">🔁 Share</div>
     </div>
   `;
 
@@ -299,11 +280,11 @@ function createPost(){
   input.value = "";
 }
 
-function react(){
-  alert("Reacted ❤️");
+function like(){
+  alert("Liked ❤️");
 }
 
-function showModal(){
+function openModal(){
   document.getElementById("modal").style.display="flex";
 }
 
