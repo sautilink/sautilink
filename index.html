@@ -1,91 +1,100 @@
 <!DOCTYPE html>
-<html lang="sw" class="dark">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SautiLink - Ungana na Sauti Yako</title>
+  <title>SautiLink - Connect Your Voice</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     body { font-family: 'Inter', system-ui, sans-serif; }
-    .feed-item { transition: all 0.2s ease; }
-    .feed-item:hover { background-color: #1a1a1a; }
-    .sidebar-icon { transition: all 0.2s; }
-    .nav-link:hover .sidebar-icon { transform: scale(1.1); }
+    .logo-font { font-family: 'Bricolage Grotesque', sans-serif; }
+    .feed-item { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+    .feed-item:hover { background-color: #1a1a1a; transform: translateX(4px); }
+    .nav-link { transition: all 0.2s; }
+    .nav-link:hover { background-color: #27272a; border-radius: 9999px; }
   </style>
 </head>
 <body class="bg-black text-white min-h-screen">
 
   <div class="flex max-w-7xl mx-auto h-screen overflow-hidden">
 
-    <!-- Sidebar Left -->
-    <div class="w-20 md:w-64 border-r border-gray-800 flex flex-col">
-      <div class="p-4">
-        <!-- Logo -->
-        <img src="https://raw.githubusercontent.com/sautilink/sautilink/refs/heads/main/assets/logo.svg" 
-             alt="SautiLink Logo" class="h-10 w-auto mx-auto md:mx-0"/>
+    <!-- Left Sidebar -->
+    <div class="w-20 md:w-72 border-r border-zinc-800 flex flex-col">
+      <div class="p-5">
+        <div onclick="window.location.reload()" class="cursor-pointer">
+          <span class="logo-font text-4xl font-semibold tracking-tighter">
+            <span class="text-red-600">Sauti</span><span class="text-blue-500">Link</span>
+          </span>
+        </div>
       </div>
 
-      <nav class="flex-1 px-3 space-y-2">
-        <a href="#" onclick="navigateTo('home')" class="nav-link flex items-center gap-4 px-4 py-3 rounded-3xl hover:bg-gray-900 text-xl font-medium">
-          <i class="fa-solid fa-house sidebar-icon"></i>
-          <span class="hidden md:block">Nyumbani</span>
+      <nav class="flex-1 px-3 space-y-1">
+        <a href="#" onclick="navigateTo('home')" class="nav-link flex items-center gap-5 px-6 py-4 text-xl font-medium">
+          <i class="fa-solid fa-house w-6"></i>
+          <span class="hidden md:block">Home</span>
         </a>
-        <a href="#" onclick="navigateTo('explore')" class="nav-link flex items-center gap-4 px-4 py-3 rounded-3xl hover:bg-gray-900 text-xl font-medium">
-          <i class="fa-solid fa-magnifying-glass sidebar-icon"></i>
-          <span class="hidden md:block">Gundua</span>
+        <a href="#" onclick="navigateTo('explore')" class="nav-link flex items-center gap-5 px-6 py-4 text-xl font-medium">
+          <i class="fa-solid fa-magnifying-glass w-6"></i>
+          <span class="hidden md:block">Explore</span>
         </a>
-        <a href="#" onclick="navigateTo('notifications')" class="nav-link flex items-center gap-4 px-4 py-3 rounded-3xl hover:bg-gray-900 text-xl font-medium">
-          <i class="fa-solid fa-bell sidebar-icon"></i>
-          <span class="hidden md:block">Arifa</span>
+        <a href="#" onclick="navigateTo('notifications')" class="nav-link flex items-center gap-5 px-6 py-4 text-xl font-medium">
+          <i class="fa-solid fa-bell w-6"></i>
+          <span class="hidden md:block">Notifications</span>
         </a>
-        <a href="#" onclick="navigateTo('messages')" class="nav-link flex items-center gap-4 px-4 py-3 rounded-3xl hover:bg-gray-900 text-xl font-medium">
-          <i class="fa-solid fa-envelope sidebar-icon"></i>
-          <span class="hidden md:block">Ujumbe</span>
+        <a href="#" onclick="navigateTo('messages')" class="nav-link flex items-center gap-5 px-6 py-4 text-xl font-medium">
+          <i class="fa-solid fa-envelope w-6"></i>
+          <span class="hidden md:block">Messages</span>
         </a>
-        <a href="#" onclick="navigateTo('profile')" class="nav-link flex items-center gap-4 px-4 py-3 rounded-3xl hover:bg-gray-900 text-xl font-medium">
-          <i class="fa-solid fa-user sidebar-icon"></i>
-          <span class="hidden md:block">Wasifu</span>
+        <a href="#" onclick="navigateTo('profile')" class="nav-link flex items-center gap-5 px-6 py-4 text-xl font-medium">
+          <i class="fa-solid fa-user w-6"></i>
+          <span class="hidden md:block">Profile</span>
         </a>
       </nav>
 
-      <div class="p-4">
+      <div class="p-5">
         <button onclick="createPost()" 
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-3xl text-lg transition">
-          <span class="hidden md:block">Tengeneza Post</span>
-          <i class="fa-solid fa-feather-pointed md:hidden"></i>
+                class="w-full bg-blue-600 hover:bg-blue-700 font-bold py-4 rounded-3xl text-lg transition-all active:scale-95">
+          Create Post
+        </button>
+      </div>
+
+      <!-- Login / Sign Up -->
+      <div class="px-5 pb-6 flex gap-3">
+        <button onclick="showAuth('login')" 
+                class="flex-1 border border-zinc-700 hover:border-zinc-400 py-3 rounded-3xl font-semibold transition">
+          Log in
+        </button>
+        <button onclick="showAuth('signup')" 
+                class="flex-1 bg-white text-black hover:bg-gray-200 py-3 rounded-3xl font-semibold transition">
+          Sign up
         </button>
       </div>
     </div>
 
-    <!-- Main Feed -->
-    <div class="flex-1 flex flex-col border-r border-gray-800 max-w-2xl">
-      <!-- Header -->
-      <div class="border-b border-gray-800 p-4 flex items-center justify-between sticky top-0 bg-black/80 backdrop-blur-md z-50">
-        <h1 class="text-2xl font-bold">SautiLink</h1>
-        <div class="flex items-center gap-3">
-          <button onclick="toggleTheme()" class="p-2 hover:bg-gray-900 rounded-full">
-            <i class="fa-solid fa-moon"></i>
-          </button>
-        </div>
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col border-r border-zinc-800 max-w-2xl">
+      <!-- Top Header -->
+      <div class="border-b border-zinc-800 p-4 flex items-center justify-between sticky top-0 bg-black/90 backdrop-blur-lg z-50">
+        <h1 class="text-2xl font-bold">Home</h1>
       </div>
 
-      <!-- Compose Box -->
-      <div class="border-b border-gray-800 p-4">
+      <!-- Compose Area -->
+      <div class="border-b border-zinc-800 p-5">
         <div class="flex gap-4">
-          <div class="w-10 h-10 bg-gray-700 rounded-full flex-shrink-0"></div>
+          <div class="w-11 h-11 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex-shrink-0"></div>
           <div class="flex-1">
             <textarea id="postText" rows="3" 
-                      class="w-full bg-transparent border-none focus:outline-none text-lg resize-none placeholder-gray-500" 
-                      placeholder="Una nini akilini sasa?"></textarea>
-            <div class="flex justify-between items-center pt-3 border-t border-gray-800">
-              <div class="flex gap-4 text-blue-500">
-                <i class="fa-regular fa-image cursor-pointer hover:text-blue-400"></i>
-                <i class="fa-regular fa-chart-bar cursor-pointer hover:text-blue-400"></i>
+                      class="w-full bg-transparent border-none focus:outline-none text-xl placeholder-zinc-500 resize-none" 
+                      placeholder="What’s happening?"></textarea>
+            <div class="flex justify-between items-center pt-4 border-t border-zinc-800">
+              <div class="flex gap-5 text-blue-500">
+                <i onclick="showToast()" class="fa-regular fa-image text-2xl cursor-pointer hover:text-blue-400"></i>
               </div>
               <button onclick="fakePost()" 
-                      class="bg-blue-600 hover:bg-blue-700 px-6 py-1.5 rounded-3xl font-semibold">
+                      class="bg-blue-600 hover:bg-blue-700 px-8 py-2 rounded-3xl font-bold">
                 Post
               </button>
             </div>
@@ -94,139 +103,103 @@
       </div>
 
       <!-- Feed -->
-      <div class="flex-1 overflow-y-auto" id="feed">
-        <!-- Sample posts will be added by JS -->
-      </div>
+      <div class="flex-1 overflow-y-auto" id="feed"></div>
     </div>
 
-    <!-- Right Sidebar (Trends + Who to follow) -->
-    <div class="w-80 hidden lg:block border-l border-gray-800 p-4 overflow-y-auto">
-      <div class="bg-gray-900 rounded-3xl p-4 mb-6">
-        <h2 class="font-bold text-xl mb-4">Inachuma sasa</h2>
-        <div class="space-y-4 text-sm">
-          <div class="hover:bg-gray-800 p-3 rounded-2xl cursor-pointer">
-            <p class="text-gray-500">#SautiLinkLaunch</p>
-            <p class="font-medium">Trending in Tanzania • 12.4K Posts</p>
+    <!-- Right Sidebar -->
+    <div class="w-80 hidden xl:block border-l border-zinc-800 p-5 overflow-y-auto">
+      <div class="bg-zinc-900 rounded-3xl p-5 mb-6">
+        <h2 class="font-bold text-xl mb-4">Trending now</h2>
+        <div class="space-y-5 text-sm">
+          <div class="hover:bg-zinc-800 p-3 -mx-3 rounded-2xl cursor-pointer">
+            <p class="text-blue-400">#SautiLink</p>
+            <p class="font-medium">Trending in East Africa • 24.8K posts</p>
           </div>
-          <div class="hover:bg-gray-800 p-3 rounded-2xl cursor-pointer">
-            <p class="text-gray-500">#AfrikaInovation</p>
-            <p class="font-medium">Trending • 8.9K Posts</p>
+          <div class="hover:bg-zinc-800 p-3 -mx-3 rounded-2xl cursor-pointer">
+            <p class="text-blue-400">#AfricanVoices</p>
+            <p class="font-medium">Trending • 15.3K posts</p>
           </div>
         </div>
       </div>
 
-      <div class="bg-gray-900 rounded-3xl p-4">
-        <h2 class="font-bold text-xl mb-4">Watu wa kufuatilia</h2>
-        <div class="space-y-4">
-          <div class="flex justify-between items-center">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 bg-purple-600 rounded-full"></div>
-              <div>
-                <p class="font-semibold">Sauti Digital</p>
-                <p class="text-gray-500 text-sm">@sautidigital</p>
-              </div>
-            </div>
-            <button onclick="fakeFollow(this)" 
-                    class="border border-white px-5 py-1 rounded-3xl hover:bg-white hover:text-black transition">
-              Fuata
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="mt-8 text-xs text-gray-500 px-4">
-        <p class="mb-2">SautiLink ni platform inayokuja. Tunajenga kwa upendo na uvumbuzi wa Kiafrika.</p>
-        <p>© 2026 SautiLink. All rights reserved.</p>
+      <div class="bg-zinc-900 rounded-3xl p-5">
+        <h2 class="font-bold text-xl mb-4">Who to follow</h2>
+        <!-- Add more cards here if needed -->
       </div>
     </div>
   </div>
 
-  <!-- Create Post Modal -->
-  <div id="postModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[100]">
-    <div class="bg-gray-900 w-full max-w-lg mx-4 rounded-3xl p-6">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold">Tengeneza Post</h2>
-        <button onclick="closeModal()" class="text-3xl leading-none">&times;</button>
+  <!-- Footer -->
+  <footer class="border-t border-zinc-800 bg-black py-8 px-6 text-sm text-zinc-500">
+    <div class="max-w-7xl mx-auto">
+      <div class="flex flex-wrap gap-x-6 gap-y-2 justify-center mb-6">
+        <a href="https://linktr.ee/sautilink" target="_blank" class="hover:text-white transition"><i class="fa-brands fa-facebook-f"></i></a>
+        <a href="https://linktr.ee/sautilink" target="_blank" class="hover:text-white transition"><i class="fa-brands fa-x-twitter"></i></a>
+        <a href="https://linktr.ee/sautilink" target="_blank" class="hover:text-white transition"><i class="fa-brands fa-youtube"></i></a>
+        <a href="https://linktr.ee/sautilink" target="_blank" class="hover:text-white transition"><i class="fa-brands fa-tiktok"></i></a>
       </div>
-      <textarea id="modalText" class="w-full h-40 bg-gray-800 border border-gray-700 rounded-2xl p-4 focus:outline-none text-lg" 
-                placeholder="Andika kitu kizuri hapa..."></textarea>
-      
-      <div class="mt-6 flex justify-end gap-4">
-        <button onclick="closeModal()" 
-                class="px-6 py-2 text-gray-400 hover:text-white">Ghairi</button>
-        <button onclick="fakePostFromModal()" 
-                class="bg-blue-600 hover:bg-blue-700 px-8 py-2 rounded-3xl font-semibold">Post Sasa</button>
+
+      <div class="flex flex-wrap gap-x-6 gap-y-2 justify-center text-center">
+        <a href="#" onclick="showToast('Privacy Policy - Coming soon')" class="hover:text-zinc-300">Privacy Policy</a>
+        <a href="#" onclick="showToast('Terms of Service - Coming soon')" class="hover:text-zinc-300">Terms of Service</a>
+        <a href="#" onclick="showToast('Help Center - Coming soon')" class="hover:text-zinc-300">Help Center</a>
+        <a href="#" onclick="showToast('Contact Us - Coming soon')" class="hover:text-zinc-300">Contacts</a>
+        <a href="#" onclick="showToast('Report a problem - Coming soon')" class="hover:text-zinc-300">Report</a>
+      </div>
+
+      <div class="text-center mt-8">
+        Copyright © 2026 SautiLink Corporation. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <!-- Post Modal -->
+  <div id="postModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <div class="bg-zinc-900 w-full max-w-lg mx-4 rounded-3xl p-6">
+      <div class="flex justify-between mb-6">
+        <h2 class="text-2xl font-bold">Create Post</h2>
+        <button onclick="closeModal()" class="text-4xl leading-none text-zinc-400 hover:text-white">&times;</button>
+      </div>
+      <textarea id="modalText" class="w-full h-48 bg-zinc-800 rounded-2xl p-5 focus:outline-none text-lg" placeholder="What do you want to share?"></textarea>
+      <div class="flex justify-end gap-4 mt-6">
+        <button onclick="closeModal()" class="px-6 py-2 text-zinc-400">Cancel</button>
+        <button onclick="fakePostFromModal()" class="bg-blue-600 hover:bg-blue-700 px-8 py-2 rounded-3xl font-bold">Post</button>
       </div>
     </div>
   </div>
 
-  <!-- Under Construction Toast -->
-  <div id="toast" class="hidden fixed bottom-6 right-6 bg-gray-800 border border-blue-500 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3">
-    <i class="fa-solid fa-hammer text-yellow-400"></i>
-    <div>
-      <p class="font-semibold">Under Construction</p>
-      <p class="text-sm text-gray-400">Feature hii inakuja hivi karibuni. Tunafanya kazi kwa bidii!</p>
-    </div>
+  <!-- Toast -->
+  <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-zinc-900 border border-zinc-700 text-white px-8 py-4 rounded-3xl shadow-2xl flex items-center gap-3 z-[100]">
+    <i class="fa-solid fa-info-circle text-blue-400"></i>
+    <span id="toastText" class="font-medium"></span>
   </div>
 
   <script>
-    // Tailwind script already loaded via CDN
-    function initTailwind() {
-      // Already configured via script tag
-    }
-
-    // Fake feed posts
-    const samplePosts = [
-      {
-        user: "Mwanafunzi TZ",
-        handle: "@mwanafunzi",
-        time: "2h",
-        content: "SautiLink inaweza kuwa game changer kwa vijana wa Afrika. Tunahitaji platform yetu wenyewe!",
-        likes: 124,
-        comments: 18
-      },
-      {
-        user: "Tech Mama",
-        handle: "@techmama254",
-        time: "5h",
-        content: "Nimefurahia sana kuona logo ya SautiLink. Inakaa kali sana! 🔥",
-        likes: 89,
-        comments: 12
-      }
-    ];
-
     function renderFeed() {
       const feed = document.getElementById('feed');
-      feed.innerHTML = '';
-      
-      samplePosts.forEach(post => {
-        const div = document.createElement('div');
-        div.className = 'feed-item border-b border-gray-800 p-4 hover:bg-gray-950 cursor-pointer';
-        div.innerHTML = `
+      feed.innerHTML = `
+        <div class="feed-item border-b border-zinc-800 p-6">
           <div class="flex gap-4">
-            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex-shrink-0"></div>
+            <div class="w-11 h-11 bg-gradient-to-br from-red-500 to-blue-600 rounded-full"></div>
             <div class="flex-1">
               <div class="flex items-center gap-2">
-                <span class="font-bold">${post.user}</span>
-                <span class="text-gray-500">${post.handle} · ${post.time}</span>
+                <span class="font-bold">Sauti Community</span>
+                <span class="text-zinc-500">@sautilink • 1h</span>
               </div>
-              <p class="mt-1 leading-relaxed">${post.content}</p>
-              <div class="flex justify-between mt-4 text-gray-500 max-w-xs">
-                <button onclick="showToast()" class="flex items-center gap-2 hover:text-blue-500"><i class="fa-regular fa-comment"></i> <span>${post.comments}</span></button>
-                <button onclick="showToast()" class="flex items-center gap-2 hover:text-green-500"><i class="fa-solid fa-retweet"></i> <span>42</span></button>
-                <button onclick="showToast()" class="flex items-center gap-2 hover:text-red-500"><i class="fa-regular fa-heart"></i> <span>${post.likes}</span></button>
-                <button onclick="showToast()" class="flex items-center gap-2 hover:text-blue-500"><i class="fa-solid fa-arrow-up-from-bracket"></i></button>
+              <p class="mt-2 text-[17px] leading-relaxed">Welcome to SautiLink — the platform built for African voices to connect, create, and grow together.</p>
+              <div class="flex justify-between mt-6 text-zinc-500 max-w-md">
+                <button onclick="showToast('Feature coming soon')" class="flex items-center gap-3 hover:text-blue-400"><i class="fa-regular fa-comment"></i> <span>24</span></button>
+                <button onclick="showToast('Feature coming soon')" class="flex items-center gap-3 hover:text-green-400"><i class="fa-solid fa-retweet"></i> <span>142</span></button>
+                <button onclick="showToast('Feature coming soon')" class="flex items-center gap-3 hover:text-red-400"><i class="fa-regular fa-heart"></i> <span>892</span></button>
               </div>
             </div>
           </div>
-        `;
-        feed.appendChild(div);
-      });
+        </div>
+      `;
     }
 
     function createPost() {
       document.getElementById('postModal').classList.remove('hidden');
-      document.getElementById('modalText').focus();
     }
 
     function closeModal() {
@@ -236,49 +209,38 @@
     function fakePost() {
       const text = document.getElementById('postText').value.trim();
       if (text) {
-        showToast("Post yako imesajiliwa! (Demo mode)");
+        showToast("Your post has been submitted (Demo mode)");
         document.getElementById('postText').value = '';
       } else {
-        showToast("Andika kitu kwanza bro");
+        showToast("Write something first");
       }
     }
 
     function fakePostFromModal() {
-      const text = document.getElementById('modalText').value.trim();
-      if (text) {
-        closeModal();
-        showToast("Post imetumwa! Asante kwa kuchangia.");
-      }
+      closeModal();
+      showToast("Post published successfully!");
     }
 
-    function showToast(msg = null) {
+    function showAuth(type) {
+      const msg = type === 'login' ? "Login feature coming soon" : "Sign up feature coming soon";
+      showToast(msg);
+    }
+
+    function showToast(message = "This feature is under construction") {
       const toast = document.getElementById('toast');
-      if (msg) toast.querySelector('p').textContent = msg;
+      document.getElementById('toastText').textContent = message;
       toast.classList.remove('hidden');
-      setTimeout(() => {
-        toast.classList.add('hidden');
-      }, 4000);
-    }
-
-    function fakeFollow(btn) {
-      btn.textContent = "Unafuata";
-      btn.classList.add('bg-green-600', 'border-green-600', 'text-white');
-      btn.disabled = true;
-      showToast("Umefuata! Asante.");
+      setTimeout(() => toast.classList.add('hidden'), 3500);
     }
 
     function navigateTo(page) {
-      showToast(`Unaenda kwenye ${page} - Under Construction`);
-    }
-
-    function toggleTheme() {
-      showToast("Dark mode ndio default yetu kali 🔥");
+      showToast(page.charAt(0).toUpperCase() + page.slice(1) + " page is coming soon");
     }
 
     // Initialize
-    window.onload = function() {
+    window.onload = () => {
       renderFeed();
-      console.log("%cSautiLink Front-end loaded successfully! 🚀", "color: #3b82f6; font-size: 14px;");
+      console.log("%cSautiLink - Front-end loaded 🔥", "color: #ef4444; font-weight: bold;");
     };
   </script>
 </body>
