@@ -1,137 +1,442 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Privacy Policy — SautiLink</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;700;800&display=swap" rel="stylesheet">
-
-<style>
-body {
-  font-family: 'Bricolage Grotesque', sans-serif;
-  max-width: 900px;
-  margin: auto;
-  padding: 40px 20px;
-  line-height: 1.8;
-  color: #111;
-}
-
-h1 {
-  font-size: 2.5rem;
-}
-
-h2 {
-  margin-top: 40px;
-  color: #2563eb;
-}
-
-p {
-  margin: 10px 0;
-}
-
-ul {
-  margin: 10px 0 20px 20px;
-}
-
-a {
-  color: #2563eb;
-  text-decoration: none;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — SautiLink</title>
+    <meta name="description" content="SautiLink Privacy Policy — A privacy-first social network that respects your data and freedom.">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Bricolage+Grotesque:wght@500;600;700&amp;display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --red: #e11d48;
+            --blue: #2563eb;
+            --bg: #0a0a0a;
+            --surface: #111111;
+            --text: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --border: rgba(255,255,255,0.1);
+        }
+        
+        [data-theme="light"] {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #0f172a;
+            --text-secondary: #475569;
+            --border: rgba(0,0,0,0.08);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', system_ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            font-size: 1.05rem;
+        }
+        
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 0;
+        }
+        
+        [data-theme="light"] header {
+            background: rgba(248, 250, 252, 0.95);
+        }
+        
+        .header-content {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Bricolage Grotesque', sans-serif;
+            font-size: 1.65rem;
+            font-weight: 700;
+            color: var(--text);
+            text-decoration: none;
+        }
+        
+        .main-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 4rem;
+            padding: 2rem;
+        }
+        
+        .sidebar {
+            position: sticky;
+            top: 100px;
+            align-self: start;
+            max-height: calc(100vh - 140px);
+            overflow-y: auto;
+        }
+        
+        .toc {
+            list-style: none;
+        }
+        
+        .toc li {
+            margin-bottom: 0.75rem;
+        }
+        
+        .toc a {
+            display: block;
+            padding: 8px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+        
+        .toc a:hover,
+        .toc a.active {
+            background: rgba(225, 29, 72, 0.15);
+            color: var(--red);
+            font-weight: 500;
+        }
+        
+        .content {
+            max-width: 780px;
+        }
+        
+        h1 {
+            font-family: 'Bricolage Grotesque', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.03em;
+        }
+        
+        h2 {
+            font-family: 'Bricolage Grotesque', sans-serif;
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin: 3rem 0 1.25rem;
+            color: var(--text);
+            scroll-margin-top: 100px;
+        }
+        
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 2.25rem 0 1rem;
+        }
+        
+        p, li {
+            color: var(--text-secondary);
+            margin-bottom: 1.25rem;
+        }
+        
+        ul, ol {
+            margin-bottom: 1.5rem;
+            padding-left: 1.25rem;
+        }
+        
+        li {
+            margin-bottom: 0.75rem;
+        }
+        
+        .last-updated {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 2.5rem;
+        }
+        
+        .section {
+            margin-bottom: 4rem;
+        }
+        
+        .highlight {
+            color: var(--red);
+            font-weight: 500;
+        }
+        
+        .strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+        
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 3rem 2rem 2rem;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+        
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border);
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text);
+        }
+        
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+            .sidebar {
+                position: static;
+                max-height: none;
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .header-content {
+                padding: 0 1.25rem;
+            }
+            h1 {
+                font-size: 2.4rem;
+            }
+        }
+    </style>
 </head>
+<body data-theme="dark">
+    <header>
+        <div class="header-content">
+            <a href="#" class="logo">
+                <span>SautiLink</span>
+            </a>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+                <svg id="sun" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+                </svg>
+                <svg id="moon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="display: none;">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
 
-<body>
+    <div class="main-container">
+        <!-- Sidebar Table of Contents -->
+        <aside class="sidebar">
+            <nav>
+                <h3 style="margin-bottom: 1rem; font-size: 1rem; color: var(--text);">Contents</h3>
+                <ul class="toc" id="toc">
+                    <li><a href="#introduction" class="active">1. Introduction</a></li>
+                    <li><a href="#information">2. Information We Collect</a></li>
+                    <li><a href="#how-we-use">3. How We Use Your Information</a></li>
+                    <li><a href="#sharing">4. Sharing &amp; Disclosure</a></li>
+                    <li><a href="#data-storage">5. Data Storage &amp; Security</a></li>
+                    <li><a href="#your-rights">6. Your Rights &amp; Choices</a></li>
+                    <li><a href="#cookies">7. Cookies &amp; Tracking</a></li>
+                    <li><a href="#children">8. Children’s Privacy</a></li>
+                    <li><a href="#changes">9. Changes to This Policy</a></li>
+                    <li><a href="#contact">10. Contact Us</a></li>
+                </ul>
+            </nav>
+        </aside>
 
-<h1>Privacy Policy</h1>
+        <!-- Main Content -->
+        <main class="content">
+            <p class="last-updated">Last updated: May 1, 2026</p>
+            
+            <h1>Privacy Policy</h1>
+            
+            <div class="section" id="introduction">
+                <h2>1. Introduction</h2>
+                <p>At <strong>SautiLink</strong>, privacy is not a feature — it is a foundational principle. We designed this platform to give users maximum control over their data and conversations while enabling genuine free expression.</p>
+                <p>This Privacy Policy explains what information we collect, how we use it, and the steps we take to protect your privacy.</p>
+            </div>
+            
+            <div class="section" id="information">
+                <h2>2. Information We Collect</h2>
+                <h3>Information You Provide</h3>
+                <ul>
+                    <li>Email address and username during waitlist or account creation</li>
+                    <li>Content you post (texts, images, videos, links)</li>
+                    <li>Messages and interactions with other users</li>
+                    <li>Profile information you choose to add</li>
+                </ul>
+                
+                <h3>Automatically Collected Information</h3>
+                <ul>
+                    <li>IP address and device information (for security and abuse prevention)</li>
+                    <li>Usage data such as pages visited and features used</li>
+                    <li>Browser and operating system type</li>
+                </ul>
+                <p>We deliberately collect <span class="highlight">minimal personal data</span> compared to traditional social networks.</p>
+            </div>
+            
+            <div class="section" id="how-we-use">
+                <h2>3. How We Use Your Information</h2>
+                <p>We use the information we collect to:</p>
+                <ul>
+                    <li>Provide, maintain, and improve the SautiLink service</li>
+                    <li>Enable you to communicate with others on the platform</li>
+                    <li>Protect the safety and security of our users and the platform</li>
+                    <li>Respond to legal requests and enforce our Terms of Service</li>
+                    <li>Communicate important updates (very rarely)</li>
+                </ul>
+            </div>
+            
+            <div class="section" id="sharing">
+                <h2>4. Sharing &amp; Disclosure</h2>
+                <p><strong>We do not sell your personal data.</strong> Ever.</p>
+                <p>We may share information only in these limited cases:</p>
+                <ul>
+                    <li>With your explicit consent</li>
+                    <li>When required by law or valid legal process</li>
+                    <li>To protect the rights, safety, and property of SautiLink, our users, or the public</li>
+                    <li>With service providers who assist us (under strict confidentiality agreements)</li>
+                </ul>
+            </div>
+            
+            <div class="section" id="data-storage">
+                <h2>5. Data Storage &amp; Security</h2>
+                <p>Your data is stored with industry-standard security measures. We use encryption in transit and at rest where appropriate.</p>
+                <p>We retain data only as long as necessary for the purposes outlined in this policy or as required by law.</p>
+                <p>Because we are a privacy-first platform, we avoid unnecessary data collection and long-term profiling.</p>
+            </div>
+            
+            <div class="section" id="your-rights">
+                <h2>6. Your Rights &amp; Choices</h2>
+                <p>You have significant control over your data:</p>
+                <ul>
+                    <li>Access, download, or delete your account and content</li>
+                    <li>Correct inaccurate information</li>
+                    <li>Object to certain processing of your data</li>
+                    <li>Withdraw consent where applicable</li>
+                </ul>
+                <p>To exercise these rights, contact us at <span class="strong">privacy@sautilink.com</span>.</p>
+            </div>
+            
+            <div class="section" id="cookies">
+                <h2>7. Cookies &amp; Tracking</h2>
+                <p>We use essential cookies to operate the service (authentication, security, basic functionality). We do not use tracking cookies for advertising purposes.</p>
+                <p>You can manage cookie preferences through your browser settings.</p>
+            </div>
+            
+            <div class="section" id="children">
+                <h2>8. Children’s Privacy</h2>
+                <p>SautiLink is not intended for children under 13 years of age (or the minimum age required in your country). We do not knowingly collect data from children under 13.</p>
+            </div>
+            
+            <div class="section" id="changes">
+                <h2>9. Changes to This Policy</h2>
+                <p>We may update this Privacy Policy occasionally. Material changes will be communicated through the platform or via email. We encourage you to review this policy periodically.</p>
+            </div>
+            
+            <div class="section" id="contact">
+                <h2>10. Contact Us</h2>
+                <p>If you have any questions or concerns about this Privacy Policy, please reach out to us:</p>
+                <p><strong>privacy@sautilink.com</strong></p>
+                <p>SautiLink Corporation<br>
+                Arusha, Tanzania</p>
+            </div>
+            
+            <div style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); font-size: 0.95rem; color: var(--text-secondary);">
+                <p>Your trust matters to us. Thank you for choosing a platform that puts privacy and freedom first.</p>
+            </div>
+        </main>
+    </div>
 
-<p><strong>Effective Date:</strong> January 1, 2026</p>
+    <footer>
+        <p>&copy; 2026 SautiLink Corporation. All rights reserved.</p>
+        <p style="margin-top: 0.5rem;">
+            <a href="#" style="color: var(--text-secondary); margin: 0 1rem;">Privacy Policy</a>
+            <a href="#" style="color: var(--text-secondary);">Terms of Service</a>
+        </p>
+    </footer>
 
-<p>SautiLink Corporation ("SautiLink", "we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our platform.</p>
-
-<h2>1. Information We Collect</h2>
-
-<p>We may collect the following categories of information:</p>
-
-<ul>
-<li><strong>Account Information:</strong> Email address, username, and profile details</li>
-<li><strong>User Content:</strong> Posts, messages, media uploads, and interactions</li>
-<li><strong>Device Information:</strong> IP address, browser type, operating system</li>
-<li><strong>Usage Data:</strong> Activity logs, interactions, and engagement metrics</li>
-</ul>
-
-<h2>2. How We Use Your Information</h2>
-
-<ul>
-<li>To create and manage user accounts</li>
-<li>To operate and improve the platform</li>
-<li>To communicate updates and notifications</li>
-<li>To ensure safety and prevent abuse</li>
-<li>To comply with legal obligations</li>
-</ul>
-
-<h2>3. Legal Basis for Processing</h2>
-
-<p>We process personal data based on:</p>
-
-<ul>
-<li>User consent</li>
-<li>Legitimate business interests</li>
-<li>Legal obligations</li>
-</ul>
-
-<h2>4. Data Sharing</h2>
-
-<p>We do not sell your personal data.</p>
-
-<p>We may share data with:</p>
-
-<ul>
-<li>Trusted service providers</li>
-<li>Law enforcement when required</li>
-<li>Partners under confidentiality agreements</li>
-</ul>
-
-<h2>5. Data Retention</h2>
-
-<p>We retain data only as long as necessary for operational, legal, and security purposes.</p>
-
-<h2>6. Your Rights</h2>
-
-<ul>
-<li>Access your data</li>
-<li>Correct inaccurate data</li>
-<li>Request deletion</li>
-<li>Withdraw consent</li>
-</ul>
-
-<p>Contact: privacy@sautilink.com</p>
-
-<h2>7. Account Deletion</h2>
-
-<p>You may delete your account at any time. Data will be removed or anonymized, except where retention is required by law.</p>
-
-<h2>8. Security</h2>
-
-<p>We implement industry-standard security measures, including encryption and access controls.</p>
-
-<h2>9. Children’s Privacy</h2>
-
-<p>SautiLink is not intended for users under 15 years of age.</p>
-
-<h2>10. International Data Transfers</h2>
-
-<p>Your data may be processed outside Tanzania with appropriate safeguards.</p>
-
-<h2>11. Changes to This Policy</h2>
-
-<p>We may update this policy from time to time.</p>
-
-<h2>12. Contact Us</h2>
-
-<p>Email: privacy@sautilink.com</p>
-
-<p><strong>SautiLink Corporation</strong></p>
-
+    <script>
+        // Theme Toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        const sun = document.getElementById('sun');
+        const moon = document.getElementById('moon');
+        const body = document.body;
+        
+        function setTheme(theme) {
+            body.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            if (theme === 'light') {
+                sun.style.display = 'none';
+                moon.style.display = 'block';
+            } else {
+                sun.style.display = 'block';
+                moon.style.display = 'none';
+            }
+        }
+        
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        setTheme(savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const current = body.getAttribute('data-theme');
+            setTheme(current === 'dark' ? 'light' : 'dark');
+        });
+        
+        // Table of Contents Active Section Highlight
+        const tocLinks = document.querySelectorAll('.toc a');
+        const sections = document.querySelectorAll('.section');
+        
+        function updateActiveTOC() {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollY >= sectionTop - 150) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        }
+        
+        window.addEventListener('scroll', updateActiveTOC);
+        
+        // Smooth scrolling for TOC links
+        tocLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetSection = document.getElementById(targetId);
+                if (targetSection) {
+                    targetSection.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+        
+        // Initial active state
+        updateActiveTOC();
+    </script>
 </body>
 </html>
