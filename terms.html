@@ -3,10 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terms of Service — SautiLink</title>
-    <meta name="description" content="SautiLink Terms of Service — A privacy-first, free speech social network.">
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Bricolage+Grotesque:wght@500;600;700&amp;display=swap" rel="stylesheet">
+    <!-- SEO -->
+    <title>Terms of Service — SautiLink</title>
+    <meta name="description" content="SautiLink Terms of Service. Please read these terms carefully before using our platform. They govern your use of SautiLink services.">
+    <link rel="canonical" href="https://sautilink.com/terms.html">
+    
+    <!-- Open Graph Tags -->
+    <meta property="og:title" content="Terms of Service — SautiLink">
+    <meta property="og:description" content="Terms and conditions governing the use of SautiLink platform.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://sautilink.com/terms.html">
+    <meta property="og:site_name" content="SautiLink">
+    <meta property="og:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Terms of Service — SautiLink">
+    <meta name="twitter:description" content="SautiLink Terms of Service">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png" type="image/png">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
         :root {
@@ -14,9 +39,8 @@
             --blue: #2563eb;
             --bg: #0a0a0a;
             --surface: #111111;
-            --text: #f1f5f9;
+            --text: #f8fafc;
             --text-secondary: #cbd5e1;
-            --border: rgba(255,255,255,0.1);
         }
         
         [data-theme="light"] {
@@ -24,170 +48,70 @@
             --surface: #ffffff;
             --text: #0f172a;
             --text-secondary: #475569;
-            --border: rgba(0,0,0,0.08);
         }
         
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
-            font-family: 'Inter', system_ui, sans-serif;
+            font-family: 'Bricolage Grotesque', system-ui, sans-serif;
             background: var(--bg);
             color: var(--text);
             line-height: 1.7;
-            font-size: 1.05rem;
         }
         
         header {
-            position: sticky;
-            top: 0;
+            position: fixed;
+            top: 0; left: 0; right: 0;
             z-index: 1000;
-            background: rgba(10, 10, 10, 0.95);
             backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border);
-            padding: 1rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            background: rgba(10,10,10,0.85);
         }
         
         [data-theme="light"] header {
-            background: rgba(248, 250, 252, 0.95);
+            background: rgba(248,250,252,0.95);
+            border-bottom: 1px solid rgba(0,0,0,0.08);
         }
         
-        .header-content {
+        .nav {
             max-width: 1280px;
             margin: 0 auto;
-            padding: 0 2rem;
+            padding: 1.25rem 2rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
         
         .logo {
+            font-weight: 700;
+            font-size: 1.85rem;
+            letter-spacing: -0.04em;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .nav-links {
             display: flex;
+            gap: 2rem;
             align-items: center;
-            gap: 10px;
-            font-family: 'Bricolage Grotesque', sans-serif;
-            font-size: 1.65rem;
-            font-weight: 700;
-            color: var(--text);
-            text-decoration: none;
         }
         
-        .main-container {
-            max-width: 1280px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 4rem;
-            padding: 2rem;
-        }
-        
-        .sidebar {
-            position: sticky;
-            top: 100px;
-            align-self: start;
-            max-height: calc(100vh - 140px);
-            overflow-y: auto;
-        }
-        
-        .toc {
-            list-style: none;
-        }
-        
-        .toc li {
-            margin-bottom: 0.75rem;
-        }
-        
-        .toc a {
-            display: block;
-            padding: 8px 16px;
+        .nav-links a {
             color: var(--text-secondary);
             text-decoration: none;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-            font-size: 0.95rem;
-        }
-        
-        .toc a:hover,
-        .toc a.active {
-            background: rgba(225, 29, 72, 0.15);
-            color: var(--red);
             font-weight: 500;
+            transition: color 0.3s;
         }
         
-        .content {
-            max-width: 780px;
-        }
-        
-        h1 {
-            font-family: 'Bricolage Grotesque', sans-serif;
-            font-size: 2.8rem;
-            font-weight: 700;
-            line-height: 1.1;
-            margin-bottom: 1.5rem;
-            letter-spacing: -0.03em;
-        }
-        
-        h2 {
-            font-family: 'Bricolage Grotesque', sans-serif;
-            font-size: 1.75rem;
-            font-weight: 600;
-            margin: 3rem 0 1.25rem;
-            color: var(--text);
-            scroll-margin-top: 100px;
-        }
-        
-        h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin: 2.25rem 0 1rem;
-        }
-        
-        p, li {
-            color: var(--text-secondary);
-            margin-bottom: 1.25rem;
-        }
-        
-        ul, ol {
-            margin-bottom: 1.5rem;
-            padding-left: 1.25rem;
-        }
-        
-        li {
-            margin-bottom: 0.75rem;
-        }
-        
-        .last-updated {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-            margin-bottom: 2.5rem;
-        }
-        
-        .section {
-            margin-bottom: 4rem;
-        }
-        
-        .highlight {
-            color: var(--red);
-            font-weight: 500;
-        }
-        
-        footer {
-            border-top: 1px solid var(--border);
-            padding: 3rem 2rem 2rem;
-            text-align: center;
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-        }
+        .nav-links a:hover,
+        .nav-links a.active { color: var(--red); }
         
         .theme-toggle {
             background: none;
-            border: 1px solid var(--border);
+            border: 1px solid rgba(255,255,255,0.15);
             width: 42px;
             height: 42px;
-            border-radius: 50%;
+            border-radius: 9999px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -195,173 +119,161 @@
             color: var(--text);
         }
         
-        /* Responsive */
-        @media (max-width: 1024px) {
-            .main-container {
-                grid-template-columns: 1fr;
-                gap: 2rem;
-            }
-            .sidebar {
-                position: static;
-                max-height: none;
-            }
+        main {
+            padding-top: 110px;
+            max-width: 900px;
+            margin: 0 auto;
+            padding-left: 2rem;
+            padding-right: 2rem;
         }
         
-        @media (max-width: 640px) {
-            .header-content {
-                padding: 0 1.25rem;
-            }
-            h1 {
-                font-size: 2.4rem;
-            }
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
         }
+        
+        h2 {
+            font-size: 1.6rem;
+            margin: 2.5rem 0 1rem;
+            color: var(--red);
+        }
+        
+        p, li {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+        
+        ul {
+            padding-left: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .last-updated {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 3rem;
+        }
+        
+        footer {
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding: 3.5rem 2rem 2.5rem;
+            text-align: center;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-top: 5rem;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+        
+        .footer-links a:hover { color: var(--red); }
     </style>
 </head>
 <body data-theme="dark">
+    <!-- HEADER -->
     <header>
-        <div class="header-content">
-            <a href="#" class="logo">
-                <span>SautiLink</span>
-            </a>
+        <div class="nav">
+            <a href="index.html" class="logo">SautiLink</a>
+            
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="about.html">About</a>
+                <a href="contact.html">Contact</a>
+            </div>
+            
             <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
-                <svg id="sun" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="5"></circle>
-                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+                <svg id="sun-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="5"/>
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
                 </svg>
-                <svg id="moon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="display: none;">
-                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                <svg id="moon-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="display:none;">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
                 </svg>
             </button>
         </div>
     </header>
 
-    <div class="main-container">
-        <!-- Sidebar Table of Contents -->
-        <aside class="sidebar">
-            <nav>
-                <h3 style="margin-bottom: 1rem; font-size: 1rem; color: var(--text);">Contents</h3>
-                <ul class="toc" id="toc">
-                    <li><a href="#introduction" class="active">1. Introduction</a></li>
-                    <li><a href="#acceptance">2. Acceptance of Terms</a></li>
-                    <li><a href="#user-rights">3. User Rights &amp; Free Speech</a></li>
-                    <li><a href="#content-ownership">4. Content Ownership</a></li>
-                    <li><a href="#prohibited">5. Prohibited Conduct</a></li>
-                    <li><a href="#privacy">6. Privacy &amp; Data</a></li>
-                    <li><a href="#suspension">7. Account Suspension &amp; Termination</a></li>
-                    <li><a href="#liability">8. Disclaimer of Liability</a></li>
-                    <li><a href="#changes">9. Changes to Terms</a></li>
-                    <li><a href="#contact">10. Contact Us</a></li>
-                </ul>
-            </nav>
-        </aside>
+    <main>
+        <h1>Terms of Service</h1>
+        <div class="last-updated">Last updated: May 1, 2026</div>
+        
+        <p>Welcome to SautiLink. These Terms of Service govern your access to and use of our website and services. By accessing or using SautiLink, you agree to be bound by these terms.</p>
+        
+        <h2>1. Acceptance of Terms</h2>
+        <p>By joining our waitlist or using our website, you confirm that you have read, understood, and agree to these Terms of Service. If you do not agree, you should not use our services.</p>
+        
+        <h2>2. Description of Service</h2>
+        <p>SautiLink is a upcoming privacy-first social networking platform. Currently, this website serves as an informational page and waitlist registration portal. Full services will be available upon official launch.</p>
+        
+        <h2>3. User Conduct</h2>
+        <p>You agree not to:</p>
+        <ul>
+            <li>Use the service for any unlawful purpose</li>
+            <li>Attempt to gain unauthorized access to our systems</li>
+            <li>Interfere with the proper functioning of the platform</li>
+            <li>Harass, threaten, or intimidate other users (once the platform is live)</li>
+        </ul>
+        
+        <h2>4. Intellectual Property</h2>
+        <p>All content, logos, and materials on this website are the property of SautiLink Corporation. You may not copy, modify, or distribute them without prior written permission.</p>
+        
+        <h2>5. Waitlist and Communications</h2>
+        <p>By joining the waitlist, you consent to receive emails regarding platform updates and launch notifications. You can unsubscribe at any time using the link provided in our emails.</p>
+        
+        <h2>6. Limitation of Liability</h2>
+        <p>SautiLink is provided "as is" without any warranties. We are not liable for any indirect, incidental, or consequential damages arising from your use of the website or waitlist.</p>
+        
+        <h2>7. Changes to Terms</h2>
+        <p>We may update these Terms from time to time. We will notify you of material changes by posting the new Terms on this page and updating the "Last updated" date.</p>
+        
+        <h2>8. Governing Law</h2>
+        <p>These Terms shall be governed by the laws of the United Republic of Tanzania.</p>
+        
+        <h2>9. Contact Information</h2>
+        <p>If you have any questions about these Terms, please contact us at:</p>
+        <p><strong>support@sautilink.com</strong></p>
+    </main>
 
-        <!-- Main Content -->
-        <main class="content">
-            <p class="last-updated">Last updated: May 1, 2026</p>
-            
-            <h1>Terms of Service</h1>
-            
-            <div class="section" id="introduction">
-                <h2>1. Introduction</h2>
-                <p>Welcome to <strong>SautiLink</strong>, a privacy-first social media platform committed to freedom of expression and user sovereignty.</p>
-                <p>SautiLink exists to provide a space where individuals can speak openly, share ideas, and connect without undue censorship, while respecting legal boundaries and the rights of others.</p>
-            </div>
-            
-            <div class="section" id="acceptance">
-                <h2>2. Acceptance of Terms</h2>
-                <p>By accessing or using SautiLink, you agree to be bound by these Terms of Service. If you do not agree, you must not use the platform.</p>
-                <p>We encourage you to read these terms carefully. They govern your relationship with SautiLink Corporation.</p>
-            </div>
-            
-            <div class="section" id="user-rights">
-                <h2>3. User Rights &amp; Free Speech</h2>
-                <p>SautiLink is built on the principle that <span class="highlight">freedom of expression is fundamental</span>. We strongly support your right to voice opinions, share information, and engage in robust public discourse.</p>
-                <p>However, free speech is not absolute. You are responsible for your content. We will not proactively censor lawful speech simply because it is controversial, unpopular, or offends someone.</p>
-                <p>We may remove or restrict content only when it clearly violates applicable laws or these Terms (such as illegal threats, fraud, or targeted harassment).</p>
-            </div>
-            
-            <div class="section" id="content-ownership">
-                <h2>4. Content Ownership</h2>
-                <p>You retain all rights, title, and interest in the content you post on SautiLink. By posting content, you grant SautiLink a worldwide, non-exclusive, royalty-free license to host, display, and distribute your content solely for the purpose of operating the service.</p>
-                <p>We do not claim ownership of your posts, images, videos, or messages.</p>
-            </div>
-            
-            <div class="section" id="prohibited">
-                <h2>5. Prohibited Conduct</h2>
-                <p>While we champion free speech, the following activities are not permitted:</p>
-                <ul>
-                    <li>Direct threats of violence or incitement to imminent lawless action</li>
-                    <li>Child sexual exploitation or abuse material</li>
-                    <li>Impersonation with intent to deceive or defraud</li>
-                    <li>Spam, coordinated inauthentic behavior, or platform manipulation</li>
-                    <li>Illegal distribution of copyrighted material</li>
-                    <li>Targeted harassment or doxxing that endangers physical safety</li>
-                    <li>Fraud, scams, or phishing attempts</li>
-                </ul>
-                <p>We take a balanced approach: lawful but uncomfortable speech is protected. Illegal or clearly abusive behavior is not.</p>
-            </div>
-            
-            <div class="section" id="privacy">
-                <h2>6. Privacy &amp; Data Usage</h2>
-                <p>Your privacy is a core value at SautiLink. We collect minimal data necessary to provide the service and do not sell your personal information.</p>
-                <p>Please review our <a href="#" style="color:var(--red);">Privacy Policy</a> for detailed information on how we handle your data.</p>
-            </div>
-            
-            <div class="section" id="suspension">
-                <h2>7. Account Suspension &amp; Termination</h2>
-                <p>We may suspend or terminate your account if you repeatedly violate these Terms or engage in illegal activity. When possible, we will provide notice and an opportunity to appeal.</p>
-                <p>Because we value due process and transparency, permanent bans are reserved for serious or repeated violations.</p>
-            </div>
-            
-            <div class="section" id="liability">
-                <h2>8. Disclaimer of Liability</h2>
-                <p>SautiLink is provided "as is" without warranties of any kind. We are not responsible for the content posted by users or any harm resulting from your use of the platform.</p>
-                <p>To the fullest extent permitted by law, SautiLink shall not be liable for any indirect, incidental, or consequential damages.</p>
-            </div>
-            
-            <div class="section" id="changes">
-                <h2>9. Changes to Terms</h2>
-                <p>We may update these Terms from time to time. We will notify users of material changes via the platform or email. Continued use after changes constitutes acceptance of the new Terms.</p>
-            </div>
-            
-            <div class="section" id="contact">
-                <h2>10. Contact Us</h2>
-                <p>If you have questions about these Terms, please contact us at:</p>
-                <p><strong>legal@sautilink.com</strong></p>
-                <p>SautiLink Corporation<br>
-                Arusha, Tanzania</p>
-            </div>
-            
-            <div style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); font-size: 0.95rem; color: var(--text-secondary);">
-                <p>By using SautiLink, you acknowledge that you have read, understood, and agree to these Terms of Service.</p>
-            </div>
-        </main>
-    </div>
-
+    <!-- FOOTER -->
     <footer>
+        <div class="footer-links">
+            <a href="index.html">Home</a>
+            <a href="about.html">About</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="contact.html">Contact</a>
+        </div>
         <p>&copy; 2026 SautiLink Corporation. All rights reserved.</p>
-        <p style="margin-top: 0.5rem;">
-            <a href="#" style="color: var(--text-secondary); margin: 0 1rem;">Privacy Policy</a>
-            <a href="#" style="color: var(--text-secondary);">Terms of Service</a>
-        </p>
     </footer>
 
     <script>
         // Theme Toggle
         const themeToggle = document.getElementById('theme-toggle');
-        const sun = document.getElementById('sun');
-        const moon = document.getElementById('moon');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
         const body = document.body;
         
         function setTheme(theme) {
             body.setAttribute('data-theme', theme);
             localStorage.setItem('theme', theme);
             if (theme === 'light') {
-                sun.style.display = 'none';
-                moon.style.display = 'block';
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
             } else {
-                sun.style.display = 'block';
-                moon.style.display = 'none';
+                sunIcon.style.display = 'block';
+                moonIcon.style.display = 'none';
             }
         }
         
@@ -372,46 +284,6 @@
             const current = body.getAttribute('data-theme');
             setTheme(current === 'dark' ? 'light' : 'dark');
         });
-        
-        // Table of Contents Active Section Highlight
-        const tocLinks = document.querySelectorAll('.toc a');
-        const sections = document.querySelectorAll('.section');
-        
-        function updateActiveTOC() {
-            let current = '';
-            sections.forEach(section => {
-                const sectionTop = section.offsetTop;
-                if (scrollY >= sectionTop - 150) {
-                    current = section.getAttribute('id');
-                }
-            });
-            
-            tocLinks.forEach(link => {
-                link.classList.remove('active');
-                if (link.getAttribute('href') === `#${current}`) {
-                    link.classList.add('active');
-                }
-            });
-        }
-        
-        window.addEventListener('scroll', updateActiveTOC);
-        
-        // Smooth scrolling for TOC links
-        tocLinks.forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                const targetId = this.getAttribute('href').substring(1);
-                const targetSection = document.getElementById(targetId);
-                if (targetSection) {
-                    targetSection.scrollIntoView({
-                        behavior: 'smooth'
-                    });
-                }
-            });
-        });
-        
-        // Initial active state
-        updateActiveTOC();
     </script>
 </body>
 </html>
