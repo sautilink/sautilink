@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SautiLink — Coming Soon</title>
-    <meta name="description" content="Privacy-first social network. Your voice, your data, your freedom.">
+    <meta name="description" content="Privacy-first social network from Tanzania. Your voice, your data, your freedom.">
     
     <!-- Google Fonts: Bricolage Grotesque -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
         :root {
@@ -52,7 +52,6 @@
             backdrop-filter: blur(12px);
             border-bottom: 1px solid rgba(255,255,255,0.08);
             background: rgba(10,10,10,0.85);
-            transition: all 0.3s ease;
         }
         
         [data-theme="light"] header {
@@ -72,26 +71,18 @@
         .logo {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
             text-decoration: none;
             color: inherit;
-        }
-        
-        .logo-svg {
-            width: 32px;
-            height: 32px;
-        }
-        
-        .logo-text {
             font-weight: 700;
-            font-size: 1.75rem;
+            font-size: 1.85rem;
             letter-spacing: -0.04em;
         }
         
         .nav-right {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 1.5rem;
         }
         
         .theme-toggle {
@@ -104,8 +95,8 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.3s ease;
             color: var(--text);
+            transition: all 0.3s ease;
         }
         
         [data-theme="light"] .theme-toggle {
@@ -140,9 +131,9 @@
             display: inline-block;
             background: rgba(225, 29, 72, 0.15);
             color: var(--red);
-            font-size: 0.875rem;
+            font-size: 0.9rem;
             font-weight: 600;
-            padding: 6px 16px;
+            padding: 6px 18px;
             border-radius: 9999px;
             margin-bottom: 1.5rem;
             letter-spacing: 0.5px;
@@ -166,14 +157,13 @@
         
         .highlight {
             color: var(--red);
-            position: relative;
         }
         
         .form-container {
             background: var(--surface);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 24px;
-            padding: 2.5rem;
+            padding: 2.75rem;
             max-width: 460px;
             margin: 0 auto;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
@@ -241,10 +231,11 @@
             display: none;
             background: rgba(16, 185, 129, 0.15);
             color: #4ade80;
-            padding: 1.5rem;
+            padding: 1.75rem;
             border-radius: 16px;
             text-align: center;
             font-weight: 500;
+            margin-top: 1rem;
         }
         
         .trust {
@@ -292,7 +283,7 @@
         .social-icon:hover {
             background: var(--red);
             color: white;
-            transform: scale(1.15) translateY(-4px);
+            transform: scale(1.12) translateY(-4px);
         }
         
         .donate-section {
@@ -321,7 +312,7 @@
         
         footer {
             border-top: 1px solid rgba(255,255,255,0.1);
-            padding: 3rem 2rem 2rem;
+            padding: 3.5rem 2rem 2.5rem;
             text-align: center;
             font-size: 0.95rem;
             color: var(--text-secondary);
@@ -345,12 +336,11 @@
             color: var(--red);
         }
         
-        /* Background subtle effect */
         .hero::before {
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(circle at 50% 30%, rgba(225, 29, 72, 0.08) 0%, transparent 70%);
+            background: radial-gradient(circle at 50% 30%, rgba(225, 29, 72, 0.07) 0%, transparent 70%);
             z-index: 1;
             pointer-events: none;
         }
@@ -359,9 +349,6 @@
             .nav {
                 padding: 1rem 1.25rem;
             }
-            .hero-content {
-                padding-top: 2rem;
-            }
         }
     </style>
 </head>
@@ -369,14 +356,8 @@
     <!-- HEADER -->
     <header>
         <div class="nav">
-            <a href="#" class="logo">
-                <!-- Simple SautiLink Logo SVG (wave/sound + link symbol) -->
-                <svg class="logo-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="20" cy="20" r="18" stroke="#e11d48" stroke-width="3.5"/>
-                    <path d="M12 20 Q20 10 28 20 Q20 30 12 20" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
-                    <circle cx="20" cy="20" r="4" fill="#eab308"/>
-                </svg>
-                <span class="logo-text">SautiLink</span>
+            <a href="index.html" class="logo">
+                SautiLink
             </a>
             
             <div class="nav-right">
@@ -397,9 +378,9 @@
         <!-- HERO -->
         <section class="hero">
             <div class="hero-content">
-                <div class="badge">Privacy-First Social</div>
+                <div class="badge">Privacy-First Social Network</div>
                 <h1>SautiLink is<br>coming soon</h1>
-                <p>A new social network where <span class="highlight">your voice belongs to you</span>. No surveillance. No data harvesting. True freedom of expression with uncompromising privacy.</p>
+                <p>A new social network where <span class="highlight">your voice belongs to you</span>. Built with uncompromising privacy and freedom of expression — from Tanzania, for the world.</p>
                 
                 <!-- Waitlist Form -->
                 <div class="form-container">
@@ -430,41 +411,23 @@
         <!-- SOCIAL SECTION -->
         <section class="section social-section">
             <h2 style="font-size: 2.25rem; font-weight: 600; margin-bottom: 1rem;">Stay connected</h2>
-            <p style="color: var(--text-secondary); max-width: 420px; margin: 0 auto 2.5rem;">Follow our journey across platforms</p>
+            <p style="color: var(--text-secondary); max-width: 420px; margin: 0 auto 2.5rem;">Follow our journey</p>
             
             <div class="social-grid">
-                <a href="https://linktr.ee/sautilink" target="_blank" class="social-icon" aria-label="Instagram">
-                    <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.849.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.667.072 4.947.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4 2.21 0 4 1.791 4 4 0 2.21-1.79 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-                </a>
-                <a href="https://linktr.ee/sautilink" target="_blank" class="social-icon" aria-label="X (Twitter)">
-                    <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932L18.901 1.153zM17.61 20.644h2.039L6.486 3.24H4.298L17.61 20.644z"/></svg>
-                </a>
-                <a href="https://linktr.ee/sautilink" target="_blank" class="social-icon" aria-label="TikTok">
-                    <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24"><path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743l-.002-.001.002.001a2.895 2.895 0 0 1 3.183-4.51v-3.5a6.329 6.329 0 0 0-5.394 9.2 6.33 6.33 0 0 0 10.857-4.424V8.687a8.182 8.182 0 0 0 4.773 1.526V6.686z"/></svg>
-                </a>
-                <a href="https://linktr.ee/sautilink" target="_blank" class="social-icon" aria-label="Facebook">
-                    <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                </a>
-                <a href="https://linktr.ee/sautilink" target="_blank" class="social-icon" aria-label="LinkedIn">
-                    <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
-                </a>
-                <a href="https://linktr.ee/sautilink" target="_blank" class="social-icon" aria-label="YouTube">
-                    <svg width="28" height="28" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.377.505 9.377.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-                </a>
+                <a href="https://linktr.ee/sautilink" target="_blank" class="social-icon" aria-label="Instagram">IG</a>
+                <a href="https://linktr.ee/sautilink" target="_blank" class="social-icon" aria-label="X">𝕏</a>
+                <a href="https://linktr.ee/sautilink" target="_blank" class="social-icon" aria-label="TikTok">TT</a>
+                <a href="https://linktr.ee/sautilink" target="_blank" class="social-icon" aria-label="Facebook">FB</a>
+                <a href="https://linktr.ee/sautilink" target="_blank" class="social-icon" aria-label="LinkedIn">in</a>
+                <a href="https://linktr.ee/sautilink" target="_blank" class="social-icon" aria-label="YouTube">YT</a>
             </div>
         </section>
 
         <!-- DONATE SECTION -->
         <section class="donate-section">
-            <p style="font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 1.5rem;">Help us build a better internet</p>
+            <p style="font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 1.5rem;">Help us build a better, private internet</p>
             <a href="https://www.paypal.com/paypalme/donate@sautilink.com" target="_blank" class="paypal-btn">
-                <svg width="32" height="24" viewBox="0 0 124 33" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M42.5 9.3H32.2L28.8 23.8H37.1L39.1 15.5H42.5C45.2 15.5 47.1 13.6 47.1 11.1C47.1 10.1 46.9 9.3 46.4 8.7C45.9 8.1 44.4 9.3 42.5 9.3Z" fill="#003087"/>
-                    <path d="M60.8 9.3H50.5L47.1 23.8H55.4L57.4 15.5H60.8C63.5 15.5 65.4 13.6 65.4 11.1C65.4 10.1 65.2 9.3 64.7 8.7C64.2 8.1 62.7 9.3 60.8 9.3Z" fill="#003087"/>
-                    <path d="M79.1 9.3H68.8L65.4 23.8H73.7L75.7 15.5H79.1C81.8 15.5 83.7 13.6 83.7 11.1C83.7 10.1 83.5 9.3 83 8.7C82.5 8.1 81 9.3 79.1 9.3Z" fill="#003087"/>
-                    <!-- Simplified PayPal text representation -->
-                </svg>
-                <span>Support with PayPal</span>
+                Support with PayPal
             </a>
         </section>
     </main>
@@ -472,16 +435,16 @@
     <!-- FOOTER -->
     <footer>
         <div class="footer-links">
-            <a href="#">Terms</a>
-            <a href="#">Privacy</a>
-            <a href="#">Contact</a>
+            <a href="terms.html">Terms</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="contact.html">Contact</a>
             <a href="#">About</a>
         </div>
         <p>&copy; 2026 SautiLink Corporation. All rights reserved.</p>
     </footer>
 
     <script>
-        // Dark/Light mode toggle
+        // Theme Toggle
         const themeToggle = document.getElementById('theme-toggle');
         const sunIcon = document.getElementById('sun-icon');
         const moonIcon = document.getElementById('moon-icon');
@@ -500,7 +463,6 @@
             }
         }
         
-        // Load saved theme or default to dark
         const savedTheme = localStorage.getItem('theme') || 'dark';
         setTheme(savedTheme);
         
@@ -510,40 +472,19 @@
             setTheme(newTheme);
         });
         
-        // Form handling with success state
+        // Waitlist Form
         const form = document.getElementById('waitlist-form');
         const successMsg = document.getElementById('success-message');
         const submitBtn = document.getElementById('submit-btn');
         
         form.addEventListener('submit', function(e) {
-            // Let the form submit naturally to Formspree
-            // But we add a nice UX layer
             submitBtn.textContent = 'Joining...';
             submitBtn.disabled = true;
             
-            // Show success message after a short delay (in real use, you could use fetch + Formspree)
             setTimeout(() => {
                 form.style.display = 'none';
                 successMsg.style.display = 'block';
             }, 800);
-        });
-        
-        // Smooth scroll for any anchor links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                document.querySelector(this.getAttribute('href')).scrollIntoView({
-                    behavior: 'smooth'
-                });
-            });
-        });
-        
-        // Keyboard support for theme toggle
-        document.addEventListener('keydown', (e) => {
-            if (e.key === '/' && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
-                e.preventDefault();
-                themeToggle.click();
-            }
         });
     </script>
 </body>
