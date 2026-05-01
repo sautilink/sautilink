@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us — SautiLink</title>
+    <meta name="description" content="SautiLink is a privacy-first social network built in Tanzania for East Africa and the world. We stand for freedom, privacy, and uncensored expression.">
+    
+    <!-- Google Fonts: Bricolage Grotesque -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --red: #e11d48;
+            --blue: #2563eb;
+            --yellow: #eab308;
+            --bg: #0a0a0a;
+            --surface: #111111;
+            --text: #f8fafc;
+            --text-secondary: #cbd5e1;
+        }
+        
+        [data-theme="light"] {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #0f172a;
+            --text-secondary: #475569;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+        
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            background: rgba(10,10,10,0.85);
+        }
+        
+        [data-theme="light"] header {
+            background: rgba(248,250,252,0.95);
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+        
+        .nav {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 1.25rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .logo-svg {
+            width: 32px;
+            height: 32px;
+        }
+        
+        .logo-text {
+            font-weight: 700;
+            font-size: 1.75rem;
+            letter-spacing: -0.04em;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--red);
+        }
+        
+        .theme-toggle {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.15);
+            width: 42px;
+            height: 42px;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text);
+        }
+        
+        main {
+            padding-top: 110px;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
+        
+        .about-hero {
+            text-align: center;
+            padding: 5rem 0 4rem;
+        }
+        
+        .about-hero h1 {
+            font-size: clamp(3rem, 7vw, 5rem);
+            font-weight: 700;
+            line-height: 1.1;
+            letter-spacing: -0.05em;
+            margin-bottom: 1.5rem;
+        }
+        
+        .about-hero p {
+            font-size: 1.35rem;
+            color: var(--text-secondary);
+            max-width: 680px;
+            margin: 0 auto;
+        }
+        
+        .section {
+            padding: 4rem 0;
+        }
+        
+        h2 {
+            font-size: 2.25rem;
+            font-weight: 600;
+            margin-bottom: 1.75rem;
+            color: var(--text);
+        }
+        
+        .content {
+            font-size: 1.15rem;
+            color: var(--text-secondary);
+            max-width: 780px;
+        }
+        
+        .content p {
+            margin-bottom: 1.5rem;
+        }
+        
+        .highlight {
+            color: var(--red);
+            font-weight: 500;
+        }
+        
+        .values {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        
+        .value-card {
+            background: var(--surface);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 2.5rem;
+        }
+        
+        [data-theme="light"] .value-card {
+            border-color: rgba(0,0,0,0.08);
+        }
+        
+        .value-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--red);
+        }
+        
+        .company-info {
+            background: var(--surface);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 3rem;
+            margin: 4rem 0;
+        }
+        
+        footer {
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding: 4rem 2rem 2.5rem;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+        
+        .footer-links a:hover {
+            color: var(--red);
+        }
+        
+        @media (max-width: 768px) {
+            main {
+                padding-left: 1.25rem;
+                padding-right: 1.25rem;
+            }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+    <!-- HEADER -->
+    <header>
+        <div class="nav">
+            <a href="index.html" class="logo">
+                <svg class="logo-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="18" stroke="#e11d48" stroke-width="3.5"/>
+                    <path d="M12 20 Q20 10 28 20 Q20 30 12 20" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
+                    <circle cx="20" cy="20" r="4" fill="#eab308"/>
+                </svg>
+                <span class="logo-text">SautiLink</span>
+            </a>
+            
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="about.html" class="active">About</a>
+                <a href="contact.html">Contact</a>
+            </div>
+            
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+                <svg id="sun-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="5"/>
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+                </svg>
+                <svg id="moon-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="display:none;">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <div class="about-hero">
+            <h1>We believe in a free and private internet.</h1>
+            <p>SautiLink is building the next generation of social networking — one that puts people first.</p>
+        </div>
+
+        <div class="section">
+            <div class="content">
+                <p>
+                    Founded in Tanzania, <span class="highlight">SautiLink</span> is a privacy-first social platform dedicated to protecting freedom of expression and user data sovereignty in East Africa and beyond.
+                </p>
+                <p>
+                    In a world where major social platforms increasingly compromise user privacy and censor voices, we created SautiLink as a secure, transparent, and truly user-owned alternative. 
+                    Our mission is to provide a digital space where Africans — and people everywhere — can connect, share ideas, and express themselves without fear of surveillance or arbitrary moderation.
+                </p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Our Principles</h2>
+            <div class="values">
+                <div class="value-card">
+                    <h3>Privacy by Design</h3>
+                    <p>We do not collect, sell, or share your personal data. End-to-end encryption and minimal data retention are core to our architecture.</p>
+                </div>
+                <div class="value-card">
+                    <h3>Freedom of Speech</h3>
+                    <p>We defend the right to free expression while maintaining a respectful environment. We reject political censorship and algorithmic manipulation.</p>
+                </div>
+                <div class="value-card">
+                    <h3>Built in Africa</h3>
+                    <p>Headquartered in Mwanza, Tanzania, we understand the realities and aspirations of East Africa. We are building technology that serves our people first.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="company-info">
+            <h2 style="margin-bottom: 1.75rem;">SautiLink Corporation</h2>
+            <div class="content">
+                <p>
+                    SautiLink Corporation is headquartered in Uhuru Street, Mwanza, Tanzania. 
+                    While our legal base is in Tanzania, we operate with a fully remote-first team to protect the privacy and safety of our builders and users.
+                </p>
+                <p>
+                    We are currently focused on East Africa with plans for rapid expansion across the region. Our goal is to create a sovereign African social infrastructure that prioritizes digital rights.
+                </p>
+                
+                <p style="margin-top: 2rem; font-weight: 500;">
+                    SautiLink also owns and operates <strong>SautiNote</strong> — a digital media platform delivering independent news and commentary. 
+                    Follow <strong>@sautinote</strong> on Instagram, X (Twitter), Facebook, and YouTube, or visit <a href="https://www.sautinote.com" target="_blank" style="color: var(--red); text-decoration: underline;">www.sautinote.com</a>.
+                </p>
+            </div>
+        </div>
+
+        <div class="section" style="text-align: center; padding-bottom: 6rem;">
+            <h2 style="margin-bottom: 1.5rem;">Join the movement</h2>
+            <p style="font-size: 1.2rem; max-width: 520px; margin: 0 auto 2rem;">
+                Be among the first to experience a social platform that truly respects your voice and your privacy.
+            </p>
+            <a href="index.html" 
+               style="display: inline-block; background: var(--red); color: white; padding: 16px 40px; border-radius: 9999px; text-decoration: none; font-weight: 600; font-size: 1.1rem;">
+                Join the Waitlist
+            </a>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-links">
+            <a href="index.html">Home</a>
+            <a href="about.html">About</a>
+            <a href="contact.html">Contact</a>
+            <a href="#">Privacy</a>
+            <a href="#">Terms</a>
+        </div>
+        <p>&copy; 2026 SautiLink Corporation. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Theme Toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const body = document.body;
+        
+        function setTheme(theme) {
+            body.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            
+            if (theme === 'light') {
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
+            } else {
+                sunIcon.style.display = 'block';
+                moonIcon.style.display = 'none';
+            }
+        }
+        
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        setTheme(savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const current = body.getAttribute('data-theme');
+            setTheme(current === 'dark' ? 'light' : 'dark');
+        });
+    </script>
+</body>
+</html>
