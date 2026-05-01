@@ -3,8 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contact — SautiLink</title>
-    <meta name="description" content="Get in touch with SautiLink. Privacy-first social network from Tanzania.">
+    
+    <!-- SEO -->
+    <title>Contact Us — SautiLink</title>
+    <meta name="description" content="Get in touch with SautiLink. Support: support@sautilink.com | General: info@sautilink.com | Headquarters: Uhuru Street, Mwanza, Tanzania.">
+    <link rel="canonical" href="https://sautilink.com/contact.html">
+    
+    <!-- Open Graph Tags -->
+    <meta property="og:title" content="Contact SautiLink — Privacy-First Social Network">
+    <meta property="og:description" content="Reach out to the team building a privacy-first social network from Tanzania.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://sautilink.com/contact.html">
+    <meta property="og:site_name" content="SautiLink">
+    <meta property="og:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Contact SautiLink">
+    <meta name="twitter:description" content="Get in touch with the SautiLink team building a privacy-first social network from Tanzania.">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png" type="image/png">
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,7 +37,6 @@
         :root {
             --red: #e11d48;
             --blue: #2563eb;
-            --yellow: #eab308;
             --bg: #0a0a0a;
             --surface: #111111;
             --text: #f8fafc;
@@ -29,11 +50,7 @@
             --text-secondary: #475569;
         }
         
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: 'Bricolage Grotesque', system-ui, sans-serif;
@@ -44,9 +61,7 @@
         
         header {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 0; left: 0; right: 0;
             z-index: 1000;
             backdrop-filter: blur(12px);
             border-bottom: 1px solid rgba(255,255,255,0.08);
@@ -89,9 +104,7 @@
         }
         
         .nav-links a:hover,
-        .nav-links a.active {
-            color: var(--red);
-        }
+        .nav-links a.active { color: var(--red); }
         
         .theme-toggle {
             background: none;
@@ -107,9 +120,7 @@
             transition: all 0.3s ease;
         }
         
-        [data-theme="light"] .theme-toggle {
-            border-color: rgba(0,0,0,0.15);
-        }
+        [data-theme="light"] .theme-toggle { border-color: rgba(0,0,0,0.15); }
         
         .theme-toggle:hover {
             background: rgba(255,255,255,0.08);
@@ -249,7 +260,7 @@
         .footer-links {
             display: flex;
             justify-content: center;
-            gap: 2rem;
+            gap: 1.8rem;
             margin-bottom: 2rem;
             flex-wrap: wrap;
         }
@@ -260,17 +271,12 @@
             transition: color 0.3s;
         }
         
-        .footer-links a:hover {
-            color: var(--red);
-        }
+        .footer-links a:hover { color: var(--red); }
         
         @media (max-width: 768px) {
             .contact-container {
                 grid-template-columns: 1fr;
                 gap: 2.5rem;
-            }
-            .nav-links {
-                gap: 1.5rem;
             }
         }
     </style>
@@ -283,7 +289,7 @@
             
             <div class="nav-links">
                 <a href="index.html">Home</a>
-                <a href="index.html#waitlist">Waitlist</a>
+                <a href="about.html">About</a>
                 <a href="contact.html" class="active">Contact</a>
             </div>
             
@@ -351,10 +357,11 @@
     <!-- FOOTER -->
     <footer>
         <div class="footer-links">
-            <a href="terms.html">Terms</a>
+            <a href="index.html">Home</a>
+            <a href="about.html">About</a>
             <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
             <a href="contact.html">Contact</a>
-            <a href="#">About</a>
         </div>
         <p>&copy; 2026 SautiLink Corporation. All rights reserved.</p>
     </footer>
@@ -369,7 +376,6 @@
         function setTheme(theme) {
             body.setAttribute('data-theme', theme);
             localStorage.setItem('theme', theme);
-            
             if (theme === 'light') {
                 sunIcon.style.display = 'none';
                 moonIcon.style.display = 'block';
