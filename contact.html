@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contact — SautiLink</title>
-    <meta name="description" content="Get in touch with SautiLink. We're building a privacy-first social network from Tanzania.">
+    <meta name="description" content="Get in touch with SautiLink. Privacy-first social network from Tanzania.">
     
-    <!-- Google Fonts: Bricolage Grotesque -->
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -68,22 +68,11 @@
         }
         
         .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            font-weight: 700;
+            font-size: 1.85rem;
+            letter-spacing: -0.04em;
             text-decoration: none;
             color: inherit;
-        }
-        
-        .logo-svg {
-            width: 32px;
-            height: 32px;
-        }
-        
-        .logo-text {
-            font-weight: 700;
-            font-size: 1.75rem;
-            letter-spacing: -0.04em;
         }
         
         .nav-links {
@@ -99,7 +88,8 @@
             transition: color 0.3s;
         }
         
-        .nav-links a:hover {
+        .nav-links a:hover,
+        .nav-links a.active {
             color: var(--red);
         }
         
@@ -114,6 +104,16 @@
             justify-content: center;
             cursor: pointer;
             color: var(--text);
+            transition: all 0.3s ease;
+        }
+        
+        [data-theme="light"] .theme-toggle {
+            border-color: rgba(0,0,0,0.15);
+        }
+        
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.08);
+            transform: scale(1.05);
         }
         
         main {
@@ -157,7 +157,8 @@
             height: fit-content;
         }
         
-        [data-theme="light"] .contact-info {
+        [data-theme="light"] .contact-info,
+        [data-theme="light"] .contact-form {
             border-color: rgba(0,0,0,0.08);
         }
         
@@ -179,6 +180,7 @@
         .info-value {
             font-size: 1.25rem;
             font-weight: 500;
+            line-height: 1.5;
         }
         
         .contact-form {
@@ -186,10 +188,6 @@
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 24px;
             padding: 3rem;
-        }
-        
-        [data-theme="light"] .contact-form {
-            border-color: rgba(0,0,0,0.08);
         }
         
         input, textarea {
@@ -204,7 +202,8 @@
             font-family: inherit;
         }
         
-        [data-theme="light"] input, [data-theme="light"] textarea {
+        [data-theme="light"] input,
+        [data-theme="light"] textarea {
             background: #fff;
             border-color: #e2e8f0;
         }
@@ -240,7 +239,7 @@
         
         footer {
             border-top: 1px solid rgba(255,255,255,0.1);
-            padding: 3rem 2rem 2rem;
+            padding: 3.5rem 2rem 2.5rem;
             text-align: center;
             font-size: 0.95rem;
             color: var(--text-secondary);
@@ -258,6 +257,7 @@
         .footer-links a {
             color: var(--text-secondary);
             text-decoration: none;
+            transition: color 0.3s;
         }
         
         .footer-links a:hover {
@@ -269,6 +269,9 @@
                 grid-template-columns: 1fr;
                 gap: 2.5rem;
             }
+            .nav-links {
+                gap: 1.5rem;
+            }
         }
     </style>
 </head>
@@ -276,19 +279,12 @@
     <!-- HEADER -->
     <header>
         <div class="nav">
-            <a href="index.html" class="logo">
-                <svg class="logo-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="20" cy="20" r="18" stroke="#e11d48" stroke-width="3.5"/>
-                    <path d="M12 20 Q20 10 28 20 Q20 30 12 20" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
-                    <circle cx="20" cy="20" r="4" fill="#eab308"/>
-                </svg>
-                <span class="logo-text">SautiLink</span>
-            </a>
+            <a href="index.html" class="logo">SautiLink</a>
             
             <div class="nav-links">
                 <a href="index.html">Home</a>
-                <a href="#">Waitlist</a>
-                <a href="contact.html" style="color: var(--red);">Contact</a>
+                <a href="index.html#waitlist">Waitlist</a>
+                <a href="contact.html" class="active">Contact</a>
             </div>
             
             <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
@@ -306,7 +302,7 @@
     <main>
         <div class="contact-hero">
             <h1>Get in touch</h1>
-            <p>We're building the future of private social media from Tanzania. We'd love to hear from you.</p>
+            <p>We're building the future of private social media from Tanzania.<br> We'd love to hear from you.</p>
         </div>
 
         <div class="contact-container">
@@ -315,7 +311,7 @@
                 <h2 style="margin-bottom: 2rem; font-size: 1.8rem;">Our Contact Details</h2>
                 
                 <div class="info-item">
-                    <div class="info-label">Email</div>
+                    <div class="info-label">Support Email</div>
                     <div class="info-value">
                         <a href="mailto:support@sautilink.com" style="color: inherit; text-decoration: none;">support@sautilink.com</a>
                     </div>
@@ -342,11 +338,11 @@
             <div class="contact-form">
                 <h2 style="margin-bottom: 1.5rem;">Send us a message</h2>
                 <form id="contact-form" action="https://formspree.io/f/mqegqrya" method="POST">
-                    <input type="text" name="name" placeholder="Your name" required>
-                    <input type="email" name="email" placeholder="Your email" required>
-                    <input type="text" name="subject" placeholder="Subject">
+                    <input type="text" name="name" placeholder="Your full name" required>
+                    <input type="email" name="email" placeholder="Your email address" required>
+                    <input type="text" name="subject" placeholder="Subject (optional)">
                     <textarea name="message" placeholder="How can we help you?" required></textarea>
-                    <button type="submit">Send Message</button>
+                    <button type="submit" id="submit-btn">Send Message</button>
                 </form>
             </div>
         </div>
@@ -355,17 +351,16 @@
     <!-- FOOTER -->
     <footer>
         <div class="footer-links">
-            <a href="index.html">Home</a>
-            <a href="#">Waitlist</a>
+            <a href="terms.html">Terms</a>
+            <a href="privacy.html">Privacy</a>
             <a href="contact.html">Contact</a>
-            <a href="#">Privacy</a>
-            <a href="#">Terms</a>
+            <a href="#">About</a>
         </div>
         <p>&copy; 2026 SautiLink Corporation. All rights reserved.</p>
     </footer>
 
     <script>
-        // Theme Toggle (same as landing page)
+        // Theme Toggle
         const themeToggle = document.getElementById('theme-toggle');
         const sunIcon = document.getElementById('sun-icon');
         const moonIcon = document.getElementById('moon-icon');
@@ -392,12 +387,13 @@
             setTheme(current === 'dark' ? 'light' : 'dark');
         });
         
-        // Simple form feedback
+        // Form feedback
         const form = document.getElementById('contact-form');
+        const submitBtn = document.getElementById('submit-btn');
+        
         form.addEventListener('submit', function() {
-            const btn = this.querySelector('button');
-            btn.textContent = 'Sending...';
-            btn.disabled = true;
+            submitBtn.textContent = 'Sending...';
+            submitBtn.disabled = true;
         });
     </script>
 </body>
