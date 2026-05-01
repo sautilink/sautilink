@@ -3,10 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Help Center — SautiLink</title>
-    <meta name="description" content="SautiLink Help Center - Frequently Asked Questions and support for our privacy-first social platform.">
     
-    <!-- Google Fonts: Bricolage Grotesque -->
+    <!-- SEO -->
+    <title>Help Center & FAQ — SautiLink</title>
+    <meta name="description" content="SautiLink Help Center and Frequently Asked Questions. Find answers about our privacy-first social network, waitlist, and platform.">
+    <link rel="canonical" href="https://sautilink.com/help.html">
+    
+    <!-- Open Graph Tags -->
+    <meta property="og:title" content="Help Center & FAQ — SautiLink">
+    <meta property="og:description" content="Answers to frequently asked questions about SautiLink, our privacy-first social network from Tanzania.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://sautilink.com/help.html">
+    <meta property="og:site_name" content="SautiLink">
+    <meta property="og:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Help Center & FAQ — SautiLink">
+    <meta name="twitter:description" content="Frequently Asked Questions about SautiLink privacy-first social network.">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png" type="image/png">
+    
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -15,7 +37,6 @@
         :root {
             --red: #e11d48;
             --blue: #2563eb;
-            --yellow: #eab308;
             --bg: #0a0a0a;
             --surface: #111111;
             --text: #f8fafc;
@@ -29,11 +50,7 @@
             --text-secondary: #475569;
         }
         
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: 'Bricolage Grotesque', system-ui, sans-serif;
@@ -44,9 +61,7 @@
         
         header {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 0; left: 0; right: 0;
             z-index: 1000;
             backdrop-filter: blur(12px);
             border-bottom: 1px solid rgba(255,255,255,0.08);
@@ -68,22 +83,11 @@
         }
         
         .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            font-weight: 700;
+            font-size: 1.85rem;
+            letter-spacing: -0.04em;
             text-decoration: none;
             color: inherit;
-        }
-        
-        .logo-svg {
-            width: 32px;
-            height: 32px;
-        }
-        
-        .logo-text {
-            font-weight: 700;
-            font-size: 1.75rem;
-            letter-spacing: -0.04em;
         }
         
         .nav-links {
@@ -100,9 +104,7 @@
         }
         
         .nav-links a:hover,
-        .nav-links a.active {
-            color: var(--red);
-        }
+        .nav-links a.active { color: var(--red); }
         
         .theme-toggle {
             background: none;
@@ -115,44 +117,42 @@
             justify-content: center;
             cursor: pointer;
             color: var(--text);
+            transition: all 0.3s ease;
+        }
+        
+        [data-theme="light"] .theme-toggle { border-color: rgba(0,0,0,0.15); }
+        
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.08);
+            transform: scale(1.05);
         }
         
         main {
             padding-top: 110px;
-            max-width: 1100px;
+            max-width: 900px;
             margin: 0 auto;
             padding: 2rem;
         }
         
-        .help-hero {
+        h1 {
+            font-size: 2.8rem;
             text-align: center;
-            padding: 4rem 0 3rem;
+            margin-bottom: 1.5rem;
         }
         
-        .help-hero h1 {
-            font-size: clamp(2.8rem, 7vw, 4.5rem);
-            font-weight: 700;
-            letter-spacing: -0.04em;
-            margin-bottom: 1rem;
-        }
-        
-        .help-hero p {
+        .intro {
+            text-align: center;
             font-size: 1.25rem;
             color: var(--text-secondary);
-            max-width: 580px;
-            margin: 0 auto;
-        }
-        
-        .faq-container {
-            max-width: 800px;
-            margin: 0 auto 4rem;
+            max-width: 700px;
+            margin: 0 auto 3rem;
         }
         
         .faq-item {
             background: var(--surface);
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 20px;
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
             overflow: hidden;
         }
         
@@ -161,74 +161,39 @@
         }
         
         .faq-question {
-            padding: 1.75rem 2rem;
+            padding: 1.5rem 2rem;
             font-weight: 600;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: background 0.3s;
-        }
-        
-        .faq-question:hover {
-            background: rgba(255,255,255,0.05);
+            font-size: 1.15rem;
         }
         
         .faq-answer {
             padding: 0 2rem 1.75rem;
-            color: var(--text-secondary);
             display: none;
-            line-height: 1.75;
+            color: var(--text-secondary);
+            line-height: 1.7;
         }
         
         .faq-answer.show {
             display: block;
         }
         
-        .contact-support {
-            background: var(--surface);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 24px;
-            padding: 3.5rem 3rem;
-            text-align: center;
-            max-width: 700px;
-            margin: 0 auto;
-        }
-        
-        .contact-support h2 {
-            margin-bottom: 1rem;
-        }
-        
-        .btn {
-            display: inline-block;
-            background: var(--red);
-            color: white;
-            padding: 16px 36px;
-            border-radius: 9999px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 1.1rem;
-            margin-top: 1.5rem;
-            transition: all 0.3s ease;
-        }
-        
-        .btn:hover {
-            background: #be123c;
-            transform: translateY(-3px);
-        }
-        
         footer {
             border-top: 1px solid rgba(255,255,255,0.1);
-            padding: 4rem 2rem 2.5rem;
+            padding: 3.5rem 2rem 2.5rem;
             text-align: center;
-            color: var(--text-secondary);
             font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-top: 4rem;
         }
         
         .footer-links {
             display: flex;
             justify-content: center;
-            gap: 2rem;
+            gap: 1.8rem;
             margin-bottom: 2rem;
             flex-wrap: wrap;
         }
@@ -236,25 +201,17 @@
         .footer-links a {
             color: var(--text-secondary);
             text-decoration: none;
+            transition: color 0.3s;
         }
         
-        .footer-links a:hover {
-            color: var(--red);
-        }
+        .footer-links a:hover { color: var(--red); }
     </style>
 </head>
 <body data-theme="dark">
     <!-- HEADER -->
     <header>
         <div class="nav">
-            <a href="index.html" class="logo">
-                <svg class="logo-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="20" cy="20" r="18" stroke="#e11d48" stroke-width="3.5"/>
-                    <path d="M12 20 Q20 10 28 20 Q20 30 12 20" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
-                    <circle cx="20" cy="20" r="4" fill="#eab308"/>
-                </svg>
-                <span class="logo-text">SautiLink</span>
-            </a>
+            <a href="index.html" class="logo">SautiLink</a>
             
             <div class="nav-links">
                 <a href="index.html">Home</a>
@@ -276,88 +233,67 @@
     </header>
 
     <main>
-        <div class="help-hero">
-            <h1>Help Center</h1>
-            <p>How can we help you today?</p>
-        </div>
+        <h1>Help Center & FAQ</h1>
+        <p class="intro">Find answers to common questions about SautiLink, our waitlist, and our commitment to privacy.</p>
 
-        <div class="faq-container">
-            <h2 style="margin-bottom: 2rem; text-align: center;">Frequently Asked Questions</h2>
-            
-            <!-- FAQ 1 -->
-            <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    What is SautiLink?
-                    <span style="font-size: 1.5rem;">+</span>
-                </div>
-                <div class="faq-answer">
-                    SautiLink is a privacy-first social networking platform built in Tanzania. We prioritize user privacy, freedom of expression, and data sovereignty.
-                </div>
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+                What is SautiLink?
+                <span style="font-size: 1.4rem;">+</span>
             </div>
-            
-            <!-- FAQ 2 -->
-            <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    When will SautiLink launch?
-                    <span style="font-size: 1.5rem;">+</span>
-                </div>
-                <div class="faq-answer">
-                    We are currently in the final development stage. Join our waitlist on the homepage to be among the first users when we launch.
-                </div>
-            </div>
-            
-            <!-- FAQ 3 -->
-            <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    How does SautiLink protect my privacy?
-                    <span style="font-size: 1.5rem;">+</span>
-                </div>
-                <div class="faq-answer">
-                    We follow a strict "Privacy by Design" approach. We collect minimal data, do not sell user information, and implement strong encryption standards. Your data belongs to you.
-                </div>
-            </div>
-            
-            <!-- FAQ 4 -->
-            <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    Is SautiLink only for Tanzanians?
-                    <span style="font-size: 1.5rem;">+</span>
-                </div>
-                <div class="faq-answer">
-                    No. While we are proudly built in Tanzania and headquartered in Mwanza, SautiLink is designed for users across East Africa and eventually the entire world.
-                </div>
-            </div>
-            
-            <!-- FAQ 5 -->
-            <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    What is the connection between SautiLink and SautiNote?
-                    <span style="font-size: 1.5rem;">+</span>
-                </div>
-                <div class="faq-answer">
-                    SautiLink Corporation owns and operates SautiNote (@sautinote), our digital media platform focused on independent news and commentary. You can visit <a href="https://www.sautinote.com" target="_blank" style="color:var(--red)">www.sautinote.com</a>.
-                </div>
-            </div>
-            
-            <!-- FAQ 6 -->
-            <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    How can I contact support?
-                    <span style="font-size: 1.5rem;">+</span>
-                </div>
-                <div class="faq-answer">
-                    You can reach our support team at <strong>support@sautilink.com</strong> or use the contact form on our <a href="contact.html" style="color:var(--red)">Contact page</a>.
-                </div>
+            <div class="faq-answer">
+                SautiLink is a new privacy-first social network being built from Tanzania. Our mission is to create a platform where users have full control over their data and can express themselves freely without surveillance.
             </div>
         </div>
 
-        <!-- Support CTA -->
-        <div class="contact-support">
-            <h2>Still have questions?</h2>
-            <p style="color: var(--text-secondary); font-size: 1.15rem; max-width: 480px; margin: 0 auto 1.5rem;">
-                Our team is ready to assist you. Reach out and we’ll get back to you as soon as possible.
-            </p>
-            <a href="contact.html" class="btn">Contact Support</a>
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+                When will SautiLink launch?
+                <span style="font-size: 1.4rem;">+</span>
+            </div>
+            <div class="faq-answer">
+                We are currently in the pre-launch phase. By joining the waitlist, you'll be among the first to know when we officially launch. We're working hard to bring you a high-quality, privacy-focused experience.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+                How does SautiLink protect my privacy?
+                <span style="font-size: 1.4rem;">+</span>
+            </div>
+            <div class="faq-answer">
+                Privacy is at the core of everything we do. We follow a minimal data collection policy, use strong encryption where applicable, and are committed to never selling or sharing your personal data with third parties.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+                What information do you collect from the waitlist?
+                <span style="font-size: 1.4rem;">+</span>
+            </div>
+            <div class="faq-answer">
+                We only collect your email address and desired username when you join the waitlist. This information is used solely to notify you about the launch and important updates.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+                Will SautiLink be free to use?
+                <span style="font-size: 1.4rem;">+</span>
+            </div>
+            <div class="faq-answer">
+                Yes, the core platform will be free. We may introduce optional premium features in the future, but basic usage will always remain free with strong privacy protections.
+            </div>
+        </div>
+
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+                How can I contact the team?
+                <span style="font-size: 1.4rem;">+</span>
+            </div>
+            <div class="faq-answer">
+                You can reach us at <strong>support@sautilink.com</strong> for support or <strong>info@sautilink.com</strong> for general inquiries. Our headquarters are located on Uhuru Street in Mwanza, Tanzania.
+            </div>
         </div>
     </main>
 
@@ -367,14 +303,30 @@
             <a href="index.html">Home</a>
             <a href="about.html">About</a>
             <a href="help.html">Help</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
             <a href="contact.html">Contact</a>
-            <a href="#">Privacy</a>
-            <a href="#">Terms</a>
         </div>
         <p>&copy; 2026 SautiLink Corporation. All rights reserved.</p>
     </footer>
 
     <script>
+        // FAQ Toggle Function
+        function toggleFAQ(element) {
+            const answer = element.nextElementSibling;
+            const isVisible = answer.classList.contains('show');
+            
+            // Close all other FAQs
+            document.querySelectorAll('.faq-answer').forEach(ans => {
+                ans.classList.remove('show');
+            });
+            
+            // Toggle current FAQ
+            if (!isVisible) {
+                answer.classList.add('show');
+            }
+        }
+
         // Theme Toggle
         const themeToggle = document.getElementById('theme-toggle');
         const sunIcon = document.getElementById('sun-icon');
@@ -384,7 +336,6 @@
         function setTheme(theme) {
             body.setAttribute('data-theme', theme);
             localStorage.setItem('theme', theme);
-            
             if (theme === 'light') {
                 sunIcon.style.display = 'none';
                 moonIcon.style.display = 'block';
@@ -401,22 +352,6 @@
             const current = body.getAttribute('data-theme');
             setTheme(current === 'dark' ? 'light' : 'dark');
         });
-        
-        // FAQ Toggle Function
-        function toggleFAQ(element) {
-            const answer = element.nextElementSibling;
-            const isVisible = answer.classList.contains('show');
-            
-            // Close all other FAQs
-            document.querySelectorAll('.faq-answer').forEach(ans => {
-                ans.classList.remove('show');
-            });
-            
-            // Toggle current FAQ
-            if (!isVisible) {
-                answer.classList.add('show');
-            }
-        }
     </script>
 </body>
 </html>
