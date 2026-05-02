@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO -->
+    <title>SautiNote — Unbiased Media by SautiLink</title>
+    <meta name="description" content="SautiNote is the official media arm of SautiLink. Independent, unbiased journalism and storytelling from Tanzania and Africa. Part of SautiLink Corporation.">
+    <link rel="canonical" href="https://sautilink.com/sautinote">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="SautiNote — Unbiased Media by SautiLink">
+    <meta property="og:description" content="Independent media platform committed to truth, transparency, and African voices.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://sautilink.com/sautinote">
+    <meta property="og:site_name" content="SautiLink">
+    <meta property="og:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SautiNote — Unbiased Media by SautiLink">
+    <meta name="twitter:description" content="Truthful, unbiased journalism and storytelling.">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
+    
+    <link rel="icon" href="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png" type="image/png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --red: #e11d48;
+            --blue: #2563eb;
+            --bg: #0a0a0a;
+            --surface: #111111;
+            --text: #f8fafc;
+            --text-secondary: #cbd5e1;
+        }
+        
+        [data-theme="light"] {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #0f172a;
+            --text-secondary: #475569;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+        
+        header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            background: rgba(10,10,10,0.85);
+        }
+        
+        [data-theme="light"] header {
+            background: rgba(248,250,252,0.95);
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+        
+        .nav {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 1.25rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .logo {
+            font-weight: 700;
+            font-size: 1.85rem;
+            letter-spacing: -0.04em;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .nav-links a:hover,
+        .nav-links a.active { color: var(--red); }
+        
+        .theme-toggle {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.15);
+            width: 42px;
+            height: 42px;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text);
+        }
+        
+        main {
+            padding-top: 110px;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 4rem 2rem 3rem;
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .hero .tagline {
+            font-size: 1.4rem;
+            color: var(--red);
+            margin-bottom: 1.5rem;
+        }
+        
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 3rem;
+        }
+        
+        .section {
+            margin-bottom: 4rem;
+        }
+        
+        h2 {
+            font-size: 1.75rem;
+            margin: 2.5rem 0 1.25rem;
+            color: var(--red);
+        }
+        
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 1.25rem;
+        }
+        
+        .links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .link-card {
+            background: var(--surface);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            flex: 1;
+            min-width: 280px;
+        }
+        
+        footer {
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding: 3.5rem 2rem 2.5rem;
+            text-align: center;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-top: 4rem;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 1.8rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .footer-links a:hover { color: var(--red); }
+    </style>
+</head>
+<body data-theme="dark">
+    <!-- HEADER -->
+    <header>
+        <div class="nav">
+            <a href="index.html" class="logo">SautiLink</a>
+            
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="about.html">About</a>
+                <a href="sautinote.html" class="active">SautiNote</a>
+                <a href="help.html">Help</a>
+                <a href="contact.html">Contact</a>
+            </div>
+            
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+                <svg id="sun-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="5"/>
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+                </svg>
+                <svg id="moon-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="display:none;">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <div class="hero">
+            <h1>SautiNote</h1>
+            <p class="tagline">Unbiased. Independent. African Voices First.</p>
+            <p>SautiNote is the official media and storytelling platform of SautiLink Corporation. We are committed to delivering truthful, unbiased journalism and meaningful content that amplifies African perspectives and promotes transparency.</p>
+        </div>
+
+        <div class="section">
+            <h2>Our Mission</h2>
+            <p>We believe in journalism that seeks truth without fear or favor. SautiNote exists to inform, educate, and empower citizens with accurate information, free from political or corporate influence.</p>
+        </div>
+
+        <div class="section">
+            <h2>Who We Are</h2>
+            <p>SautiNote is a subsidiary and the media arm of <strong>SautiLink Corporation</strong>. We operate independently in our editorial decisions while sharing the same values of privacy, freedom, and community empowerment.</p>
+        </div>
+
+        <div class="section">
+            <h2>Find Us</h2>
+            <div class="links">
+                <div class="link-card">
+                    <h3>Website</h3>
+                    <p><a href="https://www.sautinote.com" target="_blank" style="color:var(--red);">www.sautinote.com</a></p>
+                </div>
+                <div class="link-card">
+                    <h3>Social Media</h3>
+                    <p>@sautinote on Instagram, X (Twitter), TikTok, Facebook, LinkedIn & YouTube</p>
+                </div>
+                <div class="link-card">
+                    <h3>Part of</h3>
+                    <p>SautiLink Corporation</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Contact SautiNote</h2>
+            <p>For media inquiries, story tips, or collaboration:</p>
+            <p><strong>note@sautinote.com</strong> or <strong>support@sautilink.com</strong></p>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-links">
+            <a href="index.html">Home</a>
+            <a href="about.html">About</a>
+            <a href="sautinote.html">SautiNote</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="contact.html">Contact</a>
+        </div>
+        <p>&copy; 2026 SautiLink Corporation. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Theme Toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const body = document.body;
+        
+        function setTheme(theme) {
+            body.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            if (theme === 'light') {
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
+            } else {
+                sunIcon.style.display = 'block';
+                moonIcon.style.display = 'none';
+            }
+        }
+        
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        setTheme(savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const current = body.getAttribute('data-theme');
+            setTheme(current === 'dark' ? 'light' : 'dark');
+        });
+    </script>
+</body>
+</html>
