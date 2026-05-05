@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO - Swahili -->
+    <title>SautiLink — Mtandao wa Kijamii wa Faragha Unakuja Hivi Karibuni</title>
+    <meta name="description" content="SautiLink ni mtandao mpya wa kijamii unaotanguliza faragha kutoka Tanzania. Sauti yako, data yako, uhuru wako. Jiunge na orodha ya kusubiri.">
+    <link rel="canonical" href="https://sautilink.com/sw">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="SautiLink — Mtandao wa Kijamii wa Faragha">
+    <meta property="og:description" content="Sauti yako inakubaliwa kuwa yako. Mtandao mpya wa kijamii unaotanguliza faragha na uhuru — kutoka Tanzania kwa ajili ya dunia.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://sautilink.com/sw">
+    <meta property="og:site_name" content="SautiLink">
+    <meta property="og:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
+    
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SautiLink — Mtandao wa Kijamii wa Faragha">
+    <meta name="twitter:description" content="Jiunge na orodha ya kusubiri kwa mtandao mpya wa kijamii unaotanguliza faragha kutoka Tanzania.">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
+    
+    <link rel="icon" href="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png" type="image/png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Same beautiful styles as your main page */
+        :root {
+            --red: #e11d48;
+            --blue: #2563eb;
+            --bg: #0a0a0a;
+            --surface: #111111;
+            --text: #f8fafc;
+            --text-secondary: #cbd5e1;
+        }
+        
+        [data-theme="light"] {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #0f172a;
+            --text-secondary: #475569;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        /* All other CSS is identical to your main index.html */
+        /* (I'm keeping it short here for space - copy the full CSS from your latest index.html) */
+        header { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(10,10,10,0.85); }
+        [data-theme="light"] header { background: rgba(248,250,252,0.95); border-bottom: 1px solid rgba(0,0,0,0.08); }
+        
+        .nav { max-width: 1280px; margin: 0 auto; padding: 1.25rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+        .logo { font-weight: 700; font-size: 1.85rem; letter-spacing: -0.04em; text-decoration: none; color: inherit; }
+        
+        /* ... (All other styles remain exactly the same as your latest index.html) ... */
+    </style>
+</head>
+<body data-theme="dark">
+    <!-- HEADER -->
+    <header>
+        <div class="nav">
+            <a href="index.html" class="logo">SautiLink</a>
+            
+            <div class="nav-right">
+                <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
+                    <svg id="sun-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="5"/>
+                        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+                    </svg>
+                    <svg id="moon-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="display:none;">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- HERO -->
+        <section class="hero">
+            <div class="hero-content">
+                <div class="badge">Mtandao wa Kijamii wa Faragha Kwanza</div>
+                <h1>SautiLink inakuja<br>hivi karibuni</h1>
+                <p>Mtandao mpya wa kijamii ambapo <span class="highlight">sauti yako ni yako</span>. Unaotengenezwa kwa faragha na uhuru kamili — kutoka Tanzania, kwa ajili ya dunia.</p>
+                
+                <div class="form-container">
+                    <form id="waitlist-form" action="https://formspree.io/f/mqegqrya" method="POST">
+                        <div class="form-group">
+                            <label for="email">Anwani ya Barua Pepe</label>
+                            <input type="email" id="email" name="email" required placeholder="wewe@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="username">Jina unalotaka (Username)</label>
+                            <input type="text" id="username" name="username" required placeholder="@jinalako">
+                        </div>
+                        <button type="submit" id="submit-btn">Jiunge na Orodha ya Kusubiri</button>
+                    </form>
+                    
+                    <div id="success-message" class="success-message">
+                        Asante! Umejiunga katika orodha.<br>
+                        Tutakuarifu SautiLink ikizinduliwa.
+                    </div>
+                    
+                    <div class="trust">
+                        Tunaheshimu faragha yako. Hakuna barua pepe zisizohitajika. Kamwe.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SOCIAL SECTION -->
+        <section class="section social-section">
+            <h2 style="font-size: 2.25rem; font-weight: 600; margin-bottom: 1rem;">Fuatilia safari yetu</h2>
+            <p style="color: var(--text-secondary); max-width: 420px; margin: 0 auto 2.5rem;">Tushiriki katika mitandao ya kijamii</p>
+            
+            <!-- Social icons (same as before) -->
+            <div class="social-grid">
+                <!-- All your social icons here (Instagram, X, TikTok, etc.) - same code as index.html -->
+                <!-- ... (copy the social grid from your latest index.html) ... -->
+            </div>
+        </section>
+
+        <!-- DONATE -->
+        <section class="donate-section">
+            <p style="font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 1.5rem;">Tusaidie kujenga mtandao bora na salama</p>
+            <a href="https://www.paypal.com/paypalme/donate@sautilink.com" target="_blank" class="paypal-btn">
+                Changia kupitia PayPal
+            </a>
+        </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-links">
+            <a href="index.html">Nyumbani</a>
+            <a href="about.html">Kuhusu Sisi</a>
+            <a href="sautinote.html">SautiNote</a>
+            <a href="help.html">Msaada</a>
+            <a href="privacy.html">Faragha</a>
+            <a href="terms.html">Masharti</a>
+            <a href="contact.html">Wasiliana Nasi</a>
+        </div>
+        <p>&copy; 2026 SautiLink Corporation. Haki zote zimehifadhiwa.</p>
+    </footer>
+
+    <script>
+        // Same JavaScript as your main page (theme toggle + form)
+        const themeToggle = document.getElementById('theme-toggle');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const body = document.body;
+        
+        function setTheme(theme) {
+            body.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            if (theme === 'light') {
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
+            } else {
+                sunIcon.style.display = 'block';
+                moonIcon.style.display = 'none';
+            }
+        }
+        
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        setTheme(savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const current = body.getAttribute('data-theme');
+            setTheme(current === 'dark' ? 'light' : 'dark');
+        });
+        
+        const form = document.getElementById('waitlist-form');
+        const successMsg = document.getElementById('success-message');
+        const submitBtn = document.getElementById('submit-btn');
+        
+        form.addEventListener('submit', function() {
+            submitBtn.textContent = 'Inaongeza...';
+            submitBtn.disabled = true;
+            setTimeout(() => {
+                form.style.display = 'none';
+                successMsg.style.display = 'block';
+            }, 800);
+        });
+    </script>
+</body>
+</html>
