@@ -6,11 +6,11 @@
     
     <!-- Primary SEO -->
     <title>SautiLink — Privacy-First Social Network Coming Soon</title>
-    <meta name="description" content="SautiLink is a new privacy-first social network from Tanzania. Your voice, your data, your freedom. No surveillance. Join the waitlist today.">
+    <meta name="description" content="SautiLink is a new privacy-first social network from Tanzania. Your voice, your data, your freedom. Join the waitlist today.">
     <meta name="keywords" content="sautilink, privacy social network, private social media, tanzania social app, data protection, freedom of speech">
     <link rel="canonical" href="https://sautilink.com/">
     
-    <!-- Open Graph Tags -->
+    <!-- Open Graph -->
     <meta property="og:title" content="SautiLink — Privacy-First Social Network">
     <meta property="og:description" content="Your voice belongs to you. A new social network built with uncompromising privacy and freedom — from Tanzania for the world.">
     <meta property="og:type" content="website">
@@ -26,10 +26,8 @@
     <meta name="twitter:description" content="Join the waitlist for the new privacy-first social network from Tanzania.">
     <meta name="twitter:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
     
-    <!-- Favicon -->
     <link rel="icon" href="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png" type="image/png">
     
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -95,7 +93,22 @@
         .nav-right {
             display: flex;
             align-items: center;
-            gap: 1.5rem;
+            gap: 1rem;
+        }
+        
+        .language-selector {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: var(--text);
+            padding: 8px 14px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        
+        [data-theme="light"] .language-selector {
+            background: rgba(0,0,0,0.06);
+            border-color: rgba(0,0,0,0.2);
         }
         
         .theme-toggle {
@@ -114,8 +127,8 @@
         
         [data-theme="light"] .theme-toggle { border-color: rgba(0,0,0,0.15); }
         
-        .theme-toggle:hover {
-            background: rgba(255,255,255,0.08);
+        .theme-toggle:hover, .language-selector:hover {
+            background: rgba(255,255,255,0.1);
             transform: scale(1.05);
         }
         
@@ -352,12 +365,21 @@
     </style>
 </head>
 <body data-theme="dark">
-    <!-- HEADER -->
+    <!-- HEADER with Language Switcher -->
     <header>
         <div class="nav">
             <a href="index.html" class="logo">SautiLink</a>
             
             <div class="nav-right">
+                <!-- Language Selector -->
+                <select class="language-selector" onchange="window.location.href=this.value">
+                    <option value="index.html" selected>🇬🇧 English</option>
+                    <option value="sw.html">🇹🇿 Kiswahili</option>
+                    <option value="fr.html">🇫🇷 Français</option>
+                    <option value="es.html">🇪🇸 Español</option>
+                    <option value="no.html">🇳🇴 Norsk</option>
+                </select>
+                
                 <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
                     <svg id="sun-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="5"/>
@@ -440,7 +462,7 @@
         </section>
     </main>
 
-    <!-- FINAL FOOTER with all pages -->
+    <!-- FOOTER -->
     <footer>
         <div class="footer-links">
             <a href="index.html">Home</a>
