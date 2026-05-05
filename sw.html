@@ -4,22 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <!-- SEO - Swahili -->
+    <!-- SEO Swahili -->
     <title>SautiLink — Mtandao wa Kijamii wa Faragha Unakuja Hivi Karibuni</title>
-    <meta name="description" content="SautiLink ni mtandao mpya wa kijamii unaotanguliza faragha kutoka Tanzania. Sauti yako, data yako, uhuru wako. Jiunge na orodha ya kusubiri.">
+    <meta name="description" content="SautiLink ni mtandao mpya wa kijamii unaotanguliza faragha kutoka Tanzania. Sauti yako, data yako, uhuru wako. Jiunge na orodha ya kusubiri sasa.">
     <link rel="canonical" href="https://sautilink.com/sw">
     
-    <!-- Open Graph -->
     <meta property="og:title" content="SautiLink — Mtandao wa Kijamii wa Faragha">
-    <meta property="og:description" content="Sauti yako inakubaliwa kuwa yako. Mtandao mpya wa kijamii unaotanguliza faragha na uhuru — kutoka Tanzania kwa ajili ya dunia.">
+    <meta property="og:description" content="Sauti yako inakubaliwa kuwa yako. Mtandao mpya wa kijamii unaotanguliza faragha na uhuru — kutoka Tanzania kwa dunia.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://sautilink.com/sw">
-    <meta property="og:site_name" content="SautiLink">
     <meta property="og:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
     
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="SautiLink — Mtandao wa Kijamii wa Faragha">
-    <meta name="twitter:description" content="Jiunge na orodha ya kusubiri kwa mtandao mpya wa kijamii unaotanguliza faragha kutoka Tanzania.">
+    <meta name="twitter:description" content="Jiunge na orodha ya kusubiri kwa mtandao mpya wa faragha kutoka Tanzania.">
     <meta name="twitter:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
     
     <link rel="icon" href="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png" type="image/png">
@@ -29,7 +27,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        /* Same beautiful styles as your main page */
         :root {
             --red: #e11d48;
             --blue: #2563eb;
@@ -56,25 +53,304 @@
             overflow-x: hidden;
         }
         
-        /* All other CSS is identical to your main index.html */
-        /* (I'm keeping it short here for space - copy the full CSS from your latest index.html) */
-        header { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(10,10,10,0.85); }
-        [data-theme="light"] header { background: rgba(248,250,252,0.95); border-bottom: 1px solid rgba(0,0,0,0.08); }
+        header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            background: rgba(10,10,10,0.85);
+        }
         
-        .nav { max-width: 1280px; margin: 0 auto; padding: 1.25rem 2rem; display: flex; align-items: center; justify-content: space-between; }
-        .logo { font-weight: 700; font-size: 1.85rem; letter-spacing: -0.04em; text-decoration: none; color: inherit; }
+        [data-theme="light"] header {
+            background: rgba(248,250,252,0.95);
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
         
-        /* ... (All other styles remain exactly the same as your latest index.html) ... */
+        .nav {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 1.25rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .logo {
+            font-weight: 700;
+            font-size: 1.85rem;
+            letter-spacing: -0.04em;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        
+        .theme-toggle {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.15);
+            width: 42px;
+            height: 42px;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text);
+            transition: all 0.3s ease;
+        }
+        
+        [data-theme="light"] .theme-toggle { border-color: rgba(0,0,0,0.15); }
+        
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.08);
+            transform: scale(1.05);
+        }
+        
+        main { padding-top: 100px; }
+        
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            position: relative;
+        }
+        
+        .hero-content {
+            max-width: 720px;
+            text-align: center;
+            z-index: 2;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: rgba(225, 29, 72, 0.15);
+            color: var(--red);
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 6px 18px;
+            border-radius: 9999px;
+            margin-bottom: 1.5rem;
+        }
+        
+        .hero h1 {
+            font-size: clamp(3rem, 8vw, 5.5rem);
+            font-weight: 700;
+            line-height: 1.05;
+            letter-spacing: -0.06em;
+            margin-bottom: 1.25rem;
+        }
+        
+        .hero p {
+            font-size: 1.35rem;
+            color: var(--text-secondary);
+            max-width: 580px;
+            margin: 0 auto 2.5rem;
+        }
+        
+        .highlight { color: var(--red); }
+        
+        .form-container {
+            background: var(--surface);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 2.75rem;
+            max-width: 460px;
+            margin: 0 auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+        }
+        
+        [data-theme="light"] .form-container {
+            border-color: rgba(0,0,0,0.08);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .form-group { margin-bottom: 1.25rem; }
+        
+        label {
+            display: block;
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: var(--text);
+            padding: 16px 20px;
+            border-radius: 16px;
+            font-size: 1.1rem;
+        }
+        
+        [data-theme="light"] input {
+            background: #fff;
+            border-color: #e2e8f0;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+        }
+        
+        button {
+            width: 100%;
+            background: var(--red);
+            color: white;
+            border: none;
+            padding: 18px;
+            font-size: 1.15rem;
+            font-weight: 600;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 0.5rem;
+        }
+        
+        button:hover {
+            background: #be123c;
+            transform: translateY(-2px);
+        }
+        
+        .success-message {
+            display: none;
+            background: rgba(16, 185, 129, 0.15);
+            color: #4ade80;
+            padding: 1.75rem;
+            border-radius: 16px;
+            text-align: center;
+            font-weight: 500;
+            margin-top: 1rem;
+        }
+        
+        .trust {
+            text-align: center;
+            margin-top: 1.75rem;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+        
+        .section {
+            padding: 5rem 2rem;
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+        
+        .social-section {
+            background: var(--surface);
+            text-align: center;
+        }
+        
+        .social-grid {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 2rem;
+            margin-top: 2.5rem;
+        }
+        
+        .social-icon {
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9999px;
+            background: rgba(255,255,255,0.05);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--text-secondary);
+        }
+        
+        [data-theme="light"] .social-icon {
+            background: #f1f5f9;
+        }
+        
+        .social-icon:hover {
+            background: var(--red);
+            color: white;
+            transform: scale(1.12) translateY(-4px);
+        }
+        
+        .social-icon svg {
+            width: 28px;
+            height: 28px;
+        }
+        
+        .donate-section {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+        
+        .paypal-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--surface);
+            padding: 1rem 2.5rem;
+            border-radius: 9999px;
+            border: 1px solid rgba(255,255,255,0.1);
+            text-decoration: none;
+            color: var(--text);
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .paypal-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        
+        footer {
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding: 3.5rem 2rem 2.5rem;
+            text-align: center;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 1.6rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .footer-links a:hover { color: var(--red); }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 30%, rgba(225, 29, 72, 0.07) 0%, transparent 70%);
+            z-index: 1;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body data-theme="dark">
     <!-- HEADER -->
     <header>
         <div class="nav">
-            <a href="index.html" class="logo">SautiLink</a>
+            <a href="../index.html" class="logo">SautiLink</a>
             
             <div class="nav-right">
-                <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
+                <button id="theme-toggle" class="theme-toggle" aria-label="Badili mandhari">
                     <svg id="sun-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="5"/>
                         <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
@@ -88,7 +364,6 @@
     </header>
 
     <main>
-        <!-- HERO -->
         <section class="hero">
             <div class="hero-content">
                 <div class="badge">Mtandao wa Kijamii wa Faragha Kwanza</div>
@@ -102,15 +377,15 @@
                             <input type="email" id="email" name="email" required placeholder="wewe@example.com">
                         </div>
                         <div class="form-group">
-                            <label for="username">Jina unalotaka (Username)</label>
+                            <label for="username">Jina unalotaka</label>
                             <input type="text" id="username" name="username" required placeholder="@jinalako">
                         </div>
                         <button type="submit" id="submit-btn">Jiunge na Orodha ya Kusubiri</button>
                     </form>
                     
                     <div id="success-message" class="success-message">
-                        Asante! Umejiunga katika orodha.<br>
-                        Tutakuarifu SautiLink ikizinduliwa.
+                        Asante sana! Umejiunga katika orodha.<br>
+                        Tutakuarifu tunapozindua SautiLink.
                     </div>
                     
                     <div class="trust">
@@ -120,21 +395,23 @@
             </div>
         </section>
 
-        <!-- SOCIAL SECTION -->
+        <!-- Social Section -->
         <section class="section social-section">
-            <h2 style="font-size: 2.25rem; font-weight: 600; margin-bottom: 1rem;">Fuatilia safari yetu</h2>
+            <h2 style="font-size: 2.25rem; font-weight: 600; margin-bottom: 1rem;">Fuatilia Safari Yetu</h2>
             <p style="color: var(--text-secondary); max-width: 420px; margin: 0 auto 2.5rem;">Tushiriki katika mitandao ya kijamii</p>
             
-            <!-- Social icons (same as before) -->
             <div class="social-grid">
-                <!-- All your social icons here (Instagram, X, TikTok, etc.) - same code as index.html -->
-                <!-- ... (copy the social grid from your latest index.html) ... -->
+                <!-- Instagram, X, TikTok, Facebook, LinkedIn, YouTube icons - same as before -->
+                <a href="https://linktr.ee/sautilink" target="_blank" class="social-icon" aria-label="Instagram">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.849.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.667.072 4.947.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4 2.21 0 4 1.791 4 4 0 2.21-1.79 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                </a>
+                <!-- Add the rest of your social icons here (X, TikTok, etc.) from your English version -->
             </div>
         </section>
 
         <!-- DONATE -->
         <section class="donate-section">
-            <p style="font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 1.5rem;">Tusaidie kujenga mtandao bora na salama</p>
+            <p style="font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 1.5rem;">Tusaidie kujenga mtandao bora na salama zaidi</p>
             <a href="https://www.paypal.com/paypalme/donate@sautilink.com" target="_blank" class="paypal-btn">
                 Changia kupitia PayPal
             </a>
@@ -144,19 +421,19 @@
     <!-- FOOTER -->
     <footer>
         <div class="footer-links">
-            <a href="index.html">Nyumbani</a>
-            <a href="about.html">Kuhusu Sisi</a>
-            <a href="sautinote.html">SautiNote</a>
-            <a href="help.html">Msaada</a>
-            <a href="privacy.html">Faragha</a>
-            <a href="terms.html">Masharti</a>
-            <a href="contact.html">Wasiliana Nasi</a>
+            <a href="../index.html">Nyumbani</a>
+            <a href="../about.html">Kuhusu Sisi</a>
+            <a href="../sautinote.html">SautiNote</a>
+            <a href="../help.html">Msaada</a>
+            <a href="../privacy.html">Faragha</a>
+            <a href="../terms.html">Masharti</a>
+            <a href="../contact.html">Wasiliana</a>
         </div>
         <p>&copy; 2026 SautiLink Corporation. Haki zote zimehifadhiwa.</p>
     </footer>
 
     <script>
-        // Same JavaScript as your main page (theme toggle + form)
+        // Theme + Form Script
         const themeToggle = document.getElementById('theme-toggle');
         const sunIcon = document.getElementById('sun-icon');
         const moonIcon = document.getElementById('moon-icon');
