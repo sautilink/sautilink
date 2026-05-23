@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>MgoYela Media — Bongo Movies & Entertainment</title>
+    <meta name="description" content="MgoYela Media: Your home for Bongo Movies, Swahili entertainment, love stories and more. Watch the best Tanzanian cinema.">
+    <link rel="canonical" href="https://sautilink.com/mgoyelamedia.html">
+    
+    <meta property="og:title" content="MgoYela Media — Bongo Movies & Swahili Entertainment">
+    <meta property="og:description" content="Best Bongo Movies, Love Stories and Entertainment">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://sautilink.com/mgoyelamedia.html">
+    <meta property="og:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
+    
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="MgoYela Media — Bongo Movies">
+    <meta name="twitter:description" content="Swahili Movies & Entertainment">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
+    
+    <link rel="icon" href="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png" type="image/png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --red: #e11d48;
+            --blue: #2563eb;
+            --bg: #0a0a0a;
+            --surface: #111111;
+            --text: #f8fafc;
+            --text-secondary: #cbd5e1;
+        }
+        
+        [data-theme="light"] {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #0f172a;
+            --text-secondary: #475569;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        
+        header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            background: rgba(10,10,10,0.85);
+        }
+        
+        [data-theme="light"] header {
+            background: rgba(248,250,252,0.95);
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+        
+        .nav {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 1.25rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .logo {
+            font-weight: 700;
+            font-size: 1.85rem;
+            letter-spacing: -0.04em;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .nav-links a:hover,
+        .nav-links a.active { color: var(--red); }
+        
+        .theme-toggle {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.15);
+            width: 42px;
+            height: 42px;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text);
+        }
+        
+        main {
+            padding-top: 110px;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 4rem 2rem 3rem;
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .hero .tagline {
+            font-size: 1.4rem;
+            color: var(--red);
+            margin-bottom: 1.5rem;
+        }
+        
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 3rem;
+        }
+        
+        .subscribe-btn {
+            background: #ff0000;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin: 2rem 0;
+            transition: all 0.3s;
+        }
+        
+        .subscribe-btn:hover {
+            background: #cc0000;
+            transform: scale(1.05);
+        }
+        
+        .video-embed {
+            margin: 3rem auto;
+            max-width: 800px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+        
+        .social-icons {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+        
+        .social-icons a {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface);
+            border-radius: 9999px;
+            font-size: 1.8rem;
+            transition: all 0.3s;
+        }
+        
+        .social-icons a:hover {
+            background: var(--red);
+            color: white;
+            transform: scale(1.15);
+        }
+        
+        footer {
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding: 3.5rem 2rem 2.5rem;
+            text-align: center;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-top: 5rem;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 1.8rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+        
+        .footer-links a:hover { color: var(--red); }
+    </style>
+</head>
+<body data-theme="dark">
+    <!-- HEADER -->
+    <header>
+        <div class="nav">
+            <a href="index.html" class="logo">SautiLink</a>
+            
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="about.html">About</a>
+                <a href="sautinote.html">SautiNote</a>
+                <a href="mgoyelamedia.html" class="active">MgoYela Media</a>
+                <a href="contact.html">Contact</a>
+            </div>
+            
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+                <svg id="sun-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="5"/>
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+                </svg>
+                <svg id="moon-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="display:none;">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <div class="hero">
+            <h1>MgoYela Media</h1>
+            <p class="tagline">Bongo Movies • Love Stories • Entertainment</p>
+            <p>MgoYela Media is a leading Swahili entertainment channel specializing in Bongo Movies, romantic stories, and quality Tanzanian content. We bring you the best of East African cinema and captivating storytelling.</p>
+            
+            <a href="https://youtube.com/@mgoyelamedia" target="_blank" class="subscribe-btn">
+                📺 Subscribe to Our YouTube Channel
+            </a>
+        </div>
+
+        <!-- Video Embed -->
+        <div class="video-embed">
+            <iframe width="100%" height="450" src="https://www.youtube.com/embed/pfj-cGN5IIk?si=Vwi6V9RhMGjh_16q" 
+                    title="YouTube video player" frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </div>
+
+        <!-- Social Links -->
+        <div class="social-icons">
+            <a href="https://youtube.com/@mgoyelamedia" target="_blank" title="YouTube">@</a>
+            <a href="https://facebook.com/mgoyelamedia" target="_blank" title="Facebook">f</a>
+            <a href="https://instagram.com/mgoyelamedia" target="_blank" title="Instagram">📷</a>
+            <a href="https://linkedin.com/company/mgoyelamedia" target="_blank" title="LinkedIn">in</a>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-links">
+            <a href="index.html">Home</a>
+            <a href="about.html">About</a>
+            <a href="sautinote.html">SautiNote</a>
+            <a href="mgoyelamedia.html">MgoYela Media</a>
+            <a href="help.html">Help</a>
+            <a href="privacy.html">Privacy</a>
+            <a href="terms.html">Terms</a>
+            <a href="contact.html">Contact</a>
+        </div>
+        <p>&copy; 2026 SautiLink Corporation. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Theme Toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const body = document.body;
+        
+        function setTheme(theme) {
+            body.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            if (theme === 'light') {
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
+            } else {
+                sunIcon.style.display = 'block';
+                moonIcon.style.display = 'none';
+            }
+        }
+        
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        setTheme(savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const current = body.getAttribute('data-theme');
+            setTheme(current === 'dark' ? 'light' : 'dark');
+        });
+    </script>
+</body>
+</html>
