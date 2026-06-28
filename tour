@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Elite Tour Season 6 - Ivy Network PLC</title>
+  <meta name="description" content="Elite Tour Season 6 by Ivy Network PLC - Free nationwide tech training across Tanzania. Join us from August to November 2026.">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .hero-bg {
+      background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+
+  <!-- Navbar -->
+  <nav class="bg-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 py-5 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <img src="https://raw.githubusercontent.com/ivynetworkplc/public/main/assets/logo.png" alt="Ivy Network PLC" class="h-11">
+      </div>
+      <a href="https://ivynetwork.co.uk" class="text-sky-600 hover:text-sky-700 font-medium">Back to Home</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero-bg text-white py-24">
+    <div class="max-w-7xl mx-auto px-6 text-center">
+      <h1 class="text-5xl md:text-6xl font-bold mb-6">Elite Tour Season 6</h1>
+      <p class="text-2xl md:text-3xl max-w-3xl mx-auto">Empowering Tanzanians with Free Digital Skills Nationwide</p>
+      <div class="mt-10">
+        <a href="https://forms.gle/FWUye6oCzh6todd96" target="_blank"
+           class="inline-block bg-white text-sky-700 hover:bg-gray-100 px-10 py-5 rounded-2xl text-xl font-semibold transition">
+          Apply Now - It's Free!
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Introduction -->
+  <section class="py-20 bg-white">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="prose prose-lg max-w-3xl mx-auto">
+        <p class="text-lg text-gray-600">
+          The <strong>Elite Tour Season 6</strong> is a nationwide tech outreach initiative led by 
+          <strong>Ivy Network PLC</strong>. This powerful movement is designed to empower Tanzanians 
+          with essential digital skills through free training sessions across selected regions.
+        </p>
+        <p class="text-lg text-gray-600">
+          In every stop, Elite Tour opens interactive tech classrooms where participants get hands-on 
+          training in Web Development, Digital Marketing, Social Media Management, Cloud Computing, 
+          UI/UX Design, Software Development, and many more emerging technology fields.
+        </p>
+        <p class="text-lg text-gray-600">
+          Whether you’re a student, entrepreneur, or digital enthusiast, Elite Tour offers a golden 
+          opportunity to grow your tech skills, connect with experts, and be part of Tanzania’s digital transformation journey.
+        </p>
+        <div class="bg-sky-50 p-8 rounded-3xl mt-10">
+          <p class="font-semibold text-sky-700">Application Period: July 1 – July 30, 2026</p>
+          <p class="font-semibold text-sky-700 mt-3">Tour Dates: August 11 – November 3, 2026</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Schedule -->
+  <section class="py-20 bg-gray-100">
+    <div class="max-w-7xl mx-auto px-6">
+      <h2 class="text-4xl font-bold text-center mb-12">Tour Schedule 2026</h2>
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div class="bg-white rounded-3xl p-8 shadow-sm">
+          <div class="text-sky-600 font-medium">August 11, 2026</div>
+          <div class="text-2xl font-semibold mt-2">Mwanza</div>
+        </div>
+        <div class="bg-white rounded-3xl p-8 shadow-sm">
+          <div class="text-sky-600 font-medium">August 20, 2026</div>
+          <div class="text-2xl font-semibold mt-2">Morogoro</div>
+        </div>
+        <div class="bg-white rounded-3xl p-8 shadow-sm">
+          <div class="text-sky-600 font-medium">September 3, 2026</div>
+          <div class="text-2xl font-semibold mt-2">Lindi</div>
+        </div>
+        <div class="bg-white rounded-3xl p-8 shadow-sm">
+          <div class="text-sky-600 font-medium">September 16, 2026</div>
+          <div class="text-2xl font-semibold mt-2">Singida</div>
+        </div>
+        <div class="bg-white rounded-3xl p-8 shadow-sm">
+          <div class="text-sky-600 font-medium">October 20, 2026</div>
+          <div class="text-2xl font-semibold mt-2">Kagera</div>
+        </div>
+        <div class="bg-white rounded-3xl p-8 shadow-sm border-2 border-amber-400">
+          <div class="text-amber-600 font-medium">November 3, 2026</div>
+          <div class="text-2xl font-semibold mt-2">Final - Tabora</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="py-20 bg-white">
+    <div class="max-w-4xl mx-auto text-center px-6">
+      <h2 class="text-4xl font-bold mb-6">Ready to Join the Movement?</h2>
+      <p class="text-xl text-gray-600 mb-10">All training is completely free. No hidden charges.</p>
+      <a href="https://forms.gle/FWUye6oCzh6todd96" target="_blank"
+         class="inline-block bg-sky-600 hover:bg-sky-700 text-white px-12 py-6 rounded-2xl text-2xl font-semibold transition">
+        Apply Now - It's Free!
+      </a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-gray-900 text-gray-400 py-16">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="flex flex-wrap justify-center gap-8 text-sm mb-10">
+        <a href="https://ivynetwork.co.uk" class="hover:text-white">Home</a>
+        <a href="https://ivynetwork.co.uk/about" class="hover:text-white">About</a>
+        <a href="https://ivynetwork.co.uk/services" class="hover:text-white">Services</a>
+        <a href="https://ivynetwork.co.uk/privacy" class="hover:text-white">Privacy</a>
+      </div>
+      <div class="text-center text-sm">
+        © 2026 Ivy Network PLC. All Rights Reserved.<br>
+        Part of Tech Insiders Limited
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
