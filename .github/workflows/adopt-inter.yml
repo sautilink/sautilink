@@ -59,8 +59,6 @@ jobs:
           MD
           python3 <<'PY'
           from pathlib import Path
-          import re
-
           def rewrite_html(path: Path):
               raw = path.read_bytes()
               newline = "\r\n" if b"\r\n" in raw else "\n"
@@ -73,73 +71,13 @@ jobs:
                       indent = line[:len(line)-len(line.lstrip())]
                       out.append(indent + '<link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>')
                   out.append(line)
-              text = newline.join(out) + (newline if had_final else "")
-              path.write_bytes(text.encode("utf-8"))
-
+              path.write_bytes((newline.join(out) + (newline if had_final else "")).encode("utf-8"))
           for page in Path('.').glob('*.html'):
-              if page.name.startswith('google'):
-                  continue
-              rewrite_html(page)
+              if not page.name.startswith('google'):
+                  rewrite_html(page)
           PY
-          cat > .github/workflows/brand-guard.yml <<'YAML'
-          name: SautiLink Brand Guard
-
-          on:
-            pull_request:
-            push:
-              branches: [main]
-
-          permissions:
-            contents: read
-
-          jobs:
-            verify-brand:
-              runs-on: ubuntu-latest
-              steps:
-                - uses: actions/checkout@v4
-                - uses: actions/setup-python@v5
-                  with:
-                    python-version: "3.12"
-                - name: Verify Inter-only brand system
-                  shell: python
-                  run: |
-                    from pathlib import Path
-
-                    required = [
-                        "assets/fonts/inter/InterVariable.woff2",
-                        "assets/fonts/inter/InterVariable-Italic.woff2",
-                        "assets/fonts/inter/OFL.txt",
-                        "assets/brand/system.css",
-                    ]
-                    for item in required:
-                        p = Path(item)
-                        assert p.exists(), f"missing brand asset: {item}"
-                        assert p.stat().st_size > 0, f"empty brand asset: {item}"
-
-                    assert not Path("assets/fonts/lora").exists(), "Lora assets must not return"
-                    assert not Path("assets/fonts/zalando-sans-semiexpanded").exists(), "Zalando assets must not return"
-
-                    css = Path("assets/brand/system.css").read_text(encoding="utf-8")
-                    for token in ["#2563eb", "#60a5fa", "#ffffff", '"Inter"', "100 900"]:
-                        assert token.lower() in css.lower(), f"missing canonical brand token: {token}"
-                    assert "Lora" not in css and "Zalando" not in css, "secondary/legacy font mapping remains"
-                    assert "http://" not in css and "https://" not in css, "brand CSS must be self-hosted"
-
-                    pages = [p for p in Path(".").glob("*.html") if not p.name.startswith("google")]
-                    assert pages, "no public HTML pages found"
-                    for p in pages:
-                        text = p.read_text(encoding="utf-8")
-                        if "<head" not in text.lower():
-                            continue
-                        assert "/assets/brand/system.css" in text, f"brand CSS not wired: {p}"
-                        assert "/assets/fonts/inter/InterVariable.woff2" in text, f"Inter preload missing: {p}"
-                        lowered = text.lower()
-                        for legacy in ["fonts.googleapis.com", "fonts.gstatic.com", "bricolage grotesque", "lora-variable", "zalando", "#e11d48", "#be123c", "#e11b1b"]:
-                            assert legacy not in lowered, f"legacy brand token {legacy} remains in {p}"
-          YAML
-          rm .github/workflows/adopt-inter.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add assets *.html
           git commit -m "Adopt Inter as the single SautiLink font"
           git push origin inter-single-font
