@@ -1,0 +1,145 @@
+name: Adopt Inter Single Font
+
+on:
+  push:
+    branches: [inter-single-font]
+    paths:
+      - ".github/workflows/adopt-inter.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: inter-single-font
+      - name: Replace typography with self-hosted Inter
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf assets/fonts/lora assets/fonts/zalando-sans-semiexpanded
+          mkdir -p assets/fonts/inter
+          curl -fL https://raw.githubusercontent.com/rsms/inter/master/docs/font-files/InterVariable.woff2 -o assets/fonts/inter/InterVariable.woff2
+          curl -fL https://raw.githubusercontent.com/rsms/inter/master/docs/font-files/InterVariable-Italic.woff2 -o assets/fonts/inter/InterVariable-Italic.woff2
+          curl -fL https://raw.githubusercontent.com/rsms/inter/master/LICENSE.txt -o assets/fonts/inter/OFL.txt
+          cat > assets/brand/system.css <<'CSS'
+          /* SautiLink Corporation web brand system. Inter is the only UI/brand font family. */
+          @font-face { font-family: "Inter"; src: url("/assets/fonts/inter/InterVariable.woff2") format("woff2"); font-style: normal; font-weight: 100 900; font-display: swap; }
+          @font-face { font-family: "Inter"; src: url("/assets/fonts/inter/InterVariable-Italic.woff2") format("woff2"); font-style: italic; font-weight: 100 900; font-display: swap; }
+          :root {
+            --brand-primary: #2563eb;
+            --brand-primary-hover: #1d4ed8;
+            --brand-light: #60a5fa;
+            --brand-white: #ffffff;
+            --font-primary: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            --font: var(--font-primary);
+            --red: var(--brand-primary);
+            --blue: var(--brand-primary);
+          }
+          html, body, button, input, textarea, select, .logo, .brand, .brand-name, .brand-product, footer, .copyright, [data-brand-font] { font-family: var(--font-primary) !important; }
+          ::selection { background: var(--brand-light); color: #0f172a; }
+          CSS
+          cat > assets/brand/README.md <<'MD'
+          # SautiLink Brand System
+
+          SautiLink Corporation uses **Inter as the single font family** across product UI, content, navigation, forms, headings, brand labels, and footer/copyright surfaces.
+
+          - Self-hosted variable normal face: `assets/fonts/inter/InterVariable.woff2`
+          - Self-hosted variable italic face: `assets/fonts/inter/InterVariable-Italic.woff2`
+          - Weight range: `100–900`
+          - License: SIL Open Font License 1.1 (`assets/fonts/inter/OFL.txt`)
+          - Canonical colors: Primary Blue `#2563EB`, Light Blue `#60A5FA`, White `#FFFFFF`
+
+          Brand distinction should come from weight, scale, spacing, color, layout, and the SautiLink logo—not from a secondary typeface.
+          MD
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          def rewrite_html(path: Path):
+              raw = path.read_bytes()
+              newline = "\r\n" if b"\r\n" in raw else "\n"
+              had_final = raw.endswith(b"\n")
+              lines = raw.decode("utf-8").splitlines()
+              lines = [line for line in lines if "/assets/fonts/lora/" not in line and "/assets/fonts/zalando-sans-semiexpanded/" not in line and "/assets/fonts/inter/InterVariable.woff2" not in line]
+              out = []
+              for line in lines:
+                  if '/assets/brand/system.css' in line and 'rel="stylesheet"' in line:
+                      indent = line[:len(line)-len(line.lstrip())]
+                      out.append(indent + '<link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>')
+                  out.append(line)
+              text = newline.join(out) + (newline if had_final else "")
+              path.write_bytes(text.encode("utf-8"))
+
+          for page in Path('.').glob('*.html'):
+              if page.name.startswith('google'):
+                  continue
+              rewrite_html(page)
+          PY
+          cat > .github/workflows/brand-guard.yml <<'YAML'
+          name: SautiLink Brand Guard
+
+          on:
+            pull_request:
+            push:
+              branches: [main]
+
+          permissions:
+            contents: read
+
+          jobs:
+            verify-brand:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-python@v5
+                  with:
+                    python-version: "3.12"
+                - name: Verify Inter-only brand system
+                  shell: python
+                  run: |
+                    from pathlib import Path
+
+                    required = [
+                        "assets/fonts/inter/InterVariable.woff2",
+                        "assets/fonts/inter/InterVariable-Italic.woff2",
+                        "assets/fonts/inter/OFL.txt",
+                        "assets/brand/system.css",
+                    ]
+                    for item in required:
+                        p = Path(item)
+                        assert p.exists(), f"missing brand asset: {item}"
+                        assert p.stat().st_size > 0, f"empty brand asset: {item}"
+
+                    assert not Path("assets/fonts/lora").exists(), "Lora assets must not return"
+                    assert not Path("assets/fonts/zalando-sans-semiexpanded").exists(), "Zalando assets must not return"
+
+                    css = Path("assets/brand/system.css").read_text(encoding="utf-8")
+                    for token in ["#2563eb", "#60a5fa", "#ffffff", '"Inter"', "100 900"]:
+                        assert token.lower() in css.lower(), f"missing canonical brand token: {token}"
+                    assert "Lora" not in css and "Zalando" not in css, "secondary/legacy font mapping remains"
+                    assert "http://" not in css and "https://" not in css, "brand CSS must be self-hosted"
+
+                    pages = [p for p in Path(".").glob("*.html") if not p.name.startswith("google")]
+                    assert pages, "no public HTML pages found"
+                    for p in pages:
+                        text = p.read_text(encoding="utf-8")
+                        if "<head" not in text.lower():
+                            continue
+                        assert "/assets/brand/system.css" in text, f"brand CSS not wired: {p}"
+                        assert "/assets/fonts/inter/InterVariable.woff2" in text, f"Inter preload missing: {p}"
+                        lowered = text.lower()
+                        for legacy in ["fonts.googleapis.com", "fonts.gstatic.com", "bricolage grotesque", "lora-variable", "zalando", "#e11d48", "#be123c", "#e11b1b"]:
+                            assert legacy not in lowered, f"legacy brand token {legacy} remains in {p}"
+          YAML
+          rm .github/workflows/adopt-inter.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Adopt Inter as the single SautiLink font"
+          git push origin inter-single-font
