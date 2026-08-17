@@ -1,9 +1,11 @@
-# SautiLink Corporation Brand System
+# SautiLink Brand System
 
-Primary font: Lora (400–700, normal/italic).
+SautiLink Corporation uses **Inter as the single font family** across product UI, content, navigation, forms, headings, brand labels, and footer/copyright surfaces.
 
-Corporate font: Zalando Sans SemiExpanded (200–900, normal/italic).
+- Self-hosted variable normal face: `assets/fonts/inter/InterVariable.woff2`
+- Self-hosted variable italic face: `assets/fonts/inter/InterVariable-Italic.woff2`
+- Weight range: `100–900`
+- License: SIL Open Font License 1.1 (`assets/fonts/inter/OFL.txt`)
+- Canonical colors: Primary Blue `#2563EB`, Light Blue `#60A5FA`, White `#FFFFFF`
 
-Colors: Primary Blue #2563EB, Light Blue #60A5FA, White #FFFFFF. Neutral colors may be used for contrast/accessibility.
-
-Fonts are self-hosted under their included SIL Open Font License files.
+Brand distinction should come from weight, scale, spacing, color, layout, and the SautiLink logo—not from a secondary typeface.

@@ -16,18 +16,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Verify brand assets and public pages
+      - name: Verify Inter-only brand system
         shell: python
         run: |
           from pathlib import Path
 
           required = [
-              "assets/fonts/lora/Lora-Variable.woff2",
-              "assets/fonts/lora/Lora-VariableItalic.woff2",
-              "assets/fonts/lora/OFL.txt",
-              "assets/fonts/zalando-sans-semiexpanded/ZalandoSansSemiExpanded-Variable.woff2",
-              "assets/fonts/zalando-sans-semiexpanded/ZalandoSansSemiExpanded-VariableItalic.woff2",
-              "assets/fonts/zalando-sans-semiexpanded/OFL.txt",
+              "assets/fonts/inter/InterVariable.woff2",
+              "assets/fonts/inter/InterVariable-Italic.woff2",
+              "assets/fonts/inter/OFL.txt",
               "assets/brand/system.css",
           ]
           for item in required:
@@ -35,9 +32,14 @@ jobs:
               assert p.exists(), f"missing brand asset: {item}"
               assert p.stat().st_size > 0, f"empty brand asset: {item}"
 
+          assert not Path("assets/fonts/lora").exists(), "Lora must not return"
+          assert not Path("assets/fonts/zalando-sans-semiexpanded").exists(), "Zalando Sans must not return"
+
           css = Path("assets/brand/system.css").read_text(encoding="utf-8")
-          for token in ["#2563eb", "#60a5fa", "#ffffff", '"Lora"', '"Zalando Sans SemiExpanded"']:
+          for token in ["#2563eb", "#60a5fa", "#ffffff", '"Inter"', "100 900"]:
               assert token.lower() in css.lower(), f"missing canonical brand token: {token}"
+          assert "Lora" not in css and "Zalando" not in css, "legacy or secondary font mapping remains"
+          assert "--font-brand" not in css, "secondary font token must not return"
           assert "http://" not in css and "https://" not in css, "brand CSS must be self-hosted"
 
           pages = [p for p in Path(".").glob("*.html") if not p.name.startswith("google")]
@@ -47,8 +49,7 @@ jobs:
               if "<head" not in text.lower():
                   continue
               assert "/assets/brand/system.css" in text, f"brand CSS not wired: {p}"
-              assert "fonts.googleapis.com" not in text and "fonts.gstatic.com" not in text, f"external font runtime dependency: {p}"
-              assert "Bricolage Grotesque" not in text, f"legacy font remains: {p}"
+              assert "/assets/fonts/inter/InterVariable.woff2" in text, f"Inter preload missing: {p}"
               lowered = text.lower()
-              for legacy in ["#e11d48", "#be123c", "#e11b1b"]:
-                  assert legacy not in lowered, f"legacy red accent {legacy} remains in {p}"
+              for legacy in ["fonts.googleapis.com", "fonts.gstatic.com", "bricolage grotesque", "lora-variable", "zalando", "#e11d48", "#be123c", "#e11b1b"]:
+                  assert legacy not in lowered, f"legacy brand token {legacy} remains in {p}"
