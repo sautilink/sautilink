@@ -1,0 +1,54 @@
+name: SautiLink Brand Guard
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-brand:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify brand assets and public pages
+        shell: python
+        run: |
+          from pathlib import Path
+
+          required = [
+              "assets/fonts/lora/Lora-Variable.woff2",
+              "assets/fonts/lora/Lora-VariableItalic.woff2",
+              "assets/fonts/lora/OFL.txt",
+              "assets/fonts/zalando-sans-semiexpanded/ZalandoSansSemiExpanded-Variable.woff2",
+              "assets/fonts/zalando-sans-semiexpanded/ZalandoSansSemiExpanded-VariableItalic.woff2",
+              "assets/fonts/zalando-sans-semiexpanded/OFL.txt",
+              "assets/brand/system.css",
+          ]
+          for item in required:
+              p = Path(item)
+              assert p.exists(), f"missing brand asset: {item}"
+              assert p.stat().st_size > 0, f"empty brand asset: {item}"
+
+          css = Path("assets/brand/system.css").read_text(encoding="utf-8")
+          for token in ["#2563eb", "#60a5fa", "#ffffff", '"Lora"', '"Zalando Sans SemiExpanded"']:
+              assert token.lower() in css.lower(), f"missing canonical brand token: {token}"
+          assert "http://" not in css and "https://" not in css, "brand CSS must be self-hosted"
+
+          pages = [p for p in Path(".").glob("*.html") if not p.name.startswith("google")]
+          assert pages, "no public HTML pages found"
+          for p in pages:
+              text = p.read_text(encoding="utf-8")
+              if "<head" not in text.lower():
+                  continue
+              assert "/assets/brand/system.css" in text, f"brand CSS not wired: {p}"
+              assert "fonts.googleapis.com" not in text and "fonts.gstatic.com" not in text, f"external font runtime dependency: {p}"
+              assert "Bricolage Grotesque" not in text, f"legacy font remains: {p}"
+              lowered = text.lower()
+              for legacy in ["#e11d48", "#be123c", "#e11b1b"]:
+                  assert legacy not in lowered, f"legacy red accent {legacy} remains in {p}"
