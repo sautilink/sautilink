@@ -22,13 +22,10 @@
     
     <link rel="icon" href="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png" type="image/png">
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            --red: #e11d48;
+            --red: #2563eb;
             --blue: #2563eb;
             --bg: #0a0a0a;
             --surface: #111111;
@@ -46,7 +43,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
-            font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+            font-family: var(--font-primary);
             background: var(--bg);
             color: var(--text);
             line-height: 1.6;
@@ -130,7 +127,7 @@
         
         .badge {
             display: inline-block;
-            background: rgba(225, 29, 72, 0.15);
+            background: rgba(37, 99, 235, 0.15);
             color: var(--red);
             font-size: 0.9rem;
             font-weight: 600;
@@ -217,7 +214,7 @@
         }
         
         button:hover {
-            background: #be123c;
+            background: #1d4ed8;
             transform: translateY(-2px);
         }
         
@@ -337,11 +334,14 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(circle at 50% 30%, rgba(225, 29, 72, 0.07) 0%, transparent 70%);
+            background: radial-gradient(circle at 50% 30%, rgba(37, 99, 235, 0.07) 0%, transparent 70%);
             z-index: 1;
             pointer-events: none;
         }
     </style>
+    <link rel="preload" href="/assets/fonts/lora/Lora-Variable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/assets/fonts/zalando-sans-semiexpanded/ZalandoSansSemiExpanded-Variable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/brand/system.css">
 </head>
 <body data-theme="dark">
     <!-- HEADER -->
