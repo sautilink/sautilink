@@ -1,296 +1,296 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
     <title>Privacy Policy — SautiLink</title>
-    <meta name="description" content="SautiLink Privacy Policy. We are committed to protecting your privacy and giving you control over your data.">
-    <link rel="canonical" href="https://sautilink.com/privacy.html">
-    
+    <meta name="description" content="Learn how SautiLink protects personal data, limits collection, supports privacy rights, and gives people control over their accounts and content.">
+    <link rel="canonical" href="https://sautilink.com/privacy">
     <meta property="og:title" content="Privacy Policy — SautiLink">
-    <meta property="og:description" content="Our commitment to protecting your privacy and personal data.">
+    <meta property="og:description" content="Your data. Your voice. Your control. Read SautiLink's privacy commitments and data practices.">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://sautilink.com/privacy.html">
-    <meta property="og:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
-    
+    <meta property="og:url" content="https://sautilink.com/privacy">
+    <meta property="og:site_name" content="SautiLink">
+    <meta property="og:image" content="https://sautilink.com/logo.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Privacy Policy — SautiLink">
-    <meta name="twitter:description" content="SautiLink Privacy Policy - Protecting your data and privacy.">
-    <meta name="twitter:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
-    
-    <link rel="icon" href="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png" type="image/png">
-    
-    
-    <style>
-        :root {
-            --red: #2563eb;
-            --blue: #2563eb;
-            --bg: #0a0a0a;
-            --surface: #111111;
-            --text: #f8fafc;
-            --text-secondary: #cbd5e1;
-        }
-        
-        [data-theme="light"] {
-            --bg: #f8fafc;
-            --surface: #ffffff;
-            --text: #0f172a;
-            --text-secondary: #475569;
-        }
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: var(--font-primary);
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.7;
-        }
-        
-        header {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            z-index: 1000;
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            background: rgba(10,10,10,0.85);
-        }
-        
-        [data-theme="light"] header {
-            background: rgba(248,250,252,0.95);
-            border-bottom: 1px solid rgba(0,0,0,0.08);
-        }
-        
-        .nav {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 1.25rem 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .logo {
-            font-weight: 700;
-            font-size: 1.85rem;
-            letter-spacing: -0.04em;
-            text-decoration: none;
-            color: inherit;
-        }
-        
-        .nav-links {
-            display: flex;
-            gap: 2rem;
-            align-items: center;
-        }
-        
-        .nav-links a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s;
-        }
-        
-        .nav-links a:hover,
-        .nav-links a.active { color: var(--red); }
-        
-        .theme-toggle {
-            background: none;
-            border: 1px solid rgba(255,255,255,0.15);
-            width: 42px;
-            height: 42px;
-            border-radius: 9999px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            color: var(--text);
-        }
-        
-        main {
-            padding-top: 110px;
-            max-width: 900px;
-            margin: 0 auto;
-            padding-left: 2rem;
-            padding-right: 2rem;
-        }
-        
-        h1 {
-            font-size: 2.8rem;
-            margin-bottom: 1.5rem;
-            text-align: center;
-        }
-        
-        h2 {
-            font-size: 1.6rem;
-            margin: 2.5rem 0 1rem;
-            color: var(--red);
-        }
-        
-        p, li {
-            color: var(--text-secondary);
-            margin-bottom: 1rem;
-        }
-        
-        ul {
-            padding-left: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .last-updated {
-            text-align: center;
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-            margin-bottom: 3rem;
-        }
-        
-        footer {
-            border-top: 1px solid rgba(255,255,255,0.1);
-            padding: 3.5rem 2rem 2.5rem;
-            text-align: center;
-            font-size: 0.95rem;
-            color: var(--text-secondary);
-            margin-top: 5rem;
-        }
-        
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-        }
-        
-        .footer-links a {
-            color: var(--text-secondary);
-            text-decoration: none;
-        }
-        
-        .footer-links a:hover { color: var(--red); }
-    </style>
+    <meta name="twitter:description" content="How SautiLink protects data and puts people in control.">
+    <meta name="twitter:image" content="https://sautilink.com/logo.png">
+    <meta name="theme-color" content="#060a12">
+    <link rel="icon" href="/logo.png" type="image/png">
     <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/assets/brand/system.css">
+    <link rel="stylesheet" href="/assets/legal.css">
 </head>
-<body data-theme="dark">
-    <!-- HEADER -->
-    <header>
-        <div class="nav">
-            <a href="index.html" class="logo">SautiLink</a>
-            
-            <div class="nav-links">
-                <a href="index.html">Home</a>
-                <a href="about.html">About</a>
-                <a href="help.html">Help</a>
-                <a href="contact.html">Contact</a>
+<body class="legal-page">
+    <a class="skip-link" href="#main-content">Skip to policy</a>
+
+    <header class="site-header">
+        <nav class="site-nav" aria-label="Primary navigation">
+            <a class="brand" href="/" aria-label="SautiLink home">
+                <span class="brand-mark" aria-hidden="true">SL</span>
+                <span>SautiLink</span>
+            </a>
+            <div class="nav-cluster" data-nav-cluster>
+                <div class="nav-links">
+                    <a href="/">Home</a>
+                    <a href="/about">About</a>
+                    <a href="/help">Help</a>
+                    <a href="/privacy" aria-current="page">Privacy</a>
+                    <a href="/terms">Terms</a>
+                    <a href="/contact">Contact</a>
+                </div>
             </div>
-            
-            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
-                <svg id="sun-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="5"/>
-                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
-                </svg>
-                <svg id="moon-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="display:none;">
-                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                </svg>
-            </button>
-        </div>
+            <div class="nav-actions">
+                <button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Use light theme" aria-pressed="false">
+                    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>
+                    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
+                </button>
+                <button class="icon-button menu-toggle" type="button" data-menu-toggle aria-label="Open navigation" aria-expanded="false">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+                </button>
+            </div>
+        </nav>
     </header>
 
-    <main>
-        <h1>Privacy Policy</h1>
-        <div class="last-updated">Last updated: May 1, 2026</div>
-        
-        <p>At SautiLink, we are deeply committed to protecting your privacy and giving you full control over your personal data. This Privacy Policy explains how we collect, use, and safeguard your information.</p>
-        
-        <h2>1. Information We Collect</h2>
-        <p>We collect the following information:</p>
-        <ul>
-            <li><strong>Email address</strong> and <strong>username</strong> when you join our waitlist.</li>
-            <li>Technical information such as IP address, device type, operating system, browser version, and timestamps.</li>
-            <li>Cookies and similar tracking technologies to improve website functionality and user experience.</li>
-        </ul>
-        <p>When the full SautiLink app and platform launch, we will collect additional information necessary to provide the service, such as profile information, posts, and interactions — all under strict privacy controls.</p>
-        
-        <h2>2. Purpose of Data Use</h2>
-        <p>We use the collected information for the following purposes:</p>
-        <ul>
-            <li>To manage the waitlist and send launch notifications</li>
-            <li>Authentication and account management (when the app launches)</li>
-            <li>Service improvement, personalization, and feature development</li>
-            <li>Security, fraud prevention, and abuse protection</li>
-            <li>Internal analytics to understand how our website and services are used</li>
-        </ul>
-        
-        <h2>3. Third-Party Services</h2>
-        <p>We use Cloudflare for hosting, content delivery, and security. We may also use analytics tools to better understand user behavior. These third parties are contractually obligated to protect your data and use it only for the purposes we specify.</p>
-        
-        <h2>4. Data Sharing</h2>
-        <p>We do not sell your personal data. We may share data only with trusted service providers who help us operate the platform, or when legally required to do so.</p>
-        
-        <h2>5. User Rights</h2>
-        <p>You have the right to:</p>
-        <ul>
-            <li>Access the personal data we hold about you</li>
-            <li>Request correction or deletion of your data</li>
-            <li>Withdraw consent at any time (where processing is based on consent)</li>
-            <li>Object to or restrict certain processing activities</li>
-        </ul>
-        <p>To exercise these rights, please contact us at support@sautilink.com.</p>
-        
-        <h2>6. Children’s Privacy</h2>
-        <p>Our service is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13. If we become aware that we have collected such information, we will take steps to delete it.</p>
-        
-        <h2>7. Data Security</h2>
-        <p>We implement reasonable administrative, technical, and physical security measures to protect your personal information. However, no method of transmission over the internet is 100% secure.</p>
-        
-        <h2>8. Changes to This Policy</h2>
-        <p>We may update this Privacy Policy from time to time. We will notify you of significant changes by posting the new policy on this page and updating the “Last updated” date.</p>
-        
-        <h2>9. Contact Us</h2>
-        <p>If you have any questions about this Privacy Policy, please contact us at:</p>
-        <p><strong>support@sautilink.com</strong></p>
+    <main class="legal-main" id="main-content">
+        <section class="legal-hero" aria-labelledby="page-title">
+            <div class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span> SautiLink Trust Center</div>
+            <h1 id="page-title">Your data. Your voice. Your control.</h1>
+            <p class="lede">SautiLink is being built as a privacy-first social network. This policy explains what we handle today, what the future platform may need, and the limits we place around every use of personal data.</p>
+            <div class="hero-meta">
+                <span class="meta-pill"><strong>Effective</strong> August 18, 2026</span>
+                <span class="meta-pill"><strong>Scope</strong> Web, mobile and desktop</span>
+                <span class="meta-pill"><strong>Owner</strong> SautiLink Corporation</span>
+            </div>
+        </section>
+
+        <section class="trust-grid" aria-label="Privacy commitments">
+            <article class="trust-card"><span class="trust-number">01</span><h2>We do not sell personal data</h2><p>Your identity, private messages and activity are not products for data brokers or third-party advertising profiles.</p></article>
+            <article class="trust-card"><span class="trust-number">02</span><h2>Core data stays under SautiLink control</h2><p>We design and govern the core platform. Operational providers, where necessary, act only under our instructions and safeguards.</p></article>
+            <article class="trust-card"><span class="trust-number">03</span><h2>Deletion is a real control</h2><p>You can remove waitlist data now. When accounts launch, deletion will be available from account settings and the web.</p></article>
+        </section>
+
+        <div class="legal-layout">
+            <aside class="legal-toc" aria-label="Privacy Policy sections">
+                <p class="toc-label">On this page</p>
+                <nav>
+                    <a href="#scope" data-toc-link>Who we are &amp; scope</a>
+                    <a href="#commitments" data-toc-link>Our commitments</a>
+                    <a href="#data" data-toc-link>Data we handle</a>
+                    <a href="#use" data-toc-link>How and why we use it</a>
+                    <a href="#content" data-toc-link>Posts &amp; audiences</a>
+                    <a href="#sharing" data-toc-link>Sharing &amp; providers</a>
+                    <a href="#retention" data-toc-link>Retention &amp; deletion</a>
+                    <a href="#rights" data-toc-link>Your rights</a>
+                    <a href="#security" data-toc-link>Security &amp; safety</a>
+                    <a href="#children" data-toc-link>Children &amp; teens</a>
+                    <a href="#contact" data-toc-link>Contact us</a>
+                </nav>
+                <p class="toc-help">Need help now? Email <a href="mailto:support@sautilink.com">support@sautilink.com</a>.</p>
+            </aside>
+
+            <article class="legal-document">
+                <section class="legal-section" id="scope">
+                    <span class="section-kicker">01 · Introduction</span>
+                    <h2>Who we are and what this policy covers</h2>
+                    <p><strong>SautiLink Corporation</strong> is building SautiLink, a social network created in Tanzania for people around the world. For purposes of applicable data-protection law, SautiLink Corporation is responsible for deciding how and why personal data is processed through SautiLink.</p>
+                    <p>This policy covers <strong>sautilink.com</strong>, our pre-launch waitlist, future SautiLink accounts and social features, and official SautiLink applications for web, Android, iOS, Windows and other supported devices. It does not govern independent websites or services that we do not control.</p>
+                    <div class="callout"><p><strong>Pre-launch clarity:</strong> Today, SautiLink is primarily an informational website and waitlist. References to accounts, posts, messaging, recommendations or app permissions describe the rules that will apply when those features become available. We will update this policy and in-product notices before materially different processing begins.</p></div>
+                    <p>Our registered contact address for this policy is <strong>Uhuru Street, Mwanza, United Republic of Tanzania</strong>.</p>
+                </section>
+
+                <section class="legal-section" id="commitments">
+                    <span class="section-kicker">02 · Privacy by design</span>
+                    <h2>Our privacy commitments</h2>
+                    <div class="info-grid">
+                        <div class="info-card"><h3>Collect less</h3><p>We aim to request only what a feature needs and avoid collecting data merely because it may be useful later.</p></div>
+                        <div class="info-card"><h3>No data sales</h3><p>We do not sell or rent personal data, and we do not provide it to data brokers.</p></div>
+                        <div class="info-card"><h3>Permission first</h3><p>Camera, microphone, contacts, photos and precise location require a clear feature need and device permission.</p></div>
+                        <div class="info-card"><h3>Control that works</h3><p>Audience choices, blocking, reporting, consent withdrawal and account deletion are core product requirements.</p></div>
+                    </div>
+                    <p>SautiLink does not give independent third-party apps blanket access to user data. If integrations are introduced, access will require a clear user action, be limited to the selected purpose, and be revocable.</p>
+                </section>
+
+                <section class="legal-section" id="data">
+                    <span class="section-kicker">03 · Data map</span>
+                    <h2>Personal data we handle</h2>
+                    <p>The data involved depends on whether you are using the current public website or a future SautiLink account feature.</p>
+                    <div class="table-wrap" role="region" aria-label="Categories of data" tabindex="0">
+                        <table class="legal-table">
+                            <thead><tr><th>Category</th><th>Examples</th><th>When it applies</th></tr></thead>
+                            <tbody>
+                                <tr><td><strong>Waitlist details</strong></td><td>Email address and requested username.</td><td>When you voluntarily join the pre-launch waitlist.</td></tr>
+                                <tr><td><strong>Account &amp; profile</strong></td><td>Name or display name, username, email, profile image, bio, language, age or age range where needed, and account settings.</td><td>When account creation launches and you provide or update this information.</td></tr>
+                                <tr><td><strong>Your content</strong></td><td>Posts, replies, images, videos, audio, reactions, polls, drafts, reports and messages.</td><td>When you create, upload, send or interact with content.</td></tr>
+                                <tr><td><strong>Connections &amp; activity</strong></td><td>Accounts followed, blocked or muted; interactions; searches; saved items; notification choices and session activity.</td><td>When social and personalization features are used.</td></tr>
+                                <tr><td><strong>Device &amp; log data</strong></td><td>IP address, browser or app version, device and operating-system type, timestamps, crash data, security events and approximate region inferred from IP.</td><td>Automatically when needed to deliver, secure and troubleshoot the service.</td></tr>
+                                <tr><td><strong>Communications</strong></td><td>Support requests, rights requests, feedback, moderation appeals and other messages sent to our team.</td><td>When you contact or respond to us.</td></tr>
+                                <tr><td><strong>Device permissions</strong></td><td>Selected photos or files, camera, microphone, contacts or precise location.</td><td>Only when a feature requires it and you grant device-level permission.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <h3>Sources of data</h3>
+                    <p>We receive data directly from you, from your use of SautiLink, from device or browser signals needed to operate the service, and from other people when they interact with you or report content. We do not purchase personal profiles from data brokers.</p>
+                    <h3>Sensitive information</h3>
+                    <p>SautiLink does not require you to publish sensitive personal information. Please think carefully before posting health information, precise location, identity documents, political or religious beliefs, or other sensitive details. Where a feature genuinely needs sensitive data, we will use a clear notice and obtain consent or rely on another lawful basis as required.</p>
+                </section>
+
+                <section class="legal-section" id="use">
+                    <span class="section-kicker">04 · Purpose</span>
+                    <h2>How and why we use data</h2>
+                    <p>We process personal data only for identified purposes, including:</p>
+                    <ul>
+                        <li>managing the waitlist and sending requested launch or essential product updates;</li>
+                        <li>creating, verifying, securing and supporting accounts;</li>
+                        <li>publishing and delivering content to the audience you select;</li>
+                        <li>providing feeds, search, notifications, messaging, accessibility and language features;</li>
+                        <li>remembering settings and making the service relevant without selling your profile;</li>
+                        <li>preventing spam, fraud, impersonation, malicious activity and threats to users or the platform;</li>
+                        <li>reviewing reports, enforcing our Terms, supporting appeals and protecting freedom of expression alongside safety;</li>
+                        <li>measuring reliability, fixing errors, improving performance and developing requested features; and</li>
+                        <li>complying with lawful obligations and defending the rights, safety and integrity of SautiLink and its community.</li>
+                    </ul>
+                    <h3>Legal grounds</h3>
+                    <p>Depending on the context and applicable law, our legal grounds may include your consent, performance of our agreement with you, compliance with a legal obligation, and legitimate interests such as securing and improving SautiLink. Where we rely on legitimate interests, we consider the impact on your rights and use proportionate safeguards. You can withdraw consent at any time where consent is the basis.</p>
+                    <div class="callout"><p><strong>No hidden repurposing:</strong> We will not use data collected for one purpose for a materially incompatible purpose without a valid legal basis and, where required, a new notice or consent.</p></div>
+                </section>
+
+                <section class="legal-section" id="content">
+                    <span class="section-kicker">05 · Social data</span>
+                    <h2>Your posts, messages and audience choices</h2>
+                    <p>SautiLink is a social platform, so some information is intended to be seen by others. A public post, public profile field, reaction or reply may be viewed, copied, shared or indexed beyond your expected audience. Content shared with a limited audience will be delivered according to the controls available for that feature, but recipients may still capture or reshare it.</p>
+                    <ul>
+                        <li><strong>Public content:</strong> visible to anyone permitted by the feature and may appear in search, previews or shared links.</li>
+                        <li><strong>Limited-audience content:</strong> delivered to selected followers, groups or recipients.</li>
+                        <li><strong>Private communications:</strong> used to deliver the conversation, protect safety and respond to valid reports or lawful requirements; they are not used as advertising inventory.</li>
+                        <li><strong>Drafts:</strong> treated as non-public unless you publish or deliberately share them.</li>
+                    </ul>
+                    <p>Deleting content removes it from active SautiLink surfaces, subject to reasonable technical processing time, lawful retention and copies already shared outside our control.</p>
+                </section>
+
+                <section class="legal-section" id="permissions">
+                    <span class="section-kicker">06 · Device access</span>
+                    <h2>Permissions, cookies and local storage</h2>
+                    <p>We design permissions around specific actions. For example, attaching a photo may require access to a selected photo; recording audio requires microphone permission; sharing live media requires camera permission. Declining an optional permission will not block unrelated features.</p>
+                    <p>The current public website uses browser storage to remember your light or dark theme. Security systems may also use limited cookies or similar technologies to maintain sessions, prevent abuse and keep the service reliable. We do not currently use behavioral-advertising cookies on the public SautiLink website.</p>
+                    <p>When apps launch, device operating systems will show permission controls. You can change those permissions in your device settings. We will explain a permission before or when it is requested.</p>
+                </section>
+
+                <section class="legal-section" id="sharing">
+                    <span class="section-kicker">07 · Disclosure</span>
+                    <h2>When data may be shared</h2>
+                    <p>We do not sell personal data. We disclose only what is reasonably necessary in these limited situations:</p>
+                    <ul>
+                        <li><strong>At your direction:</strong> when you publish content, choose an audience, share a link or authorize an integration.</li>
+                        <li><strong>Operational providers:</strong> carefully selected hosting, security, communications, support, reliability and similar providers may process limited data for SautiLink. They must act on our instructions, protect it to an equivalent standard and may not own or independently exploit it.</li>
+                        <li><strong>Legal and safety reasons:</strong> when disclosure is required by a valid legal process, or is reasonably necessary to protect rights, prevent serious harm, investigate abuse or defend platform integrity. We assess requests and challenge overbroad demands where appropriate.</li>
+                        <li><strong>Corporate change:</strong> if SautiLink is involved in a reorganization, merger or transfer, data remains subject to this policy unless users receive notice of a materially different practice.</li>
+                    </ul>
+                    <p>We disclose the categories of recipients and the purposes for any processing while keeping confidential technical details protected. SautiLink remains accountable for the privacy commitments made here.</p>
+                </section>
+
+                <section class="legal-section" id="transfers">
+                    <span class="section-kicker">08 · Global access</span>
+                    <h2>International data transfers</h2>
+                    <p>SautiLink is based in Tanzania and is intended for global access. Data may be processed in countries other than where you live when required to operate the service. Before cross-border processing, we apply safeguards required by applicable law, which may include adequacy assessments, contractual protections, consent where appropriate, security controls and regulatory authorization.</p>
+                    <p>We take account of Tanzania's Personal Data Protection Act and its cross-border transfer requirements. Availability in a country does not reduce the protections described in this policy.</p>
+                </section>
+
+                <section class="legal-section" id="retention">
+                    <span class="section-kicker">09 · Lifecycle</span>
+                    <h2>Retention, deactivation and deletion</h2>
+                    <p>We keep personal data only as long as reasonably necessary for the purpose collected, to maintain security, resolve disputes, enforce agreements and meet legal obligations. Retention varies by data type:</p>
+                    <ul>
+                        <li><strong>Waitlist data:</strong> kept while the launch communication remains relevant, until you withdraw, or until it is no longer needed. We review pre-launch records regularly and accept removal requests at any time.</li>
+                        <li><strong>Account and active content:</strong> generally retained while the account is active or until the user deletes the content or account.</li>
+                        <li><strong>Security and audit records:</strong> retained for a limited period proportionate to fraud prevention, investigation and legal needs.</li>
+                        <li><strong>Support and legal records:</strong> retained long enough to respond, document the outcome and comply with applicable requirements.</li>
+                    </ul>
+                    <h3>Deleting your account</h3>
+                    <p>Today, waitlist participants can request removal by emailing <a href="mailto:support@sautilink.com?subject=Remove%20my%20SautiLink%20waitlist%20data">support@sautilink.com</a>. Once SautiLink accounts launch, users will be able to initiate permanent deletion in account settings and through our <a href="/account-deletion">Account &amp; Data Deletion page</a>.</p>
+                    <p>After a verified account-deletion request, we intend to deactivate access promptly and delete or irreversibly anonymize associated personal data from active systems within <strong>30 days</strong>, unless a longer period is required by law or a legitimate security investigation. Encrypted backup copies may persist for up to <strong>90 days</strong> before routine overwrite and will not be restored for ordinary product use.</p>
+                    <div class="callout warning"><p>We may retain narrowly limited records when legally required, needed to protect users, prevent repeated abuse, establish legal claims or document a completed deletion. We will not use retained records for unrelated product or marketing purposes.</p></div>
+                </section>
+
+                <section class="legal-section" id="rights">
+                    <span class="section-kicker">10 · Your choices</span>
+                    <h2>Your privacy rights</h2>
+                    <p>Subject to applicable law and appropriate identity verification, you may have the following rights. We aim to make core controls available to all SautiLink users, not only where a law compels us.</p>
+                    <div class="rights-grid">
+                        <div class="right-card"><h3>Access</h3><p>Ask whether we process your data and request a copy.</p></div>
+                        <div class="right-card"><h3>Correction</h3><p>Correct inaccurate or incomplete personal information.</p></div>
+                        <div class="right-card"><h3>Deletion</h3><p>Delete content, waitlist information or your full account.</p></div>
+                        <div class="right-card"><h3>Portability</h3><p>Request eligible data in a usable format where applicable.</p></div>
+                        <div class="right-card"><h3>Object or restrict</h3><p>Challenge or limit certain processing in qualifying circumstances.</p></div>
+                        <div class="right-card"><h3>Withdraw consent</h3><p>Change your mind where processing depends on consent.</p></div>
+                    </div>
+                    <p>You may also opt out of non-essential communications and appeal eligible moderation decisions. We will not discriminate against you for exercising a privacy right. We may ask for information needed to verify that a request concerns your data and may deny or limit requests where the law permits, explaining the reason.</p>
+                    <p>To exercise a right, email <a href="mailto:support@sautilink.com?subject=Privacy%20rights%20request">support@sautilink.com</a>. You may also complain to the <a href="https://pdpc.go.tz/" target="_blank" rel="noopener noreferrer">Personal Data Protection Commission of Tanzania</a> or another competent regulator where you live.</p>
+                </section>
+
+                <section class="legal-section" id="automation">
+                    <span class="section-kicker">11 · Transparency</span>
+                    <h2>Recommendations and automated safety systems</h2>
+                    <p>When social features launch, SautiLink may use automated signals to rank content, detect spam, protect accounts and identify possible violations. These systems may consider your choices and platform interactions, but we will not secretly build advertising profiles from sensitive data.</p>
+                    <p>Automated signals can be wrong. Significant enforcement decisions should include appropriate review and an appeal route where feasible. We do not intend to make solely automated decisions that produce legal or similarly significant effects without the safeguards required by applicable law.</p>
+                </section>
+
+                <section class="legal-section" id="security">
+                    <span class="section-kicker">12 · Protection</span>
+                    <h2>Security and incident response</h2>
+                    <p>We use administrative, technical and organizational safeguards proportionate to the data and risk. These include access controls, encryption in transit, secure development practices, monitoring, data minimization, backup protections, staff confidentiality and incident-response procedures.</p>
+                    <p>No online service can guarantee absolute security. You can help by using a strong unique password, protecting verification codes, keeping devices updated and reporting suspicious activity. If a personal-data incident creates a risk requiring notice, we will notify affected people and authorities as required by law.</p>
+                </section>
+
+                <section class="legal-section" id="children">
+                    <span class="section-kicker">13 · Younger users</span>
+                    <h2>Children and teen privacy</h2>
+                    <p>SautiLink is not intended for children under <strong>13</strong>, and a higher minimum age applies where local law requires it. We do not knowingly collect waitlist or account data from a child below the applicable minimum age. If we learn that this occurred, we will take steps to remove the data and close the account.</p>
+                    <p>For teenagers, we intend to use age-appropriate defaults, clearer notices, limits on sensitive personalization and stronger safety controls. A parent or guardian who believes a child has provided data improperly can contact <a href="mailto:support@sautilink.com?subject=Child%20privacy%20request">support@sautilink.com</a>.</p>
+                </section>
+
+                <section class="legal-section" id="changes">
+                    <span class="section-kicker">14 · Updates</span>
+                    <h2>Changes to this policy</h2>
+                    <p>We may update this policy as SautiLink develops, laws change or new features launch. We will update the effective date and, for material changes, provide a prominent notice or direct communication where appropriate. We will seek consent when a change requires it.</p>
+                    <p>Earlier versions may be made available where required. Continued use after an effective update means the current policy applies, but it does not override rights that cannot legally be waived.</p>
+                </section>
+
+                <section class="legal-section" id="contact">
+                    <span class="section-kicker">15 · Contact</span>
+                    <h2>Questions, requests and complaints</h2>
+                    <p>Contact us if you have a privacy question, want to exercise a right, need waitlist data removed, or believe SautiLink is not following this policy.</p>
+                    <div class="contact-panel">
+                        <p><strong>SautiLink Corporation</strong></p>
+                        <p>Uhuru Street, Mwanza, United Republic of Tanzania</p>
+                        <p>Privacy &amp; support: <a href="mailto:support@sautilink.com">support@sautilink.com</a></p>
+                        <p>General team: <a href="mailto:team@sautilink.com">team@sautilink.com</a></p>
+                        <div class="action-row">
+                            <a class="button-link" href="mailto:support@sautilink.com?subject=Privacy%20request">Send a privacy request</a>
+                            <a class="button-link secondary" href="/account-deletion">Delete account or data</a>
+                        </div>
+                    </div>
+                </section>
+            </article>
+        </div>
     </main>
 
-    <!-- FOOTER -->
-    <footer>
-        <div class="footer-links">
-            <a href="index.html">Home</a>
-            <a href="about.html">About</a>
-            <a href="help.html">Help</a>
-            <a href="privacy.html">Privacy</a>
-            <a href="terms.html">Terms</a>
-            <a href="contact.html">Contact</a>
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">SL</span><span>SautiLink</span></a>
+                <p>A privacy-first social network built in Tanzania for open, responsible expression everywhere.</p>
+            </div>
+            <nav class="footer-links" aria-label="Footer navigation">
+                <a href="/about">About</a><a href="/help">Help Center</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/account-deletion">Account Deletion</a><a href="/contact">Contact</a>
+            </nav>
         </div>
-        <p>&copy; 2026 SautiLink Corporation. All rights reserved.</p>
+        <div class="footer-bottom">
+            <span>&copy; <span data-current-year>2026</span> SautiLink Corporation. All rights reserved.</span>
+            <span>Privacy first · Freedom with responsibility</span>
+        </div>
     </footer>
-
-    <script>
-        // Theme Toggle
-        const themeToggle = document.getElementById('theme-toggle');
-        const sunIcon = document.getElementById('sun-icon');
-        const moonIcon = document.getElementById('moon-icon');
-        const body = document.body;
-        
-        function setTheme(theme) {
-            body.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
-            if (theme === 'light') {
-                sunIcon.style.display = 'none';
-                moonIcon.style.display = 'block';
-            } else {
-                sunIcon.style.display = 'block';
-                moonIcon.style.display = 'none';
-            }
-        }
-        
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        setTheme(savedTheme);
-        
-        themeToggle.addEventListener('click', () => {
-            const current = body.getAttribute('data-theme');
-            setTheme(current === 'dark' ? 'light' : 'dark');
-        });
-    </script>
+    <script src="/assets/legal.js" defer></script>
 </body>
 </html>
