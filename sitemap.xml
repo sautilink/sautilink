@@ -23,11 +23,19 @@
 
   <url>
     <loc>https://sautilink.com/privacy</loc>
+    <lastmod>2026-08-18</lastmod>
     <priority>0.7</priority>
   </url>
 
   <url>
     <loc>https://sautilink.com/terms</loc>
+    <lastmod>2026-08-18</lastmod>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://sautilink.com/account-deletion</loc>
+    <lastmod>2026-08-18</lastmod>
     <priority>0.7</priority>
   </url>
 
