@@ -1,316 +1,84 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- SEO -->
-    <title>SautiNote — Unbiased Media by SautiLink</title>
-    <meta name="description" content="SautiNote is the official media arm of SautiLink. Independent, unbiased journalism and storytelling from Tanzania and Africa. Part of SautiLink Corporation.">
+    <title>SautiNote — Independent African Journalism</title>
+    <meta name="description" content="SautiNote is SautiLink Corporation's independent media and storytelling platform, committed to truth, transparency and African voices.">
     <link rel="canonical" href="https://sautilink.com/sautinote">
-    
-    <!-- Open Graph -->
-    <meta property="og:title" content="SautiNote — Unbiased Media by SautiLink">
-    <meta property="og:description" content="Independent media platform committed to truth, transparency, and African voices.">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://sautilink.com/sautinote">
-    <meta property="og:site_name" content="SautiLink">
-    <meta property="og:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="SautiNote — Unbiased Media by SautiLink">
-    <meta name="twitter:description" content="Truthful, unbiased journalism and storytelling.">
-    <meta name="twitter:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
-    
-    <link rel="icon" href="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png" type="image/png">
-    
-    
-    <style>
-        :root {
-            --red: #2563eb;
-            --blue: #2563eb;
-            --bg: #0a0a0a;
-            --surface: #111111;
-            --text: #f8fafc;
-            --text-secondary: #cbd5e1;
-        }
-        
-        [data-theme="light"] {
-            --bg: #f8fafc;
-            --surface: #ffffff;
-            --text: #0f172a;
-            --text-secondary: #475569;
-        }
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: var(--font-primary);
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.7;
-        }
-        
-        header {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            z-index: 1000;
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            background: rgba(10,10,10,0.85);
-        }
-        
-        [data-theme="light"] header {
-            background: rgba(248,250,252,0.95);
-            border-bottom: 1px solid rgba(0,0,0,0.08);
-        }
-        
-        .nav {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 1.25rem 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .logo {
-            font-weight: 700;
-            font-size: 1.85rem;
-            letter-spacing: -0.04em;
-            text-decoration: none;
-            color: inherit;
-        }
-        
-        .nav-links {
-            display: flex;
-            gap: 2rem;
-            align-items: center;
-        }
-        
-        .nav-links a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s;
-        }
-        
-        .nav-links a:hover,
-        .nav-links a.active { color: var(--red); }
-        
-        .theme-toggle {
-            background: none;
-            border: 1px solid rgba(255,255,255,0.15);
-            width: 42px;
-            height: 42px;
-            border-radius: 9999px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            color: var(--text);
-        }
-        
-        main {
-            padding-top: 110px;
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-        
-        .hero {
-            text-align: center;
-            padding: 4rem 2rem 3rem;
-        }
-        
-        .hero h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-        
-        .hero .tagline {
-            font-size: 1.4rem;
-            color: var(--red);
-            margin-bottom: 1.5rem;
-        }
-        
-        .hero p {
-            font-size: 1.25rem;
-            color: var(--text-secondary);
-            max-width: 700px;
-            margin: 0 auto 3rem;
-        }
-        
-        .section {
-            margin-bottom: 4rem;
-        }
-        
-        h2 {
-            font-size: 1.75rem;
-            margin: 2.5rem 0 1.25rem;
-            color: var(--red);
-        }
-        
-        p {
-            color: var(--text-secondary);
-            margin-bottom: 1.25rem;
-        }
-        
-        .links {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 2rem;
-            margin-top: 2rem;
-        }
-        
-        .link-card {
-            background: var(--surface);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 16px;
-            padding: 1.5rem;
-            flex: 1;
-            min-width: 280px;
-        }
-        
-        footer {
-            border-top: 1px solid rgba(255,255,255,0.1);
-            padding: 3.5rem 2rem 2.5rem;
-            text-align: center;
-            font-size: 0.95rem;
-            color: var(--text-secondary);
-            margin-top: 4rem;
-        }
-        
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            gap: 1.8rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-        }
-        
-        .footer-links a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            transition: color 0.3s;
-        }
-        
-        .footer-links a:hover { color: var(--red); }
-    </style>
+    <meta property="og:title" content="SautiNote — Independent African Journalism"><meta property="og:description" content="Truthful journalism and meaningful storytelling with African voices at the centre."><meta property="og:type" content="website"><meta property="og:url" content="https://sautilink.com/sautinote"><meta property="og:site_name" content="SautiLink"><meta property="og:image" content="https://sautilink.com/assets/logo.png">
+    <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="SautiNote"><meta name="twitter:description" content="Independent journalism. African voices first."><meta name="twitter:image" content="https://sautilink.com/assets/logo.png"><meta name="twitter:site" content="@sautilink">
+    <meta name="theme-color" content="#060a12">
+    <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512"><link rel="shortcut icon" href="/assets/favicon.png" type="image/png"><link rel="apple-touch-icon" href="/assets/favicon.png">
     <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/assets/brand/system.css">
+    <link rel="stylesheet" href="/assets/brand/system.css"><link rel="stylesheet" href="/assets/legal.css"><link rel="stylesheet" href="/assets/site-pages.css">
 </head>
-<body data-theme="dark">
-    <!-- HEADER -->
-    <header>
-        <div class="nav">
-            <a href="index.html" class="logo">SautiLink</a>
-            
-            <div class="nav-links">
-                <a href="index.html">Home</a>
-                <a href="about.html">About</a>
-                <a href="sautinote.html" class="active">SautiNote</a>
-                <a href="help.html">Help</a>
-                <a href="contact.html">Contact</a>
-            </div>
-            
-            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
-                <svg id="sun-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="5"/>
-                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
-                </svg>
-                <svg id="moon-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="display:none;">
-                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                </svg>
-            </button>
-        </div>
+<body class="legal-page content-page sautinote-page">
+    <a class="skip-link" href="#main-content">Skip to SautiNote</a>
+    <header class="site-header">
+        <nav class="site-nav" aria-label="Primary navigation">
+            <a class="brand" href="/" aria-label="SautiLink home"><img class="brand-logo" src="/logo.png" alt="" width="48" height="23"><span>SautiLink</span></a>
+            <div class="nav-cluster" data-nav-cluster><div class="nav-links"><a href="/">Home</a><a href="/about">About</a><a href="/sautinote" aria-current="page">SautiNote</a><a href="/help">Help</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a></div></div>
+            <div class="nav-actions"><button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Use light theme" aria-pressed="false"><svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg><svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg></button><button class="icon-button menu-toggle" type="button" data-menu-toggle aria-label="Open navigation" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button></div>
+        </nav>
     </header>
 
-    <main>
-        <div class="hero">
-            <h1>SautiNote</h1>
-            <p class="tagline">Unbiased. Independent. African Voices First.</p>
-            <p>SautiNote is the official media and storytelling platform of SautiLink Corporation. We are committed to delivering truthful, unbiased journalism and meaningful content that amplifies African perspectives and promotes transparency.</p>
-        </div>
-
-        <div class="section">
-            <h2>Our Mission</h2>
-            <p>We believe in journalism that seeks truth without fear or favor. SautiNote exists to inform, educate, and empower citizens with accurate information, free from political or corporate influence.</p>
-        </div>
-
-        <div class="section">
-            <h2>Who We Are</h2>
-            <p>SautiNote is a subsidiary and the media arm of <strong>SautiLink Corporation</strong>. We operate independently in our editorial decisions while sharing the same values of privacy, freedom, and community empowerment.</p>
-        </div>
-
-        <div class="section">
-            <h2>Find Us</h2>
-            <div class="links">
-                <div class="link-card">
-                    <h3>Website</h3>
-                    <p><a href="https://www.sautinote.com" target="_blank" style="color:var(--red);">www.sautinote.com</a></p>
+    <main class="content-main" id="main-content">
+        <section class="page-hero">
+            <div class="page-shell hero-grid">
+                <div>
+                    <div class="eyebrow"><span class="eyebrow-dot"></span>SautiLink Corporation Media</div>
+                    <h1>African stories. Reported with <span>independence.</span></h1>
+                    <p class="hero-lede">SautiNote is our media and storytelling platform—committed to truthful journalism, useful context and African perspectives that deserve the full frame.</p>
+                    <div class="hero-actions"><a class="primary-cta" href="https://www.sautinote.com" target="_blank" rel="noopener noreferrer">Visit SautiNote <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5h5v5M10 14 19 5M19 14v5H5V5h5"></path></svg></a><a class="secondary-cta" href="mailto:note@sautinote.com">Share a story tip</a></div>
                 </div>
-                <div class="link-card">
-                    <h3>Social Media</h3>
-                    <p>@sautinote on Instagram, X (Twitter), TikTok, Facebook, LinkedIn & YouTube</p>
-                </div>
-                <div class="link-card">
-                    <h3>Part of</h3>
-                    <p>SautiLink Corporation</p>
+                <div class="hero-visual" aria-label="SautiNote editorial identity">
+                    <div class="note-wordmark">Sauti<span>Note</span></div>
+                    <div class="editorial-lines" aria-hidden="true"><span class="editorial-line"></span><span class="editorial-line"></span><span class="editorial-line"></span><span class="editorial-line"></span></div>
+                    <span class="editorial-badge">Unbiased · Independent · African voices first</span>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="section">
-            <h2>Contact SautiNote</h2>
-            <p>For media inquiries, story tips, or collaboration:</p>
-            <p><strong>note@sautinote.com</strong> or <strong>support@sautilink.com</strong></p>
-        </div>
+        <section class="section-shell" aria-labelledby="mission-title">
+            <div class="split-panel">
+                <div class="split-copy"><span class="section-label">Our mission</span><h2 id="mission-title">Truth without fear or favour.</h2><p>SautiNote exists to inform, educate and empower people with accurate information and meaningful storytelling, free from political or corporate influence.</p></div>
+                <div class="statement-card"><blockquote>Context over outrage. Evidence over noise. People over power.</blockquote><footer>The editorial standard SautiNote works toward</footer></div>
+            </div>
+        </section>
+
+        <section class="section-shell" aria-labelledby="principles-title">
+            <div class="section-heading"><span class="section-label">Editorial principles</span><h2 id="principles-title">What readers should expect.</h2><p>Independent judgement sits at the centre of every format and every platform.</p></div>
+            <div class="card-grid">
+                <article class="feature-card"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m4 17 5-5 4 4 7-8"></path><path d="M15 8h5v5"></path></svg></span><h3>Accuracy before speed</h3><p>Verification and useful context matter more than winning a moment in the news cycle.</p></article>
+                <article class="feature-card"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span><h3>Independent judgement</h3><p>Editorial decisions remain independent even as SautiNote shares SautiLink's values of privacy and community empowerment.</p></article>
+                <article class="feature-card"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h11M4 17h8"></path></svg></span><h3>African voices in full</h3><p>We centre local knowledge, lived experience and perspectives too often flattened by outside narratives.</p></article>
+            </div>
+        </section>
+
+        <section class="section-shell" aria-labelledby="find-title">
+            <div class="section-heading"><span class="section-label">Find SautiNote</span><h2 id="find-title">Follow the reporting.</h2><p>Read on the web, follow on social platforms or contact the editorial team directly.</p></div>
+            <div class="channel-grid">
+                <article class="channel-card"><small>Website</small><h3><a href="https://www.sautinote.com" target="_blank" rel="noopener noreferrer">sautinote.com ↗</a></h3><p>The home for SautiNote reporting and storytelling.</p></article>
+                <article class="channel-card"><small>Social</small><h3>@sautinote</h3><p>Instagram, X, TikTok, Facebook, LinkedIn and YouTube.</p></article>
+                <article class="channel-card"><small>Editorial</small><h3><a href="mailto:note@sautinote.com">note@sautinote.com</a></h3><p>Media inquiries, story tips and collaborations.</p></article>
+            </div>
+        </section>
+
+        <section class="section-shell" aria-labelledby="family-title">
+            <div class="split-panel">
+                <div class="statement-card"><div><span class="section-label">Part of the ecosystem</span><blockquote>Independent in editorial judgement. Connected by purpose.</blockquote></div><footer>SautiNote · A SautiLink Corporation company</footer></div>
+                <div class="split-copy"><span class="section-label">Who we are</span><h2 id="family-title">The media arm of SautiLink Corporation.</h2><p>SautiNote operates independently in its editorial decisions while sharing the wider SautiLink commitment to privacy, freedom and community empowerment.</p><div class="hero-actions"><a class="secondary-cta" href="/about">About SautiLink</a><a class="secondary-cta" href="/contact">Contact the corporation</a></div></div>
+            </div>
+        </section>
+
+        <section class="section-shell"><div class="cta-band"><div><span class="section-label">Read differently</span><h2>See what SautiNote is covering.</h2><p>Independent reporting and African storytelling are available now at sautinote.com.</p></div><a class="primary-cta" href="https://www.sautinote.com" target="_blank" rel="noopener noreferrer">Open SautiNote <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5h5v5M10 14 19 5M19 14v5H5V5h5"></path></svg></a></div></section>
     </main>
 
-    <!-- FOOTER -->
-    <footer>
-        <div class="footer-links">
-            <a href="index.html">Home</a>
-            <a href="about.html">About</a>
-            <a href="sautinote.html">SautiNote</a>
-            <a href="/privacy">Privacy</a>
-            <a href="/terms">Terms</a>
-            <a href="/account-deletion">Account Deletion</a>
-            <a href="contact.html">Contact</a>
-        </div>
-        <p>&copy; 2026 SautiLink Corporation. All rights reserved.</p>
+    <footer class="site-footer">
+        <div class="footer-inner"><div class="footer-brand"><a class="brand" href="/" aria-label="SautiLink home"><img class="brand-logo" src="/logo.png" alt="" width="48" height="23"><span>SautiLink</span></a><p>A privacy-first social network built in Tanzania for open, responsible expression everywhere.</p><div class="footer-socials" aria-label="Follow SautiLink"><a class="footer-social-link" href="https://www.facebook.com/sautilink/" target="_blank" rel="noopener noreferrer" aria-label="SautiLink on Facebook"><svg viewBox="0 0 24 24"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073c0 6.027 4.388 11.02 10.125 11.927v-8.437H7.078v-3.49h3.047V9.414c0-3.025 1.792-4.696 4.533-4.696 1.312 0 2.686.236 2.686.236v2.97H15.83c-1.491 0-1.956.93-1.956 1.885v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.093 24 18.1 24 12.073Z"></path></svg></a><a class="footer-social-link" href="https://x.com/sautilink" target="_blank" rel="noopener noreferrer" aria-label="SautiLink on X"><svg viewBox="0 0 24 24"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.933Zm-1.291 19.491h2.039L6.486 3.24H4.298L17.61 20.644Z"></path></svg></a><a class="footer-social-link" href="https://www.tiktok.com/@sautilink" target="_blank" rel="noopener noreferrer" aria-label="SautiLink on TikTok"><svg viewBox="0 0 24 24"><path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743 2.895 2.895 0 0 1 3.183-4.51v-3.5a6.329 6.329 0 0 0-5.394 9.2 6.33 6.33 0 0 0 10.857-4.424V8.687a8.182 8.182 0 0 0 4.773 1.526V6.686Z"></path></svg></a></div></div><nav class="footer-links" aria-label="Footer navigation"><a href="/about">About</a><a href="/help">Help Centre</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/account-deletion">Account &amp; Data Deletion</a><a href="/contact">Contact</a><a href="https://cloudengine.sautilink.com" target="_blank" rel="noopener noreferrer">Cloud Engine</a><a href="/sautinote">SautiNote</a></nav></div>
+        <div class="footer-bottom"><span>&copy; <span data-current-year>2026</span> SautiLink Corporation. All rights reserved.</span><span>Uhuru Street, Mwanza, Tanzania</span></div>
     </footer>
-
-    <script>
-        // Theme Toggle
-        const themeToggle = document.getElementById('theme-toggle');
-        const sunIcon = document.getElementById('sun-icon');
-        const moonIcon = document.getElementById('moon-icon');
-        const body = document.body;
-        
-        function setTheme(theme) {
-            body.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
-            if (theme === 'light') {
-                sunIcon.style.display = 'none';
-                moonIcon.style.display = 'block';
-            } else {
-                sunIcon.style.display = 'block';
-                moonIcon.style.display = 'none';
-            }
-        }
-        
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        setTheme(savedTheme);
-        
-        themeToggle.addEventListener('click', () => {
-            const current = body.getAttribute('data-theme');
-            setTheme(current === 'dark' ? 'light' : 'dark');
-        });
-    </script>
+    <script src="/assets/legal.js" defer></script>
 </body>
 </html>

@@ -1,310 +1,156 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- SEO -->
-    <title>About Us — SautiLink</title>
-    <meta name="description" content="Learn about SautiLink, a privacy-first social network built from Tanzania. Our mission is to create a digital space where your voice truly belongs to you.">
-    <link rel="canonical" href="https://sautilink.com/about.html">
-    
-    <!-- Open Graph Tags -->
-    <meta property="og:title" content="About SautiLink — Privacy-First Social Network">
-    <meta property="og:description" content="We're building a new social network from Tanzania that puts privacy and freedom first.">
+    <title>About SautiLink — Technology Built Around People</title>
+    <meta name="description" content="Meet SautiLink, a privacy-first social network built in Tanzania to give people more control over their identity, expression and digital lives.">
+    <link rel="canonical" href="https://sautilink.com/about">
+    <meta property="og:title" content="About SautiLink — Technology Built Around People">
+    <meta property="og:description" content="A privacy-first social network built in Tanzania for open, responsible expression everywhere.">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://sautilink.com/about.html">
+    <meta property="og:url" content="https://sautilink.com/about">
     <meta property="og:site_name" content="SautiLink">
-    <meta property="og:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    
-    <!-- Twitter Card -->
+    <meta property="og:image" content="https://sautilink.com/assets/logo.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="About SautiLink">
-    <meta name="twitter:description" content="Building a privacy-first social network from Tanzania.">
-    <meta name="twitter:image" content="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png">
-    
-    <!-- Favicon -->
-    <link rel="icon" href="https://raw.githubusercontent.com/sautilink/sautilink/main/assets/logo.png" type="image/png">
-    
-    <!-- Google Fonts -->
-    
-    <style>
-        :root {
-            --red: #2563eb;
-            --blue: #2563eb;
-            --bg: #0a0a0a;
-            --surface: #111111;
-            --text: #f8fafc;
-            --text-secondary: #cbd5e1;
-        }
-        
-        [data-theme="light"] {
-            --bg: #f8fafc;
-            --surface: #ffffff;
-            --text: #0f172a;
-            --text-secondary: #475569;
-        }
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: var(--font-primary);
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.7;
-        }
-        
-        header {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            z-index: 1000;
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            background: rgba(10,10,10,0.85);
-        }
-        
-        [data-theme="light"] header {
-            background: rgba(248,250,252,0.95);
-            border-bottom: 1px solid rgba(0,0,0,0.08);
-        }
-        
-        .nav {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 1.25rem 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .logo {
-            font-weight: 700;
-            font-size: 1.85rem;
-            letter-spacing: -0.04em;
-            text-decoration: none;
-            color: inherit;
-        }
-        
-        .nav-links {
-            display: flex;
-            gap: 2rem;
-            align-items: center;
-        }
-        
-        .nav-links a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s;
-        }
-        
-        .nav-links a:hover,
-        .nav-links a.active { color: var(--red); }
-        
-        .theme-toggle {
-            background: none;
-            border: 1px solid rgba(255,255,255,0.15);
-            width: 42px;
-            height: 42px;
-            border-radius: 9999px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            color: var(--text);
-        }
-        
-        main {
-            padding-top: 110px;
-            max-width: 900px;
-            margin: 0 auto;
-            padding-left: 2rem;
-            padding-right: 2rem;
-        }
-        
-        .hero {
-            text-align: center;
-            padding: 4rem 2rem 3rem;
-        }
-        
-        .hero h1 {
-            font-size: 3rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .hero p {
-            font-size: 1.3rem;
-            color: var(--text-secondary);
-            max-width: 700px;
-            margin: 0 auto;
-        }
-        
-        .section {
-            margin-bottom: 4rem;
-        }
-        
-        h2 {
-            font-size: 1.75rem;
-            margin: 2.5rem 0 1.25rem;
-            color: var(--red);
-        }
-        
-        p {
-            color: var(--text-secondary);
-            margin-bottom: 1.25rem;
-        }
-        
-        .values {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
-            margin-top: 2rem;
-        }
-        
-        .value-card {
-            background: var(--surface);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 2rem;
-        }
-        
-        [data-theme="light"] .value-card {
-            border-color: rgba(0,0,0,0.08);
-        }
-        
-        footer {
-            border-top: 1px solid rgba(255,255,255,0.1);
-            padding: 3.5rem 2rem 2.5rem;
-            text-align: center;
-            font-size: 0.95rem;
-            color: var(--text-secondary);
-            margin-top: 4rem;
-        }
-        
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-        }
-        
-        .footer-links a {
-            color: var(--text-secondary);
-            text-decoration: none;
-        }
-        
-        .footer-links a:hover { color: var(--red); }
-    </style>
+    <meta name="twitter:description" content="Technology built around people, privacy and open expression.">
+    <meta name="twitter:image" content="https://sautilink.com/assets/logo.png">
+    <meta name="twitter:site" content="@sautilink">
+    <meta name="theme-color" content="#060a12">
+    <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512">
+    <link rel="shortcut icon" href="/assets/favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="/assets/favicon.png">
     <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/assets/brand/system.css">
+    <link rel="stylesheet" href="/assets/legal.css">
+    <link rel="stylesheet" href="/assets/site-pages.css">
 </head>
-<body data-theme="dark">
-    <!-- HEADER -->
-    <header>
-        <div class="nav">
-            <a href="index.html" class="logo">SautiLink</a>
-            
-            <div class="nav-links">
-                <a href="index.html">Home</a>
-                <a href="about.html" class="active">About</a>
-                <a href="contact.html">Contact</a>
+<body class="legal-page content-page about-page">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+        <nav class="site-nav" aria-label="Primary navigation">
+            <a class="brand" href="/" aria-label="SautiLink home"><img class="brand-logo" src="/logo.png" alt="" width="48" height="23"><span>SautiLink</span></a>
+            <div class="nav-cluster" data-nav-cluster>
+                <div class="nav-links">
+                    <a href="/">Home</a><a href="/about" aria-current="page">About</a><a href="/sautinote">SautiNote</a><a href="/help">Help</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a>
+                </div>
             </div>
-            
-            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
-                <svg id="sun-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="5"/>
-                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
-                </svg>
-                <svg id="moon-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="display:none;">
-                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                </svg>
-            </button>
-        </div>
+            <div class="nav-actions">
+                <button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Use light theme" aria-pressed="false">
+                    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>
+                    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
+                </button>
+                <button class="icon-button menu-toggle" type="button" data-menu-toggle aria-label="Open navigation" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+            </div>
+        </nav>
     </header>
 
-    <main>
-        <div class="hero">
-            <h1>About SautiLink</h1>
-            <p>We're building a privacy-first social network from Tanzania — a platform where your voice truly belongs to you.</p>
-        </div>
-
-        <div class="section">
-            <h2>Our Mission</h2>
-            <p>In a world where big tech companies harvest your data and control what you see, SautiLink was born from the belief that people deserve better. We are creating a social network that prioritizes privacy, freedom of expression, and user sovereignty.</p>
-        </div>
-
-        <div class="section">
-            <h2>Why We Exist</h2>
-            <p>Most social media platforms today profit by selling your attention and personal data. SautiLink is different. We believe your conversations, your photos, and your thoughts should remain yours — not commodities to be tracked, profiled, or monetized.</p>
-        </div>
-
-        <div class="section">
-            <h2>Our Core Values</h2>
-            <div class="values">
-                <div class="value-card">
-                    <h3 style="margin-bottom: 1rem; color: var(--red);">Privacy First</h3>
-                    <p>We collect the minimum data a feature needs, never sell personal information, and keep any operational processing under SautiLink's instructions and safeguards.</p>
+    <main class="content-main" id="main-content">
+        <section class="page-hero">
+            <div class="page-shell hero-grid">
+                <div>
+                    <div class="eyebrow"><span class="eyebrow-dot"></span>Built in Tanzania · For the world</div>
+                    <h1>Technology should amplify people, <span>not extract from them.</span></h1>
+                    <p class="hero-lede">SautiLink is building a social network where identity, expression and community come with clearer choices—and where privacy is part of the architecture, not an afterthought.</p>
+                    <div class="hero-actions">
+                        <a class="primary-cta" href="/#main-content">Join the waitlist <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+                        <a class="secondary-cta" href="/privacy">Read our privacy commitments</a>
+                    </div>
                 </div>
-                <div class="value-card">
-                    <h3 style="margin-bottom: 1rem; color: var(--red);">Freedom of Expression</h3>
-                    <p>We defend your right to speak freely while maintaining a respectful and safe environment for all users.</p>
-                </div>
-                <div class="value-card">
-                    <h3 style="margin-bottom: 1rem; color: var(--red);">Built in Africa</h3>
-                    <p>Proudly developed from Tanzania, we understand the unique needs and aspirations of African users and the Global South.</p>
+                <div class="hero-visual" aria-label="SautiLink point of view">
+                    <img class="visual-mark" src="/logo.png" alt="SautiLink logo" width="320" height="154">
+                    <div class="visual-inner">
+                        <div class="visual-note"><small>Our point of view</small><strong>Your conversations, photos and thoughts should remain yours.</strong></div>
+                        <div class="visual-stat-row">
+                            <div class="visual-stat"><small>Principle 01</small><strong>People first</strong></div>
+                            <div class="visual-stat"><small>Principle 02</small><strong>Privacy by design</strong></div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="section">
-            <h2>Our Location</h2>
-            <p><strong>Headquarters:</strong><br>
-            Uhuru Street<br>
-            Mwanza, United Republic of Tanzania</p>
-        </div>
+        <section class="section-shell" aria-labelledby="mission-title">
+            <div class="split-panel">
+                <div class="split-copy">
+                    <span class="section-label">Our mission</span>
+                    <h2 id="mission-title">Build a digital space worthy of your voice.</h2>
+                    <p>Big platforms too often turn attention and personal data into the product. SautiLink exists because people deserve a different relationship with social technology: one built around agency, responsible expression and genuine community.</p>
+                </div>
+                <div class="statement-card">
+                    <blockquote>“Your voice belongs to you. The platform should earn the privilege of carrying it.”</blockquote>
+                    <footer>SautiLink founding principle</footer>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-shell" aria-labelledby="values-title">
+            <div class="section-heading">
+                <span class="section-label">What guides us</span>
+                <h2 id="values-title">Clear principles. Practical choices.</h2>
+                <p>These are not campaign lines. They shape how we collect data, build features and serve our communities.</p>
+            </div>
+            <div class="card-grid">
+                <article class="feature-card">
+                    <span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.8 8.8 7 10 4.2-1.2 7-5.4 7-10V6l-7-3Z"></path><path d="m9 12 2 2 4-4"></path></svg></span>
+                    <h3>Privacy first</h3><p>We collect the minimum a feature needs, never sell personal information and keep operational processing under SautiLink safeguards.</p>
+                </article>
+                <article class="feature-card">
+                    <span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16v11H8l-4 4V6Z"></path><path d="M8 10h8M8 14h5"></path></svg></span>
+                    <h3>Open expression</h3><p>We defend the freedom to speak while building the controls and standards needed for a respectful, safer environment.</p>
+                </article>
+                <article class="feature-card">
+                    <span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"></path></svg></span>
+                    <h3>Built in Africa</h3><p>Developed from Tanzania with an understanding of African users, the Global South and a connected world.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="section-shell" aria-labelledby="home-title">
+            <div class="split-panel">
+                <div class="statement-card">
+                    <div>
+                        <span class="section-label">Our home</span>
+                        <blockquote>Mwanza roots. Global ambition.</blockquote>
+                    </div>
+                    <footer>SautiLink Corporation · United Republic of Tanzania</footer>
+                </div>
+                <div class="split-copy">
+                    <span class="section-label">Where we are</span>
+                    <h2 id="home-title">Building from the shore of Lake Victoria.</h2>
+                    <p>Our headquarters are in Mwanza, Tanzania. From here, we are creating products designed to be useful far beyond one city or one market.</p>
+                    <div class="location-list">
+                        <div class="location-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg><div><strong>Headquarters</strong><span>Uhuru Street, Mwanza, United Republic of Tanzania</span></div></div>
+                        <div class="location-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16v14H4z"></path><path d="m4 7 8 6 8-6"></path></svg><div><strong>Talk to the team</strong><span>team@sautilink.com</span></div></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-shell">
+            <div class="cta-band">
+                <div><span class="section-label">Come early</span><h2>Reserve your SautiLink identity.</h2><p>Choose a username, verify your email and we will contact you when access is ready.</p></div>
+                <a class="primary-cta" href="/#main-content">Join the waitlist <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+            </div>
+        </section>
     </main>
 
-    <!-- FOOTER -->
-    <footer>
-        <div class="footer-links">
-            <a href="index.html">Home</a>
-            <a href="/privacy">Privacy</a>
-            <a href="/terms">Terms</a>
-            <a href="/account-deletion">Account Deletion</a>
-            <a href="contact.html">Contact</a>
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <a class="brand" href="/" aria-label="SautiLink home"><img class="brand-logo" src="/logo.png" alt="" width="48" height="23"><span>SautiLink</span></a>
+                <p>A privacy-first social network built in Tanzania for open, responsible expression everywhere.</p>
+                <div class="footer-socials" aria-label="Follow SautiLink">
+                    <a class="footer-social-link" href="https://www.facebook.com/sautilink/" target="_blank" rel="noopener noreferrer" aria-label="SautiLink on Facebook"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073c0 6.027 4.388 11.02 10.125 11.927v-8.437H7.078v-3.49h3.047V9.414c0-3.025 1.792-4.696 4.533-4.696 1.312 0 2.686.236 2.686.236v2.97H15.83c-1.491 0-1.956.93-1.956 1.885v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.093 24 18.1 24 12.073Z"></path></svg></a>
+                    <a class="footer-social-link" href="https://x.com/sautilink" target="_blank" rel="noopener noreferrer" aria-label="SautiLink on X"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.933Zm-1.291 19.491h2.039L6.486 3.24H4.298L17.61 20.644Z"></path></svg></a>
+                    <a class="footer-social-link" href="https://www.tiktok.com/@sautilink" target="_blank" rel="noopener noreferrer" aria-label="SautiLink on TikTok"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743 2.895 2.895 0 0 1 3.183-4.51v-3.5a6.329 6.329 0 0 0-5.394 9.2 6.33 6.33 0 0 0 10.857-4.424V8.687a8.182 8.182 0 0 0 4.773 1.526V6.686Z"></path></svg></a>
+                </div>
+            </div>
+            <nav class="footer-links" aria-label="Footer navigation"><a href="/about">About</a><a href="/help">Help Centre</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/account-deletion">Account &amp; Data Deletion</a><a href="/contact">Contact</a><a href="https://cloudengine.sautilink.com" target="_blank" rel="noopener noreferrer">Cloud Engine</a><a href="/sautinote">SautiNote</a></nav>
         </div>
-        <p>&copy; 2026 SautiLink Corporation. All rights reserved.</p>
+        <div class="footer-bottom"><span>&copy; <span data-current-year>2026</span> SautiLink Corporation. All rights reserved.</span><span>Uhuru Street, Mwanza, Tanzania</span></div>
     </footer>
-
-    <script>
-        // Theme Toggle
-        const themeToggle = document.getElementById('theme-toggle');
-        const sunIcon = document.getElementById('sun-icon');
-        const moonIcon = document.getElementById('moon-icon');
-        const body = document.body;
-        
-        function setTheme(theme) {
-            body.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
-            if (theme === 'light') {
-                sunIcon.style.display = 'none';
-                moonIcon.style.display = 'block';
-            } else {
-                sunIcon.style.display = 'block';
-                moonIcon.style.display = 'none';
-            }
-        }
-        
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        setTheme(savedTheme);
-        
-        themeToggle.addEventListener('click', () => {
-            const current = body.getAttribute('data-theme');
-            setTheme(current === 'dark' ? 'light' : 'dark');
-        });
-    </script>
+    <script src="/assets/legal.js" defer></script>
 </body>
 </html>
