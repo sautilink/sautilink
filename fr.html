@@ -341,8 +341,27 @@
     </style>
     <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/assets/brand/system.css">
+  <meta name="application-name" content="SautiLink">
+  <meta name="apple-mobile-web-app-title" content="SautiLink">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="/assets/favicon.png">
+  <link rel="manifest" href="/manifest.json?v=1">
+  <link rel="stylesheet" href="/assets/launch-splash.css?v=1">
+  <script src="/assets/launch-splash.js?v=1" data-product="sautilink" data-version="1" data-register-sw="true"></script>
 </head>
 <body data-theme="dark">
+  <div class="sl-launch-splash sl-launch-splash--sautilink" id="sl-launch-splash" aria-hidden="true">
+    <div class="sl-launch-center">
+      <div class="sl-launch-logo-stage">
+        <span class="sl-launch-orbit"></span>
+        <img class="sl-launch-logo" src="/logo.png" alt="" width="146" height="71">
+      </div>
+      <p class="sl-launch-product">SautiLink</p>
+    </div>
+    <p class="sl-launch-signature"><span>FROM</span><strong>SAUTILINK CORPORATION<sup>™</sup></strong></p>
+  </div>
     <!-- HEADER -->
     <header>
         <div class="nav">
