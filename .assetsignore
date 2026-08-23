@@ -1,5 +1,8 @@
 .git/
 .github/
+docs/
+supabase/
 README.md
 wrangler.jsonc
 .assetsignore
+.gitignore
