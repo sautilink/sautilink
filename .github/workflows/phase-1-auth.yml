@@ -1,0 +1,53 @@
+name: Phase 1 Authentication
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "src/**"
+      - "tests/**"
+      - "supabase/migrations/**"
+      - "supabase/tests/**"
+      - "package.json"
+      - "package-lock.json"
+      - "sw.js"
+      - ".assetsignore"
+      - "_headers"
+      - "wrangler.jsonc"
+      - ".github/workflows/phase-1-auth.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "src/**"
+      - "tests/**"
+      - "supabase/migrations/**"
+      - "supabase/tests/**"
+      - "package.json"
+      - "package-lock.json"
+      - "sw.js"
+      - ".assetsignore"
+      - "_headers"
+      - "wrangler.jsonc"
+      - ".github/workflows/phase-1-auth.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-auth-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Build and test
+        run: npm run check
+      - name: Validate Cloudflare deployment
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: npm run deploy:dry

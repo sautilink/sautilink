@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://rggpyiterdbbugluejcs.supabase.co wss://rggpyiterdbbugluejcs.supabase.co; font-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="robots" content="noindex, nofollow">
+  <title>SautiLink App — Your voice, connected</title>
+  <meta name="description" content="Sign in to the private SautiLink social app preview.">
+  <meta name="theme-color" content="#07101f">
+  <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512">
+  <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/brand/system.css">
+  <link rel="stylesheet" href="/app/assets/app.css">
+</head>
+<body>
+  <a class="skip-link" href="#stream">Skip to main content</a>
+
+  <header class="mobile-header">
+    <a class="app-brand" href="/app/" aria-label="SautiLink app home">
+      <img src="/logo.png" alt="" width="42" height="20">
+      <span>SautiLink</span>
+    </a>
+    <span class="preview-badge" id="mobile-preview-badge">Private preview</span>
+    <button class="mobile-signout" id="mobile-signout-button" type="button" hidden>Sign out</button>
+  </header>
+
+  <div class="app-layout">
+    <aside class="primary-rail" aria-label="SautiLink navigation">
+      <div class="primary-rail-inner">
+        <a class="app-brand desktop-brand" href="/app/" aria-label="SautiLink app home">
+          <img src="/logo.png" alt="" width="46" height="22">
+          <span>SautiLink</span>
+        </a>
+
+        <nav class="app-nav" aria-label="Social navigation">
+          <button class="nav-item active" type="button" data-preview-nav="stream" aria-current="page">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-9.5Z"></path></svg>
+            <span>Stream</span>
+          </button>
+          <button class="nav-item" type="button" data-preview-nav="discover">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4M11 7v8M7 11h8"></path></svg>
+            <span>Discover</span>
+          </button>
+          <button class="nav-item" type="button" data-preview-nav="circles">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><circle cx="17" cy="10" r="2.5"></circle><path d="M3.5 20c.4-4 2.2-6 5.5-6s5.1 2 5.5 6M14 15c3.4-.7 5.5.9 6 4"></path></svg>
+            <span>Circles</span>
+          </button>
+          <button class="nav-item" type="button" data-preview-nav="saved">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z"></path></svg>
+            <span>Saved</span>
+          </button>
+          <button class="nav-item" type="button" data-preview-nav="profile">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21c.7-4.2 3.2-6.5 7.5-6.5s6.8 2.3 7.5 6.5"></path></svg>
+            <span>Profile</span>
+          </button>
+        </nav>
+
+        <button class="share-sauti-button" type="button" data-preview-nav="share" disabled>Share a Sauti</button>
+
+        <div class="rail-account" id="rail-account" hidden>
+          <span class="avatar" id="rail-avatar" aria-hidden="true">S</span>
+          <span class="rail-account-copy"><strong id="rail-name">SautiLink member</strong><small id="rail-username">@username</small></span>
+          <button class="icon-control" id="signout-button" type="button" aria-label="Sign out" title="Sign out">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h5M14 8l4 4-4 4M8 12h10"></path></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="stream-column" id="stream">
+      <header class="stream-header">
+        <div><p>Private preview</p><h1>Stream</h1></div>
+        <span class="status-dot"><i></i>Phase 1</span>
+      </header>
+
+      <section class="loading-view" id="loading-view" aria-live="polite">
+        <span class="loading-mark"></span>
+        <p>Opening SautiLink…</p>
+      </section>
+
+      <section class="auth-view" id="auth-view" hidden>
+        <div class="auth-intro">
+          <span class="intro-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <p class="section-label">Your voice, connected</p>
+          <h2>A familiar social rhythm, built with a different purpose.</h2>
+          <p>SautiLink keeps conversation fast and simple while giving identity, privacy and communities their own foundation.</p>
+          <div class="identity-points" aria-label="SautiLink principles">
+            <span><b>01</b> Open expression</span>
+            <span><b>02</b> Private by design</span>
+            <span><b>03</b> Built light</span>
+          </div>
+        </div>
+
+        <div class="auth-card">
+          <div class="auth-tabs" id="auth-tabs" role="tablist" aria-label="Account access">
+            <button type="button" role="tab" aria-selected="true" aria-controls="login-panel" id="login-tab" data-auth-mode="login">Sign in</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="signup-panel" id="signup-tab" data-auth-mode="signup">Create account</button>
+          </div>
+
+          <section id="login-panel" role="tabpanel" aria-labelledby="login-tab">
+            <div class="form-heading"><h2>Welcome back</h2><p>Continue with your verified SautiLink Account.</p></div>
+            <form id="login-form" class="auth-form" novalidate>
+              <label for="login-email">Email address</label>
+              <input id="login-email" name="email" type="email" inputmode="email" autocomplete="email" required placeholder="you@example.com">
+              <label for="login-password">Password</label>
+              <div class="password-field"><input id="login-password" name="password" type="password" autocomplete="current-password" required placeholder="Your password"><button type="button" data-password-toggle="login-password">Show</button></div>
+              <div class="form-message" id="login-message" role="alert" hidden></div>
+              <button class="form-submit" type="submit"><span>Sign in</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+              <button class="text-action" type="button" id="show-recovery">Forgot your password?</button>
+            </form>
+          </section>
+
+          <section id="signup-panel" role="tabpanel" aria-labelledby="signup-tab" hidden>
+            <div class="form-heading"><h2>Claim your place</h2><p>Create one identity for the SautiLink ecosystem.</p></div>
+            <form id="signup-form" class="auth-form" novalidate>
+              <label for="signup-username">Username</label>
+              <div class="username-field"><span>@</span><input id="signup-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="30" required placeholder="yourname"></div>
+              <small class="field-hint" id="username-state" aria-live="polite">3–30 lowercase letters, numbers, dots or underscores.</small>
+              <label for="signup-name">Display name</label>
+              <input id="signup-name" name="displayName" type="text" autocomplete="name" maxlength="80" required placeholder="How people will know you">
+              <label for="signup-email">Email address</label>
+              <input id="signup-email" name="email" type="email" inputmode="email" autocomplete="email" required placeholder="you@example.com">
+              <label for="signup-password">Password</label>
+              <div class="password-field"><input id="signup-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="12+ strong characters"><button type="button" data-password-toggle="signup-password">Show</button></div>
+              <small class="field-hint">Use uppercase, lowercase, a number and a symbol.</small>
+              <label for="signup-password-confirm">Confirm password</label>
+              <input id="signup-password-confirm" name="passwordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="Repeat your password">
+              <div class="form-message" id="signup-message" role="alert" hidden></div>
+              <button class="form-submit" type="submit"><span>Create account</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+              <p class="legal-note">By creating an account, you agree to the <a href="/terms">Terms</a> and acknowledge the <a href="/privacy">Privacy Policy</a>.</p>
+            </form>
+          </section>
+
+          <section id="verify-panel" hidden>
+            <button class="back-action" type="button" id="cancel-verification">Back</button>
+            <div class="form-heading"><p class="section-label">Check your inbox</p><h2>Verify your email</h2><p>Enter the one-time code sent to <strong id="verify-email">your email</strong>.</p></div>
+            <form id="verify-form" class="auth-form" novalidate>
+              <label for="verification-code">Verification code</label>
+              <input class="otp-input" id="verification-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" minlength="6" maxlength="10" required placeholder="00000000">
+              <div class="form-message" id="verify-message" role="alert" hidden></div>
+              <button class="form-submit" type="submit"><span>Verify and continue</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg></button>
+              <button class="text-action" type="button" id="resend-verification">Resend code</button>
+            </form>
+          </section>
+
+          <section id="recovery-panel" hidden>
+            <button class="back-action" type="button" data-auth-mode="login">Back to sign in</button>
+            <div class="form-heading"><h2>Recover your account</h2><p>We will email a secure recovery link. This also activates older waitlist accounts.</p></div>
+            <form id="recovery-form" class="auth-form" novalidate>
+              <label for="recovery-email">Email address</label>
+              <input id="recovery-email" name="email" type="email" inputmode="email" autocomplete="email" required placeholder="you@example.com">
+              <div class="form-message" id="recovery-message" role="alert" hidden></div>
+              <button class="form-submit" type="submit"><span>Send recovery link</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+            </form>
+          </section>
+
+          <section id="password-panel" hidden>
+            <div class="form-heading"><p class="section-label">Secure your account</p><h2>Choose a new password</h2><p>Your recovery link has been verified.</p></div>
+            <form id="password-form" class="auth-form" novalidate>
+              <label for="new-password">New password</label>
+              <div class="password-field"><input id="new-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="12+ strong characters"><button type="button" data-password-toggle="new-password">Show</button></div>
+              <label for="new-password-confirm">Confirm new password</label>
+              <input id="new-password-confirm" name="passwordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="Repeat your password">
+              <div class="form-message" id="password-message" role="alert" hidden></div>
+              <button class="form-submit" type="submit"><span>Save new password</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg></button>
+            </form>
+          </section>
+
+          <section id="onboarding-panel" hidden>
+            <div class="form-heading"><p class="section-label">One last step</p><h2>Set up your social identity</h2><p>Your email is verified. Confirm how you will appear on SautiLink.</p></div>
+            <form id="onboarding-form" class="auth-form" novalidate>
+              <label for="onboarding-username">Username</label>
+              <div class="username-field"><span>@</span><input id="onboarding-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="30" required></div>
+              <label for="onboarding-name">Display name</label>
+              <input id="onboarding-name" name="displayName" type="text" autocomplete="name" maxlength="80" required>
+              <div class="form-message" id="onboarding-message" role="alert" hidden></div>
+              <button class="form-submit" type="submit"><span>Enter SautiLink</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+            </form>
+          </section>
+        </div>
+      </section>
+
+      <section class="member-view" id="member-view" hidden>
+        <article class="composer-card" aria-label="Post composer preview">
+          <span class="avatar large" id="member-avatar" aria-hidden="true">S</span>
+          <div class="composer-body">
+            <p>What deserves to be heard?</p>
+            <div class="composer-actions">
+              <span>Text</span><span>Media</span><span>Poll</span>
+              <button type="button" disabled>Share a Sauti</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="welcome-card">
+          <span class="welcome-orbit" aria-hidden="true"><i></i></span>
+          <p class="section-label">Identity ready</p>
+          <h2>Welcome to your Stream, <span id="member-first-name">member</span>.</h2>
+          <p>Your secure account and public social identity are connected. Posting and following will arrive in the next Phase 1 slices.</p>
+          <div class="member-identity"><strong id="member-display-name">SautiLink member</strong><span id="member-username">@username</span></div>
+        </article>
+
+        <section class="stream-empty" aria-label="Empty stream">
+          <span></span><span></span><span></span>
+          <h2>Your Stream will grow around your choices.</h2>
+          <p>No forced noise. Discover voices, join Circles and shape what reaches you.</p>
+        </section>
+      </section>
+    </main>
+
+    <aside class="context-rail" aria-label="About this SautiLink preview">
+      <div class="context-card search-preview"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg><span>Search SautiLink</span><kbd>/</kbd></div>
+
+      <section class="context-card principle-card">
+        <p class="section-label">The SautiLink way</p>
+        <h2>Fast conversation. Clear ownership.</h2>
+        <ul>
+          <li><span></span><div><strong>One trusted identity</strong><small>Your private account stays separate from your public profile.</small></div></li>
+          <li><span></span><div><strong>Media built to scale</strong><small>Uploads will live on R2, away from the main database.</small></div></li>
+          <li><span></span><div><strong>Your Stream, your signal</strong><small>Feed systems are designed to remain rebuildable and resilient.</small></div></li>
+        </ul>
+      </section>
+
+      <section class="context-card phase-card">
+        <span class="phase-number">01</span>
+        <div><strong>Foundation in progress</strong><p>Authentication and identity are the first live layer.</p></div>
+      </section>
+
+      <footer class="app-footer"><a href="/about">About</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/help">Help</a><span>© 2026 SautiLink</span></footer>
+    </aside>
+  </div>
+
+  <nav class="mobile-nav" aria-label="Mobile social navigation">
+    <button class="active" type="button" data-preview-nav="stream" aria-label="Stream"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-9.5Z"></path></svg></button>
+    <button type="button" data-preview-nav="discover" aria-label="Discover"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg></button>
+    <button type="button" data-preview-nav="share" aria-label="Share a Sauti" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+    <button type="button" data-preview-nav="circles" aria-label="Circles"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><circle cx="17" cy="10" r="2.5"></circle><path d="M3.5 20c.4-4 2.2-6 5.5-6s5.1 2 5.5 6M14 15c3.4-.7 5.5.9 6 4"></path></svg></button>
+    <button type="button" data-preview-nav="profile" aria-label="Profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21c.7-4.2 3.2-6.5 7.5-6.5s6.8 2.3 7.5 6.5"></path></svg></button>
+  </nav>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script type="module" src="/app/assets/app.js"></script>
+</body>
+</html>

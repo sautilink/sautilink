@@ -1,0 +1,23 @@
+{
+  "name": "sautilink-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build:app",
+    "build:app": "esbuild src/app.js --bundle --minify --format=esm --target=es2022 --outfile=app/assets/app.js",
+    "test": "node --test tests/*.test.mjs",
+    "check": "npm run build && npm test",
+    "deploy:dry": "wrangler deploy --dry-run"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.112.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "wrangler": "4.125.0"
+  }
+}

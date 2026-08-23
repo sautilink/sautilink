@@ -42,7 +42,10 @@ jobs:
           assert "--font-brand" not in css, "secondary font token must not return"
           assert "http://" not in css and "https://" not in css, "brand CSS must be self-hosted"
 
-          pages = [p for p in Path(".").glob("*.html") if not p.name.startswith("google")]
+          pages = [
+              p for p in Path(".").rglob("*.html")
+              if "node_modules" not in p.parts and not p.name.startswith("google")
+          ]
           assert pages, "no public HTML pages found"
           for p in pages:
               text = p.read_text(encoding="utf-8")

@@ -1,0 +1,8 @@
+/app/*
+  Cache-Control: no-store, max-age=0
+  Content-Security-Policy: default-src 'self'; connect-src 'self' https://rggpyiterdbbugluejcs.supabase.co wss://rggpyiterdbbugluejcs.supabase.co; font-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
