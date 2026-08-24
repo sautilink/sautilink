@@ -222,3 +222,8 @@ No donor-derived component enters production unless it passes all applicable gat
 Proceed with Meadows as a **controlled reference implementation**. It can shorten UI and interaction work, but it should not define SautiLink's database, security, storage, deployment, or product identity.
 
 The next coding step remains PR #8 review/approval. After that, start a small React + Vite `/app` shell proof rather than importing the Meadows repository. That proof should port only the Stream shell and one static Sauti card, measure its bundle, and leave production data untouched.
+
+
+The wider multi-donor rules, product-language map, visual contract, and mandatory
+preview gates are defined in
+[`docs/architecture/open-source-donor-system.md`](../architecture/open-source-donor-system.md).
