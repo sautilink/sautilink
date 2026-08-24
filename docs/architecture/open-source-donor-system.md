@@ -103,7 +103,7 @@ The application must be calm and information-first:
   oversized rounded cards, or animation that slows reading.
 - Borders, spacing, typography, and hierarchy carry the design.
 - Light and dark modes share the same visual structure.
-- The SautiLink logo, Bricolage Grotesque brand headings, naming, icons, empty
+- The SautiLink logo, self-hosted Inter brand system, naming, icons, empty
   states, and motion make the identity distinct from X.
 - Desktop uses a focused three-region layout only where useful. Mobile is not a
   squeezed desktop view; navigation and composer actions are mobile-native.

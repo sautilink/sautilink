@@ -1,5 +1,5 @@
-**/.git
-**/.github
+.git/**
+.github/**
 docs/**
 supabase/**
 README.md
@@ -8,10 +8,15 @@ wrangler.jsonc
 .gitignore
 package.json
 package-lock.json
+THIRD_PARTY_NOTICES.md
 src/**
+preview-src/**
+scripts/**
 tests/**
-**/node_modules
+vite.preview.config.js
+node_modules/**
 dist/**
+dist-preview-site/**
 .wrangler/**
 .dev.vars
 .dev.vars.*
