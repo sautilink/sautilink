@@ -52,3 +52,7 @@ The React Identity UI must not replace `/app/` until all of these are complete:
 6. complete a dedicated sign-up, verification, sign-in, recovery, onboarding
    and sign-out E2E test; and
 7. run the Cloudflare production dry-run before any deployment.
+
+The pull-request preview is deployed from GitHub Actions with Wrangler's
+credential-free temporary-account flow. It is intentionally short-lived and
+does not use the production Cloudflare account, domain, bindings, or secrets.
