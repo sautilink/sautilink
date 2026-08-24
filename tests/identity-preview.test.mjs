@@ -60,3 +60,9 @@ test('real Supabase adapter receives configuration instead of embedding secrets'
   assert.match(service, /user_metadata/);
   assert.doesNotMatch(service, /user_metadata[^\n]+(?:role|admin|authorization)/i);
 });
+
+test('identity gate resets after authentication and sign-out', async () => {
+  const preview = await read('preview-src/identity/IdentityPreview.jsx');
+  assert.match(preview, /setGateVersion\(\(current\) => current \+ 1\)/);
+  assert.match(preview, /<IdentityGate key=\{gateVersion\}/);
+});

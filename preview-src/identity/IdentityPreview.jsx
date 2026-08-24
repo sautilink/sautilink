@@ -9,10 +9,12 @@ export default function IdentityPreview() {
   const [member, setMember] = useState(null);
   const [open, setOpen] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [gateVersion, setGateVersion] = useState(0);
 
   const authenticate = (profile) => {
     setMember(profile);
     setOpen(false);
+    setGateVersion((current) => current + 1);
   };
 
   const signOut = async () => {
@@ -20,6 +22,7 @@ export default function IdentityPreview() {
     try {
       await service.signOut();
       setMember(null);
+      setGateVersion((current) => current + 1);
       setOpen(true);
     } finally {
       setBusy(false);
@@ -41,7 +44,7 @@ export default function IdentityPreview() {
         </aside>
       ) : null}
 
-      <IdentityGate open={open} service={service} onClose={() => setOpen(false)} onAuthenticated={authenticate} />
+      <IdentityGate key={gateVersion} open={open} service={service} onClose={() => setOpen(false)} onAuthenticated={authenticate} />
     </div>
   );
 }
