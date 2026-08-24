@@ -87,6 +87,8 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('preview/app-shell/index.html'));
   assert.ok(files.includes('preview/app-shell/device-lab.html'));
   assert.ok(files.includes('preview/app-shell/device-lab.css'));
+  assert.ok(files.includes('preview/identity/index.html'));
+  assert.ok(files.includes('preview/identity/device-lab.html'));
   assert.ok(files.includes('logo.png'));
   assert.ok(files.includes('assets/brand/system.css'));
   assert.ok(files.some((file) => /^preview\/app-shell\/assets\/index-.*\.js$/.test(file)));
@@ -97,11 +99,13 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
       || file === 'assets/brand/system.css'
       || file.startsWith('assets/fonts/inter/')
       || file.startsWith('preview/app-shell/')
+      || file.startsWith('preview/identity/')
   )), `unexpected staged file: ${files.find((file) => !(
     file === 'logo.png'
       || file === 'assets/favicon.png'
       || file === 'assets/brand/system.css'
       || file.startsWith('assets/fonts/inter/')
       || file.startsWith('preview/app-shell/')
+      || file.startsWith('preview/identity/')
   ))}`);
 });
