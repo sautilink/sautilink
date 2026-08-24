@@ -30,7 +30,7 @@ test('authentication surface includes all required account flows', async () => {
 
 test('deployment excludes source, database and dependency metadata', async () => {
   const ignore = await read('.assetsignore');
-  for (const path of ['supabase/', 'src/', 'tests/', 'package.json', 'package-lock.json']) {
+  for (const path of ['supabase/', 'src/', 'preview-src/', 'scripts/', 'tests/', 'vite.preview.config.js', 'package.json', 'package-lock.json']) {
     assert.match(ignore, new RegExp(path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
 });

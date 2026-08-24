@@ -4,5 +4,14 @@
   "compatibility_date": "2026-08-17",
   "assets": {
     "directory": "./"
+  },
+  "env": {
+    "preview": {
+      "name": "sautilink-app-shell-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
+    }
   }
 }
