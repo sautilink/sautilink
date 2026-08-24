@@ -12,6 +12,13 @@
       "assets": {
         "directory": "./dist-preview-site"
       }
+    },
+    "identity": {
+      "name": "sautilink-identity-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
     }
   }
 }
