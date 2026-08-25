@@ -19,6 +19,13 @@
       "assets": {
         "directory": "./dist-preview-site"
       }
+    },
+    "profiles": {
+      "name": "sautilink-profiles-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
     }
   }
 }

@@ -4,9 +4,23 @@ export const currentMember = {
   initials: 'SM',
   bio: 'Building meaningful connections across East Africa.',
   location: 'East Africa',
+  website: 'sautilink.com',
   joined: 'Joined August 2026',
   following: 148,
   followers: 632,
+};
+
+export const publicMember = {
+  name: 'Asha Mhando',
+  handle: '@asham',
+  initials: 'AM',
+  bio: 'Product designer exploring humane technology, local media and better digital public spaces.',
+  location: 'Dar es Salaam, Tanzania',
+  website: 'asham.design',
+  joined: 'Joined March 2026',
+  following: 389,
+  followers: '12.6K',
+  verified: true,
 };
 
 export const posts = [
@@ -83,6 +97,9 @@ export const circles = [
     members: '18.4K',
     active: '364 active now',
     initials: 'EA',
+    access: 'Open',
+    role: 'Member',
+    rules: ['Share practical knowledge', 'Credit original work', 'Disagree without attacking people'],
   },
   {
     id: 'creator-economy',
@@ -91,6 +108,9 @@ export const circles = [
     members: '11.2K',
     active: '218 active now',
     initials: 'CE',
+    access: 'Approval',
+    role: null,
+    rules: ['No engagement bait', 'Declare commercial relationships', 'Keep feedback constructive'],
   },
   {
     id: 'sauti-mtaani',
@@ -99,6 +119,20 @@ export const circles = [
     members: '8.7K',
     active: '109 active now',
     initials: 'SM',
+    access: 'Open',
+    role: null,
+    rules: ['Protect private information', 'Add location context', 'Correct mistakes clearly'],
+  },
+  {
+    id: 'quiet-design-club',
+    name: 'Quiet Design Club',
+    description: 'A small private Circle for focused critique, research notes and work in progress.',
+    members: '84',
+    active: '12 active now',
+    initials: 'QD',
+    access: 'Private',
+    role: 'Moderator',
+    rules: ['Keep work inside the Circle', 'Ask before sharing screenshots', 'Give specific feedback'],
   },
 ];
 
