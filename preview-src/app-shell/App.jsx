@@ -5,8 +5,12 @@ import {
   Bell,
   Bookmark,
   CalendarDays,
+  Camera,
+  Check,
   ChevronDown,
+  ChevronLeft,
   CircleEllipsis,
+  ExternalLink,
   Globe2,
   Heart,
   Home,
@@ -23,10 +27,12 @@ import {
   Send,
   Settings,
   Share2,
+  ShieldCheck,
   SlidersHorizontal,
   Smile,
   Sun,
   TrendingUp,
+  UserMinus,
   UserPlus,
   UserRound,
   UsersRound,
@@ -38,6 +44,7 @@ import {
   currentMember,
   notifications,
   posts,
+  publicMember,
   suggestions,
   trends,
 } from './data.js';
@@ -55,9 +62,9 @@ const navigation = [
 const mobileNavigation = navigation.filter(({ id }) => ['stream', 'discover', 'notifications', 'messages'].includes(id));
 const knownSections = new Set(navigation.map(({ id }) => id));
 
-function getInitialSection() {
+function getInitialSection(fallback = 'stream') {
   const candidate = window.location.hash.replace('#', '');
-  return knownSections.has(candidate) ? candidate : 'stream';
+  return knownSections.has(candidate) ? candidate : fallback;
 }
 
 function getInitialTheme() {
@@ -106,7 +113,7 @@ function NavigationItem({ item, active, onSelect, compact = false }) {
   );
 }
 
-function PrimaryRail({ section, onNavigate, onCompose, onMore }) {
+function PrimaryRail({ section, member, onNavigate, onCompose, onMore }) {
   return (
     <aside className="primary-rail" aria-label="Primary navigation">
       <div className="primary-rail-inner">
@@ -130,10 +137,10 @@ function PrimaryRail({ section, onNavigate, onCompose, onMore }) {
         </button>
 
         <button className="member-switcher" type="button" onClick={() => onNavigate('profile')}>
-          <Avatar initials={currentMember.initials} tone="graphite" size="small" />
+          <Avatar initials={member.initials} tone="graphite" size="small" />
           <span className="member-switcher-copy">
-            <strong>{currentMember.name}</strong>
-            <small>{currentMember.handle}</small>
+            <strong>{member.name}</strong>
+            <small>{member.handle}</small>
           </span>
           <MoreHorizontal aria-hidden="true" />
         </button>
@@ -170,10 +177,10 @@ function ScreenHeader({ title, subtitle, children }) {
   );
 }
 
-function ComposerEntry({ onCompose }) {
+function ComposerEntry({ member, onCompose }) {
   return (
     <section className="composer-entry" aria-label="Share a Sauti">
-      <Avatar initials={currentMember.initials} tone="graphite" />
+      <Avatar initials={member.initials} tone="graphite" />
       <button className="composer-prompt" type="button" onClick={onCompose}>What deserves to be heard?</button>
       <div className="composer-tools" aria-label="Composer options">
         <button type="button" onClick={onCompose} aria-label="Add media"><Image aria-hidden="true" /></button>
@@ -236,7 +243,7 @@ function PostCard({ post, liked, saved, onLike, onSave, onPreviewAction }) {
   );
 }
 
-function StreamScreen({ liked, saved, onLike, onSave, onCompose, onPreviewAction }) {
+function StreamScreen({ member, liked, saved, onLike, onSave, onCompose, onPreviewAction }) {
   const [feedMode, setFeedMode] = useState('selected');
   const visiblePosts = feedMode === 'following' ? posts.slice(1) : posts;
   return (
@@ -248,7 +255,7 @@ function StreamScreen({ liked, saved, onLike, onSave, onCompose, onPreviewAction
         <button role="tab" type="button" aria-selected={feedMode === 'selected'} onClick={() => setFeedMode('selected')}>Selected</button>
         <button role="tab" type="button" aria-selected={feedMode === 'following'} onClick={() => setFeedMode('following')}>Following</button>
       </div>
-      <ComposerEntry onCompose={onCompose} />
+      <ComposerEntry member={member} onCompose={onCompose} />
       <div className="feed-list">
         {visiblePosts.map((post) => (
           <PostCard
@@ -296,13 +303,39 @@ function DiscoverScreen({ onPreviewAction }) {
   );
 }
 
-function CirclesScreen({ onPreviewAction }) {
-  const [joined, setJoined] = useState(new Set(['east-africa-builders']));
-  const toggleCircle = (id) => setJoined((current) => {
-    const next = new Set(current);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
+function CirclesScreen({ joined, onToggleCircle, onPreviewAction }) {
+  const [filter, setFilter] = useState('yours');
+  const [selectedCircle, setSelectedCircle] = useState(null);
+  const visibleCircles = filter === 'yours'
+    ? circles.filter((circle) => joined.has(circle.id))
+    : circles.filter((circle) => !joined.has(circle.id));
+
+  if (selectedCircle) {
+    const circle = circles.find(({ id }) => id === selectedCircle);
+    const isJoined = joined.has(circle.id);
+    return (
+      <>
+        <ScreenHeader title={circle.name} subtitle={`${circle.access} Circle · ${circle.members} members`}>
+          <button className="icon-button" type="button" onClick={() => setSelectedCircle(null)} aria-label="Back to Circles"><ChevronLeft aria-hidden="true" /></button>
+          <button className={isJoined ? 'small-secondary is-joined' : 'small-primary'} type="button" onClick={() => onToggleCircle(circle.id)}>{isJoined ? 'Joined' : circle.access === 'Approval' ? 'Request to join' : 'Join Circle'}</button>
+        </ScreenHeader>
+        <section className="circle-detail-hero">
+          <span className="circle-monogram circle-monogram-large" aria-hidden="true">{circle.initials}</span>
+          <div><span className="profile-state-chip"><ShieldCheck aria-hidden="true" />{circle.access}</span><h2>{circle.name}</h2><p>{circle.description}</p></div>
+        </section>
+        <section className="circle-detail-grid">
+          <article className="circle-detail-panel"><span>Circle health</span><strong>{circle.active}</strong><p>Conversation quality, membership and moderator actions will be observable before launch.</p></article>
+          <article className="circle-detail-panel"><span>Your access</span><strong>{isJoined ? circle.role || 'Member' : 'Not joined'}</strong><p>{isJoined ? 'You can read and participate under the visible Circle rules.' : 'Review the rules before joining this Circle.'}</p></article>
+        </section>
+        <section className="circle-rules">
+          <div className="section-heading"><div><span>Before you participate</span><h2>Circle rules</h2></div></div>
+          <ol>{circle.rules.map((rule) => <li key={rule}><Check aria-hidden="true" /><span>{rule}</span></li>)}</ol>
+        </section>
+        <EmptyState icon={UsersRound} title="The Circle Stream starts here." copy="Circle Sauti, pinned context and moderator notices arrive with the conversation milestone." />
+      </>
+    );
+  }
+
   return (
     <>
       <ScreenHeader title="Circles" subtitle="Focused communities with clear ownership">
@@ -313,18 +346,22 @@ function CirclesScreen({ onPreviewAction }) {
         <h2>Go deeper with people who care about the same things.</h2>
         <p>Circles can be open, private or approval-based. Moderators and rules remain visible before you join.</p>
       </section>
-      <div className="circle-list">
-        {circles.map((circle) => {
+      <div className="circle-filters" role="tablist" aria-label="Circle filter">
+        <button type="button" role="tab" aria-selected={filter === 'yours'} onClick={() => setFilter('yours')}>Your Circles <span>{joined.size}</span></button>
+        <button type="button" role="tab" aria-selected={filter === 'discover'} onClick={() => setFilter('discover')}>Discover <span>{circles.length - joined.size}</span></button>
+      </div>
+      {visibleCircles.length ? <div className="circle-list">
+        {visibleCircles.map((circle) => {
           const isJoined = joined.has(circle.id);
           return (
             <article className="circle-card" key={circle.id}>
               <span className="circle-monogram" aria-hidden="true">{circle.initials}</span>
-              <div><h2>{circle.name}</h2><p>{circle.description}</p><small>{circle.members} members · {circle.active}</small></div>
-              <button className={isJoined ? 'small-secondary is-joined' : 'small-primary'} type="button" onClick={() => toggleCircle(circle.id)}>{isJoined ? 'Joined' : 'Join'}</button>
+              <div><button className="circle-title" type="button" onClick={() => setSelectedCircle(circle.id)}><h2>{circle.name}</h2></button><p>{circle.description}</p><small>{circle.access} · {circle.members} members · {circle.active}</small></div>
+              <button className={isJoined ? 'small-secondary is-joined' : 'small-primary'} type="button" onClick={() => onToggleCircle(circle.id)}>{isJoined ? circle.role || 'Joined' : circle.access === 'Approval' ? 'Request' : 'Join'}</button>
             </article>
           );
         })}
-      </div>
+      </div> : <EmptyState icon={UsersRound} title="Your Circle list is clear." copy="Join a Circle from Discover and it will stay organized here." />}
     </>
   );
 }
@@ -401,24 +438,85 @@ function SavedScreen({ saved, liked, onLike, onSave, onPreviewAction }) {
   );
 }
 
-function ProfileScreen({ liked, saved, onLike, onSave, onPreviewAction }) {
+function ProfileScreen({ member, viewMode, onViewModeChange, following, onFollow, liked, saved, onLike, onSave, onEdit, onPreviewAction }) {
+  const [tab, setTab] = useState('sauti');
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const viewedMember = viewMode === 'public' ? publicMember : member;
+  const isOwner = viewMode === 'owner';
+
   return (
     <>
-      <ScreenHeader title="Profile" subtitle={currentMember.handle}>
-        <button className="icon-button" type="button" onClick={() => onPreviewAction('Profile settings')} aria-label="Profile settings"><Settings aria-hidden="true" /></button>
+      <ScreenHeader title={isOwner ? 'Profile' : viewedMember.name} subtitle={viewedMember.handle}>
+        <button className="small-secondary profile-view-toggle" type="button" onClick={() => onViewModeChange(isOwner ? 'public' : 'owner')}>{isOwner ? 'View public profile' : 'Back to your profile'}</button>
+        {isOwner ? <button className="icon-button" type="button" onClick={() => onPreviewAction('Profile settings')} aria-label="Profile settings"><Settings aria-hidden="true" /></button> : null}
       </ScreenHeader>
-      <section className="profile-cover" aria-label="Profile cover preview"><span>SautiLink</span></section>
-      <section className="profile-summary">
-        <Avatar initials={currentMember.initials} tone="graphite" size="xlarge" />
-        <button className="small-secondary profile-edit" type="button" onClick={() => onPreviewAction('Edit profile')}>Edit profile</button>
-        <h2>{currentMember.name}</h2><p className="profile-handle">{currentMember.handle}</p>
-        <p className="profile-bio">{currentMember.bio}</p>
-        <div className="profile-meta"><span><MapPin aria-hidden="true" />{currentMember.location}</span><span><CalendarDays aria-hidden="true" />{currentMember.joined}</span></div>
-        <div className="profile-counts"><button type="button"><strong>{currentMember.following}</strong> Following</button><button type="button"><strong>{currentMember.followers}</strong> Followers</button></div>
+      <section className={`profile-cover${isOwner ? ' profile-cover-owner' : ''}`} aria-label="Profile cover preview">
+        <span>{isOwner ? 'SautiLink' : 'DESIGN · PEOPLE · PLACES'}</span>
+        {isOwner ? <button className="profile-media-button" type="button" onClick={() => onPreviewAction('Header image')} aria-label="Change header image"><Camera aria-hidden="true" /></button> : null}
       </section>
-      <div className="profile-tabs" role="tablist" aria-label="Profile content"><button type="button" role="tab" aria-selected="true">Sauti</button><button type="button" role="tab" aria-selected="false">Replies</button><button type="button" role="tab" aria-selected="false">Media</button></div>
-      <PostCard post={posts[1]} liked={liked.has(posts[1].id)} saved={saved.has(posts[1].id)} onLike={onLike} onSave={onSave} onPreviewAction={onPreviewAction} />
+      <section className="profile-summary">
+        <span className="profile-avatar-wrap"><Avatar initials={viewedMember.initials} tone={isOwner ? 'graphite' : 'sand'} size="xlarge" />{isOwner ? <button className="profile-avatar-button" type="button" onClick={() => onPreviewAction('Avatar image')} aria-label="Change profile image"><Camera aria-hidden="true" /></button> : null}</span>
+        <div className="profile-primary-actions">
+          {isOwner ? <button className="small-secondary" type="button" onClick={onEdit}>Edit profile</button> : (
+            <>
+              <button className={following ? 'small-secondary is-following' : 'small-primary'} type="button" onClick={onFollow}>{following ? 'Following' : 'Follow'}</button>
+              <button className="icon-button" type="button" onClick={() => onPreviewAction('Profile notifications')} aria-label="Profile notifications"><Bell aria-hidden="true" /></button>
+              <span className="profile-controls-wrap"><button className="icon-button" type="button" onClick={() => setControlsOpen((open) => !open)} aria-expanded={controlsOpen} aria-label="Profile safety controls"><MoreHorizontal aria-hidden="true" /></button>{controlsOpen ? <span className="profile-controls-menu" role="menu"><button type="button" role="menuitem" onClick={() => { setControlsOpen(false); onPreviewAction(`Mute ${viewedMember.handle}`); }}><UserMinus aria-hidden="true" />Mute</button><button type="button" role="menuitem" onClick={() => { setControlsOpen(false); onPreviewAction(`Block ${viewedMember.handle}`); }}><ShieldCheck aria-hidden="true" />Block</button></span> : null}</span>
+            </>
+          )}
+        </div>
+        <h2>{viewedMember.name}{viewedMember.verified ? <VerifiedMark /> : null}</h2><p className="profile-handle">{viewedMember.handle}</p>
+        <p className="profile-bio">{viewedMember.bio}</p>
+        <div className="profile-meta"><span><MapPin aria-hidden="true" />{viewedMember.location}</span><button type="button" onClick={() => onPreviewAction('Website')}><ExternalLink aria-hidden="true" />{viewedMember.website}</button><span><CalendarDays aria-hidden="true" />{viewedMember.joined}</span></div>
+        <div className="profile-counts"><button type="button" onClick={() => onPreviewAction('Following list')}><strong>{viewedMember.following}</strong> Following</button><button type="button" onClick={() => onPreviewAction('Followers list')}><strong>{viewedMember.followers}</strong> Followers</button></div>
+      </section>
+      <div className="profile-tabs" role="tablist" aria-label="Profile content"><button type="button" role="tab" aria-selected={tab === 'sauti'} onClick={() => setTab('sauti')}>Sauti</button><button type="button" role="tab" aria-selected={tab === 'replies'} onClick={() => setTab('replies')}>Replies</button><button type="button" role="tab" aria-selected={tab === 'media'} onClick={() => setTab('media')}>Media</button></div>
+      {tab === 'sauti' ? <PostCard post={posts[1]} liked={liked.has(posts[1].id)} saved={saved.has(posts[1].id)} onLike={onLike} onSave={onSave} onPreviewAction={onPreviewAction} /> : null}
+      {tab === 'replies' ? <EmptyState icon={MessageCircle} title="No replies to show yet." copy="Replies will appear here without mixing them into the member’s main Sauti list." /> : null}
+      {tab === 'media' ? <EmptyState icon={Image} title="Media will have its own focused view." copy="R2-backed images and video arrive in the dedicated media milestone." /> : null}
     </>
+  );
+}
+
+function EditProfileDialog({ open, member, onClose, onSave, onMediaAction }) {
+  const nameInput = useRef(null);
+  const [draft, setDraft] = useState(member);
+  const [discoverable, setDiscoverable] = useState(true);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    setDraft(member);
+    nameInput.current?.focus();
+    const onKeyDown = (event) => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open, member, onClose]);
+
+  if (!open) return null;
+  const update = (field) => (event) => setDraft((current) => ({ ...current, [field]: event.target.value }));
+  const save = (event) => {
+    event.preventDefault();
+    const name = draft.name.trim();
+    if (!name) return;
+    const initials = name.split(/\s+/).slice(0, 2).map((word) => word[0]).join('').toUpperCase();
+    onSave({ ...draft, name, bio: draft.bio.trim(), location: draft.location.trim(), website: draft.website.trim(), initials });
+  };
+
+  return (
+    <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <form className="profile-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="profile-edit-title" onSubmit={save}>
+        <header><button className="icon-button" type="button" onClick={onClose} aria-label="Close profile editor"><X aria-hidden="true" /></button><div><span>Public identity</span><h2 id="profile-edit-title">Edit profile</h2></div><button className="small-primary" type="submit" disabled={!draft.name.trim()}>Save</button></header>
+        <section className="profile-edit-media"><div><span className="circle-monogram circle-monogram-large" aria-hidden="true">{draft.initials}</span><button type="button" onClick={() => onMediaAction('Profile image')}><Camera aria-hidden="true" />Change photo</button></div><button type="button" onClick={() => onMediaAction('Header image')}><Camera aria-hidden="true" />Change header</button></section>
+        <div className="profile-edit-fields">
+          <label><span>Display name</span><input ref={nameInput} value={draft.name} onChange={update('name')} maxLength="80" required /><small>{draft.name.length}/80</small></label>
+          <label><span>Bio</span><textarea value={draft.bio} onChange={update('bio')} maxLength="500" rows="4" /><small>{draft.bio.length}/500</small></label>
+          <label><span>Location</span><input value={draft.location} onChange={update('location')} maxLength="100" /></label>
+          <label><span>Website</span><input value={draft.website} onChange={update('website')} inputMode="url" maxLength="120" /></label>
+          <label className="profile-discoverable"><span><strong>Show in Discover</strong><small>People can find this public profile. Private account details remain separate.</small></span><input type="checkbox" checked={discoverable} onChange={(event) => setDiscoverable(event.target.checked)} aria-label="Show profile in Discover" /></label>
+        </div>
+        <footer><ShieldCheck aria-hidden="true" /><p>Your email, WhatsApp preferences and security settings are never part of this public profile.</p></footer>
+      </form>
+    </div>
   );
 }
 
@@ -437,7 +535,7 @@ function SuggestionRow({ person }) {
   );
 }
 
-function ContextRail({ theme, onThemeToggle, onNavigate, onPreviewAction }) {
+function ContextRail({ theme, previewMilestone, onThemeToggle, onNavigate, onPreviewAction }) {
   return (
     <aside className="context-rail" aria-label="Discover more">
       <label className="global-search"><Search aria-hidden="true" /><input type="search" placeholder="Search SautiLink" aria-label="Search SautiLink" /><kbd>/</kbd></label>
@@ -453,13 +551,13 @@ function ContextRail({ theme, onThemeToggle, onNavigate, onPreviewAction }) {
         {suggestions.map((person) => <SuggestionRow key={person.handle} person={person} />)}
         <button className="context-link" type="button" onClick={() => onNavigate('discover')}>See all voices</button>
       </section>
-      <div className="preview-note"><span>Preview 01</span><strong>App shell</strong><p>Seeded data only. No production accounts or posts.</p></div>
+      <div className="preview-note"><span>{previewMilestone.label}</span><strong>{previewMilestone.title}</strong><p>{previewMilestone.note}</p></div>
       <footer className="context-footer"><button type="button" onClick={onThemeToggle}>{theme === 'dark' ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}{theme === 'dark' ? 'Light mode' : 'Dark mode'}</button><a href="/privacy">Privacy</a><a href="/terms">Terms</a><span>© 2026 SautiLink</span></footer>
     </aside>
   );
 }
 
-function ComposeDialog({ open, onClose, onSubmit }) {
+function ComposeDialog({ open, member, onClose, onSubmit }) {
   const textareaRef = useRef(null);
   const [text, setText] = useState('');
   useEffect(() => {
@@ -475,7 +573,7 @@ function ComposeDialog({ open, onClose, onSubmit }) {
     <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="compose-dialog" role="dialog" aria-modal="true" aria-labelledby="compose-title">
         <header><button className="icon-button" type="button" onClick={onClose} aria-label="Close composer"><X aria-hidden="true" /></button><h2 id="compose-title">Share a Sauti</h2><button className="draft-action" type="button">Drafts</button></header>
-        <div className="compose-body"><Avatar initials={currentMember.initials} tone="graphite" /><textarea ref={textareaRef} value={text} onChange={(event) => setText(event.target.value.slice(0, 500))} placeholder="What deserves to be heard?" aria-label="Your Sauti" rows="6" /></div>
+        <div className="compose-body"><Avatar initials={member.initials} tone="graphite" /><textarea ref={textareaRef} value={text} onChange={(event) => setText(event.target.value.slice(0, 500))} placeholder="What deserves to be heard?" aria-label="Your Sauti" rows="6" /></div>
         <div className="compose-visibility"><Globe2 aria-hidden="true" />Everyone can reply<ChevronDown aria-hidden="true" /></div>
         <footer><div className="dialog-tools"><button type="button" aria-label="Add media"><Image aria-hidden="true" /></button><button type="button" aria-label="Create poll"><BarChart3 aria-hidden="true" /></button><button type="button" aria-label="Add emoji"><Smile aria-hidden="true" /></button><button type="button" aria-label="Schedule"><CalendarDays aria-hidden="true" /></button><button type="button" aria-label="Add location"><MapPin aria-hidden="true" /></button></div><span className="character-count">{text.length}/500</span><button className="small-primary compose-submit" type="button" disabled={!text.trim()} onClick={submit}>Share</button></footer>
       </section>
@@ -493,25 +591,33 @@ function MobileNavigation({ section, onNavigate, onCompose }) {
   );
 }
 
-function MobileMenu({ open, onClose, onNavigate }) {
+function MobileMenu({ open, member, onClose, onNavigate }) {
   if (!open) return null;
   return (
     <div className="mobile-menu-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <aside className="mobile-menu" role="dialog" aria-modal="true" aria-label="Account menu">
         <header><Brand /><button className="icon-button" type="button" onClick={onClose} aria-label="Close menu"><X aria-hidden="true" /></button></header>
-        <div className="mobile-member"><Avatar initials={currentMember.initials} tone="graphite" size="large" /><strong>{currentMember.name}</strong><span>{currentMember.handle}</span><p><b>{currentMember.following}</b> Following <b>{currentMember.followers}</b> Followers</p></div>
+        <div className="mobile-member"><Avatar initials={member.initials} tone="graphite" size="large" /><strong>{member.name}</strong><span>{member.handle}</span><p><b>{member.following}</b> Following <b>{member.followers}</b> Followers</p></div>
         <nav>{navigation.map((item) => <NavigationItem key={item.id} item={item} active={false} onSelect={(id) => { onNavigate(id); onClose(); }} />)}</nav>
       </aside>
     </div>
   );
 }
 
-export default function App() {
-  const [section, setSection] = useState(getInitialSection);
+export default function App({
+  initialSection = 'stream',
+  previewMilestone = { label: 'Preview 01', title: 'App shell', note: 'Seeded data only. No production accounts or posts.' },
+}) {
+  const [section, setSection] = useState(() => getInitialSection(initialSection));
   const [theme, setTheme] = useState(getInitialTheme);
+  const [member, setMember] = useState({ ...currentMember });
   const [liked, setLiked] = useState(new Set(['local-voices']));
   const [saved, setSaved] = useState(new Set(['platform-foundation']));
+  const [joinedCircles, setJoinedCircles] = useState(new Set(['east-africa-builders', 'quiet-design-club']));
+  const [profileView, setProfileView] = useState('owner');
+  const [followingPublicProfile, setFollowingPublicProfile] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState('');
   const toastTimer = useRef(0);
@@ -530,10 +636,10 @@ export default function App() {
   }, [section]);
 
   useEffect(() => {
-    const onHashChange = () => setSection(getInitialSection());
+    const onHashChange = () => setSection(getInitialSection(initialSection));
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
+  }, [initialSection]);
 
   const showToast = (message) => {
     window.clearTimeout(toastTimer.current);
@@ -553,16 +659,22 @@ export default function App() {
     showToast(willSave ? 'Saved privately.' : 'Removed from Saved.');
   };
 
+  const toggleCircle = (id) => {
+    const willJoin = !joinedCircles.has(id);
+    toggleSetValue(setJoinedCircles, id);
+    showToast(willJoin ? 'Circle added to your list.' : 'Circle removed from your list.');
+  };
+
   const sectionContent = useMemo(() => {
-    const shared = { liked, saved, onLike: (id) => toggleSetValue(setLiked, id), onSave, onPreviewAction: (label) => showToast(`${label} is represented in this visual preview.`) };
+    const shared = { member, liked, saved, onLike: (id) => toggleSetValue(setLiked, id), onSave, onPreviewAction: (label) => showToast(`${label} is represented in this visual preview.`) };
     if (section === 'discover') return <DiscoverScreen onPreviewAction={shared.onPreviewAction} />;
-    if (section === 'circles') return <CirclesScreen onPreviewAction={shared.onPreviewAction} />;
+    if (section === 'circles') return <CirclesScreen joined={joinedCircles} onToggleCircle={toggleCircle} onPreviewAction={shared.onPreviewAction} />;
     if (section === 'messages') return <MessagesScreen onPreviewAction={shared.onPreviewAction} />;
     if (section === 'notifications') return <NotificationsScreen />;
     if (section === 'saved') return <SavedScreen {...shared} />;
-    if (section === 'profile') return <ProfileScreen {...shared} />;
+    if (section === 'profile') return <ProfileScreen {...shared} viewMode={profileView} onViewModeChange={setProfileView} following={followingPublicProfile} onFollow={() => { setFollowingPublicProfile((value) => !value); showToast(followingPublicProfile ? `Unfollowed ${publicMember.handle}.` : `Following ${publicMember.handle}.`); }} onEdit={() => setEditProfileOpen(true)} />;
     return <StreamScreen {...shared} onCompose={() => setComposeOpen(true)} />;
-  }, [section, liked, saved]);
+  }, [section, member, liked, saved, joinedCircles, profileView, followingPublicProfile]);
 
   const submitPreviewSauti = (text) => {
     setComposeOpen(false);
@@ -574,13 +686,14 @@ export default function App() {
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <MobileTopbar section={section} theme={theme} onThemeToggle={() => setTheme((value) => value === 'dark' ? 'light' : 'dark')} onMenu={() => setMenuOpen(true)} onNavigate={setSection} />
       <div className="app-shell">
-        <PrimaryRail section={section} onNavigate={setSection} onCompose={() => setComposeOpen(true)} onMore={() => showToast('Settings, moderation and account controls will live here.')} />
+        <PrimaryRail section={section} member={member} onNavigate={setSection} onCompose={() => setComposeOpen(true)} onMore={() => showToast('Settings, moderation and account controls will live here.')} />
         <main className="main-column" id="main-content" tabIndex="-1">{sectionContent}</main>
-        <ContextRail theme={theme} onThemeToggle={() => setTheme((value) => value === 'dark' ? 'light' : 'dark')} onNavigate={setSection} onPreviewAction={(label) => showToast(`${label} is represented in this visual preview.`)} />
+        <ContextRail theme={theme} previewMilestone={previewMilestone} onThemeToggle={() => setTheme((value) => value === 'dark' ? 'light' : 'dark')} onNavigate={setSection} onPreviewAction={(label) => showToast(`${label} is represented in this visual preview.`)} />
       </div>
       <MobileNavigation section={section} onNavigate={setSection} onCompose={() => setComposeOpen(true)} />
-      <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)} onNavigate={setSection} />
-      <ComposeDialog open={composeOpen} onClose={() => setComposeOpen(false)} onSubmit={submitPreviewSauti} />
+      <MobileMenu open={menuOpen} member={member} onClose={() => setMenuOpen(false)} onNavigate={setSection} />
+      <ComposeDialog open={composeOpen} member={member} onClose={() => setComposeOpen(false)} onSubmit={submitPreviewSauti} />
+      <EditProfileDialog open={editProfileOpen} member={member} onClose={() => setEditProfileOpen(false)} onMediaAction={(label) => showToast(`${label} upload arrives with the R2 media milestone.`)} onSave={(nextMember) => { setMember(nextMember); setEditProfileOpen(false); showToast('Profile changes saved in this preview.'); }} />
       {toast ? <div className="toast" role="status" aria-live="polite"><span>{toast}</span><button type="button" onClick={() => setToast('')} aria-label="Dismiss"><X aria-hidden="true" /></button></div> : null}
     </>
   );

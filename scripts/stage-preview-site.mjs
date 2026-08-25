@@ -14,6 +14,7 @@ await rm(stageRoot, { recursive: true, force: true });
 const copies = [
   ['preview/app-shell', 'preview/app-shell'],
   ['preview/identity', 'preview/identity'],
+  ['preview/profiles', 'preview/profiles'],
   ['logo.png', 'logo.png'],
   ['assets/favicon.png', 'assets/favicon.png'],
   ['assets/brand/system.css', 'assets/brand/system.css'],
@@ -41,6 +42,7 @@ iframe { width: 100%; height: 100%; border: 0; background: #fff; }
 for (const preview of [
   { path: 'app-shell', title: 'SautiLink app-shell preview' },
   { path: 'identity', title: 'SautiLink Identity preview' },
+  { path: 'profiles', title: 'SautiLink Profiles and Circles preview' },
 ]) {
   const deviceLabDirectory = resolve(stageRoot, `preview/${preview.path}`);
   await writeFile(resolve(deviceLabDirectory, 'device-lab.css'), deviceLabCss);
