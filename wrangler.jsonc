@@ -26,6 +26,13 @@
       "assets": {
         "directory": "./dist-preview-site"
       }
+    },
+    "stream": {
+      "name": "sautilink-share-stream-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
     }
   }
 }
