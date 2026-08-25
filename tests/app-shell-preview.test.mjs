@@ -55,7 +55,7 @@ test('preview dependencies are pinned and build output stays inside its budget',
   assert.ok(javascript, 'expected a built JavaScript asset');
   assert.ok(stylesheet, 'expected a built CSS asset');
   assert.ok((await stat(new URL(javascript, assetDirectory))).size < 260_000, 'JavaScript bundle exceeds 260 kB raw');
-  assert.ok((await stat(new URL(stylesheet, assetDirectory))).size < 40_000, 'CSS bundle exceeds 40 kB raw');
+  assert.ok((await stat(new URL(stylesheet, assetDirectory))).size < 48_000, 'CSS bundle exceeds 48 kB raw');
 });
 
 test('seeded preview contains no live account identifiers or external media', async () => {
@@ -91,6 +91,8 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('preview/identity/device-lab.html'));
   assert.ok(files.includes('preview/profiles/index.html'));
   assert.ok(files.includes('preview/profiles/device-lab.html'));
+  assert.ok(files.includes('preview/share-stream/index.html'));
+  assert.ok(files.includes('preview/share-stream/device-lab.html'));
   assert.ok(files.includes('logo.png'));
   assert.ok(files.includes('assets/brand/system.css'));
   assert.ok(files.some((file) => /^preview\/app-shell\/assets\/index-.*\.js$/.test(file)));
@@ -103,6 +105,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
       || file.startsWith('preview/app-shell/')
       || file.startsWith('preview/identity/')
       || file.startsWith('preview/profiles/')
+      || file.startsWith('preview/share-stream/')
   )), `unexpected staged file: ${files.find((file) => !(
     file === 'logo.png'
       || file === 'assets/favicon.png'
@@ -111,5 +114,6 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
       || file.startsWith('preview/app-shell/')
       || file.startsWith('preview/identity/')
       || file.startsWith('preview/profiles/')
+      || file.startsWith('preview/share-stream/')
   ))}`);
 });

@@ -19,6 +19,7 @@ on:
       - "wrangler.jsonc"
       - "vite.identity.config.js"
       - "vite.profiles.config.js"
+      - "vite.share-stream.config.js"
       - "vite.preview.config.js"
       - ".github/workflows/phase-1-auth.yml"
   push:
@@ -40,6 +41,7 @@ on:
       - "wrangler.jsonc"
       - "vite.identity.config.js"
       - "vite.profiles.config.js"
+      - "vite.share-stream.config.js"
       - "vite.preview.config.js"
       - ".github/workflows/phase-1-auth.yml"
 
@@ -101,3 +103,22 @@ jobs:
         env:
           WRANGLER_SEND_METRICS: "false"
         run: npx --no-install wrangler deploy --env profiles --temporary
+
+  deploy-share-stream-preview:
+    if: github.event_name == 'pull_request' && github.head_ref == 'phase-1/share-stream-preview'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Build and test isolated previews
+        run: npm run check
+      - name: Deploy temporary Cloudflare preview
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: npx --no-install wrangler deploy --env stream --temporary

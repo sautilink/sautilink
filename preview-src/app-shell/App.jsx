@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AlertCircle,
   BadgeCheck,
   BarChart3,
   Bell,
@@ -10,7 +11,9 @@ import {
   ChevronDown,
   ChevronLeft,
   CircleEllipsis,
+  CloudOff,
   ExternalLink,
+  FileText,
   Globe2,
   Heart,
   Home,
@@ -22,6 +25,7 @@ import {
   Moon,
   MoreHorizontal,
   PenLine,
+  RefreshCw,
   Repeat2,
   Search,
   Send,
@@ -243,12 +247,27 @@ function PostCard({ post, liked, saved, onLike, onSave, onPreviewAction }) {
   );
 }
 
-function StreamScreen({ member, liked, saved, onLike, onSave, onCompose, onPreviewAction }) {
+function StreamStatus({ icon: Icon, title, copy, action, onAction }) {
+  return (
+    <section className="stream-status" role="status">
+      <span><Icon aria-hidden="true" /></span>
+      <h2>{title}</h2>
+      <p>{copy}</p>
+      {action ? <button className="small-secondary" type="button" onClick={onAction}><RefreshCw aria-hidden="true" />{action}</button> : null}
+    </section>
+  );
+}
+
+function StreamSkeleton() {
+  return <div className="stream-skeleton" aria-label="Loading Stream" aria-busy="true">{[1, 2, 3].map((item) => <article key={item}><span /><div><b /><i /><i /></div></article>)}</div>;
+}
+
+function StreamScreen({ member, feedPosts, streamStatus, showStateLab, onStreamStatusChange, liked, saved, onLike, onSave, onCompose, onPreviewAction }) {
   const [feedMode, setFeedMode] = useState('selected');
-  const visiblePosts = feedMode === 'following' ? posts.slice(1) : posts;
+  const visiblePosts = feedMode === 'following' ? feedPosts.slice(1) : feedPosts;
   return (
     <>
-      <ScreenHeader title="Stream" subtitle="Voices and Circles selected for you">
+      <ScreenHeader title="Stream" subtitle="Latest Sauti from voices and Circles you follow">
         <button className="icon-button" type="button" onClick={() => onPreviewAction('Stream controls')} aria-label="Stream controls"><SlidersHorizontal aria-hidden="true" /></button>
       </ScreenHeader>
       <div className="stream-tabs" role="tablist" aria-label="Stream filter">
@@ -256,7 +275,12 @@ function StreamScreen({ member, liked, saved, onLike, onSave, onCompose, onPrevi
         <button role="tab" type="button" aria-selected={feedMode === 'following'} onClick={() => setFeedMode('following')}>Following</button>
       </div>
       <ComposerEntry member={member} onCompose={onCompose} />
-      <div className="feed-list">
+      {showStateLab ? <section className="stream-state-lab" aria-label="Preview Stream states"><span>Preview state</span><div>{['ready', 'loading', 'empty', 'offline', 'error'].map((state) => <button key={state} type="button" className={streamStatus === state ? 'is-active' : ''} aria-pressed={streamStatus === state} onClick={() => onStreamStatusChange(state)}>{state}</button>)}</div></section> : null}
+      {streamStatus === 'offline' ? <aside className="offline-banner" role="status"><CloudOff aria-hidden="true" /><div><strong>You are offline.</strong><span>Drafts stay on this device. The Stream will refresh when you reconnect.</span></div></aside> : null}
+      {streamStatus === 'loading' ? <StreamSkeleton /> : null}
+      {streamStatus === 'error' ? <StreamStatus icon={AlertCircle} title="The Stream could not refresh." copy="Your existing content is safe. Try again when the connection is stable." action="Try again" onAction={() => onStreamStatusChange('ready')} /> : null}
+      {streamStatus === 'empty' ? <StreamStatus icon={FileText} title="Your Stream is ready for its first voice." copy="Follow people, join a Circle or share the first Sauti to begin." /> : null}
+      {streamStatus === 'ready' || streamStatus === 'offline' ? <div className="feed-list">
         {visiblePosts.map((post) => (
           <PostCard
             key={post.id}
@@ -268,7 +292,7 @@ function StreamScreen({ member, liked, saved, onLike, onSave, onCompose, onPrevi
             onPreviewAction={onPreviewAction}
           />
         ))}
-      </div>
+      </div> : null}
     </>
   );
 }
@@ -557,9 +581,13 @@ function ContextRail({ theme, previewMilestone, onThemeToggle, onNavigate, onPre
   );
 }
 
-function ComposeDialog({ open, member, onClose, onSubmit }) {
+function ComposeDialog({ open, member, offline, onClose, onSubmit }) {
   const textareaRef = useRef(null);
   const [text, setText] = useState('');
+  const [audience, setAudience] = useState('Public');
+  const [replyAccess, setReplyAccess] = useState('Everyone');
+  const [drafts, setDrafts] = useState([]);
+  const [draftsOpen, setDraftsOpen] = useState(false);
   useEffect(() => {
     if (!open) return undefined;
     textareaRef.current?.focus();
@@ -568,14 +596,36 @@ function ComposeDialog({ open, member, onClose, onSubmit }) {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [open, onClose]);
   if (!open) return null;
-  const submit = () => { onSubmit(text); setText(''); };
+  const submit = () => {
+    if (!text.trim()) return;
+    if (offline) {
+      setDrafts((current) => [{ id: Date.now(), text: text.trim(), audience }, ...current].slice(0, 5));
+      setText('');
+      setDraftsOpen(true);
+      return;
+    }
+    onSubmit({ text: text.trim(), audience, replyAccess, offline });
+    setText('');
+    setDraftsOpen(false);
+  };
+  const saveDraft = () => {
+    if (!text.trim()) return;
+    setDrafts((current) => [{ id: Date.now(), text: text.trim(), audience }, ...current].slice(0, 5));
+    setText('');
+    setDraftsOpen(true);
+  };
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="compose-dialog" role="dialog" aria-modal="true" aria-labelledby="compose-title">
-        <header><button className="icon-button" type="button" onClick={onClose} aria-label="Close composer"><X aria-hidden="true" /></button><h2 id="compose-title">Share a Sauti</h2><button className="draft-action" type="button">Drafts</button></header>
+        <header><button className="icon-button" type="button" onClick={onClose} aria-label="Close composer"><X aria-hidden="true" /></button><h2 id="compose-title">Share a Sauti</h2><button className="draft-action" type="button" aria-expanded={draftsOpen} onClick={() => setDraftsOpen((value) => !value)}>Drafts{drafts.length ? ` (${drafts.length})` : ''}</button></header>
+        {draftsOpen ? <section className="draft-panel" aria-label="Saved drafts"><div><strong>Drafts on this device</strong><button type="button" onClick={() => setDraftsOpen(false)}>Done</button></div>{drafts.length ? drafts.map((draft) => <button className="draft-row" type="button" key={draft.id} onClick={() => { setText(draft.text); setAudience(draft.audience); setDrafts((current) => current.filter(({ id }) => id !== draft.id)); setDraftsOpen(false); }}><span>{draft.text}</span><small>{draft.audience}</small></button>) : <p>No drafts yet. Your unfinished Sauti will stay private here.</p>}</section> : null}
         <div className="compose-body"><Avatar initials={member.initials} tone="graphite" /><textarea ref={textareaRef} value={text} onChange={(event) => setText(event.target.value.slice(0, 500))} placeholder="What deserves to be heard?" aria-label="Your Sauti" rows="6" /></div>
-        <div className="compose-visibility"><Globe2 aria-hidden="true" />Everyone can reply<ChevronDown aria-hidden="true" /></div>
-        <footer><div className="dialog-tools"><button type="button" aria-label="Add media"><Image aria-hidden="true" /></button><button type="button" aria-label="Create poll"><BarChart3 aria-hidden="true" /></button><button type="button" aria-label="Add emoji"><Smile aria-hidden="true" /></button><button type="button" aria-label="Schedule"><CalendarDays aria-hidden="true" /></button><button type="button" aria-label="Add location"><MapPin aria-hidden="true" /></button></div><span className="character-count">{text.length}/500</span><button className="small-primary compose-submit" type="button" disabled={!text.trim()} onClick={submit}>Share</button></footer>
+        <div className="compose-settings">
+          <label><Globe2 aria-hidden="true" /><span>Audience</span><select value={audience} onChange={(event) => setAudience(event.target.value)} aria-label="Sauti audience"><option>Public</option><option>Followers</option><option>East Africa Builders</option></select><ChevronDown aria-hidden="true" /></label>
+          <label><MessageCircle aria-hidden="true" /><span>Replies</span><select value={replyAccess} onChange={(event) => setReplyAccess(event.target.value)} aria-label="Who can reply"><option>Everyone</option><option>People you follow</option><option>Only people mentioned</option></select><ChevronDown aria-hidden="true" /></label>
+        </div>
+        {offline ? <div className="compose-offline"><CloudOff aria-hidden="true" />Offline Sauti will be saved as a draft.</div> : null}
+        <footer><div className="dialog-tools"><button type="button" aria-label="Add media"><Image aria-hidden="true" /></button><button type="button" aria-label="Create poll"><BarChart3 aria-hidden="true" /></button><button type="button" aria-label="Add emoji"><Smile aria-hidden="true" /></button><button type="button" aria-label="Schedule"><CalendarDays aria-hidden="true" /></button><button type="button" aria-label="Add location"><MapPin aria-hidden="true" /></button></div><button className="save-draft-action" type="button" disabled={!text.trim()} onClick={saveDraft}>Save draft</button><span className="character-count">{text.length}/500</span><button className="small-primary compose-submit" type="button" disabled={!text.trim()} onClick={submit}>{offline ? 'Save draft' : 'Share'}</button></footer>
       </section>
     </div>
   );
@@ -606,11 +656,14 @@ function MobileMenu({ open, member, onClose, onNavigate }) {
 
 export default function App({
   initialSection = 'stream',
+  enableStreamLab = false,
   previewMilestone = { label: 'Preview 01', title: 'App shell', note: 'Seeded data only. No production accounts or posts.' },
 }) {
   const [section, setSection] = useState(() => getInitialSection(initialSection));
   const [theme, setTheme] = useState(getInitialTheme);
   const [member, setMember] = useState({ ...currentMember });
+  const [feedPosts, setFeedPosts] = useState(posts);
+  const [streamStatus, setStreamStatus] = useState('ready');
   const [liked, setLiked] = useState(new Set(['local-voices']));
   const [saved, setSaved] = useState(new Set(['platform-foundation']));
   const [joinedCircles, setJoinedCircles] = useState(new Set(['east-africa-builders', 'quiet-design-club']));
@@ -673,12 +726,25 @@ export default function App({
     if (section === 'notifications') return <NotificationsScreen />;
     if (section === 'saved') return <SavedScreen {...shared} />;
     if (section === 'profile') return <ProfileScreen {...shared} viewMode={profileView} onViewModeChange={setProfileView} following={followingPublicProfile} onFollow={() => { setFollowingPublicProfile((value) => !value); showToast(followingPublicProfile ? `Unfollowed ${publicMember.handle}.` : `Following ${publicMember.handle}.`); }} onEdit={() => setEditProfileOpen(true)} />;
-    return <StreamScreen {...shared} onCompose={() => setComposeOpen(true)} />;
-  }, [section, member, liked, saved, joinedCircles, profileView, followingPublicProfile]);
+    return <StreamScreen {...shared} feedPosts={feedPosts} streamStatus={streamStatus} showStateLab={enableStreamLab} onStreamStatusChange={setStreamStatus} onCompose={() => setComposeOpen(true)} />;
+  }, [section, member, feedPosts, streamStatus, enableStreamLab, liked, saved, joinedCircles, profileView, followingPublicProfile]);
 
-  const submitPreviewSauti = (text) => {
+  const submitPreviewSauti = ({ text, audience, replyAccess }) => {
+    const tags = [...text.matchAll(/#([a-z0-9_]+)/gi)].map((match) => match[1]).slice(0, 5);
+    setFeedPosts((current) => [{
+      id: `preview-${Date.now()}`,
+      author: { name: member.name, handle: member.handle, initials: member.initials, tone: 'graphite', verified: false },
+      time: 'Now',
+      audience,
+      replyAccess,
+      text,
+      tags,
+      metrics: { replies: 0, reshares: 0, likes: 0, views: '0' },
+    }, ...current]);
     setComposeOpen(false);
-    showToast(text.trim() ? 'Composer approved visually. Nothing was published.' : 'Nothing was published.');
+    setStreamStatus('ready');
+    setSection('stream');
+    showToast('Your Sauti appears at the top of this preview. Nothing reached production.');
   };
 
   return (
@@ -692,7 +758,7 @@ export default function App({
       </div>
       <MobileNavigation section={section} onNavigate={setSection} onCompose={() => setComposeOpen(true)} />
       <MobileMenu open={menuOpen} member={member} onClose={() => setMenuOpen(false)} onNavigate={setSection} />
-      <ComposeDialog open={composeOpen} member={member} onClose={() => setComposeOpen(false)} onSubmit={submitPreviewSauti} />
+      <ComposeDialog open={composeOpen} member={member} offline={streamStatus === 'offline'} onClose={() => setComposeOpen(false)} onSubmit={submitPreviewSauti} />
       <EditProfileDialog open={editProfileOpen} member={member} onClose={() => setEditProfileOpen(false)} onMediaAction={(label) => showToast(`${label} upload arrives with the R2 media milestone.`)} onSave={(nextMember) => { setMember(nextMember); setEditProfileOpen(false); showToast('Profile changes saved in this preview.'); }} />
       {toast ? <div className="toast" role="status" aria-live="polite"><span>{toast}</span><button type="button" onClick={() => setToast('')} aria-label="Dismiss"><X aria-hidden="true" /></button></div> : null}
     </>
