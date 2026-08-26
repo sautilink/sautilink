@@ -68,6 +68,7 @@ const navigation = [
   { id: 'notifications', label: 'Notifications', icon: Bell, badge: 4 },
   { id: 'saved', label: 'Saved', icon: Bookmark },
   { id: 'profile', label: 'Profile', icon: UserRound },
+  { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
 const mobileNavigation = navigation.filter(({ id }) => ['stream', 'discover', 'notifications'].includes(id));
@@ -687,6 +688,8 @@ export default function App({
   enableConversationPreview = false,
   enableSafetyPreview = false,
   safetyComponent: SafetyComponent = null,
+  enableExperiencePreview = false,
+  experienceComponent: ExperienceComponent = null,
   previewMilestone = { label: 'Preview 01', title: 'App shell', note: 'Seeded data only. No production accounts or posts.' },
 }) {
   const [section, setSection] = useState(() => getInitialSection(initialSection));
@@ -762,6 +765,7 @@ export default function App({
   const sectionContent = useMemo(() => {
     const shared = { member, liked, saved, onLike: (id) => toggleSetValue(setLiked, id), onSave, onOpenMedia: setActiveMedia, onOpenThread: openThread, onPreviewAction: (label) => showToast(`${label} is represented in this visual preview.`) };
     if (section === 'safety' && enableSafetyPreview && SafetyComponent) return <SafetyComponent onPreviewAction={(label) => showToast(label)} />;
+    if (enableExperiencePreview && ExperienceComponent && ['discover', 'notifications', 'settings'].includes(section)) return <ExperienceComponent section={section} onNavigate={setSection} onOpenThread={() => openThread()} onPreviewAction={showToast} />;
     if (section === 'thread' && enableConversationPreview && activeThread) return <ConversationPreview rootPost={activeThread} member={member} rootLiked={liked.has(activeThread.id)} rootSaved={saved.has(activeThread.id)} onRootLike={shared.onLike} onRootSave={onSave} onOpenMedia={setActiveMedia} onBack={() => setSection('stream')} onPreviewAction={showToast} showStateLab />;
     if (section === 'discover') return <DiscoverScreen onPreviewAction={shared.onPreviewAction} />;
     if (section === 'circles') return <CirclesScreen joined={joinedCircles} onToggleCircle={toggleCircle} onPreviewAction={shared.onPreviewAction} />;
@@ -769,7 +773,7 @@ export default function App({
     if (section === 'saved') return <SavedScreen {...shared} />;
     if (section === 'profile') return <ProfileScreen {...shared} viewMode={profileView} onViewModeChange={setProfileView} following={followingPublicProfile} onFollow={() => { setFollowingPublicProfile((value) => !value); showToast(followingPublicProfile ? `Unfollowed ${publicMember.handle}.` : `Following ${publicMember.handle}.`); }} onEdit={() => setEditProfileOpen(true)} />;
     return <StreamScreen {...shared} feedPosts={feedPosts} streamStatus={streamStatus} showStateLab={enableStreamLab} onStreamStatusChange={setStreamStatus} onCompose={() => setComposeOpen(true)} />;
-  }, [section, member, feedPosts, streamStatus, enableStreamLab, enableMediaPreview, enableConversationPreview, enableSafetyPreview, activeThread, liked, saved, joinedCircles, profileView, followingPublicProfile]);
+  }, [section, member, feedPosts, streamStatus, enableStreamLab, enableMediaPreview, enableConversationPreview, enableSafetyPreview, enableExperiencePreview, ExperienceComponent, activeThread, liked, saved, joinedCircles, profileView, followingPublicProfile]);
 
   const submitPreviewSauti = ({ text, audience, replyAccess, media = [] }) => {
     const tags = [...text.matchAll(/#([a-z0-9_]+)/gi)].map((match) => match[1]).slice(0, 5);

@@ -54,6 +54,13 @@
       "assets": {
         "directory": "./dist-preview-site"
       }
+    },
+    "experience": {
+      "name": "sautilink-product-hardening-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
     }
   }
 }

@@ -19,6 +19,7 @@ const copies = [
   ['preview/media', 'preview/media'],
   ['preview/conversations', 'preview/conversations'],
   ['preview/trust-safety', 'preview/trust-safety'],
+  ['preview/experience', 'preview/experience'],
   ['logo.png', 'logo.png'],
   ['assets/favicon.png', 'assets/favicon.png'],
   ['assets/brand/system.css', 'assets/brand/system.css'],
@@ -51,6 +52,7 @@ for (const preview of [
   { path: 'media', title: 'SautiLink Media and R2 preview' },
   { path: 'conversations', title: 'SautiLink Conversations and Threads preview' },
   { path: 'trust-safety', title: 'SautiLink Trust and Safety preview' },
+  { path: 'experience', title: 'SautiLink Product Experience and Hardening preview' },
 ]) {
   const deviceLabDirectory = resolve(stageRoot, `preview/${preview.path}`);
   await writeFile(resolve(deviceLabDirectory, 'device-lab.css'), deviceLabCss);

@@ -39,3 +39,11 @@ placeholder UI that suggests the feature is already available.
 The visual system also remains SautiLink-native: coral/red interactive accents,
 neutral surfaces, restrained typography, and original copy. We do not mirror
 X/Twitter's blue identity or copy donor product surfaces.
+
+## Phase 12 guard
+
+Phase 12 completes the remaining MVP product experience: functional Search and
+Discover states, meaningful notification controls, account/privacy/accessibility
+settings, integration boundaries, and the test-to-production readiness gate.
+It does not add private DM / Messages, personalized ranking, advertising,
+monetization, or production data access.
