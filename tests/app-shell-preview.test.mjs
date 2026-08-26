@@ -21,9 +21,10 @@ test('preview is isolated, noindex and cannot connect to production services', a
 
 test('preview carries the approved SautiLink product language and surfaces', async () => {
   const app = await read('preview-src/app-shell/App.jsx');
-  for (const term of ['Stream', 'Discover', 'Circles', 'Messages', 'Notifications', 'Saved', 'Share a Sauti']) {
+  for (const term of ['Stream', 'Discover', 'Circles', 'Notifications', 'Saved', 'Share a Sauti']) {
     assert.match(app, new RegExp(term));
   }
+  assert.doesNotMatch(app, /MessagesScreen|id: ['"]messages['"]|Private conversations|Search messages|New message|Message settings/);
   assert.match(app, /Skip to main content/);
   assert.match(app, /aria-modal="true"/);
   assert.match(app, /role="dialog" aria-modal="true" aria-label="Account menu"/);
@@ -63,6 +64,7 @@ test('seeded preview contains no live account identifiers or external media', as
   const app = await read('preview-src/app-shell/App.jsx');
   assert.match(data, /SautiLink Member/);
   assert.match(data, /Seeded|Building meaningful connections|Platform foundation/);
+  assert.doesNotMatch(data, /export const conversations/);
   assert.doesNotMatch(`${data}\n${app}`, /https?:\/\//i);
   assert.doesNotMatch(`${data}\n${app}`, /rggpyiterdbbugluejcs|sb_publishable_|service_role/i);
 });

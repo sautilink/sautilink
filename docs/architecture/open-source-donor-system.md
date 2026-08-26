@@ -86,7 +86,7 @@ SautiLink keeps familiar interaction meaning but uses its own product terms:
 | Post | Sauti |
 | Create-post action | Share a Sauti |
 | Repost | Reshare |
-| Direct messages | Messages |
+| Direct messages | Deferred from MVP |
 
 Common verbs such as Like, Reply, Follow, Search, Report, Block, and Mute remain
 plain because clarity is more important than renaming every standard action.
@@ -96,8 +96,8 @@ plain because clarity is more important than renaming every standard action.
 The application must be calm and information-first:
 
 - Neutral white, near-black, and restrained gray surfaces form the interface.
-- Only one SautiLink accent is prominent on a screen. Existing brand red,
-  blue, and yellow are used sparingly and by semantic role, never as competing
+- Only one SautiLink coral/red accent is prominent on a screen. Existing brand
+  blue and yellow are used sparingly and by semantic role, never as competing
   card colors.
 - No neon gradients, rainbow navigation, glassmorphism, decorative shadows,
   oversized rounded cards, or animation that slows reading.
@@ -130,8 +130,8 @@ Each preview handoff includes:
 
 The preview sequence is:
 
-1. **App shell:** Stream, Discover, Circles, Saved, Messages, profile rail,
-   composer entry, desktop/mobile navigation, light/dark tokens.
+1. **App shell:** Stream, Discover, Circles, Saved, profile rail, public reply
+   entry points, composer entry, desktop/mobile navigation, light/dark tokens.
 2. **Identity:** sign-up, sign-in, recovery, onboarding, session states.
 3. **Profiles and Circles:** public profile, edit profile, follow state, Circle
    membership and empty states.

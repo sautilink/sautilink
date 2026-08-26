@@ -136,13 +136,6 @@ export const circles = [
   },
 ];
 
-export const conversations = [
-  { name: 'Neema Habari', handle: '@neemahabari', initials: 'NH', tone: 'graphite', time: '2m', preview: 'The draft looks clean. I added one note…', unread: 2 },
-  { name: 'East Africa Builders', handle: 'Circle room', initials: 'EA', tone: 'blue', time: '18m', preview: 'Jabari: Let us test it on slower networks.', unread: 5 },
-  { name: 'Mariam Nuru', handle: '@mariamnuru', initials: 'MN', tone: 'sand', time: '1h', preview: 'Perfect, we can continue tomorrow.', unread: 0 },
-  { name: 'SautiLink Support', handle: '@support', initials: 'SS', tone: 'blue', time: 'Mon', preview: 'Your report has been received securely.', unread: 0, verified: true },
-];
-
 export const notifications = [
   { id: 'n1', kind: 'follow', initials: 'NH', tone: 'graphite', title: 'Neema Habari followed you', detail: '@neemahabari · 3m' },
   { id: 'n2', kind: 'like', initials: 'KT', tone: 'blue', title: 'Kijiji Tech and 18 others liked your Sauti', detail: 'A lightweight platform is a product choice… · 24m' },
