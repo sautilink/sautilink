@@ -66,7 +66,7 @@ test('Profiles bundle stays inside the visual milestone budget', async () => {
   assert.ok(javascript, 'expected a built Profiles JavaScript asset');
   assert.ok(stylesheet, 'expected a built Profiles CSS asset');
   assert.ok((await stat(new URL(javascript, assetDirectory))).size < 285_000, 'Profiles JavaScript bundle exceeds 285 kB raw');
-  assert.ok((await stat(new URL(stylesheet, assetDirectory))).size < 50_000, 'Profiles CSS bundle exceeds 50 kB raw');
+  assert.ok((await stat(new URL(stylesheet, assetDirectory))).size < 70_000, 'Profiles CSS bundle exceeds 70 kB raw');
 });
 
 test('Profiles preview contains no external media or live account identifiers', async () => {

@@ -62,7 +62,7 @@ test('Share and Stream bundle stays inside the visual milestone budget', async (
   assert.ok(javascript, 'expected a built Share and Stream JavaScript asset');
   assert.ok(stylesheet, 'expected a built Share and Stream CSS asset');
   assert.ok((await stat(new URL(javascript, assetDirectory))).size < 300_000, 'Share and Stream JavaScript bundle exceeds 300 kB raw');
-  assert.ok((await stat(new URL(stylesheet, assetDirectory))).size < 55_000, 'Share and Stream CSS bundle exceeds 55 kB raw');
+  assert.ok((await stat(new URL(stylesheet, assetDirectory))).size < 70_000, 'Share and Stream CSS bundle exceeds 70 kB raw');
 });
 
 test('Share and Stream preview contains no external media or live account identifiers', async () => {

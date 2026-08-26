@@ -52,6 +52,15 @@ import {
   suggestions,
   trends,
 } from './data.js';
+import {
+  AltTextEditor,
+  ComposerMediaGrid,
+  createSeededMediaFeed,
+  MediaGallery,
+  MediaPickerPanel,
+  MediaViewer,
+  mediaTemplates,
+} from './MediaPreview.jsx';
 
 const navigation = [
   { id: 'stream', label: 'Stream', icon: Home },
@@ -211,7 +220,7 @@ function ArchitectureVisual({ visual }) {
   );
 }
 
-function PostCard({ post, liked, saved, onLike, onSave, onPreviewAction }) {
+function PostCard({ post, liked, saved, onLike, onSave, onOpenMedia, onPreviewAction }) {
   const likes = post.metrics.likes + (liked ? 1 : 0);
   return (
     <article className="post-card">
@@ -232,6 +241,7 @@ function PostCard({ post, liked, saved, onLike, onSave, onPreviewAction }) {
           {post.tags.map((tag) => <button type="button" key={tag} onClick={() => onPreviewAction(`#${tag}`)}>#{tag}</button>)}
         </div>
         {post.visual ? <ArchitectureVisual visual={post.visual} /> : null}
+        {post.media ? <MediaGallery items={post.media} onOpen={onOpenMedia} /> : null}
         <div className="post-audience"><Globe2 aria-hidden="true" />{post.audience}</div>
         <footer className="post-actions" aria-label="Sauti actions">
           <button type="button" onClick={() => onPreviewAction('Replies')} aria-label={`${post.metrics.replies} replies`}><MessageCircle aria-hidden="true" /><span>{post.metrics.replies}</span></button>
@@ -262,7 +272,7 @@ function StreamSkeleton() {
   return <div className="stream-skeleton" aria-label="Loading Stream" aria-busy="true">{[1, 2, 3].map((item) => <article key={item}><span /><div><b /><i /><i /></div></article>)}</div>;
 }
 
-function StreamScreen({ member, feedPosts, streamStatus, showStateLab, onStreamStatusChange, liked, saved, onLike, onSave, onCompose, onPreviewAction }) {
+function StreamScreen({ member, feedPosts, streamStatus, showStateLab, onStreamStatusChange, liked, saved, onLike, onSave, onOpenMedia, onCompose, onPreviewAction }) {
   const [feedMode, setFeedMode] = useState('selected');
   const visiblePosts = feedMode === 'following' ? feedPosts.slice(1) : feedPosts;
   return (
@@ -289,6 +299,7 @@ function StreamScreen({ member, feedPosts, streamStatus, showStateLab, onStreamS
             saved={saved.has(post.id)}
             onLike={onLike}
             onSave={onSave}
+            onOpenMedia={onOpenMedia}
             onPreviewAction={onPreviewAction}
           />
         ))}
@@ -581,13 +592,17 @@ function ContextRail({ theme, previewMilestone, onThemeToggle, onNavigate, onPre
   );
 }
 
-function ComposeDialog({ open, member, offline, onClose, onSubmit }) {
+function ComposeDialog({ open, member, offline, mediaEnabled, onClose, onSubmit }) {
   const textareaRef = useRef(null);
   const [text, setText] = useState('');
   const [audience, setAudience] = useState('Public');
   const [replyAccess, setReplyAccess] = useState('Everyone');
   const [drafts, setDrafts] = useState([]);
   const [draftsOpen, setDraftsOpen] = useState(false);
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const [altEditorId, setAltEditorId] = useState(null);
+  const uploadTimers = useRef(new Set());
   useEffect(() => {
     if (!open) return undefined;
     textareaRef.current?.focus();
@@ -595,37 +610,74 @@ function ComposeDialog({ open, member, offline, onClose, onSubmit }) {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [open, onClose]);
+  useEffect(() => () => {
+    uploadTimers.current.forEach((timer) => window.clearTimeout(timer));
+    uploadTimers.current.clear();
+  }, []);
   if (!open) return null;
-  const submit = () => {
-    if (!text.trim()) return;
-    if (offline) {
-      setDrafts((current) => [{ id: Date.now(), text: text.trim(), audience }, ...current].slice(0, 5));
-      setText('');
-      setDraftsOpen(true);
-      return;
-    }
-    onSubmit({ text: text.trim(), audience, replyAccess, offline });
-    setText('');
-    setDraftsOpen(false);
+  const finishUpload = (localId) => {
+    const timer = window.setTimeout(() => {
+      setAttachments((current) => current.map((item) => item.localId === localId ? { ...item, status: 'ready', progress: 100, error: undefined } : item));
+      uploadTimers.current.delete(timer);
+    }, 850);
+    uploadTimers.current.add(timer);
   };
-  const saveDraft = () => {
-    if (!text.trim()) return;
-    setDrafts((current) => [{ id: Date.now(), text: text.trim(), audience }, ...current].slice(0, 5));
+  const addMedia = (kind) => {
+    if (attachments.length >= 4) return;
+    const template = mediaTemplates[kind];
+    const localId = `${template.id}-${Date.now()}`;
+    const status = template.error ? 'error' : offline ? 'queued' : 'uploading';
+    setAttachments((current) => [...current, { ...template, localId, status, progress: status === 'uploading' ? 68 : 0 }]);
+    if (status === 'uploading') finishUpload(localId);
+  };
+  const retryMedia = (localId) => {
+    setAttachments((current) => current.map((item) => item.localId === localId ? { ...item, kind: 'image', name: 'optimized-event.jpg', details: '1920 × 1080 · 8.2 MB', scene: 'workshop', status: offline ? 'queued' : 'uploading', progress: offline ? 0 : 34, error: undefined } : item));
+    if (!offline) finishUpload(localId);
+  };
+  const canCompose = Boolean(text.trim() || attachments.length);
+  const hasBlockingMedia = !offline && attachments.some((item) => item.status !== 'ready');
+  const storeDraft = () => {
+    if (!canCompose) return;
+    const draftMedia = attachments.map((item) => item.status === 'ready' || item.status === 'error' ? item : { ...item, status: 'queued', progress: 0 });
+    setDrafts((current) => [{ id: Date.now(), text: text.trim(), audience, replyAccess, media: draftMedia }, ...current].slice(0, 5));
     setText('');
+    setAttachments([]);
+    setAltEditorId(null);
+    setMediaPickerOpen(false);
     setDraftsOpen(true);
   };
+  const submit = () => {
+    if (!canCompose || hasBlockingMedia) return;
+    if (offline) {
+      storeDraft();
+      return;
+    }
+    onSubmit({ text: text.trim(), audience, replyAccess, media: attachments.map((item) => ({ ...item, id: item.localId })) });
+    setText('');
+    setAttachments([]);
+    setAltEditorId(null);
+    setMediaPickerOpen(false);
+    setDraftsOpen(false);
+  };
+  const activeAltItem = attachments.find((item) => item.localId === altEditorId);
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="compose-dialog" role="dialog" aria-modal="true" aria-labelledby="compose-title">
         <header><button className="icon-button" type="button" onClick={onClose} aria-label="Close composer"><X aria-hidden="true" /></button><h2 id="compose-title">Share a Sauti</h2><button className="draft-action" type="button" aria-expanded={draftsOpen} onClick={() => setDraftsOpen((value) => !value)}>Drafts{drafts.length ? ` (${drafts.length})` : ''}</button></header>
-        {draftsOpen ? <section className="draft-panel" aria-label="Saved drafts"><div><strong>Drafts on this device</strong><button type="button" onClick={() => setDraftsOpen(false)}>Done</button></div>{drafts.length ? drafts.map((draft) => <button className="draft-row" type="button" key={draft.id} onClick={() => { setText(draft.text); setAudience(draft.audience); setDrafts((current) => current.filter(({ id }) => id !== draft.id)); setDraftsOpen(false); }}><span>{draft.text}</span><small>{draft.audience}</small></button>) : <p>No drafts yet. Your unfinished Sauti will stay private here.</p>}</section> : null}
-        <div className="compose-body"><Avatar initials={member.initials} tone="graphite" /><textarea ref={textareaRef} value={text} onChange={(event) => setText(event.target.value.slice(0, 500))} placeholder="What deserves to be heard?" aria-label="Your Sauti" rows="6" /></div>
+        {draftsOpen ? <section className="draft-panel" aria-label="Saved drafts"><div><strong>Drafts on this device</strong><button type="button" onClick={() => setDraftsOpen(false)}>Done</button></div>{drafts.length ? drafts.map((draft) => <button className="draft-row" type="button" key={draft.id} onClick={() => { setText(draft.text); setAudience(draft.audience); setReplyAccess(draft.replyAccess || 'Everyone'); setAttachments(draft.media || []); setDrafts((current) => current.filter(({ id }) => id !== draft.id)); setDraftsOpen(false); }}><span>{draft.text || 'Media Sauti'}</span><small>{draft.audience}{draft.media?.length ? ` · ${draft.media.length} media` : ''}</small></button>) : <p>No drafts yet. Your unfinished Sauti will stay private here.</p>}</section> : null}
+        <MediaPickerPanel open={mediaEnabled && mediaPickerOpen} count={attachments.length} offline={offline} onAdd={addMedia} onClose={() => setMediaPickerOpen(false)} />
+        <div className="compose-scroll-region">
+          <div className="compose-body"><Avatar initials={member.initials} tone="graphite" /><textarea ref={textareaRef} value={text} onChange={(event) => setText(event.target.value.slice(0, 500))} placeholder="What deserves to be heard?" aria-label="Your Sauti" rows={attachments.length ? '3' : '6'} /></div>
+          {mediaEnabled ? <ComposerMediaGrid items={attachments} onAlt={setAltEditorId} onRetry={retryMedia} onRemove={(localId) => { setAttachments((current) => current.filter((item) => item.localId !== localId)); if (altEditorId === localId) setAltEditorId(null); }} /> : null}
+          <AltTextEditor item={activeAltItem} onChange={(alt) => setAttachments((current) => current.map((item) => item.localId === altEditorId ? { ...item, alt } : item))} onDone={() => setAltEditorId(null)} />
+        </div>
         <div className="compose-settings">
           <label><Globe2 aria-hidden="true" /><span>Audience</span><select value={audience} onChange={(event) => setAudience(event.target.value)} aria-label="Sauti audience"><option>Public</option><option>Followers</option><option>East Africa Builders</option></select><ChevronDown aria-hidden="true" /></label>
           <label><MessageCircle aria-hidden="true" /><span>Replies</span><select value={replyAccess} onChange={(event) => setReplyAccess(event.target.value)} aria-label="Who can reply"><option>Everyone</option><option>People you follow</option><option>Only people mentioned</option></select><ChevronDown aria-hidden="true" /></label>
         </div>
         {offline ? <div className="compose-offline"><CloudOff aria-hidden="true" />Offline Sauti will be saved as a draft.</div> : null}
-        <footer><div className="dialog-tools"><button type="button" aria-label="Add media"><Image aria-hidden="true" /></button><button type="button" aria-label="Create poll"><BarChart3 aria-hidden="true" /></button><button type="button" aria-label="Add emoji"><Smile aria-hidden="true" /></button><button type="button" aria-label="Schedule"><CalendarDays aria-hidden="true" /></button><button type="button" aria-label="Add location"><MapPin aria-hidden="true" /></button></div><button className="save-draft-action" type="button" disabled={!text.trim()} onClick={saveDraft}>Save draft</button><span className="character-count">{text.length}/500</span><button className="small-primary compose-submit" type="button" disabled={!text.trim()} onClick={submit}>{offline ? 'Save draft' : 'Share'}</button></footer>
+        {hasBlockingMedia ? <div className="compose-media-note" role="status">Finish or remove pending media before sharing.</div> : null}
+        <footer><div className="dialog-tools"><button className={mediaPickerOpen ? 'is-active' : ''} type="button" aria-expanded={mediaPickerOpen} aria-label="Add media" onClick={() => mediaEnabled ? setMediaPickerOpen((value) => !value) : undefined}><Image aria-hidden="true" /></button><button type="button" aria-label="Create poll"><BarChart3 aria-hidden="true" /></button><button type="button" aria-label="Add emoji"><Smile aria-hidden="true" /></button><button type="button" aria-label="Schedule"><CalendarDays aria-hidden="true" /></button><button type="button" aria-label="Add location"><MapPin aria-hidden="true" /></button></div><button className="save-draft-action" type="button" disabled={!canCompose} onClick={storeDraft}>Save draft</button><span className="character-count">{text.length}/500</span><button className="small-primary compose-submit" type="button" disabled={!canCompose || hasBlockingMedia} onClick={submit}>{offline ? 'Save draft' : 'Share'}</button></footer>
       </section>
     </div>
   );
@@ -657,12 +709,13 @@ function MobileMenu({ open, member, onClose, onNavigate }) {
 export default function App({
   initialSection = 'stream',
   enableStreamLab = false,
+  enableMediaPreview = false,
   previewMilestone = { label: 'Preview 01', title: 'App shell', note: 'Seeded data only. No production accounts or posts.' },
 }) {
   const [section, setSection] = useState(() => getInitialSection(initialSection));
   const [theme, setTheme] = useState(getInitialTheme);
   const [member, setMember] = useState({ ...currentMember });
-  const [feedPosts, setFeedPosts] = useState(posts);
+  const [feedPosts, setFeedPosts] = useState(() => enableMediaPreview ? createSeededMediaFeed(posts) : posts);
   const [streamStatus, setStreamStatus] = useState('ready');
   const [liked, setLiked] = useState(new Set(['local-voices']));
   const [saved, setSaved] = useState(new Set(['platform-foundation']));
@@ -671,6 +724,7 @@ export default function App({
   const [followingPublicProfile, setFollowingPublicProfile] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [activeMedia, setActiveMedia] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState('');
   const toastTimer = useRef(0);
@@ -719,7 +773,7 @@ export default function App({
   };
 
   const sectionContent = useMemo(() => {
-    const shared = { member, liked, saved, onLike: (id) => toggleSetValue(setLiked, id), onSave, onPreviewAction: (label) => showToast(`${label} is represented in this visual preview.`) };
+    const shared = { member, liked, saved, onLike: (id) => toggleSetValue(setLiked, id), onSave, onOpenMedia: setActiveMedia, onPreviewAction: (label) => showToast(`${label} is represented in this visual preview.`) };
     if (section === 'discover') return <DiscoverScreen onPreviewAction={shared.onPreviewAction} />;
     if (section === 'circles') return <CirclesScreen joined={joinedCircles} onToggleCircle={toggleCircle} onPreviewAction={shared.onPreviewAction} />;
     if (section === 'messages') return <MessagesScreen onPreviewAction={shared.onPreviewAction} />;
@@ -729,7 +783,7 @@ export default function App({
     return <StreamScreen {...shared} feedPosts={feedPosts} streamStatus={streamStatus} showStateLab={enableStreamLab} onStreamStatusChange={setStreamStatus} onCompose={() => setComposeOpen(true)} />;
   }, [section, member, feedPosts, streamStatus, enableStreamLab, liked, saved, joinedCircles, profileView, followingPublicProfile]);
 
-  const submitPreviewSauti = ({ text, audience, replyAccess }) => {
+  const submitPreviewSauti = ({ text, audience, replyAccess, media = [] }) => {
     const tags = [...text.matchAll(/#([a-z0-9_]+)/gi)].map((match) => match[1]).slice(0, 5);
     setFeedPosts((current) => [{
       id: `preview-${Date.now()}`,
@@ -739,6 +793,7 @@ export default function App({
       replyAccess,
       text,
       tags,
+      media,
       metrics: { replies: 0, reshares: 0, likes: 0, views: '0' },
     }, ...current]);
     setComposeOpen(false);
@@ -758,8 +813,9 @@ export default function App({
       </div>
       <MobileNavigation section={section} onNavigate={setSection} onCompose={() => setComposeOpen(true)} />
       <MobileMenu open={menuOpen} member={member} onClose={() => setMenuOpen(false)} onNavigate={setSection} />
-      <ComposeDialog open={composeOpen} member={member} offline={streamStatus === 'offline'} onClose={() => setComposeOpen(false)} onSubmit={submitPreviewSauti} />
-      <EditProfileDialog open={editProfileOpen} member={member} onClose={() => setEditProfileOpen(false)} onMediaAction={(label) => showToast(`${label} upload arrives with the R2 media milestone.`)} onSave={(nextMember) => { setMember(nextMember); setEditProfileOpen(false); showToast('Profile changes saved in this preview.'); }} />
+      <ComposeDialog open={composeOpen} member={member} offline={streamStatus === 'offline'} mediaEnabled={enableMediaPreview} onClose={() => setComposeOpen(false)} onSubmit={submitPreviewSauti} />
+      <EditProfileDialog open={editProfileOpen} member={member} onClose={() => setEditProfileOpen(false)} onMediaAction={(label) => showToast(enableMediaPreview ? `${label} will use the same validated R2 workflow shown in the composer.` : `${label} upload arrives with the R2 media milestone.`)} onSave={(nextMember) => { setMember(nextMember); setEditProfileOpen(false); showToast('Profile changes saved in this preview.'); }} />
+      <MediaViewer item={activeMedia} onClose={() => setActiveMedia(null)} />
       {toast ? <div className="toast" role="status" aria-live="polite"><span>{toast}</span><button type="button" onClick={() => setToast('')} aria-label="Dismiss"><X aria-hidden="true" /></button></div> : null}
     </>
   );
