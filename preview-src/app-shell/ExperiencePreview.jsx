@@ -259,7 +259,7 @@ function SettingsExperience({ onPreviewAction }) {
       <section className="experience-integration">
         <header><span>Integration readiness</span><h2>Safe path from test to production</h2></header>
         <div>
-          <article><strong>Supabase source of truth</strong><p>Account, profile and social data remain protected by RLS and server-owned authorization.</p></article>
+          <article><strong>Canonical data source</strong><p>Account, profile and social data remain protected by row-level policies and server-owned authorization.</p></article>
           <article><strong>Cloudflare edge controls</strong><p>Workers validate writes, enforce rate limits and keep secrets out of browser bundles.</p></article>
           <article><strong>Promotion gate</strong><p>test.sautilink.com comes first; production follows only after security, accessibility and rollback checks.</p></article>
         </div>
