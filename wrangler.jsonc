@@ -33,6 +33,13 @@
       "assets": {
         "directory": "./dist-preview-site"
       }
+    },
+    "media": {
+      "name": "sautilink-r2-media-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
     }
   }
 }
