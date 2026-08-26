@@ -14,7 +14,7 @@ navigation, responsive behavior, light/dark tokens, and overall visual
 direction before the authenticated application is moved to React/Vite.
 
 It deliberately does not implement canonical posts, profiles, uploads,
-messages, notifications, ranking, or moderation data.
+private messages, notifications, ranking, or moderation data.
 
 ## Included surfaces
 
@@ -22,7 +22,7 @@ messages, notifications, ranking, or moderation data.
 - Share a Sauti composer preview
 - Discover topics and suggested voices
 - Circles and membership states
-- Messages list and conversation placeholder
+- Public post replies and thread entry points
 - Notifications
 - Saved Sauti
 - Profile shell
@@ -33,7 +33,8 @@ messages, notifications, ranking, or moderation data.
 
 - Meadows informed the familiar microblogging rhythm and feed-density target.
 - Bluesky informed cross-platform navigation and accessibility expectations.
-- Telegram and Element informed the messages-list hierarchy and unread states.
+- Telegram and Element were reviewed as donor references, but private messaging
+  is intentionally deferred from the SautiLink MVP.
 - Mastodon, Misskey, Lemmy, and X remain later product references; no source
   from those projects is present in this preview.
 
@@ -44,8 +45,8 @@ backend code was copied.
 ## Visual contract implemented
 
 - Flat, neutral white/near-black/gray surfaces
-- One primary SautiLink blue action color per surface
-- Existing SautiLink red reserved for brand/danger semantics
+- One primary SautiLink coral action color per surface
+- Existing SautiLink red remains available for brand/danger semantics
 - No decorative gradients, rainbow navigation, glass cards, or external fonts
 - Self-hosted Inter brand font and existing SautiLink logo
 - Borders and typography provide hierarchy instead of heavy card effects

@@ -21,9 +21,10 @@ test('preview is isolated, noindex and cannot connect to production services', a
 
 test('preview carries the approved SautiLink product language and surfaces', async () => {
   const app = await read('preview-src/app-shell/App.jsx');
-  for (const term of ['Stream', 'Discover', 'Circles', 'Messages', 'Notifications', 'Saved', 'Share a Sauti']) {
+  for (const term of ['Stream', 'Discover', 'Circles', 'Notifications', 'Saved', 'Share a Sauti']) {
     assert.match(app, new RegExp(term));
   }
+  assert.doesNotMatch(app, /MessagesScreen|id: ['"]messages['"]|Private conversations|Search messages|New message|Message settings/);
   assert.match(app, /Skip to main content/);
   assert.match(app, /aria-modal="true"/);
   assert.match(app, /role="dialog" aria-modal="true" aria-label="Account menu"/);
@@ -63,6 +64,7 @@ test('seeded preview contains no live account identifiers or external media', as
   const app = await read('preview-src/app-shell/App.jsx');
   assert.match(data, /SautiLink Member/);
   assert.match(data, /Seeded|Building meaningful connections|Platform foundation/);
+  assert.doesNotMatch(data, /export const conversations/);
   assert.doesNotMatch(`${data}\n${app}`, /https?:\/\//i);
   assert.doesNotMatch(`${data}\n${app}`, /rggpyiterdbbugluejcs|sb_publishable_|service_role/i);
 });
@@ -97,6 +99,8 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('preview/media/device-lab.html'));
   assert.ok(files.includes('preview/conversations/index.html'));
   assert.ok(files.includes('preview/conversations/device-lab.html'));
+  assert.ok(files.includes('preview/trust-safety/index.html'));
+  assert.ok(files.includes('preview/trust-safety/device-lab.html'));
   assert.ok(files.includes('logo.png'));
   assert.ok(files.includes('assets/brand/system.css'));
   assert.ok(files.some((file) => /^preview\/app-shell\/assets\/index-.*\.js$/.test(file)));
@@ -112,6 +116,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
       || file.startsWith('preview/share-stream/')
       || file.startsWith('preview/media/')
       || file.startsWith('preview/conversations/')
+      || file.startsWith('preview/trust-safety/')
   )), `unexpected staged file: ${files.find((file) => !(
     file === 'logo.png'
       || file === 'assets/favicon.png'
@@ -123,5 +128,6 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
       || file.startsWith('preview/share-stream/')
       || file.startsWith('preview/media/')
       || file.startsWith('preview/conversations/')
+      || file.startsWith('preview/trust-safety/')
   ))}`);
 });

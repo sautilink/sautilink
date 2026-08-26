@@ -18,7 +18,6 @@ import {
   Heart,
   Home,
   Image,
-  Mail,
   MapPin,
   Menu,
   MessageCircle,
@@ -44,7 +43,6 @@ import {
 } from 'lucide-react';
 import {
   circles,
-  conversations,
   currentMember,
   notifications,
   posts,
@@ -68,16 +66,16 @@ const navigation = [
   { id: 'discover', label: 'Discover', icon: Search },
   { id: 'circles', label: 'Circles', icon: UsersRound },
   { id: 'notifications', label: 'Notifications', icon: Bell, badge: 4 },
-  { id: 'messages', label: 'Messages', icon: Mail, badge: 7 },
   { id: 'saved', label: 'Saved', icon: Bookmark },
   { id: 'profile', label: 'Profile', icon: UserRound },
 ];
 
-const mobileNavigation = navigation.filter(({ id }) => ['stream', 'discover', 'notifications', 'messages'].includes(id));
-const knownSections = new Set([...navigation.map(({ id }) => id), 'thread']);
+const mobileNavigation = navigation.filter(({ id }) => ['stream', 'discover', 'notifications'].includes(id));
+const knownSections = new Set([...navigation.map(({ id }) => id), 'thread', 'safety']);
 
 function sectionTitle(section) {
   if (section === 'thread') return 'Conversation';
+  if (section === 'safety') return 'Trust & Safety';
   return navigation.find((item) => item.id === section)?.label || 'Stream';
 }
 
@@ -408,37 +406,6 @@ function CirclesScreen({ joined, onToggleCircle, onPreviewAction }) {
   );
 }
 
-function MessagesScreen({ onPreviewAction }) {
-  const [selected, setSelected] = useState(conversations[0]);
-  return (
-    <>
-      <ScreenHeader title="Messages" subtitle="Private conversations and Circle rooms">
-        <button className="icon-button" type="button" onClick={() => onPreviewAction('Message settings')} aria-label="Message settings"><Settings aria-hidden="true" /></button>
-        <button className="icon-button accent-icon" type="button" onClick={() => onPreviewAction('New message')} aria-label="New message"><PenLine aria-hidden="true" /></button>
-      </ScreenHeader>
-      <div className="messages-layout">
-        <section className="conversation-list" aria-label="Conversations">
-          <label className="conversation-search"><Search aria-hidden="true" /><input type="search" placeholder="Search messages" aria-label="Search messages" /></label>
-          {conversations.map((conversation) => (
-            <button className={`conversation-row${selected.handle === conversation.handle ? ' is-selected' : ''}`} type="button" key={conversation.handle} onClick={() => setSelected(conversation)}>
-              <Avatar initials={conversation.initials} tone={conversation.tone} />
-              <span className="conversation-copy"><strong>{conversation.name}{conversation.verified ? <VerifiedMark /> : null}</strong><small>{conversation.preview}</small></span>
-              <span className="conversation-meta"><time>{conversation.time}</time>{conversation.unread ? <b>{conversation.unread}</b> : null}</span>
-            </button>
-          ))}
-        </section>
-        <section className="message-preview" aria-label={`Conversation with ${selected.name}`}>
-          <Avatar initials={selected.initials} tone={selected.tone} size="large" />
-          <h2>{selected.name}</h2>
-          <p>{selected.handle}</p>
-          <span>Encrypted messaging and delivery states arrive in a later milestone.</span>
-          <button className="small-primary" type="button" onClick={() => onPreviewAction('Conversation')}>Open preview</button>
-        </section>
-      </div>
-    </>
-  );
-}
-
 function NotificationsScreen({ onOpenThread, onPreviewAction }) {
   const iconForKind = { follow: UserPlus, like: Heart, reply: MessageCircle, circle: UsersRound };
   return (
@@ -718,6 +685,8 @@ export default function App({
   enableStreamLab = false,
   enableMediaPreview = false,
   enableConversationPreview = false,
+  enableSafetyPreview = false,
+  safetyComponent: SafetyComponent = null,
   previewMilestone = { label: 'Preview 01', title: 'App shell', note: 'Seeded data only. No production accounts or posts.' },
 }) {
   const [section, setSection] = useState(() => getInitialSection(initialSection));
@@ -792,15 +761,15 @@ export default function App({
 
   const sectionContent = useMemo(() => {
     const shared = { member, liked, saved, onLike: (id) => toggleSetValue(setLiked, id), onSave, onOpenMedia: setActiveMedia, onOpenThread: openThread, onPreviewAction: (label) => showToast(`${label} is represented in this visual preview.`) };
+    if (section === 'safety' && enableSafetyPreview && SafetyComponent) return <SafetyComponent onPreviewAction={(label) => showToast(label)} />;
     if (section === 'thread' && enableConversationPreview && activeThread) return <ConversationPreview rootPost={activeThread} member={member} rootLiked={liked.has(activeThread.id)} rootSaved={saved.has(activeThread.id)} onRootLike={shared.onLike} onRootSave={onSave} onOpenMedia={setActiveMedia} onBack={() => setSection('stream')} onPreviewAction={showToast} showStateLab />;
     if (section === 'discover') return <DiscoverScreen onPreviewAction={shared.onPreviewAction} />;
     if (section === 'circles') return <CirclesScreen joined={joinedCircles} onToggleCircle={toggleCircle} onPreviewAction={shared.onPreviewAction} />;
-    if (section === 'messages') return <MessagesScreen onPreviewAction={shared.onPreviewAction} />;
     if (section === 'notifications') return <NotificationsScreen onOpenThread={() => openThread()} onPreviewAction={shared.onPreviewAction} />;
     if (section === 'saved') return <SavedScreen {...shared} />;
     if (section === 'profile') return <ProfileScreen {...shared} viewMode={profileView} onViewModeChange={setProfileView} following={followingPublicProfile} onFollow={() => { setFollowingPublicProfile((value) => !value); showToast(followingPublicProfile ? `Unfollowed ${publicMember.handle}.` : `Following ${publicMember.handle}.`); }} onEdit={() => setEditProfileOpen(true)} />;
     return <StreamScreen {...shared} feedPosts={feedPosts} streamStatus={streamStatus} showStateLab={enableStreamLab} onStreamStatusChange={setStreamStatus} onCompose={() => setComposeOpen(true)} />;
-  }, [section, member, feedPosts, streamStatus, enableStreamLab, enableConversationPreview, activeThread, liked, saved, joinedCircles, profileView, followingPublicProfile]);
+  }, [section, member, feedPosts, streamStatus, enableStreamLab, enableMediaPreview, enableConversationPreview, enableSafetyPreview, activeThread, liked, saved, joinedCircles, profileView, followingPublicProfile]);
 
   const submitPreviewSauti = ({ text, audience, replyAccess, media = [] }) => {
     const tags = [...text.matchAll(/#([a-z0-9_]+)/gi)].map((match) => match[1]).slice(0, 5);
@@ -826,7 +795,7 @@ export default function App({
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <MobileTopbar section={section} theme={theme} onThemeToggle={() => setTheme((value) => value === 'dark' ? 'light' : 'dark')} onMenu={() => setMenuOpen(true)} onNavigate={setSection} />
       <div className="app-shell">
-        <PrimaryRail section={section} member={member} onNavigate={setSection} onCompose={() => setComposeOpen(true)} onMore={() => showToast('Settings, moderation and account controls will live here.')} />
+        <PrimaryRail section={section} member={member} onNavigate={setSection} onCompose={() => setComposeOpen(true)} onMore={() => enableSafetyPreview ? setSection('safety') : showToast('Settings, moderation and account controls will live here.')} />
         <main className="main-column" id="main-content" tabIndex="-1">{sectionContent}</main>
         <ContextRail theme={theme} previewMilestone={previewMilestone} onThemeToggle={() => setTheme((value) => value === 'dark' ? 'light' : 'dark')} onNavigate={setSection} onPreviewAction={(label) => showToast(`${label} is represented in this visual preview.`)} />
       </div>

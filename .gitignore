@@ -8,6 +8,7 @@ preview/profiles/
 preview/share-stream/
 preview/media/
 preview/conversations/
+preview/trust-safety/
 .wrangler/
 .dev.vars
 .dev.vars.*
