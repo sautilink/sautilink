@@ -47,6 +47,13 @@
       "assets": {
         "directory": "./dist-preview-site"
       }
+    },
+    "trust-safety": {
+      "name": "sautilink-trust-safety-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
     }
   }
 }

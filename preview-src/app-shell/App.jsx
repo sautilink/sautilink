@@ -74,10 +74,11 @@ const navigation = [
 ];
 
 const mobileNavigation = navigation.filter(({ id }) => ['stream', 'discover', 'notifications', 'messages'].includes(id));
-const knownSections = new Set([...navigation.map(({ id }) => id), 'thread']);
+const knownSections = new Set([...navigation.map(({ id }) => id), 'thread', 'safety']);
 
 function sectionTitle(section) {
   if (section === 'thread') return 'Conversation';
+  if (section === 'safety') return 'Trust & Safety';
   return navigation.find((item) => item.id === section)?.label || 'Stream';
 }
 
@@ -718,6 +719,8 @@ export default function App({
   enableStreamLab = false,
   enableMediaPreview = false,
   enableConversationPreview = false,
+  enableSafetyPreview = false,
+  safetyComponent: SafetyComponent = null,
   previewMilestone = { label: 'Preview 01', title: 'App shell', note: 'Seeded data only. No production accounts or posts.' },
 }) {
   const [section, setSection] = useState(() => getInitialSection(initialSection));
@@ -792,6 +795,7 @@ export default function App({
 
   const sectionContent = useMemo(() => {
     const shared = { member, liked, saved, onLike: (id) => toggleSetValue(setLiked, id), onSave, onOpenMedia: setActiveMedia, onOpenThread: openThread, onPreviewAction: (label) => showToast(`${label} is represented in this visual preview.`) };
+    if (section === 'safety' && enableSafetyPreview && SafetyComponent) return <SafetyComponent onPreviewAction={(label) => showToast(label)} />;
     if (section === 'thread' && enableConversationPreview && activeThread) return <ConversationPreview rootPost={activeThread} member={member} rootLiked={liked.has(activeThread.id)} rootSaved={saved.has(activeThread.id)} onRootLike={shared.onLike} onRootSave={onSave} onOpenMedia={setActiveMedia} onBack={() => setSection('stream')} onPreviewAction={showToast} showStateLab />;
     if (section === 'discover') return <DiscoverScreen onPreviewAction={shared.onPreviewAction} />;
     if (section === 'circles') return <CirclesScreen joined={joinedCircles} onToggleCircle={toggleCircle} onPreviewAction={shared.onPreviewAction} />;
@@ -800,7 +804,7 @@ export default function App({
     if (section === 'saved') return <SavedScreen {...shared} />;
     if (section === 'profile') return <ProfileScreen {...shared} viewMode={profileView} onViewModeChange={setProfileView} following={followingPublicProfile} onFollow={() => { setFollowingPublicProfile((value) => !value); showToast(followingPublicProfile ? `Unfollowed ${publicMember.handle}.` : `Following ${publicMember.handle}.`); }} onEdit={() => setEditProfileOpen(true)} />;
     return <StreamScreen {...shared} feedPosts={feedPosts} streamStatus={streamStatus} showStateLab={enableStreamLab} onStreamStatusChange={setStreamStatus} onCompose={() => setComposeOpen(true)} />;
-  }, [section, member, feedPosts, streamStatus, enableStreamLab, enableConversationPreview, activeThread, liked, saved, joinedCircles, profileView, followingPublicProfile]);
+  }, [section, member, feedPosts, streamStatus, enableStreamLab, enableMediaPreview, enableConversationPreview, enableSafetyPreview, activeThread, liked, saved, joinedCircles, profileView, followingPublicProfile]);
 
   const submitPreviewSauti = ({ text, audience, replyAccess, media = [] }) => {
     const tags = [...text.matchAll(/#([a-z0-9_]+)/gi)].map((match) => match[1]).slice(0, 5);
@@ -826,7 +830,7 @@ export default function App({
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <MobileTopbar section={section} theme={theme} onThemeToggle={() => setTheme((value) => value === 'dark' ? 'light' : 'dark')} onMenu={() => setMenuOpen(true)} onNavigate={setSection} />
       <div className="app-shell">
-        <PrimaryRail section={section} member={member} onNavigate={setSection} onCompose={() => setComposeOpen(true)} onMore={() => showToast('Settings, moderation and account controls will live here.')} />
+        <PrimaryRail section={section} member={member} onNavigate={setSection} onCompose={() => setComposeOpen(true)} onMore={() => enableSafetyPreview ? setSection('safety') : showToast('Settings, moderation and account controls will live here.')} />
         <main className="main-column" id="main-content" tabIndex="-1">{sectionContent}</main>
         <ContextRail theme={theme} previewMilestone={previewMilestone} onThemeToggle={() => setTheme((value) => value === 'dark' ? 'light' : 'dark')} onNavigate={setSection} onPreviewAction={(label) => showToast(`${label} is represented in this visual preview.`)} />
       </div>
