@@ -40,6 +40,13 @@
       "assets": {
         "directory": "./dist-preview-site"
       }
+    },
+    "conversations": {
+      "name": "sautilink-conversations-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
     }
   }
 }

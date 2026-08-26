@@ -61,6 +61,7 @@ import {
   MediaViewer,
   mediaTemplates,
 } from './MediaPreview.jsx';
+import ConversationPreview from './ConversationPreview.jsx';
 
 const navigation = [
   { id: 'stream', label: 'Stream', icon: Home },
@@ -73,7 +74,12 @@ const navigation = [
 ];
 
 const mobileNavigation = navigation.filter(({ id }) => ['stream', 'discover', 'notifications', 'messages'].includes(id));
-const knownSections = new Set(navigation.map(({ id }) => id));
+const knownSections = new Set([...navigation.map(({ id }) => id), 'thread']);
+
+function sectionTitle(section) {
+  if (section === 'thread') return 'Conversation';
+  return navigation.find((item) => item.id === section)?.label || 'Stream';
+}
 
 function getInitialSection(fallback = 'stream') {
   const candidate = window.location.hash.replace('#', '');
@@ -163,7 +169,7 @@ function PrimaryRail({ section, member, onNavigate, onCompose, onMore }) {
 }
 
 function MobileTopbar({ section, theme, onThemeToggle, onMenu, onNavigate }) {
-  const title = navigation.find((item) => item.id === section)?.label || 'Stream';
+  const title = sectionTitle(section);
   return (
     <header className="mobile-topbar">
       <button className="icon-button" type="button" onClick={onMenu} aria-label="Open menu"><Menu aria-hidden="true" /></button>
@@ -220,7 +226,7 @@ function ArchitectureVisual({ visual }) {
   );
 }
 
-function PostCard({ post, liked, saved, onLike, onSave, onOpenMedia, onPreviewAction }) {
+function PostCard({ post, liked, saved, onLike, onSave, onOpenMedia, onOpenThread, onPreviewAction }) {
   const likes = post.metrics.likes + (liked ? 1 : 0);
   return (
     <article className="post-card">
@@ -244,7 +250,7 @@ function PostCard({ post, liked, saved, onLike, onSave, onOpenMedia, onPreviewAc
         {post.media ? <MediaGallery items={post.media} onOpen={onOpenMedia} /> : null}
         <div className="post-audience"><Globe2 aria-hidden="true" />{post.audience}</div>
         <footer className="post-actions" aria-label="Sauti actions">
-          <button type="button" onClick={() => onPreviewAction('Replies')} aria-label={`${post.metrics.replies} replies`}><MessageCircle aria-hidden="true" /><span>{post.metrics.replies}</span></button>
+          <button type="button" onClick={() => onOpenThread ? onOpenThread(post) : onPreviewAction('Replies')} aria-label={`${post.metrics.replies} replies`}><MessageCircle aria-hidden="true" /><span>{post.metrics.replies}</span></button>
           <button type="button" onClick={() => onPreviewAction('Reshare')} aria-label={`${post.metrics.reshares} reshares`}><Repeat2 aria-hidden="true" /><span>{post.metrics.reshares}</span></button>
           <button className={liked ? 'is-liked' : ''} type="button" onClick={() => onLike(post.id)} aria-pressed={liked} aria-label={`${likes} likes`}><Heart aria-hidden="true" /><span>{likes}</span></button>
           <button type="button" onClick={() => onPreviewAction('View insights')} aria-label={`${post.metrics.views} views`}><BarChart3 aria-hidden="true" /><span>{post.metrics.views}</span></button>
@@ -272,7 +278,7 @@ function StreamSkeleton() {
   return <div className="stream-skeleton" aria-label="Loading Stream" aria-busy="true">{[1, 2, 3].map((item) => <article key={item}><span /><div><b /><i /><i /></div></article>)}</div>;
 }
 
-function StreamScreen({ member, feedPosts, streamStatus, showStateLab, onStreamStatusChange, liked, saved, onLike, onSave, onOpenMedia, onCompose, onPreviewAction }) {
+function StreamScreen({ member, feedPosts, streamStatus, showStateLab, onStreamStatusChange, liked, saved, onLike, onSave, onOpenMedia, onOpenThread, onCompose, onPreviewAction }) {
   const [feedMode, setFeedMode] = useState('selected');
   const visiblePosts = feedMode === 'following' ? feedPosts.slice(1) : feedPosts;
   return (
@@ -300,6 +306,7 @@ function StreamScreen({ member, feedPosts, streamStatus, showStateLab, onStreamS
             onLike={onLike}
             onSave={onSave}
             onOpenMedia={onOpenMedia}
+            onOpenThread={onOpenThread}
             onPreviewAction={onPreviewAction}
           />
         ))}
@@ -432,7 +439,7 @@ function MessagesScreen({ onPreviewAction }) {
   );
 }
 
-function NotificationsScreen() {
+function NotificationsScreen({ onOpenThread, onPreviewAction }) {
   const iconForKind = { follow: UserPlus, like: Heart, reply: MessageCircle, circle: UsersRound };
   return (
     <>
@@ -444,12 +451,12 @@ function NotificationsScreen() {
         {notifications.map((notification) => {
           const KindIcon = iconForKind[notification.kind];
           return (
-            <article className="notification-row" key={notification.id}>
+            <button className="notification-row" type="button" key={notification.id} onClick={() => notification.kind === 'reply' ? onOpenThread() : onPreviewAction(notification.title)}>
               <span className={`notification-kind notification-${notification.kind}`}><KindIcon aria-hidden="true" /></span>
               <Avatar initials={notification.initials} tone={notification.tone} size="small" />
               <div><strong>{notification.title}</strong><p>{notification.detail}</p></div>
               <span className="unread-dot" aria-label="Unread" />
-            </article>
+            </button>
           );
         })}
       </section>
@@ -457,14 +464,14 @@ function NotificationsScreen() {
   );
 }
 
-function SavedScreen({ saved, liked, onLike, onSave, onPreviewAction }) {
+function SavedScreen({ saved, liked, onLike, onSave, onOpenMedia, onOpenThread, onPreviewAction }) {
   const savedPosts = posts.filter((post) => saved.has(post.id));
   return (
     <>
       <ScreenHeader title="Saved" subtitle="Private to you and available across your devices" />
       {savedPosts.length ? (
         <div className="feed-list">
-          {savedPosts.map((post) => <PostCard key={post.id} post={post} liked={liked.has(post.id)} saved onLike={onLike} onSave={onSave} onPreviewAction={onPreviewAction} />)}
+          {savedPosts.map((post) => <PostCard key={post.id} post={post} liked={liked.has(post.id)} saved onLike={onLike} onSave={onSave} onOpenMedia={onOpenMedia} onOpenThread={onOpenThread} onPreviewAction={onPreviewAction} />)}
         </div>
       ) : (
         <EmptyState icon={Bookmark} title="Keep the Sauti you want to return to." copy="Use the bookmark action on any Sauti. Your Saved list is private." />
@@ -473,7 +480,7 @@ function SavedScreen({ saved, liked, onLike, onSave, onPreviewAction }) {
   );
 }
 
-function ProfileScreen({ member, viewMode, onViewModeChange, following, onFollow, liked, saved, onLike, onSave, onEdit, onPreviewAction }) {
+function ProfileScreen({ member, viewMode, onViewModeChange, following, onFollow, liked, saved, onLike, onSave, onOpenMedia, onOpenThread, onEdit, onPreviewAction }) {
   const [tab, setTab] = useState('sauti');
   const [controlsOpen, setControlsOpen] = useState(false);
   const viewedMember = viewMode === 'public' ? publicMember : member;
@@ -506,7 +513,7 @@ function ProfileScreen({ member, viewMode, onViewModeChange, following, onFollow
         <div className="profile-counts"><button type="button" onClick={() => onPreviewAction('Following list')}><strong>{viewedMember.following}</strong> Following</button><button type="button" onClick={() => onPreviewAction('Followers list')}><strong>{viewedMember.followers}</strong> Followers</button></div>
       </section>
       <div className="profile-tabs" role="tablist" aria-label="Profile content"><button type="button" role="tab" aria-selected={tab === 'sauti'} onClick={() => setTab('sauti')}>Sauti</button><button type="button" role="tab" aria-selected={tab === 'replies'} onClick={() => setTab('replies')}>Replies</button><button type="button" role="tab" aria-selected={tab === 'media'} onClick={() => setTab('media')}>Media</button></div>
-      {tab === 'sauti' ? <PostCard post={posts[1]} liked={liked.has(posts[1].id)} saved={saved.has(posts[1].id)} onLike={onLike} onSave={onSave} onPreviewAction={onPreviewAction} /> : null}
+      {tab === 'sauti' ? <PostCard post={posts[1]} liked={liked.has(posts[1].id)} saved={saved.has(posts[1].id)} onLike={onLike} onSave={onSave} onOpenMedia={onOpenMedia} onOpenThread={onOpenThread} onPreviewAction={onPreviewAction} /> : null}
       {tab === 'replies' ? <EmptyState icon={MessageCircle} title="No replies to show yet." copy="Replies will appear here without mixing them into the member’s main Sauti list." /> : null}
       {tab === 'media' ? <EmptyState icon={Image} title="Media will have its own focused view." copy="R2-backed images and video arrive in the dedicated media milestone." /> : null}
     </>
@@ -710,6 +717,7 @@ export default function App({
   initialSection = 'stream',
   enableStreamLab = false,
   enableMediaPreview = false,
+  enableConversationPreview = false,
   previewMilestone = { label: 'Preview 01', title: 'App shell', note: 'Seeded data only. No production accounts or posts.' },
 }) {
   const [section, setSection] = useState(() => getInitialSection(initialSection));
@@ -725,6 +733,7 @@ export default function App({
   const [composeOpen, setComposeOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [activeMedia, setActiveMedia] = useState(null);
+  const [activeThread, setActiveThread] = useState(() => enableConversationPreview ? createSeededMediaFeed(posts)[1] : null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState('');
   const toastTimer = useRef(0);
@@ -736,7 +745,7 @@ export default function App({
   }, [theme]);
 
   useEffect(() => {
-    document.title = `${navigation.find((item) => item.id === section)?.label || 'Stream'} — SautiLink Preview`;
+    document.title = `${sectionTitle(section)} — SautiLink Preview`;
     window.history.replaceState(null, '', `#${section}`);
     document.getElementById('main-content')?.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: 'auto' });
@@ -772,16 +781,26 @@ export default function App({
     showToast(willJoin ? 'Circle added to your list.' : 'Circle removed from your list.');
   };
 
+  const openThread = (post = activeThread || feedPosts[1]) => {
+    if (!enableConversationPreview) {
+      showToast('Replies are represented in this visual preview.');
+      return;
+    }
+    setActiveThread(post);
+    setSection('thread');
+  };
+
   const sectionContent = useMemo(() => {
-    const shared = { member, liked, saved, onLike: (id) => toggleSetValue(setLiked, id), onSave, onOpenMedia: setActiveMedia, onPreviewAction: (label) => showToast(`${label} is represented in this visual preview.`) };
+    const shared = { member, liked, saved, onLike: (id) => toggleSetValue(setLiked, id), onSave, onOpenMedia: setActiveMedia, onOpenThread: openThread, onPreviewAction: (label) => showToast(`${label} is represented in this visual preview.`) };
+    if (section === 'thread' && enableConversationPreview && activeThread) return <ConversationPreview rootPost={activeThread} member={member} rootLiked={liked.has(activeThread.id)} rootSaved={saved.has(activeThread.id)} onRootLike={shared.onLike} onRootSave={onSave} onOpenMedia={setActiveMedia} onBack={() => setSection('stream')} onPreviewAction={showToast} showStateLab />;
     if (section === 'discover') return <DiscoverScreen onPreviewAction={shared.onPreviewAction} />;
     if (section === 'circles') return <CirclesScreen joined={joinedCircles} onToggleCircle={toggleCircle} onPreviewAction={shared.onPreviewAction} />;
     if (section === 'messages') return <MessagesScreen onPreviewAction={shared.onPreviewAction} />;
-    if (section === 'notifications') return <NotificationsScreen />;
+    if (section === 'notifications') return <NotificationsScreen onOpenThread={() => openThread()} onPreviewAction={shared.onPreviewAction} />;
     if (section === 'saved') return <SavedScreen {...shared} />;
     if (section === 'profile') return <ProfileScreen {...shared} viewMode={profileView} onViewModeChange={setProfileView} following={followingPublicProfile} onFollow={() => { setFollowingPublicProfile((value) => !value); showToast(followingPublicProfile ? `Unfollowed ${publicMember.handle}.` : `Following ${publicMember.handle}.`); }} onEdit={() => setEditProfileOpen(true)} />;
     return <StreamScreen {...shared} feedPosts={feedPosts} streamStatus={streamStatus} showStateLab={enableStreamLab} onStreamStatusChange={setStreamStatus} onCompose={() => setComposeOpen(true)} />;
-  }, [section, member, feedPosts, streamStatus, enableStreamLab, liked, saved, joinedCircles, profileView, followingPublicProfile]);
+  }, [section, member, feedPosts, streamStatus, enableStreamLab, enableConversationPreview, activeThread, liked, saved, joinedCircles, profileView, followingPublicProfile]);
 
   const submitPreviewSauti = ({ text, audience, replyAccess, media = [] }) => {
     const tags = [...text.matchAll(/#([a-z0-9_]+)/gi)].map((match) => match[1]).slice(0, 5);

@@ -1,6 +1,13 @@
 node_modules/
 dist/
 dist-preview-site/
+# Visual preview build outputs are regenerated and allowlisted during CI.
+preview/app-shell/assets/
+preview/identity/assets/
+preview/profiles/
+preview/share-stream/
+preview/media/
+preview/conversations/
 .wrangler/
 .dev.vars
 .dev.vars.*
