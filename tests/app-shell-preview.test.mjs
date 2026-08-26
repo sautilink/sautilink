@@ -95,6 +95,8 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('preview/share-stream/device-lab.html'));
   assert.ok(files.includes('preview/media/index.html'));
   assert.ok(files.includes('preview/media/device-lab.html'));
+  assert.ok(files.includes('preview/conversations/index.html'));
+  assert.ok(files.includes('preview/conversations/device-lab.html'));
   assert.ok(files.includes('logo.png'));
   assert.ok(files.includes('assets/brand/system.css'));
   assert.ok(files.some((file) => /^preview\/app-shell\/assets\/index-.*\.js$/.test(file)));
@@ -109,6 +111,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
       || file.startsWith('preview/profiles/')
       || file.startsWith('preview/share-stream/')
       || file.startsWith('preview/media/')
+      || file.startsWith('preview/conversations/')
   )), `unexpected staged file: ${files.find((file) => !(
     file === 'logo.png'
       || file === 'assets/favicon.png'
@@ -119,5 +122,6 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
       || file.startsWith('preview/profiles/')
       || file.startsWith('preview/share-stream/')
       || file.startsWith('preview/media/')
+      || file.startsWith('preview/conversations/')
   ))}`);
 });

@@ -9,7 +9,7 @@
   "scripts": {
     "build": "npm run build:app && npm run build:preview",
     "build:app": "esbuild src/app.js --bundle --minify --format=esm --target=es2022 --outfile=app/assets/app.js",
-    "build:preview": "vite build --config vite.preview.config.js && vite build --config vite.identity.config.js && vite build --config vite.profiles.config.js && vite build --config vite.share-stream.config.js && vite build --config vite.media.config.js && node scripts/stage-preview-site.mjs",
+    "build:preview": "vite build --config vite.preview.config.js && vite build --config vite.identity.config.js && vite build --config vite.profiles.config.js && vite build --config vite.share-stream.config.js && vite build --config vite.media.config.js && vite build --config vite.conversations.config.js && node scripts/stage-preview-site.mjs",
     "dev:preview": "vite --config vite.preview.config.js",
     "dev:identity": "vite --config vite.identity.config.js",
     "serve:preview": "vite preview --config vite.preview.config.js",
@@ -17,6 +17,7 @@
     "serve:profiles": "vite preview --config vite.profiles.config.js",
     "serve:stream": "vite preview --config vite.share-stream.config.js",
     "serve:media": "vite preview --config vite.media.config.js",
+    "serve:conversations": "vite preview --config vite.conversations.config.js",
     "test": "node --test tests/*.test.mjs",
     "check": "npm run build && npm test",
     "deploy:dry": "wrangler deploy --dry-run",
@@ -24,7 +25,8 @@
     "deploy:identity:dry": "wrangler deploy --env identity --dry-run",
     "deploy:profiles:dry": "wrangler deploy --env profiles --dry-run",
     "deploy:stream:dry": "wrangler deploy --env stream --dry-run",
-    "deploy:media:dry": "wrangler deploy --env media --dry-run"
+    "deploy:media:dry": "wrangler deploy --env media --dry-run",
+    "deploy:conversations:dry": "wrangler deploy --env conversations --dry-run"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.3",

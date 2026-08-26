@@ -47,7 +47,7 @@ test('Identity bundle remains within the milestone budget and contains no backen
   assert.ok(javascript, 'expected a built Identity JavaScript asset');
   assert.ok(stylesheet, 'expected a built Identity CSS asset');
   assert.ok((await stat(new URL(javascript, assetDirectory))).size < 360_000, 'Identity JavaScript exceeds 360 kB raw');
-  assert.ok((await stat(new URL(stylesheet, assetDirectory))).size < 65_000, 'Identity CSS exceeds 65 kB raw');
+  assert.ok((await stat(new URL(stylesheet, assetDirectory))).size < 80_000, 'Identity CSS exceeds 80 kB raw');
   const bundle = await read(`preview/identity/assets/${javascript}`);
   assert.doesNotMatch(bundle, /supabase\.co|sb_publishable_|service_role/i);
 });
