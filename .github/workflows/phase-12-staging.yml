@@ -1,0 +1,24 @@
+name: Phase 12 Staging Contract
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/20260826183000_create_mvp_staging_contract.sql"
+      - "supabase/tests/phase12_staging_contract.sql"
+      - "tests/phase12-staging-contract.test.mjs"
+      - "docs/architecture/phase12-staging-integration.md"
+      - ".github/workflows/phase-12-staging.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-staging-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify migration contract
+        run: node --test tests/phase12-staging-contract.test.mjs
