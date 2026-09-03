@@ -1,184 +1,61 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<!doctype html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SautiLink — Join the Waitlist</title>
-    <meta name="description" content="Claim your SautiLink username, verify your email and join the official waitlist for a privacy-first social network built in Tanzania for the world.">
-    <meta name="keywords" content="SautiLink, social network, Tanzania, waitlist, privacy, freedom of expression">
-    <link rel="canonical" href="https://sautilink.com/">
-    <meta property="og:title" content="SautiLink — Your voice. Your username. Your place.">
-    <meta property="og:description" content="Verify your email, claim your username and join the official SautiLink waitlist.">
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://sautilink.com/">
-    <meta property="og:site_name" content="SautiLink">
-    <meta property="og:image" content="https://sautilink.com/assets/logo.png">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="SautiLink — Join the Waitlist">
-    <meta name="twitter:description" content="Claim your username and be ready when SautiLink goes live.">
-    <meta name="twitter:image" content="https://sautilink.com/assets/logo.png">
-    <meta name="twitter:site" content="@sautilink">
-    <meta name="theme-color" content="#060a12">
-    <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512">
-    <link rel="shortcut icon" href="/assets/favicon.png" type="image/png">
-    <link rel="apple-touch-icon" href="/assets/favicon.png">
-    <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="/assets/brand/system.css">
-    <link rel="stylesheet" href="/assets/legal.css">
-    <link rel="stylesheet" href="/assets/index.css">
-  <meta name="application-name" content="SautiLink">
-  <meta name="apple-mobile-web-app-title" content="SautiLink">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="/manifest.json?v=1">
-  <link rel="stylesheet" href="/assets/launch-splash.css?v=1">
-  <script src="/assets/launch-splash.js?v=1" data-product="sautilink" data-version="1" data-register-sw="true"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="0; url=/login">
+  <title>SautiLink — Continue to your account</title>
+  <meta name="description" content="Continue to SautiLink to sign in or create an account.">
+  <meta name="robots" content="noindex, follow">
+  <link rel="canonical" href="https://sautilink.com/login">
+  <meta name="theme-color" content="#07101f">
+  <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512">
+  <link rel="shortcut icon" href="/assets/favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/favicon.png">
+  <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/brand/system.css">
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #07101f;
+      color: #f7f9fc;
+      font-family: Inter, system-ui, sans-serif;
+    }
+    main {
+      width: min(440px, calc(100% - 32px));
+      text-align: center;
+      padding: 40px 28px;
+    }
+    img { width: 82px; height: auto; margin-bottom: 24px; }
+    h1 { margin: 0 0 12px; font-size: clamp(28px, 7vw, 40px); letter-spacing: -.04em; }
+    p { margin: 0 0 24px; color: #aeb8c8; line-height: 1.6; }
+    .actions { display: grid; gap: 10px; }
+    a {
+      min-height: 46px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 750;
+    }
+    .primary { background: #f7f9fc; color: #07101f; }
+    .secondary { border: 1px solid #33415a; color: #f7f9fc; }
+  </style>
 </head>
-<body class="legal-page home-page">
-  <div class="sl-launch-splash sl-launch-splash--sautilink" id="sl-launch-splash" aria-hidden="true">
-    <div class="sl-launch-center">
-      <div class="sl-launch-logo-stage">
-        <span class="sl-launch-orbit"></span>
-        <img class="sl-launch-logo" src="/logo.png" alt="" width="146" height="71">
-      </div>
-      <p class="sl-launch-product">SautiLink</p>
+<body data-sautilink-entry="login-redirect">
+  <main>
+    <img src="/logo.png" alt="SautiLink">
+    <h1>Continue to SautiLink</h1>
+    <p>Sign in to continue, or create an account if you are new to SautiLink.</p>
+    <div class="actions">
+      <a class="primary" href="/login">Log in</a>
+      <a class="secondary" href="/signup">Create account</a>
     </div>
-    <p class="sl-launch-signature"><span>FROM</span><strong>SAUTILINK CORPORATION<sup>™</sup></strong></p>
-  </div>
-
-    <a class="skip-link" href="#main-content">Skip to waitlist</a>
-    <header class="site-header">
-        <nav class="site-nav" aria-label="Primary navigation">
-            <a class="brand" href="/" aria-label="SautiLink home">
-                <img class="brand-logo" src="/logo.png" alt="" width="48" height="23">
-                <span>SautiLink</span>
-            </a>
-            <div class="nav-cluster" data-nav-cluster>
-                <div class="nav-links">
-                    <a href="/" aria-current="page">Home</a>
-                    <a href="/about">About</a>
-                    <a href="https://cloudengine.sautilink.com" target="_blank" rel="noopener noreferrer">Cloud Engine</a>
-                    <a href="/help">Help</a>
-                    <a href="/privacy">Privacy</a>
-                    <a href="/terms">Terms</a>
-                </div>
-            </div>
-            <div class="nav-actions">
-                <label class="visually-hidden" for="language-selector">Language</label>
-                <select class="language-selector" id="language-selector" data-language-selector aria-label="Choose language">
-                    <option value="/" selected>EN</option>
-                    <option value="/sw.html">SW</option>
-                    <option value="/fr.html">FR</option>
-                    <option value="/es.html">ES</option>
-                    <option value="/no.html">NO</option>
-                </select>
-                <button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Use light theme" aria-pressed="false">
-                    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>
-                    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
-                </button>
-                <button class="icon-button menu-toggle" type="button" data-menu-toggle aria-label="Open navigation" aria-expanded="false">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
-                </button>
-            </div>
-        </nav>
-    </header>
-
-    <main id="main-content">
-        <section class="home-hero" aria-labelledby="hero-title">
-            <div class="hero-copy">
-                <div class="eyebrow"><span class="eyebrow-dot"></span>Official pre-launch waitlist</div>
-                <h1 id="hero-title">Your voice deserves <span>its own place.</span></h1>
-                <p class="hero-lede">SautiLink is a new social network designed around open expression, privacy and user control. Claim your username now and we will let you know when your place is ready.</p>
-                <div class="hero-signals" aria-label="Waitlist benefits">
-                    <div class="signal-item"><span class="signal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"></path></svg></span><span><strong>Verified email</strong><small>Every entry is confirmed</small></span></div>
-                    <div class="signal-item"><span class="signal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8M12 8v8"></path></svg></span><span><strong>Unique username</strong><small>Checked before reservation</small></span></div>
-                    <div class="signal-item"><span class="signal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 5 6v5c0 4.6 2.8 8.8 7 10 4.2-1.2 7-5.4 7-10V6l-7-3Z"></path><path d="m9 12 2 2 4-4"></path></svg></span><span><strong>Privacy first</strong><small>Purpose-limited data</small></span></div>
-                </div>
-                <a class="cloud-promo" href="https://cloudengine.sautilink.com" target="_blank" rel="noopener noreferrer">
-                    <span class="cloud-promo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 18h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.2 8.4 4.5 4.5 0 0 0 7 18Z"></path><path d="m9.5 14 1.6 1.6 3.6-4"></path></svg></span>
-                    <span class="cloud-promo-copy"><small>Available today</small><strong>Explore SautiLink Cloud Engine</strong><span>Free DNS, SEO, security and website diagnostic tools while you wait.</span></span>
-                    <svg class="cloud-promo-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
-                </a>
-            </div>
-
-            <aside class="waitlist-card" aria-labelledby="waitlist-title">
-                <div class="waitlist-progress" aria-label="Waitlist progress">
-                    <span class="progress-step active" data-progress-step="details"><b>1</b> Details</span><span class="progress-line"></span>
-                    <span class="progress-step" data-progress-step="verify"><b>2</b> Verify</span><span class="progress-line"></span>
-                    <span class="progress-step" data-progress-step="ready"><b>3</b> Ready</span>
-                </div>
-                <section id="details-panel">
-                    <div class="waitlist-heading"><p class="panel-label">Reserve your identity</p><h2 id="waitlist-title">Join the SautiLink waitlist</h2><p>Choose the username you want and verify the email address behind it.</p></div>
-                    <form id="waitlist-form" class="waitlist-form" novalidate>
-                        <div class="form-field">
-                            <div class="field-label-row"><label for="username">Username</label><span class="live-label">Live availability</span></div>
-                            <div class="username-input-wrap"><span aria-hidden="true">@</span><input type="text" id="username" name="username" required minlength="3" maxlength="30" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="yourname" aria-describedby="username-help username-state"></div>
-                            <small id="username-help" class="field-help">3–30 lowercase letters, numbers, dots or underscores.</small>
-                            <small id="username-state" class="field-state" aria-live="polite">Type a username to check availability.</small>
-                        </div>
-                        <div class="form-field">
-                            <label for="email">Email address</label>
-                            <input type="email" id="email" name="email" required autocomplete="email" inputmode="email" placeholder="you@example.com" aria-describedby="email-help">
-                            <small id="email-help" class="field-help">We will send a one-time verification code.</small>
-                        </div>
-                        <div class="honeypot" aria-hidden="true"><label for="website">Website</label><input type="text" id="website" name="website" tabindex="-1" autocomplete="off"></div>
-                        <div id="form-message" class="form-message" role="alert" hidden></div>
-                        <button type="submit" id="submit-btn" class="primary-button"><span>Continue with email</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
-                    </form>
-                    <p class="privacy-note">By continuing, you ask SautiLink to reserve your verified waitlist entry and contact you about launch access. Read our <a href="/privacy">Privacy Policy</a> and <a href="/terms">Terms</a>.</p>
-                </section>
-
-                <section id="verification-panel" class="verification-panel" aria-labelledby="verification-title" hidden>
-                    <button type="button" class="back-button" id="change-details"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"></path></svg>Change details</button>
-                    <div class="waitlist-heading"><p class="panel-label">Check your inbox</p><h2 id="verification-title">Enter your verification code</h2><p>We sent a one-time code to <strong id="verification-email">your email</strong>.</p></div>
-                    <form id="verification-form" class="waitlist-form" novalidate>
-                        <fieldset class="otp-fieldset"><legend>Verification code</legend><div class="otp-grid" id="otp-grid" data-length="8"></div></fieldset>
-                        <div id="verification-message" class="form-message" role="alert" hidden></div>
-                        <button type="submit" id="verify-btn" class="primary-button"><span>Verify and join</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg></button>
-                        <div class="resend-row"><span>Didn't receive the code?</span><button type="button" id="resend-code" class="text-button">Resend code</button></div>
-                    </form>
-                </section>
-
-                <section id="success-panel" class="success-panel" aria-labelledby="success-title" hidden>
-                    <div class="success-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m6 12 4 4 8-9"></path></svg></div>
-                    <p class="panel-label">Email verified</p>
-                    <h2 id="success-title">Your place is ready for launch.</h2>
-                    <p>You are officially on the SautiLink waitlist as <strong id="success-username">@username</strong>. We will contact <strong id="success-email">your verified email</strong> when access becomes available.</p>
-                    <div class="success-info"><span>What happens next</span><p>No further action is needed. Keep your email secure and watch for official messages from the <strong>@sautilink.com</strong> domain.</p></div>
-                    <a class="primary-button cloud-success-button" href="https://cloudengine.sautilink.com" target="_blank" rel="noopener noreferrer"><span>Use Cloud Engine while you wait</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
-                </section>
-            </aside>
-        </section>
-
-        <section class="principles-section" aria-labelledby="principles-title">
-            <div class="section-heading"><p class="panel-label">Built with intention</p><h2 id="principles-title">A waitlist that already works like SautiLink.</h2><p>Simple for people, strict about identity and careful with personal data.</p></div>
-            <div class="principle-grid">
-                <article class="principle-card"><span>01</span><h3>Real availability</h3><p>Your username is checked against SautiLink's authoritative identity database, not guessed in the browser.</p></article>
-                <article class="principle-card"><span>02</span><h3>Verified entry</h3><p>A waitlist place is created only after the email verification code has been accepted.</p></article>
-                <article class="principle-card"><span>03</span><h3>One ecosystem</h3><p>Your SautiLink identity is designed to work across future products, including Cloud Engine account features.</p></article>
-            </div>
-        </section>
-    </main>
-
-    <footer class="site-footer">
-        <div class="footer-inner">
-            <div class="footer-brand">
-                <a class="brand" href="/" aria-label="SautiLink home"><img class="brand-logo" src="/logo.png" alt="" width="48" height="23"><span>SautiLink</span></a>
-                <p>A privacy-first social network built in Tanzania for open, responsible expression everywhere.</p>
-                <div class="footer-socials" aria-label="Follow SautiLink">
-                    <a class="footer-social-link" href="https://www.facebook.com/sautilink/" target="_blank" rel="noopener noreferrer" aria-label="SautiLink on Facebook" title="Facebook"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073c0 6.027 4.388 11.02 10.125 11.927v-8.437H7.078v-3.49h3.047V9.414c0-3.025 1.792-4.696 4.533-4.696 1.312 0 2.686.236 2.686.236v2.97H15.83c-1.491 0-1.956.93-1.956 1.885v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.093 24 18.1 24 12.073Z"></path></svg></a>
-                    <a class="footer-social-link" href="https://x.com/sautilink" target="_blank" rel="noopener noreferrer" aria-label="SautiLink on X" title="X"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.933Zm-1.291 19.491h2.039L6.486 3.24H4.298L17.61 20.644Z"></path></svg></a>
-                    <a class="footer-social-link" href="https://www.tiktok.com/@sautilink" target="_blank" rel="noopener noreferrer" aria-label="SautiLink on TikTok" title="TikTok"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743l-.002-.001.002.001a2.895 2.895 0 0 1 3.183-4.51v-3.5a6.329 6.329 0 0 0-5.394 9.2 6.33 6.33 0 0 0 10.857-4.424V8.687a8.182 8.182 0 0 0 4.773 1.526V6.686Z"></path></svg></a>
-                </div>
-            </div>
-            <nav class="footer-links" aria-label="Footer navigation">
-                <a href="/about">About</a><a href="/help">Help Centre</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/account-deletion">Account &amp; Data Deletion</a><a href="/contact">Contact</a><a href="https://cloudengine.sautilink.com" target="_blank" rel="noopener noreferrer">Cloud Engine</a><a href="/sautinote">SautiNote</a>
-            </nav>
-        </div>
-        <div class="footer-bottom"><span>&copy; <span data-current-year>2026</span> SautiLink Corporation. All rights reserved.</span><span>Uhuru Street, Mwanza, Tanzania</span></div>
-    </footer>
-    <script src="/assets/legal.js" defer></script>
-    <script src="/assets/waitlist.js" defer></script>
+  </main>
 </body>
 </html>
