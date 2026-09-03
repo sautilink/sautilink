@@ -1,6 +1,9 @@
-const CACHE_NAME = "sautilink-shell-v1";
+const CACHE_NAME = "sautilink-shell-v2";
 const APP_SHELL = [
   "/",
+  "/app/",
+  "/app/assets/app.css",
+  "/app/assets/app.js",
   "/manifest.json",
   "/logo.png",
   "/assets/favicon.png",
@@ -25,7 +28,8 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || url.pathname.startsWith("/api/")) return;
 
   if (event.request.mode === "navigate") {
-    event.respondWith(fetch(event.request).catch(() => caches.match("/")));
+    const fallback = url.pathname.startsWith("/app") ? "/app/" : "/";
+    event.respondWith(fetch(event.request).catch(() => caches.match(fallback)));
     return;
   }
 
