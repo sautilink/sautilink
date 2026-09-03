@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This runbook covers the live SautiLink social web application after the Phase 32 launch. It is intentionally narrow: restore service safely without collapsing the production/staging boundary or replacing the public marketing site.
+This runbook covers the live SautiLink social web application after the Phase 32 launch. It is intentionally narrow: restore service safely without collapsing the production/staging boundary or replacing the public account-entry root.
 
 ## Production map
 
@@ -13,7 +13,7 @@ This runbook covers the live SautiLink social web application after the Phase 32
 - Production R2: `sautilink-media-production`
 - Production Supabase ref: `rggpyiterdbbugluejcs`
 - Staging Supabase ref: `bbrydwzlhweuqxpgbahu`
-- Marketing/root ownership marker: `Join the Waitlist`
+- Account-entry root marker: `data-sautilink-entry="login-redirect"` plus `url=/login`
 
 Do not point production at staging, even during an incident.
 
@@ -42,7 +42,7 @@ The permanent GitHub workflow also runs this probe every six hours and can be tr
 - production does not carry staging `noindex`;
 - apex and www `/app/` return HTTP 200;
 - the app shell marker is present;
-- the apex marketing root remains HTTP 200 and still contains `Join the Waitlist`;
+- the apex account-entry root remains HTTP 200 and still redirects to `/login`;
 - a signed-out account-export request returns HTTP 401 with `AUTH_REQUIRED`.
 
 ## Incident triage
@@ -60,13 +60,13 @@ Do not redeploy blindly. Determine whether the failure is:
 - Cloudflare propagation;
 - a broader domain/DNS problem.
 
-### 2. App is down but marketing root is healthy
+### 2. App is down but account-entry root is healthy
 
 Treat this as a social Worker/app incident. Preserve the root website. Do not widen the Worker to `sautilink.com/*` as a workaround.
 
 Pause new production changes, identify the first bad `main` commit, and revert that change through the normal GitHub PR path so the existing production workflow rebuilds, verifies and redeploys a known-good source state.
 
-### 3. Marketing root is missing or replaced
+### 3. Account-entry root is missing or replaced
 
 This is a route-boundary incident.
 

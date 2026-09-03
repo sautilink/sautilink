@@ -1,5 +1,7 @@
 # Phase 32 — Production Launch / Main Domain
 
+> Historical launch record. Canonical social source ownership later moved from `sautilink/test` to `sautilink/sautilink`, and the apex root later became the `/login` account-entry redirect. See the current project operating checkpoint.
+
 ## Status
 
 **Completed:** 2026-09-02

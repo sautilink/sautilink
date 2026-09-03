@@ -11,6 +11,8 @@ preview/share-stream/
 preview/media/
 preview/conversations/
 preview/trust-safety/
+preview/messages/
+preview/settings/
 .wrangler/
 .dev.vars
 .dev.vars.*

@@ -22,9 +22,9 @@ SautiLink social web MVP is live with clean canonical social routes:
 - production APIs under `/api/*`
 - legacy `/app/*` routes remain readable for backward compatibility
 
-The existing public marketing/waitlist/legal website remains intact at the main-domain root and continues to be sourced from `sautilink/sautilink`.
+The public account-entry root and legal/brand assets remain intact in `sautilink/sautilink`. The apex root redirects people to `/login`; the production social Worker remains path-scoped and does not own `/`.
 
-The private social source remains in `sautilink/test`.
+The canonical social application source now lives in `sautilink/sautilink`. The former private `sautilink/test` repository is a legacy source and must not remain a second production deployment owner after cutover.
 
 ### Exact current production release
 
@@ -79,7 +79,7 @@ Latest post-merge live cutover verification for the code-only Auth OTP convergen
 - production app has no staging noindex response;
 - request-ID correlation works;
 - signed-out protected account API returns HTTP 401 `AUTH_REQUIRED`;
-- main-domain root remains HTTP 200 with the `Join the Waitlist` ownership marker;
+- main-domain root remains HTTP 200 with the `data-sautilink-entry="login-redirect"` ownership marker and `/login` redirect;
 - staging health/app/robots checks are HTTP 200 and staging signed-out account API remains HTTP 401.
 
 ### Signup verification / code-only Auth contract
@@ -133,7 +133,7 @@ PR #57 initially failed two stale regression assertions that still required sign
 
 Production and staging social schema fingerprints were exact before launch across selected columns, RLS policies, social/DM/onboarding functions and indexes. See `docs/architecture/phase32-production-launch-main-domain.md` for hashes and evidence.
 
-Checked-in social source remains staging-safe. Production assets/Worker are generated through `scripts/build-production-release.mjs` and verified by `scripts/verify-production-artifact.mjs` so staging Supabase identifiers cannot silently leak into the production artifact.
+Checked-in social source remains staging-safe. `wrangler.social-staging.jsonc` owns staging and preview deployments; the small root-site `wrangler.jsonc` remains separate. Production assets/Worker are generated through `scripts/build-production-release.mjs` and verified by `scripts/verify-production-artifact.mjs` so staging Supabase identifiers cannot silently leak into the production artifact.
 
 ## Main-domain routing contract
 
@@ -149,7 +149,7 @@ Cloudflare Workers route matching considers the full URL including query strings
 
 Never broaden this Worker to `sautilink.com/*` or `www.sautilink.com/*` without a deliberate migration of the existing public website.
 
-The existing marketing/legal/waitlist root is intentionally preserved outside the social Worker.
+The existing account-entry/legal root is intentionally preserved outside the social Worker.
 
 ## GitHub Cloudflare credential note
 

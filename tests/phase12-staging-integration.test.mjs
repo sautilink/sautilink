@@ -86,7 +86,7 @@ test('Phase 12 waitlist function permits only known SautiLink web origins', asyn
 
 test('Phase 12 stages the integrated app for the test Worker', async () => {
   const stage = await read('scripts/stage-preview-site.mjs');
-  const wrangler = await read('wrangler.jsonc');
+  const wrangler = await read('wrangler.social-staging.jsonc');
 
   assert.match(stage, /\['app', 'app'\]/);
   assert.match(stage, /writeFile\(resolve\(stageRoot, '_headers'\), stagingHeaders\)/);

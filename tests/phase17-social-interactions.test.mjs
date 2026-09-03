@@ -119,7 +119,7 @@ test('Phase 17 database contract protects raw identities and maintains server-ow
 });
 
 test('Cloudflare staging config keeps Phase 16 limits and adds Phase 17 limits', async () => {
-  const wrangler = JSON.parse(await read('wrangler.jsonc'));
+  const wrangler = JSON.parse(await read('wrangler.social-staging.jsonc'));
   const bindings = wrangler.env.test.ratelimits || [];
   const byName = (name) => bindings.find((item) => item.name === name);
 

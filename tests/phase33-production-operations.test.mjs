@@ -32,7 +32,8 @@ test('Phase 33 readiness probe protects the production environment and root-site
     'x-request-id',
     'noindex',
     'settings-surface',
-    'Join the Waitlist',
+    'data-sautilink-entry="login-redirect"',
+    'url=/login',
     'AUTH_REQUIRED',
     'PRODUCTION_READINESS_PASS',
     'PRODUCTION_READINESS_FAIL',
@@ -54,6 +55,6 @@ test('Phase 33 operations documentation preserves the launch architecture', asyn
     'rggpyiterdbbugluejcs',
     'bbrydwzlhweuqxpgbahu',
     'Do not point production at staging',
-    'Join the Waitlist',
+    'account-entry root',
   ]) assert.ok(runbook.includes(marker), `runbook missing ${marker}`);
 });

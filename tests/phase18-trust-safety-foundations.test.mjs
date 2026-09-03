@@ -174,7 +174,7 @@ test('Phase 18 app wires reports, blocks and deletion requests to live safety ro
 });
 
 test('Cloudflare staging keeps prior limits and adds unique Phase 18 safety namespaces', async () => {
-  const wrangler = JSON.parse(await read('wrangler.jsonc'));
+  const wrangler = JSON.parse(await read('wrangler.social-staging.jsonc'));
   const bindings = wrangler.env.test.ratelimits || [];
   const byName = (name) => bindings.find((item) => item.name === name);
 

@@ -103,7 +103,7 @@ test('Phase 16 database contract separates anon visibility and member block chec
 });
 
 test('Cloudflare staging config binds independent Sauti write rate limits', async () => {
-  const wrangler = JSON.parse(await read('wrangler.jsonc'));
+  const wrangler = JSON.parse(await read('wrangler.social-staging.jsonc'));
   const bindings = wrangler.env.test.ratelimits || [];
   const create = bindings.find((item) => item.name === 'SAUTI_CREATE_LIMITER');
   const remove = bindings.find((item) => item.name === 'SAUTI_DELETE_LIMITER');

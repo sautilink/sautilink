@@ -123,7 +123,7 @@ test('Phase 28 browser distinguishes mute from block across feeds Discover notif
 });
 
 test('Phase 28 adds an independent Cloudflare mute limiter and rotates the shell cache', async () => {
-  const wrangler = JSON.parse(await read('wrangler.jsonc'));
+  const wrangler = JSON.parse(await read('wrangler.social-staging.jsonc'));
   const bindings = wrangler.env.test.ratelimits || [];
   const mute = bindings.find((item) => item.name === 'SAFETY_MUTE_LIMITER');
 

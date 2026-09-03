@@ -86,7 +86,7 @@ test('Phase 27 defines owner-scoped R2 metadata and explicit RLS grants', async 
 test('Phase 27 Worker uses bounded begin upload finalize and validated R2 metadata', async () => {
   const source = await read('src/sauti-media-api.js');
   const router = await read('src/asset-router.js');
-  const wrangler = await read('wrangler.jsonc');
+  const wrangler = await read('wrangler.social-staging.jsonc');
 
   for (const term of [
     '/api/sauti-media/begin',

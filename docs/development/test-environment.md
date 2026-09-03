@@ -1,28 +1,35 @@
-# SautiLink development environment
+# SautiLink development and staging environment
 
-The private repository `sautilink/test` is the development and visual-review
-home for SautiLink. Its `main` branch deploys to
-[`https://test.sautilink.com`](https://test.sautilink.com) after verification.
+The canonical development, production-release and visual-review source is the
+public repository `sautilink/sautilink`. The former private repository
+`sautilink/test` is retained only as migration history and must not own future
+production deployments.
+
+Staging remains available at
+[`https://test.sautilink.com`](https://test.sautilink.com), but it is deployed
+from the canonical repository through `wrangler.social-staging.jsonc`.
 
 ## Boundaries
 
-- This environment is staging only; it does not deploy `sautilink.com`.
-- Production homepage, waitlist, Supabase project, migrations, R2 buckets and
-  production Workers remain outside this repository's deployment job.
+- The staging workflow is staging only and never deploys `sautilink.com`.
+- Production uses the isolated `wrangler.production.jsonc` configuration,
+  generated production artifacts and its dedicated production workflow.
 - Supabase remains the authoritative source of truth for the eventual product.
   Staging must use a separate project or demo adapters before real accounts are
   enabled.
 - Every feature still uses a branch, PR, tests and visual review before merging
-  to this repository's `main`.
+  to `sautilink/sautilink` `main`.
 - The MVP scope guard remains active: private DM/Messages is deferred, while
   public replies and threads remain in scope.
 
 ## Deployment contract
 
-Pushes to `main` run `npm run check`, an audit, a fresh build, and then
+Eligible pushes to `main` run `npm run check`, an audit, a fresh build, and then
 deploy the isolated Worker `sautilink-test` with the custom domain
 `test.sautilink.com`. Pull requests run repository checks but do not replace
-the shared staging URL.
+the shared staging URL. All staging Wrangler commands must explicitly use
+`--config wrangler.social-staging.jsonc`; `wrangler.jsonc` belongs to the
+root-site deployment and must not be repurposed.
 
 The workflow requires these GitHub Actions secrets in the `staging`
 environment:

@@ -131,7 +131,7 @@ test('Phase 30 browser saves real settings, gates read receipts, and protects de
 });
 
 test('Phase 30 uses an independent account-control limiter and rotates shell cache', async () => {
-  const wrangler = JSON.parse(await read('wrangler.jsonc'));
+  const wrangler = JSON.parse(await read('wrangler.social-staging.jsonc'));
   const bindings = wrangler.env.test.ratelimits || [];
   const account = bindings.find((item) => item.name === 'ACCOUNT_CONTROL_LIMITER');
 

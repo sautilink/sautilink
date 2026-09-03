@@ -16,7 +16,7 @@ on:
       - "sw.js"
       - ".assetsignore"
       - "_headers"
-      - "wrangler.jsonc"
+      - "wrangler.social-staging.jsonc"
       - "vite.identity.config.js"
       - "vite.profiles.config.js"
       - "vite.media.config.js"
@@ -43,7 +43,7 @@ on:
       - "sw.js"
       - ".assetsignore"
       - "_headers"
-      - "wrangler.jsonc"
+      - "wrangler.social-staging.jsonc"
       - "vite.identity.config.js"
       - "vite.profiles.config.js"
       - "vite.media.config.js"
@@ -103,7 +103,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           WRANGLER_SEND_METRICS: "false"
-        run: npx --no-install wrangler deploy --env test
+        run: npx --no-install wrangler deploy --config wrangler.social-staging.jsonc --env test
       - name: Verify live staging readiness
         shell: bash
         run: |
@@ -174,7 +174,7 @@ jobs:
       - name: Deploy temporary Cloudflare preview
         env:
           WRANGLER_SEND_METRICS: "false"
-        run: npx --no-install wrangler deploy --env identity --temporary
+        run: npx --no-install wrangler deploy --config wrangler.social-staging.jsonc --env identity --temporary
 
   deploy-profiles-preview:
     if: github.event_name == 'pull_request' && github.head_ref == 'phase-1/profiles-circles-preview'
@@ -193,7 +193,7 @@ jobs:
       - name: Deploy temporary Cloudflare preview
         env:
           WRANGLER_SEND_METRICS: "false"
-        run: npx --no-install wrangler deploy --env profiles --temporary
+        run: npx --no-install wrangler deploy --config wrangler.social-staging.jsonc --env profiles --temporary
 
   deploy-share-stream-preview:
     if: github.event_name == 'pull_request' && github.head_ref == 'phase-1/share-stream-preview'
@@ -212,7 +212,7 @@ jobs:
       - name: Deploy temporary Cloudflare preview
         env:
           WRANGLER_SEND_METRICS: "false"
-        run: npx --no-install wrangler deploy --env stream --temporary
+        run: npx --no-install wrangler deploy --config wrangler.social-staging.jsonc --env stream --temporary
 
   deploy-media-preview:
     if: github.event_name == 'pull_request' && github.head_ref == 'phase-1/r2-media-preview'
@@ -231,7 +231,7 @@ jobs:
       - name: Deploy temporary Cloudflare preview
         env:
           WRANGLER_SEND_METRICS: "false"
-        run: npx --no-install wrangler deploy --env media --temporary
+        run: npx --no-install wrangler deploy --config wrangler.social-staging.jsonc --env media --temporary
 
   deploy-conversations-preview:
     if: github.event_name == 'pull_request' && github.head_ref == 'phase-1/conversations-preview'
@@ -250,7 +250,7 @@ jobs:
       - name: Deploy temporary Cloudflare preview
         env:
           WRANGLER_SEND_METRICS: "false"
-        run: npx --no-install wrangler deploy --env conversations --temporary
+        run: npx --no-install wrangler deploy --config wrangler.social-staging.jsonc --env conversations --temporary
 
   deploy-trust-safety-preview:
     if: github.event_name == 'pull_request' && github.head_ref == 'phase-1/trust-safety-admin-preview'
@@ -269,4 +269,4 @@ jobs:
       - name: Deploy temporary Cloudflare preview
         env:
           WRANGLER_SEND_METRICS: "false"
-        run: npx --no-install wrangler deploy --env trust-safety --temporary
+        run: npx --no-install wrangler deploy --config wrangler.social-staging.jsonc --env trust-safety --temporary

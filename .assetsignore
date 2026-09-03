@@ -4,6 +4,7 @@ docs/**
 supabase/**
 README.md
 wrangler.jsonc
+wrangler.social-staging.jsonc
 .assetsignore
 .gitignore
 package.json

@@ -72,7 +72,7 @@ async function runProbe(attempt) {
 
   ensure(app.response.status === 200, `app HTTP ${app.response.status}`);
   ensure(wwwApp.response.status === 200, `www app HTTP ${wwwApp.response.status}`);
-  ensure(root.response.status === 200, `marketing root HTTP ${root.response.status}`);
+  ensure(root.response.status === 200, `account-entry root HTTP ${root.response.status}`);
   ensure(
     !String(app.response.headers.get('x-robots-tag') || '').toLowerCase().includes('noindex'),
     'production app carries staging noindex',
@@ -80,7 +80,10 @@ async function runProbe(attempt) {
   ensure(app.body.includes('id="settings-surface"'), 'production app shell marker is missing');
   ensure(wwwApp.body.includes('id="settings-surface"'), 'www production app shell marker is missing');
   ensure(!app.body.includes('Private preview'), 'production app exposes preview copy');
-  ensure(root.body.includes('Join the Waitlist'), 'marketing root ownership marker is missing');
+  ensure(
+    root.body.includes('data-sautilink-entry="login-redirect"') && root.body.includes('url=/login'),
+    'account-entry root ownership marker is missing',
+  );
 
   ensure(protectedApi.response.status === 401, `signed-out protected API returned HTTP ${protectedApi.response.status}`);
   ensure(protectedApi.body.includes('"AUTH_REQUIRED"'), 'signed-out protected API did not return AUTH_REQUIRED');
@@ -115,7 +118,7 @@ for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
           `- Health: HTTP ${result.healthStatus}`,
           `- App: HTTP ${result.appStatus}`,
           `- www App: HTTP ${result.wwwAppStatus}`,
-          `- Marketing root: HTTP ${result.rootStatus}`,
+          `- Account-entry root: HTTP ${result.rootStatus}`,
           `- Signed-out protected API: HTTP ${result.protectedApiStatus}`,
           `- Worker environment: ${result.workerEnvironment}`,
           `- Request ID: ${result.requestId}`,

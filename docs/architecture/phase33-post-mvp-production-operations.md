@@ -1,5 +1,7 @@
 # Phase 33 — Post-MVP Production Operations & Reliability
 
+> Historical release record. The root marker was later changed from the waitlist copy to the canonical `/login` account-entry redirect; see the current project operating checkpoint.
+
 ## Status
 
 **Completed:** 2026-09-02

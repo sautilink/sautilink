@@ -44,7 +44,7 @@ test('profile navigation owns canonical history and responds to browser history'
 
 test('deep profile URLs resolve through Worker and static-asset fallbacks', async () => {
   const worker = await read('src/asset-router.js');
-  const wrangler = JSON.parse(await read('wrangler.jsonc'));
+  const wrangler = JSON.parse(await read('wrangler.social-staging.jsonc'));
   const redirects = await read('_redirects');
   const staging = await read('scripts/stage-preview-site.mjs');
   const html = await read('app/index.html');

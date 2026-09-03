@@ -21,6 +21,7 @@ const forbiddenFiles = new Set([
   'package.json',
   'package-lock.json',
   'wrangler.jsonc',
+  'wrangler.social-staging.jsonc',
   '.assetsignore',
   '.gitignore',
   '.dev.vars',

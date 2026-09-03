@@ -168,7 +168,7 @@ test('Phase 29 browser keeps moderation staff-only and member appeals distinct',
 });
 
 test('Phase 29 uses independent rate-limit namespaces and rotates shell cache', async () => {
-  const wrangler = JSON.parse(await read('wrangler.jsonc'));
+  const wrangler = JSON.parse(await read('wrangler.social-staging.jsonc'));
   const bindings = wrangler.env.test.ratelimits || [];
   const appeal = bindings.find((item) => item.name === 'SAFETY_APPEAL_LIMITER');
   const moderation = bindings.find((item) => item.name === 'MODERATION_ACTION_LIMITER');
