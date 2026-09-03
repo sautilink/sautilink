@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; font-src 'self'; img-src 'self' data:; style-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+    <meta name="theme-color" content="#f7f7f8">
+    <title>SautiLink Staging Backend Foundation</title>
+    <link rel="icon" href="/assets/favicon.png" type="image/png">
+    <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/brand/system.css">
+    <link rel="stylesheet" href="/preview/backend-foundation/styles.css">
+  </head>
+  <body>
+    <main>
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="SautiLink Development home">
+          <img src="/logo.png" alt="" width="78" height="38">
+          <strong>SautiLink</strong>
+        </a>
+        <a class="back" href="/">All phases</a>
+      </header>
+
+      <section class="hero">
+        <p class="eyebrow">Phase 11 · Staging backend foundation</p>
+        <h1>The web MVP now has a secure data contract.</h1>
+        <p class="intro">Profiles, Sauti, follows, Circles, notifications, privacy controls and one-to-one messages now share one versioned Supabase schema design.</p>
+        <div class="status-row" aria-label="Backend readiness">
+          <span class="status is-ready"><i aria-hidden="true"></i>Migration prepared</span>
+          <span class="status"><i aria-hidden="true"></i>RLS covered</span>
+          <span class="status"><i aria-hidden="true"></i>Production untouched</span>
+        </div>
+      </section>
+
+      <section class="boundary" aria-labelledby="boundary-title">
+        <div>
+          <p class="section-label">System boundary</p>
+          <h2 id="boundary-title">One source of truth, clear responsibilities.</h2>
+        </div>
+        <div class="flow" role="img" aria-label="Web client uses a publishable key, Cloudflare Worker applies server rules, Supabase Auth and Postgres store authoritative records, and R2 stores media">
+          <article><small>Client</small><strong>Web</strong><span>Publishable key only</span></article>
+          <b aria-hidden="true">→</b>
+          <article><small>Edge rules</small><strong>Cloudflare Worker</strong><span>Limits and abuse checks</span></article>
+          <b aria-hidden="true">→</b>
+          <article class="is-core"><small>Authority</small><strong>Supabase</strong><span>Auth + Postgres + RLS</span></article>
+          <b aria-hidden="true">→</b>
+          <article><small>Media</small><strong>Cloudflare R2</strong><span>Object storage only</span></article>
+        </div>
+      </section>
+
+      <section class="models" aria-labelledby="models-title">
+        <div class="section-heading">
+          <div><p class="section-label">MVP records</p><h2 id="models-title">What the contract covers</h2></div>
+          <span>11 protected tables</span>
+        </div>
+        <div class="model-grid">
+          <article><span>Identity</span><strong>Profiles &amp; Settings</strong><p>Private account preferences stay separate from public profile fields.</p></article>
+          <article><span>Publishing</span><strong>Sauti &amp; Replies</strong><p>Public, follower and Circle visibility use database-enforced access rules.</p></article>
+          <article><span>Relationships</span><strong>Follows &amp; Blocks</strong><p>Self-owned writes and indexed relationship lookups support privacy and safety.</p></article>
+          <article><span>Communities</span><strong>Circles &amp; Members</strong><p>Open or approval-based membership, with owner-controlled moderation roles.</p></article>
+          <article><span>Attention</span><strong>Notifications</strong><p>Only the recipient can read, mark or remove their notification records.</p></article>
+          <article><span>Private</span><strong>Basic Messages</strong><p>Canonical one-to-one conversations, participant-only reads and block checks.</p></article>
+          <article><span>Safety</span><strong>Reports</strong><p>Members can submit reports; moderation lifecycle fields remain server-owned.</p></article>
+          <article><span>Operations</span><strong>Indexes &amp; Timestamps</strong><p>Foreign keys, feed queries, unread activity and thread lookups are indexed.</p></article>
+        </div>
+      </section>
+
+      <section class="security" aria-labelledby="security-title">
+        <div><p class="section-label">Security guardrails</p><h2 id="security-title">Access is denied unless a policy allows it.</h2></div>
+        <ul>
+          <li><strong>RLS on every new table</strong><span>Ownership and membership checks use the authenticated user ID.</span></li>
+          <li><strong>Minimum Data API grants</strong><span>Reports and notification creation stay under trusted server control.</span></li>
+          <li><strong>No secret in the browser</strong><span>The web client will receive a Supabase publishable key, never a service-role credential.</span></li>
+          <li><strong>Messages respect blocks</strong><span>Blocked pairs cannot create a conversation or insert new messages.</span></li>
+        </ul>
+      </section>
+
+      <aside class="gate" aria-label="Deployment status">
+        <div><span>Next gate</span><strong>Connect an isolated staging Supabase project</strong></div>
+        <p>The migration is versioned and tested, but deliberately not applied to production. The next phase will validate it against a separate staging database before any real account or message uses it.</p>
+      </aside>
+
+      <footer>Development only · No live database connection · No production data changed</footer>
+    </main>
+  </body>
+</html>

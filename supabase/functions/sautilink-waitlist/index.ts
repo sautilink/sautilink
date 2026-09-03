@@ -12,6 +12,7 @@ const EXACT_ALLOWED_ORIGINS = new Set([
   "https://sautilink.com",
   "https://www.sautilink.com",
   "https://sautilink.workers.dev",
+  "https://test.sautilink.com",
   "http://localhost:8787",
   "http://localhost:3000",
   "http://127.0.0.1:8787",

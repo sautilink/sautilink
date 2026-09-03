@@ -1,0 +1,2 @@
+# Keep canonical profile URLs while serving the existing app shell.
+/app/u/* /app/ 200

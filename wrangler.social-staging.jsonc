@@ -1,0 +1,208 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "sautilink",
+  "compatibility_date": "2026-08-17",
+  "assets": {
+    "directory": "./",
+    "binding": "ASSETS"
+  },
+  "env": {
+    "preview": {
+      "name": "sautilink-app-shell-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
+    },
+    "identity": {
+      "name": "sautilink-identity-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
+    },
+    "profiles": {
+      "name": "sautilink-profiles-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
+    },
+    "stream": {
+      "name": "sautilink-share-stream-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
+    },
+    "media": {
+      "name": "sautilink-r2-media-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
+    },
+    "conversations": {
+      "name": "sautilink-conversations-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
+    },
+    "trust-safety": {
+      "name": "sautilink-trust-safety-preview",
+      "workers_dev": true,
+      "assets": {
+        "directory": "./dist-preview-site"
+      }
+    },
+    "test": {
+      "name": "test",
+      "workers_dev": false,
+      "routes": [
+        {
+          "pattern": "test.sautilink.com",
+          "custom_domain": true
+        }
+      ],
+      "assets": {
+        "directory": "./dist-preview-site",
+        "binding": "ASSETS"
+      },
+      "r2_buckets": [
+        {
+          "binding": "PROFILE_MEDIA",
+          "bucket_name": "sautilink-profile-media-staging"
+        },
+        {
+          "binding": "SAUTI_MEDIA",
+          "bucket_name": "sautilink-profile-media-staging"
+        }
+      ],
+      "ratelimits": [
+        {
+          "name": "SAUTI_CREATE_LIMITER",
+          "namespace_id": "1601",
+          "simple": {
+            "limit": 10,
+            "period": 60
+          }
+        },
+        {
+          "name": "SAUTI_DELETE_LIMITER",
+          "namespace_id": "1602",
+          "simple": {
+            "limit": 20,
+            "period": 60
+          }
+        },
+        {
+          "name": "SAUTI_MEDIA_BEGIN_LIMITER",
+          "namespace_id": "2701",
+          "simple": {
+            "limit": 30,
+            "period": 60
+          }
+        },
+        {
+          "name": "SOCIAL_FOLLOW_LIMITER",
+          "namespace_id": "1701",
+          "simple": {
+            "limit": 30,
+            "period": 60
+          }
+        },
+        {
+          "name": "SOCIAL_LIKE_LIMITER",
+          "namespace_id": "1702",
+          "simple": {
+            "limit": 60,
+            "period": 60
+          }
+        },
+        {
+          "name": "SOCIAL_COMMENT_LIMITER",
+          "namespace_id": "1703",
+          "simple": {
+            "limit": 20,
+            "period": 60
+          }
+        },
+        {
+          "name": "SOCIAL_COMMENT_DELETE_LIMITER",
+          "namespace_id": "1704",
+          "simple": {
+            "limit": 30,
+            "period": 60
+          }
+        },
+        {
+          "name": "SOCIAL_REPOST_LIMITER",
+          "namespace_id": "1705",
+          "simple": {
+            "limit": 30,
+            "period": 60
+          }
+        },
+        {
+          "name": "SAFETY_REPORT_LIMITER",
+          "namespace_id": "1801",
+          "simple": {
+            "limit": 10,
+            "period": 60
+          }
+        },
+        {
+          "name": "SAFETY_BLOCK_LIMITER",
+          "namespace_id": "1802",
+          "simple": {
+            "limit": 20,
+            "period": 60
+          }
+        },
+        {
+          "name": "SAFETY_DELETION_LIMITER",
+          "namespace_id": "1803",
+          "simple": {
+            "limit": 10,
+            "period": 60
+          }
+        },
+        {
+          "name": "SAFETY_MUTE_LIMITER",
+          "namespace_id": "2801",
+          "simple": {
+            "limit": 30,
+            "period": 60
+          }
+        },
+        {
+          "name": "SAFETY_APPEAL_LIMITER",
+          "namespace_id": "2901",
+          "simple": {
+            "limit": 20,
+            "period": 60
+          }
+        },
+        {
+          "name": "MODERATION_ACTION_LIMITER",
+          "namespace_id": "2902",
+          "simple": {
+            "limit": 120,
+            "period": 60
+          }
+        },
+        {
+          "name": "ACCOUNT_CONTROL_LIMITER",
+          "namespace_id": "3001",
+          "simple": {
+            "limit": 60,
+            "period": 60
+          }
+        }
+      ]
+    }
+  },
+  "main": "src/asset-router.js"
+}
+
