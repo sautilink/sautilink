@@ -1,0 +1,185 @@
+name: Phase 32 Production Launch
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "src/**"
+      - "scripts/build-production-release.mjs"
+      - "scripts/verify-production-artifact.mjs"
+      - "tests/**"
+      - "package.json"
+      - "package-lock.json"
+      - "wrangler.production.jsonc"
+      - ".github/workflows/phase32-production.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "src/**"
+      - "scripts/build-production-release.mjs"
+      - "scripts/verify-production-artifact.mjs"
+      - "tests/**"
+      - "package.json"
+      - "package-lock.json"
+      - "wrangler.production.jsonc"
+      - ".github/workflows/phase32-production.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production-release:
+    name: Verify production release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Run full repository verification
+        run: npm run check
+      - name: Validate production Wrangler bundle
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: npm run deploy:production:dry
+
+  deploy-production:
+    name: Deploy SautiLink social app production
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify-production-release
+    runs-on: ubuntu-latest
+    # Credential scope only: the working Cloudflare account secrets are currently
+    # stored in GitHub's staging environment. The target Worker/routes/R2 below
+    # are still production-only and are independently verified after deployment.
+    environment: staging
+    timeout-minutes: 15
+    concurrency:
+      group: sautilink-social-production-main
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Build and verify isolated production artifact
+        run: |
+          npm run build:production
+          npm run verify:production-artifact
+      - name: Ensure private production R2 bucket exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if npx --no-install wrangler r2 bucket info sautilink-media-production --config wrangler.production.jsonc --json > /tmp/r2-info.json 2>/tmp/r2-info.err; then
+            echo "Production R2 bucket already exists."
+            cat /tmp/r2-info.json
+          else
+            echo "Production R2 bucket not found; creating it."
+            cat /tmp/r2-info.err || true
+            npx --no-install wrangler r2 bucket create sautilink-media-production --config wrangler.production.jsonc
+            npx --no-install wrangler r2 bucket info sautilink-media-production --config wrangler.production.jsonc --json
+          fi
+      - name: Deploy path-scoped production Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+        run: npx --no-install wrangler deploy --config wrangler.production.jsonc
+      - name: Verify production cutover and account-entry root
+        shell: bash
+        run: |
+          set -euo pipefail
+          health_body="$(mktemp)"
+          health_headers="$(mktemp)"
+          app_body="$(mktemp)"
+          app_headers="$(mktemp)"
+          login_body="$(mktemp)"
+          signup_body="$(mktemp)"
+          home_body="$(mktemp)"
+          root_body="$(mktemp)"
+          www_app_body="$(mktemp)"
+          ready=0
+
+          for attempt in 1 2 3 4 5 6 7 8; do
+            request_id="phase32-$GITHUB_RUN_ID-$attempt"
+            echo "Production convergence attempt $attempt"
+
+            health_code="$(curl -sS -D "$health_headers" -o "$health_body" -w '%{http_code}' \
+              -H 'Cache-Control: no-cache' -H "X-Request-ID: $request_id" \
+              "https://sautilink.com/api/health?release=$GITHUB_RUN_ID-$attempt")"
+            app_code="$(curl -sS -D "$app_headers" -o "$app_body" -w '%{http_code}' \
+              -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/app/?release=$GITHUB_RUN_ID-$attempt")"
+            www_app_code="$(curl -sS -L -o "$www_app_body" -w '%{http_code}' \
+              -H 'Cache-Control: no-cache' \
+              "https://www.sautilink.com/app/?release=$GITHUB_RUN_ID-$attempt")"
+            login_code="$(curl -sS -o "$login_body" -w '%{http_code}' -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/login?release=$GITHUB_RUN_ID-$attempt")"
+            signup_code="$(curl -sS -o "$signup_body" -w '%{http_code}' -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/signup?release=$GITHUB_RUN_ID-$attempt")"
+            home_code="$(curl -sS -o "$home_body" -w '%{http_code}' -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/home?release=$GITHUB_RUN_ID-$attempt")"
+            root_code="$(curl -sS -o "$root_body" -w '%{http_code}' -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/?release=$GITHUB_RUN_ID-$attempt")"
+
+            echo "health=$health_code app=$app_code login=$login_code signup=$signup_code home=$home_code www_app=$www_app_code root=$root_code"
+            cat "$health_body"
+            echo
+
+            if [ "$health_code" = "200" ] \
+              && [ "$app_code" = "200" ] \
+              && [ "$www_app_code" = "200" ] \
+              && [ "$login_code" = "200" ] \
+              && [ "$signup_code" = "200" ] \
+              && [ "$home_code" = "200" ] \
+              && [ "$root_code" = "200" ] \
+              && grep -Fq '"status":"ok"' "$health_body" \
+              && grep -Fq '"environment":"production"' "$health_body" \
+              && grep -Fqi "x-request-id: $request_id" "$health_headers" \
+              && ! grep -Fqi 'x-robots-tag: noindex' "$health_headers" \
+              && ! grep -Fqi 'x-robots-tag: noindex' "$app_headers" \
+              && grep -Fq 'id="settings-surface"' "$app_body" \
+              && grep -Fq 'app.css?v=20260903-badges3' "$app_body" \
+              && ! grep -Fq 'Private preview' "$app_body" \
+              && ! grep -Fq 'Phase 31' "$app_body" \
+              && grep -Fq 'id="settings-surface"' "$www_app_body" \
+              && grep -Fq 'id="login-form"' "$login_body" \
+              && grep -Fq 'id="signup-form"' "$signup_body" \
+              && grep -Fq 'id="settings-surface"' "$home_body" \
+              && grep -Fq 'data-sautilink-entry="login-redirect"' "$root_body" \
+              && grep -Fq 'url=/login' "$root_body"; then
+              ready=1
+              break
+            fi
+
+            sleep 3
+          done
+
+          if [ "$ready" != "1" ]; then
+            echo "Production release did not converge safely."
+            echo "--- health headers ---"; cat "$health_headers" || true
+            echo "--- health body ---"; cat "$health_body" || true
+            echo "--- app head ---"; head -c 1200 "$app_body" || true; echo
+            echo "--- root head ---"; head -c 600 "$root_body" || true; echo
+            exit 1
+          fi
+
+          api_body="$(mktemp)"
+          api_code="$(curl -sS -o "$api_body" -w '%{http_code}' -H 'Accept: application/json' \
+            "https://sautilink.com/api/account/export?release=$GITHUB_RUN_ID")"
+          echo "signed-out production account API -> HTTP $api_code"
+          cat "$api_body"
+          echo
+          test "$api_code" = "401"
+          grep -Fq '"AUTH_REQUIRED"' "$api_body"

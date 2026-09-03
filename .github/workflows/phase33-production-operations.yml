@@ -1,0 +1,46 @@
+name: Phase 33 Production Operations
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/check-production-readiness.mjs"
+      - "tests/phase33-production-operations.test.mjs"
+      - "docs/operations/production-runbook.md"
+      - "docs/architecture/phase33-post-mvp-production-operations.md"
+      - ".github/workflows/phase33-production-operations.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/check-production-readiness.mjs"
+      - "tests/phase33-production-operations.test.mjs"
+      - "docs/operations/production-runbook.md"
+      - "docs/architecture/phase33-post-mvp-production-operations.md"
+      - ".github/workflows/phase33-production-operations.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sautilink-production-readiness-monitor
+  cancel-in-progress: true
+
+jobs:
+  production-readiness:
+    name: Check live production readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Probe SautiLink production
+        env:
+          SAUTILINK_READINESS_ATTEMPTS: "3"
+          SAUTILINK_READINESS_RETRY_MS: "2500"
+          SAUTILINK_READINESS_TIMEOUT_MS: "10000"
+        run: node scripts/check-production-readiness.mjs

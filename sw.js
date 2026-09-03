@@ -1,6 +1,9 @@
-const CACHE_NAME = "sautilink-shell-v1";
+const CACHE_NAME = "sautilink-shell-v33";
 const APP_SHELL = [
   "/",
+  "/app/",
+  "/app/assets/app.css",
+  "/app/assets/app.js",
   "/manifest.json",
   "/logo.png",
   "/assets/favicon.png",
@@ -25,7 +28,28 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || url.pathname.startsWith("/api/")) return;
 
   if (event.request.mode === "navigate") {
-    event.respondWith(fetch(event.request).catch(() => caches.match("/")));
+    const socialRoute = /^(?:\/app(?:\/|$)|\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications)(?:\/|$)|\/messages(?:\/|$)|\/sautify(?:\/|$)|\/u\/|\/post\/)/.test(url.pathname);
+    const fallback = socialRoute ? "/app/" : "/";
+    event.respondWith(fetch(event.request).catch(() => caches.match(fallback)));
+    return;
+  }
+
+  if (url.origin === self.location.origin && (
+    url.pathname === "/app/assets/app.js" ||
+    url.pathname === "/app/assets/app.css" ||
+    url.pathname.startsWith("/app/assets/verification/")
+  )) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match(url.pathname))),
+    );
     return;
   }
 

@@ -1,0 +1,272 @@
+name: Phase 1 Authentication
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "preview/**"
+      - "preview-src/**"
+      - "scripts/stage-preview-site.mjs"
+      - "src/**"
+      - "tests/**"
+      - "supabase/migrations/**"
+      - "supabase/tests/**"
+      - "package.json"
+      - "package-lock.json"
+      - "sw.js"
+      - ".assetsignore"
+      - "_headers"
+      - "wrangler.jsonc"
+      - "vite.identity.config.js"
+      - "vite.profiles.config.js"
+      - "vite.media.config.js"
+      - "vite.conversations.config.js"
+      - "vite.trust-safety.config.js"
+      - "vite.messages.config.js"
+      - "vite.settings.config.js"
+      - "vite.share-stream.config.js"
+      - "vite.preview.config.js"
+      - ".github/workflows/phase-1-auth.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "preview/**"
+      - "preview-src/**"
+      - "scripts/stage-preview-site.mjs"
+      - "src/**"
+      - "tests/**"
+      - "supabase/migrations/**"
+      - "supabase/tests/**"
+      - "package.json"
+      - "package-lock.json"
+      - "sw.js"
+      - ".assetsignore"
+      - "_headers"
+      - "wrangler.jsonc"
+      - "vite.identity.config.js"
+      - "vite.profiles.config.js"
+      - "vite.media.config.js"
+      - "vite.conversations.config.js"
+      - "vite.trust-safety.config.js"
+      - "vite.messages.config.js"
+      - "vite.settings.config.js"
+      - "vite.share-stream.config.js"
+      - "vite.preview.config.js"
+      - ".github/workflows/phase-1-auth.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-auth-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Build and test
+        run: npm run check
+      - name: Validate Cloudflare deployment
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: npm run deploy:dry
+
+
+  deploy-test-staging:
+    name: Deploy test.sautilink.com
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify-auth-app
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 12
+    concurrency:
+      group: sautilink-test-staging-main
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Build staging assets
+        run: npm run build
+      - name: Deploy existing test Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+        run: npx --no-install wrangler deploy --env test
+      - name: Verify live staging readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          health_body="$(mktemp)"
+          health_headers="$(mktemp)"
+          app_body="$(mktemp)"
+          robots_body="$(mktemp)"
+          ready=0
+
+          for attempt in 1 2 3 4 5 6 7 8; do
+            echo "Staging readiness attempt $attempt"
+
+            health_code="$(curl -sS -D "$health_headers" -o "$health_body" -w '%{http_code}'               -H 'Cache-Control: no-cache'               -H "X-Request-ID: staging-$GITHUB_RUN_ID-$attempt"               "https://test.sautilink.com/api/health?smoke=$GITHUB_RUN_ID-$attempt")"
+
+            app_code="$(curl -sS -o "$app_body" -w '%{http_code}'               -H 'Cache-Control: no-cache'               "https://test.sautilink.com/app/settings?smoke=$GITHUB_RUN_ID-$attempt")"
+
+            robots_code="$(curl -sS -o "$robots_body" -w '%{http_code}'               -H 'Cache-Control: no-cache'               "https://test.sautilink.com/robots.txt?smoke=$GITHUB_RUN_ID-$attempt")"
+
+            echo "health=$health_code app=$app_code robots=$robots_code"
+            cat "$health_body"
+            echo
+
+            if [ "$health_code" = "200" ]               && [ "$app_code" = "200" ]               && [ "$robots_code" = "200" ]               && grep -Fq '"status":"ok"' "$health_body"               && grep -Fq '"release_generation":31' "$health_body"               && grep -Fqi 'x-robots-tag: noindex, nofollow, noarchive' "$health_headers"               && grep -Fqi "x-request-id: staging-$GITHUB_RUN_ID-$attempt" "$health_headers"               && grep -Fq 'name="sautilink-release-generation" content="31"' "$app_body"               && grep -Fq 'id="settings-surface"' "$app_body"               && grep -Fq 'Disallow: /' "$robots_body"; then
+              ready=1
+              break
+            fi
+
+            sleep 2
+          done
+
+          if [ "$ready" != "1" ]; then
+            echo "Staging readiness did not converge."
+            echo "--- health headers ---"
+            cat "$health_headers" || true
+            echo "--- health body ---"
+            cat "$health_body" || true
+            echo "--- app head ---"
+            head -c 1000 "$app_body" || true
+            echo
+            echo "--- robots ---"
+            cat "$robots_body" || true
+            exit 1
+          fi
+
+          api_body="$(mktemp)"
+          api_code="$(curl -sS -o "$api_body" -w '%{http_code}'             -H 'Accept: application/json'             "https://test.sautilink.com/api/account/export?smoke=$GITHUB_RUN_ID")"
+          echo "signed-out account API -> HTTP $api_code"
+          cat "$api_body"
+          echo
+          test "$api_code" = "401"
+          grep -Fq '"AUTH_REQUIRED"' "$api_body"
+
+  deploy-identity-preview:
+    if: github.event_name == 'pull_request' && github.head_ref == 'phase-1/identity-preview'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Build and test isolated previews
+        run: npm run check
+      - name: Deploy temporary Cloudflare preview
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: npx --no-install wrangler deploy --env identity --temporary
+
+  deploy-profiles-preview:
+    if: github.event_name == 'pull_request' && github.head_ref == 'phase-1/profiles-circles-preview'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Build and test isolated previews
+        run: npm run check
+      - name: Deploy temporary Cloudflare preview
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: npx --no-install wrangler deploy --env profiles --temporary
+
+  deploy-share-stream-preview:
+    if: github.event_name == 'pull_request' && github.head_ref == 'phase-1/share-stream-preview'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Build and test isolated previews
+        run: npm run check
+      - name: Deploy temporary Cloudflare preview
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: npx --no-install wrangler deploy --env stream --temporary
+
+  deploy-media-preview:
+    if: github.event_name == 'pull_request' && github.head_ref == 'phase-1/r2-media-preview'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Build and test isolated previews
+        run: npm run check
+      - name: Deploy temporary Cloudflare preview
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: npx --no-install wrangler deploy --env media --temporary
+
+  deploy-conversations-preview:
+    if: github.event_name == 'pull_request' && github.head_ref == 'phase-1/conversations-preview'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Build and test isolated previews
+        run: npm run check
+      - name: Deploy temporary Cloudflare preview
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: npx --no-install wrangler deploy --env conversations --temporary
+
+  deploy-trust-safety-preview:
+    if: github.event_name == 'pull_request' && github.head_ref == 'phase-1/trust-safety-admin-preview'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Build and test isolated previews
+        run: npm run check
+      - name: Deploy temporary Cloudflare preview
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: npx --no-install wrangler deploy --env trust-safety --temporary
