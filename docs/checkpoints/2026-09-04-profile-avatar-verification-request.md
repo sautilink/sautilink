@@ -43,7 +43,8 @@ SautiLink uses one current `social_profiles` identity wherever a member appears.
 - app and production builds: PASS;
 - staging artifact allowlist/secret scan: PASS, 69 files;
 - production artifact isolation/secret scan: PASS, 22 files;
-- complete repository regression suite: **252/252 PASS**;
+- avatar loading hotfix: the fallback remains visible through `opacity` while the lazy image remains fetchable, preventing a hidden-image loading deadlock;
+- complete repository regression suite: **253/253 PASS**;
 - staging Worker dry deployment: PASS;
 - production Worker dry deployment: PASS.
 

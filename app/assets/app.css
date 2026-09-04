@@ -82,10 +82,11 @@ svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: 
 .rail-account { display: flex; align-items: center; gap: 10px; margin-top: auto; padding: 11px; border: 1px solid var(--app-line); border-radius: 16px; background: #091526; }
 .avatar { display: inline-grid; width: 38px; height: 38px; flex: 0 0 auto; place-items: center; border: 1px solid #315884; border-radius: 50%; background: radial-gradient(circle at 35% 25%, #60a5fa, #1d4ed8 55%, #172554); color: #fff; font-size: 14px; font-weight: 850; }
 .avatar.large { width: 44px; height: 44px; }
+.profile-avatar-host { position: relative; }
 .profile-avatar-fallback { display: grid; width: 100%; height: 100%; place-items: center; }
 .has-profile-photo { overflow: hidden; }
-.profile-avatar-photo { display: block; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
-.profile-avatar-photo[hidden] { display: none; }
+.profile-avatar-photo { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; opacity: 0; }
+.has-profile-photo .profile-avatar-photo { opacity: 1; }
 .rail-account-copy { min-width: 0; }
 .rail-account-copy strong, .rail-account-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rail-account-copy strong { color: #f1f5f9; font-size: 13px; }

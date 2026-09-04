@@ -12,7 +12,7 @@ test('Home offers a persistent dark and light theme without a startup flash', as
     read('app/assets/app.css'),
   ]);
 
-  assert.match(html, /theme-init\.js\?v=20260904-account1/);
+  assert.match(html, /theme-init\.js\?v=20260904-account2/);
   assert.ok((html.match(/data-theme-toggle/g) || []).length >= 2);
   assert.match(themeInit, /sautilink\.theme/);
   assert.match(themeInit, /prefers-color-scheme: light/);
@@ -61,6 +61,6 @@ test('Home redesign preserves the approved verification badge contract and offli
 
   assert.match(css, /\.sauti-card-head\s*\{\s*--verification-badge-size: clamp\(13px, 1\.17em, 14px\);\s*\}/);
   assert.match(css, /\.sauti-card-head \.verified-name \{ font-size: 12px; \}/);
-  assert.match(sw, /sautilink-shell-v35/);
+  assert.match(sw, /sautilink-shell-v36/);
   assert.match(sw, /"\/app\/assets\/theme-init\.js"/);
 });
