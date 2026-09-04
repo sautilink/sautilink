@@ -121,9 +121,11 @@ test('signup username prefix stays vertically aligned without intercepting input
 
   assert.match(html, /<div class="username-field"><span aria-hidden="true">@<\/span><input id="signup-username"/);
   assert.match(css, /\.username-field > span \{[^}]*inset: 0 auto 0 14px/);
-  assert.match(css, /\.username-field > span \{[^}]*display: flex; align-items: center; padding-top: 1px/);
-  assert.match(css, /\.username-field > span \{[^}]*line-height: 1; pointer-events: none/);
+  assert.match(css, /\.username-field > span \{[^}]*display: flex; align-items: center/);
+  assert.match(css, /\.username-field > span \{[^}]*line-height: normal; pointer-events: none/);
   assert.doesNotMatch(css, /\.username-field > span \{[^}]*translateY\(-50%\)/);
+  assert.match(css, /body\.auth-entry \.username-field > span \{[^}]*font-size: 15px;[^}]*font-weight: 400/s);
+  assert.match(css, /body\.auth-entry \.username-field input \{\s*padding-left: 34px;\s*\}/);
 });
 
 

@@ -151,7 +151,7 @@ jobs:
               && ! grep -Fqi 'x-robots-tag: noindex' "$app_headers" \
               && grep -Fq 'id="settings-surface"' "$app_body" \
               && grep -Fq 'theme-init.js?v=20260904-account2' "$app_body" \
-              && grep -Fq 'app.css?v=20260904-username1' "$app_body" \
+              && grep -Fq 'app.css?v=20260904-username2' "$app_body" \
               && grep -Fq 'app.js?v=20260904-account2' "$app_body" \
               && ! grep -Fq 'Private preview' "$app_body" \
               && ! grep -Fq 'Phase 31' "$app_body" \
