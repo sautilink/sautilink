@@ -137,7 +137,7 @@ svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: 
 .password-field input { padding-right: 64px; }
 .password-field button { position: absolute; top: 50%; right: 8px; padding: 7px 8px; transform: translateY(-50%); border: 0; border-radius: 8px; background: transparent; color: var(--app-accent); font-size: 10px; font-weight: 740; cursor: pointer; }
 .password-field button:hover { background: #12233a; }
-.username-field > span { position: absolute; top: 50%; left: 14px; transform: translateY(-50%); color: var(--app-accent); font-size: 13px; font-weight: 770; }
+.username-field > span { position: absolute; inset: 0 auto 0 14px; display: flex; align-items: center; padding-top: 1px; color: var(--app-accent); font-size: 13px; font-weight: 770; line-height: 1; pointer-events: none; }
 .username-field input { padding-left: 31px; }
 .field-hint { margin: -2px 1px 4px; color: #70839c; font-size: 10px; line-height: 1.45; }
 .field-hint.good { color: var(--app-good); }
