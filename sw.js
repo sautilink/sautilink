@@ -1,4 +1,4 @@
-const CACHE_NAME = "sautilink-shell-v36";
+const CACHE_NAME = "sautilink-shell-v37";
 const APP_SHELL = [
   "/",
   "/app/",

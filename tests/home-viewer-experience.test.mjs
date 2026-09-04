@@ -61,6 +61,6 @@ test('Home redesign preserves the approved verification badge contract and offli
 
   assert.match(css, /\.sauti-card-head\s*\{\s*--verification-badge-size: clamp\(13px, 1\.17em, 14px\);\s*\}/);
   assert.match(css, /\.sauti-card-head \.verified-name \{ font-size: 12px; \}/);
-  assert.match(sw, /sautilink-shell-v36/);
+  assert.match(sw, /sautilink-shell-v37/);
   assert.match(sw, /"\/app\/assets\/theme-init\.js"/);
 });

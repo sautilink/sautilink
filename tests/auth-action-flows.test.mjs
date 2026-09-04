@@ -113,6 +113,19 @@ test('invite acceptance is supported without exposing an admin invite secret in 
   assert.doesNotMatch(source, /auth\.admin\.inviteUserByEmail/);
 });
 
+test('signup username prefix stays vertically aligned without intercepting input', async () => {
+  const [html, css] = await Promise.all([
+    read('app/index.html'),
+    read('app/assets/app.css'),
+  ]);
+
+  assert.match(html, /<div class="username-field"><span aria-hidden="true">@<\/span><input id="signup-username"/);
+  assert.match(css, /\.username-field > span \{[^}]*inset: 0 auto 0 14px/);
+  assert.match(css, /\.username-field > span \{[^}]*display: flex; align-items: center; padding-top: 1px/);
+  assert.match(css, /\.username-field > span \{[^}]*line-height: 1; pointer-events: none/);
+  assert.doesNotMatch(css, /\.username-field > span \{[^}]*translateY\(-50%\)/);
+});
+
 
 test('generated browser bundle is synchronized with the auth action source', async () => {
   const bundle = await read('app/assets/app.js');
