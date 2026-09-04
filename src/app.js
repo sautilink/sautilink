@@ -28,6 +28,9 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca
 const USERNAME_API = `${SUPABASE_URL}/functions/v1/sautilink-waitlist`;
 const APP_HOME_URL = 'https://sautilink.com/home';
 const INITIAL_AUTH_RETURN = parseAuthReturnUrl(window.location.href);
+const THEME_STORAGE_KEY = 'sautilink.theme';
+const CAPTION_PREVIEW_LIMIT = 180;
+const THEME_COLORS = Object.freeze({ dark: '#0b0c0f', light: '#ffffff' });
 
 function authRedirectUrl(action) {
   const url = new URL(APP_HOME_URL);
@@ -219,6 +222,44 @@ function syncVerificationBadgeAssets() {
     .forEach((badge) => applyVerificationBadgeAsset(badge, badge.dataset.verificationBadgeType));
 }
 
+function normalizeTheme(value) {
+  return value === 'light' ? 'light' : 'dark';
+}
+
+function syncThemeControls() {
+  const theme = normalizeTheme(document.documentElement.dataset.theme);
+  const nextTheme = theme === 'dark' ? 'light' : 'dark';
+  const label = `Switch to ${nextTheme} theme`;
+  document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
+    button.setAttribute('aria-label', label);
+    button.setAttribute('aria-pressed', String(theme === 'light'));
+    button.title = label;
+  });
+}
+
+function applyTheme(value, { persist = true } = {}) {
+  const theme = normalizeTheme(value);
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLORS[theme]);
+
+  if (persist) {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // The active theme still works when browser storage is unavailable.
+    }
+  }
+
+  syncThemeControls();
+  syncVerificationBadgeAssets();
+}
+
+function toggleTheme() {
+  const current = normalizeTheme(document.documentElement.dataset.theme);
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
 function createVerificationBadge(label = 'Verified account', badgeType = 'standard') {
   const badge = document.createElement('span');
   badge.className = 'verification-badge';
@@ -303,10 +344,18 @@ function closeVerificationInfoDialog() {
   else dialog?.removeAttribute('open');
 }
 
-new MutationObserver(syncVerificationBadgeAssets).observe(document.documentElement, {
+new MutationObserver(() => {
+  syncVerificationBadgeAssets();
+  syncThemeControls();
+}).observe(document.documentElement, {
   attributes: true,
   attributeFilter: ['data-theme'],
 });
+
+document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
+  button.addEventListener('click', toggleTheme);
+});
+syncThemeControls();
 
 function setBusy(button, busy, label) {
   if (!button) return;
@@ -973,12 +1022,28 @@ async function loadSautiMediaRows(postId) {
 
 async function hydrateSautiMediaGallery(postId, gallery) {
   const rows = await loadSautiMediaRows(postId);
-  if (!rows.length || !gallery.isConnected) {
+  if (!gallery.isConnected) return;
+
+  const card = gallery.closest('.sauti-card');
+  if (!rows.length) {
+    card?.classList.remove('has-media');
     gallery.remove();
     return;
   }
+
+  card?.classList.add('has-media');
+  const caption = card?.querySelector('.sauti-caption');
+  if (caption) caption.hidden = false;
   gallery.className = `sauti-media-gallery media-count-${rows.length}`;
   gallery.replaceChildren();
+
+  if (rows.length === 1) {
+    const width = Number(rows[0].width);
+    const height = Number(rows[0].height);
+    if (width > 0 && height > 0) {
+      gallery.style.setProperty('--single-media-aspect-ratio', `${width} / ${height}`);
+    }
+  }
 
   for (const media of rows) {
     const button = document.createElement('button');
@@ -1001,6 +1066,7 @@ async function hydrateSautiMediaGallery(postId, gallery) {
       } else {
         visual.alt = media.alt_text || '';
         visual.loading = 'lazy';
+        visual.decoding = 'async';
       }
       button.append(visual);
     } catch {
@@ -2687,6 +2753,63 @@ function interactionButton(action, label, count = null, active = false) {
   return button;
 }
 
+function captionPreview(value, limit = CAPTION_PREVIEW_LIMIT) {
+  const text = String(value || '').trim();
+  if (text.length <= limit) return { text, truncated: false };
+
+  const candidate = text.slice(0, limit + 1);
+  const wordBreak = candidate.lastIndexOf(' ');
+  const cutoff = wordBreak >= Math.floor(limit * .65) ? wordBreak : limit;
+  return { text: `${text.slice(0, cutoff).trimEnd()}…`, truncated: true };
+}
+
+function createSautiCaption(username, value) {
+  const fullText = String(value || '').trim();
+  if (!fullText) return null;
+
+  const preview = captionPreview(fullText);
+  const caption = document.createElement('p');
+  caption.className = 'sauti-caption';
+  caption.hidden = true;
+
+  const author = document.createElement('a');
+  author.className = 'sauti-caption-author';
+  author.href = memberProfilePath(username);
+  author.textContent = username;
+
+  const text = document.createElement('span');
+  text.className = 'sauti-caption-text';
+  text.dataset.fullCaption = fullText;
+  text.dataset.previewCaption = preview.text;
+  text.textContent = preview.text;
+  caption.append(author, document.createTextNode(' '), text);
+
+  if (preview.truncated) {
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'sauti-caption-toggle';
+    toggle.dataset.captionToggle = '';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-label', 'Show full caption');
+    toggle.textContent = 'more';
+    caption.append(document.createTextNode(' '), toggle);
+  }
+
+  return caption;
+}
+
+function toggleSautiCaption(button) {
+  const caption = button.closest('.sauti-caption');
+  const text = caption?.querySelector('.sauti-caption-text');
+  if (!text) return;
+
+  const expanded = button.getAttribute('aria-expanded') === 'true';
+  text.textContent = expanded ? text.dataset.previewCaption : text.dataset.fullCaption;
+  button.setAttribute('aria-expanded', String(!expanded));
+  button.setAttribute('aria-label', expanded ? 'Show full caption' : 'Collapse caption');
+  button.textContent = expanded ? 'more' : 'less';
+}
+
 function createSautiCard(item) {
   const post = item.post;
   if (!post) return null;
@@ -2757,7 +2880,10 @@ function createSautiCard(item) {
   time.textContent = formatSautiTime(post.created_at);
   time.title = post.created_at ? new Date(post.created_at).toLocaleString() : '';
 
-  head.append(name, profileLink, time);
+  const identity = document.createElement('div');
+  identity.className = 'sauti-card-identity';
+  identity.append(name, profileLink);
+  head.append(avatar, identity, time);
 
   const body = document.createElement('p');
   body.className = 'sauti-card-body';
@@ -2813,13 +2939,19 @@ function createSautiCard(item) {
   const actions = document.createElement('div');
   actions.className = 'sauti-actions';
   actions.append(
+    interactionButton('like', 'Like', post.like_count, item.liked),
     interactionButton('comments', 'Comment', post.comment_count, false),
     interactionButton('repost', 'Repost', post.repost_count, item.reposted),
-    interactionButton('like', 'Like', post.like_count, item.liked),
-    interactionButton('save', item.saved ? 'Saved' : 'Save', null, item.saved),
     interactionButton('share', 'Share'),
+    interactionButton('save', item.saved ? 'Saved' : 'Save', null, item.saved),
   );
   footer.append(actions);
+
+  const caption = createSautiCaption(username, post.body);
+
+  const meta = document.createElement('div');
+  meta.className = 'sauti-card-meta';
+  meta.append(context);
 
   const repostMenu = document.createElement('div');
   repostMenu.className = 'sauti-repost-menu';
@@ -2847,7 +2979,7 @@ function createSautiCard(item) {
     remove.type = 'button';
     remove.dataset.deleteSauti = post.id;
     remove.textContent = 'Delete';
-    footer.append(remove);
+    meta.append(remove);
   } else {
     const report = document.createElement('button');
     report.className = 'sauti-report';
@@ -2855,7 +2987,7 @@ function createSautiCard(item) {
     report.dataset.reportPost = post.id;
     report.dataset.reportLabel = `Report post by @${username}`;
     report.textContent = 'Report';
-    footer.append(report);
+    meta.append(report);
   }
 
   const comments = document.createElement('section');
@@ -2893,10 +3025,11 @@ function createSautiCard(item) {
   mediaGallery.setAttribute('aria-label', 'Post media');
   main.append(mediaGallery);
   void hydrateSautiMediaGallery(post.id, mediaGallery);
-  main.append(context);
   if (quoteCard) main.append(quoteCard);
-  main.append(footer, repostMenu, comments);
-  article.append(avatar, main);
+  main.append(footer, repostMenu);
+  if (caption) main.append(caption);
+  main.append(meta, comments);
+  article.append(main);
   return article;
 }
 
@@ -8122,6 +8255,12 @@ byId('conversation-reply-form').addEventListener('submit', (event) => {
   void submitThreadReply();
 });
 function handleSautiFeedClick(event) {
+  const captionToggle = event.target.closest('[data-caption-toggle]');
+  if (captionToggle) {
+    toggleSautiCaption(captionToggle);
+    return;
+  }
+
   const media = event.target.closest('[data-open-media-id]');
   if (media) {
     openSautiMediaViewer(media);

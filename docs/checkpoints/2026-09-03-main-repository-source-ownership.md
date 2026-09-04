@@ -40,8 +40,13 @@ The approved Home author-line sizing contract is preserved until a deliberate vi
 - dependency install: PASS;
 - unit/regression suite after staging-config separation: **247/247 PASS**;
 - isolated staging and production artifact builds: PASS before the final migration commit;
-- full exact-head checks and production cutover evidence are recorded after the branch merges.
+- canonical migration PR: `sautilink/sautilink#19`;
+- canonical migration squash commit: `e9cad6c5a0092909af07710de8ba54425f79bff5`;
+- canonical staging deployment run `33798953836`: PASS;
+- canonical production deployment and live-cutover run `33798953786`: PASS;
+- former-source automatic deployment shutdown PR: `sautilink/test#80`;
+- former-source shutdown merge commit: `341ebc0ccd66dd68e84b7e2069df1f3b87cc4762`.
 
 ## Cutover rule
 
-The former private repository must not remain a second automatic production owner. Disable its production-on-push path only after the canonical repository has completed a successful verified production deployment, preserving one recoverable deployment owner throughout the cutover.
+The former private repository must not remain a second automatic production owner. This cutover is complete: its deployment workflows retain pull-request verification but no longer deploy on pushes. `sautilink/sautilink` is the only automatic owner of staging and production deployments.

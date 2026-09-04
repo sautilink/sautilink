@@ -17,8 +17,9 @@ test('Phase 32 production artifact targets production Supabase and removes previ
   assert.doesNotMatch(bundle, /sb_publishable_oTYKPMJoxN1b8YBmG-a5eQ_M75Kl6VF/);
   assert.doesNotMatch(html, /Private preview|Phase 31/);
   assert.doesNotMatch(html, /name="robots"[^>]+noindex/i);
-  assert.match(html, /app\.css\?v=20260903-badges3/);
-  assert.match(html, /app\.js\?v=20260903-badges2/);
+  assert.match(html, /app\.css\?v=20260903-home1/);
+  assert.match(html, /app\.js\?v=20260903-home1/);
+  assert.match(html, /theme-init\.js\?v=20260903-home1/);
   assert.match(html, /\/logo\.png/);
   assert.doesNotMatch(html, /logo-compact\.webp/);
   assert.match(router, /environment: isStaging\(url\) \? 'staging' : 'production'/);
@@ -102,6 +103,7 @@ test('Phase 32 generated production files exist and no source map is emitted', a
     'dist-production-site/app/index.html',
     'dist-production-site/app/assets/app.js',
     'dist-production-site/app/assets/app.css',
+    'dist-production-site/app/assets/theme-init.js',
     'dist-production-site/_headers',
     'dist-production-worker/src/asset-router.js',
   ]) {

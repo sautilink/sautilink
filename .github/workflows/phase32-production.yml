@@ -150,7 +150,9 @@ jobs:
               && ! grep -Fqi 'x-robots-tag: noindex' "$health_headers" \
               && ! grep -Fqi 'x-robots-tag: noindex' "$app_headers" \
               && grep -Fq 'id="settings-surface"' "$app_body" \
-              && grep -Fq 'app.css?v=20260903-badges3' "$app_body" \
+              && grep -Fq 'theme-init.js?v=20260903-home1' "$app_body" \
+              && grep -Fq 'app.css?v=20260903-home1' "$app_body" \
+              && grep -Fq 'app.js?v=20260903-home1' "$app_body" \
               && ! grep -Fq 'Private preview' "$app_body" \
               && ! grep -Fq 'Phase 31' "$app_body" \
               && grep -Fq 'id="settings-surface"' "$www_app_body" \

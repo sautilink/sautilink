@@ -1,9 +1,10 @@
-const CACHE_NAME = "sautilink-shell-v33";
+const CACHE_NAME = "sautilink-shell-v34";
 const APP_SHELL = [
   "/",
   "/app/",
   "/app/assets/app.css",
   "/app/assets/app.js",
+  "/app/assets/theme-init.js",
   "/manifest.json",
   "/logo.png",
   "/assets/favicon.png",
@@ -37,6 +38,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin === self.location.origin && (
     url.pathname === "/app/assets/app.js" ||
     url.pathname === "/app/assets/app.css" ||
+    url.pathname === "/app/assets/theme-init.js" ||
     url.pathname.startsWith("/app/assets/verification/")
   )) {
     event.respondWith(
