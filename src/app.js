@@ -570,6 +570,7 @@ function profileAvatarUrl(profile) {
 function renderProfileAvatar(node, profile, fallbackName = '') {
   if (!node) return;
   const displayName = fallbackName || profile?.display_name || profile?.username || 'SautiLink member';
+  node.classList.add('profile-avatar-host');
   const fallback = document.createElement('span');
   fallback.className = 'profile-avatar-fallback';
   fallback.textContent = avatarLetter(displayName);
@@ -583,11 +584,9 @@ function renderProfileAvatar(node, profile, fallbackName = '') {
   const image = document.createElement('img');
   image.className = 'profile-avatar-photo';
   image.alt = '';
-  image.hidden = true;
   image.decoding = 'async';
   image.loading = 'lazy';
   image.addEventListener('load', () => {
-    image.hidden = false;
     fallback.hidden = true;
     node.classList.add('has-profile-photo');
   }, { once: true });

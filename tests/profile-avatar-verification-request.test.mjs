@@ -21,6 +21,21 @@ test('canonical profile photos hydrate notifications, messages and social identi
   assert.match(source, /if \(slot === 'avatar'\) await refreshCurrentMemberAvatar\(\)/);
 });
 
+test('avatar fallback never prevents a lazy profile image from loading', async () => {
+  const [source, css] = await Promise.all([
+    read('src/app.js'),
+    read('app/assets/app.css'),
+  ]);
+  const renderer = source.match(/function renderProfileAvatar\(node, profile, fallbackName = ''\) \{[\s\S]*?\n\}/)?.[0] || '';
+
+  assert.match(renderer, /node\.classList\.add\('profile-avatar-host'\)/);
+  assert.match(renderer, /image\.loading = 'lazy'/);
+  assert.doesNotMatch(renderer, /image\.hidden = true/);
+  assert.match(renderer, /fallback\.hidden = true/);
+  assert.match(css, /\.profile-avatar-photo\s*\{[^}]*position:\s*absolute[^}]*opacity:\s*0/s);
+  assert.match(css, /\.has-profile-photo \.profile-avatar-photo\s*\{[^}]*opacity:\s*1/s);
+});
+
 test('Account settings expose verified status and an accessible verification request dialog', async () => {
   const [html, source, css] = await Promise.all([
     read('app/index.html'),

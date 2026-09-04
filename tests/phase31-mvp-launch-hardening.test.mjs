@@ -125,8 +125,8 @@ test('Phase 31 app shell rotates caches and respects reduced motion', async () =
 
   assert.doesNotMatch(html, /Private preview|Phase 31|Phase 27|Foundation in progress/i);
   assert.match(html, /id="settings-surface"/);
-  assert.match(html, /app\.css\?v=20260904-account1/);
-  assert.match(html, /app\.js\?v=20260904-account1/);
+  assert.match(html, /app\.css\?v=20260904-account2/);
+  assert.match(html, /app\.js\?v=20260904-account2/);
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.match(source, /function motionBehavior\(\)/);
   assert.match(source, /prefers-reduced-motion: reduce/);
