@@ -86,9 +86,9 @@ test('profile verification badge opens owner-aware and viewer-aware information'
 test('verified state and badge type are hydrated on core social name surfaces', () => {
   assert.match(app, /function createVerificationBadge/);
   assert.match(app, /function verifiedNameNode/);
-  assert.match(app, /social_posts_author_id_fkey\(username, display_name, is_discoverable, is_verified, verification_badge_type\)/);
-  assert.match(app, /social_post_comments_author_id_fkey\(username, display_name, is_discoverable, is_verified, verification_badge_type\)/);
-  assert.match(app, /bio, is_verified, verification_badge_type, followers_count/);
+  assert.match(app, /social_posts_author_id_fkey\(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type\)/);
+  assert.match(app, /social_post_comments_author_id_fkey\(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type\)/);
+  assert.match(app, /bio, avatar_key, updated_at, is_verified, verification_badge_type, followers_count/);
   assert.match(app, /verifiedNameNode\(displayName, Boolean\(author\.is_verified\), author\.verification_badge_type\)/);
   assert.match(app, /quotedAuthor\.verification_badge_type/);
   assert.match(app, /verifiedNameNode\(displayName, Boolean\(profile\.is_verified\), profile\.verification_badge_type\)/);
@@ -96,9 +96,9 @@ test('verified state and badge type are hydrated on core social name surfaces', 
 
 
 test('official verification badges stay consistent in notifications and messages', () => {
-  assert.match(app, /select\('id, username, display_name, is_verified, verification_badge_type'\)\.in\('id', actorIds\)/);
+  assert.match(app, /select\('id, username, display_name, avatar_key, updated_at, is_verified, verification_badge_type'\)\.in\('id', actorIds\)/);
   assert.match(app, /verifiedNameNode\(actorText, Boolean\(actor\.is_verified\), actor\.verification_badge_type\)/);
-  assert.match(app, /select\('id, username, display_name, is_verified, verification_badge_type'\)[\s\S]{0,120}\.in\('id', peerIds\)/);
+  assert.match(app, /select\('id, username, display_name, avatar_key, updated_at, is_verified, verification_badge_type'\)[\s\S]{0,120}\.in\('id', peerIds\)/);
   assert.match(app, /Boolean\(peer\?\.is_verified\)[\s\S]{0,100}peer\?\.verification_badge_type/);
   assert.match(app, /threadName\.append\(createVerificationBadge/);
   assert.match(css, /\.notification-copy \.verified-name\s*\{[^}]*font-size:\s*12px/);

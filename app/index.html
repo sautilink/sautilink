@@ -12,9 +12,9 @@
   <meta name="sautilink-release-generation" content="31">
   <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512">
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
-  <script src="/app/assets/theme-init.js?v=20260903-home1"></script>
+  <script src="/app/assets/theme-init.js?v=20260904-account1"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260903-home1">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260904-account1">
 </head>
 <body>
   <a class="skip-link" href="#stream">Skip to main content</a>
@@ -934,6 +934,20 @@
               </dl>
               <button class="secondary-action" id="settings-password-reset" type="button">Change password</button>
             </article>
+            <article class="settings-card settings-verification-card">
+              <div class="settings-card-title"><strong>Verification badge status</strong><small>Check your current SautiLink verification status.</small></div>
+              <div class="settings-verification-status">
+                <span class="settings-verification-badge verification-badge" id="settings-verification-badge" aria-hidden="true" hidden>
+                  <img alt="" width="64" height="64" decoding="async" data-verification-badge-image>
+                </span>
+                <span class="settings-verification-copy">
+                  <small>Current status</small>
+                  <strong id="settings-verification-status">Checking…</strong>
+                </span>
+                <button class="secondary-action settings-verification-request" id="settings-verification-request" type="button" hidden>Request</button>
+              </div>
+              <p class="settings-card-copy" id="settings-verification-note">We review verification requests and return feedback within 72 hours.</p>
+            </article>
             <article class="settings-card">
               <div class="settings-card-title"><strong>Sessions</strong><small>Current browser stays signed in</small></div>
               <p class="settings-card-copy" id="settings-current-session">Current session active.</p>
@@ -1204,6 +1218,116 @@
     <button type="button" data-member-view="profile" aria-label="Profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21c.7-4.2 3.2-6.5 7.5-6.5s6.8 2.3 7.5 6.5"></path></svg></button>
   </nav>
 
+  <dialog class="verification-request-dialog" id="verification-request-dialog" aria-labelledby="verification-request-title">
+    <form class="verification-request-form" id="verification-request-form" novalidate>
+      <header>
+        <div>
+          <p class="section-label">Verification</p>
+          <h2 id="verification-request-title">Request a verification badge</h2>
+          <p>Complete the details below. Our team reviews requests and returns feedback within 72 hours.</p>
+        </div>
+        <button class="icon-control" id="verification-request-close" type="button" aria-label="Close verification request" title="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>
+        </button>
+      </header>
+
+      <div class="verification-request-grid two-columns">
+        <label>
+          <span>Full legal name</span>
+          <small>Enter it exactly as it appears on your government ID.</small>
+          <input id="verification-legal-name" name="legal_name" type="text" autocomplete="name" maxlength="100" required>
+        </label>
+        <label>
+          <span>Artist or famous name <i>Optional</i></span>
+          <small>The public name people know you by.</small>
+          <input id="verification-famous-name" name="famous_name" type="text" autocomplete="nickname" maxlength="100">
+        </label>
+        <label>
+          <span>Email</span>
+          <small>Your signed-in SautiLink email.</small>
+          <input id="verification-email" name="email" type="email" autocomplete="email" readonly required>
+        </label>
+        <label>
+          <span>Username</span>
+          <small>The SautiLink account being reviewed.</small>
+          <input id="verification-username" name="username" type="text" readonly required>
+        </label>
+        <label>
+          <span>Account category</span>
+          <select id="verification-category" name="category" required>
+            <option value="">Choose a category</option>
+            <option>Artist or musician</option>
+            <option>Creator or influencer</option>
+            <option>Journalist or media professional</option>
+            <option>Public figure</option>
+            <option>Business or organisation</option>
+            <option>Government or public service</option>
+            <option>Other notable person</option>
+          </select>
+        </label>
+        <label>
+          <span>Country of residence</span>
+          <input id="verification-country" name="country" type="text" autocomplete="country-name" maxlength="80" required>
+        </label>
+      </div>
+
+      <fieldset class="verification-social-fieldset">
+        <legend>Public accounts and references</legend>
+        <p>Add at least one social profile or a full news/blog article URL that helps us confirm your public presence.</p>
+        <div class="verification-social-grid">
+          <label class="verification-social-input">
+            <span class="verification-social-icon facebook" aria-hidden="true">f</span>
+            <b>facebook.com/</b>
+            <input id="verification-facebook" name="facebook" type="text" inputmode="url" autocomplete="off" maxlength="80" placeholder="username" aria-label="Facebook username">
+          </label>
+          <label class="verification-social-input">
+            <span class="verification-social-icon instagram" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1"></circle></svg></span>
+            <b>instagram.com/</b>
+            <input id="verification-instagram" name="instagram" type="text" inputmode="url" autocomplete="off" maxlength="80" placeholder="username" aria-label="Instagram username">
+          </label>
+          <label class="verification-social-input">
+            <span class="verification-social-icon tiktok" aria-hidden="true">♪</span>
+            <b>tiktok.com/@</b>
+            <input id="verification-tiktok" name="tiktok" type="text" inputmode="url" autocomplete="off" maxlength="80" placeholder="username" aria-label="TikTok username">
+          </label>
+          <label class="verification-social-input">
+            <span class="verification-social-icon youtube" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 12c0 2.7-.3 4.5-.8 5.2-.6.8-1.5 1-3.2 1.2-1.5.2-3.1.2-5 .2s-3.5 0-5-.2c-1.7-.2-2.6-.4-3.2-1.2C3.3 16.5 3 14.7 3 12s.3-4.5.8-5.2C4.4 6 5.3 5.8 7 5.6c1.5-.2 3.1-.2 5-.2s3.5 0 5 .2c1.7.2 2.6.4 3.2 1.2.5.7.8 2.5.8 5.2Z"></path><path d="m10 9 5 3-5 3V9Z"></path></svg></span>
+            <b>youtube.com/@</b>
+            <input id="verification-youtube" name="youtube" type="text" inputmode="url" autocomplete="off" maxlength="80" placeholder="username" aria-label="YouTube username">
+          </label>
+        </div>
+        <label class="verification-articles-label">
+          <span>News or blog articles</span>
+          <small>Use full links, one per line. You can add up to five.</small>
+          <textarea id="verification-articles" name="articles" rows="3" maxlength="1500" placeholder="https://example.com/article-about-you"></textarea>
+        </label>
+        <p class="verification-evidence-message" id="verification-evidence-message" role="alert" hidden>Add at least one social profile or article link.</p>
+      </fieldset>
+
+      <label class="verification-reason-label">
+        <span>Why should this account be verified?</span>
+        <small>Briefly describe your public role, audience and risk of impersonation.</small>
+        <textarea id="verification-reason" name="reason" rows="4" maxlength="1000" required></textarea>
+      </label>
+
+      <aside class="verification-id-note">
+        <strong>Do not send or upload your ID.</strong>
+        <span>This request only asks you to type the matching legal name. Our team will contact you if another safe verification step is needed.</span>
+      </aside>
+
+      <label class="verification-consent">
+        <input id="verification-consent" name="consent" type="checkbox" required>
+        <span>I agree to the SautiLink <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="/terms" target="_blank" rel="noopener">Terms</a>.</span>
+      </label>
+
+      <p class="form-message" id="verification-request-message" role="alert" hidden></p>
+      <footer>
+        <button class="secondary-action" id="verification-request-cancel" type="button">Cancel</button>
+        <button class="form-submit" id="verification-request-send" type="submit" disabled><span>Send</span></button>
+      </footer>
+    </form>
+  </dialog>
+
   <dialog class="settings-delete-dialog" id="settings-delete-dialog" aria-labelledby="settings-delete-title">
     <form id="settings-delete-form" class="settings-delete-form" novalidate>
       <header><div><p class="section-label">Protected action</p><h2 id="settings-delete-title">Request account deletion?</h2><p>Your profile will be hidden and a 14-day recovery window will begin.</p></div><button class="icon-control" id="settings-delete-close" type="button" aria-label="Close deletion dialog" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button></header>
@@ -1266,6 +1390,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="/app/assets/app.js?v=20260903-home1"></script>
+  <script type="module" src="/app/assets/app.js?v=20260904-account1"></script>
 </body>
 </html>
