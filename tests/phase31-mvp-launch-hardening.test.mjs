@@ -125,14 +125,14 @@ test('Phase 31 app shell rotates caches and respects reduced motion', async () =
 
   assert.doesNotMatch(html, /Private preview|Phase 31|Phase 27|Foundation in progress/i);
   assert.match(html, /id="settings-surface"/);
-  assert.match(html, /app\.css\?v=20260903-badges3/);
-  assert.match(html, /app\.js\?v=20260903-badges2/);
+  assert.match(html, /app\.css\?v=20260903-home1/);
+  assert.match(html, /app\.js\?v=20260903-home1/);
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.match(source, /function motionBehavior\(\)/);
   assert.match(source, /prefers-reduced-motion: reduce/);
   assert.doesNotMatch(source, /behavior: 'smooth'/);
   const cacheVersion = Number(sw.match(/sautilink-shell-v([0-9]+)/)?.[1] || 0);
-  assert.ok(cacheVersion >= 33, `service worker cache did not rotate for balanced verification badge sizing rollout: ${cacheVersion}`);
+  assert.ok(cacheVersion >= 34, `service worker cache did not rotate for the Home viewer experience rollout: ${cacheVersion}`);
 });
 
 test('Phase 31 build gate verifies the staged artifact allowlist and sensitive markers', async () => {

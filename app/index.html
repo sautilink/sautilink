@@ -8,12 +8,13 @@
   <meta name="robots" content="noindex, nofollow">
   <title>SautiLink App — Your voice, connected</title>
   <meta name="description" content="Sign in or create your SautiLink account.">
-  <meta name="theme-color" content="#07101f">
+  <meta name="theme-color" content="#0b0c0f">
   <meta name="sautilink-release-generation" content="31">
   <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512">
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="/app/assets/theme-init.js?v=20260903-home1"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260903-badges3">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260903-home1">
 </head>
 <body>
   <a class="skip-link" href="#stream">Skip to main content</a>
@@ -23,7 +24,13 @@
       <img src="/assets/brand/logo-compact.webp" alt="" width="44" height="23">
       <span>SautiLink</span>
     </a>
-    <button class="mobile-signout" id="mobile-signout-button" type="button" hidden>Sign out</button>
+    <div class="mobile-header-actions">
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" title="Switch to light theme">
+        <svg class="theme-toggle-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>
+        <svg class="theme-toggle-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.2A8.4 8.4 0 0 1 8.8 3.8 8.5 8.5 0 1 0 20.2 15.2Z"></path></svg>
+      </button>
+      <button class="mobile-signout" id="mobile-signout-button" type="button" hidden>Sign out</button>
+    </div>
   </header>
 
   <div class="app-layout">
@@ -97,6 +104,10 @@
     <main class="stream-column" id="stream">
       <header class="stream-header">
         <h1 id="view-title">Stream</h1>
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" title="Switch to light theme">
+          <svg class="theme-toggle-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>
+          <svg class="theme-toggle-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.2A8.4 8.4 0 0 1 8.8 3.8 8.5 8.5 0 1 0 20.2 15.2Z"></path></svg>
+        </button>
       </header>
 
       <section class="auth-result" id="auth-result" role="status" aria-live="polite" hidden>
@@ -1255,6 +1266,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="/app/assets/app.js?v=20260903-badges2"></script>
+  <script type="module" src="/app/assets/app.js?v=20260903-home1"></script>
 </body>
 </html>
