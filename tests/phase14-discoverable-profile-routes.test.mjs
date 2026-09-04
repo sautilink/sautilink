@@ -23,7 +23,7 @@ test('discoverable route reads only the public profile slice and requires discov
   const source = await read('src/app.js');
 
   assert.ok(source.includes("pathname.match(/^(?:\\/app)?\\/u\\/([^/]+)\\/?$/)"));
-  assert.match(source, /\.select\('id, username, display_name, bio, location, website_url, is_discoverable, is_verified, verification_badge_type, followers_count, following_count'\)/);
+  assert.match(source, /\.select\('id, username, display_name, bio, avatar_key, updated_at, location, website_url, is_discoverable, is_verified, verification_badge_type, followers_count, following_count'\)/);
   assert.match(source, /\.eq\('username', username\)[\s\S]*?\.eq\('is_discoverable', true\)/);
   assert.match(source, /currentMember\?\.username === route\.username/);
   assert.match(source, /renderProfile\(currentMember, \{ owner: true \}\)/);

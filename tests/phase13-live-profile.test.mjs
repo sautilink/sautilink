@@ -24,7 +24,7 @@ test('profile save refreshes auth and writes only the approved owner columns', a
   const source = await read('src/app.js');
   assert.match(source, /supabase\.auth\.getUser\(\)/);
   assert.match(source, /\.from\('social_profiles'\)[\s\S]*?\.update\(updates\)[\s\S]*?\.eq\('id', user\.id\)/);
-  assert.match(source, /bio, location, website_url, is_discoverable/);
+  assert.match(source, /bio, avatar_key, updated_at, location, website_url, is_discoverable/);
   assert.match(source, /\['http:', 'https:'\]\.includes\(url\.protocol\)/);
 
   const updateObject = source.match(/return \{\s*bio,[\s\S]*?is_discoverable:[\s\S]*?\};/);

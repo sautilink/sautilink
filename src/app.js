@@ -166,7 +166,7 @@ let sautiConversationRequest = 0;
 let activeSautiConversation = null;
 let threadReplyRequestId = '';
 const THREAD_DRAFT_PREFIX = 'sautilink.thread.draft.v1:';
-const THREAD_POST_SELECT = 'id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, is_discoverable, is_verified, verification_badge_type)';
+const THREAD_POST_SELECT = 'id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)';
 const THREAD_RENDER_DEPTH = 4;
 let circlesRequest = 0;
 let activeCircle = null;
@@ -556,6 +556,44 @@ function showSignedOut(mode = 'login') {
 
 function avatarLetter(value) {
   return String(value || 'S').trim().charAt(0).toUpperCase() || 'S';
+}
+
+function profileAvatarUrl(profile) {
+  const username = String(profile?.username || '').trim();
+  const avatarKey = String(profile?.avatar_key || '').trim();
+  if (!username || !avatarKey) return '';
+  const url = new URL(`/api/profile-media/${encodeURIComponent(username)}/avatar`, window.location.origin);
+  url.searchParams.set('v', avatarKey);
+  return `${url.pathname}${url.search}`;
+}
+
+function renderProfileAvatar(node, profile, fallbackName = '') {
+  if (!node) return;
+  const displayName = fallbackName || profile?.display_name || profile?.username || 'SautiLink member';
+  const fallback = document.createElement('span');
+  fallback.className = 'profile-avatar-fallback';
+  fallback.textContent = avatarLetter(displayName);
+  node.replaceChildren(fallback);
+  node.classList.remove('has-profile-photo');
+  node.setAttribute('aria-hidden', 'true');
+
+  const source = profileAvatarUrl(profile);
+  if (!source) return;
+
+  const image = document.createElement('img');
+  image.className = 'profile-avatar-photo';
+  image.alt = '';
+  image.hidden = true;
+  image.decoding = 'async';
+  image.loading = 'lazy';
+  image.addEventListener('load', () => {
+    image.hidden = false;
+    fallback.hidden = true;
+    node.classList.add('has-profile-photo');
+  }, { once: true });
+  image.addEventListener('error', () => image.remove(), { once: true });
+  image.src = source;
+  node.append(image);
 }
 
 function formatSautiTime(value) {
@@ -1185,6 +1223,179 @@ function settingsMessage(message, type = 'success') {
   setMessage(byId('settings-message'), message, type);
 }
 
+const VERIFICATION_SOCIAL_FIELDS = Object.freeze([
+  ['verification-facebook', 'Facebook', 'https://facebook.com/'],
+  ['verification-instagram', 'Instagram', 'https://instagram.com/'],
+  ['verification-tiktok', 'TikTok', 'https://tiktok.com/@'],
+  ['verification-youtube', 'YouTube', 'https://youtube.com/@'],
+]);
+
+function syncVerificationRequestStatus(profile, { loading = false } = {}) {
+  const status = byId('settings-verification-status');
+  const badge = byId('settings-verification-badge');
+  const request = byId('settings-verification-request');
+  const note = byId('settings-verification-note');
+  if (!status || !badge || !request || !note) return;
+
+  if (loading) {
+    status.textContent = 'Checking…';
+    badge.hidden = true;
+    request.hidden = true;
+    return;
+  }
+
+  const verified = Boolean(profile?.is_verified);
+  status.textContent = verified ? 'Verified' : 'Unverified';
+  status.classList.toggle('verified', verified);
+  badge.hidden = !verified;
+  request.hidden = verified;
+  note.textContent = verified
+    ? 'Your account currently has an active SautiLink verification badge.'
+    : 'You can request review below. We return feedback within 72 hours.';
+  if (verified) applyVerificationBadgeAsset(badge, profile?.verification_badge_type);
+}
+
+function verificationSocialHandle(value) {
+  return String(value || '').trim().replace(/^@+/, '');
+}
+
+function verificationArticleLinks() {
+  return String(byId('verification-articles')?.value || '')
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function verificationArticleLinksValid(links) {
+  if (links.length > 5) return false;
+  return links.every((value) => {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'https:' || url.protocol === 'http:';
+    } catch {
+      return false;
+    }
+  });
+}
+
+function syncVerificationRequestState() {
+  const form = byId('verification-request-form');
+  const send = byId('verification-request-send');
+  const evidenceMessage = byId('verification-evidence-message');
+  if (!form || !send || !evidenceMessage) return;
+
+  let socialValid = true;
+  const socialHandles = VERIFICATION_SOCIAL_FIELDS.map(([id]) => {
+    const input = byId(id);
+    const handle = verificationSocialHandle(input?.value);
+    const valid = !handle || /^[a-z0-9._-]{1,80}$/i.test(handle);
+    input?.setCustomValidity(valid ? '' : 'Enter only the account username, not a full link.');
+    if (!valid) socialValid = false;
+    return handle;
+  });
+
+  const articleInput = byId('verification-articles');
+  const articleLinks = verificationArticleLinks();
+  const articleValid = verificationArticleLinksValid(articleLinks);
+  articleInput?.setCustomValidity(articleValid ? '' : 'Use up to five complete http:// or https:// article links, one per line.');
+
+  const hasEvidence = socialHandles.some(Boolean) || articleLinks.length > 0;
+  evidenceMessage.hidden = hasEvidence || form.dataset.evidenceTouched !== 'true';
+  const ready = form.checkValidity()
+    && socialValid
+    && articleValid
+    && hasEvidence
+    && Boolean(byId('verification-consent')?.checked);
+  send.disabled = !ready;
+  send.setAttribute('aria-disabled', String(!ready));
+}
+
+function openVerificationRequestDialog() {
+  if (!currentMember || currentMember.is_verified) return;
+  const dialog = byId('verification-request-dialog');
+  const form = byId('verification-request-form');
+  form.reset();
+  form.dataset.evidenceTouched = 'false';
+  byId('verification-legal-name').value = currentMember.display_name || currentMember.full_name || '';
+  byId('verification-email').value = currentAccountEmail || '';
+  byId('verification-username').value = currentMember.username ? `@${currentMember.username}` : '';
+  setMessage(byId('verification-request-message'), '', '');
+  byId('verification-evidence-message').hidden = true;
+  syncVerificationRequestState();
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+  window.setTimeout(() => byId('verification-legal-name').focus(), 0);
+}
+
+function closeVerificationRequestDialog({ restoreFocus = false } = {}) {
+  const dialog = byId('verification-request-dialog');
+  if (typeof dialog?.close === 'function' && dialog.open) dialog.close();
+  else dialog?.removeAttribute('open');
+  if (restoreFocus) byId('settings-verification-request')?.focus();
+}
+
+function verificationRequestEmailBody() {
+  const socialLines = VERIFICATION_SOCIAL_FIELDS.map(([id, label, prefix]) => {
+    const handle = verificationSocialHandle(byId(id)?.value);
+    return `- ${label}: ${handle ? `${prefix}${handle}` : 'Not provided'}`;
+  });
+  const articles = verificationArticleLinks();
+  const articleLines = articles.length
+    ? articles.map((url) => `- ${url}`)
+    : ['- Not provided'];
+
+  return [
+    'Verification Badge Request',
+    '',
+    'SautiLink account',
+    `- Full legal name: ${byId('verification-legal-name').value.trim()}`,
+    `- Artist or famous name: ${byId('verification-famous-name').value.trim() || 'Not provided'}`,
+    `- Email: ${byId('verification-email').value.trim()}`,
+    `- Username: ${byId('verification-username').value.trim()}`,
+    `- Account category: ${byId('verification-category').value}`,
+    `- Country of residence: ${byId('verification-country').value.trim()}`,
+    '',
+    'Public social accounts',
+    ...socialLines,
+    '',
+    'News or blog articles',
+    ...articleLines,
+    '',
+    'Reason for verification',
+    byId('verification-reason').value.trim(),
+    '',
+    'Consent: I agree to the SautiLink Privacy Policy and Terms.',
+    'Government ID: Not attached or requested through this form.',
+  ].join('\r\n');
+}
+
+function submitVerificationRequest(event) {
+  event.preventDefault();
+  const form = byId('verification-request-form');
+  form.dataset.evidenceTouched = 'true';
+  syncVerificationRequestState();
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+  if (byId('verification-request-send').disabled) {
+    byId('verification-evidence-message').hidden = false;
+    return;
+  }
+
+  const subject = encodeURIComponent('Verification Badge Request');
+  const body = encodeURIComponent(verificationRequestEmailBody());
+  window.location.assign(`mailto:team@sautilink.com?subject=${subject}&body=${body}`);
+}
+
+function updateVerificationRequestState(event) {
+  const form = byId('verification-request-form');
+  if (event?.target?.closest?.('.verification-social-fieldset')) {
+    form.dataset.evidenceTouched = 'true';
+  }
+  syncVerificationRequestState();
+}
+
 function settingsPanel(section) {
   const allowed = new Set(['account', 'privacy', 'notifications', 'safety', 'data']);
   const target = allowed.has(section) ? section : 'account';
@@ -1497,8 +1708,7 @@ function renderSettingsSafetyRows(kind, rows, profiles) {
     item.className = 'settings-account-row';
 
     const avatar = document.createElement('span');
-    avatar.setAttribute('aria-hidden', 'true');
-    avatar.textContent = avatarLetter(display);
+    renderProfileAvatar(avatar, profile, display);
 
     const copy = document.createElement('div');
     const strong = document.createElement('strong');
@@ -1595,6 +1805,7 @@ async function loadSettings() {
   byId('settings-username').textContent = `@${currentMember?.username || 'username'}`;
   byId('settings-email').textContent = currentAccountEmail || 'Unavailable';
   byId('settings-email-verified').hidden = !currentAccountEmail;
+  syncVerificationRequestStatus(null, { loading: true });
 
   try {
     const [
@@ -1608,7 +1819,7 @@ async function loadSettings() {
     ] = await Promise.all([
       supabase
         .from('social_profiles')
-        .select('id,username,is_discoverable,allow_external_indexing,dm_access')
+        .select('id,username,display_name,is_verified,verification_badge_type,is_discoverable,allow_external_indexing,dm_access')
         .eq('id', currentMemberId)
         .single(),
       ensureSettingsPreferences(),
@@ -1625,6 +1836,8 @@ async function loadSettings() {
     if (muteResult.error) throw muteResult.error;
 
     currentSettingsPreferences = preferences;
+    currentMember = { ...currentMember, ...profileResult.data };
+    syncVerificationRequestStatus(profileResult.data);
 
     byId('settings-discoverable').checked = Boolean(profileResult.data.is_discoverable);
     byId('settings-external-indexing').checked = Boolean(profileResult.data.allow_external_indexing);
@@ -1654,7 +1867,7 @@ async function loadSettings() {
     if (targetIds.length) {
       const profileLookup = await supabase
         .from('social_profiles')
-        .select('id,username,display_name')
+        .select('id,username,display_name,avatar_key,updated_at')
         .in('id', targetIds);
       if (!profileLookup.error) profiles = profileLookup.data || [];
     }
@@ -1667,6 +1880,7 @@ async function loadSettings() {
     syncMessageBadges(messageBadgesEnabled() ? messageUnreadCount : 0);
   } catch (error) {
     if (requestId !== settingsRequest) return;
+    syncVerificationRequestStatus(currentMember);
     settingsMessage(error?.message || 'Settings could not be loaded.', 'error');
   }
 }
@@ -2831,23 +3045,7 @@ function createSautiCard(item) {
 
   const avatar = document.createElement('div');
   avatar.className = 'sauti-card-avatar';
-
-  const fallback = document.createElement('span');
-  fallback.textContent = avatarLetter(displayName);
-  avatar.append(fallback);
-
-  if (username && username !== 'member') {
-    const image = document.createElement('img');
-    image.alt = '';
-    image.hidden = true;
-    image.addEventListener('load', () => {
-      image.hidden = false;
-      fallback.hidden = true;
-    }, { once: true });
-    image.addEventListener('error', () => image.remove(), { once: true });
-    image.src = `/api/profile-media/${encodeURIComponent(username)}/avatar`;
-    avatar.append(image);
-  }
+  renderProfileAvatar(avatar, author, displayName);
 
   const main = document.createElement('div');
   main.className = 'sauti-card-main';
@@ -3055,7 +3253,7 @@ async function loadQuotedPostMap(posts) {
 
   const { data, error } = await supabase
     .from('social_posts')
-    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, is_discoverable, is_verified, verification_badge_type)')
+    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
     .in('id', quoteIds);
 
   if (error) throw error;
@@ -3070,7 +3268,7 @@ async function hydrateStreamEvents(events) {
 
   const postQuery = supabase
     .from('social_posts')
-    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, is_discoverable, is_verified, verification_badge_type)')
+    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
     .in('id', postIds);
 
   const actorQuery = supabase
@@ -3322,7 +3520,7 @@ function createCommentNode(comment) {
 
   const avatar = document.createElement('span');
   avatar.className = 'sauti-comment-avatar';
-  avatar.textContent = avatarLetter(displayName);
+  renderProfileAvatar(avatar, author, displayName);
 
   const main = document.createElement('div');
   main.className = 'sauti-comment-main';
@@ -3375,7 +3573,7 @@ async function loadComments(postId, panel) {
 
   const { data, error } = await supabase
     .from('social_post_comments')
-    .select('id, post_id, author_id, body, created_at, author:social_profiles!social_post_comments_author_id_fkey(username, display_name, is_discoverable, is_verified, verification_badge_type)')
+    .select('id, post_id, author_id, body, created_at, author:social_profiles!social_post_comments_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
     .eq('post_id', postId)
     .order('created_at', { ascending: true })
     .limit(50);
@@ -3934,6 +4132,20 @@ function validateProfileMediaFile(slot, file) {
   return '';
 }
 
+async function refreshCurrentMemberAvatar() {
+  if (!currentMemberId) return;
+  const { data, error } = await supabase
+    .from('social_profiles')
+    .select('id,username,display_name,avatar_key,updated_at')
+    .eq('id', currentMemberId)
+    .maybeSingle();
+  if (error || !data) return;
+  currentMember = { ...currentMember, ...data };
+  const displayName = currentMember.display_name || currentMember.full_name || currentMember.username;
+  renderProfileAvatar(byId('member-avatar'), currentMember, displayName);
+  renderProfileAvatar(byId('rail-avatar'), currentMember, displayName);
+}
+
 async function uploadProfileMedia(slot, file) {
   const message = byId('profile-media-message');
   setMessage(message, '', '');
@@ -3967,6 +4179,7 @@ async function uploadProfileMedia(slot, file) {
 
     setMessage(message, slot === 'avatar' ? 'Profile photo updated.' : 'Header image updated.', 'success');
     await loadProfileMedia(currentMember.username, currentMember.display_name || currentMember.full_name || currentMember.username);
+    if (slot === 'avatar') await refreshCurrentMemberAvatar();
   } catch (error) {
     setMessage(message, error?.message === 'AUTH_REQUIRED'
       ? 'Sign in again before changing profile media.'
@@ -4003,6 +4216,7 @@ async function removeProfileMedia(slot) {
 
     setMessage(message, slot === 'avatar' ? 'Profile photo removed.' : 'Header image removed.', 'success');
     await loadProfileMedia(currentMember.username, currentMember.display_name || currentMember.full_name || currentMember.username);
+    if (slot === 'avatar') await refreshCurrentMemberAvatar();
   } catch (error) {
     setMessage(message, error?.message === 'AUTH_REQUIRED'
       ? 'Sign in again before changing profile media.'
@@ -4305,8 +4519,7 @@ function renderNotificationItem(notification, actor, circle, post) {
 
   const avatar = document.createElement('span');
   avatar.className = 'notification-avatar';
-  avatar.setAttribute('aria-hidden', 'true');
-  avatar.textContent = avatarLetter(actor?.display_name || actor?.username || 'S');
+  renderProfileAvatar(avatar, actor, actor?.display_name || actor?.username || 'S');
 
   const copy = document.createElement('span');
   copy.className = 'notification-copy';
@@ -4392,7 +4605,7 @@ async function loadNotifications() {
 
   const [profileResult, circleResult, postResult] = await Promise.all([
     actorIds.length
-      ? supabase.from('social_profiles').select('id, username, display_name, is_verified, verification_badge_type').in('id', actorIds)
+      ? supabase.from('social_profiles').select('id, username, display_name, avatar_key, updated_at, is_verified, verification_badge_type').in('id', actorIds)
       : Promise.resolve({ data: [] }),
     circleIds.length
       ? supabase.from('social_circles').select('id, slug, name').in('id', circleIds)
@@ -4484,8 +4697,7 @@ function renderDiscoverProfile(profile) {
   const displayName = profile.display_name || profile.username || 'SautiLink member';
   const avatar = document.createElement('span');
   avatar.className = 'avatar discover-profile-avatar';
-  avatar.setAttribute('aria-hidden', 'true');
-  avatar.textContent = avatarLetter(displayName);
+  renderProfileAvatar(avatar, profile, displayName);
 
   const copy = document.createElement('div');
   copy.className = 'discover-profile-copy';
@@ -4547,7 +4759,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
       .select('muted_id')
       .eq('muter_id', currentMemberId);
 
-    const profileSelect = 'id, username, display_name, bio, is_verified, verification_badge_type, followers_count, following_count';
+    const profileSelect = 'id, username, display_name, bio, avatar_key, updated_at, is_verified, verification_badge_type, followers_count, following_count';
     let profilePromise;
 
     if (query) {
@@ -4584,7 +4796,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
 
     let postQuery = supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, is_discoverable, is_verified, verification_badge_type)')
+      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
       .eq('visibility', 'public')
       .is('circle_id', null)
       .is('reply_to_post_id', null)
@@ -4678,7 +4890,7 @@ async function loadSavedSauti() {
 
     const { data: posts, error: postError } = await supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, is_discoverable, is_verified, verification_badge_type)')
+      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
       .in('id', postIds);
 
     if (postError) throw postError;
@@ -4739,7 +4951,7 @@ async function loadSharedSautiTarget(postId) {
   try {
     const { data: post, error } = await supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, is_discoverable, is_verified, verification_badge_type)')
+      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
       .eq('id', postId)
       .maybeSingle();
 
@@ -5217,8 +5429,7 @@ function renderMessageInboxItem(row, peer) {
 
   const avatar = document.createElement('span');
   avatar.className = 'avatar message-inbox-avatar';
-  avatar.setAttribute('aria-hidden', 'true');
-  avatar.textContent = avatarLetter(displayName);
+  renderProfileAvatar(avatar, peer, displayName);
 
   const copy = document.createElement('span');
   copy.className = 'message-inbox-copy';
@@ -5288,7 +5499,7 @@ async function loadMessagesInbox() {
     if (peerIds.length) {
       const { data } = await supabase
         .from('social_profiles')
-        .select('id, username, display_name, is_verified, verification_badge_type')
+        .select('id, username, display_name, avatar_key, updated_at, is_verified, verification_badge_type')
         .in('id', peerIds);
       profiles = data || [];
     }
@@ -5458,6 +5669,37 @@ async function markActiveConversationRead() {
   if (!error) void refreshMessageBadge();
 }
 
+function renderMessageThreadProfile(peer) {
+  const displayName = peer?.display_name || peer?.username || 'SautiLink member';
+  renderProfileAvatar(byId('message-thread-avatar'), peer, displayName);
+  const threadName = byId('message-thread-name');
+  threadName.replaceChildren(document.createTextNode(displayName));
+  threadName.classList.toggle('verified', Boolean(peer?.is_verified));
+  if (peer?.is_verified) {
+    threadName.append(createVerificationBadge(
+      normalizeVerificationBadgeType(peer.verification_badge_type) === 'team'
+        ? 'Verified SautiLink Team account'
+        : 'Verified account',
+      peer.verification_badge_type,
+    ));
+  }
+  byId('message-thread-username').textContent = peer?.username ? `@${peer.username}` : 'Private conversation';
+}
+
+async function refreshActiveConversationProfile() {
+  const conversationId = activeConversation?.id;
+  const peerId = activeConversation?.peerId;
+  if (!conversationId || !peerId) return;
+  const { data, error } = await supabase
+    .from('social_profiles')
+    .select('id, username, display_name, avatar_key, updated_at, is_verified, verification_badge_type')
+    .eq('id', peerId)
+    .maybeSingle();
+  if (error || !data || activeConversation?.id !== conversationId) return;
+  activeConversation.peer = data;
+  renderMessageThreadProfile(data);
+}
+
 async function loadMessageThread(conversationId) {
   if (!currentMemberId || !conversationId) return;
   if (dmConversationRealtimeId && dmConversationRealtimeId !== conversationId) {
@@ -5503,7 +5745,7 @@ async function loadMessageThread(conversationId) {
   const [profileResult, messageResult] = await Promise.all([
     supabase
       .from('social_profiles')
-      .select('id, username, display_name, is_verified, verification_badge_type')
+      .select('id, username, display_name, avatar_key, updated_at, is_verified, verification_badge_type')
       .eq('id', peerId)
       .maybeSingle(),
     supabase
@@ -5525,7 +5767,6 @@ async function loadMessageThread(conversationId) {
   }
 
   const peer = profileResult.data || null;
-  const displayName = peer?.display_name || peer?.username || 'SautiLink member';
   activeConversation = {
     id: conversation.id,
     peerId,
@@ -5534,19 +5775,7 @@ async function loadMessageThread(conversationId) {
     mutedByYou: false,
   };
 
-  byId('message-thread-avatar').textContent = avatarLetter(displayName);
-  const threadName = byId('message-thread-name');
-  threadName.replaceChildren(document.createTextNode(displayName));
-  threadName.classList.toggle('verified', Boolean(peer?.is_verified));
-  if (peer?.is_verified) {
-    threadName.append(createVerificationBadge(
-      normalizeVerificationBadgeType(peer.verification_badge_type) === 'team'
-        ? 'Verified SautiLink Team account'
-        : 'Verified account',
-      peer.verification_badge_type,
-    ));
-  }
-  byId('message-thread-username').textContent = peer?.username ? `@${peer.username}` : 'Private conversation';
+  renderMessageThreadProfile(peer);
 
   const messages = messageResult.data || [];
   messages.forEach((message) => feed.append(renderDirectMessage(message)));
@@ -6254,7 +6483,7 @@ async function loadCircleStream(circleId) {
   try {
     const { data: posts, error } = await supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, is_discoverable, is_verified, verification_badge_type)')
+      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
       .eq('circle_id', circleId)
       .eq('visibility', 'circle')
       .is('reply_to_post_id', null)
@@ -6505,8 +6734,8 @@ function syncMemberIdentityVisuals() {
   byId('rail-name').textContent = displayName;
   byId('rail-username').textContent = `@${username}`;
   byId('member-first-name').textContent = displayName.split(/\s+/)[0];
-  byId('member-avatar').textContent = avatarLetter(displayName);
-  byId('rail-avatar').textContent = avatarLetter(displayName);
+  renderProfileAvatar(byId('member-avatar'), currentMember, displayName);
+  renderProfileAvatar(byId('rail-avatar'), currentMember, displayName);
   renderProfile(currentMember, { owner: true });
 }
 
@@ -6784,7 +7013,7 @@ async function loadDiscoverableProfile(username) {
 
   const { data, error } = await supabase
     .from('social_profiles')
-    .select('id, username, display_name, bio, location, website_url, is_discoverable, is_verified, verification_badge_type, followers_count, following_count')
+    .select('id, username, display_name, bio, avatar_key, updated_at, location, website_url, is_discoverable, is_verified, verification_badge_type, followers_count, following_count')
     .eq('username', username)
     .eq('is_discoverable', true)
     .maybeSingle();
@@ -7000,13 +7229,11 @@ function renderMember(profile, userId = currentMemberId) {
   delete document.body.dataset.authMode;
   const displayName = profile.display_name || profile.full_name || profile.username;
   const username = profile.username;
-  const letter = avatarLetter(displayName);
-
   currentMember = { ...profile };
   currentMemberId = userId || profile.id || currentMemberId;
 
-  byId('member-avatar').textContent = letter;
-  byId('rail-avatar').textContent = letter;
+  renderProfileAvatar(byId('member-avatar'), currentMember, displayName);
+  renderProfileAvatar(byId('rail-avatar'), currentMember, displayName);
   byId('member-display-name').textContent = displayName;
   byId('member-username').textContent = `@${username}`;
   byId('rail-name').textContent = displayName;
@@ -7068,7 +7295,7 @@ async function loadMember(user) {
 
   const { data: social, error: socialError } = await supabase
     .from('social_profiles')
-    .select('id, username, display_name, bio, location, website_url, is_discoverable, is_verified, verification_badge_type, followers_count, following_count')
+    .select('id, username, display_name, bio, avatar_key, updated_at, location, website_url, is_discoverable, is_verified, verification_badge_type, followers_count, following_count')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -7426,9 +7653,13 @@ byId('message-thread-feed').addEventListener('click', (event) => {
 
 window.addEventListener('focus', () => {
   if (currentMemberId) {
+    void refreshCurrentMemberAvatar();
     void refreshNotificationBadge();
     void refreshMessageBadge();
     void ensureDmInboxRealtime();
+    if (!notificationsSurface.hidden) void loadNotifications();
+    if (!messagesSurface.hidden && !activeConversation?.id) void loadMessagesInbox();
+    if (activeConversation?.id) void refreshActiveConversationProfile();
     if (activeConversation?.id) void syncActiveMessageThreadRealtime({ markRead: true });
   }
 });
@@ -7436,6 +7667,9 @@ window.addEventListener('focus', () => {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && currentMemberId) {
     void ensureDmInboxRealtime();
+    if (!notificationsSurface.hidden) void loadNotifications();
+    if (!messagesSurface.hidden && !activeConversation?.id) void loadMessagesInbox();
+    if (activeConversation?.id) void refreshActiveConversationProfile();
     if (activeConversation?.id) void syncActiveMessageThreadRealtime({ markRead: true });
   }
 });
@@ -8037,6 +8271,19 @@ byId('settings-signout-others').addEventListener('click', async (event) => {
   }
 });
 
+byId('settings-verification-request').addEventListener('click', openVerificationRequestDialog);
+byId('verification-request-close').addEventListener('click', () => closeVerificationRequestDialog({ restoreFocus: true }));
+byId('verification-request-cancel').addEventListener('click', () => closeVerificationRequestDialog({ restoreFocus: true }));
+byId('verification-request-form').addEventListener('input', updateVerificationRequestState);
+byId('verification-request-form').addEventListener('change', updateVerificationRequestState);
+byId('verification-request-form').addEventListener('submit', submitVerificationRequest);
+byId('verification-request-dialog').addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) closeVerificationRequestDialog({ restoreFocus: true });
+});
+byId('verification-request-dialog').addEventListener('close', () => {
+  setMessage(byId('verification-request-message'), '', '');
+});
+
 byId('settings-blocked-list').addEventListener('click', (event) => {
   const button = event.target.closest('[data-settings-safety-action="unblock"]');
   if (button) void removeSettingsSafetyTarget('unblock', button.dataset.targetId, button);
@@ -8442,7 +8689,7 @@ byId('profile-form').addEventListener('submit', async (event) => {
       .from('social_profiles')
       .update(updates)
       .eq('id', user.id)
-      .select('id, username, display_name, bio, location, website_url, is_discoverable, is_verified, verification_badge_type, followers_count, following_count')
+      .select('id, username, display_name, bio, avatar_key, updated_at, location, website_url, is_discoverable, is_verified, verification_badge_type, followers_count, following_count')
       .maybeSingle();
     if (error) throw error;
     if (!data) throw new Error('The profile was not updated. Refresh the page and try again.');

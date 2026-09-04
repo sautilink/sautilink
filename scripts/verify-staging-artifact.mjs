@@ -119,8 +119,8 @@ if (!appHtml.includes('id="settings-surface"')) throw new Error('staged app shel
 if (/Private preview|Phase 31|Phase 27|Foundation in progress/i.test(appHtml)) {
   throw new Error('development presentation copy leaked into staged app shell');
 }
-if (!appHtml.includes('theme-init.js?v=20260903-home1')) throw new Error('staged theme bootstrap is missing');
-if (!appHtml.includes('app.js?v=20260903-home1')) throw new Error('staged app JS cache marker is stale');
-if (!appHtml.includes('app.css?v=20260903-home1')) throw new Error('staged app CSS cache marker is stale');
+if (!appHtml.includes('theme-init.js?v=20260904-account1')) throw new Error('staged theme bootstrap is missing');
+if (!appHtml.includes('app.js?v=20260904-account1')) throw new Error('staged app JS cache marker is stale');
+if (!appHtml.includes('app.css?v=20260904-account1')) throw new Error('staged app CSS cache marker is stale');
 
 console.log(`Verified ${files.length} staged files: allowlist intact, no source maps or sensitive markers.`);
