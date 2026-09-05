@@ -49,7 +49,7 @@ test('regular and production builds include the carousel module and media-limit 
   const regularBuild = await read('scripts/build-app.mjs');
   const productionBuild = await read('scripts/build-production-release.mjs');
 
-  assert.match(packageJson, /"build:app": "node scripts\/build-app\.mjs"/);
+  assert.match(packageJson, /"build:app": "node scripts\/build-app\.mjs[^\n]*--inject:\.\/src\/post-media-carousel\.js/);
   assert.match(regularBuild, /transformPostMediaSource/);
   assert.match(regularBuild, /post-media-carousel\.js/);
   assert.match(productionBuild, /transformPostMediaSource/);
