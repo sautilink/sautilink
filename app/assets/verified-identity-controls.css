@@ -1,0 +1,17 @@
+.identity-username-field.verified-username-locked {
+  opacity: .58;
+  background: rgba(127, 127, 127, .08);
+  border-color: rgba(127, 127, 127, .28);
+}
+
+.identity-username-field.verified-username-locked input:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+}
+
+#profile-username-submit[data-verified-username-locked="true"] {
+  cursor: not-allowed;
+  opacity: .45;
+}
