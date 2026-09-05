@@ -1,5 +1,6 @@
 const CAPTION_SELECTOR = '.sauti-card-body, .sauti-caption-text';
-const ENTITY_STYLE_ID = 'sautilink-caption-entities-style';
+const ENTITY_STYLESHEET_ID = 'sautilink-caption-entities-style';
+const ENTITY_STYLESHEET_HREF = '/app/assets/caption-entities.css?v=20260905-caption1';
 const ENTITY_ATTR = 'data-caption-entity';
 const ENTITY_CANDIDATE_RE = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+|@[a-z0-9][a-z0-9._]{2,29}|#[\p{L}\p{N}_]{1,64})/giu;
 
@@ -11,6 +12,10 @@ function isMentionBoundary(source, index) {
 function isHashtagBoundary(source, index) {
   if (index === 0) return true;
   return !/[\p{L}\p{N}_]/u.test(source[index - 1]);
+}
+
+function trimMentionPunctuation(value) {
+  return String(value || '').replace(/\.+$/u, '');
 }
 
 function trimUrlPunctuation(value) {
@@ -40,7 +45,10 @@ export function hashtagSearchHref(tag) {
 }
 
 export function profileHref(mention) {
-  const username = String(mention || '').trim().replace(/^@/, '').toLowerCase();
+  const username = trimMentionPunctuation(mention)
+    .trim()
+    .replace(/^@/, '')
+    .toLowerCase();
   if (!/^[a-z0-9][a-z0-9._]{2,29}$/.test(username)) return '/discover';
   return `/u/${encodeURIComponent(username)}`;
 }
@@ -68,12 +76,15 @@ export function findCaptionEntities(value) {
 
     if (candidate.startsWith('@')) {
       if (!isMentionBoundary(source, start)) continue;
+      const displayText = trimMentionPunctuation(candidate);
+      const href = profileHref(displayText);
+      if (!displayText || href === '/discover') continue;
       entities.push({
         type: 'mention',
         start,
-        end: start + candidate.length,
-        text: candidate,
-        href: profileHref(candidate),
+        end: start + displayText.length,
+        text: displayText,
+        href,
       });
       continue;
     }
@@ -180,42 +191,13 @@ export function renderCaptionEntities(element) {
   return true;
 }
 
-function injectEntityStyles() {
-  if (document.getElementById(ENTITY_STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = ENTITY_STYLE_ID;
-  style.textContent = `
-    .sauti-card-body .sautilink-caption-entity,
-    .sauti-caption-text .sautilink-caption-entity {
-      color: var(--app-accent);
-      text-decoration: none;
-      overflow-wrap: anywhere;
-      cursor: pointer;
-    }
-    .sauti-card-body .sautilink-caption-hashtag,
-    .sauti-card-body .sautilink-caption-mention,
-    .sauti-caption-text .sautilink-caption-hashtag,
-    .sauti-caption-text .sautilink-caption-mention {
-      font-weight: 680;
-    }
-    .sauti-card-body .sautilink-caption-entity:hover,
-    .sauti-caption-text .sautilink-caption-entity:hover {
-      color: var(--app-accent-strong);
-      text-decoration: underline;
-      text-underline-offset: .16em;
-    }
-    .sauti-card-body .sautilink-caption-url,
-    .sauti-caption-text .sautilink-caption-url {
-      font-weight: inherit;
-    }
-    .sauti-card-body .sautilink-caption-entity:focus-visible,
-    .sauti-caption-text .sautilink-caption-entity:focus-visible {
-      outline: 2px solid var(--app-accent);
-      outline-offset: 2px;
-      border-radius: 3px;
-    }
-  `;
-  document.head.append(style);
+function ensureEntityStylesheet() {
+  if (document.getElementById(ENTITY_STYLESHEET_ID)) return;
+  const link = document.createElement('link');
+  link.id = ENTITY_STYLESHEET_ID;
+  link.rel = 'stylesheet';
+  link.href = ENTITY_STYLESHEET_HREF;
+  (document.head || document.documentElement).append(link);
 }
 
 function scanCaptionRoot(root) {
@@ -233,7 +215,7 @@ function scanCaptionRoot(root) {
 }
 
 function initCaptionEntities() {
-  injectEntityStyles();
+  ensureEntityStylesheet();
   scanCaptionRoot(document);
 
   const observedRoot = document.body || document.documentElement;
