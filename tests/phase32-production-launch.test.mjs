@@ -85,7 +85,7 @@ test('Phase 32 production build and verifier are permanent repository gates', as
     'sautilink-social-production-main',
     'sautilink-media-production',
     'Verify production cutover and account-entry root',
-    'data-sautilink-entry=\"login-redirect\"',
+    'data-sautilink-entry=\"account-choice\"',
     'signed-out production account API',
     'https://sautilink.com/login',
     'https://sautilink.com/signup',
