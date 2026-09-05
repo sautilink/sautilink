@@ -1,11 +1,11 @@
 const APP_REPLACEMENTS = Object.freeze([
-  ['.slice(0, 4)', '.slice(0, 5)'],
-  ['items.slice(0, 4)', 'items.slice(0, 5)'],
+  ['return composerMedia\n    .slice(0, 4)', 'return composerMedia\n    .slice(0, 5)'],
+  ['? items.slice(0, 4).filter', '? items.slice(0, 5).filter'],
   ['`${composerMedia.length} / 4`', '`${composerMedia.length} / 5`'],
   ['composerMedia.length >= 4', 'composerMedia.length >= 5'],
   ['Math.max(0, 4 - composerMedia.length)', 'Math.max(0, 5 - composerMedia.length)'],
   ["A post can include up to four media items.", "A post can include up to five media items."],
-  ['data.slice(0, 4)', 'data.slice(0, 5)'],
+  ['return Array.isArray(data) ? data.slice(0, 4) : [];', 'return Array.isArray(data) ? data.slice(0, 5) : [];'],
   ['composerMedia.length > 4', 'composerMedia.length > 5'],
   ['composerMedia.length < 4', 'composerMedia.length < 5'],
 ]);
