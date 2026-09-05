@@ -67,6 +67,7 @@ await build({
     resolve(workerSource, 'profile-activity.js'),
     resolve(workerSource, 'profile-route-states.js'),
     resolve(workerSource, 'professional-profile-category.js'),
+    resolve(workerSource, 'profile-media-upload-icons.js'),
   ],
   outfile: resolve(siteRoot, 'app/assets/app.js'),
   bundle: true,
