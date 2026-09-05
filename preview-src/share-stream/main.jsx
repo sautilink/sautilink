@@ -10,8 +10,8 @@ createRoot(document.getElementById('root')).render(
       enableStreamLab
       previewMilestone={{
         label: 'Preview 04',
-        title: 'Share a Sauti & Stream',
-        note: 'Seeded local interactions only. Drafts, new Sauti and Stream states never leave this device.',
+        title: 'Create Post & Feed',
+        note: 'Seeded local interactions only. Drafts, new posts and Feed states never leave this device.',
       }}
     />
   </StrictMode>,

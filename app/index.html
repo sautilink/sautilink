@@ -14,7 +14,7 @@
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <script src="/app/assets/theme-init.js?v=20260904-account2"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260905-badge2">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260905-homefeed">
 </head>
 <body>
   <a class="skip-link" href="#stream">Skip to main content</a>
@@ -44,7 +44,7 @@
         <nav class="app-nav" aria-label="Social navigation">
           <button class="nav-item active" type="button" data-member-view="stream" aria-current="page">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-9.5Z"></path></svg>
-            <span>Stream</span>
+            <span>Home</span>
           </button>
           <button class="nav-item" type="button" data-member-view="discover">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4M11 7.5v7M7.5 11h7"></path></svg>
@@ -103,7 +103,7 @@
 
     <main class="stream-column" id="stream">
       <header class="stream-header">
-        <h1 id="view-title">Stream</h1>
+        <h1 id="view-title">Home</h1>
         <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" title="Switch to light theme">
           <svg class="theme-toggle-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>
           <svg class="theme-toggle-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.2A8.4 8.4 0 0 1 8.8 3.8 8.5 8.5 0 1 0 20.2 15.2Z"></path></svg>
@@ -344,8 +344,8 @@
           </form>
 
           <article class="welcome-card" id="stream-welcome">
-            <h2>Welcome to your Stream, <span id="member-first-name">member</span>.</h2>
-            <p>Follow people or create a post to start seeing conversations here.</p>
+            <h2>Welcome to SautiLink, <span id="member-first-name">member</span>.</h2>
+            <p>Your Home feed brings together fresh posts from people and Sautify communities you follow.</p>
             <div class="member-identity"><strong id="member-display-name">SautiLink member</strong><span id="member-username">@username</span></div>
           </article>
 
@@ -355,14 +355,14 @@
           </section>
 
           <section class="stream-state error" id="stream-error" role="alert" hidden>
-            <h2>Stream could not load</h2>
+            <h2>Feed could not load</h2>
             <p id="stream-error-copy">Something went wrong while opening the latest posts.</p>
             <button class="secondary-action" id="stream-retry" type="button">Try again</button>
           </section>
 
-          <section class="stream-feed" id="stream-feed" aria-label="Chronological Stream"></section>
+          <section class="stream-feed" id="stream-feed" aria-label="Home feed"></section>
 
-          <section class="stream-empty" id="stream-empty" aria-label="Empty stream" hidden>
+          <section class="stream-empty" id="stream-empty" aria-label="Empty Home feed" hidden>
             <span></span><span></span><span></span>
             <h2>No posts yet.</h2>
             <p>Publish the first public post and it will appear here.</p>
@@ -379,7 +379,7 @@
             <div>
               <p class="section-label">Focused conversation</p>
               <h2>Conversation</h2>
-              <p>Replies are posts too. Open a branch, reply directly, or return to the chronological Stream.</p>
+              <p>Replies are posts too. Open a branch, reply directly, or return to your Home feed.</p>
             </div>
             <label class="conversation-sort">
               <span>Order</span>
@@ -736,9 +736,9 @@
               </div>
             </article>
 
-            <section class="circle-stream" id="circle-stream" aria-label="Sautify Stream" hidden>
+            <section class="circle-stream" id="circle-stream" aria-label="Sautify posts" hidden>
               <div class="circle-stream-heading">
-                <div><p class="section-label">Member conversation</p><h3>Sautify Stream</h3></div>
+                <div><p class="section-label">Member conversation</p><h3>Sautify posts</h3></div>
                 <span>Members only</span>
               </div>
 
@@ -773,11 +773,11 @@
                 <p>Loading Sautify posts…</p>
               </section>
               <section class="stream-state error circle-stream-state" id="circle-stream-error" role="alert" hidden>
-                <h2>Sautify Stream could not load</h2>
+                <h2>Sautify posts could not load</h2>
                 <p>Try again without leaving this Sautify.</p>
                 <button class="secondary-action" id="circle-stream-retry" type="button">Try again</button>
               </section>
-              <section class="stream-feed circle-stream-feed" id="circle-stream-feed" aria-label="Sautify Stream posts"></section>
+              <section class="stream-feed circle-stream-feed" id="circle-stream-feed" aria-label="Sautify posts"></section>
               <section class="stream-empty circle-stream-empty-state" id="circle-stream-empty" hidden>
                 <span></span><span></span><span></span>
                 <h2>No Sautify posts yet.</h2>
@@ -785,7 +785,7 @@
               </section>
               <section class="circle-stream-locked" id="circle-stream-locked" hidden>
                 <p class="section-label">Members only</p>
-                <h3 id="circle-stream-locked-title">Join to open the Sautify Stream</h3>
+                <h3 id="circle-stream-locked-title">Join to view Sautify posts</h3>
                 <p id="circle-stream-locked-message">Members can read and publish posts inside this Sautify.</p>
               </section>
             </section>
@@ -988,7 +988,7 @@
               <p class="settings-empty" id="settings-blocked-empty" hidden>No blocked accounts.</p>
             </article>
             <article class="settings-card">
-              <div class="settings-card-title"><strong>Muted accounts</strong><small>Their content and social notifications stay out of your Stream.</small></div>
+              <div class="settings-card-title"><strong>Muted accounts</strong><small>Their content and social notifications stay out of your Home feed.</small></div>
               <div class="settings-account-list" id="settings-muted-list"></div>
               <p class="settings-empty" id="settings-muted-empty" hidden>No muted accounts.</p>
             </article>
@@ -1210,7 +1210,7 @@
   </div>
 
   <nav class="mobile-nav" aria-label="Mobile social navigation">
-    <button class="active" type="button" data-member-view="stream" aria-label="Stream" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-9.5Z"></path></svg></button>
+    <button class="active" type="button" data-member-view="stream" aria-label="Home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-9.5Z"></path></svg></button>
     <button type="button" data-member-view="discover" aria-label="Discover"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4M11 7.5v7M7.5 11h7"></path></svg></button>
     <button type="button" data-member-view="messages" aria-label="Messages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v11H8l-4 3v-14Z"></path><path d="M8 10h8M8 13h5"></path></svg><span class="mobile-notification-badge" data-message-badge hidden>0</span></button>
     <button type="button" data-member-view="notifications" aria-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span class="mobile-notification-badge" data-notification-badge hidden>0</span></button>
@@ -1390,6 +1390,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="/app/assets/app.js?v=20260905-badge2"></script>
+  <script type="module" src="/app/assets/app.js?v=20260905-homefeed"></script>
 </body>
 </html>

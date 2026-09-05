@@ -6471,7 +6471,7 @@ function updateCircleComposerState() {
   const mentionedReady = replies.value !== 'mentioned' || composerHasMention(textarea.value);
   count.textContent = String(length);
   note.textContent = !navigator.onLine
-    ? 'Connect to post. Sautify drafts can be saved from the Stream composer.'
+    ? 'Connect to post. Sautify drafts can be saved from the Home composer.'
     : `${replyAccessLabel(replies.value)} can reply in this Sautify`;
   submit.disabled = !allowed || !navigator.onLine || !textarea.value.trim() || length > 500 || !mentionedReady || circleStreamLoading;
 }
@@ -6494,7 +6494,7 @@ function syncCircleStreamAccess(circle, membership) {
   if (!allowed) {
     circleStreamRequest += 1;
     byId('circle-stream-loading').hidden = true;
-    lockedTitle.textContent = circle.join_policy === 'approval' ? 'Membership approval required' : 'Join to open the Sautify Stream';
+    lockedTitle.textContent = circle.join_policy === 'approval' ? 'Membership approval required' : 'Join to view Sautify posts';
     lockedMessage.textContent = circle.join_policy === 'approval'
       ? 'Approved members can read and post inside this Sautify.'
       : 'Members can read and post inside this Sautify.';
@@ -6575,7 +6575,7 @@ async function shareCircleSauti() {
     return setMessage(message, 'Mention at least one SautiLink username or change who can reply.');
   }
   if (!navigator.onLine) {
-    return setMessage(message, 'You are offline. Use the Stream composer to save this Sautify post as a device draft.');
+    return setMessage(message, 'You are offline. Use the Home composer to save this Sautify post as a device draft.');
   }
 
   submit.disabled = true;
@@ -6940,7 +6940,7 @@ function setMemberNavigation(name) {
               ? 'Conversation'
               : name === 'circles'
                 ? 'Sautify'
-                : 'Stream';
+                : 'Home';
   document.querySelectorAll('[data-member-view]').forEach((button) => {
     const active = button.dataset.memberView === name;
     button.classList.toggle('active', active);

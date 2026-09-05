@@ -12,7 +12,7 @@ test('Sautify is the canonical user-facing community brand', async () => {
   assert.match(html, />Sautify</);
   assert.match(html, /Create Sautify/);
   assert.match(html, /Join Sautify/);
-  assert.match(html, /Sautify Stream/);
+  assert.match(html, /Sautify posts/);
   assert.doesNotMatch(html, /\bCircles?\b/);
 
   assert.match(source, /\/app\/sautify/);

@@ -107,7 +107,7 @@ function SafetyPanel({ blocked, muted, onUnblock, onUnmute }) {
         <div className="safety-account-list">{blocked.length ? blocked.map((person) => <article key={person.handle}><span>{person.initials}</span><div><strong>{person.name}</strong><small>{person.handle}</small></div><button type="button" onClick={() => onUnblock(person.handle)}>Unblock</button></article>) : <p>No blocked accounts in this preview.</p>}</div>
       </section>
       <section className="settings-card">
-        <div className="settings-card-title"><Eye aria-hidden="true" /><div><strong>Muted accounts</strong><small>Their Sauti are hidden from your Stream</small></div></div>
+        <div className="settings-card-title"><Eye aria-hidden="true" /><div><strong>Muted accounts</strong><small>Their posts are hidden from your Home feed</small></div></div>
         <div className="safety-account-list">{muted.length ? muted.map((person) => <article key={person.handle}><span>{person.initials}</span><div><strong>{person.name}</strong><small>{person.handle}</small></div><button type="button" onClick={() => onUnmute(person.handle)}>Unmute</button></article>) : <p>No muted accounts in this preview.</p>}</div>
       </section>
     </div>

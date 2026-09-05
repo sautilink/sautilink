@@ -66,7 +66,7 @@ import {
 import ConversationPreview from './ConversationPreview.jsx';
 
 const navigation = [
-  { id: 'stream', label: 'Stream', icon: Home },
+  { id: 'stream', label: 'Home', icon: Home },
   { id: 'discover', label: 'Discover', icon: Search },
   { id: 'messages', label: 'Messages', icon: MessageSquare },
   { id: 'circles', label: 'Sautify', icon: UsersRound },
@@ -81,7 +81,7 @@ function sectionTitle(section) {
   if (section === 'thread') return 'Conversation';
   if (section === 'safety') return 'Trust & Safety';
   if (section === 'settings') return 'Settings';
-  return navigation.find((item) => item.id === section)?.label || 'Stream';
+  return navigation.find((item) => item.id === section)?.label || 'Home';
 }
 
 function getInitialSection(fallback = 'stream') {
@@ -139,7 +139,7 @@ function PrimaryRail({ section, member, navigationItems, messageUnreadCount, onN
   return (
     <aside className="primary-rail" aria-label="Primary navigation">
       <div className="primary-rail-inner">
-        <button className="brand-button" type="button" onClick={() => onNavigate('stream')} aria-label="Open Stream">
+        <button className="brand-button" type="button" onClick={() => onNavigate('stream')} aria-label="Open Home">
           <Brand />
         </button>
 
@@ -176,7 +176,7 @@ function MobileTopbar({ section, theme, onThemeToggle, onMenu, onNavigate }) {
   return (
     <header className="mobile-topbar">
       <button className="icon-button" type="button" onClick={onMenu} aria-label="Open menu"><Menu aria-hidden="true" /></button>
-      <button className="mobile-brand" type="button" onClick={() => onNavigate('stream')} aria-label="SautiLink Stream">
+      <button className="mobile-brand" type="button" onClick={() => onNavigate('stream')} aria-label="SautiLink Home">
         <img src="/logo.png" alt="" width="34" height="34" />
         <strong>{title}</strong>
       </button>
@@ -278,7 +278,7 @@ function StreamStatus({ icon: Icon, title, copy, action, onAction }) {
 }
 
 function StreamSkeleton() {
-  return <div className="stream-skeleton" aria-label="Loading Stream" aria-busy="true">{[1, 2, 3].map((item) => <article key={item}><span /><div><b /><i /><i /></div></article>)}</div>;
+  return <div className="stream-skeleton" aria-label="Loading feed" aria-busy="true">{[1, 2, 3].map((item) => <article key={item}><span /><div><b /><i /><i /></div></article>)}</div>;
 }
 
 function StreamScreen({ member, feedPosts, streamStatus, showStateLab, onStreamStatusChange, liked, saved, onLike, onSave, onOpenMedia, onOpenThread, onCompose, onPreviewAction }) {
@@ -286,19 +286,19 @@ function StreamScreen({ member, feedPosts, streamStatus, showStateLab, onStreamS
   const visiblePosts = feedMode === 'following' ? feedPosts.slice(1) : feedPosts;
   return (
     <>
-      <ScreenHeader title="Stream" subtitle="Latest posts from voices and Sautify you follow">
-        <button className="icon-button" type="button" onClick={() => onPreviewAction('Stream controls')} aria-label="Stream controls"><SlidersHorizontal aria-hidden="true" /></button>
+      <ScreenHeader title="Home" subtitle="Latest posts from people and Sautify communities you follow">
+        <button className="icon-button" type="button" onClick={() => onPreviewAction('Feed controls')} aria-label="Feed controls"><SlidersHorizontal aria-hidden="true" /></button>
       </ScreenHeader>
-      <div className="stream-tabs" role="tablist" aria-label="Stream filter">
+      <div className="stream-tabs" role="tablist" aria-label="Feed filter">
         <button role="tab" type="button" aria-selected={feedMode === 'selected'} onClick={() => setFeedMode('selected')}>Selected</button>
         <button role="tab" type="button" aria-selected={feedMode === 'following'} onClick={() => setFeedMode('following')}>Following</button>
       </div>
       <ComposerEntry member={member} onCompose={onCompose} />
-      {showStateLab ? <section className="stream-state-lab" aria-label="Preview Stream states"><span>Preview state</span><div>{['ready', 'loading', 'empty', 'offline', 'error'].map((state) => <button key={state} type="button" className={streamStatus === state ? 'is-active' : ''} aria-pressed={streamStatus === state} onClick={() => onStreamStatusChange(state)}>{state}</button>)}</div></section> : null}
-      {streamStatus === 'offline' ? <aside className="offline-banner" role="status"><CloudOff aria-hidden="true" /><div><strong>You are offline.</strong><span>Drafts stay on this device. The Stream will refresh when you reconnect.</span></div></aside> : null}
+      {showStateLab ? <section className="stream-state-lab" aria-label="Preview Feed states"><span>Preview state</span><div>{['ready', 'loading', 'empty', 'offline', 'error'].map((state) => <button key={state} type="button" className={streamStatus === state ? 'is-active' : ''} aria-pressed={streamStatus === state} onClick={() => onStreamStatusChange(state)}>{state}</button>)}</div></section> : null}
+      {streamStatus === 'offline' ? <aside className="offline-banner" role="status"><CloudOff aria-hidden="true" /><div><strong>You are offline.</strong><span>Drafts stay on this device. The Feed will refresh when you reconnect.</span></div></aside> : null}
       {streamStatus === 'loading' ? <StreamSkeleton /> : null}
-      {streamStatus === 'error' ? <StreamStatus icon={AlertCircle} title="The Stream could not refresh." copy="Your existing content is safe. Try again when the connection is stable." action="Try again" onAction={() => onStreamStatusChange('ready')} /> : null}
-      {streamStatus === 'empty' ? <StreamStatus icon={FileText} title="Your Stream is ready for its first voice." copy="Follow people, join a Sautify or create the first post to begin." /> : null}
+      {streamStatus === 'error' ? <StreamStatus icon={AlertCircle} title="The Feed could not refresh." copy="Your existing content is safe. Try again when the connection is stable." action="Try again" onAction={() => onStreamStatusChange('ready')} /> : null}
+      {streamStatus === 'empty' ? <StreamStatus icon={FileText} title="Your Home feed is ready for its first post." copy="Follow people, join a Sautify or create the first post to begin." /> : null}
       {streamStatus === 'ready' || streamStatus === 'offline' ? <div className="feed-list">
         {visiblePosts.map((post) => (
           <PostCard
@@ -496,7 +496,7 @@ function CirclesScreen({ joined, onToggleCircle, onPreviewAction }) {
           <div className="section-heading"><div><span>Before you participate</span><h2>Sautify rules</h2></div></div>
           <ol>{circle.rules.map((rule) => <li key={rule}><Check aria-hidden="true" /><span>{rule}</span></li>)}</ol>
         </section>
-        <EmptyState icon={UsersRound} title="The Sautify Stream starts here." copy="Posts, pinned context and moderator notices arrive with the conversation milestone." />
+        <EmptyState icon={UsersRound} title="Sautify posts start here." copy="Posts, pinned context and moderator notices arrive with the conversation milestone." />
       </>
     );
   }
