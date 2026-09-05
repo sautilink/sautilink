@@ -25,8 +25,9 @@ test('signed-out profile teaser exposes only promotional identity and preserves 
   assert.doesNotMatch(gate, /select: '[^']*bio/);
   assert.match(gate, /Join SautiLink to see the full profile/);
   assert.match(gate, /bio, posts and full content/);
-  assert.match(gate, /\/login\?next=/);
-  assert.match(gate, /\/signup\?next=/);
+  assert.match(gate, /link\.href = `\$\{route\}\?next=\$\{encodeURIComponent\(destination\)\}`/);
+  assert.match(gate, /makeAuthLink\('Log in', '\/login'/);
+  assert.match(gate, /makeAuthLink\('Create account', '\/signup'/);
   assert.match(gate, /sautilink\.auth\.return-target/);
   assert.match(gate, /window\.location\.replace\(destination\)/);
   assert.match(usernameLogin, /consumeGuestReturnTarget\(\) \|\| '\/home'/);
