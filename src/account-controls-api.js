@@ -162,14 +162,13 @@ async function cancelExport(request, env) {
   return json(200, { ok: true, data: { request: Array.isArray(rows) ? rows[0] || null : null } });
 }
 
-
 async function identityState(request, env) {
   const gate = await requireSession(request, env);
   if (gate.response) return gate.response;
 
   const profileParams = new URLSearchParams({
     id: `eq.${gate.session.user.id}`,
-    select: 'id,username,display_name,is_verified,verification_badge_type',
+    select: 'id,username,display_name,is_verified,verification_badge_type,username_locked_at',
     limit: '1',
   });
   const eventParams = new URLSearchParams({
@@ -178,62 +177,72 @@ async function identityState(request, env) {
     order: 'changed_at.desc',
     limit: '20',
   });
-  const requestParams = new URLSearchParams({
-    user_id: `eq.${gate.session.user.id}`,
-    status: 'eq.pending',
-    select: 'id,current_name,requested_name,status,requested_at,updated_at',
-    order: 'requested_at.desc',
-    limit: '1',
-  });
 
-  const [profileResponse, eventResponse, requestResponse] = await Promise.all([
+  const [profileResponse, eventResponse] = await Promise.all([
     rest(`social_profiles?${profileParams}`, { auth: gate.session.auth }),
     rest(`social_identity_change_events?${eventParams}`, { auth: gate.session.auth }),
-    rest(`social_identity_change_requests?${requestParams}`, { auth: gate.session.auth }),
   ]);
 
-  if (!profileResponse.ok || !eventResponse.ok || !requestResponse.ok) {
+  if (!profileResponse.ok || !eventResponse.ok) {
     return apiError(409, 'IDENTITY_STATE_FAILED', 'Your name and username change status could not be checked.');
   }
 
   const profileRows = await profileResponse.json().catch(() => []);
   const eventRows = await eventResponse.json().catch(() => []);
-  const requestRows = await requestResponse.json().catch(() => []);
   const profile = Array.isArray(profileRows) ? profileRows[0] || null : null;
   if (!profile) return apiError(404, 'PROFILE_UNAVAILABLE', 'Your social profile is unavailable.');
 
+  const usernameLocked = Boolean(profile.username_locked_at || profile.is_verified);
+  delete profile.username_locked_at;
+
   const now = Date.now();
+  const currentDate = new Date(now);
+  const monthStart = Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), 1);
+  const nextMonthStart = Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth() + 1, 1);
   const events = Array.isArray(eventRows) ? eventRows : [];
   const nameEvents = events.filter((row) =>
     row.change_type === 'display_name' &&
     now - Date.parse(row.changed_at || 0) < 14 * 24 * 60 * 60 * 1000
   );
+  const verifiedMonthlyNameEvents = events.filter((row) => {
+    const changedAt = Date.parse(row.changed_at || 0);
+    return row.change_type === 'display_name' && changedAt >= monthStart && changedAt < nextMonthStart;
+  });
   const usernameEvents = events.filter((row) =>
     row.change_type === 'username' &&
     now - Date.parse(row.changed_at || 0) < 30 * 24 * 60 * 60 * 1000
   );
   const oldestNameWindowEvent = nameEvents[nameEvents.length - 1] || null;
   const latestUsernameEvent = usernameEvents[0] || null;
+  const verifiedNameLimitReached = profile.is_verified && verifiedMonthlyNameEvents.length >= 2;
 
   return json(200, {
     ok: true,
     data: {
       profile,
       display_name: {
-        requires_review: Boolean(profile.is_verified),
-        changes_used_14_days: nameEvents.length,
+        requires_review: false,
+        policy: profile.is_verified ? 'verified_calendar_month' : 'standard_14_days',
+        changes_used_month: profile.is_verified ? verifiedMonthlyNameEvents.length : null,
+        changes_remaining_month: profile.is_verified ? Math.max(0, 2 - verifiedMonthlyNameEvents.length) : null,
+        changes_used_14_days: profile.is_verified ? null : nameEvents.length,
         changes_remaining_14_days: profile.is_verified ? null : Math.max(0, 2 - nameEvents.length),
-        next_change_at: !profile.is_verified && nameEvents.length >= 2 && oldestNameWindowEvent
-          ? new Date(Date.parse(oldestNameWindowEvent.changed_at) + 14 * 24 * 60 * 60 * 1000).toISOString()
-          : null,
-        pending_request: Array.isArray(requestRows) ? requestRows[0] || null : null,
+        next_change_at: profile.is_verified
+          ? verifiedNameLimitReached ? new Date(nextMonthStart).toISOString() : null
+          : nameEvents.length >= 2 && oldestNameWindowEvent
+            ? new Date(Date.parse(oldestNameWindowEvent.changed_at) + 14 * 24 * 60 * 60 * 1000).toISOString()
+            : null,
+        pending_request: null,
       },
       username: {
-        changes_used_30_days: usernameEvents.length,
-        changes_remaining_30_days: Math.max(0, 1 - usernameEvents.length),
-        next_change_at: latestUsernameEvent
-          ? new Date(Date.parse(latestUsernameEvent.changed_at) + 30 * 24 * 60 * 60 * 1000).toISOString()
-          : null,
+        locked_permanently: usernameLocked,
+        changes_used_30_days: usernameLocked ? null : usernameEvents.length,
+        changes_remaining_30_days: usernameLocked ? 0 : Math.max(0, 1 - usernameEvents.length),
+        next_change_at: usernameLocked
+          ? null
+          : latestUsernameEvent
+            ? new Date(Date.parse(latestUsernameEvent.changed_at) + 30 * 24 * 60 * 60 * 1000).toISOString()
+            : null,
       },
     },
   });
@@ -241,6 +250,12 @@ async function identityState(request, env) {
 
 function identityProviderError(provider) {
   const message = String(provider?.message || provider?.details || '');
+  if (message.includes('VERIFIED_DISPLAY_NAME_MONTHLY_LIMIT')) {
+    return apiError(409, 'VERIFIED_DISPLAY_NAME_MONTHLY_LIMIT', 'Verified accounts can change their display name up to twice per calendar month.');
+  }
+  if (message.includes('USERNAME_LOCKED_VERIFIED')) {
+    return apiError(409, 'USERNAME_LOCKED_VERIFIED', 'This username is permanently locked because this account has been verified.');
+  }
   if (message.includes('DISPLAY_NAME_CHANGE_LIMIT')) {
     return apiError(409, 'DISPLAY_NAME_CHANGE_LIMIT', 'You can change your name up to twice in 14 days.');
   }
