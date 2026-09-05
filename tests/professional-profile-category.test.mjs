@@ -29,14 +29,55 @@ test('professional category UI sits under the username and opens a descriptive p
   assert.match(source, /Professional category/);
 });
 
-test('profile owner gets a searchable optional category picker with remove support', async () => {
+test('profile owner gets 25 popular default category suggestions', async () => {
+  const source = await read('src/professional-profile-category.js');
+  const block = source.match(/const PROFESSIONAL_CATEGORY_POPULAR_SLUGS = Object\.freeze\(\[([\s\S]*?)\]\);/);
+  assert.ok(block, 'expected popular category list');
+  const slugs = [...block[1].matchAll(/'([^']+)'/g)].map((match) => match[1]);
+
+  assert.equal(slugs.length, 25);
+  for (const slug of [
+    'public-figure',
+    'content-creator',
+    'company',
+    'artist',
+    'government-official',
+    'comedian',
+    'entrepreneur',
+    'media-company',
+    'software-company',
+    'brand',
+  ]) {
+    assert.ok(slugs.includes(slug), `expected ${slug} in popular category suggestions`);
+  }
+  assert.match(source, /PROFESSIONAL_CATEGORY_RESULT_LIMIT = 25/);
+  assert.match(source, /Popular categories/);
+});
+
+test('category search tolerates small spelling mistakes and returns closest suggestions', async () => {
   const source = await read('src/professional-profile-category.js');
 
+  assert.match(source, /function professionalCategoryEditDistance/);
+  assert.match(source, /function professionalCategorySearchScore/);
+  assert.match(source, /queryToken\.length \* 0\.3/);
+  assert.match(source, /Closest matches/);
+  assert.match(source, /Suggested ·/);
+  assert.match(source, /No close category found/);
+});
+
+test('profile owner gets a polished searchable optional category picker with remove support', async () => {
+  const source = await read('src/professional-profile-category.js');
+  const css = await read('app/assets/professional-profile-category.css');
+
   assert.match(source, /Professional category <span>Optional<\/span>/);
-  assert.match(source, /placeholder="Search categories"/);
-  assert.match(source, /slice\(0, 14\)/);
+  assert.match(source, /placeholder="Search professional categories"/);
+  assert.match(source, /professional-category-search-icon/);
+  assert.match(source, /professional-category-query-clear/);
   assert.match(source, /saveProfessionalCategory\(null\)/);
   assert.match(source, /professional_category_slug: category\?\.slug \|\| null/);
+  assert.match(css, /\.professional-category-search-shell:focus-within/);
+  assert.match(css, /box-shadow: 0 0 0 3px/);
+  assert.match(css, /\.professional-category-options-label/);
   assert.doesNotMatch(source, /login-panel|signup-panel|verification-info-dialog/);
 });
 
