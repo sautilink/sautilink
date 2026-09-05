@@ -61,6 +61,37 @@ test('Home redesign preserves the approved verification badge contract and offli
 
   assert.match(css, /\.sauti-card-head\s*\{\s*--verification-badge-size: clamp\(14px, 1\.25em, 16px\);\s*\}/);
   assert.match(css, /\.sauti-card-head \.verified-name \{ font-size: 12px; \}/);
-  assert.match(sw, /sautilink-shell-v41/);
+  assert.match(sw, /sautilink-shell-v42/);
   assert.match(sw, /"\/app\/assets\/theme-init\.js"/);
+});
+
+test('Home videos autoplay only in view and pause when the viewer or page is hidden', async () => {
+  const source = await read('src/app.js');
+
+  assert.match(source, /const HOME_VIDEO_VISIBILITY_THRESHOLD = 0\.58/);
+  assert.match(source, /new IntersectionObserver\([\s\S]*HOME_VIDEO_VISIBILITY_THRESHOLD/);
+  assert.match(source, /if \(!gallery\.closest\('#stream-feed'\)\) return/);
+  assert.match(source, /video\.defaultMuted = true/);
+  assert.match(source, /video\.autoplay = true/);
+  assert.match(source, /video\.loop = true/);
+  assert.match(source, /document\.visibilityState === 'hidden'/);
+  assert.match(source, /if \(video !== activeVideo\) video\.pause\(\)/);
+  assert.match(source, /visual\.controls = true;[\s\S]*visual\.autoplay = false/);
+});
+
+test('Home supports double tap to like without turning an existing like off', async () => {
+  const [source, css] = await Promise.all([
+    read('src/app.js'),
+    read('app/assets/app.css'),
+  ]);
+
+  assert.match(source, /const HOME_DOUBLE_TAP_WINDOW = 320/);
+  assert.match(source, /function handleHomeFeedPointerUp\(event\)/);
+  assert.match(source, /byId\('stream-feed'\)\.addEventListener\('pointerup', handleHomeFeedPointerUp\)/);
+  assert.match(source, /if \(likeButton\.dataset\.active !== 'true'\) void toggleLike\(card, likeButton\)/);
+  assert.match(source, /homeMediaOpenTimers\.delete\(media\)/);
+  assert.match(source, /openHomeMediaAfterTap\(event, media\)/);
+  assert.match(css, /\.sauti-card[\s\S]*touch-action: manipulation/);
+  assert.match(css, /\.sauti-double-tap-heart[\s\S]*pointer-events: none/);
+  assert.match(css, /@keyframes sauti-heart-pop/);
 });

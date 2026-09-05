@@ -95,7 +95,7 @@ test('website actions are wired to the matching Supabase auth methods', async ()
   assert.match(html, /id="signup-verify-code"[^>]*placeholder="••••••••"/);
   assert.doesNotMatch(html, /continue-after-verification/);
   assert.doesNotMatch(html, /confirmation link/i);
-  assert.match(html, /app\.js\?v=20260905-homefeed/);
+  assert.match(html, /app\.js\?v=20260905-profilevideo/);
   assert.match(html, /id="passwordless-code"[^>]*data-email-otp/);
   assert.match(html, /id="reauth-code"[^>]*data-email-otp/);
   assert.match(router, /AUTH_CONFIRM_ROUTE/);
