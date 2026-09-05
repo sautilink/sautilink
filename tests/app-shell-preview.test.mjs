@@ -93,6 +93,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/index.html'));
   assert.ok(files.includes('app/assets/app.css'));
   assert.ok(files.includes('app/assets/app.js'));
+  assert.ok(files.includes('app/assets/caption-entities.css'));
   assert.ok(files.includes('app/assets/theme-init.js'));
   assert.ok(files.includes('app/assets/verification/verified-team.png'));
   assert.ok(files.includes('app/assets/verification/verified-user-primary.png'));
@@ -134,6 +135,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
       || file === 'app/index.html'
       || file === 'app/assets/app.css'
       || file === 'app/assets/app.js'
+      || file === 'app/assets/caption-entities.css'
       || file === 'app/assets/theme-init.js'
       || file === 'app/assets/verification/verified-team.png'
       || file === 'app/assets/verification/verified-user-primary.png'
@@ -163,6 +165,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
       || file === 'app/index.html'
       || file === 'app/assets/app.css'
       || file === 'app/assets/app.js'
+      || file === 'app/assets/caption-entities.css'
       || file === 'app/assets/theme-init.js'
       || file === 'app/assets/verification/verified-team.png'
       || file === 'app/assets/verification/verified-user-primary.png'
