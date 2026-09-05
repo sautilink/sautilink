@@ -175,8 +175,8 @@ async function vote(request) {
 
 export async function handlePollRequest(request) {
   const url = new URL(request.url);
-  if (url.pathname === '/api/polls' && request.method === 'GET') return readPolls(request);
+  if ((url.pathname === '/api/polls' || url.pathname === '/api/sauti/polls') && request.method === 'GET') return readPolls(request);
   if (url.pathname === '/api/polls/create' && request.method === 'POST') return createPoll(request);
-  if (url.pathname === '/api/polls/vote' && request.method === 'POST') return vote(request);
+  if ((url.pathname === '/api/polls/vote' || url.pathname === '/api/sauti/polls/vote') && request.method === 'POST') return vote(request);
   return null;
 }
