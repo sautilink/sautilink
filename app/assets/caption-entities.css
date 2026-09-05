@@ -1,0 +1,33 @@
+.sauti-card-body .sautilink-caption-entity,
+.sauti-caption-text .sautilink-caption-entity {
+  color: var(--app-accent);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.sauti-card-body .sautilink-caption-hashtag,
+.sauti-card-body .sautilink-caption-mention,
+.sauti-caption-text .sautilink-caption-hashtag,
+.sauti-caption-text .sautilink-caption-mention {
+  font-weight: 680;
+}
+
+.sauti-card-body .sautilink-caption-entity:hover,
+.sauti-caption-text .sautilink-caption-entity:hover {
+  color: var(--app-accent-strong);
+  text-decoration: underline;
+  text-underline-offset: .16em;
+}
+
+.sauti-card-body .sautilink-caption-url,
+.sauti-caption-text .sautilink-caption-url {
+  font-weight: inherit;
+}
+
+.sauti-card-body .sautilink-caption-entity:focus-visible,
+.sauti-caption-text .sautilink-caption-entity:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
