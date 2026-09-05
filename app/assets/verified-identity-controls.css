@@ -15,3 +15,34 @@
   cursor: not-allowed;
   opacity: .45;
 }
+
+/* Keep verification details centered on small screens without changing desktop placement. */
+@media (max-width: 680px) {
+  .verification-info-dialog {
+    width: min(430px, calc(100% - 28px));
+    max-height: calc(100dvh - 28px);
+    margin: auto;
+    border: 1px solid var(--app-line-strong);
+    border-radius: 18px;
+  }
+}
+
+/* The base message color is tuned for dark mode; restore full contrast in light mode. */
+:root[data-theme="light"] .verification-info-dialog .verification-info-message {
+  color: var(--app-text);
+}
+
+:root[data-theme="light"] .verification-info-dialog .verification-team-wordmark {
+  border-color: var(--app-line-strong);
+  background: var(--app-panel-soft);
+  color: var(--app-text);
+}
+
+:root[data-theme="light"] .verification-info-dialog #verification-info-close {
+  color: var(--app-muted);
+}
+
+:root[data-theme="light"] .verification-info-dialog #verification-info-close:hover {
+  background: var(--app-elevated);
+  color: var(--app-text);
+}
