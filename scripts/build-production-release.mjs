@@ -66,6 +66,7 @@ await build({
     resolve(workerSource, 'verified-identity-controls.js'),
     resolve(workerSource, 'profile-activity.js'),
     resolve(workerSource, 'profile-route-states.js'),
+    resolve(workerSource, 'professional-profile-category.js'),
   ],
   outfile: resolve(siteRoot, 'app/assets/app.js'),
   bundle: true,
