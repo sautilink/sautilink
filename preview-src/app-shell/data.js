@@ -35,7 +35,7 @@ export const posts = [
     },
     time: '18m',
     audience: 'Public',
-    text: 'The first SautiLink app shell is taking shape: a fast Stream, focused Sautify and a media layer designed to grow without slowing conversations.',
+    text: 'The first SautiLink app shell is taking shape: a fast Home feed, focused Sautify and a media layer designed to grow without slowing conversations.',
     tags: ['BuildInPublic', 'SautiLink'],
     metrics: { replies: 24, reshares: 81, likes: 436, views: '12.8K' },
     visual: {

@@ -102,7 +102,7 @@ await writeFile(resolve(stageRoot, 'index.html'), `<!doctype html>
         <a class="phase" href="/preview/app-shell/"><small>Phase 01</small><strong>App Shell</strong></a>
         <a class="phase" href="/preview/identity/"><small>Phase 02</small><strong>Identity &amp; Authentication</strong></a>
         <a class="phase" href="/preview/profiles/"><small>Phase 03</small><strong>Profiles &amp; Sautify</strong></a>
-        <a class="phase" href="/preview/share-stream/"><small>Phase 04</small><strong>Create Post &amp; Stream</strong></a>
+        <a class="phase" href="/preview/share-stream/"><small>Phase 04</small><strong>Create Post &amp; Feed</strong></a>
         <a class="phase" href="/preview/media/"><small>Phase 05</small><strong>Media Preview</strong></a>
         <a class="phase" href="/preview/conversations/"><small>Phase 06</small><strong>Conversations &amp; Threads</strong></a>
         <a class="phase" href="/preview/trust-safety/"><small>Phase 07</small><strong>Trust, Safety &amp; Admin</strong></a>
@@ -162,7 +162,7 @@ await writeFile(resolve(mvpDirectory, 'index.html'), `<!doctype html>
       <p class="intro">This checkpoint brings the MUST-have public experience into one product boundary. It keeps the platform focused, lightweight and ready for real integration.</p>
       <section class="grid" aria-label="MVP capabilities">
         <article class="item"><strong>Create Post</strong><p>Create text posts with audience, reply and draft controls.</p></article>
-        <article class="item"><strong>Stream &amp; Discover</strong><p>Read a focused feed and discover public SautiLink content.</p></article>
+        <article class="item"><strong>Feed &amp; Discover</strong><p>Read a focused feed and discover public SautiLink content.</p></article>
         <article class="item"><strong>Profiles &amp; Sautify</strong><p>Manage identity, follow people and participate in Sautify communities.</p></article>
         <article class="item"><strong>Public Threads</strong><p>Reply, reshare, quote, like and save in open conversations.</p></article>
         <article class="item"><strong>Safety Basics</strong><p>Mute, block, report and moderation operations remain part of the core.</p></article>
@@ -190,7 +190,7 @@ for (const preview of [
   { path: 'app-shell', title: 'SautiLink app-shell preview' },
   { path: 'identity', title: 'SautiLink Identity preview' },
   { path: 'profiles', title: 'SautiLink Profiles and Sautify preview' },
-  { path: 'share-stream', title: 'SautiLink Create Post and Stream preview' },
+  { path: 'share-stream', title: 'SautiLink Create Post and Feed preview' },
   { path: 'media', title: 'SautiLink Media and R2 preview' },
   { path: 'conversations', title: 'SautiLink Conversations and Threads preview' },
   { path: 'trust-safety', title: 'SautiLink Trust and Safety preview' },

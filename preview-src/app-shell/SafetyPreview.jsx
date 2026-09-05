@@ -52,7 +52,7 @@ const reportSeed = [
     priority: 'Medium',
     reporter: '@asham',
     target: '@dailyoffers',
-    surface: 'Stream',
+    surface: 'Feed',
     age: '1h',
     excerpt: 'Repeated promotional replies may be coordinated engagement rather than useful participation.',
   },

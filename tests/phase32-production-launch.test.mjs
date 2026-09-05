@@ -17,8 +17,8 @@ test('Phase 32 production artifact targets production Supabase and removes previ
   assert.doesNotMatch(bundle, /sb_publishable_oTYKPMJoxN1b8YBmG-a5eQ_M75Kl6VF/);
   assert.doesNotMatch(html, /Private preview|Phase 31/);
   assert.doesNotMatch(html, /name="robots"[^>]+noindex/i);
-  assert.match(html, /app\.css\?v=20260905-badge2/);
-  assert.match(html, /app\.js\?v=20260905-badge2/);
+  assert.match(html, /app\.css\?v=20260905-homefeed/);
+  assert.match(html, /app\.js\?v=20260905-homefeed/);
   assert.match(html, /theme-init\.js\?v=20260904-account2/);
   assert.match(html, /\/logo\.png/);
   assert.doesNotMatch(html, /logo-compact\.webp/);

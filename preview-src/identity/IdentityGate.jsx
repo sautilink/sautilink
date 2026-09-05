@@ -239,7 +239,7 @@ export default function IdentityGate({ open, service, onClose, onAuthenticated }
 
           {view === 'login' ? (
             <section className="identity-panel">
-              <div className="identity-heading"><span>Welcome back</span><h2>Sign in to SautiLink</h2><p>Continue to your Stream, Circles and public conversations.</p></div>
+              <div className="identity-heading"><span>Welcome back</span><h2>Sign in to SautiLink</h2><p>Continue to your Home feed, Sautify communities and public conversations.</p></div>
               <form onSubmit={handleLogin} noValidate>
                 <label className="identity-field" htmlFor="identity-login-email"><span>Email address</span><input id="identity-login-email" type="email" inputMode="email" autoComplete="email" value={login.email} onChange={(event) => setLogin((current) => ({ ...current, email: event.target.value }))} placeholder="you@example.com" required /></label>
                 <PasswordField id="identity-login-password" label="Password" value={login.password} onChange={(password) => setLogin((current) => ({ ...current, password }))} />

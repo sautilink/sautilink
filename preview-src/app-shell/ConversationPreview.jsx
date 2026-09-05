@@ -175,7 +175,7 @@ export default function ConversationPreview({
   return (
     <section className="conversation-screen" aria-label="Sauti conversation">
       <header className="thread-header">
-        <button className="icon-button" type="button" onClick={onBack} aria-label="Back to Stream"><ArrowLeft aria-hidden="true" /></button>
+        <button className="icon-button" type="button" onClick={onBack} aria-label="Back to Home"><ArrowLeft aria-hidden="true" /></button>
         <div><h1>Conversation</h1><p>{rootPost.metrics.replies} replies · Public context</p></div>
         <button className="icon-button" type="button" onClick={() => onPreviewAction('Conversation controls')} aria-label="Conversation controls"><MoreHorizontal aria-hidden="true" /></button>
       </header>

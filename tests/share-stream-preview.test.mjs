@@ -29,9 +29,9 @@ test('Share and Stream preview includes its complete interaction contract', asyn
     'Save draft',
     'Drafts on this device',
     'You are offline',
-    'The Stream could not refresh',
-    'Your Stream is ready for its first voice',
-    'Loading Stream',
+    'The Feed could not refresh',
+    'Your Home feed is ready for its first post',
+    'Loading feed',
   ]) {
     assert.match(app, new RegExp(term));
   }
