@@ -278,6 +278,37 @@ function createVerificationBadge(label = 'Verified account', badgeType = 'standa
   return badge;
 }
 
+function verificationBadgeLabel(badgeType = 'standard') {
+  return normalizeVerificationBadgeType(badgeType) === 'team'
+    ? 'Verified SautiLink Team account'
+    : 'Verified account';
+}
+
+function appendVerificationBadge(node, isVerified, badgeType = 'standard') {
+  if (!node || !isVerified) return null;
+  const normalizedType = normalizeVerificationBadgeType(badgeType);
+  const badge = createVerificationBadge(verificationBadgeLabel(normalizedType), normalizedType);
+  node.append(badge);
+  return badge;
+}
+
+function inlineVerifiedNameNode(displayName, isVerified, badgeType = 'standard') {
+  const wrap = document.createElement('span');
+  wrap.className = 'inline-verified-name';
+  wrap.append(document.createTextNode(displayName));
+  appendVerificationBadge(wrap, isVerified, badgeType);
+  return wrap;
+}
+
+function setInlineVerifiedName(node, displayName, profile = {}) {
+  if (!node) return;
+  node.replaceChildren(inlineVerifiedNameNode(
+    displayName,
+    Boolean(profile?.is_verified),
+    profile?.verification_badge_type,
+  ));
+}
+
 function verifiedNameNode(displayName, isVerified, badgeType = 'standard') {
   const wrap = document.createElement('span');
   wrap.className = 'verified-name';
@@ -286,11 +317,7 @@ function verifiedNameNode(displayName, isVerified, badgeType = 'standard') {
   name.textContent = displayName;
   wrap.append(name);
 
-  if (isVerified) {
-    const normalizedType = normalizeVerificationBadgeType(badgeType);
-    const label = normalizedType === 'team' ? 'Verified SautiLink Team account' : 'Verified account';
-    wrap.append(createVerificationBadge(label, normalizedType));
-  }
+  appendVerificationBadge(wrap, isVerified, badgeType);
   return wrap;
 }
 
@@ -1711,7 +1738,7 @@ function renderSettingsSafetyRows(kind, rows, profiles) {
 
     const copy = document.createElement('div');
     const strong = document.createElement('strong');
-    strong.textContent = display;
+    setInlineVerifiedName(strong, display, profile);
     const small = document.createElement('small');
     small.textContent = username;
     copy.append(strong, small);
@@ -1866,7 +1893,7 @@ async function loadSettings() {
     if (targetIds.length) {
       const profileLookup = await supabase
         .from('social_profiles')
-        .select('id,username,display_name,avatar_key,updated_at')
+        .select('id,username,display_name,avatar_key,updated_at,is_verified,verification_badge_type')
         .in('id', targetIds);
       if (!profileLookup.error) profiles = profileLookup.data || [];
     }
@@ -2976,9 +3003,11 @@ function captionPreview(value, limit = CAPTION_PREVIEW_LIMIT) {
   return { text: `${text.slice(0, cutoff).trimEnd()}…`, truncated: true };
 }
 
-function createSautiCaption(username, value) {
+function createSautiCaption(authorProfile, value) {
   const fullText = String(value || '').trim();
   if (!fullText) return null;
+
+  const username = String(authorProfile?.username || 'member');
 
   const preview = captionPreview(fullText);
   const caption = document.createElement('p');
@@ -2988,7 +3017,11 @@ function createSautiCaption(username, value) {
   const author = document.createElement('a');
   author.className = 'sauti-caption-author';
   author.href = memberProfilePath(username);
-  author.textContent = username;
+  author.append(inlineVerifiedNameNode(
+    username,
+    Boolean(authorProfile?.is_verified),
+    authorProfile?.verification_badge_type,
+  ));
 
   const text = document.createElement('span');
   text.className = 'sauti-caption-text';
@@ -3056,7 +3089,11 @@ function createSautiCard(item) {
     prefix.textContent = 'Reposted by';
     const actorLink = document.createElement('a');
     actorLink.href = memberProfilePath(item.actor.username);
-    actorLink.textContent = `@${item.actor.username}`;
+    actorLink.append(inlineVerifiedNameNode(
+      `@${item.actor.username}`,
+      Boolean(item.actor.is_verified),
+      item.actor.verification_badge_type,
+    ));
     const eventTime = document.createElement('span');
     eventTime.textContent = `· ${formatSautiTime(item.event_at)}`;
     note.append(prefix, actorLink, eventTime);
@@ -3144,7 +3181,7 @@ function createSautiCard(item) {
   );
   footer.append(actions);
 
-  const caption = createSautiCaption(username, post.body);
+  const caption = createSautiCaption(author, post.body);
 
   const meta = document.createElement('div');
   meta.className = 'sauti-card-meta';
@@ -6201,14 +6238,14 @@ function syncCirclePrimaryAction(circle, membership, request) {
   label.textContent = 'Private Sautify';
 }
 
-async function loadCircleOwnerName(ownerId) {
-  if (!ownerId) return '';
+async function loadCircleOwnerProfile(ownerId) {
+  if (!ownerId) return null;
   const { data } = await supabase
     .from('social_profiles')
-    .select('username, display_name')
+    .select('username, display_name, is_verified, verification_badge_type')
     .eq('id', ownerId)
     .maybeSingle();
-  return data?.username ? `@${data.username}` : data?.display_name || '';
+  return data || null;
 }
 
 async function loadCircleRequests(circleId) {
@@ -6246,7 +6283,7 @@ async function loadCircleRequests(circleId) {
   let profiles = [];
   const { data: profileRows } = await supabase
     .from('social_profiles')
-    .select('id, username, display_name')
+    .select('id, username, display_name, is_verified, verification_badge_type')
     .in('id', ids);
   profiles = profileRows || [];
   const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
@@ -6260,7 +6297,11 @@ async function loadCircleRequests(circleId) {
     const person = document.createElement('span');
     person.className = 'circle-request-person';
     const strong = document.createElement('strong');
-    strong.textContent = profile?.display_name || profile?.username || 'SautiLink member';
+    setInlineVerifiedName(
+      strong,
+      profile?.display_name || profile?.username || 'SautiLink member',
+      profile,
+    );
     const small = document.createElement('small');
     small.textContent = profile?.username ? `@${profile.username}` : `Requested ${formatSautiTime(request.created_at)} ago`;
     person.append(strong, small);
@@ -6324,7 +6365,7 @@ async function loadCircleMembers(circleId) {
   const ids = members.map((row) => row.member_id);
   const { data: profileRows } = await supabase
     .from('social_profiles')
-    .select('id, username, display_name')
+    .select('id, username, display_name, is_verified, verification_badge_type')
     .in('id', ids);
   const profileMap = new Map((profileRows || []).map((profile) => [profile.id, profile]));
 
@@ -6337,7 +6378,11 @@ async function loadCircleMembers(circleId) {
     const person = document.createElement('span');
     person.className = 'circle-member-person';
     const strong = document.createElement('strong');
-    strong.textContent = profile?.display_name || profile?.username || 'SautiLink member';
+    setInlineVerifiedName(
+      strong,
+      profile?.display_name || profile?.username || 'SautiLink member',
+      profile,
+    );
     const small = document.createElement('small');
     small.textContent = profile?.username
       ? `@${profile.username}`
@@ -6583,7 +6628,7 @@ async function loadCircleDetail(slug) {
   if (error) return showCircleRouteState('error', slug);
   if (!circle) return showCircleRouteState('unavailable', slug);
 
-  const [membershipResult, requestResult, ownerName] = await Promise.all([
+  const [membershipResult, requestResult, ownerProfile] = await Promise.all([
     supabase
       .from('social_circle_members')
       .select('circle_id, member_role, joined_at')
@@ -6596,7 +6641,7 @@ async function loadCircleDetail(slug) {
       .eq('circle_id', circle.id)
       .eq('requester_id', currentMemberId)
       .maybeSingle(),
-    loadCircleOwnerName(circle.owner_id),
+    loadCircleOwnerProfile(circle.owner_id),
   ]);
 
   if (requestId !== circlesRequest) return;
@@ -6614,9 +6659,20 @@ async function loadCircleDetail(slug) {
   const policy = byId('circle-detail-policy');
   policy.textContent = circlePolicyLabel(circle.join_policy);
   policy.className = `circle-policy-badge ${circle.join_policy}`;
-  byId('circle-detail-owner').textContent = circle.owner_id === currentMemberId
-    ? 'Owned by you'
-    : ownerName ? `Owned by ${ownerName}` : 'Owned by a SautiLink member';
+  const owner = byId('circle-detail-owner');
+  if (circle.owner_id === currentMemberId) {
+    owner.textContent = 'Owned by you';
+  } else if (ownerProfile) {
+    const ownerName = ownerProfile.username
+      ? `@${ownerProfile.username}`
+      : ownerProfile.display_name || 'a SautiLink member';
+    owner.replaceChildren(
+      document.createTextNode('Owned by '),
+      inlineVerifiedNameNode(ownerName, Boolean(ownerProfile.is_verified), ownerProfile.verification_badge_type),
+    );
+  } else {
+    owner.textContent = 'Owned by a SautiLink member';
+  }
   byId('circle-detail-membership').textContent = circle.owner_id === currentMemberId
     ? 'Owner'
     : membership ? 'Joined' : request?.status === 'pending' ? 'Request pending' : 'Not joined';
@@ -6728,9 +6784,9 @@ function syncMemberIdentityVisuals() {
   if (!currentMember) return;
   const displayName = currentMember.display_name || currentMember.full_name || currentMember.username;
   const username = currentMember.username;
-  byId('member-display-name').textContent = displayName;
+  setInlineVerifiedName(byId('member-display-name'), displayName, currentMember);
   byId('member-username').textContent = `@${username}`;
-  byId('rail-name').textContent = displayName;
+  setInlineVerifiedName(byId('rail-name'), displayName, currentMember);
   byId('rail-username').textContent = `@${username}`;
   byId('member-first-name').textContent = displayName.split(/\s+/)[0];
   renderProfileAvatar(byId('member-avatar'), currentMember, displayName);
@@ -7233,9 +7289,9 @@ function renderMember(profile, userId = currentMemberId) {
 
   renderProfileAvatar(byId('member-avatar'), currentMember, displayName);
   renderProfileAvatar(byId('rail-avatar'), currentMember, displayName);
-  byId('member-display-name').textContent = displayName;
+  setInlineVerifiedName(byId('member-display-name'), displayName, currentMember);
   byId('member-username').textContent = `@${username}`;
-  byId('rail-name').textContent = displayName;
+  setInlineVerifiedName(byId('rail-name'), displayName, currentMember);
   byId('rail-username').textContent = `@${username}`;
   byId('member-first-name').textContent = displayName.split(/\s+/)[0];
   renderProfile(currentMember);
