@@ -1,6 +1,7 @@
 import { handleProfileMediaRequest } from './profile-media-api.js';
 import { handleSautiRequest } from './sauti-posts-api.js';
 import { handleSautiMediaRequest } from './sauti-media-api.js';
+import { handlePollRequest } from './polls-api.js';
 import { handleSocialInteractionRequest } from './social-interactions-api.js';
 import { handleTrustSafetyRequest } from './trust-safety-api.js';
 import { handleModerationRequest } from './moderation-api.js';
@@ -144,6 +145,12 @@ async function routeRequest(request, env, url) {
   if (url.pathname.startsWith('/api/sauti-media/')) {
     const mediaResponse = await handleSautiMediaRequest(request, env);
     if (mediaResponse) return mediaResponse;
+    return new Response('Not found', { status: 404 });
+  }
+
+  if (url.pathname === '/api/polls' || url.pathname.startsWith('/api/polls/')) {
+    const pollResponse = await handlePollRequest(request, env);
+    if (pollResponse) return pollResponse;
     return new Response('Not found', { status: 404 });
   }
 
