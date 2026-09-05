@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { consumeGuestReturnTarget } from './guest-entry-gate.js';
 
 const SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
@@ -107,7 +108,7 @@ async function handleUsernameSubmit(event) {
     });
     if (error) throw error;
 
-    window.location.assign('/home');
+    window.location.assign(consumeGuestReturnTarget() || '/home');
   } catch (error) {
     setMessage(error?.code === 'INVALID_CREDENTIALS' ? GENERIC_LOGIN_ERROR : (error?.message || 'We could not sign you in. Try again.'));
   } finally {
