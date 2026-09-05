@@ -30,6 +30,8 @@ const APP_HOME_URL = 'https://sautilink.com/home';
 const INITIAL_AUTH_RETURN = parseAuthReturnUrl(window.location.href);
 const THEME_STORAGE_KEY = 'sautilink.theme';
 const CAPTION_PREVIEW_LIMIT = 180;
+const HOME_VIDEO_VISIBILITY_THRESHOLD = 0.58;
+const HOME_DOUBLE_TAP_WINDOW = 320;
 const THEME_COLORS = Object.freeze({ dark: '#0b0c0f', light: '#ffffff' });
 
 function authRedirectUrl(action) {
@@ -149,6 +151,11 @@ let streamCursor = null;
 let streamHasMore = false;
 let streamLoading = false;
 let streamRequest = 0;
+let homeVideoObserver = null;
+const homeVideoVisibility = new Map();
+const homeMediaOpenTimers = new Map();
+const homeMediaClickSuppression = new WeakMap();
+let homeDoubleTapState = { card: null, target: null, time: 0 };
 let notificationsRequest = 0;
 let notificationUnreadCount = 0;
 let messagesRequest = 0;
@@ -1084,6 +1091,73 @@ async function loadSautiMediaRows(postId) {
   return Array.isArray(data) ? data.slice(0, 4) : [];
 }
 
+function pauseHomeFeedVideos() {
+  homeVideoVisibility.forEach((_ratio, video) => video.pause());
+}
+
+function syncHomeFeedVideoPlayback() {
+  if (document.visibilityState === 'hidden' || byId('sauti-media-viewer')?.open) {
+    pauseHomeFeedVideos();
+    return;
+  }
+
+  let activeVideo = null;
+  let activeRatio = HOME_VIDEO_VISIBILITY_THRESHOLD;
+  homeVideoVisibility.forEach((ratio, video) => {
+    if (!video.isConnected) {
+      homeVideoObserver?.unobserve(video);
+      homeVideoVisibility.delete(video);
+      return;
+    }
+    if (ratio >= activeRatio) {
+      activeVideo = video;
+      activeRatio = ratio;
+    }
+  });
+
+  homeVideoVisibility.forEach((_ratio, video) => {
+    if (video !== activeVideo) video.pause();
+  });
+  if (activeVideo) activeVideo.play().catch(() => {
+    // Muted autoplay can still be declined by browser or device preferences.
+  });
+}
+
+function ensureHomeVideoObserver() {
+  if (homeVideoObserver || typeof IntersectionObserver !== 'function') return homeVideoObserver;
+  homeVideoObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      homeVideoVisibility.set(entry.target, entry.isIntersecting ? entry.intersectionRatio : 0);
+    });
+    syncHomeFeedVideoPlayback();
+  }, { threshold: [0, 0.35, HOME_VIDEO_VISIBILITY_THRESHOLD, 0.85] });
+  return homeVideoObserver;
+}
+
+function observeHomeFeedVideo(video, gallery) {
+  if (!gallery.closest('#stream-feed')) return;
+  video.dataset.homeAutoplayVideo = '';
+  video.muted = true;
+  video.defaultMuted = true;
+  video.playsInline = true;
+  video.autoplay = true;
+  video.loop = true;
+  homeVideoVisibility.set(video, 0);
+  const observer = ensureHomeVideoObserver();
+  if (observer) observer.observe(video);
+  else video.play().catch(() => {});
+}
+
+function clearHomeFeedMediaState() {
+  homeMediaOpenTimers.forEach((timer) => window.clearTimeout(timer));
+  homeMediaOpenTimers.clear();
+  homeDoubleTapState = { card: null, target: null, time: 0 };
+  pauseHomeFeedVideos();
+  homeVideoObserver?.disconnect();
+  homeVideoObserver = null;
+  homeVideoVisibility.clear();
+}
+
 async function hydrateSautiMediaGallery(postId, gallery) {
   const rows = await loadSautiMediaRows(postId);
   if (!gallery.isConnected) return;
@@ -1118,10 +1192,11 @@ async function hydrateSautiMediaGallery(postId, gallery) {
     button.dataset.mediaAlt = media.alt_text || '';
     button.setAttribute('aria-label', media.alt_text ? `Open media: ${media.alt_text}` : 'Open post media');
 
+    let visual = null;
     try {
       const url = await fetchSautiMediaBlobUrl(media.id);
       button.dataset.mediaObjectUrl = url;
-      const visual = media.media_kind === 'video' ? document.createElement('video') : document.createElement('img');
+      visual = media.media_kind === 'video' ? document.createElement('video') : document.createElement('img');
       visual.src = url;
       if (visual instanceof HTMLVideoElement) {
         visual.muted = true;
@@ -1140,6 +1215,7 @@ async function hydrateSautiMediaGallery(postId, gallery) {
       button.disabled = true;
     }
     gallery.append(button);
+    if (visual instanceof HTMLVideoElement) observeHomeFeedVideo(visual, gallery);
   }
 }
 
@@ -1159,6 +1235,7 @@ function openSautiMediaViewer(button) {
     visual.alt = button.dataset.mediaAlt || '';
   }
   content.replaceChildren(visual);
+  pauseHomeFeedVideos();
   if (typeof dialog.showModal === 'function') dialog.showModal();
   else dialog.setAttribute('open', '');
 }
@@ -1168,6 +1245,7 @@ function closeSautiMediaViewer() {
   byId('sauti-media-viewer-content')?.replaceChildren();
   if (typeof dialog?.close === 'function' && dialog.open) dialog.close();
   else dialog?.removeAttribute('open');
+  syncHomeFeedVideoPlayback();
 }
 
 async function socialMutation(path, { method = 'POST', body } = {}) {
@@ -2931,6 +3009,7 @@ function resetStreamState() {
   streamHasMore = false;
   streamLoading = false;
   streamRequest += 1;
+  clearHomeFeedMediaState();
   byId('stream-feed').replaceChildren();
   byId('stream-loading').hidden = true;
   byId('stream-error').hidden = true;
@@ -3269,7 +3348,10 @@ function createSautiCard(item) {
 
 function renderStreamRows(rows, { reset = false } = {}) {
   const feed = byId('stream-feed');
-  if (reset) feed.replaceChildren();
+  if (reset) {
+    clearHomeFeedMediaState();
+    feed.replaceChildren();
+  }
   rows.forEach((item) => {
     const card = createSautiCard(item);
     if (card) feed.append(card);
@@ -3416,6 +3498,7 @@ async function loadStream({ reset = false } = {}) {
 
   if (reset) {
     streamCursor = null;
+    clearHomeFeedMediaState();
     byId('stream-feed').replaceChildren();
     byId('stream-empty').hidden = true;
     byId('stream-welcome').hidden = false;
@@ -7720,6 +7803,7 @@ window.addEventListener('focus', () => {
 });
 
 document.addEventListener('visibilitychange', () => {
+  syncHomeFeedVideoPlayback();
   if (document.visibilityState === 'visible' && currentMemberId) {
     void ensureDmInboxRealtime();
     if (!notificationsSurface.hidden) void loadNotifications();
@@ -8130,6 +8214,10 @@ byId('verification-info-dialog').addEventListener('click', (event) => {
 });
 
 byId('sauti-media-viewer-close').addEventListener('click', closeSautiMediaViewer);
+byId('sauti-media-viewer').addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closeSautiMediaViewer();
+});
 byId('sauti-media-viewer').addEventListener('click', (event) => {
   if (event.target === event.currentTarget) closeSautiMediaViewer();
 });
@@ -8556,6 +8644,77 @@ byId('conversation-reply-form').addEventListener('submit', (event) => {
   event.preventDefault();
   void submitThreadReply();
 });
+function showDoubleTapLikeFeedback(card, target) {
+  card.querySelector('.sauti-double-tap-heart')?.remove();
+  const feedback = document.createElement('span');
+  feedback.className = 'sauti-double-tap-heart';
+  feedback.setAttribute('aria-hidden', 'true');
+  feedback.append(sautiActionIcon('like'));
+  (target?.closest?.('.sauti-media-tile') || card).append(feedback);
+  window.setTimeout(() => feedback.remove(), 720);
+}
+
+function likeSautiFromDoubleTap(card, target) {
+  const likeButton = card.querySelector('[data-sauti-action="like"]');
+  if (!currentMember || !likeButton || likeButton.disabled) return;
+  showDoubleTapLikeFeedback(card, target);
+  if (likeButton.dataset.active !== 'true') void toggleLike(card, likeButton);
+}
+
+function handleHomeFeedPointerUp(event) {
+  if (event.isPrimary === false || (event.pointerType === 'mouse' && event.button !== 0)) return;
+  const card = event.target.closest?.('.sauti-card');
+  if (!card || !card.closest('#stream-feed')) return;
+
+  const media = event.target.closest?.('[data-open-media-id]');
+  const interactive = event.target.closest?.('a, button, input, textarea, select, label, [role="button"]');
+  if (interactive && interactive !== media) {
+    homeDoubleTapState = { card: null, target: null, time: 0 };
+    return;
+  }
+
+  const now = Date.now();
+  const target = media || card;
+  const isDoubleTap = homeDoubleTapState.card === card
+    && homeDoubleTapState.target === target
+    && now - homeDoubleTapState.time <= HOME_DOUBLE_TAP_WINDOW;
+
+  if (!isDoubleTap) {
+    homeDoubleTapState = { card, target, time: now };
+    return;
+  }
+
+  const pendingOpen = media ? homeMediaOpenTimers.get(media) : null;
+  if (pendingOpen) window.clearTimeout(pendingOpen);
+  if (media) {
+    homeMediaOpenTimers.delete(media);
+    homeMediaClickSuppression.set(media, now + HOME_DOUBLE_TAP_WINDOW);
+  }
+  homeDoubleTapState = { card: null, target: null, time: 0 };
+  likeSautiFromDoubleTap(card, event.target);
+}
+
+function openHomeMediaAfterTap(event, media) {
+  if (!media.closest('#stream-feed') || event.detail === 0) {
+    openSautiMediaViewer(media);
+    return;
+  }
+
+  const now = Date.now();
+  if ((homeMediaClickSuppression.get(media) || 0) >= now) {
+    homeMediaClickSuppression.delete(media);
+    return;
+  }
+
+  const previousTimer = homeMediaOpenTimers.get(media);
+  if (previousTimer) window.clearTimeout(previousTimer);
+  const timer = window.setTimeout(() => {
+    homeMediaOpenTimers.delete(media);
+    if (media.isConnected) openSautiMediaViewer(media);
+  }, HOME_DOUBLE_TAP_WINDOW);
+  homeMediaOpenTimers.set(media, timer);
+}
+
 function handleSautiFeedClick(event) {
   const captionToggle = event.target.closest('[data-caption-toggle]');
   if (captionToggle) {
@@ -8565,7 +8724,7 @@ function handleSautiFeedClick(event) {
 
   const media = event.target.closest('[data-open-media-id]');
   if (media) {
-    openSautiMediaViewer(media);
+    openHomeMediaAfterTap(event, media);
     return;
   }
 
@@ -8659,6 +8818,7 @@ for (const feedId of ['stream-feed', 'circle-stream-feed', 'discover-sauti-feed'
   byId(feedId).addEventListener('click', handleSautiFeedClick);
   byId(feedId).addEventListener('submit', handleSautiFeedSubmit);
 }
+byId('stream-feed').addEventListener('pointerup', handleHomeFeedPointerUp);
 
 byId('profile-follow-button').addEventListener('click', () => {
   void toggleProfileFollow();

@@ -3218,6 +3218,7 @@ body:not(.auth-entry) {
 }
 
 .sauti-card {
+  position: relative;
   display: block;
   margin: 0 14px 18px;
   padding: 0;
@@ -3228,6 +3229,7 @@ body:not(.auth-entry) {
   box-shadow: var(--app-shadow);
   content-visibility: auto;
   contain-intrinsic-size: 720px;
+  touch-action: manipulation;
 }
 
 .sauti-card:hover {
@@ -3353,6 +3355,35 @@ body:not(.auth-entry) {
 .sauti-media-tile {
   background: var(--app-media);
   color: var(--app-muted);
+  touch-action: manipulation;
+}
+
+.sauti-double-tap-heart {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.sauti-double-tap-heart svg {
+  width: clamp(62px, 15vw, 84px);
+  height: clamp(62px, 15vw, 84px);
+  fill: var(--app-accent);
+  stroke: #ffffff;
+  stroke-width: 1.2;
+  filter: drop-shadow(0 7px 18px rgba(0, 0, 0, .34));
+  animation: sauti-heart-pop 680ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+@keyframes sauti-heart-pop {
+  0% { opacity: 0; transform: scale(.45); }
+  24% { opacity: 1; transform: scale(1.14); }
+  58% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(.92); }
 }
 
 .media-count-1 .sauti-media-tile img,
