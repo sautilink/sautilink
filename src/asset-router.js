@@ -1,6 +1,6 @@
 import { handleProfileMediaRequest } from './profile-media-api.js';
 import { handleSautiRequest } from './sauti-posts-api.js';
-import { handleSautiMediaRequest } from './sauti-media-api.js';
+import { handleSautiMediaRequest, inspectMp4Bytes } from './sauti-media-api.js';
 import { handlePollRequest } from './polls-api.js';
 import { handleSocialInteractionRequest } from './social-interactions-api.js';
 import { handleTrustSafetyRequest } from './trust-safety-api.js';
@@ -26,6 +26,8 @@ const CLEAN_POST_ROUTE = /^\/post\/[0-9a-f-]{36}\/?$/;
 const CLEAN_MESSAGE_ROUTE = /^\/messages(?:\/[0-9a-f-]{36})?\/?$/;
 const CLEAN_SAUTIFY_ROUTE = /^\/sautify(?:\/[^/]+)?\/?$/;
 const CLEAN_ROUTE_PREFIX = /^\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications|messages|sautify)/;
+const SAUTI_MEDIA_UPLOAD_ROUTE = /^\/api\/sauti-media\/upload\/([0-9a-f-]{36})$/i;
+const SHORT_VIDEO_DURATION_MS = 30_000;
 
 const STAGING_HOST = 'test.sautilink.com';
 const RATE_LIMIT_BINDINGS = [
@@ -67,6 +69,74 @@ function json(status, payload) {
       'Cache-Control': 'no-store',
     },
   });
+}
+
+function authOnlyHeaders(request) {
+  const headers = new Headers();
+  const auth = request.headers.get('Authorization');
+  if (auth) headers.set('Authorization', auth);
+  return headers;
+}
+
+async function handleBoundedMediaUpload(request, env, url) {
+  const match = url.pathname.match(SAUTI_MEDIA_UPLOAD_ROUTE);
+  const contentType = String(request.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
+  if (!match || request.method !== 'PUT' || contentType !== 'video/mp4') return null;
+
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  const inspected = inspectMp4Bytes(bytes);
+  if (!inspected || Number(inspected.durationMs || 0) > SHORT_VIDEO_DURATION_MS) {
+    const cleanupUrl = new URL(`/api/sauti-media/${match[1]}`, url);
+    await handleSautiMediaRequest(new Request(cleanupUrl, {
+      method: 'DELETE',
+      headers: authOnlyHeaders(request),
+    }), env).catch(() => null);
+    return json(422, {
+      ok: false,
+      error: {
+        code: 'VIDEO_TOO_LONG',
+        message: 'Short videos are currently limited to 30 seconds. Choose a valid MP4 video that is 30 seconds or shorter.',
+      },
+    });
+  }
+
+  const replay = new Request(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body: bytes,
+  });
+  return handleSautiMediaRequest(replay, env);
+}
+
+async function handleSautiWithOptionalPoll(request, env, url) {
+  const pollSource = request.method === 'POST' && url.pathname === '/api/sauti' ? request.clone() : null;
+  const response = await handleSautiRequest(request, env);
+  if (!response || !pollSource || !response.ok) return response;
+
+  const payload = await pollSource.json().catch(() => null);
+  const options = Array.isArray(payload?.poll_options) ? payload.poll_options : [];
+  if (!options.length) return response;
+
+  const result = await response.clone().json().catch(() => null);
+  const postId = String(result?.data?.post?.id || '');
+  if (!postId) return response;
+
+  const createHeaders = authOnlyHeaders(pollSource);
+  createHeaders.set('Content-Type', 'application/json');
+  const pollRequest = new Request(new URL('/api/polls/create', url), {
+    method: 'POST',
+    headers: createHeaders,
+    body: JSON.stringify({ post_id: postId, options }),
+  });
+  const pollResponse = await handlePollRequest(pollRequest);
+  if (pollResponse?.ok) return response;
+
+  const rollbackRequest = new Request(new URL(`/api/sauti/${postId}`, url), {
+    method: 'DELETE',
+    headers: authOnlyHeaders(pollSource),
+  });
+  await handleSautiRequest(rollbackRequest, env).catch(() => null);
+  return pollResponse || json(409, { ok: false, error: { code: 'POLL_CREATE_FAILED', message: 'The poll could not be created.' } });
 }
 
 function healthResponse(env, url) {
@@ -143,19 +213,26 @@ async function routeRequest(request, env, url) {
   }
 
   if (url.pathname.startsWith('/api/sauti-media/')) {
+    const boundedVideoResponse = await handleBoundedMediaUpload(request, env, url);
+    if (boundedVideoResponse) return boundedVideoResponse;
     const mediaResponse = await handleSautiMediaRequest(request, env);
     if (mediaResponse) return mediaResponse;
     return new Response('Not found', { status: 404 });
   }
 
-  if (url.pathname === '/api/polls' || url.pathname.startsWith('/api/polls/')) {
+  if (
+    url.pathname === '/api/polls'
+    || url.pathname.startsWith('/api/polls/')
+    || url.pathname === '/api/sauti/polls'
+    || url.pathname === '/api/sauti/polls/vote'
+  ) {
     const pollResponse = await handlePollRequest(request, env);
     if (pollResponse) return pollResponse;
     return new Response('Not found', { status: 404 });
   }
 
   if (url.pathname === '/api/sauti' || url.pathname.startsWith('/api/sauti/')) {
-    const sautiResponse = await handleSautiRequest(request, env);
+    const sautiResponse = await handleSautiWithOptionalPoll(request, env, url);
     if (sautiResponse) return sautiResponse;
     return new Response('Not found', { status: 404 });
   }
