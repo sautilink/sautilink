@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "index.html"
       - "app/**"
       - "src/**"
       - "scripts/build-production-release.mjs"
@@ -16,6 +17,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "index.html"
       - "app/**"
       - "src/**"
       - "scripts/build-production-release.mjs"
@@ -108,10 +110,11 @@ jobs:
           signup_body="$(mktemp)"
           home_body="$(mktemp)"
           root_body="$(mktemp)"
+          www_root_body="$(mktemp)"
           www_app_body="$(mktemp)"
           ready=0
 
-          for attempt in 1 2 3 4 5 6 7 8; do
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
             request_id="phase32-$GITHUB_RUN_ID-$attempt"
             echo "Production convergence attempt $attempt"
 
@@ -132,8 +135,10 @@ jobs:
               "https://sautilink.com/home?release=$GITHUB_RUN_ID-$attempt")"
             root_code="$(curl -sS -o "$root_body" -w '%{http_code}' -H 'Cache-Control: no-cache' \
               "https://sautilink.com/?release=$GITHUB_RUN_ID-$attempt")"
+            www_root_code="$(curl -sS -L -o "$www_root_body" -w '%{http_code}' -H 'Cache-Control: no-cache' \
+              "https://www.sautilink.com/?release=$GITHUB_RUN_ID-$attempt")"
 
-            echo "health=$health_code app=$app_code login=$login_code signup=$signup_code home=$home_code www_app=$www_app_code root=$root_code"
+            echo "health=$health_code app=$app_code login=$login_code signup=$signup_code home=$home_code www_app=$www_app_code root=$root_code www_root=$www_root_code"
             cat "$health_body"
             echo
 
@@ -144,6 +149,7 @@ jobs:
               && [ "$signup_code" = "200" ] \
               && [ "$home_code" = "200" ] \
               && [ "$root_code" = "200" ] \
+              && [ "$www_root_code" = "200" ] \
               && grep -Fq '"status":"ok"' "$health_body" \
               && grep -Fq '"environment":"production"' "$health_body" \
               && grep -Fqi "x-request-id: $request_id" "$health_headers" \
@@ -151,16 +157,21 @@ jobs:
               && ! grep -Fqi 'x-robots-tag: noindex' "$app_headers" \
               && grep -Fq 'id="settings-surface"' "$app_body" \
               && grep -Fq 'theme-init.js?v=20260904-account2' "$app_body" \
-            && grep -Fq 'app.css?v=20260905-badge2' "$app_body" \
-            && grep -Fq 'app.js?v=20260905-badge2' "$app_body" \
+              && grep -Fq 'app.css?v=20260905-badge2' "$app_body" \
+              && grep -Fq 'app.js?v=20260905-badge2' "$app_body" \
               && ! grep -Fq 'Private preview' "$app_body" \
               && ! grep -Fq 'Phase 31' "$app_body" \
               && grep -Fq 'id="settings-surface"' "$www_app_body" \
               && grep -Fq 'id="login-form"' "$login_body" \
               && grep -Fq 'id="signup-form"' "$signup_body" \
               && grep -Fq 'id="settings-surface"' "$home_body" \
-              && grep -Fq 'data-sautilink-entry="login-redirect"' "$root_body" \
-              && grep -Fq 'url=/login' "$root_body"; then
+              && grep -Fq 'data-sautilink-entry="account-choice"' "$root_body" \
+              && grep -Fq 'Continue to SautiLink' "$root_body" \
+              && grep -Fq 'href="/login"' "$root_body" \
+              && grep -Fq 'href="/signup"' "$root_body" \
+              && ! grep -Fq 'url=/login' "$root_body" \
+              && grep -Fq 'data-sautilink-entry="account-choice"' "$www_root_body" \
+              && ! grep -Fq 'url=/login' "$www_root_body"; then
               ready=1
               break
             fi
@@ -173,7 +184,8 @@ jobs:
             echo "--- health headers ---"; cat "$health_headers" || true
             echo "--- health body ---"; cat "$health_body" || true
             echo "--- app head ---"; head -c 1200 "$app_body" || true; echo
-            echo "--- root head ---"; head -c 600 "$root_body" || true; echo
+            echo "--- root head ---"; head -c 1000 "$root_body" || true; echo
+            echo "--- www root head ---"; head -c 1000 "$www_root_body" || true; echo
             exit 1
           fi
 
