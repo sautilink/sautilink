@@ -59,7 +59,11 @@ await writeFile(appCssPath, productionText(await readFile(appCssPath, 'utf8')));
 
 await build({
   entryPoints: [resolve(workerSource, 'app.js')],
-  inject: [resolve(workerSource, 'caption-entities.js'), resolve(workerSource, 'composer-formats.js')],
+  inject: [
+    resolve(workerSource, 'caption-entities.js'),
+    resolve(workerSource, 'composer-formats.js'),
+    resolve(workerSource, 'username-login.js'),
+  ],
   outfile: resolve(siteRoot, 'app/assets/app.js'),
   bundle: true,
   minify: true,
