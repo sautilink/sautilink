@@ -96,6 +96,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/caption-entities.css'));
   assert.ok(files.includes('app/assets/composer-formats.css'));
   assert.ok(files.includes('app/assets/guest-entry-gate.css'));
+  assert.ok(files.includes('app/assets/post-media-carousel.css'));
   assert.ok(files.includes('app/assets/professional-profile-category.css'));
   assert.ok(files.includes('app/assets/profile-activity.css'));
   assert.ok(files.includes('app/assets/profile-route-states.css'));
@@ -144,6 +145,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
       || file === 'app/assets/caption-entities.css'
       || file === 'app/assets/composer-formats.css'
       || file === 'app/assets/guest-entry-gate.css'
+      || file === 'app/assets/post-media-carousel.css'
       || file === 'app/assets/professional-profile-category.css'
       || file === 'app/assets/profile-activity.css'
       || file === 'app/assets/profile-route-states.css'
@@ -180,6 +182,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
       || file === 'app/assets/caption-entities.css'
       || file === 'app/assets/composer-formats.css'
       || file === 'app/assets/guest-entry-gate.css'
+      || file === 'app/assets/post-media-carousel.css'
       || file === 'app/assets/professional-profile-category.css'
       || file === 'app/assets/profile-activity.css'
       || file === 'app/assets/profile-route-states.css'

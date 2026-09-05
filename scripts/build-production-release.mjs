@@ -2,6 +2,7 @@ import { build } from 'esbuild';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { transformPostMediaSource } from './post-media-source-transform.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const workerRoot = resolve(projectRoot, 'dist-production-worker');
@@ -37,7 +38,7 @@ await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: tru
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
   const source = await readFile(file, 'utf8');
-  let output = productionText(source);
+  let output = transformPostMediaSource(file, productionText(source));
   if (file.endsWith('asset-router.js')) {
     output = output.replace(
       "environment: isStaging(url) ? 'staging' : 'unknown',",
@@ -68,6 +69,7 @@ await build({
     resolve(workerSource, 'profile-route-states.js'),
     resolve(workerSource, 'professional-profile-category.js'),
     resolve(workerSource, 'profile-media-upload-icons.js'),
+    resolve(workerSource, 'post-media-carousel.js'),
   ],
   outfile: resolve(siteRoot, 'app/assets/app.js'),
   bundle: true,

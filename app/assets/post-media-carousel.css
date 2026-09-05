@@ -1,0 +1,164 @@
+.sauti-media-carousel-shell {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: var(--app-media);
+}
+
+.sauti-media-carousel-shell > .sauti-media-gallery {
+  margin: 0;
+}
+
+.sauti-media-gallery.is-carousel {
+  display: flex !important;
+  grid-template-columns: none !important;
+  grid-template-rows: none !important;
+  gap: 0 !important;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sauti-media-gallery.is-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.sauti-media-gallery.is-carousel > .sauti-media-tile {
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 100%;
+  height: 100%;
+  min-height: 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.sauti-media-gallery.is-carousel > .sauti-media-tile img,
+.sauti-media-gallery.is-carousel > .sauti-media-tile video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: var(--app-media);
+}
+
+.sauti-media-carousel-counter {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  display: inline-flex;
+  min-width: 42px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, .15);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .58);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+
+.sauti-media-carousel-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .52);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.sauti-media-carousel-nav:hover {
+  background: rgba(0, 0, 0, .68);
+}
+
+.sauti-media-carousel-nav:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+}
+
+.sauti-media-carousel-nav[disabled] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sauti-media-carousel-nav.prev { left: 10px; }
+.sauti-media-carousel-nav.next { right: 10px; }
+
+.sauti-media-carousel-nav svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.sauti-media-carousel-dots {
+  position: absolute;
+  right: 0;
+  bottom: 10px;
+  left: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  pointer-events: none;
+}
+
+.sauti-media-carousel-dot {
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .48);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .12);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.sauti-media-carousel-dot.active {
+  width: 7px;
+  height: 7px;
+  background: #fff;
+}
+
+@media (max-width: 760px) {
+  .sauti-media-carousel-nav {
+    display: none;
+  }
+
+  .sauti-media-carousel-counter {
+    top: 8px;
+    right: 8px;
+  }
+
+  .sauti-media-carousel-dots {
+    bottom: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sauti-media-gallery.is-carousel {
+    scroll-behavior: auto;
+  }
+}
