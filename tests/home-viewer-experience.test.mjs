@@ -32,7 +32,7 @@ test('Home Sauti cards use a media-first viewer with compact expandable captions
   ]);
 
   assert.match(source, /const CAPTION_PREVIEW_LIMIT = 180/);
-  assert.match(source, /function createSautiCaption\(username, value\)/);
+  assert.match(source, /function createSautiCaption\(authorProfile, value\)/);
   assert.match(source, /toggle\.dataset\.captionToggle = ''/);
   assert.match(source, /button\.textContent = expanded \? 'more' : 'less'/);
   assert.match(source, /card\?\.classList\.add\('has-media'\)/);
@@ -59,8 +59,8 @@ test('Home redesign preserves the approved verification badge contract and offli
     read('sw.js'),
   ]);
 
-  assert.match(css, /\.sauti-card-head\s*\{\s*--verification-badge-size: clamp\(13px, 1\.17em, 14px\);\s*\}/);
+  assert.match(css, /\.sauti-card-head\s*\{\s*--verification-badge-size: clamp\(14px, 1\.25em, 16px\);\s*\}/);
   assert.match(css, /\.sauti-card-head \.verified-name \{ font-size: 12px; \}/);
-  assert.match(sw, /sautilink-shell-v38/);
+  assert.match(sw, /sautilink-shell-v39/);
   assert.match(sw, /"\/app\/assets\/theme-init\.js"/);
 });

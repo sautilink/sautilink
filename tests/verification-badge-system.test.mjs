@@ -53,20 +53,23 @@ test('verification badges render PNG artwork without CSS-drawn substitute shapes
   assert.match(app, /verified-user-secondary\.png/);
   assert.match(css, /\.verification-badge img\s*\{[\s\S]*object-fit:\s*contain/);
   assert.match(css, /\.verification-badge\s*\{[\s\S]*width:\s*var\(--verification-badge-size, 1em\)[\s\S]*height:\s*var\(--verification-badge-size, 1em\)/);
+  assert.match(css, /\.verification-badge img\s*\{[\s\S]*width:\s*168\.4%[\s\S]*height:\s*168\.4%[\s\S]*max-width:\s*none/);
   assert.doesNotMatch(css, /\.verification-badge::after/);
   assert.doesNotMatch(css, /--verification-badge-fill/);
   assert.match(html, /data-verification-badge-image/);
 });
 
 test('verification badge size stays balanced with the local display-name typography', () => {
-  assert.match(css, /\.profile-name-line\s*\{[\s\S]*--verification-badge-size:\s*clamp\(19px, \.88em, 22px\)[\s\S]*font-size:\s*25px/);
-  assert.match(css, /\.sauti-card-head\s*\{\s*--verification-badge-size:\s*clamp\(13px, 1\.17em, 14px\)/);
-  assert.match(css, /\.sauti-comment-head\s*\{\s*--verification-badge-size:\s*clamp\(10\.5px, 1\.3em, 12px\)/);
-  assert.match(css, /\.sauti-quote-head\s*\{\s*--verification-badge-size:\s*clamp\(11px, 1\.2em, 12px\)/);
-  assert.match(css, /\.discover-profile-heading\s*\{\s*--verification-badge-size:\s*clamp\(12\.5px, 1\.25em, 14px\)/);
-  assert.match(css, /\.notification-copy\s*\{\s*--verification-badge-size:\s*clamp\(13px, 1\.15em, 14px\)/);
-  assert.match(css, /\.message-inbox-top\s*\{\s*--verification-badge-size:\s*clamp\(12px, 1\.15em, 13px\)/);
-  assert.match(css, /\.message-thread-person\s*\{\s*--verification-badge-size:\s*clamp\(12px, 1\.15em, 13px\)/);
+  assert.match(css, /\.profile-name-line\s*\{[\s\S]*--verification-badge-size:\s*clamp\(22px, \.96em, 25px\)[\s\S]*font-size:\s*25px/);
+  assert.match(css, /\.sauti-card-head\s*\{\s*--verification-badge-size:\s*clamp\(14px, 1\.25em, 16px\)/);
+  assert.match(css, /\.sauti-comment-head\s*\{\s*--verification-badge-size:\s*clamp\(10px, 1\.22em, 12px\)/);
+  assert.match(css, /\.sauti-quote-head\s*\{\s*--verification-badge-size:\s*clamp\(11px, 1\.2em, 13px\)/);
+  assert.match(css, /\.discover-profile-heading\s*\{\s*--verification-badge-size:\s*clamp\(12px, 1\.25em, 15px\)/);
+  assert.match(css, /\.notification-copy\s*\{\s*--verification-badge-size:\s*clamp\(13px, 1\.2em, 15px\)/);
+  assert.match(css, /\.message-inbox-top\s*\{\s*--verification-badge-size:\s*clamp\(12px, 1\.2em, 14px\)/);
+  assert.match(css, /\.message-thread-person\s*\{\s*--verification-badge-size:\s*clamp\(12px, 1\.2em, 14px\)/);
+  assert.match(css, /\.circle-request-person,[\s\S]*\.circle-member-person\s*\{\s*--verification-badge-size:\s*12px/);
+  assert.match(css, /\.sauti-caption-author\s*\{\s*--verification-badge-size:\s*clamp\(14px, \.95em, 15px\)/);
   assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.profile-name-line\s*\{\s*font-size:\s*22px/);
   assert.match(css, /\.profile-heading h2\s*\{[^}]*font-size:\s*1em/);
   assert.doesNotMatch(css, /\.profile-verified-badge\s*\{\s*font-size:\s*\d+px/);
@@ -104,6 +107,19 @@ test('official verification badges stay consistent in notifications and messages
   assert.match(css, /\.notification-copy \.verified-name\s*\{[^}]*font-size:\s*12px/);
   assert.match(css, /\.message-inbox-top \.verified-name\s*\{\s*font-size:\s*11px/);
   assert.match(css, /#message-thread-name\.verified\s*\{[^}]*display:\s*inline-flex/);
+});
+
+test('verified identity propagates across reposts, captions, navigation, settings and Sautify', () => {
+  assert.match(app, /function inlineVerifiedNameNode/);
+  assert.match(app, /function setInlineVerifiedName/);
+  assert.match(app, /createSautiCaption\(author, post\.body\)/);
+  assert.match(app, /item\.actor\.is_verified[\s\S]{0,120}item\.actor\.verification_badge_type/);
+  assert.match(app, /setInlineVerifiedName\(byId\('rail-name'\), displayName, currentMember\)/);
+  assert.match(app, /setInlineVerifiedName\(byId\('member-display-name'\), displayName, currentMember\)/);
+  assert.match(app, /select\('id,username,display_name,avatar_key,updated_at,is_verified,verification_badge_type'\)/);
+  assert.match(app, /select\('id, username, display_name, is_verified, verification_badge_type'\)[\s\S]{0,80}\.in\('id', ids\)/);
+  assert.match(app, /function loadCircleOwnerProfile[\s\S]{0,260}is_verified, verification_badge_type/);
+  assert.match(app, /setInlineVerifiedName\([\s\S]{0,120}profile\?\.display_name[\s\S]{0,120}profile/);
 });
 
 test('team badge assignment is server-controlled and audited', () => {
