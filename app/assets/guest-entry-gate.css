@@ -1,0 +1,232 @@
+:root {
+  --guest-gate-bg: #07101f;
+  --guest-gate-surface: #0b1525;
+  --guest-gate-text: #f7f9fc;
+  --guest-gate-muted: #aeb8c8;
+  --guest-gate-border: #33415a;
+  --guest-gate-button: #f7f9fc;
+  --guest-gate-button-text: #07101f;
+}
+
+html[data-theme="light"] {
+  --guest-gate-bg: #f6f7f9;
+  --guest-gate-surface: #ffffff;
+  --guest-gate-text: #111318;
+  --guest-gate-muted: #667085;
+  --guest-gate-border: #d5dae3;
+  --guest-gate-button: #111318;
+  --guest-gate-button-text: #ffffff;
+}
+
+.sautilink-guest-profile-locked,
+.sautilink-guest-profile-locked body {
+  overflow: hidden;
+}
+
+.guest-profile-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  overflow-y: auto;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 24px;
+  min-height: 100dvh;
+  padding: 28px 18px;
+  background: var(--guest-gate-bg);
+  color: var(--guest-gate-text);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.guest-profile-brand {
+  display: inline-grid;
+  place-items: center;
+  text-decoration: none;
+}
+
+.guest-profile-brand img {
+  width: 82px;
+  height: auto;
+  display: block;
+}
+
+.guest-profile-card {
+  width: min(100%, 430px);
+  padding: 26px;
+  border: 1px solid var(--guest-gate-border);
+  border-radius: 24px;
+  background: var(--guest-gate-surface);
+  text-align: center;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 16%);
+}
+
+.guest-profile-loading,
+.guest-profile-copy,
+.guest-profile-username {
+  color: var(--guest-gate-muted);
+}
+
+.guest-profile-loading {
+  margin: 16px 0;
+  font-size: 14px;
+}
+
+.guest-profile-avatar-wrap {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  margin: 0 auto 16px;
+  overflow: hidden;
+  border: 1px solid var(--guest-gate-border);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--guest-gate-surface) 78%, var(--guest-gate-text));
+}
+
+.guest-profile-avatar,
+.guest-profile-avatar-fallback {
+  width: 100%;
+  height: 100%;
+}
+
+.guest-profile-avatar {
+  display: block;
+  object-fit: cover;
+}
+
+.guest-profile-avatar-fallback {
+  display: grid;
+  place-items: center;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -.04em;
+}
+
+.guest-profile-name-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.guest-profile-name {
+  overflow: hidden;
+  margin: 0;
+  color: var(--guest-gate-text);
+  font-size: 23px;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guest-profile-badge {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  object-fit: contain;
+}
+
+.guest-profile-username {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+
+.guest-profile-stats {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 18px;
+}
+
+.guest-profile-stat-number {
+  color: var(--guest-gate-text);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.guest-profile-stat-label {
+  color: var(--guest-gate-muted);
+  font-size: 14px;
+}
+
+.guest-profile-divider {
+  height: 1px;
+  margin: 22px 0;
+  background: var(--guest-gate-border);
+}
+
+.guest-profile-message {
+  text-align: left;
+}
+
+.guest-profile-title {
+  margin: 0;
+  color: var(--guest-gate-text);
+  font-size: 20px;
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: -.025em;
+}
+
+.guest-profile-copy {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.guest-profile-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.guest-profile-primary,
+.guest-profile-secondary {
+  min-height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.guest-profile-primary {
+  background: var(--guest-gate-button);
+  color: var(--guest-gate-button-text);
+}
+
+.guest-profile-secondary {
+  border: 1px solid var(--guest-gate-border);
+  color: var(--guest-gate-text);
+  background: transparent;
+}
+
+.guest-profile-primary:focus-visible,
+.guest-profile-secondary:focus-visible,
+.guest-profile-brand:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+
+@media (max-width: 520px) {
+  .guest-profile-gate {
+    align-content: start;
+    gap: 20px;
+    padding-top: max(32px, env(safe-area-inset-top));
+  }
+
+  .guest-profile-card {
+    padding: 22px 20px;
+    border-radius: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guest-profile-gate * {
+    scroll-behavior: auto !important;
+  }
+}

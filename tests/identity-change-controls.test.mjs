@@ -106,7 +106,7 @@ test('clean social routes are canonical while legacy app paths remain readable',
   assert.match(workflow, /https:\/\/sautilink\.com\/login/);
   assert.match(workflow, /https:\/\/sautilink\.com\/signup/);
   assert.match(workflow, /https:\/\/sautilink\.com\/home/);
-  assert.match(workflow, /data-sautilink-entry=\"login-redirect\"/);
+  assert.match(workflow, /data-sautilink-entry=\"account-choice\"/);
 });
 
 test('service worker recognizes clean social routes and rotates its cache', async () => {
