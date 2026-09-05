@@ -4,7 +4,7 @@ import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('identity migration enforces display-name, username, verified-review and RLS boundaries', async () => {
+test('base identity migration retains display-name, username, review-history and RLS boundaries', async () => {
   const sql = await read('supabase/migrations/20260903003000_enable_identity_change_controls.sql');
 
   assert.match(sql, /add column if not exists is_verified boolean not null default false/i);
@@ -22,22 +22,27 @@ test('identity migration enforces display-name, username, verified-review and RL
   assert.match(sql, /review_social_identity_request/);
 });
 
-test('member identity API exposes status and changes identity only through the guarded RPC', async () => {
+test('member identity API exposes current quotas and changes identity only through the guarded RPC', async () => {
   const api = await read('src/account-controls-api.js');
 
   assert.match(api, /\/api\/account\/identity/);
   assert.match(api, /rpc\/change_social_identity/);
   assert.match(api, /social_identity_change_events/);
-  assert.match(api, /social_identity_change_requests/);
   assert.match(api, /changes_remaining_14_days/);
+  assert.match(api, /changes_remaining_month/);
   assert.match(api, /changes_remaining_30_days/);
+  assert.match(api, /locked_permanently/);
+  assert.match(api, /requires_review: false/);
+  assert.match(api, /VERIFIED_DISPLAY_NAME_MONTHLY_LIMIT/);
+  assert.match(api, /USERNAME_LOCKED_VERIFIED/);
   assert.match(api, /DISPLAY_NAME_CHANGE_LIMIT/);
   assert.match(api, /USERNAME_CHANGE_LIMIT/);
 });
 
-test('profile editor includes name and username controls with verified-account review copy', async () => {
+test('profile editor includes name controls and permanently disables locked usernames', async () => {
   const html = await read('app/index.html');
   const source = await read('src/app.js');
+  const verifiedControls = await read('src/verified-identity-controls.js');
 
   for (const marker of [
     'id="profile-name-form"',
@@ -50,20 +55,23 @@ test('profile editor includes name and username controls with verified-account r
 
   assert.match(source, /loadIdentityControls/);
   assert.match(source, /submitIdentityChange/);
-  assert.match(source, /Request name change/);
-  assert.match(source, /once every 30 days/);
-  assert.match(source, /Name change request submitted/);
+  assert.match(verifiedControls, /Verified accounts can change their display name twice per month/);
+  assert.match(verifiedControls, /Username is permanently locked after verification/);
+  assert.match(verifiedControls, /usernameInput\.disabled = true/);
+  assert.match(verifiedControls, /verified-username-locked/);
 });
 
-test('verified display-name requests have a staff review surface', async () => {
+test('legacy verified display-name review tooling remains readable for historical moderation records', async () => {
   const api = await read('src/moderation-api.js');
   const source = await read('src/app.js');
+  const currentPolicy = await read('supabase/migrations/20260905161000_verified_name_monthly_and_permanent_username_lock.sql');
 
   assert.match(api, /\/api\/moderation\/identity-requests/);
   assert.match(api, /rpc\/identity_change_requests_for_staff/);
   assert.match(api, /rpc\/review_social_identity_request/);
   assert.match(source, /loadModerationIdentityRequests/);
   assert.match(source, /decideModerationIdentityRequest/);
+  assert.match(currentPolicy, /status = 'cancelled'/i);
 });
 
 test('clean social routes are canonical while legacy app paths remain readable', async () => {
