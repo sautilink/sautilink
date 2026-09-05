@@ -13,10 +13,11 @@ test('login bridge keeps email flow and adds username support', async () => {
     "replace(/^@+/",
     'sautilink-username-login',
     'auth.setSession',
-    "window.location.assign('/home')",
+    "consumeGuestReturnTarget() || '/home'",
     'Incorrect email/username or password.',
   ]) assert.match(source, new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 
+  assert.match(source, /import \{ consumeGuestReturnTarget \} from '\.\/guest-entry-gate\.js'/);
   assert.match(source, /if \(looksLikeLoginEmail\(identifier\)\) return;/);
   assert.match(source, /addEventListener\('submit', handleUsernameSubmit, true\)/);
   assert.doesNotMatch(source, /service_role|SUPABASE_SECRET_KEYS|SUPABASE_SERVICE_ROLE_KEY/i);
