@@ -120,7 +120,7 @@ if (/Private preview|Phase 31|Phase 27|Foundation in progress/i.test(appHtml)) {
   throw new Error('development presentation copy leaked into staged app shell');
 }
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('staged theme bootstrap is missing');
-if (!appHtml.includes('app.js?v=20260905-badge1')) throw new Error('staged app JS cache marker is stale');
-if (!appHtml.includes('app.css?v=20260905-badge1')) throw new Error('staged app CSS cache marker is stale');
+if (!appHtml.includes('app.js?v=20260905-badge2')) throw new Error('staged app JS cache marker is stale');
+if (!appHtml.includes('app.css?v=20260905-badge2')) throw new Error('staged app CSS cache marker is stale');
 
 console.log(`Verified ${files.length} staged files: allowlist intact, no source maps or sensitive markers.`);

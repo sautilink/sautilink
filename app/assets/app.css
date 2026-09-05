@@ -1005,7 +1005,7 @@ svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: 
 }
 .message-thread-person strong { color: #eef5ff; font-size: 11px; }
 .message-thread-person { --verification-badge-size: clamp(12px, 1.2em, 14px); }
-#message-thread-name.verified { display: inline-flex; align-items: center; gap: .14em; }
+#message-thread-name.verified { display: inline-flex; align-items: center; gap: .25em; }
 .message-thread-person small { margin-top: 2px; color: #71859d; font-size: 9px; }
 .message-thread-activity {
   position: relative;
@@ -2441,11 +2441,11 @@ svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: 
 
 /* Identity controls + clean-route rollout */
 .profile-name-line {
-  --verification-badge-size: clamp(22px, .96em, 25px);
+  --verification-badge-size: clamp(21px, .9em, 23px);
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: .14em;
+  gap: .22em;
   flex-wrap: nowrap;
   font-size: 25px;
 }
@@ -2488,13 +2488,14 @@ button.verification-badge:hover img {
   min-width: 0;
   max-width: 100%;
   align-items: center;
-  gap: .15em;
+  gap: .25em;
   flex: 0 1 auto;
   line-height: 1;
 }
 
 .verified-name > strong {
   min-width: 0;
+  color: inherit !important;
   font-size: inherit !important;
   line-height: inherit;
 }
@@ -2504,7 +2505,7 @@ button.verification-badge:hover img {
   min-width: 0;
   max-width: 100%;
   align-items: center;
-  gap: .15em;
+  gap: .25em;
   color: inherit;
   font: inherit;
   line-height: inherit;
@@ -3594,6 +3595,162 @@ body:not(.auth-entry) select {
 :root[data-theme="light"] .sauti-media-viewer {
   border-color: var(--app-line);
   background: var(--app-panel);
+  color: var(--app-text);
+}
+
+/* Keep all member identity and readable content on the light palette. */
+:root[data-theme="light"] .profile-card,
+:root[data-theme="light"] .profile-route-state,
+:root[data-theme="light"] .circle-detail-card,
+:root[data-theme="light"] .circle-requests,
+:root[data-theme="light"] .circle-stream,
+:root[data-theme="light"] .circle-stream-locked,
+:root[data-theme="light"] .circle-members,
+:root[data-theme="light"] .settings-card,
+:root[data-theme="light"] .settings-delete-dialog {
+  background: var(--app-panel);
+  color: var(--app-text);
+}
+
+:root[data-theme="light"] .profile-avatar,
+:root[data-theme="light"] .profile-avatar-image {
+  border-color: var(--app-panel);
+}
+
+:root[data-theme="light"] .profile-edit-button,
+:root[data-theme="light"] .profile-follow-button.following,
+:root[data-theme="light"] .profile-safety-button,
+:root[data-theme="light"] .secondary-action,
+:root[data-theme="light"] .circle-primary-action.owner {
+  border-color: var(--app-line-strong);
+  background: var(--app-panel-soft);
+  color: var(--app-text);
+}
+
+:root[data-theme="light"] .profile-edit-button:hover,
+:root[data-theme="light"] .profile-follow-button.following:hover,
+:root[data-theme="light"] .profile-safety-button:hover,
+:root[data-theme="light"] .secondary-action:hover {
+  background: var(--app-elevated);
+  color: var(--app-text);
+}
+
+:root[data-theme="light"] .profile-visibility.private {
+  border-color: var(--app-line-strong);
+  background: var(--app-panel-soft);
+  color: var(--app-muted);
+}
+
+:root[data-theme="light"] .profile-meta a {
+  color: var(--app-accent);
+}
+
+:root[data-theme="light"] .profile-heading h2,
+:root[data-theme="light"] .profile-social-stats strong,
+:root[data-theme="light"] .profile-bio,
+:root[data-theme="light"] .profile-editor-heading h2,
+:root[data-theme="light"] .profile-form > label:not(.profile-discoverability),
+:root[data-theme="light"] .profile-discoverability strong,
+:root[data-theme="light"] .profile-media-heading strong,
+:root[data-theme="light"] .profile-media-control > div strong,
+:root[data-theme="light"] .notification-copy .verified-name,
+:root[data-theme="light"] .message-inbox-top .verified-name,
+:root[data-theme="light"] .message-thread-person strong,
+:root[data-theme="light"] .circle-card h3,
+:root[data-theme="light"] .circles-toolbar h2,
+:root[data-theme="light"] .circle-create-heading h3,
+:root[data-theme="light"] .circle-create-form label,
+:root[data-theme="light"] .circle-detail-card h2,
+:root[data-theme="light"] .circle-requests-heading h3,
+:root[data-theme="light"] .circle-request-person strong,
+:root[data-theme="light"] .circle-stream-heading h3,
+:root[data-theme="light"] .circle-stream-locked h3,
+:root[data-theme="light"] .circle-members-heading h3,
+:root[data-theme="light"] .circle-member-person strong,
+:root[data-theme="light"] .messages-toolbar h2,
+:root[data-theme="light"] .message-new-form > label,
+:root[data-theme="light"] .messages-search > span,
+:root[data-theme="light"] .dm-message p,
+:root[data-theme="light"] .discover-section-heading h3,
+:root[data-theme="light"] .discover-profile-heading strong,
+:root[data-theme="light"] .settings-toolbar h2,
+:root[data-theme="light"] .settings-panel-heading h3,
+:root[data-theme="light"] .settings-card-title strong,
+:root[data-theme="light"] .settings-data-card strong,
+:root[data-theme="light"] .settings-details dd,
+:root[data-theme="light"] .settings-toggle-row strong,
+:root[data-theme="light"] .settings-select > span,
+:root[data-theme="light"] .settings-account-row strong,
+:root[data-theme="light"] .settings-delete-form > label {
+  color: var(--app-text);
+}
+
+:root[data-theme="light"] .profile-social-stats,
+:root[data-theme="light"] .profile-bio.empty,
+:root[data-theme="light"] .profile-meta,
+:root[data-theme="light"] .profile-media-control > div small,
+:root[data-theme="light"] .notification-copy p,
+:root[data-theme="light"] .notification-meta,
+:root[data-theme="light"] .circle-card-slug,
+:root[data-theme="light"] .circle-card-description,
+:root[data-theme="light"] .circle-card-meta,
+:root[data-theme="light"] .circle-card-state,
+:root[data-theme="light"] .circle-detail-description,
+:root[data-theme="light"] .circle-detail-meta,
+:root[data-theme="light"] .circle-request-person small,
+:root[data-theme="light"] .circle-member-person small,
+:root[data-theme="light"] .messages-toolbar p:last-child,
+:root[data-theme="light"] .message-inbox-top small,
+:root[data-theme="light"] .message-inbox-preview,
+:root[data-theme="light"] .message-inbox-meta,
+:root[data-theme="light"] .message-thread-person small,
+:root[data-theme="light"] .message-safety-note,
+:root[data-theme="light"] .dm-message.deleted p,
+:root[data-theme="light"] .dm-message-meta,
+:root[data-theme="light"] .message-typing-status,
+:root[data-theme="light"] .discover-profile-heading span,
+:root[data-theme="light"] .discover-profile-copy p,
+:root[data-theme="light"] .discover-profile-copy small,
+:root[data-theme="light"] .discover-section-empty {
+  color: var(--app-muted);
+}
+
+:root[data-theme="light"] .circle-create-panel,
+:root[data-theme="light"] .message-new-form,
+:root[data-theme="light"] .discover-search,
+:root[data-theme="light"] .message-thread-header,
+:root[data-theme="light"] .message-safety-note,
+:root[data-theme="light"] .message-typing-status,
+:root[data-theme="light"] .message-composer,
+:root[data-theme="light"] .profile-discoverability,
+:root[data-theme="light"] .profile-media-panel,
+:root[data-theme="light"] .profile-media-control,
+:root[data-theme="light"] .settings-details div,
+:root[data-theme="light"] .settings-account-row {
+  background: var(--app-panel-soft);
+}
+
+:root[data-theme="light"] .circle-create-form,
+:root[data-theme="light"] .circle-card,
+:root[data-theme="light"] .message-inbox-item,
+:root[data-theme="light"] .dm-message,
+:root[data-theme="light"] .discover-profile-row {
+  background: var(--app-panel);
+}
+
+:root[data-theme="light"] .circle-card:hover,
+:root[data-theme="light"] .message-inbox-item:hover,
+:root[data-theme="light"] .discover-profile-row:hover {
+  background: var(--app-panel-soft);
+}
+
+:root[data-theme="light"] .message-inbox-item.unread,
+:root[data-theme="light"] .dm-message.own {
+  background: #eef5ff;
+}
+
+:root[data-theme="light"] .settings-tabs button.active {
+  background: var(--app-elevated);
   color: var(--app-text);
 }
 

@@ -203,8 +203,8 @@ function normalizeVerificationBadgeType(value) {
 function verificationBadgeAsset(badgeType = 'standard') {
   if (normalizeVerificationBadgeType(badgeType) === 'team') return VERIFICATION_BADGE_ASSETS.team;
   return document.documentElement.dataset.theme === 'light'
-    ? VERIFICATION_BADGE_ASSETS.standardSecondary
-    : VERIFICATION_BADGE_ASSETS.standardPrimary;
+    ? VERIFICATION_BADGE_ASSETS.standardPrimary
+    : VERIFICATION_BADGE_ASSETS.standardSecondary;
 }
 
 function applyVerificationBadgeAsset(badge, badgeType = 'standard') {

@@ -60,7 +60,7 @@ test('verification badges render PNG artwork without CSS-drawn substitute shapes
 });
 
 test('verification badge size stays balanced with the local display-name typography', () => {
-  assert.match(css, /\.profile-name-line\s*\{[\s\S]*--verification-badge-size:\s*clamp\(22px, \.96em, 25px\)[\s\S]*font-size:\s*25px/);
+  assert.match(css, /\.profile-name-line\s*\{[\s\S]*--verification-badge-size:\s*clamp\(21px, \.9em, 23px\)[\s\S]*gap:\s*\.22em[\s\S]*font-size:\s*25px/);
   assert.match(css, /\.sauti-card-head\s*\{\s*--verification-badge-size:\s*clamp\(14px, 1\.25em, 16px\)/);
   assert.match(css, /\.sauti-comment-head\s*\{\s*--verification-badge-size:\s*clamp\(10px, 1\.22em, 12px\)/);
   assert.match(css, /\.sauti-quote-head\s*\{\s*--verification-badge-size:\s*clamp\(11px, 1\.2em, 13px\)/);
@@ -73,6 +73,20 @@ test('verification badge size stays balanced with the local display-name typogra
   assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.profile-name-line\s*\{\s*font-size:\s*22px/);
   assert.match(css, /\.profile-heading h2\s*\{[^}]*font-size:\s*1em/);
   assert.doesNotMatch(css, /\.profile-verified-badge\s*\{\s*font-size:\s*\d+px/);
+});
+
+test('verification badge spacing and artwork follow the active theme', () => {
+  assert.match(css, /\.verified-name\s*\{[\s\S]*gap:\s*\.25em/);
+  assert.match(css, /\.inline-verified-name\s*\{[\s\S]*gap:\s*\.25em/);
+  assert.match(css, /\.verified-name > strong\s*\{[\s\S]*color:\s*inherit !important/);
+  assert.match(app, /dataset\.theme === 'light'[\s\S]{0,100}\? VERIFICATION_BADGE_ASSETS\.standardPrimary[\s\S]{0,100}: VERIFICATION_BADGE_ASSETS\.standardSecondary/);
+  assert.match(app, /function applyTheme[\s\S]*syncVerificationBadgeAssets\(\)/);
+});
+
+test('light theme keeps identity and content text readable across social surfaces', () => {
+  assert.match(css, /:root\[data-theme="light"\] \.profile-heading h2,[\s\S]*\.notification-copy \.verified-name,[\s\S]*\.message-inbox-top \.verified-name,[\s\S]*\.circle-request-person strong,[\s\S]*color:\s*var\(--app-text\)/);
+  assert.match(css, /:root\[data-theme="light"\] \.profile-card,[\s\S]*\.circle-detail-card,[\s\S]*\.settings-card,[\s\S]*background:\s*var\(--app-panel\)/);
+  assert.match(css, /:root\[data-theme="light"\] \.profile-social-stats,[\s\S]*\.notification-copy p,[\s\S]*\.message-inbox-preview,[\s\S]*color:\s*var\(--app-muted\)/);
 });
 
 test('profile verification badge opens owner-aware and viewer-aware information', () => {
