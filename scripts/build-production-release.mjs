@@ -63,6 +63,7 @@ await build({
     resolve(workerSource, 'caption-entities.js'),
     resolve(workerSource, 'composer-formats.js'),
     resolve(workerSource, 'username-login.js'),
+    resolve(workerSource, 'verified-identity-controls.js'),
   ],
   outfile: resolve(siteRoot, 'app/assets/app.js'),
   bundle: true,
