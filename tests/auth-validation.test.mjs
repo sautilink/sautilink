@@ -22,6 +22,26 @@ test('rejects malformed and reserved usernames', () => {
   assert.equal(usernameError('charles.x'), '');
 });
 
+test('allows reserved usernames only when resolving their profile route', () => {
+  const previousWindow = globalThis.window;
+
+  try {
+    globalThis.window = { location: { pathname: '/u/sautilink' } };
+    assert.equal(usernameError('sautilink'), '');
+    assert.match(usernameError('support'), /reserved/);
+
+    globalThis.window.location.pathname = '/app/u/support';
+    assert.equal(usernameError('support'), '');
+
+    globalThis.window.location.pathname = '/signup';
+    assert.match(usernameError('sautilink'), /reserved/);
+    assert.match(usernameError('support'), /reserved/);
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
 test('normalizes and validates email addresses', () => {
   assert.equal(normalizeEmail(' Test@Example.COM '), 'test@example.com');
   assert.equal(emailError('test@example.com'), '');

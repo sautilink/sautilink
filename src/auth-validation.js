@@ -21,12 +21,25 @@ export function normalizeUsername(value) {
     .slice(0, 30);
 }
 
+function isCurrentProfileRouteUsername(username) {
+  if (typeof window === 'undefined' || !window.location?.pathname) return false;
+
+  const match = window.location.pathname.match(/^(?:\/app)?\/u\/([^/]+)\/?$/i);
+  if (!match) return false;
+
+  try {
+    return normalizeUsername(decodeURIComponent(match[1])) === username;
+  } catch {
+    return false;
+  }
+}
+
 export function usernameError(value) {
   const username = normalizeUsername(value);
   if (!USERNAME_PATTERN.test(username)) {
     return 'Use 3–30 lowercase letters, numbers, dots or underscores.';
   }
-  if (RESERVED_USERNAMES.has(username)) {
+  if (RESERVED_USERNAMES.has(username) && !isCurrentProfileRouteUsername(username)) {
     return 'That username is reserved by SautiLink.';
   }
   return '';
