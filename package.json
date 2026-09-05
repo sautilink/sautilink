@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "npm run build:app && npm run build:preview",
-    "build:app": "esbuild src/app.js --bundle --minify --format=esm --target=es2022 --inject:./src/caption-entities.js --inject:./src/composer-formats.js --inject:./src/username-login.js --outfile=app/assets/app.js",
+    "build:app": "esbuild src/app.js --bundle --minify --format=esm --target=es2022 --inject:./src/caption-entities.js --inject:./src/composer-formats.js --inject:./src/username-login.js --inject:./src/verified-identity-controls.js --outfile=app/assets/app.js",
     "build:preview": "vite build --config vite.preview.config.js && vite build --config vite.identity.config.js && vite build --config vite.profiles.config.js && vite build --config vite.share-stream.config.js && vite build --config vite.media.config.js && vite build --config vite.conversations.config.js && vite build --config vite.trust-safety.config.js && vite build --config vite.messages.config.js && vite build --config vite.settings.config.js && node scripts/stage-preview-site.mjs",
     "build:production": "node scripts/build-production-release.mjs",
     "dev:preview": "vite --config vite.preview.config.js",
