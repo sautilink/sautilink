@@ -64,6 +64,7 @@ await build({
     resolve(workerSource, 'composer-formats.js'),
     resolve(workerSource, 'username-login.js'),
     resolve(workerSource, 'verified-identity-controls.js'),
+    resolve(workerSource, 'profile-activity.js'),
   ],
   outfile: resolve(siteRoot, 'app/assets/app.js'),
   bundle: true,
