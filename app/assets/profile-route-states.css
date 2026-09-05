@@ -1,0 +1,150 @@
+#profile-route-state {
+  min-height: 340px;
+  padding: 48px 28px;
+  border: 1px solid var(--app-line);
+  border-radius: 22px;
+  background: var(--app-panel);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+  text-align: center;
+}
+
+#profile-route-state .section-label {
+  display: none;
+}
+
+#profile-route-state .profile-route-mark {
+  display: flex;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  margin: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#profile-route-state .profile-route-mark::before,
+#profile-route-state .profile-route-mark::after,
+#profile-route-state .profile-route-mark > i {
+  display: none;
+}
+
+#profile-route-state .profile-route-brand-logo {
+  display: block;
+  width: 74px;
+  height: auto;
+  object-fit: contain;
+}
+
+#profile-route-state .profile-route-brand-spinner {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--app-line-strong);
+  border-top-color: var(--app-accent);
+  border-radius: 50%;
+  animation: profile-route-spin 800ms linear infinite;
+}
+
+#profile-route-state .profile-route-unavailable-icon {
+  display: none;
+  width: 34px;
+  height: 34px;
+  color: var(--app-muted);
+}
+
+#profile-route-state .profile-route-mark[data-visual="unavailable"] {
+  width: 66px;
+  height: 66px;
+  margin-bottom: 22px;
+  border: 1px solid var(--app-line-strong);
+  border-radius: 20px;
+  background: var(--app-panel-soft);
+}
+
+#profile-route-state .profile-route-mark[data-visual="unavailable"] .profile-route-brand-logo,
+#profile-route-state .profile-route-mark[data-visual="unavailable"] .profile-route-brand-spinner {
+  display: none;
+}
+
+#profile-route-state .profile-route-mark[data-visual="unavailable"] .profile-route-unavailable-icon {
+  display: block;
+}
+
+#profile-route-state h2 {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 23px;
+  line-height: 1.18;
+  letter-spacing: -.035em;
+}
+
+#profile-route-state > p:not(.section-label) {
+  max-width: 430px;
+  margin: 11px auto 0;
+  color: var(--app-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+#profile-route-state .profile-route-home {
+  min-width: 142px;
+  min-height: 42px;
+  margin-top: 24px;
+  border-color: var(--app-line-strong);
+  background: var(--app-elevated);
+  color: var(--app-text);
+}
+
+#profile-route-state .profile-route-home:hover {
+  border-color: var(--app-line-strong);
+  background: var(--app-panel-soft);
+  color: var(--app-text);
+}
+
+:root[data-theme="light"] #profile-route-state {
+  background: var(--app-panel);
+  color: var(--app-text);
+  box-shadow: 0 12px 34px rgba(20, 24, 30, .06);
+}
+
+:root[data-theme="light"] #profile-route-state .profile-route-mark[data-visual="unavailable"] {
+  background: var(--app-panel-soft);
+  border-color: var(--app-line-strong);
+}
+
+:root[data-theme="light"] #profile-route-state .profile-route-unavailable-icon,
+:root[data-theme="light"] #profile-route-state > p:not(.section-label) {
+  color: var(--app-muted);
+}
+
+@keyframes profile-route-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 720px) {
+  #profile-route-state {
+    min-height: 310px;
+    padding: 42px 22px;
+    border-radius: 18px;
+  }
+
+  #profile-route-state h2 {
+    font-size: 21px;
+  }
+
+  #profile-route-state > p:not(.section-label) {
+    max-width: 330px;
+    font-size: 12.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #profile-route-state .profile-route-brand-spinner {
+    animation-duration: 1.6s;
+  }
+}
