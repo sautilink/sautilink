@@ -433,3 +433,17 @@
     transform: none;
   }
 }
+
+/* Refined category details mark: crisp outline shield with a centered check. */
+.profile-professional-category-info {
+  width: 18px;
+  height: 19px;
+  background: color-mix(in srgb, var(--app-muted) 76%, var(--app-text) 24%);
+  clip-path: none;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2.7 19 5.5v5.6c0 4.7-2.9 8.4-7 10.2-4.1-1.8-7-5.5-7-10.2V5.5L12 2.7Z'/%3E%3Cpath d='m8.3 11.9 2.4 2.4 5-5.2'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2.7 19 5.5v5.6c0 4.7-2.9 8.4-7 10.2-4.1-1.8-7-5.5-7-10.2V5.5L12 2.7Z'/%3E%3Cpath d='m8.3 11.9 2.4 2.4 5-5.2'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.profile-professional-category-info::after {
+  content: none;
+}
