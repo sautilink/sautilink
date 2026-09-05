@@ -2,6 +2,37 @@ const PROFESSIONAL_CATEGORY_SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabas
 const PROFESSIONAL_CATEGORY_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
 const PROFESSIONAL_CATEGORY_AUTH_KEY = 'sautilink.auth.session';
 const PROFESSIONAL_CATEGORY_STYLESHEET = '/app/assets/professional-profile-category.css';
+const PROFESSIONAL_CATEGORY_RESULT_LIMIT = 25;
+const PROFESSIONAL_CATEGORY_POPULAR_SLUGS = Object.freeze([
+  'public-figure',
+  'content-creator',
+  'company',
+  'artist',
+  'government-official',
+  'comedian',
+  'entrepreneur',
+  'musician',
+  'actor',
+  'athlete',
+  'journalist',
+  'media-company',
+  'news-media-website',
+  'organization',
+  'nonprofit-organization',
+  'software-company',
+  'photographer',
+  'fashion-model',
+  'producer',
+  'blogger',
+  'politician',
+  'business-service',
+  'digital-marketing-agency',
+  'restaurant',
+  'brand',
+]);
+const PROFESSIONAL_CATEGORY_POPULAR_RANK = new Map(
+  PROFESSIONAL_CATEGORY_POPULAR_SLUGS.map((slug, index) => [slug, index]),
+);
 
 let professionalCategoryCatalog = null;
 let professionalCategoryCatalogPromise = null;
@@ -73,6 +104,123 @@ async function readProfessionalCategoryCatalog() {
 
 function professionalCategoryBySlug(slug) {
   return (professionalCategoryCatalog || []).find((category) => category.slug === slug) || null;
+}
+
+function normalizeProfessionalCategorySearch(value) {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function professionalCategoryEditDistance(left, right) {
+  const a = String(left || '');
+  const b = String(right || '');
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+
+  const previousPrevious = new Array(b.length + 1).fill(0);
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      const substitutionCost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let value = Math.min(
+        current[j - 1] + 1,
+        previous[j] + 1,
+        previous[j - 1] + substitutionCost,
+      );
+      if (
+        i > 1
+        && j > 1
+        && a[i - 1] === b[j - 2]
+        && a[i - 2] === b[j - 1]
+      ) {
+        value = Math.min(value, previousPrevious[j - 2] + 1);
+      }
+      current[j] = value;
+    }
+    for (let j = 0; j <= b.length; j += 1) previousPrevious[j] = previous[j];
+    previous = current;
+  }
+
+  return previous[b.length];
+}
+
+function professionalCategorySearchScore(category, query) {
+  const normalizedQuery = normalizeProfessionalCategorySearch(query);
+  if (!normalizedQuery) return Number.POSITIVE_INFINITY;
+
+  const label = normalizeProfessionalCategorySearch(category.label);
+  const group = normalizeProfessionalCategorySearch(category.group_name);
+  if (label === normalizedQuery) return 0;
+  if (label.startsWith(normalizedQuery)) return 1;
+  if (label.includes(normalizedQuery)) return 2;
+  if (group.includes(normalizedQuery)) return 4;
+
+  const queryTokens = normalizedQuery.split(' ').filter(Boolean);
+  const labelTokens = label.split(' ').filter(Boolean);
+  if (queryTokens.length && labelTokens.length) {
+    let totalDistance = 0;
+    let tokenMatch = true;
+    for (const queryToken of queryTokens) {
+      const best = Math.min(...labelTokens.map((labelToken) => professionalCategoryEditDistance(queryToken, labelToken)));
+      const threshold = queryToken.length <= 4 ? 1 : Math.max(1, Math.ceil(queryToken.length * 0.3));
+      if (best > threshold) {
+        tokenMatch = false;
+        break;
+      }
+      totalDistance += best;
+    }
+    if (tokenMatch) return 10 + totalDistance;
+  }
+
+  const fullDistance = professionalCategoryEditDistance(normalizedQuery, label);
+  const fullThreshold = Math.max(2, Math.ceil(Math.max(normalizedQuery.length, label.length) * 0.24));
+  if (fullDistance <= fullThreshold) return 20 + fullDistance;
+  return Number.POSITIVE_INFINITY;
+}
+
+function professionalCategoryDefaultMatches() {
+  const catalog = professionalCategoryCatalog || [];
+  const bySlug = new Map(catalog.map((category) => [category.slug, category]));
+  const popular = PROFESSIONAL_CATEGORY_POPULAR_SLUGS.map((slug) => bySlug.get(slug)).filter(Boolean);
+  if (popular.length >= PROFESSIONAL_CATEGORY_RESULT_LIMIT) return popular.slice(0, PROFESSIONAL_CATEGORY_RESULT_LIMIT);
+
+  const used = new Set(popular.map((category) => category.slug));
+  const fallback = catalog
+    .filter((category) => !used.has(category.slug))
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || a.label.localeCompare(b.label));
+  return [...popular, ...fallback].slice(0, PROFESSIONAL_CATEGORY_RESULT_LIMIT);
+}
+
+function professionalCategorySearchMatches(query = '') {
+  const normalized = normalizeProfessionalCategorySearch(query);
+  if (!normalized) return { matches: professionalCategoryDefaultMatches(), mode: 'popular' };
+
+  const scored = (professionalCategoryCatalog || [])
+    .map((category) => ({ category, score: professionalCategorySearchScore(category, normalized) }))
+    .filter((entry) => Number.isFinite(entry.score))
+    .sort((a, b) => {
+      if (a.score !== b.score) return a.score - b.score;
+      const aPopular = PROFESSIONAL_CATEGORY_POPULAR_RANK.get(a.category.slug) ?? 999;
+      const bPopular = PROFESSIONAL_CATEGORY_POPULAR_RANK.get(b.category.slug) ?? 999;
+      return aPopular - bPopular
+        || Number(a.category.sort_order || 0) - Number(b.category.sort_order || 0)
+        || a.category.label.localeCompare(b.category.label);
+    })
+    .slice(0, PROFESSIONAL_CATEGORY_RESULT_LIMIT);
+
+  return {
+    matches: scored.map((entry) => entry.category),
+    mode: scored.length && scored[0].score >= 10 ? 'closest' : 'results',
+  };
 }
 
 async function readProfileProfessionalCategory(username) {
@@ -213,7 +361,11 @@ function ensureProfessionalCategoryEditor() {
       <button type="button" class="professional-category-clear" id="professional-category-clear" hidden>Remove</button>
     </div>
     <div class="professional-category-search-wrap">
-      <input id="professional-category-search" type="search" autocomplete="off" spellcheck="false" placeholder="Search categories" aria-autocomplete="list" aria-controls="professional-category-options" aria-expanded="false">
+      <div class="professional-category-search-shell">
+        <span class="professional-category-search-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg></span>
+        <input id="professional-category-search" type="search" autocomplete="off" spellcheck="false" placeholder="Search professional categories" aria-autocomplete="list" aria-controls="professional-category-options" aria-expanded="false">
+        <button class="professional-category-query-clear" id="professional-category-query-clear" type="button" aria-label="Clear category search" title="Clear search" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"></path></svg></button>
+      </div>
       <div class="professional-category-options" id="professional-category-options" role="listbox" hidden></div>
     </div>
     <p class="professional-category-editor-status" id="professional-category-editor-status" role="status" aria-live="polite"></p>
@@ -223,14 +375,30 @@ function ensureProfessionalCategoryEditor() {
   const search = editor.querySelector('#professional-category-search');
   const options = editor.querySelector('#professional-category-options');
   const clear = editor.querySelector('#professional-category-clear');
+  const queryClear = editor.querySelector('#professional-category-query-clear');
 
-  const showOptions = () => renderProfessionalCategoryOptions(search.value);
+  const currentQuery = () => {
+    const value = String(search.value || '');
+    return value === String(search.dataset.selectedLabel || '') ? '' : value;
+  };
+  const showOptions = () => {
+    const query = currentQuery();
+    if (queryClear) queryClear.hidden = !String(query).trim();
+    renderProfessionalCategoryOptions(query);
+  };
   search.addEventListener('focus', showOptions);
   search.addEventListener('input', showOptions);
   search.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') hideProfessionalCategoryOptions();
   });
   clear.addEventListener('click', () => saveProfessionalCategory(null));
+  queryClear?.addEventListener('click', () => {
+    search.value = '';
+    search.dataset.selectedLabel = '';
+    queryClear.hidden = true;
+    search.focus();
+    renderProfessionalCategoryOptions('');
+  });
   document.addEventListener('pointerdown', (event) => {
     if (!editor.contains(event.target)) hideProfessionalCategoryOptions();
   });
@@ -254,24 +422,22 @@ function renderProfessionalCategoryOptions(query = '') {
   const search = document.getElementById('professional-category-search');
   if (!options || !search || !professionalCategoryCatalog) return;
 
-  const normalized = String(query || '').trim().toLowerCase();
-  const matches = professionalCategoryCatalog
-    .filter((category) => !normalized
-      || category.label.toLowerCase().includes(normalized)
-      || category.group_name.toLowerCase().includes(normalized))
-    .sort((a, b) => {
-      if (!normalized) return a.sort_order - b.sort_order;
-      const aStarts = a.label.toLowerCase().startsWith(normalized) ? 0 : 1;
-      const bStarts = b.label.toLowerCase().startsWith(normalized) ? 0 : 1;
-      return aStarts - bStarts || a.label.localeCompare(b.label);
-    })
-    .slice(0, 14);
-
+  const { matches, mode } = professionalCategorySearchMatches(query);
   options.replaceChildren();
+
+  const heading = document.createElement('p');
+  heading.className = 'professional-category-options-label';
+  heading.textContent = mode === 'popular'
+    ? 'Popular categories'
+    : mode === 'closest'
+      ? 'Closest matches'
+      : 'Results';
+  options.append(heading);
+
   if (!matches.length) {
     const empty = document.createElement('p');
     empty.className = 'professional-category-options-empty';
-    empty.textContent = 'No matching category.';
+    empty.textContent = 'No close category found. Try a shorter word or another spelling.';
     options.append(empty);
   } else {
     for (const category of matches) {
@@ -279,9 +445,11 @@ function renderProfessionalCategoryOptions(query = '') {
       button.type = 'button';
       button.role = 'option';
       button.dataset.professionalCategoryOption = category.slug;
-      button.innerHTML = `<strong></strong><small></small>`;
+      button.innerHTML = '<strong></strong><small></small>';
       button.querySelector('strong').textContent = category.label;
-      button.querySelector('small').textContent = category.group_name;
+      button.querySelector('small').textContent = mode === 'closest'
+        ? `Suggested · ${category.group_name}`
+        : category.group_name;
       options.append(button);
     }
   }
@@ -295,8 +463,13 @@ function renderProfessionalCategoryEditor(category) {
   if (!editor) return;
   const search = editor.querySelector('#professional-category-search');
   const clear = editor.querySelector('#professional-category-clear');
+  const queryClear = editor.querySelector('#professional-category-query-clear');
   const status = editor.querySelector('#professional-category-editor-status');
-  if (search && document.activeElement !== search) search.value = category?.label || '';
+  if (search && document.activeElement !== search) {
+    search.value = category?.label || '';
+    search.dataset.selectedLabel = category?.label || '';
+  }
+  if (queryClear && document.activeElement !== search) queryClear.hidden = true;
   if (clear) clear.hidden = !category;
   if (status && !status.dataset.busy) {
     status.textContent = category ? `Shown publicly as ${category.label}.` : 'No professional category selected.';
@@ -309,6 +482,7 @@ async function saveProfessionalCategory(slug) {
   const status = editor?.querySelector('#professional-category-editor-status');
   const search = editor?.querySelector('#professional-category-search');
   const clear = editor?.querySelector('#professional-category-clear');
+  const queryClear = editor?.querySelector('#professional-category-query-clear');
   if (!session?.user?.id || !status) return;
 
   const category = slug ? professionalCategoryBySlug(slug) : null;
@@ -318,6 +492,7 @@ async function saveProfessionalCategory(slug) {
   status.textContent = 'Saving category…';
   if (search) search.disabled = true;
   if (clear) clear.disabled = true;
+  if (queryClear) queryClear.disabled = true;
 
   try {
     const response = await fetch(
@@ -340,7 +515,11 @@ async function saveProfessionalCategory(slug) {
       professionalCategoryProfile.category = category;
     }
     renderProfessionalCategoryButton(category);
-    if (search) search.value = category?.label || '';
+    if (search) {
+      search.value = category?.label || '';
+      search.dataset.selectedLabel = category?.label || '';
+    }
+    if (queryClear) queryClear.hidden = true;
     if (clear) clear.hidden = !category;
     status.textContent = category ? `${category.label} saved.` : 'Professional category removed.';
     hideProfessionalCategoryOptions();
@@ -350,6 +529,7 @@ async function saveProfessionalCategory(slug) {
     delete status.dataset.busy;
     if (search) search.disabled = false;
     if (clear) clear.disabled = false;
+    if (queryClear) queryClear.disabled = false;
   }
 }
 
