@@ -15,7 +15,8 @@ test('Home offers a persistent dark and light theme without a startup flash', as
   assert.match(html, /theme-init\.js\?v=20260904-account2/);
   assert.ok((html.match(/data-theme-toggle/g) || []).length >= 2);
   assert.match(themeInit, /sautilink\.theme/);
-  assert.match(themeInit, /prefers-color-scheme: light/);
+  assert.match(themeInit, /let theme = 'light'/);
+  assert.doesNotMatch(themeInit, /prefers-color-scheme/);
   assert.match(source, /const THEME_STORAGE_KEY = 'sautilink\.theme'/);
   assert.match(source, /localStorage\.setItem\(THEME_STORAGE_KEY, theme\)/);
   assert.match(source, /function toggleTheme\(\)/);
