@@ -1,6 +1,8 @@
 const CAPTION_SELECTOR = '.sauti-card-body, .sauti-caption-text';
+const PROFILE_BIO_SELECTOR = '#profile-bio';
+const ENTITY_SELECTOR = `${CAPTION_SELECTOR}, ${PROFILE_BIO_SELECTOR}`;
 const ENTITY_STYLESHEET_ID = 'sautilink-caption-entities-style';
-const ENTITY_STYLESHEET_HREF = '/app/assets/caption-entities.css?v=20260905-caption1';
+const ENTITY_STYLESHEET_HREF = '/app/assets/caption-entities.css?v=20260906-bio1';
 const ENTITY_ATTR = 'data-caption-entity';
 const ENTITY_CANDIDATE_RE = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+|@[a-z0-9][a-z0-9._]{2,29}|#[\p{L}\p{N}_]{1,64})/giu;
 
@@ -116,6 +118,12 @@ export function findCaptionEntities(value) {
   return entities;
 }
 
+export function findProfileBioEntities(value) {
+  return findCaptionEntities(value).filter(
+    (entity) => entity.type === 'mention' || entity.type === 'hashtag',
+  );
+}
+
 function previewCutsEntity(element, entity, source) {
   if (!element.classList.contains('sauti-caption-text')) return false;
   if (!source.endsWith('…')) return false;
@@ -156,7 +164,7 @@ function createEntityAnchor(entity) {
 
 export function renderCaptionEntities(element) {
   if (typeof Element === 'undefined' || !(element instanceof Element)) return false;
-  if (!element.matches(CAPTION_SELECTOR)) return false;
+  if (!element.matches(ENTITY_SELECTOR)) return false;
 
   const source = element.textContent || '';
   const previousSource = element.dataset.captionEntitiesText || '';
@@ -167,7 +175,10 @@ export function renderCaptionEntities(element) {
     return false;
   }
 
-  const entities = findCaptionEntities(source).filter(
+  const candidates = element.matches(PROFILE_BIO_SELECTOR)
+    ? findProfileBioEntities(source)
+    : findCaptionEntities(source);
+  const entities = candidates.filter(
     (entity) => !previewCutsEntity(element, entity, source),
   );
   element.dataset.captionEntitiesText = source;
@@ -203,15 +214,15 @@ function ensureEntityStylesheet() {
 function scanCaptionRoot(root) {
   if (!root) return;
   if (root.nodeType === Node.TEXT_NODE) {
-    const host = root.parentElement?.closest(CAPTION_SELECTOR);
+    const host = root.parentElement?.closest(ENTITY_SELECTOR);
     if (host) renderCaptionEntities(host);
     return;
   }
   if (!(root instanceof Element) && root !== document) return;
-  if (root instanceof Element && root.matches(CAPTION_SELECTOR)) {
+  if (root instanceof Element && root.matches(ENTITY_SELECTOR)) {
     renderCaptionEntities(root);
   }
-  root.querySelectorAll?.(CAPTION_SELECTOR).forEach(renderCaptionEntities);
+  root.querySelectorAll?.(ENTITY_SELECTOR).forEach(renderCaptionEntities);
 }
 
 function initCaptionEntities() {
@@ -224,8 +235,8 @@ function initCaptionEntities() {
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       const host = mutation.target instanceof Element
-        ? mutation.target.closest(CAPTION_SELECTOR)
-        : mutation.target.parentElement?.closest(CAPTION_SELECTOR);
+        ? mutation.target.closest(ENTITY_SELECTOR)
+        : mutation.target.parentElement?.closest(ENTITY_SELECTOR);
       if (host) renderCaptionEntities(host);
       mutation.addedNodes.forEach(scanCaptionRoot);
     }
