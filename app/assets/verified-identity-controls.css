@@ -16,6 +16,13 @@
   opacity: .45;
 }
 
+.verification-info-since {
+  margin: 9px 0 0;
+  color: var(--app-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 /* Keep verification details centered on small screens without changing desktop placement. */
 @media (max-width: 680px) {
   .verification-info-dialog {
