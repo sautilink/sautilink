@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   externalUrlHref,
   findCaptionEntities,
+  findProfileBioEntities,
   hashtagSearchHref,
   profileHref,
 } from '../src/caption-entities.js';
@@ -30,6 +31,28 @@ test('caption entities find hashtags, mentions and web links in order', () => {
         type: 'url',
         text: 'https://sautilink.com/about',
         href: 'https://sautilink.com/about',
+      },
+    ],
+  );
+});
+
+test('profile bio makes only hashtags and mentions clickable', () => {
+  const entities = findProfileBioEntities(
+    'Founder of #SautiLink. Follow @drcharlestz or visit https://sautilink.com.',
+  );
+
+  assert.deepEqual(
+    entities.map(({ type, text, href }) => ({ type, text, href })),
+    [
+      {
+        type: 'hashtag',
+        text: '#SautiLink',
+        href: '/discover?q=%23SautiLink',
+      },
+      {
+        type: 'mention',
+        text: '@drcharlestz',
+        href: '/u/drcharlestz',
       },
     ],
   );
