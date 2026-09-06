@@ -1,14 +1,13 @@
 (() => {
   const storageKey = 'sautilink.theme';
   const supported = new Set(['dark', 'light']);
-  let theme = 'dark';
+  let theme = 'light';
 
   try {
     const stored = localStorage.getItem(storageKey);
     if (supported.has(stored)) theme = stored;
-    else if (window.matchMedia?.('(prefers-color-scheme: light)').matches) theme = 'light';
   } catch {
-    // The dark fallback still provides a complete experience when storage is unavailable.
+    // The light fallback still provides a complete experience when storage is unavailable.
   }
 
   document.documentElement.dataset.theme = theme;
