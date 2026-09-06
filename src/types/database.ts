@@ -453,6 +453,42 @@ export type Database = {
           },
         ]
       }
+      social_feed_author_interests: {
+        Row: {
+          author_id: string
+          created_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          author_id: string
+          created_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          author_id?: string
+          created_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_feed_author_interests_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "social_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "social_feed_author_interests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "social_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_follows: {
         Row: {
           created_at: string

@@ -3293,6 +3293,132 @@ body:not(.auth-entry) {
   font-size: 12px;
 }
 
+.sauti-card-head-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.sauti-card-head-actions + time {
+  margin-left: 2px;
+}
+
+.sauti-head-follow {
+  min-height: 32px;
+  padding: 5px 11px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--app-accent);
+  font-size: 12px;
+  font-weight: 780;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease, border-color 140ms ease, opacity 140ms ease;
+}
+
+.sauti-head-follow:hover,
+.sauti-head-follow:focus-visible {
+  background: color-mix(in srgb, var(--app-accent) 12%, transparent);
+}
+
+.sauti-head-follow.following {
+  border-color: var(--app-line);
+  color: var(--app-text);
+  font-weight: 680;
+}
+
+.sauti-head-follow:disabled {
+  opacity: .68;
+  cursor: wait;
+}
+
+.sauti-head-menu-shell {
+  position: relative;
+  display: flex;
+}
+
+.sauti-head-more {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--app-text);
+  cursor: pointer;
+}
+
+.sauti-head-more:hover,
+.sauti-head-more:focus-visible,
+.sauti-head-more[aria-expanded="true"] {
+  background: var(--app-panel-soft);
+}
+
+.sauti-head-more svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.9;
+}
+
+.sauti-head-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 18;
+  display: grid;
+  width: min(224px, calc(100vw - 28px));
+  padding: 6px;
+  overflow: hidden;
+  border: 1px solid var(--app-line-strong);
+  border-radius: 14px;
+  background: var(--app-panel);
+  color: var(--app-text);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, .34);
+}
+
+.sauti-head-menu-item {
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 620;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sauti-head-menu-item:hover,
+.sauti-head-menu-item:focus-visible,
+.sauti-head-menu-item.active {
+  background: var(--app-panel-soft);
+}
+
+.sauti-head-menu-item.danger {
+  color: var(--app-bad);
+}
+
+.sauti-head-menu-item:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+.sauti-head-menu-state {
+  color: var(--app-accent);
+  font-size: 14px;
+  font-weight: 850;
+}
+
 .sauti-card-body {
   margin: 0;
   padding: 1px 16px 15px;
@@ -3855,6 +3981,30 @@ body:not(.auth-entry) select {
   .sauti-card-head time {
     width: auto;
     margin-left: auto;
+    font-size: 11px;
+  }
+
+  .sauti-card-head-actions + time {
+    margin-left: 0;
+  }
+
+  .sauti-card-head-actions {
+    gap: 2px;
+  }
+
+  .sauti-head-follow {
+    min-height: 30px;
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .sauti-head-more {
+    width: 31px;
+    height: 31px;
+  }
+
+  .sauti-head-menu {
+    right: -26px;
   }
 
   .sauti-card-body {
