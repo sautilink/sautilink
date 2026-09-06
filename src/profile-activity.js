@@ -2,9 +2,10 @@ const PROFILE_ACTIVITY_STYLESHEET = '/app/assets/profile-activity.css';
 const PROFILE_ACTIVITY_SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const PROFILE_ACTIVITY_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
 const PROFILE_ACTIVITY_SESSION_KEY = 'sautilink.auth.session';
-const PROFILE_ACTIVITY_TABS = Object.freeze(['posts', 'replies', 'likes', 'saves', 'hashtags']);
+const PROFILE_ACTIVITY_TABS = Object.freeze(['posts', 'reposts', 'replies', 'likes', 'saves', 'hashtags']);
 const PROFILE_ACTIVITY_LABELS = Object.freeze({
   posts: 'Posts',
+  reposts: 'Reposts',
   replies: 'Replies',
   likes: 'Likes',
   saves: 'Saves',
@@ -476,6 +477,9 @@ function profileActivityEmptyCopy(tab, owner) {
     posts: owner
       ? ['You haven’t posted yet.', 'Share your first post and it’ll appear on your profile.']
       : ['No posts yet.', 'When this account posts, you’ll see it here.'],
+    reposts: owner
+      ? ['You haven’t reposted anything yet.', 'Posts you repost will appear here without being published as new Home posts.']
+      : ['No reposts yet.', 'When this account reposts a post, you’ll see it here.'],
     replies: owner
       ? ['You haven’t replied yet.', 'Join a conversation and your replies will appear here.']
       : ['No replies yet.', 'This account hasn’t replied to any conversations yet.'],
@@ -617,7 +621,9 @@ async function loadProfileActivityTab(tab = profileActivityTab) {
 
     let feedResult;
     let pinsResult = null;
-    if (safeTab === 'posts') {
+    if (safeTab === 'reposts') {
+      feedResult = await profileActivityRpc('profile_reposts_feed_phase35', { p_username: profileActivityUsername, p_limit: 40, p_offset: 0 });
+    } else if (safeTab === 'posts') {
       [feedResult, pinsResult] = await Promise.all([
         profileActivityRpc('profile_activity_feed_phase33', { p_username: profileActivityUsername, p_tab: 'posts', p_limit: 40, p_offset: 0 }),
         profileActivityRpc('profile_activity_feed_phase33', { p_username: profileActivityUsername, p_tab: 'pins', p_limit: 3, p_offset: 0 }),
