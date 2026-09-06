@@ -3135,7 +3135,93 @@ function toggleSautiCaption(button) {
   button.textContent = expanded ? 'more' : 'less';
 }
 
-function createSautiCard(item) {
+function homePostMoreIcon() {
+  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  icon.setAttribute('aria-hidden', 'true');
+  const upper = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  upper.setAttribute('d', 'M4 8h16');
+  const lower = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  lower.setAttribute('d', 'M8 16h12');
+  icon.append(upper, lower);
+  return icon;
+}
+
+function homePostMenuItem(action, label, { danger = false, active = false } = {}) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'sauti-head-menu-item';
+  button.dataset.homePostAction = action;
+  button.setAttribute('role', 'menuitem');
+  button.classList.toggle('danger', danger);
+  button.classList.toggle('active', active);
+
+  const text = document.createElement('span');
+  text.textContent = label;
+  button.append(text);
+  if (active) {
+    const state = document.createElement('span');
+    state.className = 'sauti-head-menu-state';
+    state.textContent = '✓';
+    state.setAttribute('aria-label', 'Selected');
+    button.append(state);
+  }
+  return button;
+}
+
+function createHomePostHeadActions(item, post, username) {
+  const controls = document.createElement('div');
+  controls.className = 'sauti-card-head-actions';
+
+  if (post.author_id !== currentMemberId) {
+    const following = Boolean(item.following);
+    const follow = document.createElement('button');
+    follow.type = 'button';
+    follow.className = 'sauti-head-follow';
+    follow.dataset.homeFollow = '';
+    follow.dataset.following = String(following);
+    follow.setAttribute('aria-pressed', String(following));
+    follow.classList.toggle('following', following);
+    follow.textContent = following ? 'Following' : 'Follow';
+    controls.append(follow);
+  }
+
+  const menuShell = document.createElement('div');
+  menuShell.className = 'sauti-head-menu-shell';
+  menuShell.dataset.homePostMenu = '';
+
+  const menuToggle = document.createElement('button');
+  menuToggle.type = 'button';
+  menuToggle.className = 'sauti-head-more';
+  menuToggle.dataset.homePostMenuToggle = '';
+  menuToggle.setAttribute('aria-label', `More options for post by @${username}`);
+  menuToggle.setAttribute('aria-haspopup', 'menu');
+  menuToggle.setAttribute('aria-expanded', 'false');
+  menuToggle.append(homePostMoreIcon());
+
+  const menu = document.createElement('div');
+  menu.className = 'sauti-head-menu';
+  menu.dataset.homePostMenuPanel = '';
+  menu.setAttribute('role', 'menu');
+  menu.hidden = true;
+  menu.append(homePostMenuItem('view-profile', 'View profile'));
+  if (post.author_id !== currentMemberId) {
+    menu.append(
+      homePostMenuItem('interested', 'Interested', { active: Boolean(item.interested) }),
+      homePostMenuItem('not-interested', 'Not interested'),
+    );
+  }
+  menu.append(homePostMenuItem('copy-link', 'Copy link'));
+  if (post.author_id !== currentMemberId) {
+    menu.append(homePostMenuItem('report', 'Report', { danger: true }));
+  }
+
+  menuShell.append(menuToggle, menu);
+  controls.append(menuShell);
+  return controls;
+}
+
+function createSautiCard(item, { home = false } = {}) {
   const post = item.post;
   if (!post) return null;
 
@@ -3152,6 +3238,8 @@ function createSautiCard(item) {
   article.dataset.threadDepth = String(post.thread_depth || 0);
   article.dataset.authorUsername = username;
   article.dataset.authorName = displayName;
+  article.dataset.authorId = String(post.author_id || '');
+  article.dataset.interested = String(Boolean(item.interested));
   article.dataset.eventKey = item.event_key || post.id;
 
   const avatar = document.createElement('div');
@@ -3196,7 +3284,9 @@ function createSautiCard(item) {
   const identity = document.createElement('div');
   identity.className = 'sauti-card-identity';
   identity.append(name, profileLink);
-  head.append(avatar, identity, time);
+  head.append(avatar, identity);
+  if (home) head.append(createHomePostHeadActions(item, post, username));
+  head.append(time);
 
   const body = document.createElement('p');
   body.className = 'sauti-card-body';
@@ -3293,7 +3383,7 @@ function createSautiCard(item) {
     remove.dataset.deleteSauti = post.id;
     remove.textContent = 'Delete';
     meta.append(remove);
-  } else {
+  } else if (!home) {
     const report = document.createElement('button');
     report.className = 'sauti-report';
     report.type = 'button';
@@ -3353,8 +3443,15 @@ function renderStreamRows(rows, { reset = false } = {}) {
     feed.replaceChildren();
   }
   rows.forEach((item) => {
-    const card = createSautiCard(item);
-    if (card) feed.append(card);
+    const card = createSautiCard(item, { home: true });
+    if (!card) return;
+    if (item.interested) {
+      const firstRegularCard = feed.querySelector('.sauti-card[data-interested="false"]');
+      if (firstRegularCard) feed.insertBefore(card, firstRegularCard);
+      else feed.append(card);
+    } else {
+      feed.append(card);
+    }
   });
 
   const hasRows = feed.childElementCount > 0;
@@ -3431,6 +3528,31 @@ async function hydrateStreamEvents(events) {
   const reposted = new Set((reposts || []).map((row) => row.post_id));
   const saved = new Set((saves || []).map((row) => row.post_id));
 
+  const authorIds = [...new Set((posts || [])
+    .map((post) => post.author_id)
+    .filter((authorId) => authorId && authorId !== currentMemberId))];
+  let followedAuthors = new Set();
+  let interestedAuthors = new Set();
+  if (authorIds.length) {
+    const [followResult, interestResult] = await Promise.all([
+      supabase
+        .from('social_follows')
+        .select('followed_id')
+        .eq('follower_id', currentMemberId)
+        .in('followed_id', authorIds),
+      supabase
+        .from('social_feed_author_interests')
+        .select('author_id')
+        .eq('user_id', currentMemberId)
+        .in('author_id', authorIds),
+    ]);
+    if (followResult.error || interestResult.error) {
+      throw followResult.error || interestResult.error;
+    }
+    followedAuthors = new Set((followResult.data || []).map((row) => row.followed_id));
+    interestedAuthors = new Set((interestResult.data || []).map((row) => row.author_id));
+  }
+
   return events
     .map((event) => ({
       ...event,
@@ -3439,6 +3561,8 @@ async function hydrateStreamEvents(events) {
       liked: liked.has(event.post_id),
       reposted: reposted.has(event.post_id),
       saved: saved.has(event.post_id),
+      following: followedAuthors.has(postMap.get(event.post_id)?.author_id),
+      interested: interestedAuthors.has(postMap.get(event.post_id)?.author_id),
       quotedPost: quoteMap.get(postMap.get(event.post_id)?.quote_post_id) || null,
     }))
     .filter((event) => event.post && (event.event_type !== 'repost' || event.actor));
@@ -3858,6 +3982,191 @@ function toggleRepostMenu(card) {
   const willOpen = menu.hidden;
   closeRepostMenus(menu);
   menu.hidden = !willOpen;
+}
+
+function homeAuthorCards(authorId) {
+  return [...byId('stream-feed').querySelectorAll('.sauti-card')]
+    .filter((card) => card.dataset.authorId === authorId);
+}
+
+function setHomeAuthorFollowState(authorId, following, { pending = false } = {}) {
+  homeAuthorCards(authorId).forEach((card) => {
+    const button = card.querySelector('[data-home-follow]');
+    if (!button) return;
+    button.dataset.following = String(following);
+    button.setAttribute('aria-pressed', String(following));
+    button.classList.toggle('following', following);
+    button.textContent = following ? 'Following' : 'Follow';
+    button.disabled = pending;
+    button.setAttribute('aria-busy', String(pending));
+  });
+}
+
+async function toggleHomeAuthorFollow(card) {
+  const authorId = card?.dataset.authorId;
+  const username = card?.dataset.authorUsername;
+  const button = card?.querySelector('[data-home-follow]');
+  if (!authorId || !username || !button || button.disabled) return;
+
+  const wasFollowing = button.dataset.following === 'true';
+  const following = !wasFollowing;
+  setHomeAuthorFollowState(authorId, following, { pending: true });
+  try {
+    await socialMutation(`/api/social/follow/${encodeURIComponent(username)}`, {
+      method: following ? 'POST' : 'DELETE',
+    });
+    if (currentMember) {
+      currentMember.following_count = Math.max(
+        0,
+        Number(currentMember.following_count || 0) + (following ? 1 : -1),
+      );
+    }
+    setHomeAuthorFollowState(authorId, following);
+    void refreshCurrentSocialCounts();
+    showToast(following ? `You’re now following @${username}.` : `You unfollowed @${username}.`);
+  } catch (error) {
+    setHomeAuthorFollowState(authorId, wasFollowing);
+    showToast(error?.message || 'Follow state could not be changed.');
+  }
+}
+
+function closeHomePostMenus(except = null) {
+  document.querySelectorAll('[data-home-post-menu-panel]').forEach((menu) => {
+    if (menu === except) return;
+    menu.hidden = true;
+    menu.closest('[data-home-post-menu]')
+      ?.querySelector('[data-home-post-menu-toggle]')
+      ?.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function toggleHomePostMenu(card) {
+  const menu = card?.querySelector('[data-home-post-menu-panel]');
+  const toggle = card?.querySelector('[data-home-post-menu-toggle]');
+  if (!menu || !toggle) return;
+  const willOpen = menu.hidden;
+  closeHomePostMenus(menu);
+  menu.hidden = !willOpen;
+  toggle.setAttribute('aria-expanded', String(willOpen));
+  if (willOpen) menu.querySelector('[role="menuitem"]')?.focus();
+}
+
+function setHomeAuthorInterestState(authorId, interested) {
+  homeAuthorCards(authorId).forEach((card) => {
+    card.dataset.interested = String(interested);
+    const action = card.querySelector('[data-home-post-action="interested"]');
+    if (!action) return;
+    action.classList.toggle('active', interested);
+    action.querySelector('.sauti-head-menu-state')?.remove();
+    if (interested) {
+      const state = document.createElement('span');
+      state.className = 'sauti-head-menu-state';
+      state.textContent = '✓';
+      state.setAttribute('aria-label', 'Selected');
+      action.append(state);
+    }
+  });
+}
+
+function prioritizeHomeAuthorCards(authorId) {
+  const feed = byId('stream-feed');
+  const authorCards = homeAuthorCards(authorId);
+  const firstRegularCard = [...feed.querySelectorAll('.sauti-card')]
+    .find((card) => card.dataset.interested !== 'true' && card.dataset.authorId !== authorId);
+  authorCards.forEach((card) => feed.insertBefore(card, firstRegularCard || null));
+  syncHomeFeedVideoPlayback();
+}
+
+async function toggleHomeAuthorInterest(card, button) {
+  const authorId = card?.dataset.authorId;
+  const username = card?.dataset.authorUsername;
+  if (!authorId || !username || !currentMemberId || !button || button.disabled) return;
+
+  const wasInterested = card.dataset.interested === 'true';
+  const interested = !wasInterested;
+  button.disabled = true;
+  setHomeAuthorInterestState(authorId, interested);
+  try {
+    const query = interested
+      ? supabase.from('social_feed_author_interests').upsert(
+        { user_id: currentMemberId, author_id: authorId },
+        { onConflict: 'user_id,author_id' },
+      )
+      : supabase.from('social_feed_author_interests').delete()
+        .eq('user_id', currentMemberId)
+        .eq('author_id', authorId);
+    const { error } = await query;
+    if (error) throw error;
+    if (interested) prioritizeHomeAuthorCards(authorId);
+    showToast(interested
+      ? `You’ll see more posts from @${username} in Home.`
+      : `@${username} is back to standard Home ranking.`);
+  } catch {
+    setHomeAuthorInterestState(authorId, wasInterested);
+    showToast('This Home preference could not be saved.');
+  } finally {
+    homeAuthorCards(authorId).forEach((authorCard) => {
+      const action = authorCard.querySelector('[data-home-post-action="interested"]');
+      if (action) action.disabled = false;
+    });
+  }
+}
+
+async function hideHomeAuthorPosts(card, button) {
+  const authorId = card?.dataset.authorId;
+  const username = card?.dataset.authorUsername;
+  if (!authorId || !username || !button || button.disabled) return;
+  button.disabled = true;
+  try {
+    await safetyRequest(`/api/safety/mute/${encodeURIComponent(username)}`, { method: 'POST' });
+    await supabase
+      .from('social_feed_author_interests')
+      .delete()
+      .eq('user_id', currentMemberId)
+      .eq('author_id', authorId);
+    homeAuthorCards(authorId).forEach((authorCard) => authorCard.remove());
+    const hasRows = byId('stream-feed').childElementCount > 0;
+    byId('stream-empty').hidden = hasRows;
+    byId('stream-welcome').hidden = hasRows;
+    syncHomeFeedVideoPlayback();
+    showToast(`Posts from @${username} won’t appear in Home. You can undo this in Settings.`);
+  } catch (error) {
+    button.disabled = false;
+    showToast(error?.message || 'This Home preference could not be saved.');
+  }
+}
+
+async function handleHomePostMenuAction(card, button) {
+  const action = button.dataset.homePostAction;
+  const username = card?.dataset.authorUsername;
+  closeHomePostMenus();
+  if (!card || !action) return;
+
+  if (action === 'view-profile' && username) {
+    window.history.pushState({}, '', memberProfilePath(username));
+    void applyLocationRoute();
+    return;
+  }
+  if (action === 'interested') {
+    await toggleHomeAuthorInterest(card, button);
+    return;
+  }
+  if (action === 'not-interested') {
+    await hideHomeAuthorPosts(card, button);
+    return;
+  }
+  if (action === 'copy-link') {
+    try {
+      await copyShareText(sautiShareUrl(card.dataset.postId));
+      showToast('Post link copied.');
+    } catch {
+      showToast('This post link could not be copied.');
+    }
+    return;
+  }
+  if (action === 'report') {
+    openReportDialog('post', card.dataset.postId, `Report post by @${username}`);
+  }
 }
 
 function openSautiTarget(postId) {
@@ -8716,6 +9025,24 @@ function openHomeMediaAfterTap(event, media) {
 }
 
 function handleSautiFeedClick(event) {
+  const homeFollow = event.target.closest('[data-home-follow]');
+  if (homeFollow) {
+    void toggleHomeAuthorFollow(homeFollow.closest('.sauti-card'));
+    return;
+  }
+
+  const homeMenuToggle = event.target.closest('[data-home-post-menu-toggle]');
+  if (homeMenuToggle) {
+    toggleHomePostMenu(homeMenuToggle.closest('.sauti-card'));
+    return;
+  }
+
+  const homeMenuAction = event.target.closest('[data-home-post-action]');
+  if (homeMenuAction) {
+    void handleHomePostMenuAction(homeMenuAction.closest('.sauti-card'), homeMenuAction);
+    return;
+  }
+
   const captionToggle = event.target.closest('[data-caption-toggle]');
   if (captionToggle) {
     toggleSautiCaption(captionToggle);
@@ -8819,6 +9146,16 @@ for (const feedId of ['stream-feed', 'circle-stream-feed', 'discover-sauti-feed'
   byId(feedId).addEventListener('submit', handleSautiFeedSubmit);
 }
 byId('stream-feed').addEventListener('pointerup', handleHomeFeedPointerUp);
+byId('stream-feed').addEventListener('scroll', () => closeHomePostMenus(), { passive: true });
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('[data-home-post-menu]')) closeHomePostMenus();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  const openToggle = document.querySelector('[data-home-post-menu-toggle][aria-expanded="true"]');
+  closeHomePostMenus();
+  openToggle?.focus();
+});
 
 byId('profile-follow-button').addEventListener('click', () => {
   void toggleProfileFollow();
