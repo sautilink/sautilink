@@ -69,6 +69,7 @@ await build({
     resolve(workerSource, 'profile-route-states.js'),
     resolve(workerSource, 'professional-profile-category.js'),
     resolve(workerSource, 'profile-media-upload-icons.js'),
+    resolve(workerSource, 'home-feed-author-profile-links.js'),
     resolve(workerSource, 'post-media-carousel.js'),
   ],
   outfile: resolve(siteRoot, 'app/assets/app.js'),
