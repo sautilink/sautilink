@@ -15,6 +15,11 @@ const POST_API_REPLACEMENTS = Object.freeze([
   ["A post can include up to four media items.", "A post can include up to five media items."],
 ]);
 
+const PROFILE_ACTIVITY_REPLACEMENTS = Object.freeze([
+  ['const rows = Array.isArray(mediaRows) ? mediaRows.slice(0, 4) : [];',
+   'const rows = Array.isArray(mediaRows) ? mediaRows.slice(0, 5) : [];'],
+]);
+
 function replaceAllExact(source, replacements) {
   let output = source;
   for (const [before, after] of replacements) output = output.replaceAll(before, after);
@@ -28,61 +33,269 @@ function replaceExactOnce(source, before, after, label) {
   return source.replace(before, after);
 }
 
-function transformHomeMediaReservation(source) {
+function transformMediaReservation(source) {
   let output = source;
 
   output = replaceExactOnce(
     output,
-    `  const savedQuery = supabase\n    .from('social_saved_posts')\n    .select('post_id')\n    .eq('user_id', currentMemberId)\n    .in('post_id', postIds);\n\n  const [`,
-    `  const savedQuery = supabase\n    .from('social_saved_posts')\n    .select('post_id')\n    .eq('user_id', currentMemberId)\n    .in('post_id', postIds);\n\n  // Fetch attached media metadata with the feed page so media posts can reserve\n  // their final layout before protected image/video bytes begin loading.\n  const mediaQuery = supabase\n    .from('social_post_media')\n    .select('post_id,id,media_kind,content_type,width,height,duration_ms,alt_text,position')\n    .in('post_id', postIds)\n    .eq('upload_status', 'attached')\n    .order('position', { ascending: true });\n\n  const [`,
-    'the Home media metadata query insertion point',
+    `async function hydrateStreamEvents(events) {`,
+    `async function loadSautiMediaRowsMap(postIds) {
+  const ids = [...new Set((postIds || []).filter(Boolean))];
+  if (!ids.length) return new Map();
+
+  const { data, error } = await supabase
+    .from('social_post_media')
+    .select('post_id,id,media_kind,content_type,width,height,duration_ms,alt_text,position')
+    .in('post_id', ids)
+    .eq('upload_status', 'attached')
+    .order('position', { ascending: true });
+
+  if (error) return null;
+
+  const mediaMap = new Map();
+  (data || []).forEach((row) => {
+    if (!row?.post_id) return;
+    const bucket = mediaMap.get(row.post_id) || [];
+    if (bucket.length >= 5) return;
+    bucket.push(row);
+    mediaMap.set(row.post_id, bucket);
+  });
+  return mediaMap;
+}
+
+async function hydrateStreamEvents(events) {`,
+    'the shared post-media metadata map helper',
   );
 
   output = replaceExactOnce(
     output,
-    `    { data: saves, error: savesError },\n  ] = await Promise.all([postQuery, actorQuery, likeQuery, repostQuery, savedQuery]);\n\n  if (postsError || actorsError || likesError || repostsError || savesError) {\n    throw postsError || actorsError || likesError || repostsError || savesError;\n  }`,
-    `    { data: saves, error: savesError },\n    { data: mediaRows },\n  ] = await Promise.all([postQuery, actorQuery, likeQuery, repostQuery, savedQuery, mediaQuery]);\n\n  if (postsError || actorsError || likesError || repostsError || savesError) {\n    throw postsError || actorsError || likesError || repostsError || savesError;\n  }`,
-    'the Home hydration Promise.all block',
+    `    { data: reposts, error: repostsError },
+    { data: saves, error: savesError },
+  ] = await Promise.all([postQuery, actorQuery, likeQuery, repostQuery, savedQuery]);`,
+    `    { data: reposts, error: repostsError },
+    { data: saves, error: savesError },
+    mediaMap,
+  ] = await Promise.all([
+    postQuery,
+    actorQuery,
+    likeQuery,
+    repostQuery,
+    savedQuery,
+    loadSautiMediaRowsMap(postIds),
+  ]);`,
+    'the Home feed metadata Promise.all block',
   );
 
   output = replaceExactOnce(
     output,
-    `  const liked = new Set((likes || []).map((row) => row.post_id));\n  const reposted = new Set((reposts || []).map((row) => row.post_id));\n  const saved = new Set((saves || []).map((row) => row.post_id));\n\n  const authorIds =`,
-    `  const liked = new Set((likes || []).map((row) => row.post_id));\n  const reposted = new Set((reposts || []).map((row) => row.post_id));\n  const saved = new Set((saves || []).map((row) => row.post_id));\n  const mediaMap = new Map();\n  (mediaRows || []).forEach((row) => {\n    if (!row?.post_id) return;\n    const bucket = mediaMap.get(row.post_id) || [];\n    if (bucket.length >= 5) return;\n    bucket.push(row);\n    mediaMap.set(row.post_id, bucket);\n  });\n\n  const authorIds =`,
-    'the Home media metadata map insertion point',
+    `      reposted: reposted.has(event.post_id),
+      saved: saved.has(event.post_id),
+      following: followedAuthors.has(postMap.get(event.post_id)?.author_id),`,
+    `      reposted: reposted.has(event.post_id),
+      saved: saved.has(event.post_id),
+      mediaRows: mediaMap?.get(event.post_id) ?? (mediaMap ? [] : null),
+      following: followedAuthors.has(postMap.get(event.post_id)?.author_id),`,
+    'the Home feed item media metadata field',
   );
 
   output = replaceExactOnce(
     output,
-    `      saved: saved.has(event.post_id),\n      following: followedAuthors.has(postMap.get(event.post_id)?.author_id),`,
-    `      saved: saved.has(event.post_id),\n      mediaRows: mediaMap.get(event.post_id) || [],\n      following: followedAuthors.has(postMap.get(event.post_id)?.author_id),`,
-    'the hydrated Home feed item media metadata field',
+    `  const [likeResult, repostResult, savedResult] = await Promise.all([
+    supabase
+      .from('social_post_reactions')
+      .select('post_id')
+      .eq('user_id', currentMemberId)
+      .in('post_id', postIds),
+    supabase
+      .from('social_reposts')
+      .select('post_id')
+      .eq('user_id', currentMemberId)
+      .in('post_id', postIds),
+    supabase
+      .from('social_saved_posts')
+      .select('post_id')
+      .eq('user_id', currentMemberId)
+      .in('post_id', postIds),
+  ]);`,
+    `  const [likeResult, repostResult, savedResult, mediaMap] = await Promise.all([
+    supabase
+      .from('social_post_reactions')
+      .select('post_id')
+      .eq('user_id', currentMemberId)
+      .in('post_id', postIds),
+    supabase
+      .from('social_reposts')
+      .select('post_id')
+      .eq('user_id', currentMemberId)
+      .in('post_id', postIds),
+    supabase
+      .from('social_saved_posts')
+      .select('post_id')
+      .eq('user_id', currentMemberId)
+      .in('post_id', postIds),
+    loadSautiMediaRowsMap(postIds),
+  ]);`,
+    'the direct post metadata Promise.all block',
   );
 
   output = replaceExactOnce(
     output,
-    `async function hydrateSautiMediaGallery(postId, gallery) {\n  const rows = await loadSautiMediaRows(postId);`,
-    `async function hydrateSautiMediaGallery(postId, gallery, prefetchedRows = null) {\n  const rows = Array.isArray(prefetchedRows) ? prefetchedRows : await loadSautiMediaRows(postId);`,
-    'the post media hydrator signature',
+    `    reposted: reposted.has(post.id),
+    saved: saved.has(post.id),
+    quotedPost: quoteMap.get(post.quote_post_id) || null,`,
+    `    reposted: reposted.has(post.id),
+    saved: saved.has(post.id),
+    mediaRows: mediaMap?.get(post.id) ?? (mediaMap ? [] : null),
+    quotedPost: quoteMap.get(post.quote_post_id) || null,`,
+    'the direct post media metadata field',
   );
 
   output = replaceExactOnce(
     output,
-    `  const mediaGallery = document.createElement('div');\n  mediaGallery.className = 'sauti-media-gallery loading';\n  mediaGallery.setAttribute('aria-label', 'Post media');\n  main.append(mediaGallery);\n  void hydrateSautiMediaGallery(post.id, mediaGallery);`,
-    `  const mediaGallery = document.createElement('div');\n  const homeMediaRows = home && Array.isArray(item.mediaRows) ? item.mediaRows : [];\n  mediaGallery.className = homeMediaRows.length\n    ? \`sauti-media-gallery loading media-count-\${homeMediaRows.length}\`\n    : 'sauti-media-gallery loading';\n  mediaGallery.setAttribute('aria-label', 'Post media');\n\n  if (homeMediaRows.length) {\n    // Mark the post as media-backed before it reaches the DOM. This keeps the text\n    // body/caption mode stable and prevents the image region from appearing later.\n    article.classList.add('has-media');\n    if (caption) caption.hidden = false;\n    mediaGallery.dataset.mediaReserved = 'true';\n\n    if (homeMediaRows.length === 1) {\n      const width = Number(homeMediaRows[0]?.width);\n      const height = Number(homeMediaRows[0]?.height);\n      const ratio = width > 0 && height > 0 ? \`\${width} / \${height}\` : '4 / 5';\n      mediaGallery.style.setProperty('--single-media-aspect-ratio', ratio);\n\n      // The existing single-media tile rules reserve the exact final height. The\n      // hydrator replaces this neutral slot in-place when protected bytes arrive.\n      const reservedSlot = document.createElement('span');\n      reservedSlot.className = 'sauti-media-tile';\n      reservedSlot.setAttribute('aria-hidden', 'true');\n      mediaGallery.append(reservedSlot);\n    }\n  }\n\n  main.append(mediaGallery);\n  void hydrateSautiMediaGallery(post.id, mediaGallery, homeMediaRows.length ? homeMediaRows : null);`,
-    'the Home post media gallery creation block',
+    `async function hydrateSautiMediaGallery(postId, gallery) {
+  const rows = await loadSautiMediaRows(postId);
+  if (!gallery.isConnected) return;`,
+    `async function hydrateSautiMediaGallery(postId, gallery, prefetchedRows = null) {
+  const rows = Array.isArray(prefetchedRows) ? prefetchedRows : await loadSautiMediaRows(postId);
+  // Cards are assembled while detached from document. parentNode confirms this gallery
+  // still belongs to the card without incorrectly aborting prefetched hydration.
+  if (!gallery.parentNode) return;`,
+    'the post media hydrator prefetch and detached-card guard',
+  );
+
+  output = replaceExactOnce(
+    output,
+    `  for (const media of rows) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'sauti-media-tile';
+    button.dataset.openMediaId = media.id;
+    button.dataset.mediaKind = media.media_kind;
+    button.dataset.mediaAlt = media.alt_text || '';
+    button.setAttribute('aria-label', media.alt_text ? \`Open media: \${media.alt_text}\` : 'Open post media');
+
+    let visual = null;
+    try {
+      const url = await fetchSautiMediaBlobUrl(media.id);
+      button.dataset.mediaObjectUrl = url;
+      visual = media.media_kind === 'video' ? document.createElement('video') : document.createElement('img');
+      visual.src = url;
+      if (visual instanceof HTMLVideoElement) {
+        visual.muted = true;
+        visual.playsInline = true;
+        visual.preload = 'metadata';
+      } else {
+        visual.alt = media.alt_text || '';
+        visual.loading = 'lazy';
+        visual.decoding = 'async';
+      }
+      button.append(visual);
+    } catch {
+      const unavailable = document.createElement('span');
+      unavailable.textContent = 'Media unavailable';
+      button.append(unavailable);
+      button.disabled = true;
+    }
+    gallery.append(button);
+    if (visual instanceof HTMLVideoElement) observeHomeFeedVideo(visual, gallery);
+  }`,
+    `  const mediaEntries = rows.map((media) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'sauti-media-tile';
+    button.dataset.openMediaId = media.id;
+    button.dataset.mediaKind = media.media_kind;
+    button.dataset.mediaAlt = media.alt_text || '';
+    button.setAttribute('aria-label', media.alt_text ? \`Open media: \${media.alt_text}\` : 'Open post media');
+    button.setAttribute('aria-busy', 'true');
+
+    // Append every tile before starting protected-byte requests. The existing tile
+    // sizing rules now hold the final feed geometry while media loads.
+    gallery.append(button);
+    return { media, button };
+  });
+
+  await Promise.all(mediaEntries.map(async ({ media, button }) => {
+    let visual = null;
+    try {
+      const url = await fetchSautiMediaBlobUrl(media.id);
+      if (!button.parentNode) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      button.dataset.mediaObjectUrl = url;
+      visual = media.media_kind === 'video' ? document.createElement('video') : document.createElement('img');
+      visual.src = url;
+      if (visual instanceof HTMLVideoElement) {
+        visual.muted = true;
+        visual.playsInline = true;
+        visual.preload = 'metadata';
+      } else {
+        visual.alt = media.alt_text || '';
+        visual.loading = 'lazy';
+        visual.decoding = 'async';
+      }
+      button.replaceChildren(visual);
+    } catch {
+      if (!button.parentNode) return;
+      const unavailable = document.createElement('span');
+      unavailable.textContent = 'Media unavailable';
+      button.replaceChildren(unavailable);
+      button.disabled = true;
+    } finally {
+      button.setAttribute('aria-busy', 'false');
+    }
+    if (visual instanceof HTMLVideoElement) observeHomeFeedVideo(visual, gallery);
+  }));`,
+    'the post media tile hydration loop',
+  );
+
+  output = replaceExactOnce(
+    output,
+    `  const mediaGallery = document.createElement('div');
+  mediaGallery.className = 'sauti-media-gallery loading';
+  mediaGallery.setAttribute('aria-label', 'Post media');
+  main.append(mediaGallery);
+  void hydrateSautiMediaGallery(post.id, mediaGallery);`,
+    `  const mediaGallery = document.createElement('div');
+  const prefetchedMediaRows = Array.isArray(item.mediaRows) ? item.mediaRows : null;
+  const prefetchedMediaCount = prefetchedMediaRows?.length || 0;
+  mediaGallery.className = prefetchedMediaCount
+    ? \`sauti-media-gallery loading media-count-\${prefetchedMediaCount}\`
+    : 'sauti-media-gallery loading';
+  mediaGallery.setAttribute('aria-label', 'Post media');
+
+  if (prefetchedMediaCount) {
+    article.classList.add('has-media');
+    if (caption) caption.hidden = false;
+    mediaGallery.dataset.mediaReserved = 'true';
+
+    if (prefetchedMediaCount === 1) {
+      const width = Number(prefetchedMediaRows[0]?.width);
+      const height = Number(prefetchedMediaRows[0]?.height);
+      const ratio = width > 0 && height > 0 ? \`\${width} / \${height}\` : '4 / 5';
+      mediaGallery.style.setProperty('--single-media-aspect-ratio', ratio);
+    }
+  }
+
+  main.append(mediaGallery);
+  void hydrateSautiMediaGallery(post.id, mediaGallery, prefetchedMediaRows);`,
+    'the shared post card media reservation block',
   );
 
   return output;
 }
 
 export function transformPostMediaSource(filePath, source) {
-  const normalized = String(filePath || '').replaceAll('\\\\', '/');
+  const normalized = String(filePath || '').replaceAll('\\', '/');
   if (normalized.endsWith('/src/app.js') || normalized.endsWith('src/app.js')) {
-    return transformHomeMediaReservation(replaceAllExact(source, APP_REPLACEMENTS));
+    return transformMediaReservation(replaceAllExact(source, APP_REPLACEMENTS));
   }
   if (normalized.endsWith('/src/sauti-posts-api.js') || normalized.endsWith('src/sauti-posts-api.js')) {
     return replaceAllExact(source, POST_API_REPLACEMENTS);
+  }
+  if (normalized.endsWith('/src/profile-activity.js') || normalized.endsWith('src/profile-activity.js')) {
+    return replaceAllExact(source, PROFILE_ACTIVITY_REPLACEMENTS);
   }
   return source;
 }
