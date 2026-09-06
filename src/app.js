@@ -120,6 +120,8 @@ let reauthCodeRequested = false;
 let authResultKey = '';
 let resolvingAuthTokenHash = false;
 let profileRouteRequest = 0;
+let profileFollowStateRequest = 0;
+let profileFollowMutationVersion = 0;
 let profileMediaReady = false;
 let profileMediaRenderRequest = 0;
 let renderedProfileOwner = false;
@@ -3054,6 +3056,10 @@ function interactionButton(action, label, count = null, active = false) {
   button.dataset.active = String(active);
   button.title = label;
   button.setAttribute('aria-label', label);
+  if (['like', 'repost', 'save'].includes(action)) {
+    button.setAttribute('aria-pressed', String(active));
+    button.setAttribute('aria-busy', 'false');
+  }
 
   const text = document.createElement('span');
   text.className = 'sauti-action-label';
@@ -3673,6 +3679,57 @@ async function loadStream({ reset = false } = {}) {
   }
 }
 
+function sautiCardsForPost(postId) {
+  return [...document.querySelectorAll('.sauti-card')]
+    .filter((card) => card.dataset.postId === postId);
+}
+
+function syncPostActionButton(button, action, active, { pending = false } = {}) {
+  if (!button) return;
+  const labels = {
+    like: active ? 'Unlike' : 'Like',
+    repost: active ? 'Undo repost' : 'Repost',
+    save: active ? 'Remove from Saved' : 'Save',
+  };
+  const label = labels[action] || action;
+  button.dataset.active = String(active);
+  button.dataset.pending = String(pending);
+  button.classList.toggle('active', active);
+  button.setAttribute('aria-pressed', String(active));
+  button.setAttribute('aria-busy', String(pending));
+  button.setAttribute('aria-label', label);
+  button.title = label;
+  const labelNode = button.querySelector('.sauti-action-label');
+  if (labelNode) labelNode.textContent = action === 'save' && active ? 'Saved' : label;
+}
+
+function setPostInteractionPending(postId, action, pending) {
+  sautiCardsForPost(postId).forEach((card) => {
+    const button = card.querySelector(`[data-sauti-action="${action}"]`);
+    if (button) button.dataset.pending = String(pending);
+    button?.setAttribute('aria-busy', String(pending));
+  });
+}
+
+function setPostInteractionState(postId, action, active, countDelta = 0, { pending = false } = {}) {
+  sautiCardsForPost(postId).forEach((card) => {
+    const button = card.querySelector(`[data-sauti-action="${action}"]`);
+    if (!button) return;
+    syncPostActionButton(button, action, active, { pending });
+    const count = button.querySelector('[data-count-for]');
+    if (count && countDelta) {
+      count.textContent = String(Math.max(0, Number(count.textContent || 0) + countDelta));
+    }
+    if (action === 'repost') {
+      const menuButton = card.querySelector('[data-repost-toggle]');
+      menuButton?.replaceChildren(
+        sautiActionIcon('repost'),
+        document.createTextNode(active ? 'Undo repost' : 'Repost'),
+      );
+    }
+  });
+}
+
 async function refreshPostInteractionControls(postId) {
   const [
     { data: post, error: postError },
@@ -3722,16 +3779,10 @@ async function refreshPostInteractionControls(postId) {
     });
 
     const likeButton = card.querySelector('[data-sauti-action="like"]');
-    if (likeButton) {
-      likeButton.dataset.active = String(liked);
-      likeButton.classList.toggle('active', liked);
-    }
+    syncPostActionButton(likeButton, 'like', liked);
 
     const repostButton = card.querySelector('[data-sauti-action="repost"]');
-    if (repostButton) {
-      repostButton.dataset.active = String(reposted);
-      repostButton.classList.toggle('active', reposted);
-    }
+    syncPostActionButton(repostButton, 'repost', reposted);
     const repostMenuButton = card.querySelector('[data-repost-toggle]');
     if (repostMenuButton) {
       repostMenuButton.replaceChildren(
@@ -3741,14 +3792,7 @@ async function refreshPostInteractionControls(postId) {
     }
 
     const saveButton = card.querySelector('[data-sauti-action="save"]');
-    if (saveButton) {
-      saveButton.dataset.active = String(saved);
-      saveButton.classList.toggle('active', saved);
-      saveButton.setAttribute('aria-label', saved ? 'Remove from Saved' : 'Save');
-      saveButton.title = saved ? 'Remove from Saved' : 'Save';
-      const label = saveButton.querySelector('.sauti-action-label');
-      if (label) label.textContent = saved ? 'Saved' : 'Save';
-    }
+    syncPostActionButton(saveButton, 'save', saved);
   });
 }
 
@@ -3849,45 +3893,49 @@ async function toggleComments(card) {
 
 async function toggleLike(card, button) {
   const postId = card.dataset.postId;
+  if (!postId || button.dataset.pending === 'true') return;
   const active = button.dataset.active === 'true';
-  button.disabled = true;
+  const liked = !active;
+  setPostInteractionState(postId, 'like', liked, liked ? 1 : -1, { pending: true });
   try {
     await socialMutation(`/api/social/posts/${postId}/like`, {
       method: active ? 'DELETE' : 'POST',
     });
-    await refreshPostInteractionControls(postId);
+    setPostInteractionPending(postId, 'like', false);
+    void refreshPostInteractionControls(postId);
   } catch (error) {
+    setPostInteractionState(postId, 'like', active, liked ? -1 : 1);
     showToast(error?.message || 'Like could not be updated.');
-  } finally {
-    button.disabled = false;
   }
 }
 
 async function toggleRepost(card, button) {
   const postId = card.dataset.postId;
+  if (!postId || button.dataset.pending === 'true') return;
   const active = button.dataset.active === 'true';
-  button.disabled = true;
+  const reposted = !active;
+  setPostInteractionState(postId, 'repost', reposted, reposted ? 1 : -1, { pending: true });
+  closeRepostMenus();
   try {
     await socialMutation(`/api/social/posts/${postId}/repost`, {
       method: active ? 'DELETE' : 'POST',
     });
-    const inHomeStream = Boolean(card.closest('#stream-feed')) && !readSharedSautiTarget();
-    if (inHomeStream) await loadStream({ reset: true });
-    else await refreshPostInteractionControls(postId);
-    button.disabled = false;
+    setPostInteractionPending(postId, 'repost', false);
+    void refreshPostInteractionControls(postId);
     showToast(active ? 'Repost removed.' : 'Post reposted.');
   } catch (error) {
+    setPostInteractionState(postId, 'repost', active, reposted ? -1 : 1);
     showToast(error?.message || 'Repost could not be updated.');
-    button.disabled = false;
   }
 }
 
 async function toggleSave(card, button) {
   const postId = card.dataset.postId;
-  if (!postId || !currentMemberId) return;
+  if (!postId || !currentMemberId || button.dataset.pending === 'true') return;
 
   const active = button.dataset.active === 'true';
-  button.disabled = true;
+  const saved = !active;
+  setPostInteractionState(postId, 'save', saved, 0, { pending: true });
   try {
     let error = null;
     if (active) {
@@ -3903,13 +3951,17 @@ async function toggleSave(card, button) {
     }
 
     if (error && !(error.code === '23505' && !active)) throw error;
-    await refreshPostInteractionControls(postId);
-    if (!savedSurface.hidden) await loadSavedSauti();
+    setPostInteractionPending(postId, 'save', false);
+    void refreshPostInteractionControls(postId);
+    if (!savedSurface.hidden && active) {
+      savedSurface.querySelectorAll(`.sauti-card[data-post-id="${postId}"]`).forEach((savedCard) => savedCard.remove());
+      const hasSavedPosts = byId('saved-sauti-feed').childElementCount > 0;
+      byId('saved-empty').hidden = hasSavedPosts;
+    }
     showToast(active ? 'Removed from Saved.' : 'Post saved.');
   } catch {
+    setPostInteractionState(postId, 'save', active);
     showToast('Saved state could not be updated.');
-  } finally {
-    button.disabled = false;
   }
 }
 
@@ -4780,15 +4832,21 @@ async function toggleProfileBlock() {
 }
 
 async function loadProfileFollowState(profile, owner) {
+  const requestId = ++profileFollowStateRequest;
   const button = byId('profile-follow-button');
-  button.hidden = owner || !currentMember || !profile?.id;
+  const unavailable = owner || !currentMember || !profile?.id;
+  button.hidden = true;
   button.disabled = false;
+  button.dataset.pending = 'false';
   button.classList.remove('following');
   button.dataset.following = 'false';
   button.dataset.username = profile?.username || '';
+  button.dataset.profileId = profile?.id || '';
+  button.setAttribute('aria-pressed', 'false');
+  button.setAttribute('aria-busy', 'false');
   button.textContent = 'Follow';
 
-  if (button.hidden) return;
+  if (unavailable) return;
 
   const { data, error } = await supabase
     .from('social_follows')
@@ -4797,41 +4855,82 @@ async function loadProfileFollowState(profile, owner) {
     .eq('followed_id', profile.id)
     .maybeSingle();
 
-  if (error) {
-    button.hidden = true;
-    return;
-  }
+  if (requestId !== profileFollowStateRequest || error) return;
 
   const following = Boolean(data);
+  button.hidden = false;
   button.dataset.following = String(following);
+  button.setAttribute('aria-pressed', String(following));
   button.classList.toggle('following', following);
   button.textContent = following ? 'Following' : 'Follow';
+}
+
+function setProfileFollowState(profileId, following, { followerCount = null, pending = false } = {}) {
+  if (renderedProfileId === profileId) {
+    const button = byId('profile-follow-button');
+    button.dataset.following = String(following);
+    button.dataset.pending = String(pending);
+    button.setAttribute('aria-pressed', String(following));
+    button.setAttribute('aria-busy', String(pending));
+    button.classList.toggle('following', following);
+    button.textContent = following ? 'Following' : 'Follow';
+    if (followerCount !== null) {
+      byId('profile-followers-count').textContent = String(Math.max(0, Number(followerCount) || 0));
+    }
+  }
+  setHomeAuthorFollowState(profileId, following);
+}
+
+async function reconcileVisibleProfileFollowerCount(profileId, mutationVersion) {
+  const { data, error } = await supabase
+    .from('social_profiles')
+    .select('followers_count')
+    .eq('id', profileId)
+    .maybeSingle();
+  if (!error && data && renderedProfileId === profileId && mutationVersion === profileFollowMutationVersion) {
+    byId('profile-followers-count').textContent = String(Number(data.followers_count || 0));
+  }
 }
 
 async function toggleProfileFollow() {
   const button = byId('profile-follow-button');
   const username = button.dataset.username;
-  if (!username || button.hidden) return;
-  const following = button.dataset.following === 'true';
-  button.disabled = true;
+  const profileId = button.dataset.profileId || renderedProfileId;
+  if (!username || !profileId || button.hidden || button.dataset.pending === 'true') return;
+  const wasFollowing = button.dataset.following === 'true';
+  const following = !wasFollowing;
+  profileFollowStateRequest += 1;
+  const mutationVersion = ++profileFollowMutationVersion;
+  const previousFollowerCount = Number(byId('profile-followers-count').textContent || 0);
+  const nextFollowerCount = Math.max(0, previousFollowerCount + (following ? 1 : -1));
+
+  setProfileFollowState(profileId, following, {
+    followerCount: nextFollowerCount,
+    pending: true,
+  });
+  if (currentMember) {
+    currentMember.following_count = Math.max(
+      0,
+      Number(currentMember.following_count || 0) + (following ? 1 : -1),
+    );
+  }
 
   try {
     await socialMutation(`/api/social/follow/${encodeURIComponent(username)}`, {
-      method: following ? 'DELETE' : 'POST',
+      method: following ? 'POST' : 'DELETE',
     });
-
+    setProfileFollowState(profileId, following, { followerCount: nextFollowerCount });
+    void reconcileVisibleProfileFollowerCount(profileId, mutationVersion);
+    showToast(following ? 'Following.' : 'Unfollowed.');
+  } catch (error) {
     if (currentMember) {
       currentMember.following_count = Math.max(
         0,
         Number(currentMember.following_count || 0) + (following ? -1 : 1),
       );
     }
-
-    await loadDiscoverableProfile(username);
-    showToast(following ? 'Unfollowed.' : 'Following.');
-  } catch (error) {
+    setProfileFollowState(profileId, wasFollowing, { followerCount: previousFollowerCount });
     showToast(error?.message || 'Follow state could not be changed.');
-    button.disabled = false;
   }
 }
 
