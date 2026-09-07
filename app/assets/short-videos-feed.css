@@ -1,0 +1,481 @@
+:root.sauti-short-videos-open,
+:root.sauti-short-videos-open body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.sauti-short-videos[hidden] {
+  display: none !important;
+}
+
+.sauti-short-videos {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  isolation: isolate;
+}
+
+.sauti-short-videos-header {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 1105;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  width: min(100%, 560px);
+  min-height: 64px;
+  align-items: center;
+  gap: 8px;
+  padding: max(10px, env(safe-area-inset-top)) 12px 8px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.sauti-short-videos-header > * {
+  pointer-events: auto;
+}
+
+.sauti-short-videos-header strong {
+  justify-self: center;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 760;
+  letter-spacing: -.015em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, .55);
+}
+
+.sauti-short-close {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .34);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sauti-short-close svg,
+.sauti-short-action svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sauti-short-videos-track {
+  width: 100%;
+  height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-y: contain;
+  background: #000;
+  outline: none;
+  touch-action: pan-y;
+}
+
+.sauti-short-videos-track::-webkit-scrollbar {
+  display: none;
+}
+
+.sauti-short-video-slide,
+.sauti-short-video-end {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  overflow: hidden;
+  background: #000;
+}
+
+.sauti-short-video-stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.sauti-short-video-frame {
+  position: relative;
+  display: block;
+  width: min(100%, 560px);
+  height: 100%;
+  min-height: 0;
+  margin: 0 auto;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+  cursor: default;
+}
+
+.sauti-short-video-frame > video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  background: #000;
+}
+
+.sauti-short-video-frame .sauti-video-player-feed {
+  inset: 0;
+}
+
+.sauti-short-video-frame .sauti-video-gesture-surface {
+  touch-action: pan-y;
+}
+
+.sauti-short-video-frame .sauti-video-chrome {
+  pointer-events: none;
+}
+
+.sauti-short-video-frame .sauti-video-timeline,
+.sauti-short-video-frame .sauti-video-control.play-pause,
+.sauti-short-video-frame .sauti-video-volume,
+.sauti-short-video-frame .sauti-video-time,
+.sauti-short-video-frame .sauti-video-rate,
+.sauti-short-video-frame .sauti-video-control.pip,
+.sauti-short-video-frame .sauti-video-control.expand,
+.sauti-short-video-frame .sauti-video-control.fullscreen {
+  display: none !important;
+}
+
+.sauti-short-video-frame .sauti-video-control-row {
+  position: absolute;
+  top: max(76px, calc(env(safe-area-inset-top) + 70px));
+  right: 12px;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.sauti-short-video-frame .sauti-video-control.audio {
+  display: grid !important;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .32);
+  pointer-events: auto;
+  backdrop-filter: blur(10px);
+}
+
+.sauti-short-video-frame .sauti-video-center-control {
+  width: 58px;
+  height: 58px;
+  background: rgba(0, 0, 0, .34);
+  backdrop-filter: blur(10px);
+}
+
+.sauti-short-video-frame .sauti-video-buffering {
+  width: 34px;
+  height: 34px;
+}
+
+.sauti-short-meta {
+  position: absolute;
+  left: max(14px, env(safe-area-inset-left));
+  right: 84px;
+  bottom: max(24px, calc(env(safe-area-inset-bottom) + 18px));
+  z-index: 1102;
+  display: grid;
+  gap: 9px;
+  max-width: 470px;
+  pointer-events: none;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .66);
+}
+
+.sauti-short-meta a,
+.sauti-short-meta button {
+  pointer-events: auto;
+}
+
+.sauti-short-profile {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.sauti-short-avatar {
+  position: relative;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .65);
+  border-radius: 50%;
+  background: #202124;
+  color: #fff;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.sauti-short-avatar > img,
+.sauti-short-avatar .profile-avatar-image,
+.sauti-short-avatar .profile-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.sauti-short-avatar > img,
+.sauti-short-avatar .profile-avatar-image {
+  object-fit: cover;
+}
+
+.sauti-short-avatar .profile-avatar-fallback {
+  display: grid;
+  place-items: center;
+}
+
+.sauti-short-identity {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.sauti-short-name-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.sauti-short-name,
+.sauti-short-username {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sauti-short-name {
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.sauti-short-username {
+  color: rgba(255, 255, 255, .82);
+  font-size: 11px;
+  font-weight: 580;
+}
+
+.sauti-short-name-row .verification-badge {
+  flex: 0 0 auto;
+}
+
+.sauti-short-name-row .verification-badge img {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.sauti-short-follow {
+  min-height: 32px;
+  padding: 0 13px;
+  border: 1px solid rgba(255, 255, 255, .82);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .22);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.sauti-short-follow.following {
+  border-color: rgba(255, 255, 255, .38);
+  background: rgba(255, 255, 255, .12);
+}
+
+.sauti-short-caption {
+  max-width: 100%;
+  margin: 0;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+
+.sauti-short-caption-more {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: rgba(255, 255, 255, .88);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.sauti-short-actions {
+  position: absolute;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: max(28px, calc(env(safe-area-inset-bottom) + 22px));
+  z-index: 1103;
+  display: grid;
+  gap: 13px;
+  justify-items: center;
+}
+
+.sauti-short-action {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 48px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sauti-short-action-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(22, 22, 22, .48);
+  backdrop-filter: blur(8px);
+}
+
+.sauti-short-action small {
+  max-width: 56px;
+  overflow: hidden;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .8);
+}
+
+.sauti-short-action.active[data-short-action="like"] .sauti-short-action-icon svg {
+  fill: currentColor;
+}
+
+.sauti-short-action.active[data-short-action="save"] .sauti-short-action-icon svg {
+  fill: currentColor;
+}
+
+.sauti-short-video-slide::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1101;
+  height: 38%;
+  background: linear-gradient(to top, rgba(0, 0, 0, .66), rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+
+.sauti-short-video-end {
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  text-align: center;
+}
+
+.sauti-short-video-end > div {
+  max-width: 320px;
+}
+
+.sauti-short-video-end strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 20px;
+  font-weight: 780;
+  letter-spacing: -.025em;
+}
+
+.sauti-short-video-end p {
+  margin: 0;
+  color: rgba(255, 255, 255, .66);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.sauti-short-close:focus-visible,
+.sauti-short-action:focus-visible,
+.sauti-short-follow:focus-visible,
+.sauti-short-profile a:focus-visible,
+.sauti-short-caption-more:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+@media (min-width: 681px) {
+  .sauti-short-video-slide {
+    background: #090909;
+  }
+
+  .sauti-short-video-frame {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .06);
+  }
+
+  .sauti-short-meta {
+    left: max(calc((100vw - 560px) / 2 + 18px), 18px);
+    right: max(calc((100vw - 560px) / 2 + 86px), 86px);
+  }
+
+  .sauti-short-actions {
+    right: max(calc((100vw - 560px) / 2 + 12px), 12px);
+  }
+}
+
+@media (max-width: 380px) {
+  .sauti-short-meta {
+    right: 72px;
+  }
+
+  .sauti-short-actions {
+    gap: 10px;
+  }
+
+  .sauti-short-action-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .sauti-short-profile {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+  }
+
+  .sauti-short-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .sauti-short-follow {
+    padding-inline: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sauti-short-videos-track {
+    scroll-behavior: auto;
+  }
+}

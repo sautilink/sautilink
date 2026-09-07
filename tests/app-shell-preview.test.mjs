@@ -99,6 +99,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/mobile-nav-icon-style.css'));
   assert.ok(files.includes('app/assets/mobile-more-drawer.css'));
   assert.ok(files.includes('app/assets/post-media-carousel.css'));
+  assert.ok(files.includes('app/assets/short-videos-feed.css'));
   assert.ok(files.includes('app/assets/sautilink-video-player.css'));
   assert.ok(files.includes('app/assets/professional-profile-category.css'));
   assert.ok(files.includes('app/assets/profile-activity.css'));
@@ -151,6 +152,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
       || file === 'app/assets/mobile-nav-icon-style.css'
       || file === 'app/assets/mobile-more-drawer.css'
       || file === 'app/assets/post-media-carousel.css'
+      || file === 'app/assets/short-videos-feed.css'
       || file === 'app/assets/sautilink-video-player.css'
       || file === 'app/assets/professional-profile-category.css'
       || file === 'app/assets/profile-activity.css'
@@ -191,6 +193,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
       || file === 'app/assets/mobile-nav-icon-style.css'
       || file === 'app/assets/mobile-more-drawer.css'
       || file === 'app/assets/post-media-carousel.css'
+      || file === 'app/assets/short-videos-feed.css'
       || file === 'app/assets/sautilink-video-player.css'
       || file === 'app/assets/professional-profile-category.css'
       || file === 'app/assets/profile-activity.css'

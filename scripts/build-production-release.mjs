@@ -81,6 +81,7 @@ await build({
     resolve(workerSource, 'mobile-nav-icon-style.js'),
     resolve(workerSource, 'mobile-more-drawer.js'),
     resolve(workerSource, 'post-media-carousel.js'),
+    resolve(workerSource, 'short-videos-feed.js'),
     resolve(workerSource, 'sautilink-video-player.js'),
   ],
   outfile: resolve(siteRoot, 'app/assets/app.js'),

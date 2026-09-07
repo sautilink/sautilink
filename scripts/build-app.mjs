@@ -36,6 +36,7 @@ await build({
     resolve(projectRoot, 'src/mobile-nav-icon-style.js'),
     resolve(projectRoot, 'src/mobile-more-drawer.js'),
     resolve(projectRoot, 'src/post-media-carousel.js'),
+    resolve(projectRoot, 'src/short-videos-feed.js'),
     resolve(projectRoot, 'src/sautilink-video-player.js'),
   ],
   outfile: resolve(projectRoot, 'app/assets/app.js'),
