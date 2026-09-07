@@ -8,6 +8,7 @@ test('Short Videos reuses the canonical Home feed and social actions', async () 
   const source = await read('src/short-videos-feed.js');
 
   assert.match(source, /#stream-feed \.sauti-media-tile\[data-media-kind="video"\]/);
+  assert.match(source, /stream-more/);
   assert.match(source, /stream-load-more/);
   assert.match(source, /\[data-home-follow\]/);
   assert.match(source, /\[data-sauti-action=/);
@@ -46,6 +47,7 @@ test('Short Videos is a vertical snap feed with a professional end state', async
   assert.match(css, /touch-action: pan-y/);
   assert.match(css, /\.sauti-short-actions/);
   assert.match(css, /\.sauti-short-profile/);
+  assert.match(source, /streamMore && streamMore\.hidden/);
   assert.match(source, /You’re all caught up\./);
   assert.match(source, /You’ve seen the latest short videos for now\./);
   assert.doesNotMatch(css, /\.mobile-nav|\.mobile-header/);
