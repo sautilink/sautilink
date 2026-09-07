@@ -62,6 +62,20 @@ test('WhatsApp OTP hook accepts Supabase digit-only E.164 and sends Meta digits 
   assert.doesNotMatch(source, /to: phone\.slice\(1\)/);
 });
 
+test('WhatsApp OTP hook logs sanitized Meta diagnostics without exposing recipient or OTP', async () => {
+  const source = await read('supabase/functions/sautilink-whatsapp-otp/index.ts');
+
+  assert.match(source, /function sanitizeMetaText/);
+  assert.match(source, /metaCode: metaError\.code/);
+  assert.match(source, /metaSubcode: metaError\.subcode/);
+  assert.match(source, /metaType: metaError\.type/);
+  assert.match(source, /metaMessage: metaError\.message/);
+  assert.match(source, /metaDetails: metaError\.details/);
+  assert.match(source, /replace\(\/\\b\\d\{4,\}\\b\/g, '\[redacted\]'\)/);
+  assert.doesNotMatch(source, /console\.error\([^\n]*phone/);
+  assert.doesNotMatch(source, /console\.error\([^\n]*otp/);
+});
+
 test('WhatsApp OTP hook is delivery-only and does not create a second OTP database', async () => {
   const source = await read('supabase/functions/sautilink-whatsapp-otp/index.ts');
 
