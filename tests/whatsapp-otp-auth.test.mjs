@@ -40,15 +40,26 @@ test('WhatsApp OTP delivery uses an authentication template and validates phone 
   assert.match(source, /type: 'body'/);
   assert.match(source, /sub_type: 'url'/);
   assert.match(source, /text: otp/);
-  assert.match(source, /\^\\\+\[1-9\]\\d\{7,14\}\$/);
+  assert.match(source, /\^\[1-9\]\\d\{7,14\}\$/);
   assert.match(source, /\^\\d\{6,10\}\$/);
 });
 
-test('WhatsApp OTP hook targets new_phone for authenticated phone changes with phone fallback', async () => {
+test('WhatsApp OTP hook uses the destination from Supabase sms.phone first', async () => {
   const source = await read('supabase/functions/sautilink-whatsapp-otp/index.ts');
 
-  assert.match(source, /new_phone\?: string/);
-  assert.match(source, /normalizePhone\(event\?\.user\?\.new_phone \|\| event\?\.user\?\.phone\)/);
+  assert.match(source, /sms\?: \{ otp\?: string; phone\?: string \}/);
+  assert.match(
+    source,
+    /event\?\.sms\?\.phone \|\| event\?\.user\?\.new_phone \|\| event\?\.user\?\.phone/,
+  );
+});
+
+test('WhatsApp OTP hook accepts Supabase digit-only E.164 and sends Meta digits without slicing', async () => {
+  const source = await read('supabase/functions/sautilink-whatsapp-otp/index.ts');
+
+  assert.match(source, /raw\.startsWith\('\+'\) \? raw\.slice\(1\) : raw/);
+  assert.match(source, /to: phone,/);
+  assert.doesNotMatch(source, /to: phone\.slice\(1\)/);
 });
 
 test('WhatsApp OTP hook is delivery-only and does not create a second OTP database', async () => {
