@@ -77,6 +77,43 @@ function normalizeOtp(value: unknown) {
   return /^\d{6,10}$/.test(otp) ? otp : '';
 }
 
+function sanitizeMetaText(value: unknown) {
+  return String(value || '')
+    .replace(/\b\d{4,}\b/g, '[redacted]')
+    .replace(/Bearer\s+\S+/gi, 'Bearer [redacted]')
+    .slice(0, 240);
+}
+
+async function readMetaError(response: Response) {
+  let payload: Record<string, unknown> = {};
+  try {
+    payload = await response.json() as Record<string, unknown>;
+  } catch {
+    return {
+      code: null,
+      subcode: null,
+      type: '',
+      message: '',
+      details: '',
+    };
+  }
+
+  const error = (payload?.error && typeof payload.error === 'object')
+    ? payload.error as Record<string, unknown>
+    : {};
+  const errorData = (error?.error_data && typeof error.error_data === 'object')
+    ? error.error_data as Record<string, unknown>
+    : {};
+
+  return {
+    code: typeof error.code === 'number' ? error.code : null,
+    subcode: typeof error.error_subcode === 'number' ? error.error_subcode : null,
+    type: sanitizeMetaText(error.type),
+    message: sanitizeMetaText(error.message),
+    details: sanitizeMetaText(errorData.details),
+  };
+}
+
 async function sendWhatsAppOtp(phone: string, otp: string) {
   const version = env('WHATSAPP_GRAPH_API_VERSION');
   const phoneNumberId = env('WHATSAPP_PHONE_NUMBER_ID');
@@ -116,9 +153,15 @@ async function sendWhatsAppOtp(phone: string, otp: string) {
 
   if (!response.ok) {
     const requestId = response.headers.get('x-fb-trace-id') || '';
+    const metaError = await readMetaError(response);
     console.error('WhatsApp OTP delivery failed', {
       status: response.status,
-      requestId: requestId.slice(0, 96),
+      requestId: sanitizeMetaText(requestId),
+      metaCode: metaError.code,
+      metaSubcode: metaError.subcode,
+      metaType: metaError.type,
+      metaMessage: metaError.message,
+      metaDetails: metaError.details,
     });
     throw new Error('WhatsApp delivery failed.');
   }
@@ -158,9 +201,6 @@ Deno.serve(async (request: Request) => {
     return json(request, 401, { ok: false, error: { code: 'INVALID_HOOK_SIGNATURE' } });
   }
 
-  // Supabase Auth supplies the actual destination as sms.phone. It is already
-  // normalized to E.164 digits without the leading '+'. User fields are kept
-  // only as backwards-compatible fallbacks for older hook payloads.
   const phone = normalizePhone(
     event?.sms?.phone || event?.user?.new_phone || event?.user?.phone,
   );
