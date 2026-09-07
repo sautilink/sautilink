@@ -33,7 +33,21 @@ test('profile route state styling is isolated and adaptive across dark and light
   assert.match(css, /var\(--app-muted\)/);
   assert.match(css, /:root\[data-theme="light"\] #profile-route-state/);
   assert.match(css, /@media \(max-width: 720px\)/);
-  assert.doesNotMatch(css, /#circle-route-state/);
+  assert.match(css, /#circle-route-state\[data-state="loading"\]/);
+  assert.doesNotMatch(css, /#circle-route-state\[data-state="(?:error|unavailable)"\]/);
+});
+
+test('Sautify detail loading reuses the canonical app spinner without touching Sautify data logic', async () => {
+  const source = await read('src/profile-route-states.js');
+  const css = await read('app/assets/profile-route-states.css');
+
+  assert.match(source, /getElementById\('circle-route-state'\)/);
+  assert.match(source, /classList\.toggle\('loading-mark', loading\)/);
+  assert.match(source, /classList\.toggle\('sautify-route-loading-mark', loading\)/);
+  assert.match(css, /Sautify detail loading reuses the canonical app \.loading-mark spinner/);
+  assert.match(css, /#circle-route-state\[data-state="loading"\][\s\S]*background: transparent;/);
+  assert.match(css, /#circle-route-state\[data-state="loading"\] #circle-route-home[\s\S]*display: none;/);
+  assert.doesNotMatch(source, /createClient|supabase|fetch\(|XMLHttpRequest|WebSocket/i);
 });
 
 test('profile route branding is included in regular and production bundles without touching auth screens', async () => {
