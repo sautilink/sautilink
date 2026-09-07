@@ -56,7 +56,7 @@ function verifyHook(payload: string, headers: Record<string, string>) {
   for (const secret of hookSecrets()) {
     try {
       return new Webhook(secret).verify(payload, headers) as {
-        user?: { phone?: string };
+        user?: { phone?: string; new_phone?: string };
         sms?: { otp?: string };
       };
     } catch (error) {
@@ -147,14 +147,14 @@ Deno.serve(async (request: Request) => {
 
   const payload = await request.text();
   const headers = Object.fromEntries(request.headers.entries());
-  let event: { user?: { phone?: string }; sms?: { otp?: string } };
+  let event: { user?: { phone?: string; new_phone?: string }; sms?: { otp?: string } };
   try {
     event = verifyHook(payload, headers);
   } catch {
     return json(request, 401, { ok: false, error: { code: 'INVALID_HOOK_SIGNATURE' } });
   }
 
-  const phone = normalizePhone(event?.user?.phone);
+  const phone = normalizePhone(event?.user?.new_phone || event?.user?.phone);
   const otp = normalizeOtp(event?.sms?.otp);
   if (!phone || !otp) {
     return json(request, 400, { ok: false, error: { code: 'INVALID_OTP_EVENT' } });
