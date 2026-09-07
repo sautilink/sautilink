@@ -5,14 +5,18 @@ import { fileURLToPath } from 'node:url';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
 import { transformVideoPlayerSource } from './video-player-source-transform.mjs';
+import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const appSourcePath = resolve(projectRoot, 'src/app.js');
-const appSource = transformVideoPlayerSource(
+const appSource = transformWhatsAppOtpSource(
   appSourcePath,
-  transformMentionNotificationSource(
+  transformVideoPlayerSource(
     appSourcePath,
-    transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
+    transformMentionNotificationSource(
+      appSourcePath,
+      transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
+    ),
   ),
 );
 
@@ -37,6 +41,7 @@ await build({
     resolve(projectRoot, 'src/mobile-more-drawer.js'),
     resolve(projectRoot, 'src/post-media-carousel.js'),
     resolve(projectRoot, 'src/short-videos-feed.js'),
+    resolve(projectRoot, 'src/whatsapp-otp-auth.js'),
     resolve(projectRoot, 'src/sautilink-video-player.js'),
   ],
   outfile: resolve(projectRoot, 'app/assets/app.js'),
