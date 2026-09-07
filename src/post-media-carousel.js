@@ -1,4 +1,6 @@
 const POST_MEDIA_CAROUSEL_STYLESHEET = '/app/assets/post-media-carousel.css';
+const HOME_VIDEO_SELECTOR = '.sauti-media-tile video[data-home-autoplay-video]';
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function ensurePostMediaCarouselStylesheet() {
   if (document.querySelector(`link[href="${POST_MEDIA_CAROUSEL_STYLESHEET}"]`)) return;
@@ -15,14 +17,90 @@ function carouselCount(gallery) {
 }
 
 function chevronIcon(direction) {
-  const ns = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(ns, 'svg');
+  const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
-  const path = document.createElementNS(ns, 'path');
+  const path = document.createElementNS(SVG_NS, 'path');
   path.setAttribute('d', direction === 'prev' ? 'm15 18-6-6 6-6' : 'm9 6 6 6-6 6');
   svg.append(path);
   return svg;
+}
+
+function videoAudioIcon(muted) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+
+  const speaker = document.createElementNS(SVG_NS, 'path');
+  speaker.setAttribute('d', 'M5 10v4h3l4 3V7l-4 3H5Z');
+  svg.append(speaker);
+
+  if (muted) {
+    const slashOne = document.createElementNS(SVG_NS, 'path');
+    slashOne.setAttribute('d', 'm16 9 5 6');
+    const slashTwo = document.createElementNS(SVG_NS, 'path');
+    slashTwo.setAttribute('d', 'm21 9-5 6');
+    svg.append(slashOne, slashTwo);
+  } else {
+    const waveOne = document.createElementNS(SVG_NS, 'path');
+    waveOne.setAttribute('d', 'M15.5 9.5a3.6 3.6 0 0 1 0 5');
+    const waveTwo = document.createElementNS(SVG_NS, 'path');
+    waveTwo.setAttribute('d', 'M18.3 7a7 7 0 0 1 0 10');
+    svg.append(waveOne, waveTwo);
+  }
+
+  return svg;
+}
+
+function syncVideoAudioToggle(video, control) {
+  const muted = video.muted;
+  const label = muted ? 'Unmute video' : 'Mute video';
+  control.setAttribute('aria-label', label);
+  control.setAttribute('title', label);
+  control.setAttribute('aria-pressed', muted ? 'false' : 'true');
+  control.replaceChildren(videoAudioIcon(muted));
+}
+
+function enhancePostVideoAudioToggle(video) {
+  if (!(video instanceof HTMLVideoElement) || video.dataset.audioToggleReady === 'true') return;
+  const tile = video.closest('.sauti-media-tile');
+  if (!tile) return;
+
+  video.dataset.audioToggleReady = 'true';
+
+  const control = document.createElement('span');
+  control.className = 'sauti-video-audio-toggle';
+  control.dataset.videoAudioToggle = 'true';
+  control.setAttribute('role', 'button');
+  control.setAttribute('tabindex', '0');
+
+  const stopPointerEvent = (event) => event.stopPropagation();
+  control.addEventListener('pointerdown', stopPointerEvent);
+  control.addEventListener('pointerup', stopPointerEvent);
+  control.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    video.muted = !video.muted;
+    video.defaultMuted = video.muted;
+    syncVideoAudioToggle(video, control);
+  });
+  control.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    event.stopPropagation();
+    video.muted = !video.muted;
+    video.defaultMuted = video.muted;
+    syncVideoAudioToggle(video, control);
+  });
+  video.addEventListener('volumechange', () => syncVideoAudioToggle(video, control));
+
+  syncVideoAudioToggle(video, control);
+  tile.append(control);
+}
+
+function scanPostVideoAudioToggles(root = document) {
+  root.querySelectorAll?.(HOME_VIDEO_SELECTOR).forEach(enhancePostVideoAudioToggle);
+  if (root.matches?.(HOME_VIDEO_SELECTOR)) enhancePostVideoAudioToggle(root);
 }
 
 function activeCarouselIndex(gallery, total) {
@@ -150,14 +228,18 @@ function scanPostMediaGalleries(root = document) {
 function installPostMediaCarousels() {
   ensurePostMediaCarouselStylesheet();
   scanPostMediaGalleries();
+  scanPostVideoAudioToggles();
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       if (mutation.type === 'attributes') {
-        enhancePostMediaGallery(mutation.target);
+        if (mutation.attributeName === 'class') enhancePostMediaGallery(mutation.target);
+        if (mutation.attributeName === 'data-home-autoplay-video') enhancePostVideoAudioToggle(mutation.target);
         continue;
       }
       for (const node of mutation.addedNodes) {
-        if (node.nodeType === Node.ELEMENT_NODE) scanPostMediaGalleries(node);
+        if (node.nodeType !== Node.ELEMENT_NODE) continue;
+        scanPostMediaGalleries(node);
+        scanPostVideoAudioToggles(node);
       }
       if (mutation.target?.matches?.('.sauti-media-gallery')) enhancePostMediaGallery(mutation.target);
     }
@@ -166,7 +248,7 @@ function installPostMediaCarousels() {
     subtree: true,
     childList: true,
     attributes: true,
-    attributeFilter: ['class'],
+    attributeFilter: ['class', 'data-home-autoplay-video'],
   });
 }
 

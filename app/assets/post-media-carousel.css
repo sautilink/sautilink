@@ -142,6 +142,44 @@
   background: #fff;
 }
 
+.sauti-video-audio-toggle {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 5;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .62);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .22);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.sauti-video-audio-toggle:hover {
+  background: rgba(0, 0, 0, .74);
+}
+
+.sauti-video-audio-toggle:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.sauti-video-audio-toggle svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  fill: none;
+}
+
 @media (max-width: 760px) {
   .sauti-media-carousel-nav {
     display: none;
@@ -154,6 +192,18 @@
 
   .sauti-media-carousel-dots {
     bottom: 8px;
+  }
+
+  .sauti-video-audio-toggle {
+    right: 10px;
+    bottom: 10px;
+    width: 30px;
+    height: 30px;
+  }
+
+  .sauti-video-audio-toggle svg {
+    width: 16px;
+    height: 16px;
   }
 }
 
