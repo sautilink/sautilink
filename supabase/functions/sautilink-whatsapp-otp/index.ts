@@ -57,7 +57,7 @@ function verifyHook(payload: string, headers: Record<string, string>) {
     try {
       return new Webhook(secret).verify(payload, headers) as {
         user?: { phone?: string; new_phone?: string };
-        sms?: { otp?: string };
+        sms?: { otp?: string; phone?: string };
       };
     } catch (error) {
       lastError = error;
@@ -67,8 +67,9 @@ function verifyHook(payload: string, headers: Record<string, string>) {
 }
 
 function normalizePhone(value: unknown) {
-  const phone = String(value || '').trim();
-  return /^\+[1-9]\d{7,14}$/.test(phone) ? phone : '';
+  const raw = String(value || '').trim().replace(/\s/g, '');
+  const phone = raw.startsWith('+') ? raw.slice(1) : raw;
+  return /^[1-9]\d{7,14}$/.test(phone) ? phone : '';
 }
 
 function normalizeOtp(value: unknown) {
@@ -92,7 +93,7 @@ async function sendWhatsAppOtp(phone: string, otp: string) {
     body: JSON.stringify({
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
-      to: phone.slice(1),
+      to: phone,
       type: 'template',
       template: {
         name: templateName,
@@ -147,14 +148,22 @@ Deno.serve(async (request: Request) => {
 
   const payload = await request.text();
   const headers = Object.fromEntries(request.headers.entries());
-  let event: { user?: { phone?: string; new_phone?: string }; sms?: { otp?: string } };
+  let event: {
+    user?: { phone?: string; new_phone?: string };
+    sms?: { otp?: string; phone?: string };
+  };
   try {
     event = verifyHook(payload, headers);
   } catch {
     return json(request, 401, { ok: false, error: { code: 'INVALID_HOOK_SIGNATURE' } });
   }
 
-  const phone = normalizePhone(event?.user?.new_phone || event?.user?.phone);
+  // Supabase Auth supplies the actual destination as sms.phone. It is already
+  // normalized to E.164 digits without the leading '+'. User fields are kept
+  // only as backwards-compatible fallbacks for older hook payloads.
+  const phone = normalizePhone(
+    event?.sms?.phone || event?.user?.new_phone || event?.user?.phone,
+  );
   const otp = normalizeOtp(event?.sms?.otp);
   if (!phone || !otp) {
     return json(request, 400, { ok: false, error: { code: 'INVALID_OTP_EVENT' } });
