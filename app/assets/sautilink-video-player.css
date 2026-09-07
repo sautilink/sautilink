@@ -1,0 +1,487 @@
+.has-sauti-video-player {
+  position: relative;
+}
+
+#sauti-media-viewer-content.has-sauti-video-player {
+  position: relative;
+  overflow: hidden;
+  background: #000;
+}
+
+.sauti-video-player {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: block;
+  overflow: hidden;
+  color: #fff;
+  pointer-events: none;
+  font-family: inherit;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sauti-video-player * {
+  box-sizing: border-box;
+}
+
+.sauti-video-gesture-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sauti-video-gesture-surface:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, .95);
+  outline-offset: -4px;
+}
+
+.sauti-video-chrome {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 52px 14px 12px;
+  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, .78));
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity 170ms ease, transform 170ms ease;
+}
+
+.sauti-video-player.controls-visible .sauti-video-chrome,
+.sauti-video-player.is-paused .sauti-video-chrome,
+.sauti-video-player.is-ended .sauti-video-chrome {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.sauti-video-center-control {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  padding: 0;
+  transform: translate(-50%, -50%) scale(.92);
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .58);
+  color: #fff;
+  box-shadow: 0 5px 24px rgba(0, 0, 0, .28);
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: opacity 150ms ease, transform 150ms ease, background 150ms ease;
+}
+
+.sauti-video-player.controls-visible .sauti-video-center-control,
+.sauti-video-player.is-paused .sauti-video-center-control,
+.sauti-video-player.is-ended .sauti-video-center-control {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.sauti-video-center-control:hover,
+.sauti-video-control:hover,
+.sauti-video-rate:hover {
+  background: rgba(255, 255, 255, .16);
+}
+
+.sauti-video-center-control:focus-visible,
+.sauti-video-control:focus-visible,
+.sauti-video-rate:focus-visible,
+.sauti-video-timeline:focus-visible,
+.sauti-video-volume:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.sauti-video-center-control svg {
+  width: 27px;
+  height: 27px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.sauti-video-icon-fill {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.sauti-video-control-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.sauti-video-control,
+.sauti-video-rate {
+  display: grid;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sauti-video-control svg {
+  width: 19px;
+  height: 19px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.sauti-video-rate {
+  width: auto;
+  min-width: 38px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1;
+}
+
+.sauti-video-time {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-right: auto;
+  overflow: hidden;
+  color: rgba(255, 255, 255, .94);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+}
+
+.sauti-video-timeline {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 18px;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.sauti-video-timeline::before,
+.sauti-video-buffered,
+.sauti-video-played {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  transform-origin: left center;
+}
+
+.sauti-video-timeline::before {
+  content: '';
+  background: rgba(255, 255, 255, .30);
+}
+
+.sauti-video-buffered {
+  background: rgba(255, 255, 255, .52);
+  transform: translateY(-50%) scaleX(0);
+}
+
+.sauti-video-played {
+  background: #fff;
+  transform: translateY(-50%) scaleX(0);
+}
+
+.sauti-video-thumb {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 11px;
+  height: 11px;
+  transform: translate(-50%, -50%) scale(.8);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+  opacity: 0;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.sauti-video-timeline:hover .sauti-video-thumb,
+.sauti-video-timeline:focus-visible .sauti-video-thumb {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.sauti-video-volume {
+  position: relative;
+  display: block;
+  width: 58px;
+  height: 22px;
+  flex: 0 0 58px;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.sauti-video-volume::before,
+.sauti-video-volume-fill {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 3px;
+  border-radius: 999px;
+  transform: translateY(-50%);
+  transform-origin: left center;
+}
+
+.sauti-video-volume::before {
+  content: '';
+  background: rgba(255, 255, 255, .34);
+}
+
+.sauti-video-volume-fill {
+  background: #fff;
+  transform: translateY(-50%) scaleX(0);
+}
+
+.sauti-video-volume-thumb {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .35);
+}
+
+.sauti-video-seek-feedback {
+  position: absolute;
+  top: 50%;
+  z-index: 5;
+  display: grid;
+  min-width: 58px;
+  height: 58px;
+  place-items: center;
+  padding: 0 11px;
+  transform: translateY(-50%) scale(.82);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .58);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.sauti-video-seek-feedback.left { left: 18%; }
+.sauti-video-seek-feedback.right { right: 18%; }
+
+.sauti-video-seek-feedback.is-visible {
+  animation: sauti-video-seek-pop 620ms ease both;
+}
+
+@keyframes sauti-video-seek-pop {
+  0% { opacity: 0; transform: translateY(-50%) scale(.7); }
+  22% { opacity: 1; transform: translateY(-50%) scale(1); }
+  72% { opacity: 1; transform: translateY(-50%) scale(1); }
+  100% { opacity: 0; transform: translateY(-50%) scale(1.08); }
+}
+
+.sauti-video-buffering {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 38px;
+  height: 38px;
+  margin: -19px 0 0 -19px;
+  border: 3px solid rgba(255, 255, 255, .28);
+  border-top-color: #fff;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sauti-video-player.is-buffering .sauti-video-buffering {
+  opacity: 1;
+  animation: sauti-video-spin .8s linear infinite;
+}
+
+.sauti-video-player.is-buffering .sauti-video-center-control {
+  opacity: 0;
+}
+
+@keyframes sauti-video-spin {
+  to { transform: rotate(360deg); }
+}
+
+.sauti-video-player-viewer .sauti-video-chrome {
+  padding-right: 18px;
+  padding-bottom: 16px;
+  padding-left: 18px;
+}
+
+.sauti-video-player-viewer .sauti-video-center-control {
+  width: 66px;
+  height: 66px;
+}
+
+.sauti-video-player-viewer .sauti-video-center-control svg {
+  width: 30px;
+  height: 30px;
+}
+
+.sauti-media-viewer .sauti-media-viewer-close {
+  z-index: 20;
+}
+
+.sauti-media-carousel-shell .sauti-media-carousel-counter,
+.sauti-media-carousel-shell .sauti-media-carousel-nav,
+.sauti-media-carousel-shell .sauti-media-carousel-dots {
+  z-index: 12;
+}
+
+.sauti-media-carousel-shell .sauti-video-player-feed .sauti-video-chrome {
+  padding-bottom: 29px;
+}
+
+.sauti-media-carousel-shell .sauti-video-player-feed .sauti-video-control-row {
+  padding: 0 3px;
+}
+
+.sauti-media-tile.has-sauti-video-player {
+  cursor: default;
+}
+
+.sauti-media-tile.has-sauti-video-player > video {
+  pointer-events: none;
+}
+
+@media (hover: none) {
+  .sauti-video-thumb {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .sauti-video-chrome,
+  .sauti-video-player-viewer .sauti-video-chrome {
+    gap: 5px;
+    padding: 44px 10px 9px;
+  }
+
+  .sauti-media-carousel-shell .sauti-video-player-feed .sauti-video-chrome {
+    padding-bottom: 25px;
+  }
+
+  .sauti-video-center-control,
+  .sauti-video-player-viewer .sauti-video-center-control {
+    width: 52px;
+    height: 52px;
+  }
+
+  .sauti-video-center-control svg,
+  .sauti-video-player-viewer .sauti-video-center-control svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .sauti-video-control {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sauti-video-control svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .sauti-video-volume {
+    display: none;
+  }
+
+  .sauti-video-time {
+    font-size: 10px;
+  }
+
+  .sauti-video-rate {
+    min-width: 35px;
+    height: 32px;
+    font-size: 10px;
+  }
+
+  .sauti-video-seek-feedback.left { left: 14%; }
+  .sauti-video-seek-feedback.right { right: 14%; }
+}
+
+@media (max-width: 480px) {
+  .sauti-video-player-feed .sauti-video-control.pip,
+  .sauti-video-player-feed .sauti-video-rate {
+    display: none;
+  }
+
+  .sauti-video-control-row {
+    gap: 3px;
+  }
+
+  .sauti-video-time {
+    margin-right: auto;
+  }
+
+  .sauti-video-seek-feedback {
+    min-width: 52px;
+    height: 52px;
+    font-size: 13px;
+  }
+
+  .sauti-video-seek-feedback.left { left: 11%; }
+  .sauti-video-seek-feedback.right { right: 11%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sauti-video-chrome,
+  .sauti-video-center-control,
+  .sauti-video-thumb {
+    transition: none;
+  }
+
+  .sauti-video-seek-feedback.is-visible {
+    animation-duration: 1ms;
+  }
+}

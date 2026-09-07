@@ -4,6 +4,7 @@ import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
+import { transformVideoPlayerSource } from './video-player-source-transform.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const workerRoot = resolve(projectRoot, 'dist-production-worker');
@@ -39,9 +40,12 @@ await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: tru
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
   const source = await readFile(file, 'utf8');
-  let output = transformMentionNotificationSource(
+  let output = transformVideoPlayerSource(
     file,
-    transformPostMediaSource(file, productionText(source)),
+    transformMentionNotificationSource(
+      file,
+      transformPostMediaSource(file, productionText(source)),
+    ),
   );
   if (file.endsWith('asset-router.js')) {
     output = output.replace(
@@ -76,6 +80,7 @@ await build({
     resolve(workerSource, 'home-feed-author-profile-links.js'),
     resolve(workerSource, 'mobile-nav-icon-style.js'),
     resolve(workerSource, 'post-media-carousel.js'),
+    resolve(workerSource, 'sautilink-video-player.js'),
   ],
   outfile: resolve(siteRoot, 'app/assets/app.js'),
   bundle: true,
