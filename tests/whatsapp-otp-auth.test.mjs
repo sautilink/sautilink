@@ -44,6 +44,13 @@ test('WhatsApp OTP delivery uses an authentication template and validates phone 
   assert.match(source, /\^\\d\{6,10\}\$/);
 });
 
+test('WhatsApp OTP hook targets new_phone for authenticated phone changes with phone fallback', async () => {
+  const source = await read('supabase/functions/sautilink-whatsapp-otp/index.ts');
+
+  assert.match(source, /new_phone\?: string/);
+  assert.match(source, /normalizePhone\(event\?\.user\?\.new_phone \|\| event\?\.user\?\.phone\)/);
+});
+
 test('WhatsApp OTP hook is delivery-only and does not create a second OTP database', async () => {
   const source = await read('supabase/functions/sautilink-whatsapp-otp/index.ts');
 
