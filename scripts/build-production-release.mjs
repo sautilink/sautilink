@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
 import { transformVideoPlayerSource } from './video-player-source-transform.mjs';
+import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const workerRoot = resolve(projectRoot, 'dist-production-worker');
@@ -40,11 +41,14 @@ await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: tru
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
   const source = await readFile(file, 'utf8');
-  let output = transformVideoPlayerSource(
+  let output = transformWhatsAppOtpSource(
     file,
-    transformMentionNotificationSource(
+    transformVideoPlayerSource(
       file,
-      transformPostMediaSource(file, productionText(source)),
+      transformMentionNotificationSource(
+        file,
+        transformPostMediaSource(file, productionText(source)),
+      ),
     ),
   );
   if (file.endsWith('asset-router.js')) {
@@ -82,6 +86,7 @@ await build({
     resolve(workerSource, 'mobile-more-drawer.js'),
     resolve(workerSource, 'post-media-carousel.js'),
     resolve(workerSource, 'short-videos-feed.js'),
+    resolve(workerSource, 'whatsapp-otp-auth.js'),
     resolve(workerSource, 'sautilink-video-player.js'),
   ],
   outfile: resolve(siteRoot, 'app/assets/app.js'),
