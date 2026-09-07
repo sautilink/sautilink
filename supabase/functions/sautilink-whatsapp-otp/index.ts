@@ -145,25 +145,25 @@ Deno.serve(async (request: Request) => {
     return json(request, 503, { ok: false, error: { code: 'WHATSAPP_OTP_NOT_READY' } });
   }
 
+  const payload = await request.text();
+  const headers = Object.fromEntries(request.headers.entries());
+  let event: { user?: { phone?: string }; sms?: { otp?: string } };
   try {
-    const payload = await request.text();
-    const headers = Object.fromEntries(request.headers.entries());
-    const event = verifyHook(payload, headers);
-    const phone = normalizePhone(event?.user?.phone);
-    const otp = normalizeOtp(event?.sms?.otp);
+    event = verifyHook(payload, headers);
+  } catch {
+    return json(request, 401, { ok: false, error: { code: 'INVALID_HOOK_SIGNATURE' } });
+  }
 
-    if (!phone || !otp) {
-      return json(request, 400, { ok: false, error: { code: 'INVALID_OTP_EVENT' } });
-    }
+  const phone = normalizePhone(event?.user?.phone);
+  const otp = normalizeOtp(event?.sms?.otp);
+  if (!phone || !otp) {
+    return json(request, 400, { ok: false, error: { code: 'INVALID_OTP_EVENT' } });
+  }
 
+  try {
     await sendWhatsAppOtp(phone, otp);
     return json(request, 200, {});
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '';
-    const code = message === 'WhatsApp delivery failed.' ? 'WHATSAPP_DELIVERY_FAILED' : 'INVALID_HOOK_SIGNATURE';
-    return json(request, code === 'INVALID_HOOK_SIGNATURE' ? 401 : 502, {
-      ok: false,
-      error: { code },
-    });
+  } catch {
+    return json(request, 502, { ok: false, error: { code: 'WHATSAPP_DELIVERY_FAILED' } });
   }
 });
