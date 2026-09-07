@@ -31,7 +31,7 @@ test('Short Videos carries profile identity and verification without inventing a
 test('Short Videos opens from the Home video tile without stealing player control clicks', async () => {
   const source = await read('src/short-videos-feed.js');
 
-  assert.match(source, /event\.target\?\.matches\?\(HOME_VIDEO_TILE_SELECTOR\)/);
+  assert.match(source, /event\.target\?\.matches\?\.\(HOME_VIDEO_TILE_SELECTOR\)/);
   assert.match(source, /event\.stopImmediatePropagation\(\)/);
   assert.match(source, /document\.addEventListener\('click',[\s\S]*true\)/);
   assert.doesNotMatch(source, /touchstart|touchmove|pointerdown|pointermove/i);
