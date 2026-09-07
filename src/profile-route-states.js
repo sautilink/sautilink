@@ -87,19 +87,41 @@ function syncProfileRouteState() {
   if (message) message.textContent = 'Something went wrong while opening this profile. Please try again in a moment.';
 }
 
+function syncSautifyRouteLoadingState() {
+  const state = document.getElementById('circle-route-state');
+  if (!state) return;
+
+  const mark = state.querySelector('.profile-route-mark, .sautify-route-loading-mark');
+  if (!mark) return;
+
+  const loading = (state.dataset.state || 'loading') === 'loading';
+  mark.classList.toggle('profile-route-mark', !loading);
+  mark.classList.toggle('loading-mark', loading);
+  mark.classList.toggle('sautify-route-loading-mark', loading);
+}
+
 function installProfileRouteStates() {
   if (window.__sautilinkProfileRouteStatesInstalled) return;
   window.__sautilinkProfileRouteStatesInstalled = true;
   ensureProfileRouteStylesheet();
 
-  const state = document.getElementById('profile-route-state');
-  if (!state) return;
+  const profileState = document.getElementById('profile-route-state');
+  if (profileState) {
+    syncProfileRouteState();
+    new MutationObserver(syncProfileRouteState).observe(profileState, {
+      attributes: true,
+      attributeFilter: ['data-state', 'hidden'],
+    });
+  }
 
-  syncProfileRouteState();
-  new MutationObserver(syncProfileRouteState).observe(state, {
-    attributes: true,
-    attributeFilter: ['data-state', 'hidden'],
-  });
+  const sautifyState = document.getElementById('circle-route-state');
+  if (sautifyState) {
+    syncSautifyRouteLoadingState();
+    new MutationObserver(syncSautifyRouteLoadingState).observe(sautifyState, {
+      attributes: true,
+      attributeFilter: ['data-state', 'hidden'],
+    });
+  }
 }
 
 if (document.readyState === 'loading') {

@@ -106,6 +106,39 @@
   color: var(--app-text);
 }
 
+/* Sautify detail loading reuses the canonical app .loading-mark spinner. */
+#circle-route-state[data-state="loading"] {
+  min-height: 330px;
+  place-content: center;
+  justify-items: center;
+  padding: 48px 24px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-muted);
+  box-shadow: none;
+  text-align: center;
+}
+
+#circle-route-state[data-state="loading"] .sautify-route-loading-mark {
+  margin: 0 0 14px;
+}
+
+#circle-route-state[data-state="loading"] .section-label,
+#circle-route-state[data-state="loading"] #circle-route-message,
+#circle-route-state[data-state="loading"] #circle-route-home {
+  display: none;
+}
+
+#circle-route-state[data-state="loading"] #circle-route-title {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
 :root[data-theme="light"] #profile-route-state {
   background: var(--app-panel);
   color: var(--app-text);
@@ -140,6 +173,11 @@
   #profile-route-state > p:not(.section-label) {
     max-width: 330px;
     font-size: 12.5px;
+  }
+
+  #circle-route-state[data-state="loading"] {
+    min-height: 280px;
+    padding: 40px 18px;
   }
 }
 
