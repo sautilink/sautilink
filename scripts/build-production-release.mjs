@@ -2,6 +2,7 @@ import { build } from 'esbuild';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -38,7 +39,10 @@ await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: tru
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
   const source = await readFile(file, 'utf8');
-  let output = transformPostMediaSource(file, productionText(source));
+  let output = transformMentionNotificationSource(
+    file,
+    transformPostMediaSource(file, productionText(source)),
+  );
   if (file.endsWith('asset-router.js')) {
     output = output.replace(
       "environment: isStaging(url) ? 'staging' : 'unknown',",
