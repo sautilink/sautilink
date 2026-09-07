@@ -24,6 +24,381 @@
   --context-width: 330px;
 }
 
+/* Focused post composer — modal on desktop, full-screen on mobile */
+.mobile-compose-button {
+  display: none;
+}
+
+body.composer-open {
+  overflow: hidden;
+}
+
+.composer-dialog {
+  width: min(620px, calc(100vw - 32px));
+  max-width: none;
+  max-height: min(760px, calc(100dvh - 32px));
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--app-line);
+  border-radius: 20px;
+  background: var(--app-panel);
+  color: var(--app-text);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .42);
+}
+
+.composer-dialog::backdrop {
+  background: rgba(0, 0, 0, .62);
+  backdrop-filter: blur(2px);
+}
+
+.composer-dialog .composer-card {
+  display: flex;
+  width: 100%;
+  max-height: min(760px, calc(100dvh - 32px));
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--app-panel);
+}
+
+.composer-header {
+  display: grid;
+  min-height: 66px;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--app-line);
+  background: var(--app-panel);
+}
+
+.composer-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 760;
+  letter-spacing: -.02em;
+  text-align: center;
+}
+
+.composer-close {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--app-text);
+  cursor: pointer;
+}
+
+.composer-close:hover {
+  background: var(--app-panel-soft);
+}
+
+.composer-close svg {
+  width: 25px;
+  height: 25px;
+  stroke-width: 2;
+}
+
+.composer-header #sauti-submit {
+  min-width: 76px;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-accent-strong);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.composer-header #sauti-submit:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.composer-header #sauti-submit:disabled {
+  opacity: .38;
+  cursor: not-allowed;
+}
+
+.composer-content {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  gap: 13px;
+  padding: 18px 20px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.composer-dialog .composer-body {
+  display: flex;
+  min-height: 470px;
+  flex: 1;
+  flex-direction: column;
+}
+
+.composer-dialog .composer-settings {
+  margin-bottom: 12px;
+}
+
+.composer-dialog .composer-select {
+  border-color: var(--app-line);
+  background: var(--app-panel-soft);
+  color: var(--app-muted);
+}
+
+.composer-dialog .composer-select svg {
+  color: var(--app-accent);
+}
+
+.composer-dialog .composer-select select {
+  color: var(--app-text);
+}
+
+.composer-dialog .composer-select select option,
+.composer-dialog .composer-select select optgroup {
+  background: var(--app-panel);
+  color: var(--app-text);
+}
+
+.composer-dialog .composer-body textarea {
+  min-height: 260px;
+  flex: 1;
+  resize: none;
+  color: var(--app-text);
+  font-size: 19px;
+  line-height: 1.55;
+}
+
+.composer-dialog .composer-body textarea::placeholder {
+  color: var(--app-muted);
+}
+
+.composer-dialog .composer-media-queue,
+.composer-dialog .composer-quote-preview,
+.composer-dialog .composer-drafts {
+  border-color: var(--app-line);
+  background: var(--app-panel-soft);
+}
+
+.composer-dialog .composer-meta {
+  min-height: 46px;
+  margin: auto 0 0;
+  padding: 10px 2px;
+  border-top: 1px solid var(--app-line);
+  color: var(--app-muted);
+  font-size: 10px;
+}
+
+.composer-dialog .composer-audience {
+  color: var(--app-accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.composer-dialog .composer-audience::before {
+  background: var(--app-accent);
+}
+
+.composer-dialog .composer-actions {
+  min-height: 66px;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--app-line);
+}
+
+.composer-dialog .composer-tools {
+  width: auto;
+  flex-wrap: nowrap;
+  gap: 2px;
+}
+
+.composer-dialog .composer-tool.active {
+  display: none;
+}
+
+.composer-dialog .composer-actions .composer-tool {
+  display: grid;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  margin: 0;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--app-accent);
+  font-size: 0;
+  box-shadow: none;
+}
+
+.composer-dialog .composer-actions button.composer-tool:hover:not(:disabled) {
+  background: var(--app-panel-soft);
+  color: var(--app-accent);
+  transform: none;
+}
+
+.composer-dialog .composer-tool svg {
+  width: 22px;
+  height: 22px;
+}
+
+.composer-dialog .composer-actions .disabled-feature {
+  color: var(--app-muted);
+  opacity: .45;
+}
+
+.composer-dialog .composer-actions .composer-draft-action {
+  min-height: 38px;
+  margin: 0;
+  padding: 0 10px;
+  border-color: var(--app-line);
+  background: transparent;
+  color: var(--app-muted);
+  font-size: 9px;
+}
+
+.composer-dialog .composer-actions .composer-draft-action:hover:not(:disabled) {
+  background: var(--app-panel-soft);
+  color: var(--app-text);
+}
+
+@media (min-width: 681px) and (max-width: 1080px) {
+  .share-sauti-button {
+    display: grid;
+    width: 52px;
+    height: 52px;
+    margin: 18px auto 0;
+    place-items: center;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .share-sauti-button svg {
+    width: 21px;
+    height: 21px;
+  }
+}
+
+@media (max-width: 680px) {
+  .mobile-compose-button {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--app-accent-strong);
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .mobile-compose-button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+  }
+
+  .mobile-compose-button svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .composer-dialog {
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .composer-dialog .composer-card {
+    height: 100dvh;
+    max-height: none;
+  }
+
+  .composer-header {
+    min-height: 64px;
+    padding: 8px 13px;
+  }
+
+  .composer-header h2 {
+    font-size: 15px;
+  }
+
+  .composer-header #sauti-submit {
+    min-width: 72px;
+    min-height: 40px;
+    padding: 0 16px;
+  }
+
+  .composer-content {
+    gap: 12px;
+    padding: 16px 14px 0;
+  }
+
+  .composer-dialog .avatar.large {
+    width: 46px;
+    height: 46px;
+  }
+
+  .composer-dialog .composer-body {
+    min-height: calc(100dvh - 80px);
+  }
+
+  .composer-dialog .composer-settings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .composer-dialog .composer-select {
+    width: auto;
+    min-height: 34px;
+    grid-template-columns: auto auto minmax(0, 1fr);
+  }
+
+  .composer-dialog .composer-select select {
+    width: auto;
+    max-width: 150px;
+    text-align: left;
+  }
+
+  .composer-dialog .composer-body textarea {
+    min-height: 34dvh;
+    font-size: 20px;
+  }
+
+  .composer-dialog .composer-actions {
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    background: var(--app-panel);
+  }
+
+  .composer-dialog .composer-actions .composer-draft-action {
+    width: auto;
+    flex: 0 1 auto;
+  }
+}
+
 :root[data-theme="light"] {
   color-scheme: light;
   --app-bg: #f6f7f9;
@@ -4056,5 +4431,11 @@ body:not(.auth-entry) select {
   .sauti-comments {
     margin-right: 13px;
     margin-left: 13px;
+  }
+}
+
+@media (min-width: 681px) and (max-width: 1080px) {
+  .primary-rail .share-sauti-button {
+    display: grid;
   }
 }

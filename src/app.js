@@ -149,6 +149,7 @@ let composerDrafts = [];
 let activeComposerQuote = null;
 let composerMedia = [];
 let restoringComposerState = false;
+let composerRestoreFocus = null;
 let streamCursor = null;
 let streamHasMore = false;
 let streamLoading = false;
@@ -2973,6 +2974,33 @@ async function prepareComposer() {
   else updateComposerState({ persist: false });
 }
 
+function openSautiComposer({ focus = true } = {}) {
+  const dialog = byId('sauti-composer-dialog');
+  const composer = byId('sauti-composer');
+  if (!dialog || !composer || !currentMember) return;
+
+  composer.hidden = false;
+  if (!dialog.open) {
+    composerRestoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialog.showModal();
+  }
+  document.body.classList.add('composer-open');
+  if (focus) window.setTimeout(() => byId('sauti-body').focus(), 100);
+}
+
+function closeSautiComposer({ restoreFocus = true } = {}) {
+  const dialog = byId('sauti-composer-dialog');
+  if (!dialog) return;
+  if (dialog.open) dialog.close();
+  document.body.classList.remove('composer-open');
+  byId('composer-drafts').hidden = true;
+  byId('sauti-drafts-toggle').setAttribute('aria-expanded', 'false');
+
+  const target = composerRestoreFocus;
+  composerRestoreFocus = null;
+  if (restoreFocus && target?.isConnected && !target.disabled) target.focus();
+}
+
 function syncComposerOnlineState() {
   const offline = byId('composer-offline');
   if (offline) offline.hidden = navigator.onLine;
@@ -4249,10 +4277,7 @@ function startQuoteSauti(card) {
   }
   setComposerQuote({ id: postId, author, body });
   closeRepostMenus();
-  const composer = byId('sauti-composer');
-  composer.hidden = false;
-  composer.scrollIntoView({ behavior: motionBehavior(), block: 'start' });
-  window.setTimeout(() => byId('sauti-body').focus(), 160);
+  openSautiComposer();
 }
 
 async function submitComment(form) {
@@ -4356,6 +4381,7 @@ async function shareSauti() {
     clearComposerCurrent({ resetControls: true });
     setMessage(message, circleId ? `Post published in ${audienceLabel}.` : 'Post published.', 'success');
     await loadStream({ reset: true });
+    closeSautiComposer({ restoreFocus: false });
     showToast(circleId ? `Shared in ${audienceLabel}.` : visibility === 'followers' ? 'Followers-only post is live.' : 'Your post is live.');
   } catch (error) {
     setMessage(message, error?.message || 'Your post could not be published. Try again.');
@@ -7792,7 +7818,7 @@ function renderMember(profile, userId = currentMemberId) {
   memberView.hidden = false;
   railAccount.hidden = false;
   mobileSignoutButton.hidden = false;
-  document.querySelector('.share-sauti-button').disabled = false;
+  document.querySelectorAll('[data-open-sauti-composer]').forEach((button) => { button.disabled = false; });
   byId('sauti-body').disabled = false;
   byId('sauti-media-add').disabled = false;
   void prepareComposer();
@@ -9003,12 +9029,22 @@ byId('sauti-composer').addEventListener('submit', async (event) => {
   event.preventDefault();
   await shareSauti();
 });
-document.querySelector('.share-sauti-button').addEventListener('click', () => {
-  showMemberSurface('stream');
-  const composer = byId('sauti-composer');
-  composer.hidden = false;
-  composer.scrollIntoView({ behavior: motionBehavior(), block: 'start' });
-  window.setTimeout(() => byId('sauti-body').focus(), 180);
+document.querySelectorAll('[data-open-sauti-composer]').forEach((button) => {
+  button.addEventListener('click', () => {
+    showMemberSurface('stream');
+    openSautiComposer();
+  });
+});
+byId('sauti-composer-close').addEventListener('click', () => closeSautiComposer());
+byId('sauti-composer-dialog').addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closeSautiComposer();
+});
+byId('sauti-composer-dialog').addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) closeSautiComposer();
+});
+byId('sauti-composer-dialog').addEventListener('close', () => {
+  document.body.classList.remove('composer-open');
 });
 window.addEventListener('online', () => {
   syncComposerOnlineState();
