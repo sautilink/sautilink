@@ -34,6 +34,7 @@ await build({
     resolve(projectRoot, 'src/profile-media-upload-icons.js'),
     resolve(projectRoot, 'src/home-feed-author-profile-links.js'),
     resolve(projectRoot, 'src/mobile-nav-icon-style.js'),
+    resolve(projectRoot, 'src/mobile-more-drawer.js'),
     resolve(projectRoot, 'src/post-media-carousel.js'),
     resolve(projectRoot, 'src/sautilink-video-player.js'),
   ],
