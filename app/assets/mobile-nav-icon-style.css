@@ -1,0 +1,85 @@
+@media (max-width: 680px) {
+  .mobile-nav[data-icon-style="bold-outline"] {
+    height: calc(68px + env(safe-area-inset-bottom));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    padding: 0 max(4px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(4px, env(safe-area-inset-left));
+    border-top: 1px solid color-mix(in srgb, var(--app-line) 78%, transparent);
+    background: color-mix(in srgb, var(--app-panel) 94%, transparent);
+    box-shadow: 0 -8px 28px rgba(0, 0, 0, .08);
+    backdrop-filter: blur(22px) saturate(135%);
+    -webkit-backdrop-filter: blur(22px) saturate(135%);
+  }
+
+  .mobile-nav[data-icon-style="bold-outline"] button {
+    min-width: 0;
+    min-height: 60px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--app-text);
+    opacity: .82;
+  }
+
+  .mobile-nav[data-icon-style="bold-outline"] button.active {
+    background: transparent;
+    color: var(--app-text);
+    opacity: 1;
+  }
+
+  .mobile-nav[data-icon-style="bold-outline"] button:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--app-text) 48%, transparent);
+    outline-offset: -7px;
+    border-radius: 14px;
+  }
+
+  .mobile-nav[data-icon-style="bold-outline"] .mobile-nav-icon {
+    width: 28px;
+    height: 28px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.15;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 140ms ease, stroke-width 140ms ease;
+  }
+
+  .mobile-nav[data-icon-style="bold-outline"] button.active .mobile-nav-icon {
+    transform: scale(1.035);
+    stroke-width: 2.4;
+  }
+
+  .mobile-nav[data-icon-style="bold-outline"] button[data-member-view="stream"].active .mobile-nav-icon path {
+    fill: currentColor;
+    stroke: currentColor;
+  }
+
+  .mobile-nav[data-icon-style="bold-outline"] .mobile-notification-badge {
+    top: 12px;
+    right: calc(50% - 23px);
+  }
+
+  :root[data-theme="light"] .mobile-nav[data-icon-style="bold-outline"] {
+    background: rgba(255, 255, 255, .94);
+    box-shadow: 0 -8px 28px rgba(18, 22, 28, .06);
+  }
+
+  :root[data-theme="light"] .mobile-nav[data-icon-style="bold-outline"] button {
+    color: #11161d;
+  }
+
+  :root[data-theme="dark"] .mobile-nav[data-icon-style="bold-outline"] {
+    background: rgba(10, 11, 14, .94);
+  }
+
+  :root[data-theme="dark"] .mobile-nav[data-icon-style="bold-outline"] button {
+    color: #f4f6f8;
+  }
+}
+
+@media (max-width: 360px) {
+  .mobile-nav[data-icon-style="bold-outline"] .mobile-nav-icon {
+    width: 25px;
+    height: 25px;
+  }
+}
