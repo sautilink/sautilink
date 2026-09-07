@@ -271,6 +271,7 @@ function installShortVideosFeed() {
   let restoreFocus = null;
   let observer = null;
   let sourceObserver = null;
+  let streamStateObserver = null;
   let loadTimer = 0;
   let loadingMore = false;
   let endSlide = null;
@@ -281,8 +282,8 @@ function installShortVideosFeed() {
   }
 
   function endIsKnown() {
-    const loadMore = document.getElementById('stream-load-more');
-    return Boolean(loadMore && loadMore.hidden);
+    const streamMore = document.getElementById('stream-more');
+    return Boolean(streamMore && streamMore.hidden);
   }
 
   function removeEndSlide() {
@@ -349,8 +350,9 @@ function installShortVideosFeed() {
   function requestMoreIfNeeded(index = activeSlideIndex()) {
     const list = videoSlides();
     if (index < 0 || index < list.length - 1 - SHORT_VIDEO_PREFETCH_DISTANCE || endIsKnown() || loadingMore) return;
+    const streamMore = document.getElementById('stream-more');
     const loadMore = document.getElementById('stream-load-more');
-    if (!loadMore || loadMore.hidden || loadMore.disabled) return;
+    if (!streamMore || streamMore.hidden || !loadMore || loadMore.disabled) return;
     loadingMore = true;
     loadMore.click();
     window.clearTimeout(loadTimer);
@@ -443,6 +445,15 @@ function installShortVideosFeed() {
       }, 180);
     });
     sourceObserver.observe(streamFeed, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-active', 'data-following'] });
+  }
+
+  const streamMore = document.getElementById('stream-more');
+  if (streamMore) {
+    streamStateObserver = new MutationObserver(() => {
+      addAvailableSlides();
+      if (!root.hidden) requestMoreIfNeeded();
+    });
+    streamStateObserver.observe(streamMore, { attributes: true, attributeFilter: ['hidden'] });
   }
 
   document.addEventListener('click', (event) => {
