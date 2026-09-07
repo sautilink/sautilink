@@ -79,6 +79,7 @@ await build({
     resolve(workerSource, 'profile-media-upload-icons.js'),
     resolve(workerSource, 'home-feed-author-profile-links.js'),
     resolve(workerSource, 'mobile-nav-icon-style.js'),
+    resolve(workerSource, 'mobile-more-drawer.js'),
     resolve(workerSource, 'post-media-carousel.js'),
     resolve(workerSource, 'sautilink-video-player.js'),
   ],
