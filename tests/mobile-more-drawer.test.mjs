@@ -31,16 +31,35 @@ test('mobile More drawer avoids gesture conflicts and traps keyboard focus', asy
   assert.doesNotMatch(source, /touchstart|touchmove|pointerdown|pointermove|swipe/i);
 });
 
-test('mobile More drawer stays mobile-only without changing the six-item bottom nav', async () => {
-  const css = await read('app/assets/mobile-nav-icon-style.css');
+test('mobile drawer styles are isolated from the six-item bottom navigation', async () => {
+  const navCss = await read('app/assets/mobile-nav-icon-style.css');
+  const drawerCss = await read('app/assets/mobile-more-drawer.css');
+  const source = await read('src/mobile-more-drawer.js');
 
-  assert.match(css, /@media \(max-width: 680px\)/);
-  assert.match(css, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
-  assert.match(css, /\.sauti-mobile-drawer/);
-  assert.match(css, /\.sauti-mobile-drawer-backdrop/);
-  assert.match(css, /@media \(min-width: 681px\)/);
-  assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.doesNotMatch(css, /(linear|radial|conic)-gradient\(/i);
+  assert.match(navCss, /@media \(max-width: 680px\)/);
+  assert.match(navCss, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
+  assert.doesNotMatch(navCss, /sauti-mobile-drawer/);
+
+  assert.match(source, /mobile-more-drawer\.css\?v=/);
+  assert.match(source, /sauti-mobile-drawer-enabled/);
+  assert.match(source, /replaceWithSafeClones/);
+  assert.match(drawerCss, /:root\.sauti-mobile-drawer-enabled \.mobile-header \[data-theme-toggle\]/);
+  assert.match(drawerCss, /:root\.sauti-mobile-drawer-enabled \.mobile-header #mobile-signout-button/);
+  assert.match(drawerCss, /\.sauti-mobile-drawer-backdrop/);
+  assert.match(drawerCss, /@media \(min-width: 681px\)/);
+  assert.match(drawerCss, /prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(drawerCss, /(linear|radial|conic)-gradient\(/i);
+});
+
+test('authenticated mobile header keeps only Create and More as visible actions', async () => {
+  const html = await read('app/index.html');
+  const drawerCss = await read('app/assets/mobile-more-drawer.css');
+
+  assert.match(html, /class="mobile-compose-button"/);
+  assert.match(html, /class="theme-toggle"[^>]*data-theme-toggle/);
+  assert.match(html, /id="mobile-signout-button"/);
+  assert.match(drawerCss, /sauti-mobile-drawer-enabled[\s\S]*data-theme-toggle/);
+  assert.match(drawerCss, /sauti-mobile-drawer-enabled[\s\S]*mobile-signout-button/);
 });
 
 test('normal and production app builds both inject the drawer module', async () => {

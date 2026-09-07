@@ -1,11 +1,11 @@
 const MOBILE_DRAWER_ID = 'sauti-mobile-more-drawer';
 const MOBILE_DRAWER_TRIGGER_ID = 'sauti-mobile-more-trigger';
+const MOBILE_DRAWER_STYLE_HREF = '/app/assets/mobile-more-drawer.css?v=20260907-drawer2';
 const MOBILE_BREAKPOINT = 680;
 
 const ICONS = Object.freeze({
   menu: '<path d="M4 7h16M4 12h12M4 17h16"></path>',
   close: '<path d="m6 6 12 12M18 6 6 18"></path>',
-  profile: '<circle cx="12" cy="8" r="3.5"></circle><path d="M5.2 20c.8-4.1 3.1-6.2 6.8-6.2s6 2.1 6.8 6.2"></path>',
   bookmark: '<path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z"></path>',
   appeals: '<path d="M12 3v18M5 7h14M7 7l-3 6h6L7 7ZM17 7l-3 6h6l-3-6ZM7 21h10"></path>',
   settings: '<circle cx="12" cy="12" r="3"></circle><path d="M19 13.5v-3l-2-.7a7.2 7.2 0 0 0-.7-1.7l.9-1.9-2.1-2.1-1.9.9a7.2 7.2 0 0 0-1.7-.7L10.5 2h-3l-.7 2a7.2 7.2 0 0 0-1.7.7l-1.9-.9-2.1 2.1.9 1.9a7.2 7.2 0 0 0-.7 1.7l-2 .7v3l2 .7a7.2 7.2 0 0 0 .7 1.7l-.9 1.9 2.1 2.1 1.9-.9a7.2 7.2 0 0 0 1.7.7l.7 2h3l.7-2a7.2 7.2 0 0 0 1.7-.7l1.9.9 2.1-2.1-.9-1.9a7.2 7.2 0 0 0 .7-1.7l2-.7Z"></path>',
@@ -17,6 +17,14 @@ const ICONS = Object.freeze({
 
 function icon(name, className = '') {
   return `<svg${className ? ` class="${className}"` : ''} viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+}
+
+function ensureMobileDrawerStylesheet() {
+  if (document.querySelector(`link[href="${MOBILE_DRAWER_STYLE_HREF}"]`)) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = MOBILE_DRAWER_STYLE_HREF;
+  document.head.append(link);
 }
 
 function canonicalViewButton(view) {
@@ -40,6 +48,15 @@ function memberIsVisible() {
   return Boolean(railAccount && !railAccount.hidden && memberView && !memberView.hidden);
 }
 
+function replaceWithSafeClones(target, source) {
+  if (!(target instanceof Element) || !(source instanceof Element)) return false;
+  const clones = Array.from(source.childNodes, (node) => node.cloneNode(true));
+  if (!clones.length) return false;
+  target.replaceChildren(...clones);
+  target.querySelectorAll('[id]').forEach((node) => node.removeAttribute('id'));
+  return true;
+}
+
 function installMobileMoreDrawer() {
   if (document.getElementById(MOBILE_DRAWER_ID)) return;
 
@@ -47,6 +64,8 @@ function installMobileMoreDrawer() {
   const railAccount = document.getElementById('rail-account');
   const memberView = document.getElementById('member-view');
   if (!headerActions || !railAccount || !memberView) return;
+
+  ensureMobileDrawerStylesheet();
 
   const trigger = document.createElement('button');
   trigger.id = MOBILE_DRAWER_TRIGGER_ID;
@@ -117,8 +136,15 @@ function installMobileMoreDrawer() {
     const sourceAvatar = document.getElementById('rail-avatar');
     const sourceName = document.getElementById('rail-name');
     const sourceUsername = document.getElementById('rail-username');
-    drawerAvatar.textContent = (sourceAvatar?.textContent || sourceName?.textContent || 'S').trim().slice(0, 2) || 'S';
-    drawerName.textContent = sourceName?.textContent?.trim() || 'SautiLink member';
+
+    if (!replaceWithSafeClones(drawerAvatar, sourceAvatar)) {
+      drawerAvatar.textContent = (sourceName?.textContent || 'S').trim().slice(0, 2) || 'S';
+    }
+    drawerAvatar.classList.toggle('has-profile-photo', Boolean(sourceAvatar?.classList.contains('has-profile-photo')));
+
+    if (!replaceWithSafeClones(drawerName, sourceName)) {
+      drawerName.textContent = sourceName?.textContent?.trim() || 'SautiLink member';
+    }
     drawerUsername.textContent = sourceUsername?.textContent?.trim() || '@username';
   }
 
@@ -128,9 +154,10 @@ function installMobileMoreDrawer() {
   }
 
   function syncAvailability() {
-    const visible = memberIsVisible() && window.innerWidth <= MOBILE_BREAKPOINT;
-    trigger.hidden = !visible;
-    if (!visible) closeDrawer(false);
+    const enabled = memberIsVisible() && window.innerWidth <= MOBILE_BREAKPOINT;
+    document.documentElement.classList.toggle('sauti-mobile-drawer-enabled', enabled);
+    trigger.hidden = !enabled;
+    if (!enabled) closeDrawer(false);
   }
 
   function openDrawer() {
