@@ -10,22 +10,32 @@ test('social auth uses Supabase OAuth and the production SautiLink return URL', 
   assert.match(source, /client\.auth\.signInWithOAuth\(/);
   assert.match(source, /id: 'google'/);
   assert.match(source, /id: 'facebook'/);
+  assert.match(source, /id: 'azure'/);
   assert.match(source, /provider: provider\.id/);
   assert.match(source, /SOCIAL_OAUTH_REDIRECT = 'https:\/\/sautilink\.com\/home'/);
   assert.doesNotMatch(source, /signUp\(/);
 });
 
-test('Google and Facebook social auth are available from sign-in and create-account surfaces', async () => {
+test('Google, Facebook and Microsoft social auth are available from sign-in and create-account surfaces', async () => {
   const source = await read('src/social-oauth-auth.js');
 
   assert.match(source, /createBlock\('login-panel', 'login-form', 'login'\)/);
   assert.match(source, /createBlock\('signup-panel', 'signup-form', 'signup'\)/);
   assert.match(source, /Continue with Google/);
   assert.match(source, /Continue with Facebook/);
+  assert.match(source, /Continue with Microsoft/);
   assert.match(source, /SOCIAL_OAUTH_PROVIDERS\.forEach/);
   assert.match(source, /By continuing, you agree to the/);
   assert.match(source, /href=\"\/terms\"/);
   assert.match(source, /href=\"\/privacy\"/);
+});
+
+test('Microsoft uses the Supabase Azure provider and requests the required email scope', async () => {
+  const source = await read('src/social-oauth-auth.js');
+
+  assert.match(source, /id: 'azure', name: 'Microsoft'/);
+  assert.match(source, /scopes: 'email'/);
+  assert.match(source, /provider\.scopes \? \{ scopes: provider\.scopes \}/);
 });
 
 test('social OAuth styling is external and compatible with the production CSP', async () => {
@@ -44,7 +54,7 @@ test('social OAuth styling is external and compatible with the production CSP', 
   assert.match(css, /:focus-visible/);
 });
 
-test('Google and Facebook use dedicated provider marks', async () => {
+test('Google, Facebook and Microsoft use dedicated provider marks', async () => {
   const source = await read('src/social-oauth-auth.js');
 
   assert.match(source, /social-oauth-google-icon/);
@@ -54,6 +64,11 @@ test('Google and Facebook use dedicated provider marks', async () => {
   assert.match(source, /#EA4335/);
   assert.match(source, /social-oauth-facebook-icon/);
   assert.match(source, /#1877F2/);
+  assert.match(source, /social-oauth-microsoft-icon/);
+  assert.match(source, /#F25022/);
+  assert.match(source, /#7FBA00/);
+  assert.match(source, /#00A4EF/);
+  assert.match(source, /#FFB900/);
   assert.doesNotMatch(source, /social-oauth-mark/);
 });
 
@@ -63,6 +78,8 @@ test('social OAuth frontend contains no provider client secrets', async () => {
   assert.doesNotMatch(source, /client_secret/i);
   assert.doesNotMatch(source, /GOOGLE_SECRET/i);
   assert.doesNotMatch(source, /FACEBOOK_SECRET/i);
+  assert.doesNotMatch(source, /AZURE_SECRET/i);
+  assert.doesNotMatch(source, /MICROSOFT_SECRET/i);
   assert.doesNotMatch(source, /AIza[0-9A-Za-z_-]{20,}/);
 });
 
