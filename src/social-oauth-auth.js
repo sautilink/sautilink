@@ -1,4 +1,5 @@
 const SOCIAL_OAUTH_REDIRECT = 'https://sautilink.com/home';
+const SOCIAL_OAUTH_STYLESHEET = '/app/assets/social-oauth-auth.css?v=20260908-google1';
 
 let client = null;
 let installed = false;
@@ -24,102 +25,23 @@ function googleOAuthError(error) {
   return 'We could not start Google sign-in. Please try again.';
 }
 
-function injectStyles() {
+function ensureStylesheet() {
   if (id('social-oauth-auth-styles')) return;
-  const style = document.createElement('style');
-  style.id = 'social-oauth-auth-styles';
-  style.textContent = `
-    .social-oauth-block {
-      display: grid;
-      gap: 10px;
-      margin: 0 0 15px;
-    }
-    .social-oauth-button {
-      display: flex;
-      width: 100%;
-      min-height: 46px;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 0 16px;
-      border: 1px solid var(--app-line-strong);
-      border-radius: 12px;
-      background: var(--app-panel-soft);
-      color: var(--app-text);
-      font-weight: 760;
-      cursor: pointer;
-      transition: border-color 150ms ease, background 150ms ease, transform 150ms ease, opacity 150ms ease;
-    }
-    .social-oauth-button:hover:not(:disabled) {
-      border-color: var(--app-muted);
-      transform: translateY(-1px);
-    }
-    .social-oauth-button:disabled {
-      opacity: .62;
-      cursor: wait;
-      transform: none;
-    }
-    .social-oauth-mark {
-      display: grid;
-      width: 22px;
-      height: 22px;
-      flex: 0 0 22px;
-      place-items: center;
-      border: 1px solid #d9dde4;
-      border-radius: 50%;
-      background: #fff;
-      color: #4285f4;
-      font-size: 14px;
-      font-weight: 850;
-      line-height: 1;
-    }
-    .social-oauth-separator {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-      align-items: center;
-      gap: 10px;
-      color: var(--app-muted);
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-    }
-    .social-oauth-separator::before,
-    .social-oauth-separator::after {
-      height: 1px;
-      background: var(--app-line);
-      content: '';
-    }
-    .social-oauth-legal {
-      margin: -2px 0 0;
-      color: var(--app-muted);
-      font-size: 9px;
-      line-height: 1.45;
-      text-align: center;
-    }
-    .social-oauth-legal a {
-      font-weight: 700;
-    }
-    body.auth-entry .social-oauth-button {
-      min-height: 44px;
-      border-color: #d9dee6;
-      border-radius: 8px;
-      background: #fff;
-      color: #1d2430;
-      box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
-    }
-    body.auth-entry .social-oauth-separator {
-      color: #7a8492;
-    }
-    body.auth-entry .social-oauth-separator::before,
-    body.auth-entry .social-oauth-separator::after {
-      background: #e4e7ec;
-    }
-    body.auth-entry .social-oauth-legal {
-      color: #6b7482;
-    }
-  `;
-  document.head.append(style);
+  const link = document.createElement('link');
+  link.id = 'social-oauth-auth-styles';
+  link.rel = 'stylesheet';
+  link.href = SOCIAL_OAUTH_STYLESHEET;
+  document.head.append(link);
+}
+
+function googleIconMarkup() {
+  return `
+    <svg class="social-oauth-google-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.39a4.6 4.6 0 0 1-2 3.02v2.53h3.24c1.9-1.75 2.97-4.33 2.97-7.39Z"></path>
+      <path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.38l-3.24-2.53c-.9.6-2.04.96-3.38.96-2.6 0-4.8-1.76-5.6-4.12H3.05v2.6A10 10 0 0 0 12 22Z"></path>
+      <path fill="#FBBC05" d="M6.4 13.93A6 6 0 0 1 6.08 12c0-.67.12-1.32.32-1.93v-2.6H3.05A10 10 0 0 0 2 12c0 1.61.38 3.14 1.05 4.53l3.35-2.6Z"></path>
+      <path fill="#EA4335" d="M12 5.95c1.47 0 2.79.5 3.83 1.5l2.87-2.87A9.63 9.63 0 0 0 12 2 10 10 0 0 0 3.05 7.47l3.35 2.6C7.2 7.71 9.4 5.95 12 5.95Z"></path>
+    </svg>`;
 }
 
 function createBlock(panelId, formId, context) {
@@ -136,7 +58,7 @@ function createBlock(panelId, formId, context) {
   button.type = 'button';
   button.dataset.socialOauthProvider = 'google';
   button.dataset.socialOauthContext = context;
-  button.innerHTML = '<span class="social-oauth-mark" aria-hidden="true">G</span><span>Continue with Google</span>';
+  button.innerHTML = `${googleIconMarkup()}<span class="social-oauth-label">Continue with Google</span>`;
 
   const message = document.createElement('div');
   message.className = 'form-message';
@@ -190,7 +112,7 @@ async function startGoogleOAuth(event) {
 function install() {
   if (installed || !client) return;
   installed = true;
-  injectStyles();
+  ensureStylesheet();
   createBlock('login-panel', 'login-form', 'login');
   createBlock('signup-panel', 'signup-form', 'signup');
 }
