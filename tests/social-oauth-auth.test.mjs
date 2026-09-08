@@ -24,6 +24,33 @@ test('Google social auth is available from both sign-in and create-account surfa
   assert.match(source, /href=\"\/privacy\"/);
 });
 
+test('Google OAuth styling is external and compatible with the production CSP', async () => {
+  const [source, css] = await Promise.all([
+    read('src/social-oauth-auth.js'),
+    read('app/assets/guest-entry-gate.css'),
+  ]);
+
+  assert.match(source, /SOCIAL_OAUTH_STYLESHEET = '\/app\/assets\/guest-entry-gate\.css/);
+  assert.match(source, /document\.createElement\('link'\)/);
+  assert.match(source, /link\.rel = 'stylesheet'/);
+  assert.doesNotMatch(source, /document\.createElement\('style'\)/);
+  assert.match(css, /\.social-oauth-button/);
+  assert.match(css, /\.social-oauth-separator/);
+  assert.match(css, /body\.auth-entry \.social-oauth-button/);
+  assert.match(css, /:focus-visible/);
+});
+
+test('Google OAuth uses a dedicated Google mark instead of an unstyled text G', async () => {
+  const source = await read('src/social-oauth-auth.js');
+
+  assert.match(source, /social-oauth-google-icon/);
+  assert.match(source, /#4285F4/);
+  assert.match(source, /#34A853/);
+  assert.match(source, /#FBBC05/);
+  assert.match(source, /#EA4335/);
+  assert.doesNotMatch(source, /social-oauth-mark/);
+});
+
 test('Google OAuth frontend contains no provider client secret', async () => {
   const source = await read('src/social-oauth-auth.js');
 
