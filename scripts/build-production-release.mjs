@@ -86,6 +86,7 @@ await build({
     resolve(workerSource, 'mobile-more-drawer.js'),
     resolve(workerSource, 'post-media-carousel.js'),
     resolve(workerSource, 'short-videos-feed.js'),
+    resolve(workerSource, 'social-oauth-auth.js'),
     resolve(workerSource, 'whatsapp-otp-auth.js'),
     resolve(workerSource, 'sautilink-video-player.js'),
   ],
