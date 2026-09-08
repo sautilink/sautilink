@@ -1,5 +1,5 @@
 const SOCIAL_OAUTH_REDIRECT = 'https://sautilink.com/home';
-const SOCIAL_OAUTH_STYLESHEET = '/app/assets/social-oauth-auth.css?v=20260908-google1';
+const SOCIAL_OAUTH_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20260908-google2';
 
 let client = null;
 let installed = false;
