@@ -27,10 +27,10 @@ test('Google social auth is available from both sign-in and create-account surfa
 test('Google OAuth styling is external and compatible with the production CSP', async () => {
   const [source, css] = await Promise.all([
     read('src/social-oauth-auth.js'),
-    read('app/assets/social-oauth-auth.css'),
+    read('app/assets/guest-entry-gate.css'),
   ]);
 
-  assert.match(source, /SOCIAL_OAUTH_STYLESHEET = '\/app\/assets\/social-oauth-auth\.css/);
+  assert.match(source, /SOCIAL_OAUTH_STYLESHEET = '\/app\/assets\/guest-entry-gate\.css/);
   assert.match(source, /document\.createElement\('link'\)/);
   assert.match(source, /link\.rel = 'stylesheet'/);
   assert.doesNotMatch(source, /document\.createElement\('style'\)/);
