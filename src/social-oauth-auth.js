@@ -1,5 +1,5 @@
 const SOCIAL_OAUTH_REDIRECT = 'https://sautilink.com/home';
-const SOCIAL_OAUTH_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20260908-social2';
+const SOCIAL_OAUTH_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20260908-social3';
 
 let client = null;
 let installed = false;
@@ -31,9 +31,20 @@ function facebookIconMarkup() {
     </svg>`;
 }
 
+function microsoftIconMarkup() {
+  return `
+    <svg class="social-oauth-microsoft-icon" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false">
+      <path fill="#F25022" d="M2 2h9.5v9.5H2z"></path>
+      <path fill="#7FBA00" d="M12.5 2H22v9.5h-9.5z"></path>
+      <path fill="#00A4EF" d="M2 12.5h9.5V22H2z"></path>
+      <path fill="#FFB900" d="M12.5 12.5H22V22h-9.5z"></path>
+    </svg>`;
+}
+
 const SOCIAL_OAUTH_PROVIDERS = Object.freeze([
   Object.freeze({ id: 'google', name: 'Google', label: 'Continue with Google', icon: googleIconMarkup }),
   Object.freeze({ id: 'facebook', name: 'Facebook', label: 'Continue with Facebook', icon: facebookIconMarkup }),
+  Object.freeze({ id: 'azure', name: 'Microsoft', label: 'Continue with Microsoft', icon: microsoftIconMarkup, scopes: 'email' }),
 ]);
 
 function oauthProvider(providerId) {
@@ -131,11 +142,13 @@ async function startSocialOAuth(event) {
   setProviderButtonsBusy(block, true);
 
   try {
+    const options = {
+      redirectTo: SOCIAL_OAUTH_REDIRECT,
+      ...(provider.scopes ? { scopes: provider.scopes } : {}),
+    };
     const { error } = await client.auth.signInWithOAuth({
       provider: provider.id,
-      options: {
-        redirectTo: SOCIAL_OAUTH_REDIRECT,
-      },
+      options,
     });
     if (error) throw error;
   } catch (error) {
