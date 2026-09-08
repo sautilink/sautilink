@@ -47,6 +47,34 @@ function setSubmitBusy(button, busy, busyLabel) {
   button.setAttribute('aria-busy', String(busy));
 }
 
+function whatsappLoginRequestError(error) {
+  const code = String(error?.code || '').trim().toLowerCase();
+  const status = Number(error?.status || 0);
+
+  if (code === 'over_sms_send_rate_limit' || code === 'over_request_rate_limit' || status === 429) {
+    return 'Too many verification requests. Wait a moment and try again.';
+  }
+  if (code === 'captcha_failed') {
+    return 'Security verification could not be completed. Refresh the page and try again.';
+  }
+  if (code === 'phone_provider_disabled') {
+    return 'WhatsApp sign-in is temporarily unavailable.';
+  }
+  if (code === 'otp_disabled') {
+    return 'We could not find a SautiLink account for this WhatsApp number.';
+  }
+  if (code === 'sms_send_failed' || code === 'hook_timeout') {
+    return 'We could not deliver a WhatsApp code right now. Try again shortly.';
+  }
+
+  const reference = /^[a-z0-9_:-]{1,64}$/.test(code)
+    ? code
+    : status
+      ? `http_${status}`
+      : 'auth_request_failed';
+  return `We could not send a WhatsApp code right now. Reference: ${reference}.`;
+}
+
 function setLoginPhone(value) {
   loginPhone = value;
   if (value) sessionStorage.setItem(LOGIN_PHONE_KEY, value);
@@ -171,8 +199,8 @@ async function requestWhatsAppLoginCode(event) {
     id('whatsapp-login-verify-form').hidden = false;
     setFormMessage(message, 'A sign-in code was sent to your linked WhatsApp number.', 'success');
     id('whatsapp-login-code')?.focus();
-  } catch {
-    setFormMessage(message, 'We could not send a WhatsApp code. Make sure this number is linked to your SautiLink account.');
+  } catch (error) {
+    setFormMessage(message, whatsappLoginRequestError(error));
   } finally {
     setSubmitBusy(submit, false, 'Sending code…');
   }

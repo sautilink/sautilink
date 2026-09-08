@@ -20,7 +20,8 @@ test('WhatsApp login cannot auto-create a separate account', async () => {
 
   assert.match(source, /signInWithOtp\(\{[\s\S]*?phone,[\s\S]*?shouldCreateUser: false/);
   assert.match(source, /verifyOtp\(\{ phone: loginPhone, token: code, type: 'sms' \}\)/);
-  assert.match(source, /Make sure this number is linked to your SautiLink account/);
+  assert.match(source, /otp_disabled/);
+  assert.doesNotMatch(source, /Make sure this number is linked to your SautiLink account/);
 });
 
 test('existing members link and verify WhatsApp on the same Supabase user', async () => {
