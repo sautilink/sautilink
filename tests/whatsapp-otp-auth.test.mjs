@@ -102,3 +102,17 @@ test('WhatsApp settings persists verified state after refresh and offers change 
   assert.match(source, /confirmed \? 'Change WhatsApp number' : 'Link WhatsApp number'/);
   assert.match(source, /if \(displayPhone && !phoneInput\.value\) phoneInput\.value = displayPhone/);
 });
+
+test('WhatsApp login reports the real Supabase auth failure instead of falsely saying the number is unlinked', async () => {
+  const source = await read('src/whatsapp-otp-auth.js');
+
+  assert.match(source, /function whatsappLoginRequestError\(error\)/);
+  assert.match(source, /over_sms_send_rate_limit/);
+  assert.match(source, /over_request_rate_limit/);
+  assert.match(source, /captcha_failed/);
+  assert.match(source, /phone_provider_disabled/);
+  assert.match(source, /otp_disabled/);
+  assert.match(source, /Reference: \$\{reference\}/);
+  assert.match(source, /catch \(error\) \{\n    setFormMessage\(message, whatsappLoginRequestError\(error\)\);/);
+  assert.doesNotMatch(source, /Make sure this number is linked to your SautiLink account/);
+});
