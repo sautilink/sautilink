@@ -16,6 +16,17 @@ function normalizePhone(value) {
   return raw;
 }
 
+function normalizeStoredPhone(value) {
+  const raw = String(value || '').trim().replace(/[\s()-]/g, '');
+  const digits = raw.startsWith('+') ? raw.slice(1) : raw;
+  return /^[1-9]\d{7,14}$/.test(digits) ? digits : '';
+}
+
+function formatStoredPhone(value) {
+  const digits = normalizeStoredPhone(value);
+  return digits ? `+${digits}` : '';
+}
+
 function normalizeOtp(value) {
   const code = String(value || '').replace(/\D/g, '');
   return /^\d{6,10}$/.test(code) ? code : '';
@@ -203,13 +214,13 @@ function createSettingsCard() {
   card.hidden = true;
   card.innerHTML = `
     <div class="settings-card-title"><strong>WhatsApp sign-in</strong><small>Link one verified number to this account</small></div>
-    <p class="settings-card-copy" id="settings-whatsapp-status">No WhatsApp number linked yet.</p>
+    <p class="settings-card-copy" id="settings-whatsapp-status" aria-live="polite">No WhatsApp number linked yet.</p>
     <form class="auth-form" id="settings-whatsapp-link-form" novalidate>
       <label for="settings-whatsapp-phone">WhatsApp number</label>
       <input id="settings-whatsapp-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+2557XXXXXXXX" required>
       <small class="field-hint">Use international format. We will send a verification code through WhatsApp.</small>
       <div class="form-message" id="settings-whatsapp-link-message" role="alert" hidden></div>
-      <button class="secondary-action" type="submit">Add or change number</button>
+      <button class="secondary-action" type="submit">Link WhatsApp number</button>
     </form>
     <form class="auth-form auth-secondary-form" id="settings-whatsapp-verify-form" novalidate hidden>
       <label for="settings-whatsapp-code">Verification code</label>
@@ -231,14 +242,27 @@ async function syncSettingsPhone() {
   if (!client || !enabled || !id('settings-whatsapp-card')) return;
   const { data } = await client.auth.getUser().catch(() => ({ data: { user: null } }));
   const user = data?.user || null;
-  const phone = normalizePhone(user?.phone);
-  const confirmed = Boolean(phone && user?.phone_confirmed_at);
-  id('settings-whatsapp-status').textContent = confirmed
-    ? `Linked WhatsApp number: ${phone}`
+  const storedPhone = normalizeStoredPhone(user?.phone);
+  const displayPhone = formatStoredPhone(storedPhone);
+  const confirmed = Boolean(storedPhone && user?.phone_confirmed_at);
+  const status = id('settings-whatsapp-status');
+  status.textContent = confirmed
+    ? `Verified WhatsApp number: ${displayPhone}`
     : phoneChange
       ? `Verification pending for ${phoneChange}`
       : 'No verified WhatsApp number is linked to this account yet.';
-  if (phone && !id('settings-whatsapp-phone').value) id('settings-whatsapp-phone').value = phone;
+  status.dataset.state = confirmed ? 'verified' : phoneChange ? 'pending' : 'unlinked';
+
+  const phoneInput = id('settings-whatsapp-phone');
+  if (displayPhone && !phoneInput.value) phoneInput.value = displayPhone;
+
+  const linkSubmit = id('settings-whatsapp-link-form')?.querySelector('[type="submit"]');
+  if (linkSubmit && linkSubmit.getAttribute('aria-busy') !== 'true') {
+    const label = confirmed ? 'Change WhatsApp number' : 'Link WhatsApp number';
+    linkSubmit.textContent = label;
+    linkSubmit.dataset.defaultLabel = label;
+  }
+
   id('settings-whatsapp-verify-form').hidden = !phoneChange;
 }
 

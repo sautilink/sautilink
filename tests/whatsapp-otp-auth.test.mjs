@@ -83,3 +83,22 @@ test('WhatsApp OTP hook is delivery-only and does not create a second OTP databa
   assert.match(source, /Cache-Control': 'no-store, max-age=0'/);
   assert.match(source, /data: \{ enabled: whatsappReady\(\) \}/);
 });
+
+test('WhatsApp settings accepts Supabase digit-only stored phones and formats them for display', async () => {
+  const source = await read('src/whatsapp-otp-auth.js');
+
+  assert.match(source, /function normalizeStoredPhone/);
+  assert.match(source, /raw\.startsWith\('\+'\) \? raw\.slice\(1\) : raw/);
+  assert.match(source, /function formatStoredPhone/);
+  assert.match(source, /return digits \? `\+\$\{digits\}` : ''/);
+  assert.match(source, /const storedPhone = normalizeStoredPhone\(user\?\.phone\)/);
+});
+
+test('WhatsApp settings persists verified state after refresh and offers change instead of relink', async () => {
+  const source = await read('src/whatsapp-otp-auth.js');
+
+  assert.match(source, /Verified WhatsApp number: \$\{displayPhone\}/);
+  assert.match(source, /status\.dataset\.state = confirmed \? 'verified'/);
+  assert.match(source, /confirmed \? 'Change WhatsApp number' : 'Link WhatsApp number'/);
+  assert.match(source, /if \(displayPhone && !phoneInput\.value\) phoneInput\.value = displayPhone/);
+});
