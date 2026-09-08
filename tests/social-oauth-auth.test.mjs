@@ -82,7 +82,7 @@ test('social OAuth is bundled through the canonical app build', async () => {
     read('scripts/build-production-release.mjs'),
   ]);
   assert.match(appBuild, /src\/social-oauth-auth\.js/);
-  assert.match(productionBuild, /src\/social-oauth-auth\.js/);
+  assert.match(productionBuild, /resolve\(workerSource, 'social-oauth-auth\.js'\)/);
 });
 
 test('new OAuth identities reuse the existing SautiLink onboarding path', async () => {
