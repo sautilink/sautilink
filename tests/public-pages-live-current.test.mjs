@@ -86,3 +86,14 @@ test('Template-style public micro-labels are removed from Help and stripped from
     assert.match(read(path), /\/assets\/legal\.js/);
   }
 });
+
+test('Important public pages default to light theme while preserving a saved user choice', () => {
+  const legalRuntime = read('assets/legal.js');
+  assert.match(legalRuntime, /if \(saved === 'light' \|\| saved === 'dark'\) return saved;/);
+  assert.match(legalRuntime, /return 'light';/);
+  assert.doesNotMatch(legalRuntime, /prefers-color-scheme: light/);
+
+  for (const path of ['about.html', 'help.html', 'contact.html', 'account-deletion.html', 'privacy.html', 'terms.html', 'sautinote.html']) {
+    assert.match(read(path), /\/assets\/legal\.js/);
+  }
+});
