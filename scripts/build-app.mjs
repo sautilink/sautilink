@@ -29,6 +29,7 @@ await build({
   },
   inject: [
     resolve(projectRoot, 'src/caption-entities.js'),
+    resolve(projectRoot, 'src/post-edit.js'),
     resolve(projectRoot, 'src/composer-formats.js'),
     resolve(projectRoot, 'src/username-login.js'),
     resolve(projectRoot, 'src/verified-identity-controls.js'),
