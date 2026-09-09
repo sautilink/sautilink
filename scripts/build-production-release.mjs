@@ -3,6 +3,7 @@ import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transformBootstrapResilienceSource } from './bootstrap-resilience-source-transform.mjs';
+import { transformLoginBootSource } from './login-boot-source-transform.mjs';
 import { transformMemberBootstrapResilienceSource } from './member-bootstrap-resilience-source-transform.mjs';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
@@ -48,13 +49,16 @@ for (const file of await walk(workerSource)) {
     file,
     transformBootstrapResilienceSource(
       file,
-      transformWhatsAppOtpSource(
+      transformLoginBootSource(
         file,
-        transformVideoPlayerSource(
+        transformWhatsAppOtpSource(
           file,
-          transformMentionNotificationSource(
+          transformVideoPlayerSource(
             file,
-            transformPostMediaSource(file, productionText(source)),
+            transformMentionNotificationSource(
+              file,
+              transformPostMediaSource(file, productionText(source)),
+            ),
           ),
         ),
       ),
