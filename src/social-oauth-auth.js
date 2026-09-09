@@ -15,29 +15,29 @@ function setMessage(node, message, type = 'error') {
 
 function googleIconMarkup() {
   return `
-    <svg class="social-oauth-brand-icon social-oauth-google-icon" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false">
-      <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.39a4.6 4.6 0 0 1-2 3.02v2.53h3.24c1.9-1.75 2.97-4.33 2.97-7.39Z"></path>
-      <path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.38l-3.24-2.53c-.9.6-2.04.96-3.38.96-2.6 0-4.8-1.76-5.6-4.12H3.05v2.6A10 10 0 0 0 12 22Z"></path>
-      <path fill="#FBBC05" d="M6.4 13.93A6 6 0 0 1 6.08 12c0-.67.12-1.32.32-1.93v-2.6H3.05A10 10 0 0 0 2 12c0 1.61.38 3.14 1.05 4.53l3.35-2.6Z"></path>
-      <path fill="#EA4335" d="M12 5.95c1.47 0 2.79.5 3.83 1.5l2.87-2.87A9.63 9.63 0 0 0 12 2 10 10 0 0 0 3.05 7.47l3.35 2.6C7.2 7.71 9.4 5.95 12 5.95Z"></path>
+    <svg class="social-oauth-brand-icon social-oauth-google-icon" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false" style="stroke:none">
+      <path style="stroke:none" fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.39a4.6 4.6 0 0 1-2 3.02v2.53h3.24c1.9-1.75 2.97-4.33 2.97-7.39Z"></path>
+      <path style="stroke:none" fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.38l-3.24-2.53c-.9.6-2.04.96-3.38.96-2.6 0-4.8-1.76-5.6-4.12H3.05v2.6A10 10 0 0 0 12 22Z"></path>
+      <path style="stroke:none" fill="#FBBC05" d="M6.4 13.93A6 6 0 0 1 6.08 12c0-.67.12-1.32.32-1.93v-2.6H3.05A10 10 0 0 0 2 12c0 1.61.38 3.14 1.05 4.53l3.35-2.6Z"></path>
+      <path style="stroke:none" fill="#EA4335" d="M12 5.95c1.47 0 2.79.5 3.83 1.5l2.87-2.87A9.63 9.63 0 0 0 12 2 10 10 0 0 0 3.05 7.47l3.35 2.6C7.2 7.71 9.4 5.95 12 5.95Z"></path>
     </svg>`;
 }
 
 function facebookIconMarkup() {
   return `
-    <svg class="social-oauth-brand-icon social-oauth-facebook-icon" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false">
-      <circle cx="12" cy="12" r="12" fill="#1877F2"></circle>
-      <path fill="#ffffff" d="M13.64 20.5v-7.74h2.6l.39-3.02h-2.99V7.82c0-.88.25-1.47 1.5-1.47h1.6V3.64c-.28-.04-1.23-.12-2.34-.12-2.31 0-3.9 1.41-3.9 4.01v2.21H7.88v3.02h2.62v7.74h3.14Z"></path>
+    <svg class="social-oauth-brand-icon social-oauth-facebook-icon" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false" style="stroke:none">
+      <circle style="stroke:none" cx="12" cy="12" r="12" fill="#1877F2"></circle>
+      <path style="stroke:none" fill="#ffffff" d="M13.64 20.5v-7.74h2.6l.39-3.02h-2.99V7.82c0-.88.25-1.47 1.5-1.47h1.6V3.64c-.28-.04-1.23-.12-2.34-.12-2.31 0-3.9 1.41-3.9 4.01v2.21H7.88v3.02h2.62v7.74h3.14Z"></path>
     </svg>`;
 }
 
 function microsoftIconMarkup() {
   return `
-    <svg class="social-oauth-brand-icon social-oauth-microsoft-icon" viewBox="0 0 21 21" width="19" height="19" aria-hidden="true" focusable="false">
-      <rect x="0" y="0" width="10" height="10" fill="#F25022"></rect>
-      <rect x="11" y="0" width="10" height="10" fill="#7FBA00"></rect>
-      <rect x="0" y="11" width="10" height="10" fill="#00A4EF"></rect>
-      <rect x="11" y="11" width="10" height="10" fill="#FFB900"></rect>
+    <svg class="social-oauth-brand-icon social-oauth-microsoft-icon" viewBox="0 0 21 21" width="19" height="19" aria-hidden="true" focusable="false" style="stroke:none">
+      <rect style="stroke:none" x="0" y="0" width="10" height="10" fill="#F25022"></rect>
+      <rect style="stroke:none" x="11" y="0" width="10" height="10" fill="#7FBA00"></rect>
+      <rect style="stroke:none" x="0" y="11" width="10" height="10" fill="#00A4EF"></rect>
+      <rect style="stroke:none" x="11" y="11" width="10" height="10" fill="#FFB900"></rect>
     </svg>`;
 }
 
