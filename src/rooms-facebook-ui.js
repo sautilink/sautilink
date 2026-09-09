@@ -35,6 +35,84 @@ function roomFbDetailOpen() {
   return roomFbVisible(roomFbById('circle-detail'));
 }
 
+function syncRoomRouteFeedback() {
+  const routeState = roomFbById('circle-route-state');
+  const loading = roomFbById('circles-loading');
+  const error = roomFbById('circles-error');
+  if (!routeState || !loading || !error) return;
+
+  // The old dedicated route card is intentionally never rendered. Deep Room
+  // routes use the same lightweight loading/error states as the rest of the app.
+  routeState.style.display = 'none';
+  routeState.setAttribute('aria-hidden', 'true');
+
+  const routeActive = !routeState.hidden;
+  const state = routeActive ? String(routeState.dataset.state || '') : '';
+  const loadingCopy = loading.querySelector('p');
+  if (loadingCopy) loadingCopy.textContent = routeActive ? 'Loading Room…' : 'Loading Rooms…';
+
+  const errorTitle = error.querySelector('h2');
+  const errorCopy = error.querySelector('p');
+  const retry = roomFbById('circles-retry');
+
+  if (!routeActive) {
+    if (error.dataset.roomRouteMode === 'true') {
+      error.dataset.roomRouteMode = '';
+      if (errorTitle) errorTitle.textContent = 'Rooms could not load.';
+      if (errorCopy) errorCopy.textContent = 'Try again without losing your place.';
+      if (retry) {
+        retry.textContent = 'Try again';
+        delete retry.dataset.roomRouteAction;
+      }
+    }
+    return;
+  }
+
+  if (state === 'loading') {
+    error.hidden = true;
+    loading.hidden = false;
+    return;
+  }
+
+  loading.hidden = true;
+  error.hidden = false;
+  error.dataset.roomRouteMode = 'true';
+
+  if (state === 'unavailable') {
+    if (errorTitle) errorTitle.textContent = 'Room unavailable';
+    if (errorCopy) errorCopy.textContent = 'This Room does not exist, is private, or is unavailable to your account.';
+    if (retry) {
+      retry.textContent = 'Back to Rooms';
+      retry.dataset.roomRouteAction = 'back';
+    }
+    return;
+  }
+
+  if (errorTitle) errorTitle.textContent = 'Room could not be opened';
+  if (errorCopy) errorCopy.textContent = 'Something went wrong while loading this Room.';
+  if (retry) {
+    retry.textContent = 'Try again';
+    retry.dataset.roomRouteAction = 'retry';
+  }
+}
+
+function handleRoomRouteFeedbackAction(event) {
+  const retry = event.target.closest?.('#circles-retry');
+  const action = retry?.dataset.roomRouteAction || '';
+  if (!action) return;
+
+  event.preventDefault();
+  event.stopImmediatePropagation();
+
+  if (action === 'back') {
+    const routeHome = roomFbById('circle-route-home');
+    routeHome?.click();
+    return;
+  }
+
+  window.location.reload();
+}
+
 function ensureRoomLandingSidebar() {
   const surface = roomFbById('circles-surface');
   if (!surface) return null;
@@ -326,13 +404,21 @@ function scheduleRoomsFacebookUi() {
 }
 
 ensureRoomsFacebookStyles();
-const roomsFacebookObserver = new MutationObserver(scheduleRoomsFacebookUi);
+syncRoomRouteFeedback();
+document.addEventListener('click', handleRoomRouteFeedbackAction, true);
+const roomsFacebookObserver = new MutationObserver(() => {
+  syncRoomRouteFeedback();
+  scheduleRoomsFacebookUi();
+});
 roomsFacebookObserver.observe(document.body, {
   childList: true,
   subtree: true,
   attributes: true,
-  attributeFilter: ['hidden', 'class'],
+  attributeFilter: ['hidden', 'class', 'data-state'],
 });
-window.addEventListener('popstate', scheduleRoomsFacebookUi);
+window.addEventListener('popstate', () => {
+  syncRoomRouteFeedback();
+  scheduleRoomsFacebookUi();
+});
 window.addEventListener('resize', scheduleRoomsFacebookUi);
 scheduleRoomsFacebookUi();
