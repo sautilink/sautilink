@@ -5,6 +5,10 @@
     const navCluster = document.querySelector('[data-nav-cluster]');
     const yearNode = document.querySelector('[data-current-year]');
 
+    document.querySelectorAll('.eyebrow, .section-label, .section-kicker').forEach(function (label) {
+        label.remove();
+    });
+
     function preferredTheme() {
         const saved = localStorage.getItem('theme');
         if (saved === 'light' || saved === 'dark') return saved;
