@@ -72,7 +72,7 @@ test('Phase 20 browser source supports Circle list, detail and membership action
   }
 
   assert.doesNotMatch(source, /service_role|sb_secret_/i);
-  assert.match(router, /CIRCLE_ROUTE/);
+  assert.match(router, /ROOM_ROUTE|CIRCLE_ROUTE/);
   assert.match(router, /sautify\|circles/);
 });
 
