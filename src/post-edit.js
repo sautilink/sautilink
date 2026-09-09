@@ -5,6 +5,7 @@ const POST_EDIT_STYLESHEET = '/app/assets/post-edit.css?v=20260909-edit1';
 const POST_EDIT_LIMIT = 500;
 
 let postEditUserPromise = null;
+let postEditUserToken = '';
 let postEditScanTimer = 0;
 let postEditActive = null;
 const postEditMeta = new Map();
@@ -36,12 +37,21 @@ function postEditHeaders(json = false) {
 }
 
 async function postEditCurrentUserId() {
-  if (postEditUserPromise) return postEditUserPromise;
+  const token = postEditToken();
+  if (!token) {
+    postEditUserPromise = null;
+    postEditUserToken = '';
+    return '';
+  }
+  if (postEditUserPromise && postEditUserToken === token) return postEditUserPromise;
+  postEditUserToken = token;
   postEditUserPromise = (async () => {
-    const token = postEditToken();
-    if (!token) return '';
     const response = await fetch(`${POST_EDIT_SUPABASE_URL}/auth/v1/user`, {
-      headers: postEditHeaders(),
+      headers: {
+        apikey: POST_EDIT_SUPABASE_KEY,
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
     }).catch(() => null);
     if (!response?.ok) return '';
     const user = await response.json().catch(() => null);
@@ -371,9 +381,10 @@ async function fetchPostEditMetadata(ids, userId) {
 }
 
 async function scanPostEditCards() {
+  const cards = [...document.querySelectorAll('.sauti-card[data-post-id], .profile-activity-card[data-post-id]')];
+  if (!cards.length) return;
   const userId = await postEditCurrentUserId();
   if (!userId) return;
-  const cards = [...document.querySelectorAll('.sauti-card[data-post-id], .profile-activity-card[data-post-id]')];
   const unknown = new Set();
   cards.forEach((card) => {
     const postId = String(card.dataset.postId || '');
