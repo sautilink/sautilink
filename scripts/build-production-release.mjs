@@ -92,6 +92,7 @@ await build({
     resolve(workerSource, 'rooms-platform.js'),
     resolve(workerSource, 'rooms-invitations-style.js'),
     resolve(workerSource, 'rooms-invitations.js'),
+    resolve(workerSource, 'rooms-facebook-ui.js'),
   ],
   outfile: resolve(siteRoot, 'app/assets/app.js'),
   bundle: true,
