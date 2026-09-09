@@ -69,6 +69,8 @@ for (const marker of [
 }
 for (const marker of [
   'Member profile loading timed out.',
+  'Session restoration timed out.',
+  'AUTH_SESSION_BOOT_TIMEOUT',
   'Your session opened, but your profile could not be loaded. Try again.',
 ]) {
   if (!appJs.includes(marker)) throw new Error(`production browser bundle missing signed-in bootstrap resilience marker: ${marker}`);
@@ -79,7 +81,7 @@ if (appHtml.includes('Private preview') || appHtml.includes('Phase 31')) throw n
 if (/name="robots"[^>]+noindex/i.test(appHtml)) throw new Error('production app must not carry staging noindex meta');
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('production theme bootstrap is missing');
 if (!appHtml.includes('app.css?v=20260909-home-loading')) throw new Error('production CSS cache marker is missing');
-if (!appHtml.includes('app.js?v=20260909-authboot3')) throw new Error('production JS cache marker is missing');
+if (!appHtml.includes('app.js?v=20260909-authsession4')) throw new Error('production JS cache marker is missing');
 if (!appHtml.includes('/logo.png')) throw new Error('production app must use the main-site logo path');
 if (appHtml.includes('/assets/brand/logo-compact.webp')) throw new Error('production app references a logo asset absent from the main-site repo');
 if (!headers.includes(`https://${PRODUCTION_REF}.supabase.co`)) throw new Error('production CSP does not target production Supabase');

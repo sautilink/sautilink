@@ -42,6 +42,19 @@ test('bootstrap uses the already-restored session user instead of an extra block
   assert.doesNotMatch(bootstrap, /await supabase\.auth\.getUser\(\)/);
 });
 
+test('login bootstrap cannot remain trapped while session restoration is blocked', async () => {
+  const app = await transformedApp();
+  const start = app.indexOf('async function bootstrap()');
+  const bootstrap = app.slice(start);
+  assert.match(app, /const AUTH_SESSION_BOOT_TIMEOUT_MS = 4500/);
+  assert.match(app, /const AUTH_ROUTE_REVEAL_MS = 1800/);
+  assert.match(app, /function cachedAuthSession\(\)/);
+  assert.match(bootstrap, /authSessionBootWithTimeout\(supabase\.auth\.getSession\(\)\)/);
+  assert.match(bootstrap, /if \(!loadingView\.hidden\) showAuthPanel\(initialAuthRoute\[1\]\)/);
+  assert.match(bootstrap, /renderMember\(fallback, cachedSession\.user\.id\)/);
+  assert.doesNotMatch(bootstrap, /const \{ data: \{ session \}, error \} = await supabase\.auth\.getSession\(\)/);
+});
+
 test('normal and production builders apply member bootstrap resilience and production busts app JS cache', async () => {
   const [normal, production, verifier] = await Promise.all([
     read('scripts/build-app.mjs'),
@@ -50,6 +63,6 @@ test('normal and production builders apply member bootstrap resilience and produ
   ]);
   assert.match(normal, /transformMemberBootstrapResilienceSource/);
   assert.match(production, /transformMemberBootstrapResilienceSource/);
-  assert.match(production, /20260909-authboot3/);
-  assert.match(verifier, /app\.js\?v=20260909-authboot3/);
+  assert.match(production, /20260909-authsession4/);
+  assert.match(verifier, /app\.js\?v=20260909-authsession4/);
 });

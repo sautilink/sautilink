@@ -11,6 +11,42 @@ export function transformMemberBootstrapResilienceSource(sourcePath, source) {
   const resilientMemberBlock = `let memberLoadPromise = null;
 let memberLoadUserId = '';
 const MEMBER_BOOT_TIMEOUT_MS = 6500;
+const AUTH_SESSION_BOOT_TIMEOUT_MS = 4500;
+const AUTH_ROUTE_REVEAL_MS = 1800;
+
+function cachedAuthSession() {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem('sautilink.auth.session') || 'null');
+    const session = stored?.currentSession || stored?.session || stored;
+    if (!session?.user?.id || !session?.access_token) return null;
+    const expiresAt = Number(session.expires_at || 0);
+    if (expiresAt > 0 && (expiresAt * 1000) <= Date.now()) return null;
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+function authSessionBootWithTimeout(promise, timeoutMs = AUTH_SESSION_BOOT_TIMEOUT_MS) {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      const error = new Error('Session restoration timed out.');
+      error.code = 'AUTH_SESSION_BOOT_TIMEOUT';
+      reject(error);
+    }, timeoutMs);
+
+    Promise.resolve(promise).then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 function memberFallbackProfile(user, account = null) {
   const createdAt = Date.parse(String(user?.created_at || ''));
@@ -243,6 +279,54 @@ async function loadMember(user) {
 async function completeOnboarding`;
 
   output = output.replace(memberBlockPattern, resilientMemberBlock);
+
+  const bootstrapStart = `async function bootstrap() {
+  configureEmailOtpInputs();`;
+  const resilientBootstrapStart = `async function bootstrap() {
+  const initialAuthRoute = window.location.pathname.match(/^\\/(login|signup)\\/?$/);
+  if (initialAuthRoute) {
+    window.setTimeout(() => {
+      if (!loadingView.hidden) showAuthPanel(initialAuthRoute[1]);
+    }, AUTH_ROUTE_REVEAL_MS);
+  }
+  configureEmailOtpInputs();`;
+  if (!output.includes(bootstrapStart)) {
+    if (!output.includes(resilientBootstrapStart)) {
+      throw new Error('Could not find the SautiLink bootstrap start.');
+    }
+  } else {
+    output = output.replace(bootstrapStart, resilientBootstrapStart);
+  }
+
+  const getSessionBlock = `    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error || !session) {`;
+  const resilientGetSessionBlock = `    let sessionResult;
+    try {
+      sessionResult = await authSessionBootWithTimeout(supabase.auth.getSession());
+    } catch {
+      const cachedSession = cachedAuthSession();
+      const fallback = memberFallbackProfile(cachedSession?.user);
+      if (cachedSession?.user?.id && fallback) {
+        renderMember(fallback, cachedSession.user.id);
+        refreshMemberProfileAfterFallback(cachedSession.user);
+        void applyLocationRoute();
+        return;
+      }
+      currentMember = null;
+      currentMemberId = '';
+      currentAccountEmail = '';
+      syncAccountSecurityEmail();
+      return applyLocationRoute();
+    }
+    const { data: { session } = {}, error } = sessionResult || {};
+    if (error || !session) {`;
+  if (!output.includes(getSessionBlock)) {
+    if (!output.includes(resilientGetSessionBlock)) {
+      throw new Error('Could not find the SautiLink bootstrap getSession block.');
+    }
+  } else {
+    output = output.replace(getSessionBlock, resilientGetSessionBlock);
+  }
 
   const getUserBlock = `    const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
