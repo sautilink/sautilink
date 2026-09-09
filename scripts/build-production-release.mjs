@@ -3,6 +3,7 @@ import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transformBootstrapResilienceSource } from './bootstrap-resilience-source-transform.mjs';
+import { transformMemberBootstrapResilienceSource } from './member-bootstrap-resilience-source-transform.mjs';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
 import { transformVideoPlayerSource } from './video-player-source-transform.mjs';
@@ -15,6 +16,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
+const APP_JS_RELEASE = '20260909-authboot3';
 
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -42,15 +44,18 @@ await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: tru
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
   const source = await readFile(file, 'utf8');
-  let output = transformBootstrapResilienceSource(
+  let output = transformMemberBootstrapResilienceSource(
     file,
-    transformWhatsAppOtpSource(
+    transformBootstrapResilienceSource(
       file,
-      transformVideoPlayerSource(
+      transformWhatsAppOtpSource(
         file,
-        transformMentionNotificationSource(
+        transformVideoPlayerSource(
           file,
-          transformPostMediaSource(file, productionText(source)),
+          transformMentionNotificationSource(
+            file,
+            transformPostMediaSource(file, productionText(source)),
+          ),
         ),
       ),
     ),
@@ -68,7 +73,8 @@ const appHtmlPath = resolve(siteRoot, 'app/index.html');
 let appHtml = productionText(await readFile(appHtmlPath, 'utf8'));
 appHtml = appHtml
   .replace(/\s*<meta name="robots" content="noindex, nofollow">\s*/i, '\n')
-  .replace("img-src 'self' data: blob:; script-src", "img-src 'self' data: blob:; media-src 'self' blob:; script-src");
+  .replace("img-src 'self' data: blob:; script-src", "img-src 'self' data: blob:; media-src 'self' blob:; script-src")
+  .replace(/app\.js\?v=[^"']+/g, `app.js?v=${APP_JS_RELEASE}`);
 await writeFile(appHtmlPath, appHtml);
 
 const appCssPath = resolve(siteRoot, 'app/assets/app.css');
