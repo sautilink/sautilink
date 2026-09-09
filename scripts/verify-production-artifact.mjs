@@ -49,6 +49,7 @@ for (const file of files) {
 
 const appHtml = await readFile(resolve(siteRoot, 'app/index.html'), 'utf8');
 const appJs = await readFile(resolve(siteRoot, 'app/assets/app.js'), 'utf8');
+const roomsFacebookCss = await readFile(resolve(siteRoot, 'app/assets/rooms-facebook.css'), 'utf8');
 const router = await readFile(resolve(workerRoot, 'src/asset-router.js'), 'utf8');
 const headers = await readFile(resolve(siteRoot, '_headers'), 'utf8');
 const config = await readFile(resolve(projectRoot, 'wrangler.production.jsonc'), 'utf8');
@@ -61,9 +62,13 @@ for (const marker of [
   'Technology & AI',
   'rooms-invitations.css',
   'The Room invitation could not be updated',
+  'rooms-facebook.css',
+  'room-fb-detail-tabs',
 ]) {
   if (!appJs.includes(marker)) throw new Error(`production browser bundle missing Rooms runtime marker: ${marker}`);
 }
+if (!roomsFacebookCss.includes('body.rooms-facebook-view')) throw new Error('production Rooms Groups-style stylesheet is missing its feature scope');
+if (!roomsFacebookCss.includes('room-fb-detail-aside')) throw new Error('production Rooms Groups-style detail layout is missing');
 if (appHtml.includes('Private preview') || appHtml.includes('Phase 31')) throw new Error('production app still contains staging/phase UI copy');
 if (/name="robots"[^>]+noindex/i.test(appHtml)) throw new Error('production app must not carry staging noindex meta');
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('production theme bootstrap is missing');
@@ -100,4 +105,4 @@ if (/"pattern"\s*:\s*"(?:www\.)?sautilink\.com\/\*"/.test(config)) {
   throw new Error('production Worker must not intercept the marketing/legal site root');
 }
 
-console.log(`Verified ${files.length} production artifact files: production DB isolated, clean social routes present, Rooms runtime present, root site preserved, no secrets/source maps.`);
+console.log(`Verified ${files.length} production artifact files: production DB isolated, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);
