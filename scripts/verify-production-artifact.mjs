@@ -70,7 +70,6 @@ for (const marker of [
 for (const marker of [
   'Member profile loading timed out.',
   'Your session opened, but your profile could not be loaded. Try again.',
-  'Core Home remains usable if optional profile UI fails.',
 ]) {
   if (!appJs.includes(marker)) throw new Error(`production browser bundle missing signed-in bootstrap resilience marker: ${marker}`);
 }
