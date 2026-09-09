@@ -78,7 +78,6 @@ await build({
   entryPoints: [resolve(workerSource, 'app.js')],
   inject: [
     resolve(workerSource, 'caption-entities.js'),
-    resolve(workerSource, 'post-edit.js'),
     resolve(workerSource, 'composer-formats.js'),
     resolve(workerSource, 'username-login.js'),
     resolve(workerSource, 'verified-identity-controls.js'),
