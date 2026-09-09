@@ -2,7 +2,7 @@ const CAPTION_SELECTOR = '.sauti-card-body, .sauti-caption-text';
 const PROFILE_BIO_SELECTOR = '#profile-bio';
 const ENTITY_SELECTOR = `${CAPTION_SELECTOR}, ${PROFILE_BIO_SELECTOR}`;
 const ENTITY_STYLESHEET_ID = 'sautilink-caption-entities-style';
-const ENTITY_STYLESHEET_HREF = '/app/assets/caption-entities.css?v=20260906-bio1';
+const ENTITY_STYLESHEET_HREF = '/app/assets/caption-entities.css?v=20260909-theme1';
 const ENTITY_ATTR = 'data-caption-entity';
 const ENTITY_CANDIDATE_RE = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+|@[a-z0-9][a-z0-9._]{2,29}|#[\p{L}\p{N}_]{1,64})/giu;
 
@@ -40,115 +40,84 @@ function trimUrlPunctuation(value) {
   return url;
 }
 
-export function hashtagSearchHref(tag) {
-  const value = String(tag || '').trim();
-  if (!/^#[\p{L}\p{N}_]{1,64}$/u.test(value)) return '/discover';
-  return `/discover?q=${encodeURIComponent(value)}`;
+function hashtagHref(raw) {
+  const tag = String(raw || '').trim();
+  return /^#[\p{L}\p{N}_]{1,64}$/u.test(tag)
+    ? `/discover?q=${encodeURIComponent(tag)}`
+    : '/discover';
 }
 
-export function profileHref(mention) {
-  const username = trimMentionPunctuation(mention)
-    .trim()
-    .replace(/^@/, '')
-    .toLowerCase();
-  if (!/^[a-z0-9][a-z0-9._]{2,29}$/.test(username)) return '/discover';
-  return `/u/${encodeURIComponent(username)}`;
+function mentionHref(raw) {
+  const username = trimMentionPunctuation(raw).trim().replace(/^@/, '').toLowerCase();
+  return /^[a-z0-9][a-z0-9._]{2,29}$/.test(username)
+    ? `/u/${encodeURIComponent(username)}`
+    : '/discover';
 }
 
-export function externalUrlHref(value) {
-  const candidate = trimUrlPunctuation(value);
-  const href = /^www\./i.test(candidate) ? `https://${candidate}` : candidate;
+function urlHref(raw) {
+  const value = trimUrlPunctuation(raw);
+  const normalized = /^www\./i.test(value) ? `https://${value}` : value;
   try {
-    const url = new URL(href);
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+    const parsed = new URL(normalized);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : '';
   } catch {
     return '';
   }
 }
 
-export function findCaptionEntities(value) {
-  const source = String(value || '');
+function captionEntities(text) {
+  const source = String(text || '');
   const entities = [];
   ENTITY_CANDIDATE_RE.lastIndex = 0;
-
   let match;
   while ((match = ENTITY_CANDIDATE_RE.exec(source))) {
-    const candidate = match[0];
+    const raw = match[0];
     const start = match.index;
-
-    if (candidate.startsWith('@')) {
+    if (raw.startsWith('@')) {
       if (!isMentionBoundary(source, start)) continue;
-      const displayText = trimMentionPunctuation(candidate);
-      const href = profileHref(displayText);
-      if (!displayText || href === '/discover') continue;
-      entities.push({
-        type: 'mention',
-        start,
-        end: start + displayText.length,
-        text: displayText,
-        href,
-      });
+      const text = trimMentionPunctuation(raw);
+      const href = mentionHref(text);
+      if (!text || href === '/discover') continue;
+      entities.push({ type: 'mention', start, end: start + text.length, text, href });
       continue;
     }
-
-    if (candidate.startsWith('#')) {
+    if (raw.startsWith('#')) {
       if (!isHashtagBoundary(source, start)) continue;
-      entities.push({
-        type: 'hashtag',
-        start,
-        end: start + candidate.length,
-        text: candidate,
-        href: hashtagSearchHref(candidate),
-      });
+      entities.push({ type: 'hashtag', start, end: start + raw.length, text: raw, href: hashtagHref(raw) });
       continue;
     }
-
-    const displayText = trimUrlPunctuation(candidate);
-    const href = externalUrlHref(displayText);
-    if (!displayText || !href) continue;
-    entities.push({
-      type: 'url',
-      start,
-      end: start + displayText.length,
-      text: displayText,
-      href,
-    });
+    const text = trimUrlPunctuation(raw);
+    const href = urlHref(text);
+    if (!text || !href) continue;
+    entities.push({ type: 'url', start, end: start + text.length, text, href });
   }
-
   return entities;
 }
 
-export function findProfileBioEntities(value) {
-  return findCaptionEntities(value).filter(
-    (entity) => entity.type === 'mention' || entity.type === 'hashtag',
-  );
+function profileBioEntities(text) {
+  return captionEntities(text).filter((entity) => entity.type === 'mention' || entity.type === 'hashtag');
 }
 
-function previewCutsEntity(element, entity, source) {
-  if (!element.classList.contains('sauti-caption-text')) return false;
-  if (!source.endsWith('…')) return false;
-
-  const preview = element.dataset.previewCaption || '';
-  const full = element.dataset.fullCaption || '';
-  if (source !== preview || !full) return false;
-
-  const visiblePrefix = source.slice(0, -1);
-  if (!full.startsWith(visiblePrefix) || entity.end !== visiblePrefix.length) return false;
-
-  const next = full[visiblePrefix.length] || '';
+function previewEntitySpillsIntoHiddenText(element, entity, visibleText) {
+  if (!element.classList.contains('sauti-caption-text') || !visibleText.endsWith('\u2026')) return false;
+  const previewText = element.dataset.previewCaption || '';
+  const fullText = element.dataset.fullCaption || '';
+  if (visibleText !== previewText || !fullText) return false;
+  const visiblePrefix = visibleText.slice(0, -1);
+  if (!fullText.startsWith(visiblePrefix) || entity.end !== visiblePrefix.length) return false;
+  const next = fullText[visiblePrefix.length] || '';
   if (!next) return false;
   if (entity.type === 'hashtag') return /[\p{L}\p{N}_]/u.test(next);
   if (entity.type === 'mention') return /[A-Za-z0-9._]/.test(next);
   return !/\s/.test(next);
 }
 
-function createEntityAnchor(entity) {
+function entityAnchor(entity) {
   const anchor = document.createElement('a');
   anchor.className = `sautilink-caption-entity sautilink-caption-${entity.type}`;
   anchor.setAttribute(ENTITY_ATTR, entity.type);
   anchor.href = entity.href;
   anchor.textContent = entity.text;
-
   if (entity.type === 'mention') {
     anchor.setAttribute('aria-label', `Open ${entity.text} profile`);
   } else if (entity.type === 'hashtag') {
@@ -158,51 +127,32 @@ function createEntityAnchor(entity) {
     anchor.target = '_blank';
     anchor.rel = 'noopener noreferrer nofollow ugc';
   }
-
   return anchor;
 }
 
-export function renderCaptionEntities(element) {
-  if (typeof Element === 'undefined' || !(element instanceof Element)) return false;
-  if (!element.matches(ENTITY_SELECTOR)) return false;
-
-  const source = element.textContent || '';
-  const previousSource = element.dataset.captionEntitiesText || '';
-  if (
-    previousSource === source &&
-    element.querySelector(`[${ENTITY_ATTR}]`)
-  ) {
-    return false;
-  }
-
-  const candidates = element.matches(PROFILE_BIO_SELECTOR)
-    ? findProfileBioEntities(source)
-    : findCaptionEntities(source);
-  const entities = candidates.filter(
-    (entity) => !previewCutsEntity(element, entity, source),
-  );
-  element.dataset.captionEntitiesText = source;
+function linkifyCaptionElement(element) {
+  if (!(element instanceof Element) || !element.matches(ENTITY_SELECTOR)) return false;
+  const text = element.textContent || '';
+  if (element.dataset.captionEntitiesText === text && element.querySelector(`[${ENTITY_ATTR}]`)) return false;
+  const allEntities = element.matches(PROFILE_BIO_SELECTOR) ? profileBioEntities(text) : captionEntities(text);
+  const entities = allEntities.filter((entity) => !previewEntitySpillsIntoHiddenText(element, entity, text));
+  element.dataset.captionEntitiesText = text;
   if (!entities.length) return false;
 
   const fragment = document.createDocumentFragment();
   let cursor = 0;
   for (const entity of entities) {
     if (entity.start < cursor) continue;
-    if (entity.start > cursor) {
-      fragment.append(document.createTextNode(source.slice(cursor, entity.start)));
-    }
-    fragment.append(createEntityAnchor(entity));
+    if (entity.start > cursor) fragment.append(document.createTextNode(text.slice(cursor, entity.start)));
+    fragment.append(entityAnchor(entity));
     cursor = entity.end;
   }
-  if (cursor < source.length) {
-    fragment.append(document.createTextNode(source.slice(cursor)));
-  }
-
+  if (cursor < text.length) fragment.append(document.createTextNode(text.slice(cursor)));
   element.replaceChildren(fragment);
   return true;
 }
 
-function ensureEntityStylesheet() {
+function ensureCaptionEntityStyles() {
   if (document.getElementById(ENTITY_STYLESHEET_ID)) return;
   const link = document.createElement('link');
   link.id = ENTITY_STYLESHEET_ID;
@@ -211,44 +161,38 @@ function ensureEntityStylesheet() {
   (document.head || document.documentElement).append(link);
 }
 
-function scanCaptionRoot(root) {
+function scanCaptionEntities(root) {
   if (!root) return;
   if (root.nodeType === Node.TEXT_NODE) {
-    const host = root.parentElement?.closest(ENTITY_SELECTOR);
-    if (host) renderCaptionEntities(host);
+    const parent = root.parentElement?.closest(ENTITY_SELECTOR);
+    if (parent) linkifyCaptionElement(parent);
     return;
   }
   if (!(root instanceof Element) && root !== document) return;
-  if (root instanceof Element && root.matches(ENTITY_SELECTOR)) {
-    renderCaptionEntities(root);
-  }
-  root.querySelectorAll?.(ENTITY_SELECTOR).forEach(renderCaptionEntities);
+  if (root instanceof Element && root.matches(ENTITY_SELECTOR)) linkifyCaptionElement(root);
+  root.querySelectorAll?.(ENTITY_SELECTOR).forEach(linkifyCaptionElement);
 }
 
-function initCaptionEntities() {
-  ensureEntityStylesheet();
-  scanCaptionRoot(document);
-
-  const observedRoot = document.body || document.documentElement;
-  if (!observedRoot || typeof MutationObserver === 'undefined') return;
-
-  const observer = new MutationObserver((mutations) => {
+function startCaptionEntityEnhancer() {
+  ensureCaptionEntityStyles();
+  scanCaptionEntities(document);
+  const target = document.body || document.documentElement;
+  if (!target || typeof MutationObserver === 'undefined') return;
+  new MutationObserver((mutations) => {
     for (const mutation of mutations) {
-      const host = mutation.target instanceof Element
+      const parent = mutation.target instanceof Element
         ? mutation.target.closest(ENTITY_SELECTOR)
         : mutation.target.parentElement?.closest(ENTITY_SELECTOR);
-      if (host) renderCaptionEntities(host);
-      mutation.addedNodes.forEach(scanCaptionRoot);
+      if (parent) linkifyCaptionElement(parent);
+      mutation.addedNodes.forEach(scanCaptionEntities);
     }
-  });
-
-  observer.observe(observedRoot, { childList: true, subtree: true });
+  }).observe(target, { childList: true, subtree: true });
 }
 
 if (typeof document !== 'undefined') {
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initCaptionEntities, { once: true });
+    document.addEventListener('DOMContentLoaded', startCaptionEntityEnhancer, { once: true });
   } else {
-    initCaptionEntities();
+    startCaptionEntityEnhancer();
   }
 }
