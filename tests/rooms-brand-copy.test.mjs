@@ -31,6 +31,27 @@ test('Rooms is the canonical user-facing community brand', async () => {
   assert.match(rooms, /social_circle_members/);
 });
 
+test('Rooms runtime modules are wired into the actual esbuild bundle', async () => {
+  const [builder, bundle] = await Promise.all([
+    read('scripts/build-app.mjs'),
+    read('app/assets/app.js'),
+  ]);
+
+  for (const modulePath of [
+    'src/rooms-platform.js',
+    'src/rooms-invitations-style.js',
+    'src/rooms-invitations.js',
+  ]) {
+    assert.match(builder, new RegExp(modulePath.replaceAll('.', '\\.')));
+  }
+
+  // npm run check builds the app before tests, so these assertions prove the
+  // Rooms runtime made it into the artifact that staging/production deploy.
+  assert.match(bundle, /Technology & AI/);
+  assert.match(bundle, /rooms-invitations\.css/);
+  assert.match(bundle, /The Room invitation could not be updated/);
+});
+
 test('Room creation exposes discovery, privacy and permission choices', async () => {
   const rooms = await read('src/rooms-platform.js');
 
