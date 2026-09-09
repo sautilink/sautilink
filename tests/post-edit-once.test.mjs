@@ -33,7 +33,7 @@ test('PATCH edit API accepts text only and delegates to the atomic RPC', async (
   assert.doesNotMatch(edit, /SAUTI_MEDIA/);
 });
 
-test('post editor is author-scoped, text-only and updates cards in place', async () => {
+test('post editor implementation remains author-scoped and text-only while startup hotfix isolates it', async () => {
   const ui = await read('src/post-edit.js');
   const css = await read('app/assets/post-edit.css');
 
@@ -48,16 +48,16 @@ test('post editor is author-scoped, text-only and updates cards in place', async
   assert.match(css, /\.post-edit-dialog/);
 });
 
-test('post editor is bundled for both normal and isolated production builds', async () => {
+test('post editor is not globally injected into startup bundles during bootstrap hotfix', async () => {
   const [builder, productionBuilder, packageJson] = await Promise.all([
     read('scripts/build-app.mjs'),
     read('scripts/build-production-release.mjs'),
     read('package.json'),
   ]);
 
-  assert.match(builder, /src\/post-edit\.js/);
-  assert.match(productionBuilder, /post-edit\.js/);
-  assert.match(packageJson, /--inject:\.\/src\/post-edit\.js/);
+  assert.doesNotMatch(builder, /src\/post-edit\.js/);
+  assert.doesNotMatch(productionBuilder, /resolve\(workerSource, 'post-edit\.js'\)/);
+  assert.doesNotMatch(packageJson, /--inject:\.\/src\/post-edit\.js/);
 });
 
 test('Home stream position remains based on created_at rather than edit timestamps', async () => {
