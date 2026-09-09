@@ -2,8 +2,10 @@
 
 **Date:** 2026-09-09  
 **Canonical product name:** Rooms  
-**Merged PR:** `sautilink/sautilink#77`  
-**Production merge commit:** `e91f17cfdeb55c54d0aa187824a8d0e2416dc2cc`
+**Merged feature PR:** `sautilink/sautilink#77`  
+**Feature production merge commit:** `e91f17cfdeb55c54d0aa187824a8d0e2416dc2cc`  
+**Runtime wiring PR:** `sautilink/sautilink#78`  
+**Current Rooms runtime production commit:** `f6fb9ec8e8f765164d814796fa0dd0db222ebf2f`
 
 ## Product decision
 
@@ -45,17 +47,37 @@ Post-rollout schema checks confirmed the Room metadata/member-count columns, Roo
 
 ## Verification and deployment
 
-PR head `33d6bc5adc3d8fd1754f6c941677821dd7973d70` passed all required repository workflows before merge:
+PR #77 head `33d6bc5adc3d8fd1754f6c941677821dd7973d70` passed all required repository workflows before merge:
 
 - SautiLink Brand Guard — PASS
 - Phase 1 Authentication — PASS
 - Phase 32 Production Launch — PASS
 
-The main-branch production rollout at merge commit `e91f17cfdeb55c54d0aa187824a8d0e2416dc2cc` then completed successfully:
+The first main-branch rollout at feature merge commit `e91f17cfdeb55c54d0aa187824a8d0e2416dc2cc` completed successfully:
 
 - SautiLink Brand Guard run `34298736789` — PASS
 - Phase 1 Authentication run `34298736779` — PASS
 - Phase 32 Production Launch run `34298736854` — PASS, including production build/verification and live cutover checks.
+
+### Runtime wiring correction
+
+A post-merge audit found that `package.json` passed the new Rooms files as `--inject` CLI arguments, while the actual `scripts/build-app.mjs` builder used its own hardcoded esbuild `inject` array and did not consume those arguments. This meant the repository feature code existed but its browser runtime was not guaranteed to be present in the generated production app bundle.
+
+PR #78 fixed only that wiring boundary by explicitly adding these modules to the real builder:
+
+- `src/rooms-platform.js`
+- `src/rooms-invitations-style.js`
+- `src/rooms-invitations.js`
+
+A regression test now checks both the real build configuration and the generated `app/assets/app.js` artifact for Rooms runtime markers. PR #78 head `a51adf5eb1f6fe5588547b3cc7a4cc571b681560` passed Brand Guard, Phase 1 build/test/deploy validation and Phase 32 production verification before squash merge.
+
+The corrected main commit `f6fb9ec8e8f765164d814796fa0dd0db222ebf2f` then passed:
+
+- SautiLink Brand Guard run `34299565287` — PASS
+- Phase 1 Authentication run `34299565259` — PASS, including successful `test.sautilink.com` deployment/readiness verification
+- Phase 32 Production Launch run `34299565192` — PASS, including full production build, R2 check, Worker deployment and live production cutover verification
+
+No additional database changes were required for PR #78.
 
 ## Continuity rule
 
