@@ -60,7 +60,7 @@ test('Home menu exposes useful accessible actions and durable feed preferences',
 
 test('Home header release cache is advanced for immediate browser pickup', async () => {
   const [html, sw] = await Promise.all([read('app/index.html'), read('sw.js')]);
-  assert.match(html, /app\.css\?v=20260906-optimistic/);
-  assert.match(html, /app\.js\?v=20260906-optimistic/);
-  assert.match(sw, /sautilink-shell-v44/);
+  assert.match(html, /app\.css\?v=20260909-home-loading/);
+  assert.match(html, /app\.js\?v=20260909-home-loading/);
+  assert.match(sw, /sautilink-shell-v45/);
 });
