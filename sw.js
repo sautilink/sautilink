@@ -1,9 +1,9 @@
-const CACHE_NAME = "sautilink-shell-v45";
+const CACHE_NAME = "sautilink-shell-v46";
 const APP_SHELL = [
   "/",
   "/app/",
-  "/app/assets/app.css",
-  "/app/assets/app.js",
+  "/app/assets/app.css?v=20260909-home-loading",
+  "/app/assets/app.js?v=20260909-authsession4",
   "/app/assets/theme-init.js",
   "/manifest.json",
   "/logo.png",
