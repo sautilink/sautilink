@@ -1,0 +1,158 @@
+.post-edit-dialog {
+  width: min(560px, calc(100vw - 28px));
+  max-width: none;
+  padding: 0;
+  border: 1px solid var(--app-line);
+  border-radius: 18px;
+  background: var(--app-panel);
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+}
+
+.post-edit-dialog::backdrop {
+  background: rgba(0, 0, 0, .58);
+  backdrop-filter: blur(2px);
+}
+
+.post-edit-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.post-edit-header {
+  display: flex;
+  min-height: 60px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--app-line);
+}
+
+.post-edit-header h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 780;
+}
+
+.post-edit-close {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--app-text);
+  font-size: 23px;
+  cursor: pointer;
+}
+
+.post-edit-close:hover { background: var(--app-panel-soft); }
+
+.post-edit-content {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.post-edit-content textarea {
+  width: 100%;
+  min-height: 150px;
+  resize: vertical;
+  padding: 13px 14px;
+  border: 1px solid var(--app-line-strong);
+  border-radius: 12px;
+  outline: none;
+  background: var(--app-input);
+  color: var(--app-text);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.post-edit-content textarea:focus {
+  border-color: var(--app-accent-strong);
+}
+
+.post-edit-note,
+.post-edit-counter,
+.post-edit-message {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.post-edit-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.post-edit-message {
+  color: var(--app-bad);
+  font-weight: 650;
+}
+
+.post-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 12px 16px 16px;
+}
+
+.post-edit-cancel,
+.post-edit-save {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.post-edit-cancel {
+  border: 1px solid var(--app-line-strong);
+  background: transparent;
+  color: var(--app-text);
+}
+
+.post-edit-save {
+  border: 0;
+  background: var(--app-accent-strong);
+  color: #fff;
+}
+
+.post-edit-save:disabled { opacity: .45; cursor: not-allowed; }
+
+.sauti-edit {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--app-muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sauti-edit:hover { color: var(--app-text); }
+
+.sauti-edited-label {
+  color: var(--app-muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+@media (max-width: 680px) {
+  .post-edit-dialog {
+    inset: auto 0 0;
+    width: 100vw;
+    max-height: 88dvh;
+    margin: auto 0 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .post-edit-content textarea { min-height: 180px; }
+}
