@@ -1,5 +1,5 @@
 const SOCIAL_OAUTH_REDIRECT = 'https://sautilink.com/home';
-const SOCIAL_OAUTH_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20260908-social3';
+const SOCIAL_OAUTH_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20260909-social4';
 
 let client = null;
 let installed = false;
@@ -15,7 +15,7 @@ function setMessage(node, message, type = 'error') {
 
 function googleIconMarkup() {
   return `
-    <svg class="social-oauth-google-icon" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false">
+    <svg class="social-oauth-brand-icon social-oauth-google-icon" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false">
       <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.39a4.6 4.6 0 0 1-2 3.02v2.53h3.24c1.9-1.75 2.97-4.33 2.97-7.39Z"></path>
       <path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.38l-3.24-2.53c-.9.6-2.04.96-3.38.96-2.6 0-4.8-1.76-5.6-4.12H3.05v2.6A10 10 0 0 0 12 22Z"></path>
       <path fill="#FBBC05" d="M6.4 13.93A6 6 0 0 1 6.08 12c0-.67.12-1.32.32-1.93v-2.6H3.05A10 10 0 0 0 2 12c0 1.61.38 3.14 1.05 4.53l3.35-2.6Z"></path>
@@ -25,19 +25,19 @@ function googleIconMarkup() {
 
 function facebookIconMarkup() {
   return `
-    <svg class="social-oauth-facebook-icon" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false">
-      <circle cx="12" cy="12" r="11" fill="#1877F2"></circle>
-      <path fill="#ffffff" d="M13.57 20v-7h2.35l.35-2.73h-2.7V8.53c0-.79.22-1.33 1.35-1.33h1.44V4.76c-.25-.03-1.1-.11-2.1-.11-2.08 0-3.51 1.27-3.51 3.61v2.01H8.4V13h2.35v7h2.82Z"></path>
+    <svg class="social-oauth-brand-icon social-oauth-facebook-icon" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="12" fill="#1877F2"></circle>
+      <path fill="#ffffff" d="M13.64 20.5v-7.74h2.6l.39-3.02h-2.99V7.82c0-.88.25-1.47 1.5-1.47h1.6V3.64c-.28-.04-1.23-.12-2.34-.12-2.31 0-3.9 1.41-3.9 4.01v2.21H7.88v3.02h2.62v7.74h3.14Z"></path>
     </svg>`;
 }
 
 function microsoftIconMarkup() {
   return `
-    <svg class="social-oauth-microsoft-icon" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false">
-      <path fill="#F25022" d="M2 2h9.5v9.5H2z"></path>
-      <path fill="#7FBA00" d="M12.5 2H22v9.5h-9.5z"></path>
-      <path fill="#00A4EF" d="M2 12.5h9.5V22H2z"></path>
-      <path fill="#FFB900" d="M12.5 12.5H22V22h-9.5z"></path>
+    <svg class="social-oauth-brand-icon social-oauth-microsoft-icon" viewBox="0 0 21 21" width="19" height="19" aria-hidden="true" focusable="false">
+      <rect x="0" y="0" width="10" height="10" fill="#F25022"></rect>
+      <rect x="11" y="0" width="10" height="10" fill="#7FBA00"></rect>
+      <rect x="0" y="11" width="10" height="10" fill="#00A4EF"></rect>
+      <rect x="11" y="11" width="10" height="10" fill="#FFB900"></rect>
     </svg>`;
 }
 
