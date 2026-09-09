@@ -73,3 +73,16 @@ test('Sitemap reflects the current public pages and update date', () => {
     assert.match(xml, new RegExp(`https:\\/\\/sautilink\\.com${path.replace('/', '\\/')}`));
   }
 });
+
+test('Template-style public micro-labels are removed from Help and stripped from other important pages at runtime', () => {
+  const help = read('help.html');
+  assert.doesNotMatch(help, /class="eyebrow"/);
+  assert.doesNotMatch(help, /class="section-label"/);
+
+  const legalRuntime = read('assets/legal.js');
+  assert.match(legalRuntime, /querySelectorAll\('\.eyebrow, \.section-label, \.section-kicker'\)/);
+
+  for (const path of ['about.html', 'contact.html', 'account-deletion.html', 'privacy.html', 'terms.html', 'sautinote.html']) {
+    assert.match(read(path), /\/assets\/legal\.js/);
+  }
+});
