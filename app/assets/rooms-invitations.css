@@ -1,0 +1,167 @@
+.room-invite-panel,
+.room-incoming-invitations {
+  margin-top: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--app-line);
+  border-radius: 16px;
+  background: var(--app-panel);
+}
+
+.room-invite-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, .85fr);
+  align-items: center;
+  gap: 16px;
+}
+
+.room-invite-panel h3,
+.room-invitation-heading h3 {
+  margin: 2px 0 0;
+  color: var(--app-text);
+  font-size: 14px;
+}
+
+.room-invite-panel > div > p:last-child {
+  margin: 5px 0 0;
+  color: var(--app-muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.room-invite-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.room-invite-form .secondary-action {
+  min-width: 82px;
+}
+
+.room-invite-input,
+.room-username-input {
+  display: flex;
+  min-width: 0;
+  min-height: 42px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--app-line-strong);
+  border-radius: 12px;
+  background: var(--app-input);
+}
+
+.room-invite-input > span,
+.room-username-input > span {
+  flex: 0 0 auto;
+  padding-left: 11px;
+  color: var(--app-muted);
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.room-invite-input input,
+.room-username-input input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 11px 0 5px !important;
+  border: 0 !important;
+  outline: 0;
+  background: transparent !important;
+  color: var(--app-text);
+  box-shadow: none !important;
+}
+
+.room-invite-panel > .room-admin-message {
+  grid-column: 1 / -1;
+}
+
+.room-invitation-heading,
+.room-invitation-row,
+.room-invitation-row > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.room-invitation-heading {
+  justify-content: space-between;
+  padding-bottom: 10px;
+}
+
+.room-invitation-heading > span {
+  display: grid;
+  min-width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--app-line);
+  border-radius: 999px;
+  background: var(--app-panel-soft);
+  color: var(--app-muted);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.room-invitation-row {
+  justify-content: space-between;
+  min-height: 64px;
+  padding: 10px 0;
+  border-top: 1px solid var(--app-line);
+}
+
+.room-invitation-row > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.room-invitation-row strong {
+  overflow: hidden;
+  color: var(--app-text);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-invitation-row span {
+  color: var(--app-muted);
+  font-size: 9px;
+}
+
+.room-invitation-row .form-submit,
+.room-invitation-row .secondary-action {
+  width: auto;
+  min-width: 76px;
+  min-height: 36px;
+  margin: 0;
+}
+
+@media (max-width: 680px) {
+  .room-invite-panel {
+    grid-template-columns: 1fr;
+    margin-top: 10px;
+    padding: 14px;
+  }
+
+  .room-invite-form {
+    grid-template-columns: 1fr;
+  }
+
+  .room-invite-form .secondary-action {
+    width: 100%;
+  }
+
+  .room-invitation-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .room-invitation-row > div:last-child {
+    width: 100%;
+  }
+
+  .room-invitation-row .form-submit,
+  .room-invitation-row .secondary-action {
+    flex: 1;
+  }
+}
