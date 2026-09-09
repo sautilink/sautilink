@@ -31,8 +31,8 @@ const textExtensions = new Set(['.html', '.js', '.css', '.json', '.txt', '.xml',
 const secretPatterns = [
   { label: 'Supabase secret key', pattern: /sb_secret_[A-Za-z0-9._-]{20,}/ },
   { label: 'private key', pattern: /-----BEGIN (?:RSA )?PRIVATE KEY-----/ },
-  { label: 'service-role environment assignment', pattern: /(?:SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY)\\s*[:=]\\s*['"][^'"]{16,}/ },
-  { label: 'Cloudflare token environment assignment', pattern: /CLOUDFLARE_API_TOKEN\\s*[:=]\\s*['"][^'"]{16,}/ },
+  { label: 'service-role environment assignment', pattern: /(?:SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY)\s*[:=]\s*['"][^'"]{16,}/ },
+  { label: 'Cloudflare token environment assignment', pattern: /CLOUDFLARE_API_TOKEN\s*[:=]\s*['"][^'"]{16,}/ },
 ];
 
 async function walk(directory) {
@@ -120,7 +120,7 @@ if (/Private preview|Phase 31|Phase 27|Foundation in progress/i.test(appHtml)) {
   throw new Error('development presentation copy leaked into staged app shell');
 }
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('staged theme bootstrap is missing');
-if (!appHtml.includes('app.js?v=20260909-authsession4')) throw new Error('staged app JS cache marker is stale');
+if (!appHtml.includes('app.js?v=20260910-loginboot1')) throw new Error('staged app JS cache marker is stale');
 if (!appHtml.includes('app.css?v=20260909-home-loading')) throw new Error('staged app CSS cache marker is stale');
 
 console.log(`Verified ${files.length} staged files: allowlist intact, no source maps or sensitive markers.`);
