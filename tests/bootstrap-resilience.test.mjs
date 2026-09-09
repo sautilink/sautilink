@@ -23,3 +23,16 @@ test('normal and production builders apply bootstrap resilience transform', asyn
     assert.match(builder, /transformBootstrapResilienceSource/);
   }
 });
+
+test('startup hotfix rotates both browser and service-worker cache identities', async () => {
+  const [html, serviceWorker] = await Promise.all([
+    read('app/index.html'),
+    read('sw.js'),
+  ]);
+
+  assert.match(html, /app\.css\?v=20260909-home-loading/);
+  assert.match(html, /app\.js\?v=20260909-home-loading/);
+  assert.match(serviceWorker, /sautilink-shell-v45/);
+  assert.doesNotMatch(html, /app\.(?:css|js)\?v=20260906-optimistic/);
+  assert.doesNotMatch(serviceWorker, /sautilink-shell-v44/);
+});
