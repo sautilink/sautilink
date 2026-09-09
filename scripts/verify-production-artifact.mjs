@@ -57,6 +57,13 @@ for (const [label, value] of [['app html', appHtml], ['app js', appJs]]) {
   if (!value.includes(PRODUCTION_REF)) throw new Error(`${label} does not target production Supabase`);
 }
 if (!appJs.includes(PRODUCTION_KEY)) throw new Error('browser bundle does not contain the production publishable key');
+for (const marker of [
+  'Technology & AI',
+  'rooms-invitations.css',
+  'The Room invitation could not be updated',
+]) {
+  if (!appJs.includes(marker)) throw new Error(`production browser bundle missing Rooms runtime marker: ${marker}`);
+}
 if (appHtml.includes('Private preview') || appHtml.includes('Phase 31')) throw new Error('production app still contains staging/phase UI copy');
 if (/name="robots"[^>]+noindex/i.test(appHtml)) throw new Error('production app must not carry staging noindex meta');
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('production theme bootstrap is missing');
@@ -77,6 +84,8 @@ for (const marker of [
   'sautilink.com/signup*',
   'sautilink.com/home*',
   'sautilink.com/messages*',
+  'sautilink.com/rooms*',
+  'www.sautilink.com/rooms*',
   'sautilink.com/sautify*',
   'sautilink.com/u/*',
   'sautilink.com/post/*',
@@ -91,4 +100,4 @@ if (/"pattern"\s*:\s*"(?:www\.)?sautilink\.com\/\*"/.test(config)) {
   throw new Error('production Worker must not intercept the marketing/legal site root');
 }
 
-console.log(`Verified ${files.length} production artifact files: production DB isolated, clean social routes present, root site preserved, no secrets/source maps.`);
+console.log(`Verified ${files.length} production artifact files: production DB isolated, clean social routes present, Rooms runtime present, root site preserved, no secrets/source maps.`);
