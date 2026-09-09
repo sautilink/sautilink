@@ -2,7 +2,7 @@ const CAPTION_SELECTOR = '.sauti-card-body, .sauti-caption-text';
 const PROFILE_BIO_SELECTOR = '#profile-bio';
 const ENTITY_SELECTOR = `${CAPTION_SELECTOR}, ${PROFILE_BIO_SELECTOR}`;
 const ENTITY_STYLESHEET_ID = 'sautilink-caption-entities-style';
-const ENTITY_STYLESHEET_HREF = '/app/assets/caption-entities.css?v=20260906-bio1';
+const ENTITY_STYLESHEET_HREF = '/app/assets/caption-entities.css?v=20260909-theme1';
 const ENTITY_ATTR = 'data-caption-entity';
 const ENTITY_CANDIDATE_RE = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+|@[a-z0-9][a-z0-9._]{2,29}|#[\p{L}\p{N}_]{1,64})/giu;
 

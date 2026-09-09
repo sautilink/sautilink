@@ -36,3 +36,130 @@
   outline-offset: 2px;
   border-radius: 3px;
 }
+
+/* Theme coherence: legacy Room discussion and threaded-reply surfaces must
+   follow the active app palette instead of carrying fixed dark colours. */
+.circle-stream {
+  background: var(--app-panel);
+  color: var(--app-text);
+}
+
+.circle-stream-heading,
+.circle-sauti-composer {
+  background: var(--app-panel);
+  color: var(--app-text);
+}
+
+.circle-stream-heading h3,
+.circle-stream-locked h3 {
+  color: var(--app-text);
+}
+
+.circle-stream-heading > span {
+  border-color: var(--app-line-strong);
+  background: var(--app-panel-soft);
+  color: var(--app-muted);
+}
+
+.circle-sauti-composer textarea {
+  border-color: var(--app-line-strong);
+  background: var(--app-input);
+  color: var(--app-text);
+}
+
+.circle-sauti-composer textarea::placeholder,
+.circle-sauti-meta,
+.circle-sauti-actions > span,
+.circle-sauti-controls,
+.circle-stream-locked > p:last-child {
+  color: var(--app-muted);
+}
+
+.circle-sauti-meta b {
+  color: var(--app-text);
+}
+
+.circle-sauti-controls > label {
+  border-color: var(--app-line-strong);
+  background: var(--app-panel-soft);
+  color: var(--app-muted);
+}
+
+.circle-sauti-controls select {
+  color: var(--app-text);
+}
+
+.circle-sauti-controls option {
+  background: var(--app-panel);
+  color: var(--app-text);
+}
+
+.conversation-surface {
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+.conversation-toolbar,
+.conversation-root-card,
+.conversation-reply-form {
+  background: var(--app-panel);
+  color: var(--app-text);
+}
+
+.conversation-toolbar h2,
+.conversation-reply-context strong,
+.conversation-thread-heading h3 {
+  color: var(--app-text);
+}
+
+.conversation-sort,
+.conversation-reply-context span,
+.conversation-reply-meta,
+.conversation-reply-actions > span,
+.conversation-thread-heading > span {
+  color: var(--app-muted);
+}
+
+.conversation-sort select,
+.conversation-reply-form textarea {
+  border-color: var(--app-line-strong);
+  background: var(--app-input);
+  color: var(--app-text);
+}
+
+.conversation-sort option {
+  background: var(--app-panel);
+  color: var(--app-text);
+}
+
+.conversation-reply-form textarea::placeholder {
+  color: var(--app-muted);
+}
+
+.conversation-reply-meta b {
+  color: var(--app-text);
+}
+
+.thread-sauti {
+  border-left-color: var(--app-line);
+}
+
+.thread-sauti::before {
+  border-top-color: var(--app-line-strong);
+}
+
+.thread-sauti.thread-focused {
+  background: var(--app-panel-soft);
+  box-shadow: inset 3px 0 0 var(--app-accent);
+}
+
+.thread-continue {
+  border-color: var(--app-line-strong);
+  background: var(--app-panel-soft);
+  color: var(--app-text);
+}
+
+.thread-continue:hover {
+  background: var(--app-elevated);
+  color: var(--app-text);
+}
