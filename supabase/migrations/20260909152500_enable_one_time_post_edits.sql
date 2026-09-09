@@ -101,7 +101,7 @@ revoke all on function public.edit_social_post_once(uuid, text) from public, ano
 grant execute on function public.edit_social_post_once(uuid, text) to authenticated, service_role;
 
 comment on column public.social_posts.edited_at is
-  'Timestamp of the author\'s single permitted text edit. NULL until edited.';
+  'Timestamp of the author''s single permitted text edit. NULL until edited.';
 comment on column public.social_posts.edit_count is
   'Author text-edit counter. Contract permits at most one edit per post.';
 comment on function public.edit_social_post_once(uuid, text) is
