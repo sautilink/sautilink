@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transformBootstrapResilienceSource } from './bootstrap-resilience-source-transform.mjs';
+import { transformMemberBootstrapResilienceSource } from './member-bootstrap-resilience-source-transform.mjs';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
 import { transformVideoPlayerSource } from './video-player-source-transform.mjs';
@@ -10,15 +11,18 @@ import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const appSourcePath = resolve(projectRoot, 'src/app.js');
-const appSource = transformBootstrapResilienceSource(
+const appSource = transformMemberBootstrapResilienceSource(
   appSourcePath,
-  transformWhatsAppOtpSource(
+  transformBootstrapResilienceSource(
     appSourcePath,
-    transformVideoPlayerSource(
+    transformWhatsAppOtpSource(
       appSourcePath,
-      transformMentionNotificationSource(
+      transformVideoPlayerSource(
         appSourcePath,
-        transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
+        transformMentionNotificationSource(
+          appSourcePath,
+          transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
+        ),
       ),
     ),
   ),
