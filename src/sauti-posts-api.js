@@ -232,6 +232,64 @@ function postIdFromPath(pathname) {
   return match?.[1]?.toLowerCase() || '';
 }
 
+async function editSauti(request, postId) {
+  const session = await authenticate(request);
+  if (!session) return apiError(401, 'AUTH_REQUIRED', 'Sign in before editing a post.');
+
+  const contentLength = Number(request.headers.get('Content-Length') || '0');
+  if (contentLength > 4096) return apiError(413, 'BODY_TOO_LARGE', 'This edit request is too large.');
+
+  const payload = await request.json().catch(() => null);
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return apiError(400, 'INVALID_EDIT', 'Enter the updated post text.');
+  }
+  const keys = Object.keys(payload);
+  if (keys.length !== 1 || keys[0] !== 'body') {
+    return apiError(400, 'EDIT_TEXT_ONLY', 'Only the post text can be edited. Attached media and other post settings stay unchanged.');
+  }
+
+  const body = normalizeBody(payload.body);
+  if (body.length > 500) return apiError(400, 'BODY_TOO_LONG', 'Post text must be 500 characters or fewer.');
+
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/edit_social_post_once`, {
+    method: 'POST',
+    headers: {
+      ...supabaseHeaders(session.auth),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ p_post_id: postId, p_body: body }),
+  });
+
+  const result = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = String(result?.message || result?.details || result?.hint || '');
+    if (detail.includes('POST_ALREADY_EDITED')) {
+      return apiError(409, 'POST_ALREADY_EDITED', 'This post has already used its one edit.');
+    }
+    if (detail.includes('POST_EDIT_BODY_TOO_LONG')) {
+      return apiError(400, 'BODY_TOO_LONG', 'Post text must be 500 characters or fewer.');
+    }
+    if (detail.includes('POST_EDIT_BODY_REQUIRED')) {
+      return apiError(400, 'BODY_REQUIRED', 'This post needs text because it has no attached media or quoted post.');
+    }
+    if (detail.includes('POST_EDIT_MENTION_REQUIRED')) {
+      return apiError(400, 'MENTION_REQUIRED', 'Keep at least one mentioned SautiLink username because replies are limited to mentioned people.');
+    }
+    if (detail.includes('POST_EDIT_AUTH_REQUIRED')) {
+      return apiError(401, 'AUTH_REQUIRED', 'Sign in before editing a post.');
+    }
+    if (detail.includes('POST_EDIT_UNAVAILABLE')) {
+      return apiError(404, 'POST_EDIT_UNAVAILABLE', 'This post cannot be edited by this account.');
+    }
+    return apiError(409, 'POST_EDIT_FAILED', 'This post could not be edited.');
+  }
+
+  const rows = Array.isArray(result) ? result : [];
+  const post = rows[0] || null;
+  if (!post?.id) return apiError(409, 'POST_EDIT_FAILED', 'This post could not be edited.');
+  return json(200, { ok: true, data: { post } });
+}
+
 async function deleteSauti(request, env, postId) {
   const session = await authenticate(request);
   if (!session) return apiError(401, 'AUTH_REQUIRED', 'Sign in before deleting a post.');
@@ -292,6 +350,9 @@ export async function handleSautiRequest(request, env) {
   }
 
   const postId = postIdFromPath(url.pathname);
+  if (postId && request.method === 'PATCH') {
+    return editSauti(request, postId);
+  }
   if (postId && request.method === 'DELETE') {
     return deleteSauti(request, env, postId);
   }
