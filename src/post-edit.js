@@ -129,7 +129,8 @@ function postEditDialog() {
 }
 
 function postEditCards(postId) {
-  return [...document.querySelectorAll(`.sauti-card[data-post-id="${CSS.escape(postId)}"], .profile-activity-card[data-post-id="${CSS.escape(postId)}"]`)]);
+  const escaped = CSS.escape(postId);
+  return [...document.querySelectorAll(`.sauti-card[data-post-id="${escaped}"], .profile-activity-card[data-post-id="${escaped}"]`)];
 }
 
 function postEditBodyFromCard(card) {
