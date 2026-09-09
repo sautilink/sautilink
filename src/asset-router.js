@@ -1,4 +1,5 @@
 import { handleProfileMediaRequest } from './profile-media-api.js';
+import { handleRoomMediaRequest } from './room-media-api.js';
 import { handleSautiRequest } from './sauti-posts-api.js';
 import { handleSautiMediaRequest, inspectMp4Bytes } from './sauti-media-api.js';
 import { handlePollRequest } from './polls-api.js';
@@ -17,15 +18,15 @@ const MODERATION_ROUTE = /^\/app\/moderation\/?$/;
 const SETTINGS_ROUTE = /^\/app\/settings\/?$/;
 const SAUTI_ROUTE = /^\/app\/sauti\/[0-9a-f-]{36}\/?$/;
 const MESSAGE_ROUTE = /^\/app\/messages(?:\/[0-9a-f-]{36})?\/?$/;
-// Sautify is canonical; keep the legacy Circles route readable so shared links do not break.
-const CIRCLE_ROUTE = /^\/app\/(?:sautify|circles)(?:\/[^/]+)?\/?$/;
+// Rooms is canonical; historic Sautify/Circles links remain readable so old shared links do not break.
+const ROOM_ROUTE = /^\/app\/(?:rooms|sautify|circles)(?:\/[^/]+)?\/?$/;
 const CLEAN_PROFILE_ROUTE = /^\/u\/[^/]+\/?$/;
 const CLEAN_MEMBER_ROUTE = /^\/(?:home|discover|saved|appeals|moderation|settings|notifications)\/?$/;
 const CLEAN_AUTH_ROUTE = /^\/(?:login|signup)\/?$/;
 const CLEAN_POST_ROUTE = /^\/post\/[0-9a-f-]{36}\/?$/;
 const CLEAN_MESSAGE_ROUTE = /^\/messages(?:\/[0-9a-f-]{36})?\/?$/;
-const CLEAN_SAUTIFY_ROUTE = /^\/sautify(?:\/[^/]+)?\/?$/;
-const CLEAN_ROUTE_PREFIX = /^\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications|messages|sautify)/;
+const CLEAN_ROOM_ROUTE = /^\/(?:rooms|sautify)(?:\/[^/]+)?\/?$/;
+const CLEAN_ROUTE_PREFIX = /^\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications|messages|rooms|sautify)/;
 const SAUTI_MEDIA_UPLOAD_ROUTE = /^\/api\/sauti-media\/upload\/([0-9a-f-]{36})$/i;
 const SHORT_VIDEO_DURATION_MS = 30_000;
 
@@ -212,6 +213,12 @@ async function routeRequest(request, env, url) {
     return new Response('Not found', { status: 404 });
   }
 
+  if (url.pathname.startsWith('/api/room-media/')) {
+    const roomMediaResponse = await handleRoomMediaRequest(request, env);
+    if (roomMediaResponse) return roomMediaResponse;
+    return new Response('Not found', { status: 404 });
+  }
+
   if (url.pathname.startsWith('/api/sauti-media/')) {
     const boundedVideoResponse = await handleBoundedMediaUpload(request, env, url);
     if (boundedVideoResponse) return boundedVideoResponse;
@@ -274,13 +281,13 @@ async function routeRequest(request, env, url) {
       || SETTINGS_ROUTE.test(url.pathname)
       || SAUTI_ROUTE.test(url.pathname)
       || MESSAGE_ROUTE.test(url.pathname)
-      || CIRCLE_ROUTE.test(url.pathname)
+      || ROOM_ROUTE.test(url.pathname)
       || CLEAN_PROFILE_ROUTE.test(url.pathname)
       || CLEAN_MEMBER_ROUTE.test(url.pathname)
       || CLEAN_AUTH_ROUTE.test(url.pathname)
       || CLEAN_POST_ROUTE.test(url.pathname)
       || CLEAN_MESSAGE_ROUTE.test(url.pathname)
-      || CLEAN_SAUTIFY_ROUTE.test(url.pathname)
+      || CLEAN_ROOM_ROUTE.test(url.pathname)
     )
   ) {
     if (!env.ASSETS) return new Response('Not found', { status: 404 });

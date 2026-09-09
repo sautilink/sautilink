@@ -104,6 +104,8 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/professional-profile-category.css'));
   assert.ok(files.includes('app/assets/profile-activity.css'));
   assert.ok(files.includes('app/assets/profile-route-states.css'));
+  assert.ok(files.includes('app/assets/rooms.css'));
+  assert.ok(files.includes('app/assets/rooms-invitations.css'));
   assert.ok(files.includes('app/assets/verified-identity-controls.css'));
   assert.ok(files.includes('app/assets/theme-init.js'));
   assert.ok(files.includes('app/assets/verification/verified-team.png'));
@@ -138,87 +140,53 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('assets/brand/logo-compact.webp'));
   assert.ok(files.some((file) => /^preview\/app-shell\/assets\/index-.*\.js$/.test(file)));
   assert.ok(files.some((file) => /^preview\/app-shell\/assets\/index-.*\.css$/.test(file)));
-  assert.ok(files.every((file) => (
-    file === '_headers'
-      || file === '_redirects'
-      || file === 'sw.js'
-      || file === 'index.html'
-      || file === 'app/index.html'
-      || file === 'app/assets/app.css'
-      || file === 'app/assets/app.js'
-      || file === 'app/assets/caption-entities.css'
-      || file === 'app/assets/composer-formats.css'
-      || file === 'app/assets/guest-entry-gate.css'
-      || file === 'app/assets/mobile-nav-icon-style.css'
-      || file === 'app/assets/mobile-more-drawer.css'
-      || file === 'app/assets/post-media-carousel.css'
-      || file === 'app/assets/short-videos-feed.css'
-      || file === 'app/assets/sautilink-video-player.css'
-      || file === 'app/assets/professional-profile-category.css'
-      || file === 'app/assets/profile-activity.css'
-      || file === 'app/assets/profile-route-states.css'
-      || file === 'app/assets/verified-identity-controls.css'
-      || file === 'app/assets/theme-init.js'
-      || file === 'app/assets/verification/verified-team.png'
-      || file === 'app/assets/verification/verified-user-primary.png'
-      || file === 'app/assets/verification/verified-user-secondary.png'
-      || file === 'logo.png'
-      || file === 'assets/favicon.png'
-      || file === 'assets/brand/system.css'
-      || file === 'assets/development.css'
-      || file === 'assets/brand/logo-compact.webp'
-      || file.startsWith('assets/fonts/inter/')
-      || file.startsWith('preview/app-shell/')
-      || file.startsWith('preview/identity/')
-      || file.startsWith('preview/profiles/')
-      || file.startsWith('preview/share-stream/')
-      || file.startsWith('preview/media/')
-      || file.startsWith('preview/conversations/')
-      || file.startsWith('preview/trust-safety/')
-      || file.startsWith('preview/mvp/')
-      || file.startsWith('preview/messages/')
-      || file.startsWith('preview/settings/')
-      || file.startsWith('preview/backend-foundation/')
-  )), `unexpected staged file: ${files.find((file) => !(
-    file === '_headers'
-      || file === '_redirects'
-      || file === 'sw.js'
-      || file === 'index.html'
-      || file === 'app/index.html'
-      || file === 'app/assets/app.css'
-      || file === 'app/assets/app.js'
-      || file === 'app/assets/caption-entities.css'
-      || file === 'app/assets/composer-formats.css'
-      || file === 'app/assets/guest-entry-gate.css'
-      || file === 'app/assets/mobile-nav-icon-style.css'
-      || file === 'app/assets/mobile-more-drawer.css'
-      || file === 'app/assets/post-media-carousel.css'
-      || file === 'app/assets/short-videos-feed.css'
-      || file === 'app/assets/sautilink-video-player.css'
-      || file === 'app/assets/professional-profile-category.css'
-      || file === 'app/assets/profile-activity.css'
-      || file === 'app/assets/profile-route-states.css'
-      || file === 'app/assets/verified-identity-controls.css'
-      || file === 'app/assets/theme-init.js'
-      || file === 'app/assets/verification/verified-team.png'
-      || file === 'app/assets/verification/verified-user-primary.png'
-      || file === 'app/assets/verification/verified-user-secondary.png'
-      || file === 'logo.png'
-      || file === 'assets/favicon.png'
-      || file === 'assets/brand/system.css'
-      || file === 'assets/development.css'
-      || file === 'assets/brand/logo-compact.webp'
-      || file.startsWith('assets/fonts/inter/')
-      || file.startsWith('preview/app-shell/')
-      || file.startsWith('preview/identity/')
-      || file.startsWith('preview/profiles/')
-      || file.startsWith('preview/share-stream/')
-      || file.startsWith('preview/media/')
-      || file.startsWith('preview/conversations/')
-      || file.startsWith('preview/trust-safety/')
-      || file.startsWith('preview/mvp/')
-      || file.startsWith('preview/messages/')
-      || file.startsWith('preview/settings/')
-      || file.startsWith('preview/backend-foundation/')
-  ))}`);
+
+  const exactAllowed = new Set([
+    '_headers',
+    '_redirects',
+    'sw.js',
+    'index.html',
+    'app/index.html',
+    'app/assets/app.css',
+    'app/assets/app.js',
+    'app/assets/caption-entities.css',
+    'app/assets/composer-formats.css',
+    'app/assets/guest-entry-gate.css',
+    'app/assets/mobile-nav-icon-style.css',
+    'app/assets/mobile-more-drawer.css',
+    'app/assets/post-media-carousel.css',
+    'app/assets/short-videos-feed.css',
+    'app/assets/sautilink-video-player.css',
+    'app/assets/professional-profile-category.css',
+    'app/assets/profile-activity.css',
+    'app/assets/profile-route-states.css',
+    'app/assets/rooms.css',
+    'app/assets/rooms-invitations.css',
+    'app/assets/verified-identity-controls.css',
+    'app/assets/theme-init.js',
+    'app/assets/verification/verified-team.png',
+    'app/assets/verification/verified-user-primary.png',
+    'app/assets/verification/verified-user-secondary.png',
+    'logo.png',
+    'assets/favicon.png',
+    'assets/brand/system.css',
+    'assets/development.css',
+    'assets/brand/logo-compact.webp',
+  ]);
+  const allowedPrefixes = [
+    'assets/fonts/inter/',
+    'preview/app-shell/',
+    'preview/identity/',
+    'preview/profiles/',
+    'preview/share-stream/',
+    'preview/media/',
+    'preview/conversations/',
+    'preview/trust-safety/',
+    'preview/mvp/',
+    'preview/messages/',
+    'preview/settings/',
+    'preview/backend-foundation/',
+  ];
+  const unexpected = files.find((file) => !exactAllowed.has(file) && !allowedPrefixes.some((prefix) => file.startsWith(prefix)));
+  assert.equal(unexpected, undefined, `unexpected staged file: ${unexpected}`);
 });

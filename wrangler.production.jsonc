@@ -57,6 +57,10 @@
       "zone_name": "sautilink.com"
     },
     {
+      "pattern": "sautilink.com/rooms*",
+      "zone_name": "sautilink.com"
+    },
+    {
       "pattern": "sautilink.com/sautify*",
       "zone_name": "sautilink.com"
     },
@@ -118,6 +122,10 @@
     },
     {
       "pattern": "www.sautilink.com/messages*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.sautilink.com/rooms*",
       "zone_name": "sautilink.com"
     },
     {
