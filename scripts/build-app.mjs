@@ -58,6 +58,7 @@ await build({
     resolve(projectRoot, 'src/home-feed-author-profile-links.js'),
     resolve(projectRoot, 'src/messages-whatsapp-ui.js'),
     resolve(projectRoot, 'src/rooms-platform.js'),
+    resolve(projectRoot, 'src/room-post-images.js'),
     resolve(projectRoot, 'src/rooms-invitations-style.js'),
     resolve(projectRoot, 'src/rooms-invitations.js'),
     resolve(projectRoot, 'src/rooms-facebook-ui.js'),
