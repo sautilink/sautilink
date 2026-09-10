@@ -49,6 +49,7 @@ for (const file of files) {
 
 const appHtml = await readFile(resolve(siteRoot, 'app/index.html'), 'utf8');
 const appJs = await readFile(resolve(siteRoot, 'app/assets/app.js'), 'utf8');
+const messagesWhatsappCss = await readFile(resolve(siteRoot, 'app/assets/messages-whatsapp.css'), 'utf8');
 const roomsFacebookCss = await readFile(resolve(siteRoot, 'app/assets/rooms-facebook.css'), 'utf8');
 const router = await readFile(resolve(workerRoot, 'src/asset-router.js'), 'utf8');
 const headers = await readFile(resolve(siteRoot, '_headers'), 'utf8');
@@ -66,6 +67,24 @@ for (const marker of [
   'room-fb-detail-tabs',
 ]) {
   if (!appJs.includes(marker)) throw new Error(`production browser bundle missing Rooms runtime marker: ${marker}`);
+}
+for (const marker of [
+  'messages-whatsapp.css?v=20260910-wa1',
+  'whatsapp-inspired',
+  'Search or start new chat',
+  'Conversation options',
+]) {
+  if (!appJs.includes(marker)) throw new Error(`production browser bundle missing Messages UI marker: ${marker}`);
+}
+for (const marker of [
+  '.messages-whatsapp-ui',
+  '.messages-wa-shell',
+  '.messages-wa-sidebar',
+  '.messages-wa-stage',
+  '.dm-message.own',
+  '@media (max-width: 680px)',
+]) {
+  if (!messagesWhatsappCss.includes(marker)) throw new Error(`production Messages stylesheet missing UI marker: ${marker}`);
 }
 for (const marker of [
   'Member profile loading timed out.',
@@ -115,4 +134,4 @@ if (/"pattern"\s*:\s*"(?:www\.)?sautilink\.com\/\*"/.test(config)) {
   throw new Error('production Worker must not intercept the marketing/legal site root');
 }
 
-console.log(`Verified ${files.length} production artifact files: production DB isolated, resilient signed-in boot present, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);
+console.log(`Verified ${files.length} production artifact files: production DB isolated, resilient signed-in boot present, scoped Messages WhatsApp UI present, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);
