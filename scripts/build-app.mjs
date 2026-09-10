@@ -6,6 +6,7 @@ import { transformBootstrapResilienceSource } from './bootstrap-resilience-sourc
 import { transformMemberBootstrapResilienceSource } from './member-bootstrap-resilience-source-transform.mjs';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
+import { transformRoomsStartupIsolationSource } from './rooms-startup-isolation-source-transform.mjs';
 import { transformVideoPlayerSource } from './video-player-source-transform.mjs';
 import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs';
 
@@ -27,6 +28,16 @@ const appSource = transformMemberBootstrapResilienceSource(
     ),
   ),
 );
+
+const roomsStartupIsolationPlugin = {
+  name: 'rooms-startup-isolation',
+  setup(buildApi) {
+    buildApi.onLoad({ filter: /rooms-(?:platform|facebook-ui)\.js$/ }, async ({ path }) => ({
+      contents: transformRoomsStartupIsolationSource(path, await readFile(path, 'utf8')),
+      loader: 'js',
+    }));
+  },
+};
 
 await build({
   stdin: {
@@ -57,6 +68,7 @@ await build({
     resolve(projectRoot, 'src/whatsapp-otp-auth.js'),
     resolve(projectRoot, 'src/sautilink-video-player.js'),
   ],
+  plugins: [roomsStartupIsolationPlugin],
   outfile: resolve(projectRoot, 'app/assets/app.js'),
   bundle: true,
   minify: true,
