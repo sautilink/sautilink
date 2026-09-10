@@ -102,11 +102,13 @@ for (const marker of [
   'Member profile loading timed out.',
   'Session restoration timed out.',
   'AUTH_SESSION_BOOT_TIMEOUT',
-  'Your session opened, but your profile could not be loaded. Try again.',
-  'Home feed loading timed out.',
-  'STREAM_BOOT_TIMEOUT',
+  'sautilink.member.cache.v1:',
+  'Your session could not be confirmed. Please sign in again.',
 ]) {
   if (!appJs.includes(marker)) throw new Error(`production browser bundle missing signed-in bootstrap resilience marker: ${marker}`);
+}
+if (appJs.includes('Your session opened, but your profile could not be loaded. Try again.')) {
+  throw new Error('production browser bundle still treats a transient profile read as a signed-out session');
 }
 if (!roomsFacebookCss.includes('body.rooms-facebook-view')) throw new Error('production Rooms Groups-style stylesheet is missing its feature scope');
 if (!roomsFacebookCss.includes('room-fb-detail-aside')) throw new Error('production Rooms Groups-style detail layout is missing');
@@ -146,4 +148,4 @@ if (/"pattern"\s*:\s*"(?:www\.)?sautilink\.com\/\*"/.test(config)) {
   throw new Error('production Worker must not intercept the marketing/legal site root');
 }
 
-console.log(`Verified ${files.length} production artifact files: production DB isolated, CSP-safe X-style profile stylesheet present, resilient signed-in boot present, scoped Messages WhatsApp UI present, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);
+console.log(`Verified ${files.length} production artifact files: production DB isolated, CSP-safe X-style profile stylesheet present, transient read/session resilience present, scoped Messages WhatsApp UI present, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);

@@ -16,7 +16,7 @@ async function transformedApp() {
 
 test('signed-in bootstrap cannot wait forever on member profile reads', async () => {
   const app = await transformedApp();
-  assert.match(app, /const MEMBER_BOOT_TIMEOUT_MS = 6500/);
+  assert.match(app, /const MEMBER_BOOT_TIMEOUT_MS = 4500/);
   assert.match(app, /Member profile loading timed out\./);
   assert.match(app, /memberFallbackProfile/);
   assert.match(app, /refreshMemberProfileAfterFallback/);
