@@ -16,6 +16,7 @@ test('Phase 32 production artifact targets production Supabase and removes previ
   assert.match(bundle, /sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca/);
   assert.doesNotMatch(bundle, /sb_publishable_oTYKPMJoxN1b8YBmG-a5eQ_M75Kl6VF/);
   assert.match(bundle, /sautilink-profile-x-ui/);
+  assert.match(bundle, /profile-x-ui\.css\?v=20260910-csp1/);
   assert.doesNotMatch(html, /Private preview|Phase 31/);
   assert.doesNotMatch(html, /name="robots"[^>]+noindex/i);
   assert.match(html, /app\.css\?v=20260909-home-loading/);
@@ -61,6 +62,7 @@ test('Phase 32 production headers use production CSP without staging noindex', a
   const headers = await read('dist-production-site/_headers');
   assert.match(headers, /rggpyiterdbbugluejcs\.supabase\.co/);
   assert.match(headers, /media-src 'self' blob:/);
+  assert.match(headers, /style-src 'self'/);
   assert.match(headers, /frame-ancestors 'none'/);
   assert.doesNotMatch(headers, /X-Robots-Tag:\s*noindex/i);
   assert.doesNotMatch(headers, /bbrydwzlhweuqxpgbahu/);
@@ -101,7 +103,8 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   assert.match(buildScript, /PRODUCTION_URL/);
   assert.match(buildScript, /APP_JS_RELEASE = '20260910-profileui1'/);
   assert.match(verifyScript, /staging Supabase identity leaked into production artifact/);
-  assert.match(verifyScript, /production browser bundle missing X-style profile UI layer/);
+  assert.match(verifyScript, /production browser bundle missing X-style profile UI loader/);
+  assert.match(verifyScript, /profile-x-ui\.css\?v=20260910-csp1/);
   assert.match(serviceWorker, /sautilink-shell-v49/);
   assert.match(serviceWorker, /app\.js\?v=20260910-profileui1/);
 });
@@ -111,6 +114,7 @@ test('Phase 32 generated production files exist and no source map is emitted', a
     'dist-production-site/app/index.html',
     'dist-production-site/app/assets/app.js',
     'dist-production-site/app/assets/app.css',
+    'dist-production-site/app/assets/profile-x-ui.css',
     'dist-production-site/app/assets/theme-init.js',
     'dist-production-site/_headers',
     'dist-production-worker/src/asset-router.js',
