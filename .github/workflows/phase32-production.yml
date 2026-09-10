@@ -7,6 +7,7 @@ on:
       - "index.html"
       - "app/**"
       - "src/**"
+      - "sw.js"
       - "scripts/build-production-release.mjs"
       - "scripts/verify-production-artifact.mjs"
       - "tests/**"
@@ -20,6 +21,7 @@ on:
       - "index.html"
       - "app/**"
       - "src/**"
+      - "sw.js"
       - "scripts/build-production-release.mjs"
       - "scripts/verify-production-artifact.mjs"
       - "tests/**"
@@ -106,6 +108,7 @@ jobs:
           health_headers="$(mktemp)"
           app_body="$(mktemp)"
           app_headers="$(mktemp)"
+          app_js_body="$(mktemp)"
           login_body="$(mktemp)"
           signup_body="$(mktemp)"
           home_body="$(mktemp)"
@@ -124,6 +127,9 @@ jobs:
             app_code="$(curl -sS -D "$app_headers" -o "$app_body" -w '%{http_code}' \
               -H 'Cache-Control: no-cache' \
               "https://sautilink.com/app/?release=$GITHUB_RUN_ID-$attempt")"
+            app_js_code="$(curl -sS -o "$app_js_body" -w '%{http_code}' \
+              -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/app/assets/app.js?v=20260910-profileui1&release=$GITHUB_RUN_ID-$attempt")"
             www_app_code="$(curl -sS -L -o "$www_app_body" -w '%{http_code}' \
               -H 'Cache-Control: no-cache' \
               "https://www.sautilink.com/app/?release=$GITHUB_RUN_ID-$attempt")"
@@ -138,12 +144,13 @@ jobs:
             www_root_code="$(curl -sS -L -o "$www_root_body" -w '%{http_code}' -H 'Cache-Control: no-cache' \
               "https://www.sautilink.com/?release=$GITHUB_RUN_ID-$attempt")"
 
-            echo "health=$health_code app=$app_code login=$login_code signup=$signup_code home=$home_code www_app=$www_app_code root=$root_code www_root=$www_root_code"
+            echo "health=$health_code app=$app_code app_js=$app_js_code login=$login_code signup=$signup_code home=$home_code www_app=$www_app_code root=$root_code www_root=$www_root_code"
             cat "$health_body"
             echo
 
             if [ "$health_code" = "200" ] \
               && [ "$app_code" = "200" ] \
+              && [ "$app_js_code" = "200" ] \
               && [ "$www_app_code" = "200" ] \
               && [ "$login_code" = "200" ] \
               && [ "$signup_code" = "200" ] \
@@ -158,7 +165,8 @@ jobs:
               && grep -Fq 'id="settings-surface"' "$app_body" \
               && grep -Fq 'theme-init.js?v=20260904-account2' "$app_body" \
               && grep -Fq 'app.css?v=20260909-home-loading' "$app_body" \
-              && grep -Fq 'app.js?v=20260910-loginboot1' "$app_body" \
+              && grep -Fq 'app.js?v=20260910-profileui1' "$app_body" \
+              && grep -Fq 'sautilink-profile-x-ui' "$app_js_body" \
               && ! grep -Fq 'Private preview' "$app_body" \
               && ! grep -Fq 'Phase 31' "$app_body" \
               && grep -Fq 'id="settings-surface"' "$www_app_body" \
@@ -186,6 +194,7 @@ jobs:
             echo "--- health headers ---"; cat "$health_headers" || true
             echo "--- health body ---"; cat "$health_body" || true
             echo "--- app head ---"; head -c 1200 "$app_body" || true; echo
+            echo "--- app js marker scan ---"; grep -Fo 'sautilink-profile-x-ui' "$app_js_body" || true
             echo "--- root head ---"; head -c 1000 "$root_body" || true; echo
             echo "--- www root head ---"; head -c 1000 "$www_root_body" || true; echo
             exit 1
