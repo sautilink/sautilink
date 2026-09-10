@@ -65,3 +65,11 @@ test('non-critical member services are deferred so Home feed gets first network 
   assert.match(app, /function startDeferredMemberServices\(\)/);
   assert.match(app, /MEMBER_REFRESH_DELAY_MS = 700/);
 });
+
+test('production verifier rejects the old false-login behavior and requires the member cache marker', async () => {
+  const verifier = await read('scripts/verify-production-artifact.mjs');
+  assert.match(verifier, /sautilink\.member\.cache\.v1:/);
+  assert.match(verifier, /still treats a transient profile read as a signed-out session/);
+  assert.match(verifier, /Your session opened, but your profile could not be loaded\. Try again\./);
+  assert.doesNotMatch(verifier, /production browser bundle missing signed-in bootstrap resilience marker: \$\{marker\}[\s\S]*Home feed loading timed out/);
+});
