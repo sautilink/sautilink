@@ -172,6 +172,62 @@ function stagingRobotsResponse() {
   });
 }
 
+async function cleanAuthShellResponse(request, env, url) {
+  const mode = url.pathname.startsWith('/signup') ? 'signup' : 'login';
+  const shellUrl = new URL('/app/', url);
+  const response = await env.ASSETS.fetch(new Request(shellUrl, request));
+  if (request.method === 'HEAD' || !response.ok) return response;
+
+  const contentType = String(response.headers.get('Content-Type') || '').toLowerCase();
+  if (!contentType.includes('text/html')) return response;
+
+  let html = await response.text();
+  html = html
+    .replace(
+      '<body>',
+      `<body class="auth-entry" data-auth-mode="${mode}" data-sautilink-auth-entry="${mode}">`,
+    )
+    .replace(
+      '<section class="loading-view" id="loading-view" aria-live="polite">',
+      '<section class="loading-view" id="loading-view" aria-live="polite" hidden>',
+    )
+    .replace(
+      '<section class="auth-view" id="auth-view" hidden>',
+      '<section class="auth-view" id="auth-view">',
+    );
+
+  if (mode === 'signup') {
+    html = html
+      .replace(
+        'id="login-tab" data-auth-mode="login" aria-selected="true"',
+        'id="login-tab" data-auth-mode="login" aria-selected="false"',
+      )
+      .replace(
+        'id="signup-tab" data-auth-mode="signup" aria-selected="false"',
+        'id="signup-tab" data-auth-mode="signup" aria-selected="true"',
+      )
+      .replace(
+        '<section id="login-panel" role="tabpanel" aria-labelledby="login-tab">',
+        '<section id="login-panel" role="tabpanel" aria-labelledby="login-tab" hidden>',
+      )
+      .replace(
+        '<section id="signup-panel" role="tabpanel" aria-labelledby="signup-tab" hidden>',
+        '<section id="signup-panel" role="tabpanel" aria-labelledby="signup-tab">',
+      );
+  }
+
+  const headers = new Headers(response.headers);
+  headers.set('Cache-Control', 'no-store');
+  headers.delete('Content-Length');
+  headers.delete('ETag');
+
+  return new Response(html, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 function finalizeResponse(response, id, url) {
   const headers = new Headers(response.headers);
   headers.set('X-Request-ID', id);
@@ -269,6 +325,14 @@ async function routeRequest(request, env, url) {
   }
 
   if (
+    (request.method === 'GET' || request.method === 'HEAD')
+    && CLEAN_AUTH_ROUTE.test(url.pathname)
+  ) {
+    if (!env.ASSETS) return new Response('Not found', { status: 404 });
+    return cleanAuthShellResponse(request, env, url);
+  }
+
+  if (
     (request.method === 'GET' || request.method === 'HEAD') &&
     (
       PROFILE_ROUTE.test(url.pathname)
@@ -284,7 +348,6 @@ async function routeRequest(request, env, url) {
       || ROOM_ROUTE.test(url.pathname)
       || CLEAN_PROFILE_ROUTE.test(url.pathname)
       || CLEAN_MEMBER_ROUTE.test(url.pathname)
-      || CLEAN_AUTH_ROUTE.test(url.pathname)
       || CLEAN_POST_ROUTE.test(url.pathname)
       || CLEAN_MESSAGE_ROUTE.test(url.pathname)
       || CLEAN_ROOM_ROUTE.test(url.pathname)
