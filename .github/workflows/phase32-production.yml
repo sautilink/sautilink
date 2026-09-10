@@ -163,7 +163,9 @@ jobs:
               && ! grep -Fq 'Phase 31' "$app_body" \
               && grep -Fq 'id="settings-surface"' "$www_app_body" \
               && grep -Fq 'id="login-form"' "$login_body" \
+              && grep -Fq 'data-sautilink-auth-entry="login"' "$login_body" \
               && grep -Fq 'id="signup-form"' "$signup_body" \
+              && grep -Fq 'data-sautilink-auth-entry="signup"' "$signup_body" \
               && grep -Fq 'id="settings-surface"' "$home_body" \
               && grep -Fq 'data-sautilink-entry="account-choice"' "$root_body" \
               && grep -Fq 'Continue to SautiLink' "$root_body" \
