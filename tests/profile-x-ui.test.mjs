@@ -4,18 +4,31 @@ import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('profile X-style layer is isolated to the profile surface', async () => {
-  const source = await read('src/profile-x-ui.js');
+test('profile X-style layer is isolated to the profile surface and CSP-safe', async () => {
+  const [source, css] = await Promise.all([
+    read('src/profile-x-ui.js'),
+    read('app/assets/profile-x-ui.css'),
+  ]);
+
   assert.match(source, /document\.getElementById\('profile-surface'\)/);
-  assert.match(source, /\.profile-surface \.profile-card/);
-  assert.match(source, /\.profile-surface \.profile-banner/);
-  assert.match(source, /\.profile-surface \.profile-avatar-shell/);
-  assert.match(source, /\.profile-surface \.profile-social-stats/);
-  assert.match(source, /\.profile-surface \.profile-activity-tabs/);
-  assert.match(source, /\.profile-surface \.profile-activity-card/);
+  assert.match(source, /document\.createElement\('link'\)/);
+  assert.match(source, /link\.rel = 'stylesheet'/);
+  assert.match(source, /\/app\/assets\/profile-x-ui\.css\?v=20260910-csp1/);
   assert.match(source, /surface\.dataset\.profilePresentation = 'x-style'/);
+  assert.doesNotMatch(source, /document\.createElement\('style'\)/);
   assert.doesNotMatch(source, /MutationObserver/);
   assert.doesNotMatch(source, /supabase|fetch\(|localStorage|sessionStorage/i);
+
+  for (const selector of [
+    '.profile-surface .profile-card',
+    '.profile-surface .profile-banner',
+    '.profile-surface .profile-avatar-shell',
+    '.profile-surface .profile-social-stats',
+    '.profile-surface .profile-activity-tabs',
+    '.profile-surface .profile-activity-card',
+  ]) {
+    assert.match(css, new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
 });
 
 test('profile presentation preserves existing data/action contracts', async () => {
@@ -34,24 +47,24 @@ test('profile presentation preserves existing data/action contracts', async () =
   ]) {
     assert.match(shell, new RegExp(`id="${id}"`));
   }
-  assert.doesNotMatch(source, /innerHTML\s*=|remove\(|replaceChildren\(|appendChild\([^s]/);
+  assert.doesNotMatch(source, /innerHTML\s*=|remove\(|replaceChildren\(/);
 });
 
-test('regular and production builds include the profile presentation layer', async () => {
+test('regular and production builds include the profile presentation loader', async () => {
   const regular = await read('scripts/build-app.mjs');
   const production = await read('scripts/build-production-release.mjs');
   assert.match(regular, /src\/profile-x-ui\.js/);
   assert.match(production, /profile-x-ui\.js/);
 });
 
-test('profile presentation keeps desktop and mobile X-style hierarchy', async () => {
-  const source = await read('src/profile-x-ui.js');
-  assert.match(source, /height: 200px/);
-  assert.match(source, /width: 142px/);
-  assert.match(source, /border-radius: 999px/);
-  assert.match(source, /profile-social-stats > span:first-child \{ order: 2; \}/);
-  assert.match(source, /profile-activity-tab\[aria-selected="true"\]::after/);
-  assert.match(source, /@media \(max-width: 680px\)/);
-  assert.match(source, /width: 104px/);
-  assert.match(source, /@media \(max-width: 420px\)/);
+test('profile stylesheet keeps desktop and mobile X-style hierarchy', async () => {
+  const css = await read('app/assets/profile-x-ui.css');
+  assert.match(css, /height: 200px/);
+  assert.match(css, /width: 142px/);
+  assert.match(css, /border-radius: 999px/);
+  assert.match(css, /profile-social-stats > span:first-child \{ order: 2; \}/);
+  assert.match(css, /profile-activity-tab\[aria-selected="true"\]::after/);
+  assert.match(css, /@media \(max-width: 680px\)/);
+  assert.match(css, /width: 104px/);
+  assert.match(css, /@media \(max-width: 420px\)/);
 });
