@@ -13,7 +13,7 @@ test('profile X-style layer is isolated to the profile surface', async () => {
   assert.match(source, /\.profile-surface \.profile-social-stats/);
   assert.match(source, /\.profile-surface \.profile-activity-tabs/);
   assert.match(source, /\.profile-surface \.profile-activity-card/);
-  assert.match(source, /data\.profilePresentation = 'x-style'/);
+  assert.match(source, /surface\.dataset\.profilePresentation = 'x-style'/);
   assert.doesNotMatch(source, /MutationObserver/);
   assert.doesNotMatch(source, /supabase|fetch\(|localStorage|sessionStorage/i);
 });
