@@ -15,10 +15,11 @@ test('Phase 32 production artifact targets production Supabase and removes previ
   }
   assert.match(bundle, /sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca/);
   assert.doesNotMatch(bundle, /sb_publishable_oTYKPMJoxN1b8YBmG-a5eQ_M75Kl6VF/);
+  assert.match(bundle, /sautilink-profile-x-ui/);
   assert.doesNotMatch(html, /Private preview|Phase 31/);
   assert.doesNotMatch(html, /name="robots"[^>]+noindex/i);
   assert.match(html, /app\.css\?v=20260909-home-loading/);
-  assert.match(html, /app\.js\?v=20260910-loginboot1/);
+  assert.match(html, /app\.js\?v=20260910-profileui1/);
   assert.match(html, /theme-init\.js\?v=20260904-account2/);
   assert.match(html, /\/logo\.png/);
   assert.doesNotMatch(html, /logo-compact\.webp/);
@@ -70,6 +71,7 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   const workflow = await read('.github/workflows/phase32-production.yml');
   const buildScript = await read('scripts/build-production-release.mjs');
   const verifyScript = await read('scripts/verify-production-artifact.mjs');
+  const serviceWorker = await read('sw.js');
 
   assert.equal(pkg.scripts['build:production'], 'node scripts/build-production-release.mjs');
   assert.equal(pkg.scripts['verify:production-artifact'], 'node scripts/verify-production-artifact.mjs');
@@ -90,12 +92,18 @@ test('Phase 32 production build and verifier are permanent repository gates', as
     'https://sautilink.com/login',
     'https://sautilink.com/signup',
     'https://sautilink.com/home',
+    'app.js?v=20260910-profileui1',
+    'sautilink-profile-x-ui',
   ]) assert.ok(workflow.includes(marker), `production workflow missing ${marker}`);
 
   assert.match(buildScript, /dist-production-worker/);
   assert.match(buildScript, /dist-production-site/);
   assert.match(buildScript, /PRODUCTION_URL/);
+  assert.match(buildScript, /APP_JS_RELEASE = '20260910-profileui1'/);
   assert.match(verifyScript, /staging Supabase identity leaked into production artifact/);
+  assert.match(verifyScript, /production browser bundle missing X-style profile UI layer/);
+  assert.match(serviceWorker, /sautilink-shell-v49/);
+  assert.match(serviceWorker, /app\.js\?v=20260910-profileui1/);
 });
 
 test('Phase 32 generated production files exist and no source map is emitted', async () => {
