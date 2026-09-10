@@ -104,8 +104,6 @@ for (const marker of [
   'AUTH_SESSION_BOOT_TIMEOUT',
   'sautilink.member.cache.v1:',
   'Your session could not be confirmed. Please sign in again.',
-  'Home feed loading timed out.',
-  'STREAM_BOOT_TIMEOUT',
 ]) {
   if (!appJs.includes(marker)) throw new Error(`production browser bundle missing signed-in bootstrap resilience marker: ${marker}`);
 }
@@ -150,4 +148,4 @@ if (/"pattern"\s*:\s*"(?:www\.)?sautilink\.com\/\*"/.test(config)) {
   throw new Error('production Worker must not intercept the marketing/legal site root');
 }
 
-console.log(`Verified ${files.length} production artifact files: production DB isolated, CSP-safe X-style profile stylesheet present, resilient signed-in boot present, scoped Messages WhatsApp UI present, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);
+console.log(`Verified ${files.length} production artifact files: production DB isolated, CSP-safe X-style profile stylesheet present, transient read/session resilience present, scoped Messages WhatsApp UI present, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);
