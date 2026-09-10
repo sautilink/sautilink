@@ -4,24 +4,28 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - "android-version.json"
       - "capacitor.config.json"
       - ".github/workflows/android-apk.yml"
       - "logo.png"
       - "app/**"
       - "src/**"
       - "scripts/build-production-release.mjs"
+      - "scripts/configure-android-release.mjs"
       - "package.json"
       - "package-lock.json"
   push:
     branches:
       - main
     paths:
+      - "android-version.json"
       - "capacitor.config.json"
       - ".github/workflows/android-apk.yml"
       - "logo.png"
       - "app/**"
       - "src/**"
       - "scripts/build-production-release.mjs"
+      - "scripts/configure-android-release.mjs"
       - "package.json"
       - "package-lock.json"
 
@@ -29,10 +33,10 @@ permissions:
   contents: write
 
 jobs:
-  build-android-beta:
-    name: Build Android beta APK
+  build-android:
+    name: Build Android app
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
 
     steps:
       - name: Check out repository
@@ -49,6 +53,18 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+
+      - name: Read Android version
+        shell: bash
+        run: |
+          node - <<'NODE' >> "$GITHUB_ENV"
+          const fs = require('fs');
+          const value = JSON.parse(fs.readFileSync('android-version.json', 'utf8'));
+          if (!Number.isInteger(value.versionCode) || value.versionCode < 1) throw new Error('Invalid Android versionCode');
+          if (!/^[0-9A-Za-z._-]+$/.test(String(value.versionName || ''))) throw new Error('Invalid Android versionName');
+          console.log(`ANDROID_VERSION_CODE=${value.versionCode}`);
+          console.log(`ANDROID_VERSION_NAME=${value.versionName}`);
+          NODE
 
       - name: Install pinned web dependencies
         run: npm ci
@@ -68,60 +84,190 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Apply SautiLink launcher icon
+      - name: Apply safe-zone SautiLink launcher icons
+        shell: bash
         run: |
           sudo apt-get update -y
           sudo apt-get install -y imagemagick
-          declare -A sizes=(
+
+          declare -A legacy_sizes=(
             [mdpi]=48
             [hdpi]=72
             [xhdpi]=96
             [xxhdpi]=144
             [xxxhdpi]=192
           )
-          for density in "${!sizes[@]}"; do
+          declare -A adaptive_sizes=(
+            [mdpi]=108
+            [hdpi]=162
+            [xhdpi]=216
+            [xxhdpi]=324
+            [xxxhdpi]=432
+          )
+
+          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            legacy="${legacy_sizes[$density]}"
+            adaptive="${adaptive_sizes[$density]}"
+            legacy_safe=$((legacy * 78 / 100))
+            adaptive_safe=$((adaptive * 64 / 100))
             target="android/app/src/main/res/mipmap-${density}"
             mkdir -p "$target"
-            convert logo.png -background none -gravity center -resize "${sizes[$density]}x${sizes[$density]}" -extent "${sizes[$density]}x${sizes[$density]}" "$target/ic_launcher.png"
+
+            convert logo.png -fuzz 2% -trim +repage \
+              -resize "${legacy_safe}x${legacy_safe}>" \
+              -background white -gravity center \
+              -extent "${legacy}x${legacy}" \
+              "$target/ic_launcher.png"
             cp "$target/ic_launcher.png" "$target/ic_launcher_round.png"
-            cp "$target/ic_launcher.png" "$target/ic_launcher_foreground.png"
+
+            convert logo.png -fuzz 2% -trim +repage \
+              -resize "${adaptive_safe}x${adaptive_safe}>" \
+              -background none -gravity center \
+              -extent "${adaptive}x${adaptive}" \
+              "$target/ic_launcher_foreground.png"
           done
 
-      - name: Build installable debug APK
+          mkdir -p android/app/src/main/res/values
+          cat > android/app/src/main/res/values/sautilink_launcher.xml <<'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="sautilink_launcher_background">#FFFFFF</color>
+          </resources>
+          XML
+
+          mkdir -p android/app/src/main/res/mipmap-anydpi-v26
+          cat > android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/sautilink_launcher_background" />
+              <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+          </adaptive-icon>
+          XML
+          cp android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+
+      - name: Restore permanent release signing key
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: |
+          any_present=0
+          for value in "$KEYSTORE_BASE64" "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD"; do
+            if [[ -n "$value" ]]; then any_present=1; fi
+          done
+
+          if [[ "$any_present" -eq 0 ]]; then
+            echo "SAUTILINK_SIGN_RELEASE=false" >> "$GITHUB_ENV"
+            echo "Permanent signing secrets are not configured yet; release publication will be skipped."
+            exit 0
+          fi
+
+          missing=0
+          if [[ -z "$KEYSTORE_BASE64" ]]; then echo "::error::Missing ANDROID_RELEASE_KEYSTORE_BASE64"; missing=1; fi
+          if [[ -z "$STORE_PASSWORD" ]]; then echo "::error::Missing ANDROID_RELEASE_STORE_PASSWORD"; missing=1; fi
+          if [[ -z "$KEY_ALIAS" ]]; then echo "::error::Missing ANDROID_RELEASE_KEY_ALIAS"; missing=1; fi
+          if [[ -z "$KEY_PASSWORD" ]]; then echo "::error::Missing ANDROID_RELEASE_KEY_PASSWORD"; missing=1; fi
+          if [[ "$missing" -ne 0 ]]; then exit 1; fi
+
+          keystore_path="$GITHUB_WORKSPACE/android/app/sautilink-release.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          test -s "$keystore_path"
+
+          {
+            echo "SAUTILINK_SIGN_RELEASE=true"
+            echo "SAUTILINK_KEYSTORE_PATH=$keystore_path"
+            echo "SAUTILINK_KEYSTORE_PASSWORD=$STORE_PASSWORD"
+            echo "SAUTILINK_KEY_ALIAS=$KEY_ALIAS"
+            echo "SAUTILINK_KEY_PASSWORD=$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+
+      - name: Configure Android version and signing
+        run: node scripts/configure-android-release.mjs
+
+      - name: Build Android test APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Prepare APK asset
+      - name: Prepare test APK artifact
+        shell: bash
         run: |
-          mkdir -p release
-          cp android/app/build/outputs/apk/debug/app-debug.apk release/SautiLink-Android-Beta.apk
-          sha256sum release/SautiLink-Android-Beta.apk > release/SautiLink-Android-Beta.apk.sha256
+          mkdir -p release/test
+          cp android/app/build/outputs/apk/debug/app-debug.apk "release/test/SautiLink-Android-Test-${ANDROID_VERSION_NAME}.apk"
+          sha256sum "release/test/SautiLink-Android-Test-${ANDROID_VERSION_NAME}.apk" > "release/test/SautiLink-Android-Test-${ANDROID_VERSION_NAME}.apk.sha256"
 
-      - name: Upload workflow artifact
+      - name: Upload test APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SautiLink-Android-Beta
-          path: |
-            release/SautiLink-Android-Beta.apk
-            release/SautiLink-Android-Beta.apk.sha256
+          name: SautiLink-Android-Test-${{ env.ANDROID_VERSION_NAME }}
+          path: release/test/
           if-no-files-found: error
 
-      - name: Publish stable beta download asset
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Build signed release APK and AAB
+        if: env.SAUTILINK_SIGN_RELEASE == 'true'
+        working-directory: android
+        run: ./gradlew assembleRelease bundleRelease --no-daemon
+
+      - name: Verify signed release outputs
+        if: env.SAUTILINK_SIGN_RELEASE == 'true'
+        shell: bash
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          AAB="android/app/build/outputs/bundle/release/app-release.aab"
+          test -s "$APK"
+          test -s "$AAB"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose "$APK"
+          jarsigner -verify -strict "$AAB" >/dev/null
+
+      - name: Prepare signed release assets
+        if: env.SAUTILINK_SIGN_RELEASE == 'true'
+        shell: bash
+        run: |
+          mkdir -p release/signed
+          cp android/app/build/outputs/apk/release/app-release.apk release/signed/SautiLink-Android-Beta.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab release/signed/SautiLink-Android-Beta.aab
+          cp release/signed/SautiLink-Android-Beta.apk "release/signed/SautiLink-Android-${ANDROID_VERSION_NAME}.apk"
+          cp release/signed/SautiLink-Android-Beta.aab "release/signed/SautiLink-Android-${ANDROID_VERSION_NAME}.aab"
+          (
+            cd release/signed
+            sha256sum SautiLink-Android-Beta.apk SautiLink-Android-Beta.aab > SautiLink-Android-Beta.sha256
+          )
+
+      - name: Upload signed release artifact
+        if: env.SAUTILINK_SIGN_RELEASE == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: SautiLink-Android-Release-${{ env.ANDROID_VERSION_NAME }}
+          path: release/signed/
+          if-no-files-found: error
+
+      - name: Publish stable signed Android beta
+        if: env.SAUTILINK_SIGN_RELEASE == 'true' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
+          notes="Official signed SautiLink Android beta ${ANDROID_VERSION_NAME} (${ANDROID_VERSION_CODE}). Built from main with the permanent SautiLink Android signing identity."
           if gh release view android-beta >/dev/null 2>&1; then
-            gh release upload android-beta release/SautiLink-Android-Beta.apk release/SautiLink-Android-Beta.apk.sha256 --clobber
+            gh release upload android-beta \
+              release/signed/SautiLink-Android-Beta.apk \
+              release/signed/SautiLink-Android-Beta.aab \
+              release/signed/SautiLink-Android-Beta.sha256 \
+              --clobber
             gh release edit android-beta \
-              --title "SautiLink Android Beta" \
-              --notes "Official SautiLink Android beta APK. This beta uses the live SautiLink web service and is intended for direct installation outside Google Play while the Android release pipeline is being completed." \
+              --title "SautiLink Android Beta ${ANDROID_VERSION_NAME}" \
+              --notes "$notes" \
               --prerelease
           else
             gh release create android-beta \
-              release/SautiLink-Android-Beta.apk \
-              release/SautiLink-Android-Beta.apk.sha256 \
-              --title "SautiLink Android Beta" \
-              --notes "Official SautiLink Android beta APK. This beta uses the live SautiLink web service and is intended for direct installation outside Google Play while the Android release pipeline is being completed." \
+              release/signed/SautiLink-Android-Beta.apk \
+              release/signed/SautiLink-Android-Beta.aab \
+              release/signed/SautiLink-Android-Beta.sha256 \
+              --title "SautiLink Android Beta ${ANDROID_VERSION_NAME}" \
+              --notes "$notes" \
               --prerelease
           fi
