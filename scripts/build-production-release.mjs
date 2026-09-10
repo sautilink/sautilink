@@ -109,6 +109,7 @@ await build({
     resolve(workerSource, 'whatsapp-otp-auth.js'),
     resolve(workerSource, 'sautilink-video-player.js'),
     resolve(workerSource, 'rooms-platform.js'),
+    resolve(workerSource, 'room-post-images.js'),
     resolve(workerSource, 'rooms-invitations-style.js'),
     resolve(workerSource, 'rooms-invitations.js'),
     resolve(workerSource, 'rooms-facebook-ui.js'),
