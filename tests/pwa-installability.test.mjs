@@ -11,11 +11,12 @@ async function source(path) {
 }
 
 test('SautiLink exposes an installable PWA shell without changing app behavior', async () => {
-  const [rootHtml, manifestText, serviceWorker, registration, productionBuild] = await Promise.all([
+  const [rootHtml, manifestText, serviceWorker, registration, installStyles, productionBuild] = await Promise.all([
     source('index.html'),
     source('manifest.json'),
     source('sw.js'),
     source('assets/pwa.js'),
+    source('assets/pwa-install.css'),
     source('scripts/build-production-release.mjs'),
   ]);
   const manifest = JSON.parse(manifestText);
@@ -31,6 +32,20 @@ test('SautiLink exposes an installable PWA shell without changing app behavior',
 
   assert.match(registration, /navigator\.serviceWorker\.register\('\/sw\.js'/);
   assert.match(registration, /scope:\s*'\/'/);
+  assert.match(registration, /beforeinstallprompt/);
+  assert.match(registration, /event\.preventDefault\(\)/);
+  assert.match(registration, /promptEvent\.prompt\(\)/);
+  assert.match(registration, /promptEvent\.userChoice/);
+  assert.match(registration, /appinstalled/);
+  assert.match(registration, /display-mode: standalone/);
+  assert.match(registration, /Install SautiLink/);
+  assert.match(registration, /\/assets\/pwa-install\.css/);
+
+  assert.match(installStyles, /\.sautilink-pwa-install/);
+  assert.match(installStyles, /position:\s*fixed/);
+  assert.match(installStyles, /var\(--brand-primary, #2563eb\)/);
+  assert.match(installStyles, /\.sautilink-pwa-app-shell \.sautilink-pwa-install/);
+
   assert.match(serviceWorker, /sautilink-shell-v50/);
   assert.match(serviceWorker, /\(\?:rooms\|sautify\)/);
   assert.match(serviceWorker, /url\.pathname\.startsWith\("\/api\/"\)/);
