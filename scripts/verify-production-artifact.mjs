@@ -102,11 +102,15 @@ for (const marker of [
   'Member profile loading timed out.',
   'Session restoration timed out.',
   'AUTH_SESSION_BOOT_TIMEOUT',
-  'Your session opened, but your profile could not be loaded. Try again.',
+  'sautilink.member.cache.v1:',
+  'Your session could not be confirmed. Please sign in again.',
   'Home feed loading timed out.',
   'STREAM_BOOT_TIMEOUT',
 ]) {
   if (!appJs.includes(marker)) throw new Error(`production browser bundle missing signed-in bootstrap resilience marker: ${marker}`);
+}
+if (appJs.includes('Your session opened, but your profile could not be loaded. Try again.')) {
+  throw new Error('production browser bundle still treats a transient profile read as a signed-out session');
 }
 if (!roomsFacebookCss.includes('body.rooms-facebook-view')) throw new Error('production Rooms Groups-style stylesheet is missing its feature scope');
 if (!roomsFacebookCss.includes('room-fb-detail-aside')) throw new Error('production Rooms Groups-style detail layout is missing');
