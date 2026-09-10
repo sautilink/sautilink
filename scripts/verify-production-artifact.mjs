@@ -49,6 +49,7 @@ for (const file of files) {
 
 const appHtml = await readFile(resolve(siteRoot, 'app/index.html'), 'utf8');
 const appJs = await readFile(resolve(siteRoot, 'app/assets/app.js'), 'utf8');
+const profileXCss = await readFile(resolve(siteRoot, 'app/assets/profile-x-ui.css'), 'utf8');
 const messagesWhatsappCss = await readFile(resolve(siteRoot, 'app/assets/messages-whatsapp.css'), 'utf8');
 const roomsFacebookCss = await readFile(resolve(siteRoot, 'app/assets/rooms-facebook.css'), 'utf8');
 const router = await readFile(resolve(workerRoot, 'src/asset-router.js'), 'utf8');
@@ -59,7 +60,17 @@ for (const [label, value] of [['app html', appHtml], ['app js', appJs]]) {
   if (!value.includes(PRODUCTION_REF)) throw new Error(`${label} does not target production Supabase`);
 }
 if (!appJs.includes(PRODUCTION_KEY)) throw new Error('browser bundle does not contain the production publishable key');
-if (!appJs.includes('sautilink-profile-x-ui')) throw new Error('production browser bundle missing X-style profile UI layer');
+if (!appJs.includes('sautilink-profile-x-ui')) throw new Error('production browser bundle missing X-style profile UI loader');
+if (!appJs.includes('profile-x-ui.css?v=20260910-csp1')) throw new Error('production browser bundle missing CSP-safe profile stylesheet URL');
+for (const marker of [
+  '.profile-surface .profile-card',
+  '.profile-surface .profile-banner',
+  '.profile-surface .profile-avatar-shell',
+  '.profile-surface .profile-activity-tabs',
+  '@media (max-width: 680px)',
+]) {
+  if (!profileXCss.includes(marker)) throw new Error(`production profile stylesheet missing UI marker: ${marker}`);
+}
 for (const marker of [
   'Technology & AI',
   'rooms-invitations.css',
@@ -135,4 +146,4 @@ if (/"pattern"\s*:\s*"(?:www\.)?sautilink\.com\/\*"/.test(config)) {
   throw new Error('production Worker must not intercept the marketing/legal site root');
 }
 
-console.log(`Verified ${files.length} production artifact files: production DB isolated, refreshed X-style profile UI present, resilient signed-in boot present, scoped Messages WhatsApp UI present, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);
+console.log(`Verified ${files.length} production artifact files: production DB isolated, CSP-safe X-style profile stylesheet present, resilient signed-in boot present, scoped Messages WhatsApp UI present, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);
