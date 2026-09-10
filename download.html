@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b0b0c">
-  <meta name="description" content="Download the official SautiLink Android beta APK.">
+  <meta name="description" content="Download the official SautiLink Android beta APK and follow the installation guide.">
   <meta property="og:title" content="Download SautiLink for Android">
   <meta property="og:description" content="Get the official SautiLink Android beta APK directly from SautiLink.">
   <meta property="og:image" content="https://sautilink.com/logo.png">
@@ -82,7 +82,7 @@
     }
     .platform strong { display: block; font-size: 18px; }
     .platform span { display: block; margin-top: 4px; color: var(--muted); font-size: 14px; }
-    .download {
+    .button {
       flex: 0 0 auto;
       display: inline-flex;
       align-items: center;
@@ -96,7 +96,9 @@
       font-weight: 800;
       border: 0;
     }
-    .download:hover { background: var(--brand-hover); }
+    .button:hover { background: var(--brand-hover); }
+    .button.secondary { background: transparent; border: 1px solid var(--border); }
+    .button.secondary:hover { background: var(--panel-2); }
     .meta {
       margin-top: 24px;
       padding-top: 22px;
@@ -116,13 +118,86 @@
       line-height: 1.6;
       text-align: center;
     }
+    .section { max-width: 720px; margin: 48px auto 0; }
+    .section-heading { margin: 0 0 10px; font-size: 26px; letter-spacing: -.4px; }
+    .section-intro { margin: 0 0 22px; color: var(--muted); line-height: 1.65; }
+    .requirements {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .requirement {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+    }
+    .requirement strong { display: block; margin-bottom: 6px; font-size: 15px; }
+    .requirement span { color: var(--muted); font-size: 14px; line-height: 1.55; }
+    .steps {
+      list-style: none;
+      counter-reset: install-step;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 18px;
+    }
+    .steps li {
+      counter-increment: install-step;
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 14px;
+      align-items: start;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .steps li::before {
+      content: counter(install-step);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--panel-2);
+      color: var(--text);
+      font-weight: 800;
+    }
+    .steps strong { color: var(--text); }
+    .safety-note {
+      margin: 24px 0 0;
+      padding: 16px 18px;
+      border-left: 3px solid var(--brand);
+      background: var(--panel-2);
+      border-radius: 0 14px 14px 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .guide-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+    .guide-grid figure {
+      margin: 0;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: var(--panel);
+    }
+    .guide-grid img { display: block; width: 100%; height: auto; }
+    .guide-grid figcaption { padding: 14px 16px 16px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .guide-grid figcaption strong { display: block; margin-bottom: 3px; color: var(--text); font-size: 14px; }
+    .support { text-align: center; }
+    .support p { margin: 10px auto 22px; max-width: 520px; color: var(--muted); line-height: 1.65; }
     footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; padding: 24px 0 36px; }
     @media (max-width: 650px) {
       main { padding-top: 48px; }
       .card { padding: 22px; }
       .row { align-items: stretch; flex-direction: column; }
-      .download { width: 100%; }
-      .meta { grid-template-columns: 1fr; }
+      .button { width: 100%; }
+      .meta, .requirements, .guide-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -149,17 +224,58 @@
               <span>Direct APK installation</span>
             </div>
           </div>
-          <a class="download" href="https://github.com/sautilink/sautilink/releases/download/android-beta/SautiLink-Android-Beta.apk" download>Download APK</a>
+          <a class="button" href="/download/android" download>Download APK</a>
         </div>
 
         <div class="meta">
-          <div><b>Official build</b><span>Built automatically from the SautiLink repository.</span></div>
+          <div><b>Official build</b><span>Signed and published by SautiLink Corporation.</span></div>
           <div><b>Live service</b><span>The beta connects directly to sautilink.com.</span></div>
           <div><b>Updates</b><span>New beta builds will replace the download at this same page.</span></div>
         </div>
       </section>
 
       <p class="note">Android may ask you to allow installation from your browser because this beta is distributed directly and is not yet listed on Google Play.</p>
+
+      <section class="section" aria-labelledby="requirements-title">
+        <h2 class="section-heading" id="requirements-title">Device requirements</h2>
+        <p class="section-intro">Before downloading, make sure your phone or tablet meets these requirements.</p>
+        <div class="requirements">
+          <div class="requirement"><strong>Operating system</strong><span>Android 7.0 (Nougat) or later.</span></div>
+          <div class="requirement"><strong>Free storage</strong><span>At least 25 MB of available space is recommended.</span></div>
+          <div class="requirement"><strong>Internet connection</strong><span>Required for sign-in, feeds, posts, media and messages.</span></div>
+          <div class="requirement"><strong>System components</strong><span>Keep Chrome or Android System WebView updated for the best experience.</span></div>
+        </div>
+      </section>
+
+      <section class="section card" aria-labelledby="installation-title">
+        <h2 class="section-heading" id="installation-title">How to install SautiLink</h2>
+        <p class="section-intro">Follow these steps after downloading the APK.</p>
+        <ol class="steps">
+          <li><span><strong>Open the downloaded APK.</strong> Find it in your browser downloads or the Downloads folder on your device.</span></li>
+          <li><span><strong>Allow installation if prompted.</strong> If Android asks for permission, open Settings, enable “Allow from this source” for your browser or file manager, then return to the installer.</span></li>
+          <li><span><strong>Continue past the Play Protect notice.</strong> On the “App blocked to protect your device” popup, tap “More details”.</span></li>
+          <li><span><strong>Complete the installation.</strong> Tap “Install anyway”, wait for installation to finish, then tap “Open”.</span></li>
+        </ol>
+
+        <p class="safety-note"><strong>For your safety:</strong> only continue past this notice when the APK was downloaded using the official button on sautilink.com. Do not disable Play Protect or install a SautiLink APK received from another source.</p>
+
+        <div class="guide-grid" aria-label="Play Protect installation screenshots">
+          <figure>
+            <img src="/Apk%20Download%20Preview%201.png" alt="Google Play Protect notice showing the More details option" loading="lazy" decoding="async">
+            <figcaption><strong>Step one</strong>Tap “More details” on the Play Protect notice.</figcaption>
+          </figure>
+          <figure>
+            <img src="/Apk%20Download%20Preview%202.png" alt="Google Play Protect notice showing the Install anyway option" loading="lazy" decoding="async">
+            <figcaption><strong>Final step</strong>Tap “Install anyway” to finish installing SautiLink.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section card support" aria-labelledby="support-title">
+        <h2 class="section-heading" id="support-title">Need help installing?</h2>
+        <p>If installation does not work or your screen looks different, contact the SautiLink support team for assistance.</p>
+        <a class="button secondary" href="https://sautilink.com/contact">Contact support</a>
+      </section>
     </main>
 
     <footer>© 2026 SautiLink Corporation. All rights reserved.</footer>
