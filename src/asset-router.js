@@ -199,12 +199,12 @@ async function cleanAuthShellResponse(request, env, url) {
   if (mode === 'signup') {
     html = html
       .replace(
-        'id="login-tab" data-auth-mode="login" aria-selected="true"',
-        'id="login-tab" data-auth-mode="login" aria-selected="false"',
+        'aria-selected="true" aria-controls="login-panel" id="login-tab"',
+        'aria-selected="false" aria-controls="login-panel" id="login-tab"',
       )
       .replace(
-        'id="signup-tab" data-auth-mode="signup" aria-selected="false"',
-        'id="signup-tab" data-auth-mode="signup" aria-selected="true"',
+        'aria-selected="false" aria-controls="signup-panel" id="signup-tab"',
+        'aria-selected="true" aria-controls="signup-panel" id="signup-tab"',
       )
       .replace(
         '<section id="login-panel" role="tabpanel" aria-labelledby="login-tab">',
