@@ -5,14 +5,15 @@ import { transformProfileTabIconsSource } from '../scripts/profile-tab-icons-sou
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Profile activity adds familiar icons only to Posts, Reposts and Replies', () => {
-  const fixture = `const PROFILE_ACTIVITY_LABELS = Object.freeze({ posts: 'Posts' });\nconst PROFILE_ACTIVITY_BADGES = Object.freeze({});\nconst html = \`\${PROFILE_ACTIVITY_LABELS[tab]}</button>\`;`;
+test('Profile activity adds familiar icons to every activity tab and Activity privacy', () => {
+  const fixture = `const PROFILE_ACTIVITY_LABELS = Object.freeze({ posts: 'Posts' });\nconst PROFILE_ACTIVITY_BADGES = Object.freeze({});\nconst privacy = \`aria-expanded="false">Activity privacy</button>\`;\nconst html = \`\${PROFILE_ACTIVITY_LABELS[tab]}</button>\`;`;
   const output = transformProfileTabIconsSource('/repo/src/profile-activity.js', fixture);
 
-  for (const tab of ['posts', 'reposts', 'replies']) {
+  for (const tab of ['posts', 'reposts', 'replies', 'likes', 'saves', 'hashtags']) {
     assert.ok(output.includes(`data-profile-activity-tab-icon="${tab}"`), `missing ${tab} tab icon`);
   }
-  assert.doesNotMatch(output, /data-profile-activity-tab-icon="(?:likes|saves|hashtags)"/);
+  assert.match(output, /data-profile-activity-privacy-icon="true"/);
+  assert.match(output, /PROFILE_ACTIVITY_PRIVACY_ICON}Activity privacy/);
   assert.match(output, /aria-hidden="true"/);
   assert.match(output, /stroke="currentColor"/);
   assert.match(output, /PROFILE_ACTIVITY_TAB_ICONS\[tab\]/);
@@ -32,9 +33,10 @@ test('normal and production builds both apply the Profile tab icon transform', a
   assert.match(productionBuild, /transformProfileTabIconsSource/);
 });
 
-test('built app contains the three Profile tab icon markers', async () => {
+test('built app contains all Profile activity control icon markers', async () => {
   const bundle = await read('app/assets/app.js');
-  for (const tab of ['posts', 'reposts', 'replies']) {
+  for (const tab of ['posts', 'reposts', 'replies', 'likes', 'saves', 'hashtags']) {
     assert.ok(bundle.includes(`data-profile-activity-tab-icon="${tab}"`), `built bundle missing ${tab} tab icon`);
   }
+  assert.ok(bundle.includes('data-profile-activity-privacy-icon="true"'), 'built bundle missing Activity privacy icon');
 });
