@@ -53,5 +53,5 @@ test('normal and production builds include the scoped Messages UI', async () => 
   const productionBuilder = await read('scripts/build-production-release.mjs');
 
   assert.match(normalBuilder, /src\/messages-whatsapp-ui\.js/);
-  assert.match(productionBuilder, /src\/messages-whatsapp-ui\.js/);
+  assert.match(productionBuilder, /workerSource, 'messages-whatsapp-ui\.js'/);
 });
