@@ -1,0 +1,17 @@
+{
+  "appId": "com.sautilink.app",
+  "appName": "SautiLink",
+  "webDir": "dist-production-site",
+  "server": {
+    "url": "https://sautilink.com/home",
+    "cleartext": false,
+    "allowNavigation": [
+      "sautilink.com",
+      "www.sautilink.com"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true
+  }
+}
