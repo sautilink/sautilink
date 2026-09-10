@@ -1,0 +1,456 @@
+/* SautiLink profile — X-inspired information hierarchy, scoped to Profile only. */
+.profile-surface {
+  min-height: calc(100vh - 72px);
+  padding: 0;
+  background: var(--app-panel);
+}
+
+.profile-surface .profile-card {
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--app-line);
+  border-radius: 0;
+  background: var(--app-panel);
+  box-shadow: none;
+}
+
+.profile-surface .profile-banner {
+  height: 200px;
+  overflow: hidden;
+  background: var(--app-elevated);
+}
+
+.profile-surface .profile-banner::before,
+.profile-surface .profile-banner::after,
+.profile-surface .profile-banner > span {
+  display: none;
+}
+
+.profile-surface .profile-header-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-surface .profile-main {
+  padding: 0 18px 18px;
+}
+
+.profile-surface .profile-topline {
+  min-height: 88px;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.profile-surface .profile-avatar-shell {
+  width: 142px;
+  height: 142px;
+  flex: 0 0 142px;
+  margin-top: -71px;
+}
+
+.profile-surface .profile-avatar,
+.profile-surface .profile-avatar-image {
+  width: 142px;
+  height: 142px;
+  border: 4px solid var(--app-panel);
+  font-size: 44px;
+  box-shadow: none;
+}
+
+.profile-surface .profile-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+  padding-top: 12px;
+}
+
+.profile-surface .profile-edit-button,
+.profile-surface .profile-follow-button,
+.profile-surface .profile-safety-button {
+  min-height: 36px;
+  margin-top: 0;
+  padding: 0 16px;
+  border: 1px solid var(--app-line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--app-text);
+  font-size: 12px;
+  font-weight: 760;
+  box-shadow: none;
+}
+
+.profile-surface .profile-edit-button:hover,
+.profile-surface .profile-safety-button:hover,
+.profile-surface .profile-follow-button.following:hover {
+  background: var(--app-panel-soft);
+}
+
+.profile-surface .profile-follow-button:not(.following) {
+  border-color: var(--app-text);
+  background: var(--app-text);
+  color: var(--app-bg);
+}
+
+.profile-surface .profile-follow-button:not(.following):hover {
+  opacity: .9;
+}
+
+.profile-surface .profile-follow-button.following {
+  border-color: var(--app-line-strong);
+  background: transparent;
+  color: var(--app-text);
+}
+
+.profile-surface .profile-edit-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.profile-surface .profile-heading {
+  margin-top: 0;
+}
+
+.profile-surface .profile-name-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+
+.profile-surface .profile-name-line h2,
+.profile-surface .profile-heading h2 {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 21px;
+  font-weight: 820;
+  line-height: 1.2;
+  letter-spacing: -.025em;
+}
+
+.profile-surface .profile-verified-badge {
+  flex: 0 0 auto;
+}
+
+.profile-surface #profile-username,
+.profile-surface .profile-heading > p {
+  margin: 2px 0 0;
+  color: var(--app-muted);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.profile-surface .profile-bio {
+  max-width: none;
+  margin: 15px 0 0;
+  color: var(--app-text);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.profile-surface .profile-bio.empty {
+  color: var(--app-muted);
+}
+
+.profile-surface .profile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin-top: 13px;
+  color: var(--app-muted);
+  font-size: 13px;
+}
+
+.profile-surface .profile-meta span,
+.profile-surface .profile-meta a {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  color: var(--app-muted);
+  text-decoration: none;
+}
+
+.profile-surface .profile-meta a {
+  color: var(--app-accent);
+}
+
+.profile-surface .profile-meta a:hover {
+  text-decoration: underline;
+}
+
+.profile-surface .profile-meta svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.profile-surface .profile-meta b {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-surface .profile-visibility {
+  min-height: 0;
+  margin-top: 13px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.profile-surface .profile-visibility::before {
+  width: 7px;
+  height: 7px;
+}
+
+.profile-surface .profile-visibility.private {
+  border: 0;
+  background: transparent;
+  color: var(--app-muted);
+}
+
+.profile-surface .profile-social-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 15px;
+  color: var(--app-muted);
+  font-size: 13px;
+}
+
+.profile-surface .profile-social-stats > span:first-child { order: 2; }
+.profile-surface .profile-social-stats > span:nth-child(2) { order: 1; }
+
+.profile-surface .profile-social-stats strong {
+  margin-right: 3px;
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.profile-surface .profile-route-state {
+  margin: 16px;
+}
+
+.profile-surface .profile-activity-shell {
+  margin-top: 0;
+  border: 0;
+  border-bottom: 1px solid var(--app-line);
+  border-radius: 0;
+  background: var(--app-panel);
+  box-shadow: none;
+}
+
+.profile-surface .profile-activity-tools {
+  min-height: 46px;
+  padding: 7px 16px;
+  border-bottom: 1px solid var(--app-line);
+}
+
+.profile-surface .profile-activity-privacy-toggle {
+  min-height: 32px;
+  font-size: 11px;
+}
+
+.profile-surface .profile-activity-tabs {
+  min-height: 54px;
+  border-bottom: 1px solid var(--app-line);
+  background: var(--app-panel);
+}
+
+.profile-surface .profile-activity-tab {
+  min-width: 92px;
+  min-height: 54px;
+  padding: 0 14px;
+  border-radius: 0;
+  color: var(--app-muted);
+  font-size: 13px;
+  font-weight: 560;
+}
+
+.profile-surface .profile-activity-tab:hover {
+  background: var(--app-panel-soft);
+  color: var(--app-text);
+}
+
+.profile-surface .profile-activity-tab[aria-selected="true"] {
+  color: var(--app-text);
+  font-weight: 720;
+}
+
+.profile-surface .profile-activity-tab[aria-selected="true"]::after {
+  right: 24%;
+  bottom: 0;
+  left: 24%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--app-accent);
+}
+
+.profile-surface .profile-activity-card {
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 10px;
+  padding: 13px 16px 11px;
+  border-bottom: 1px solid var(--app-line);
+  background: var(--app-panel);
+  border-radius: 0;
+}
+
+.profile-surface .profile-activity-card:last-child {
+  border-bottom: 0;
+}
+
+.profile-surface .profile-activity-card:hover {
+  background: var(--app-panel-soft);
+}
+
+.profile-surface .profile-activity-card-avatar {
+  width: 44px;
+  height: 44px;
+}
+
+.profile-surface .profile-activity-pinned {
+  border-bottom: 1px solid var(--app-line);
+  background: var(--app-panel);
+}
+
+.profile-surface .profile-activity-pinned-heading {
+  padding-left: 18px;
+}
+
+.profile-surface .profile-activity-loading,
+.profile-surface .profile-activity-error,
+.profile-surface .profile-activity-empty {
+  background: var(--app-panel);
+}
+
+:root[data-theme="light"] .profile-surface,
+:root[data-theme="light"] .profile-surface .profile-card,
+:root[data-theme="light"] .profile-surface .profile-activity-shell,
+:root[data-theme="light"] .profile-surface .profile-activity-tabs,
+:root[data-theme="light"] .profile-surface .profile-activity-card,
+:root[data-theme="light"] .profile-surface .profile-activity-pinned,
+:root[data-theme="light"] .profile-surface .profile-activity-loading,
+:root[data-theme="light"] .profile-surface .profile-activity-error,
+:root[data-theme="light"] .profile-surface .profile-activity-empty {
+  background: var(--app-panel);
+}
+
+@media (max-width: 680px) {
+  .profile-surface {
+    min-height: calc(100dvh - 112px);
+  }
+
+  .profile-surface .profile-banner {
+    height: 145px;
+  }
+
+  .profile-surface .profile-main {
+    padding: 0 15px 16px;
+  }
+
+  .profile-surface .profile-topline {
+    min-height: 72px;
+    gap: 8px;
+  }
+
+  .profile-surface .profile-avatar-shell {
+    width: 104px;
+    height: 104px;
+    flex-basis: 104px;
+    margin-top: -52px;
+  }
+
+  .profile-surface .profile-avatar,
+  .profile-surface .profile-avatar-image {
+    width: 104px;
+    height: 104px;
+    font-size: 32px;
+  }
+
+  .profile-surface .profile-actions {
+    gap: 6px;
+    padding-top: 9px;
+  }
+
+  .profile-surface .profile-edit-button,
+  .profile-surface .profile-follow-button,
+  .profile-surface .profile-safety-button {
+    min-height: 34px;
+    padding: 0 13px;
+    font-size: 11px;
+  }
+
+  .profile-surface .profile-name-line h2,
+  .profile-surface .profile-heading h2 {
+    font-size: 20px;
+  }
+
+  .profile-surface #profile-username,
+  .profile-surface .profile-heading > p,
+  .profile-surface .profile-bio {
+    font-size: 13px;
+  }
+
+  .profile-surface .profile-meta,
+  .profile-surface .profile-social-stats {
+    font-size: 12px;
+  }
+
+  .profile-surface .profile-social-stats strong {
+    font-size: 12px;
+  }
+
+  .profile-surface .profile-activity-tab {
+    min-width: 78px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  .profile-surface .profile-activity-card {
+    grid-template-columns: 44px minmax(0, 1fr);
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+}
+
+@media (max-width: 420px) {
+  .profile-surface .profile-banner {
+    height: 122px;
+  }
+
+  .profile-surface .profile-avatar-shell {
+    width: 88px;
+    height: 88px;
+    flex-basis: 88px;
+    margin-top: -44px;
+  }
+
+  .profile-surface .profile-avatar,
+  .profile-surface .profile-avatar-image {
+    width: 88px;
+    height: 88px;
+    font-size: 28px;
+  }
+
+  .profile-surface .profile-actions {
+    max-width: calc(100% - 96px);
+  }
+
+  .profile-surface .profile-edit-button,
+  .profile-surface .profile-follow-button,
+  .profile-surface .profile-safety-button {
+    padding: 0 11px;
+  }
+}
