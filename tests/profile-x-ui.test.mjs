@@ -13,7 +13,7 @@ test('profile X-style layer is isolated to the profile surface and CSP-safe', as
   assert.match(source, /document\.getElementById\('profile-surface'\)/);
   assert.match(source, /document\.createElement\('link'\)/);
   assert.match(source, /link\.rel = 'stylesheet'/);
-  assert.match(source, /\/app\/assets\/profile-x-ui\.css\?v=20260910-csp1/);
+  assert.match(source, /\/app\/assets\/profile-x-ui\.css\?v=20260910-tabs2/);
   assert.match(source, /surface\.dataset\.profilePresentation = 'x-style'/);
   assert.doesNotMatch(source, /document\.createElement\('style'\)/);
   assert.doesNotMatch(source, /MutationObserver/);
@@ -64,6 +64,10 @@ test('profile stylesheet keeps desktop and mobile X-style hierarchy', async () =
   assert.match(css, /border-radius: 999px/);
   assert.match(css, /profile-social-stats > span:first-child \{ order: 2; \}/);
   assert.match(css, /profile-activity-tab\[aria-selected="true"\]::after/);
+  assert.match(css, /@media \(min-width: 681px\)/);
+  assert.match(css, /\.profile-surface \.profile-activity-tab \{\s*min-width: 0;\s*flex: 1 1 0;/s);
+  assert.match(css, /\.profile-surface \.profile-activity-tab\[hidden\] \{\s*display: none;/s);
+  assert.match(css, /\.profile-surface \.profile-activity-privacy-toggle svg,\s*\.profile-surface \.profile-activity-tab svg/s);
   assert.match(css, /@media \(max-width: 680px\)/);
   assert.match(css, /width: 104px/);
   assert.match(css, /@media \(max-width: 420px\)/);
