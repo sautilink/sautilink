@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0b0c">
+  <meta name="description" content="Download the official SautiLink Android beta APK.">
+  <meta property="og:title" content="Download SautiLink for Android">
+  <meta property="og:description" content="Get the official SautiLink Android beta APK directly from SautiLink.">
+  <meta property="og:image" content="https://sautilink.com/logo.png">
+  <meta property="og:url" content="https://sautilink.com/download">
+  <title>Download SautiLink for Android</title>
+  <link rel="icon" href="/assets/favicon.png" type="image/png">
+  <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/brand/system.css">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0b0c;
+      --panel: #141416;
+      --panel-2: #1b1b1e;
+      --text: #f5f5f7;
+      --muted: #a7a7ad;
+      --border: #2a2a2e;
+      --brand: #e32636;
+      --brand-hover: #c91f2d;
+      --radius: 22px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: inherit; }
+    .shell { width: min(980px, calc(100% - 32px)); margin: 0 auto; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 76px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; font-weight: 800; font-size: 20px; }
+    .brand img { width: 36px; height: 36px; object-fit: contain; border-radius: 10px; }
+    .back { color: var(--muted); text-decoration: none; font-size: 14px; }
+    .back:hover { color: var(--text); }
+    main { padding: 72px 0 88px; }
+    .hero { text-align: center; max-width: 720px; margin: 0 auto 44px; }
+    .app-icon {
+      width: 96px;
+      height: 96px;
+      border-radius: 24px;
+      object-fit: contain;
+      background: #fff;
+      padding: 7px;
+      margin-bottom: 24px;
+    }
+    h1 { margin: 0 0 16px; font-size: clamp(36px, 7vw, 64px); line-height: .98; letter-spacing: -2px; }
+    .hero p { margin: 0 auto; max-width: 600px; color: var(--muted); font-size: 18px; line-height: 1.6; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .platform { display: flex; align-items: center; gap: 15px; min-width: 0; }
+    .android {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: var(--panel-2);
+      display: grid;
+      place-items: center;
+      font-size: 22px;
+      font-weight: 800;
+    }
+    .platform strong { display: block; font-size: 18px; }
+    .platform span { display: block; margin-top: 4px; color: var(--muted); font-size: 14px; }
+    .download {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 20px;
+      border-radius: 999px;
+      background: var(--brand);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 800;
+      border: 0;
+    }
+    .download:hover { background: var(--brand-hover); }
+    .meta {
+      margin-top: 24px;
+      padding-top: 22px;
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .meta div { min-width: 0; }
+    .meta b { display: block; margin-bottom: 5px; font-size: 13px; }
+    .meta span { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .note {
+      max-width: 720px;
+      margin: 18px auto 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+      text-align: center;
+    }
+    footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; padding: 24px 0 36px; }
+    @media (max-width: 650px) {
+      main { padding-top: 48px; }
+      .card { padding: 22px; }
+      .row { align-items: stretch; flex-direction: column; }
+      .download { width: 100%; }
+      .meta { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <a class="brand" href="/"><img src="/logo.png" alt="SautiLink logo"><span>SautiLink</span></a>
+      <a class="back" href="/home">Open SautiLink</a>
+    </header>
+
+    <main>
+      <section class="hero">
+        <img class="app-icon" src="/logo.png" alt="SautiLink app icon">
+        <h1>SautiLink for Android</h1>
+        <p>Install the official Android beta and access your Home feed, Rooms, Messages, profiles, posts and the rest of SautiLink from one app.</p>
+      </section>
+
+      <section class="card" aria-labelledby="android-title">
+        <div class="row">
+          <div class="platform">
+            <div class="android" aria-hidden="true">A</div>
+            <div>
+              <strong id="android-title">Android Beta</strong>
+              <span>Direct APK installation</span>
+            </div>
+          </div>
+          <a class="download" href="https://github.com/sautilink/sautilink/releases/download/android-beta/SautiLink-Android-Beta.apk" download>Download APK</a>
+        </div>
+
+        <div class="meta">
+          <div><b>Official build</b><span>Built automatically from the SautiLink repository.</span></div>
+          <div><b>Live service</b><span>The beta connects directly to sautilink.com.</span></div>
+          <div><b>Updates</b><span>New beta builds will replace the download at this same page.</span></div>
+        </div>
+      </section>
+
+      <p class="note">Android may ask you to allow installation from your browser because this beta is distributed directly and is not yet listed on Google Play.</p>
+    </main>
+
+    <footer>© 2026 SautiLink Corporation. All rights reserved.</footer>
+  </div>
+</body>
+</html>

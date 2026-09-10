@@ -1,0 +1,127 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "capacitor.config.json"
+      - ".github/workflows/android-apk.yml"
+      - "logo.png"
+      - "app/**"
+      - "src/**"
+      - "scripts/build-production-release.mjs"
+      - "package.json"
+      - "package-lock.json"
+  push:
+    branches:
+      - main
+    paths:
+      - "capacitor.config.json"
+      - ".github/workflows/android-apk.yml"
+      - "logo.png"
+      - "app/**"
+      - "src/**"
+      - "scripts/build-production-release.mjs"
+      - "package.json"
+      - "package-lock.json"
+
+permissions:
+  contents: write
+
+jobs:
+  build-android-beta:
+    name: Build Android beta APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install pinned web dependencies
+        run: npm ci
+
+      - name: Install pinned Capacitor toolchain
+        run: >-
+          npm install --no-save --package-lock=false
+          @capacitor/core@8.5.1
+          @capacitor/cli@8.5.1
+          @capacitor/android@8.5.1
+
+      - name: Build production web artifact
+        run: npm run build:production
+
+      - name: Generate Android project
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: Apply SautiLink launcher icon
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y imagemagick
+          declare -A sizes=(
+            [mdpi]=48
+            [hdpi]=72
+            [xhdpi]=96
+            [xxhdpi]=144
+            [xxxhdpi]=192
+          )
+          for density in "${!sizes[@]}"; do
+            target="android/app/src/main/res/mipmap-${density}"
+            mkdir -p "$target"
+            convert logo.png -background none -gravity center -resize "${sizes[$density]}x${sizes[$density]}" -extent "${sizes[$density]}x${sizes[$density]}" "$target/ic_launcher.png"
+            cp "$target/ic_launcher.png" "$target/ic_launcher_round.png"
+            cp "$target/ic_launcher.png" "$target/ic_launcher_foreground.png"
+          done
+
+      - name: Build installable debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Prepare APK asset
+        run: |
+          mkdir -p release
+          cp android/app/build/outputs/apk/debug/app-debug.apk release/SautiLink-Android-Beta.apk
+          sha256sum release/SautiLink-Android-Beta.apk > release/SautiLink-Android-Beta.apk.sha256
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SautiLink-Android-Beta
+          path: |
+            release/SautiLink-Android-Beta.apk
+            release/SautiLink-Android-Beta.apk.sha256
+          if-no-files-found: error
+
+      - name: Publish stable beta download asset
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view android-beta >/dev/null 2>&1; then
+            gh release upload android-beta release/SautiLink-Android-Beta.apk release/SautiLink-Android-Beta.apk.sha256 --clobber
+            gh release edit android-beta \
+              --title "SautiLink Android Beta" \
+              --notes "Official SautiLink Android beta APK. This beta uses the live SautiLink web service and is intended for direct installation outside Google Play while the Android release pipeline is being completed." \
+              --prerelease
+          else
+            gh release create android-beta \
+              release/SautiLink-Android-Beta.apk \
+              release/SautiLink-Android-Beta.apk.sha256 \
+              --title "SautiLink Android Beta" \
+              --notes "Official SautiLink Android beta APK. This beta uses the live SautiLink web service and is intended for direct installation outside Google Play while the Android release pipeline is being completed." \
+              --prerelease
+          fi
