@@ -36,6 +36,25 @@ function productionText(input) {
   return input.replaceAll('/assets/brand/logo-compact.webp', '/logo.png');
 }
 
+function wireProductionPwa(input) {
+  let output = input;
+  if (!output.includes('<link rel="manifest" href="/manifest.json">')) {
+    const pwaHead = [
+      '  <meta name="mobile-web-app-capable" content="yes">',
+      '  <meta name="apple-mobile-web-app-capable" content="yes">',
+      '  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">',
+      '  <meta name="apple-mobile-web-app-title" content="SautiLink">',
+      '  <link rel="manifest" href="/manifest.json">',
+      '  <link rel="apple-touch-icon" href="/assets/favicon.png">',
+    ].join('\n');
+    output = output.replace(/(\s*<meta name="theme-color"[^>]*>\s*)/i, `$1\n${pwaHead}\n`);
+  }
+  if (!output.includes('<script src="/assets/pwa.js" defer></script>')) {
+    output = output.replace('</body>', '  <script src="/assets/pwa.js" defer></script>\n</body>');
+  }
+  return output;
+}
+
 await rm(workerRoot, { recursive: true, force: true });
 await rm(siteRoot, { recursive: true, force: true });
 await mkdir(workerRoot, { recursive: true });
@@ -87,6 +106,7 @@ appHtml = appHtml
   .replace(/\s*<meta name="robots" content="noindex, nofollow">\s*/i, '\n')
   .replace("img-src 'self' data: blob:; script-src", "img-src 'self' data: blob:; media-src 'self' blob:; script-src")
   .replace(/app\.js\?v=[^"']+/g, `app.js?v=${APP_JS_RELEASE}`);
+appHtml = wireProductionPwa(appHtml);
 await writeFile(appHtmlPath, appHtml);
 
 const appCssPath = resolve(siteRoot, 'app/assets/app.css');

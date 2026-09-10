@@ -1,4 +1,4 @@
-const CACHE_NAME = "sautilink-shell-v49";
+const CACHE_NAME = "sautilink-shell-v50";
 const APP_SHELL = [
   "/",
   "/app/",
@@ -10,6 +10,8 @@ const APP_SHELL = [
   "/assets/favicon.png",
   "/assets/icon-192.png",
   "/assets/icon-maskable-512.png",
+  "/assets/brand/system.css",
+  "/assets/pwa.js",
   "/assets/launch-splash.css",
   "/assets/launch-splash.js"
 ];
@@ -29,7 +31,7 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || url.pathname.startsWith("/api/")) return;
 
   if (event.request.mode === "navigate") {
-    const socialRoute = /^(?:\/app(?:\/|$)|\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications)(?:\/|$)|\/messages(?:\/|$)|\/sautify(?:\/|$)|\/u\/|\/post\/)/.test(url.pathname);
+    const socialRoute = /^(?:\/app(?:\/|$)|\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications)(?:\/|$)|\/messages(?:\/|$)|\/(?:rooms|sautify)(?:\/|$)|\/u\/|\/post\/)/.test(url.pathname);
     const fallback = socialRoute ? "/app/" : "/";
     event.respondWith(fetch(event.request).catch(() => caches.match(fallback)));
     return;
