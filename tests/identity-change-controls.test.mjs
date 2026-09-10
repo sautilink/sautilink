@@ -115,6 +115,6 @@ test('service worker recognizes clean social routes and rotates its cache', asyn
   assert.ok(cacheVersion >= 29, `expected unified backend cache v29+, got v${cacheVersion}`);
   assert.match(sw, /login\|signup\|home\|discover/);
   assert.match(sw, /\/messages/);
-  assert.match(sw, /\/sautify/);
+  assert.match(sw, /rooms\|sautify/);
   assert.match(sw, /\/post/);
 });
