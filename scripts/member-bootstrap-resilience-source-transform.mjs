@@ -290,8 +290,17 @@ async function completeOnboarding`;
     }, AUTH_ROUTE_REVEAL_MS);
   }
   configureEmailOtpInputs();`;
+  const loginBootstrapStart = `async function bootstrap() {
+  const initialAuthRoute = window.location.pathname.match(/^\\/(login|signup)\\/?$/);
+  // Explicit /login or /signup must show the auth form immediately — do not wait
+  // for session restoration or profile hydration (those can hang or redirect to /home).
+  if (initialAuthRoute) {
+    showAuthPanel(initialAuthRoute[1]);
+  }
+
+  configureEmailOtpInputs();`;
   if (!output.includes(bootstrapStart)) {
-    if (!output.includes(resilientBootstrapStart)) {
+    if (!output.includes(resilientBootstrapStart) && !output.includes(loginBootstrapStart)) {
       throw new Error('Could not find the SautiLink bootstrap start.');
     }
   } else {

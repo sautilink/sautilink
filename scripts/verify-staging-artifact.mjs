@@ -31,8 +31,8 @@ const textExtensions = new Set(['.html', '.js', '.css', '.json', '.txt', '.xml',
 const secretPatterns = [
   { label: 'Supabase secret key', pattern: /sb_secret_[A-Za-z0-9._-]{20,}/ },
   { label: 'private key', pattern: /-----BEGIN (?:RSA )?PRIVATE KEY-----/ },
-  { label: 'service-role environment assignment', pattern: /(?:SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY)\\s*[:=]\\s*['"][^'"]{16,}/ },
-  { label: 'Cloudflare token environment assignment', pattern: /CLOUDFLARE_API_TOKEN\\s*[:=]\\s*['"][^'"]{16,}/ },
+  { label: 'service-role environment assignment', pattern: /(?:SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY)\s*[:=]\s*['"][^'"]{16,}/ },
+  { label: 'Cloudflare token environment assignment', pattern: /CLOUDFLARE_API_TOKEN\s*[:=]\s*['"][^'"]{16,}/ },
 ];
 
 async function walk(directory) {
