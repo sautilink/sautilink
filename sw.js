@@ -2,8 +2,8 @@ const CACHE_NAME = "sautilink-shell-v50";
 const APP_SHELL = [
   "/",
   "/app/",
-  "/app/assets/app.css",
-  "/app/assets/app.js",
+  "/app/assets/app.css?v=20260910-loginboot1",
+  "/app/assets/app.js?v=20260910-profileui1",
   "/app/assets/theme-init.js",
   "/manifest.json",
   "/logo.png",
