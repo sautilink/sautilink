@@ -1,5 +1,5 @@
 const PROFILE_X_UI_STYLE_ID = 'sautilink-profile-x-ui';
-const PROFILE_X_UI_STYLESHEET = '/app/assets/profile-x-ui.css?v=20260910-csp1';
+const PROFILE_X_UI_STYLESHEET = '/app/assets/profile-x-ui.css?v=20260910-tabs2';
 
 function ensureProfileXUiStyles() {
   if (document.getElementById(PROFILE_X_UI_STYLE_ID)) return;
