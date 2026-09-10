@@ -59,6 +59,7 @@ for (const [label, value] of [['app html', appHtml], ['app js', appJs]]) {
   if (!value.includes(PRODUCTION_REF)) throw new Error(`${label} does not target production Supabase`);
 }
 if (!appJs.includes(PRODUCTION_KEY)) throw new Error('browser bundle does not contain the production publishable key');
+if (!appJs.includes('sautilink-profile-x-ui')) throw new Error('production browser bundle missing X-style profile UI layer');
 for (const marker of [
   'Technology & AI',
   'rooms-invitations.css',
@@ -102,7 +103,7 @@ if (appHtml.includes('Private preview') || appHtml.includes('Phase 31')) throw n
 if (/name="robots"[^>]+noindex/i.test(appHtml)) throw new Error('production app must not carry staging noindex meta');
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('production theme bootstrap is missing');
 if (!appHtml.includes('app.css?v=20260909-home-loading')) throw new Error('production CSS cache marker is missing');
-if (!appHtml.includes('app.js?v=20260910-loginboot1')) throw new Error('production JS cache marker is missing');
+if (!appHtml.includes('app.js?v=20260910-profileui1')) throw new Error('production JS cache marker is missing');
 if (!appHtml.includes('/logo.png')) throw new Error('production app must use the main-site logo path');
 if (appHtml.includes('/assets/brand/logo-compact.webp')) throw new Error('production app references a logo asset absent from the main-site repo');
 if (!headers.includes(`https://${PRODUCTION_REF}.supabase.co`)) throw new Error('production CSP does not target production Supabase');
@@ -134,4 +135,4 @@ if (/"pattern"\s*:\s*"(?:www\.)?sautilink\.com\/\*"/.test(config)) {
   throw new Error('production Worker must not intercept the marketing/legal site root');
 }
 
-console.log(`Verified ${files.length} production artifact files: production DB isolated, resilient signed-in boot present, scoped Messages WhatsApp UI present, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);
+console.log(`Verified ${files.length} production artifact files: production DB isolated, refreshed X-style profile UI present, resilient signed-in boot present, scoped Messages WhatsApp UI present, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);
