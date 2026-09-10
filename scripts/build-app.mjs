@@ -53,6 +53,7 @@ await build({
     resolve(projectRoot, 'src/verified-identity-controls.js'),
     resolve(projectRoot, 'src/profile-activity.js'),
     resolve(projectRoot, 'src/profile-route-states.js'),
+    resolve(projectRoot, 'src/profile-x-ui.js'),
     resolve(projectRoot, 'src/professional-profile-category.js'),
     resolve(projectRoot, 'src/profile-media-upload-icons.js'),
     resolve(projectRoot, 'src/home-feed-author-profile-links.js'),

@@ -97,6 +97,7 @@ await build({
     resolve(workerSource, 'verified-identity-controls.js'),
     resolve(workerSource, 'profile-activity.js'),
     resolve(workerSource, 'profile-route-states.js'),
+    resolve(workerSource, 'profile-x-ui.js'),
     resolve(workerSource, 'professional-profile-category.js'),
     resolve(workerSource, 'profile-media-upload-icons.js'),
     resolve(workerSource, 'home-feed-author-profile-links.js'),
