@@ -2,9 +2,6 @@ import { build } from 'esbuild';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { transformBootstrapResilienceSource } from './bootstrap-resilience-source-transform.mjs';
-import { transformLoginBootSource } from './login-boot-source-transform.mjs';
-import { transformMemberBootstrapResilienceSource } from './member-bootstrap-resilience-source-transform.mjs';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
 import { transformVideoPlayerSource } from './video-player-source-transform.mjs';
@@ -17,7 +14,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
-const APP_JS_RELEASE = '20260910-loginboot1';
+const APP_JS_RELEASE = '20260910-authruntime2';
 
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -45,22 +42,13 @@ await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: tru
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
   const source = await readFile(file, 'utf8');
-  let output = transformMemberBootstrapResilienceSource(
+  let output = transformWhatsAppOtpSource(
     file,
-    transformBootstrapResilienceSource(
+    transformVideoPlayerSource(
       file,
-      transformLoginBootSource(
+      transformMentionNotificationSource(
         file,
-        transformWhatsAppOtpSource(
-          file,
-          transformVideoPlayerSource(
-            file,
-            transformMentionNotificationSource(
-              file,
-              transformPostMediaSource(file, productionText(source)),
-            ),
-          ),
-        ),
+        transformPostMediaSource(file, productionText(source)),
       ),
     ),
   );

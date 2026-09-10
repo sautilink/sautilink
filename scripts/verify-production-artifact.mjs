@@ -68,14 +68,15 @@ for (const marker of [
   if (!appJs.includes(marker)) throw new Error(`production browser bundle missing Rooms runtime marker: ${marker}`);
 }
 for (const marker of [
-  'Member profile loading timed out.',
-  'Session restoration timed out.',
-  'AUTH_SESSION_BOOT_TIMEOUT',
-  'Your session opened, but your profile could not be loaded. Try again.',
-  'Home feed loading timed out.',
-  'STREAM_BOOT_TIMEOUT',
+  'Continue with Google',
+  'Continue with Facebook',
+  'Continue with Microsoft',
+  'Log in with WhatsApp code',
 ]) {
-  if (!appJs.includes(marker)) throw new Error(`production browser bundle missing signed-in bootstrap resilience marker: ${marker}`);
+  if (!appJs.includes(marker)) throw new Error(`production browser bundle missing auth method marker: ${marker}`);
+}
+for (const retiredMarker of ['AUTH_SESSION_BOOT_TIMEOUT', 'STREAM_BOOT_TIMEOUT', 'Home feed loading timed out.']) {
+  if (appJs.includes(retiredMarker)) throw new Error(`production browser bundle still contains retired emergency startup runtime: ${retiredMarker}`);
 }
 if (!roomsFacebookCss.includes('body.rooms-facebook-view')) throw new Error('production Rooms Groups-style stylesheet is missing its feature scope');
 if (!roomsFacebookCss.includes('room-fb-detail-aside')) throw new Error('production Rooms Groups-style detail layout is missing');
@@ -83,7 +84,7 @@ if (appHtml.includes('Private preview') || appHtml.includes('Phase 31')) throw n
 if (/name="robots"[^>]+noindex/i.test(appHtml)) throw new Error('production app must not carry staging noindex meta');
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('production theme bootstrap is missing');
 if (!appHtml.includes('app.css?v=20260909-home-loading')) throw new Error('production CSS cache marker is missing');
-if (!appHtml.includes('app.js?v=20260910-loginboot1')) throw new Error('production JS cache marker is missing');
+if (!appHtml.includes('app.js?v=20260910-authruntime2')) throw new Error('production JS cache marker is missing');
 if (!appHtml.includes('/logo.png')) throw new Error('production app must use the main-site logo path');
 if (appHtml.includes('/assets/brand/logo-compact.webp')) throw new Error('production app references a logo asset absent from the main-site repo');
 if (!headers.includes(`https://${PRODUCTION_REF}.supabase.co`)) throw new Error('production CSP does not target production Supabase');
@@ -115,4 +116,4 @@ if (/"pattern"\s*:\s*"(?:www\.)?sautilink\.com\/\*"/.test(config)) {
   throw new Error('production Worker must not intercept the marketing/legal site root');
 }
 
-console.log(`Verified ${files.length} production artifact files: production DB isolated, resilient signed-in boot present, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);
+console.log(`Verified ${files.length} production artifact files: production DB isolated, stable auth runtime and login methods present, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);
