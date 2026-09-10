@@ -221,7 +221,21 @@ jobs:
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           test -x "$APKSIGNER"
           "$APKSIGNER" verify --verbose "$APK"
-          jarsigner -verify -strict "$AAB" >/dev/null
+
+          set +e
+          jarsigner -verify -strict "$AAB" > jarsigner-aab-verify.log 2>&1
+          jarsigner_status=$?
+          set -e
+          cat jarsigner-aab-verify.log
+
+          # Android app signing certificates are self-signed by design. jarsigner
+          # strict mode returns 4 when the certificate chain is not rooted in a
+          # public CA, even when the bundle signature itself is valid.
+          if [[ "$jarsigner_status" -ne 0 && "$jarsigner_status" -ne 4 ]]; then
+            echo "::error::AAB signature verification failed with jarsigner exit code $jarsigner_status"
+            exit "$jarsigner_status"
+          fi
+          grep -qi "jar verified" jarsigner-aab-verify.log
 
       - name: Prepare signed release assets
         if: env.SAUTILINK_SIGN_RELEASE == 'true'
