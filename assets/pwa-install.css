@@ -1,0 +1,48 @@
+.sautilink-pwa-install {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 1200;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--brand-primary, #2563eb);
+  color: var(--brand-white, #ffffff);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 24%);
+  font: 750 14px/1 var(--font-primary, Inter, system-ui, sans-serif);
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sautilink-pwa-install:hover {
+  background: var(--brand-primary-hover, #1d4ed8);
+}
+
+.sautilink-pwa-install:focus-visible {
+  outline: 3px solid var(--brand-light, #60a5fa);
+  outline-offset: 3px;
+}
+
+.sautilink-pwa-install:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.sautilink-pwa-install[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 680px) {
+  .sautilink-pwa-install {
+    right: max(14px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    min-height: 42px;
+    padding-inline: 16px;
+  }
+
+  .sautilink-pwa-app-shell .sautilink-pwa-install {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+}
