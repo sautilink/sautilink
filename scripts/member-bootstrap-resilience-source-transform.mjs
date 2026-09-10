@@ -10,9 +10,14 @@ export function transformMemberBootstrapResilienceSource(sourcePath, source) {
 
   const resilientMemberBlock = `let memberLoadPromise = null;
 let memberLoadUserId = '';
-const MEMBER_BOOT_TIMEOUT_MS = 6500;
+const MEMBER_BOOT_TIMEOUT_MS = 4500;
 const AUTH_SESSION_BOOT_TIMEOUT_MS = 4500;
 const AUTH_ROUTE_REVEAL_MS = 1800;
+const MEMBER_REFRESH_DELAY_MS = 700;
+const READ_RETRY_ATTEMPTS = 3;
+const READ_RETRY_TIMEOUT_MS = 5000;
+const READ_RETRY_DELAYS_MS = [0, 180, 650];
+const MEMBER_CACHE_PREFIX = 'sautilink.member.cache.v1:';
 
 function cachedAuthSession() {
   try {
@@ -24,6 +29,44 @@ function cachedAuthSession() {
     return session;
   } catch {
     return null;
+  }
+}
+
+function cachedMemberProfile(userId) {
+  if (!userId) return null;
+  try {
+    const value = JSON.parse(window.localStorage.getItem(MEMBER_CACHE_PREFIX + userId) || 'null');
+    if (!value || value.id !== userId || !normalizeUsername(value.username || '')) return null;
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+function cacheMemberProfile(profile, userId = profile?.id) {
+  const id = String(userId || profile?.id || '');
+  const username = normalizeUsername(profile?.username || '');
+  if (!id || !username) return;
+  const cached = {
+    id,
+    username,
+    full_name: String(profile?.full_name || profile?.display_name || username).trim() || username,
+    display_name: String(profile?.display_name || profile?.full_name || username).trim() || username,
+    bio: String(profile?.bio || ''),
+    avatar_key: profile?.avatar_key || null,
+    updated_at: profile?.updated_at || null,
+    location: String(profile?.location || ''),
+    website_url: String(profile?.website_url || ''),
+    is_discoverable: profile?.is_discoverable !== false,
+    is_verified: Boolean(profile?.is_verified),
+    verification_badge_type: profile?.verification_badge_type || 'standard',
+    followers_count: Number(profile?.followers_count || 0),
+    following_count: Number(profile?.following_count || 0),
+  };
+  try {
+    window.localStorage.setItem(MEMBER_CACHE_PREFIX + id, JSON.stringify(cached));
+  } catch {
+    // Member identity caching is only a resilience optimization.
   }
 }
 
@@ -49,6 +92,9 @@ function authSessionBootWithTimeout(promise, timeoutMs = AUTH_SESSION_BOOT_TIMEO
 }
 
 function memberFallbackProfile(user, account = null) {
+  const cached = cachedMemberProfile(user?.id);
+  if (cached) return cached;
+
   const createdAt = Date.parse(String(user?.created_at || ''));
   const establishedAccount = Boolean(account)
     || !Number.isFinite(createdAt)
@@ -101,30 +147,79 @@ function memberBootWithTimeout(promise, timeoutMs = MEMBER_BOOT_TIMEOUT_MS) {
   });
 }
 
+function readRetryDelay(attempt) {
+  return READ_RETRY_DELAYS_MS[Math.min(attempt, READ_RETRY_DELAYS_MS.length - 1)] || 0;
+}
+
+function shouldRetryRead(error) {
+  if (!error) return false;
+  const code = String(error?.code || '').toUpperCase();
+  if (code === '42501' || code.startsWith('22') || code.startsWith('23') || code.startsWith('42')) {
+    return false;
+  }
+  return true;
+}
+
+async function resilientRead(factory, { attempts = READ_RETRY_ATTEMPTS, timeoutMs = READ_RETRY_TIMEOUT_MS } = {}) {
+  let lastError = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const delay = readRetryDelay(attempt);
+    if (delay) await new Promise((resolve) => window.setTimeout(resolve, delay));
+    try {
+      const result = await memberBootWithTimeout(Promise.resolve().then(factory), timeoutMs);
+      if (result?.error) throw result.error;
+      return result;
+    } catch (error) {
+      lastError = error;
+      if (attempt >= attempts - 1 || !shouldRetryRead(error)) throw error;
+    }
+  }
+  throw lastError || new Error('Read failed.');
+}
+
 function refreshMemberProfileAfterFallback(user) {
   if (!user?.id) return;
   window.setTimeout(async () => {
     try {
       const [accountResult, socialResult] = await Promise.all([
-        supabase
+        resilientRead(() => supabase
           .from('account_profiles')
           .select('username, full_name')
           .eq('id', user.id)
-          .maybeSingle(),
-        supabase
+          .maybeSingle()),
+        resilientRead(() => supabase
           .from('social_profiles')
           .select('id, username, display_name, bio, avatar_key, updated_at, location, website_url, is_discoverable, is_verified, verification_badge_type, followers_count, following_count')
           .eq('id', user.id)
-          .maybeSingle(),
+          .maybeSingle()),
       ]);
 
-      if (currentMemberId !== user.id || accountResult.error || socialResult.error || !accountResult.data || !socialResult.data) return;
+      if (currentMemberId !== user.id || !accountResult?.data || !socialResult?.data) return;
       currentMember = { ...accountResult.data, ...socialResult.data };
+      cacheMemberProfile(currentMember, user.id);
       try { syncMemberIdentityVisuals(); } catch { /* Core Home remains usable if optional profile UI fails. */ }
     } catch {
-      // Fallback identity remains usable; a later navigation or refresh can hydrate details.
+      // Fallback identity remains usable; a later focus, navigation, or refresh can hydrate details.
     }
-  }, 0);
+  }, MEMBER_REFRESH_DELAY_MS);
+}
+
+function startDeferredMemberServices() {
+  window.setTimeout(() => {
+    if (!currentMemberId) return;
+    void ensureDmInboxRealtime();
+    void ensureSettingsPreferences()
+      .then((preferences) => {
+        currentSettingsPreferences = preferences;
+        if (!messageBadgesEnabled()) syncMessageBadges(0);
+        else void refreshMessageBadge();
+        if (activeConversation?.id) void startDmConversationRealtime(activeConversation.id);
+      })
+      .catch(() => { currentSettingsPreferences = null; });
+    void refreshNotificationBadge();
+    void refreshMessageBadge();
+    void syncModerationAccess();
+  }, MEMBER_REFRESH_DELAY_MS);
 }
 
 function renderMember(profile, userId = currentMemberId) {
@@ -134,9 +229,10 @@ function renderMember(profile, userId = currentMemberId) {
   const username = profile.username || 'member';
   currentMember = { ...profile };
   currentMemberId = userId || profile.id || currentMemberId;
+  cacheMemberProfile(currentMember, currentMemberId);
 
-  // Make the signed-in shell usable before optional profile decoration runs. A
-  // missing/stale profile sub-element must never trap the whole app on the boot spinner.
+  // Reveal the signed-in shell before any optional work. The feed gets first
+  // access to the network; messages, badges and moderation hydrate shortly after.
   loadingView.hidden = true;
   authView.hidden = true;
   memberView.hidden = false;
@@ -165,18 +261,7 @@ function renderMember(profile, userId = currentMemberId) {
   try { syncComposerOnlineState(); } catch { /* Home feed must still open. */ }
 
   void loadStream({ reset: true });
-  void ensureDmInboxRealtime();
-  void ensureSettingsPreferences()
-    .then((preferences) => {
-      currentSettingsPreferences = preferences;
-      if (!messageBadgesEnabled()) syncMessageBadges(0);
-      else void refreshMessageBadge();
-      if (activeConversation?.id) void startDmConversationRealtime(activeConversation.id);
-    })
-    .catch(() => { currentSettingsPreferences = null; });
-  void refreshNotificationBadge();
-  void refreshMessageBadge();
-  void syncModerationAccess();
+  startDeferredMemberServices();
 }
 
 async function loadMemberOnce(user) {
@@ -189,35 +274,39 @@ async function loadMemberOnce(user) {
   currentAccountEmail = normalizeEmail(user?.email || '');
   syncAccountSecurityEmail();
 
-  const accountRequest = supabase
-    .from('account_profiles')
-    .select('username, full_name')
-    .eq('id', user.id)
-    .maybeSingle();
-
   let accountResult;
   try {
-    accountResult = await memberBootWithTimeout(accountRequest);
-  } catch (error) {
+    accountResult = await resilientRead(() => supabase
+      .from('account_profiles')
+      .select('username, full_name')
+      .eq('id', user.id)
+      .maybeSingle(), { timeoutMs: MEMBER_BOOT_TIMEOUT_MS });
+  } catch {
     const fallback = memberFallbackProfile(user);
-    if (error?.code === 'MEMBER_BOOT_TIMEOUT' && fallback) {
+    if (fallback) {
       renderMember(fallback, user.id);
       refreshMemberProfileAfterFallback(user);
+      void loadDeletionRequestState();
       await applyLocationRoute();
       return;
     }
+
+    // A valid auth session must not be treated as signed out just because a
+    // profile read had a transient backend failure.
+    const cachedSession = cachedAuthSession();
+    if (cachedSession?.user?.id === user.id) {
+      window.setTimeout(() => {
+        if (!currentMember && memberLoadUserId !== user.id) void loadMember(user);
+      }, MEMBER_REFRESH_DELAY_MS);
+      return;
+    }
+
     showSignedOut('login');
-    setMessage(byId('login-message'), 'Your session opened, but your profile could not be loaded. Try again.');
+    setMessage(byId('login-message'), 'Your session could not be confirmed. Please sign in again.');
     return;
   }
 
-  const { data: account, error: accountError } = accountResult || {};
-  if (accountError) {
-    showSignedOut('login');
-    setMessage(byId('login-message'), 'Your session opened, but your profile could not be loaded. Try again.');
-    return;
-  }
-
+  const account = accountResult?.data || null;
   if (!account) {
     const suggestedUsername = normalizeUsername(user.user_metadata?.username || '');
     const suggestedName = String(user.user_metadata?.full_name || suggestedUsername).trim();
@@ -228,36 +317,53 @@ async function loadMemberOnce(user) {
     return;
   }
 
-  const socialRequest = supabase
-    .from('social_profiles')
-    .select('id, username, display_name, bio, avatar_key, updated_at, location, website_url, is_discoverable, is_verified, verification_badge_type, followers_count, following_count')
-    .eq('id', user.id)
-    .maybeSingle();
-
   let socialResult;
   try {
-    socialResult = await memberBootWithTimeout(socialRequest);
-  } catch (error) {
+    socialResult = await resilientRead(() => supabase
+      .from('social_profiles')
+      .select('id, username, display_name, bio, avatar_key, updated_at, location, website_url, is_discoverable, is_verified, verification_badge_type, followers_count, following_count')
+      .eq('id', user.id)
+      .maybeSingle(), { timeoutMs: MEMBER_BOOT_TIMEOUT_MS });
+  } catch {
     const fallback = memberFallbackProfile(user, account);
-    if (error?.code === 'MEMBER_BOOT_TIMEOUT' && fallback) {
+    if (fallback) {
       renderMember(fallback, user.id);
       refreshMemberProfileAfterFallback(user);
+      void loadDeletionRequestState();
       await applyLocationRoute();
       return;
     }
+
+    const cachedSession = cachedAuthSession();
+    if (cachedSession?.user?.id === user.id) {
+      window.setTimeout(() => {
+        if (!currentMember && memberLoadUserId !== user.id) void loadMember(user);
+      }, MEMBER_REFRESH_DELAY_MS);
+      return;
+    }
+
     showSignedOut('login');
-    setMessage(byId('login-message'), 'Your account is secure, but social profile setup is unavailable right now.');
+    setMessage(byId('login-message'), 'Your session could not be confirmed. Please sign in again.');
     return;
   }
 
-  const { data: social, error: socialError } = socialResult || {};
-  if (socialError || !social) {
-    showSignedOut('login');
-    setMessage(byId('login-message'), 'Your account is secure, but social profile setup is unavailable right now.');
+  const social = socialResult?.data || null;
+  if (!social) {
+    const fallback = memberFallbackProfile(user, account);
+    if (fallback) {
+      renderMember(fallback, user.id);
+      refreshMemberProfileAfterFallback(user);
+      void loadDeletionRequestState();
+      await applyLocationRoute();
+      return;
+    }
+    showAuthPanel('onboarding');
     return;
   }
 
-  renderMember({ ...account, ...social }, user.id);
+  const hydratedMember = { ...account, ...social };
+  cacheMemberProfile(hydratedMember, user.id);
+  renderMember(hydratedMember, user.id);
   void loadDeletionRequestState();
   await applyLocationRoute();
 }
@@ -279,6 +385,95 @@ async function loadMember(user) {
 async function completeOnboarding`;
 
   output = output.replace(memberBlockPattern, resilientMemberBlock);
+
+  const streamBlockPattern = /async function loadStream\(\{ reset = false \} = \{\}\) \{[\s\S]*?\n\}\n\nfunction sautiCardsForPost/;
+  if (!streamBlockPattern.test(output)) {
+    throw new Error('Could not find the SautiLink Home feed loader.');
+  }
+
+  const resilientStreamBlock = `async function loadStream({ reset = false } = {}) {
+  if (!currentMember || streamLoading) return;
+  streamLoading = true;
+  const requestId = ++streamRequest;
+  const loading = byId('stream-loading');
+  const error = byId('stream-error');
+  const loadMore = byId('stream-load-more');
+  const feed = byId('stream-feed');
+  const hadRenderedFeed = feed.childElementCount > 0;
+
+  if (reset) {
+    streamCursor = null;
+    if (!hadRenderedFeed) {
+      clearHomeFeedMediaState();
+      feed.replaceChildren();
+      byId('stream-empty').hidden = true;
+      byId('stream-welcome').hidden = false;
+    }
+  }
+
+  error.hidden = true;
+  loading.hidden = !reset;
+  loadMore.disabled = true;
+
+  try {
+    const streamResult = await resilientRead(() => {
+      let query = supabase
+        .from('social_stream_events')
+        .select('event_type, post_id, actor_id, event_at, event_key')
+        .order('event_at', { ascending: false })
+        .order('event_key', { ascending: false })
+        .limit(STREAM_PAGE_SIZE + 1);
+
+      if (streamCursor) {
+        query = query.or(
+          'event_at.lt.' + streamCursor.createdAt
+          + ',and(event_at.eq.' + streamCursor.createdAt
+          + ',event_key.lt.' + streamCursor.id + ')'
+        );
+      }
+      return query;
+    }, { attempts: READ_RETRY_ATTEMPTS, timeoutMs: READ_RETRY_TIMEOUT_MS });
+
+    if (requestId !== streamRequest) return;
+
+    const rows = Array.isArray(streamResult?.data) ? streamResult.data : [];
+    streamHasMore = rows.length > STREAM_PAGE_SIZE;
+    const page = rows.slice(0, STREAM_PAGE_SIZE);
+    const last = page[page.length - 1];
+    if (last) streamCursor = { createdAt: last.event_at, id: last.event_key };
+
+    const hydrated = await resilientRead(
+      () => hydrateStreamEvents(page),
+      { attempts: READ_RETRY_ATTEMPTS, timeoutMs: READ_RETRY_TIMEOUT_MS + 2000 },
+    );
+    if (requestId !== streamRequest) return;
+    renderStreamRows(hydrated, { reset });
+  } catch {
+    if (requestId !== streamRequest) return;
+
+    // Never blank a feed the member was already reading because a background
+    // refresh had a transient failure. Only show the blocking error if this
+    // page genuinely has no usable feed yet.
+    if (hadRenderedFeed) {
+      error.hidden = true;
+      byId('stream-more').hidden = !streamHasMore;
+    } else {
+      feed.replaceChildren();
+      error.hidden = false;
+      byId('stream-more').hidden = true;
+    }
+  } finally {
+    if (requestId === streamRequest) {
+      streamLoading = false;
+      loading.hidden = true;
+      loadMore.disabled = false;
+    }
+  }
+}
+
+function sautiCardsForPost`;
+
+  output = output.replace(streamBlockPattern, resilientStreamBlock);
 
   const bootstrapStart = `async function bootstrap() {
   configureEmailOtpInputs();`;
