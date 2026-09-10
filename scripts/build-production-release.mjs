@@ -7,6 +7,7 @@ import { transformLoginBootSource } from './login-boot-source-transform.mjs';
 import { transformMemberBootstrapResilienceSource } from './member-bootstrap-resilience-source-transform.mjs';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
+import { transformProfileTabIconsSource } from './profile-tab-icons-source-transform.mjs';
 import { transformRoomsStartupIsolationSource } from './rooms-startup-isolation-source-transform.mjs';
 import { transformVideoPlayerSource } from './video-player-source-transform.mjs';
 import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs';
@@ -46,21 +47,24 @@ await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: tru
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
   const source = await readFile(file, 'utf8');
-  let output = transformRoomsStartupIsolationSource(
+  let output = transformProfileTabIconsSource(
     file,
-    transformMemberBootstrapResilienceSource(
+    transformRoomsStartupIsolationSource(
       file,
-      transformBootstrapResilienceSource(
+      transformMemberBootstrapResilienceSource(
         file,
-        transformLoginBootSource(
+        transformBootstrapResilienceSource(
           file,
-          transformWhatsAppOtpSource(
+          transformLoginBootSource(
             file,
-            transformVideoPlayerSource(
+            transformWhatsAppOtpSource(
               file,
-              transformMentionNotificationSource(
+              transformVideoPlayerSource(
                 file,
-                transformPostMediaSource(file, productionText(source)),
+                transformMentionNotificationSource(
+                  file,
+                  transformPostMediaSource(file, productionText(source)),
+                ),
               ),
             ),
           ),

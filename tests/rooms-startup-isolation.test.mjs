@@ -46,6 +46,6 @@ test('normal and production builders apply Rooms startup isolation', async () =>
   const productionBuilder = await source('scripts/build-production-release.mjs');
 
   assert.match(normalBuilder, /transformRoomsStartupIsolationSource/);
-  assert.match(normalBuilder, /plugins: \[roomsStartupIsolationPlugin\]/);
+  assert.match(normalBuilder, /plugins: \[[^\]]*roomsStartupIsolationPlugin[^\]]*\]/);
   assert.match(productionBuilder, /transformRoomsStartupIsolationSource\(/);
 });
