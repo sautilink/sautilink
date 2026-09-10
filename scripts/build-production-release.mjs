@@ -100,6 +100,7 @@ await build({
     resolve(workerSource, 'professional-profile-category.js'),
     resolve(workerSource, 'profile-media-upload-icons.js'),
     resolve(workerSource, 'home-feed-author-profile-links.js'),
+    resolve(workerSource, 'messages-whatsapp-ui.js'),
     resolve(workerSource, 'mobile-nav-icon-style.js'),
     resolve(workerSource, 'mobile-more-drawer.js'),
     resolve(workerSource, 'post-media-carousel.js'),
