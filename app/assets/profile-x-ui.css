@@ -259,7 +259,10 @@
 }
 
 .profile-surface .profile-activity-privacy-toggle {
+  display: inline-flex;
   min-height: 32px;
+  align-items: center;
+  justify-content: center;
   font-size: 11px;
 }
 
@@ -270,13 +273,27 @@
 }
 
 .profile-surface .profile-activity-tab {
+  display: inline-flex;
   min-width: 92px;
   min-height: 54px;
+  align-items: center;
+  justify-content: center;
   padding: 0 14px;
   border-radius: 0;
   color: var(--app-muted);
   font-size: 13px;
   font-weight: 560;
+}
+
+.profile-surface .profile-activity-tab[hidden] {
+  display: none;
+}
+
+.profile-surface .profile-activity-privacy-toggle svg,
+.profile-surface .profile-activity-tab svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
 }
 
 .profile-surface .profile-activity-tab:hover {
@@ -345,6 +362,15 @@
 :root[data-theme="light"] .profile-surface .profile-activity-error,
 :root[data-theme="light"] .profile-surface .profile-activity-empty {
   background: var(--app-panel);
+}
+
+@media (min-width: 681px) {
+  .profile-surface .profile-activity-tab {
+    min-width: 0;
+    flex: 1 1 0;
+    padding-right: 8px;
+    padding-left: 8px;
+  }
 }
 
 @media (max-width: 680px) {
