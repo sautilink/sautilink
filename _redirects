@@ -1,2 +1,5 @@
 # Keep canonical profile URLs while serving the existing app shell.
 /app/u/* /app/ 200
+
+# Serve the official Android download page at a clean URL.
+/download /download.html 200
