@@ -1,0 +1,133 @@
+/* Room post image attachments. Scoped to the existing Room composer only. */
+
+.room-post-image-preview {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.room-post-image-tile {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--app-line);
+  border-radius: 12px;
+  aspect-ratio: 1 / 1;
+  background: var(--app-panel-soft);
+}
+
+.room-post-image-tile img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.room-post-image-status {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  left: 5px;
+  overflow: hidden;
+  padding: 4px 6px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .68);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 750;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-post-image-remove,
+.room-post-image-retry {
+  position: absolute;
+  z-index: 1;
+  border: 0;
+  cursor: pointer;
+}
+
+.room-post-image-remove {
+  top: 5px;
+  right: 5px;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .72);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.room-post-image-retry {
+  top: 50%;
+  left: 50%;
+  min-height: 30px;
+  padding: 6px 9px;
+  transform: translate(-50%, -50%);
+  border-radius: 9px;
+  background: var(--app-elevated);
+  color: var(--app-text);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.room-post-image-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.room-post-image-add {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid var(--app-line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--app-text);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.room-post-image-add:hover:not(:disabled) {
+  background: var(--app-panel-soft);
+}
+
+.room-post-image-add:disabled {
+  cursor: default;
+  opacity: .55;
+}
+
+.room-post-image-add svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.room-post-image-count {
+  color: var(--app-muted);
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 680px) {
+  .room-post-image-preview {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
