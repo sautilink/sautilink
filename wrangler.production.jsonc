@@ -146,6 +146,12 @@
     "binding": "ASSETS",
     "run_worker_first": true
   },
+  "vars": {
+    "SAUTI_MEDIA_VARIANTS_ENABLED": "true"
+  },
+  "images": {
+    "binding": "IMAGES"
+  },
   "r2_buckets": [
     {
       "binding": "PROFILE_MEDIA",
