@@ -7,6 +7,30 @@ function replaceExactOnce(source, before, after, label) {
 
 export function transformMediaPerformanceSource(filePath, source) {
   const normalized = String(filePath || '').replaceAll('\\', '/');
+
+  if (normalized.endsWith('/src/asset-router.js') || normalized.endsWith('src/asset-router.js')) {
+    return replaceExactOnce(
+      source,
+      `  if (isApiPath(url.pathname)) {
+    headers.set('Cache-Control', 'no-store');
+  }`,
+      `  const protectedMediaDelivery = /^\\/api\\/sauti-media\\/[0-9a-f-]{36}$/i.test(url.pathname);
+  if (isApiPath(url.pathname) && !protectedMediaDelivery) {
+    headers.set('Cache-Control', 'no-store');
+  }`,
+      'the API cache-control finalizer',
+    );
+  }
+
+  if (normalized.endsWith('/src/sauti-media-api.js') || normalized.endsWith('src/sauti-media-api.js')) {
+    return replaceExactOnce(
+      source,
+      `  headers.set('Cache-Control', 'private, no-store, max-age=0');`,
+      `  headers.set('Cache-Control', 'private, max-age=0, must-revalidate');`,
+      'the protected media variant browser cache policy',
+    );
+  }
+
   if (!normalized.endsWith('/src/app.js') && !normalized.endsWith('src/app.js')) return source;
 
   let output = source;
