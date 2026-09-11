@@ -39,18 +39,11 @@ function waitForSautiMediaNearViewport(tile) {
   if (!tile || !('IntersectionObserver' in window)) return Promise.resolve();
   const preloadMargin = Math.min(Math.max(Number(window.innerHeight || 720), 480), 1200);
   return new Promise((resolve) => {
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      window.clearTimeout(timeout);
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
       observer.disconnect();
       resolve();
-    };
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) finish();
     }, { rootMargin: \`\${preloadMargin}px 0px\` });
-    const timeout = window.setTimeout(finish, 45_000);
     observer.observe(tile);
   });
 }
