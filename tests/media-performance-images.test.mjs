@@ -51,6 +51,19 @@ test('Home feed waits for viewport proximity and requests sized protected blobs'
   const mediaFetchStart = optimized.indexOf('await waitForSautiMediaNearViewport(button)');
   const protectedFetch = optimized.indexOf('fetchSautiMediaBlobUrl(media.id, variantWidth)', mediaFetchStart);
   assert.ok(mediaFetchStart >= 0 && protectedFetch > mediaFetchStart, 'feed media fetch must happen after viewport gating');
+  assert.doesNotMatch(optimized, /setTimeout\(finish,\s*45_000\)/);
+});
+
+test('production variants privately revalidate while protected originals stay no-store', async () => {
+  const routerPath = new URL('../src/asset-router.js', import.meta.url).pathname;
+  const mediaApiPath = new URL('../src/sauti-media-api.js', import.meta.url).pathname;
+  const router = transformMediaPerformanceSource(routerPath, await read('src/asset-router.js'));
+  const mediaApi = transformMediaPerformanceSource(mediaApiPath, await read('src/sauti-media-api.js'));
+
+  assert.match(router, /protectedMediaDelivery/);
+  assert.match(router, /isApiPath\(url\.pathname\) && !protectedMediaDelivery/);
+  assert.match(mediaApi, /private, max-age=0, must-revalidate/);
+  assert.match(mediaApi, /headers\.set\('Cache-Control', 'private, no-store, max-age=0'\);/);
 });
 
 test('development and production builds apply post-media reservation before media performance transform', async () => {
