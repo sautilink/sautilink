@@ -7,6 +7,9 @@ const VIDEO_LIMIT = 25 * 1024 * 1024;
 const MAX_VIDEO_DURATION_MS = 90_000;
 const MAX_DIMENSION = 8192;
 const UPLOAD_TTL_MS = 60 * 60 * 1000;
+const IMAGE_VARIANT_VERSION = 'v1';
+const IMAGE_VARIANT_WIDTHS = Object.freeze([480, 960, 1440]);
+const IMAGE_VARIANT_EDGE_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 const TYPES = {
   'image/jpeg': { kind: 'image', extension: 'jpg', limit: IMAGE_LIMIT },
@@ -61,6 +64,48 @@ function uuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(normalized)
     ? normalized
     : '';
+}
+
+export function normalizeSautiMediaVariantWidth(value) {
+  const width = Number(value || 0);
+  return IMAGE_VARIANT_WIDTHS.includes(width) ? width : 0;
+}
+
+function responsiveImagesEnabled(env) {
+  return String(env?.SAUTI_MEDIA_VARIANTS_ENABLED || '').toLowerCase() === 'true' && Boolean(env?.IMAGES);
+}
+
+function mediaVariantEtag(id, width = 0) {
+  const suffix = width ? `${IMAGE_VARIANT_VERSION}-w${width}` : 'original';
+  return `W/"sauti-${id}-${suffix}"`;
+}
+
+function mediaResponseHeaders(contentType, etag, variantWidth = 0) {
+  const headers = new Headers();
+  if (contentType) headers.set('Content-Type', contentType);
+  headers.set('Cache-Control', 'private, no-store, max-age=0');
+  headers.set('Content-Security-Policy', "default-src 'none'");
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('Content-Disposition', 'inline');
+  headers.set('ETag', etag);
+  if (variantWidth) headers.set('X-Sauti-Media-Variant', `${IMAGE_VARIANT_VERSION};w=${variantWidth}`);
+  else headers.set('X-Sauti-Media-Variant', 'original');
+  return headers;
+}
+
+function requestHasEtag(request, etag) {
+  return String(request.headers.get('If-None-Match') || '')
+    .split(',')
+    .map((value) => value.trim())
+    .includes(etag);
+}
+
+function mediaVariantCacheKey(request, id, width) {
+  const url = new URL(request.url);
+  url.search = '';
+  url.searchParams.set('w', String(width));
+  url.searchParams.set('variant', IMAGE_VARIANT_VERSION);
+  return new Request(url.toString(), { method: 'GET' });
 }
 
 function fixed16(value) {
@@ -207,7 +252,6 @@ async function deleteMediaRow(session, id) {
   const rows = await response.json().catch(() => []);
   return Boolean(Array.isArray(rows) && rows[0]?.id);
 }
-
 
 async function cleanupExpiredOwnerUploads(session, env) {
   const params = new URLSearchParams({
@@ -405,27 +449,107 @@ async function removeUpload(request, env, id) {
   return json(200, { ok: true, data: { id, removed: true } });
 }
 
-async function serveMedia(request, env, id) {
-  if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
-  const row = await selectMedia(id, authorization(request));
-  if (!row || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
+async function serveOriginalMedia(request, env, row, id) {
+  const etag = mediaVariantEtag(id);
+  const headers = mediaResponseHeaders(row.content_type, etag);
+  if (requestHasEtag(request, etag)) return new Response(null, { status: 304, headers });
+
+  if (request.method === 'HEAD') {
+    const object = await env.SAUTI_MEDIA.head(row.object_key);
+    if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
+    object.writeHttpMetadata(headers);
+    headers.set('Cache-Control', 'private, no-store, max-age=0');
+    headers.set('ETag', etag);
+    return new Response(null, { status: 200, headers });
+  }
+
   const object = await env.SAUTI_MEDIA.get(row.object_key);
   if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
-  const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set('Cache-Control', 'private, no-store, max-age=0');
   headers.set('Content-Security-Policy', "default-src 'none'");
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('Content-Disposition', 'inline');
-  if (request.method === 'HEAD') return new Response(null, { status: 200, headers });
+  headers.set('ETag', etag);
+  headers.set('X-Sauti-Media-Variant', 'original');
   return new Response(object.body, { status: 200, headers });
+}
+
+async function serveImageVariant(request, env, row, id, width) {
+  if (!responsiveImagesEnabled(env) || row.media_kind !== 'image') {
+    return serveOriginalMedia(request, env, row, id);
+  }
+
+  const etag = mediaVariantEtag(id, width);
+  const clientHeaders = mediaResponseHeaders('image/webp', etag, width);
+  if (requestHasEtag(request, etag)) return new Response(null, { status: 304, headers: clientHeaders });
+  if (request.method === 'HEAD') return new Response(null, { status: 200, headers: clientHeaders });
+
+  const cache = globalThis.caches?.default;
+  const cacheKey = mediaVariantCacheKey(request, id, width);
+  if (cache) {
+    const cached = await cache.match(cacheKey).catch(() => null);
+    if (cached) {
+      const headers = mediaResponseHeaders(cached.headers.get('Content-Type') || 'image/webp', etag, width);
+      headers.set('X-Sauti-Media-Cache', 'HIT');
+      return new Response(cached.body, { status: 200, headers });
+    }
+  }
+
+  const original = await env.SAUTI_MEDIA.get(row.object_key);
+  if (!original) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
+
+  const sourceWidth = Math.max(1, Number(row.width || width));
+  const targetWidth = Math.max(1, Math.min(width, sourceWidth));
+
+  try {
+    const output = await env.IMAGES
+      .input(original.body)
+      .transform({ width: targetWidth, fit: 'scale-down' })
+      .output({ format: 'image/webp', quality: 'high', anim: true });
+    const transformed = output.response();
+    if (!transformed.ok) return serveOriginalMedia(request, env, row, id);
+
+    const edgeHeaders = new Headers();
+    edgeHeaders.set('Content-Type', transformed.headers.get('Content-Type') || 'image/webp');
+    edgeHeaders.set('Cache-Control', `public, max-age=${IMAGE_VARIANT_EDGE_TTL_SECONDS}, immutable`);
+    edgeHeaders.set('ETag', etag);
+    edgeHeaders.set('X-Sauti-Media-Variant', `${IMAGE_VARIANT_VERSION};w=${width}`);
+    const edgeResponse = new Response(transformed.body, { status: 200, headers: edgeHeaders });
+
+    if (cache) await cache.put(cacheKey, edgeResponse.clone()).catch(() => {});
+
+    const headers = mediaResponseHeaders(edgeHeaders.get('Content-Type'), etag, width);
+    headers.set('X-Sauti-Media-Cache', 'MISS');
+    return new Response(edgeResponse.body, { status: 200, headers });
+  } catch {
+    return serveOriginalMedia(request, env, row, id);
+  }
+}
+
+async function serveMedia(request, env, id) {
+  if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
+  const row = await selectMedia(id, authorization(request));
+  if (!row || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
+
+  const url = new URL(request.url);
+  const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
+  if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
+  return serveOriginalMedia(request, env, row, id);
 }
 
 export async function handleSautiMediaRequest(request, env) {
   const url = new URL(request.url);
 
   if (url.pathname === '/api/sauti-media/status' && request.method === 'GET') {
-    return json(200, { ok: true, data: { ready: Boolean(env.SAUTI_MEDIA) } });
+    return json(200, {
+      ok: true,
+      data: {
+        ready: Boolean(env.SAUTI_MEDIA),
+        responsive_images: responsiveImagesEnabled(env),
+        image_variant_widths: IMAGE_VARIANT_WIDTHS,
+      },
+    });
   }
   if (url.pathname === '/api/sauti-media/begin' && request.method === 'POST') return beginUpload(request, env);
 

@@ -4,6 +4,7 @@ import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transformBootstrapResilienceSource } from './bootstrap-resilience-source-transform.mjs';
 import { transformLoginBootSource } from './login-boot-source-transform.mjs';
+import { transformMediaPerformanceSource } from './media-performance-source-transform.mjs';
 import { transformMemberBootstrapResilienceSource } from './member-bootstrap-resilience-source-transform.mjs';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
@@ -82,7 +83,10 @@ for (const file of await walk(workerSource)) {
                 file,
                 transformMentionNotificationSource(
                   file,
-                  transformPostMediaSource(file, productionText(source)),
+                  transformMediaPerformanceSource(
+                    file,
+                    transformPostMediaSource(file, productionText(source)),
+                  ),
                 ),
               ),
             ),

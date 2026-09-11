@@ -49,6 +49,8 @@ for (const file of files) {
 
 const appHtml = await readFile(resolve(siteRoot, 'app/index.html'), 'utf8');
 const appJs = await readFile(resolve(siteRoot, 'app/assets/app.js'), 'utf8');
+const workerApp = await readFile(resolve(workerRoot, 'src/app.js'), 'utf8');
+const mediaApi = await readFile(resolve(workerRoot, 'src/sauti-media-api.js'), 'utf8');
 const profileXCss = await readFile(resolve(siteRoot, 'app/assets/profile-x-ui.css'), 'utf8');
 const messagesWhatsappCss = await readFile(resolve(siteRoot, 'app/assets/messages-whatsapp.css'), 'utf8');
 const roomsFacebookCss = await readFile(resolve(siteRoot, 'app/assets/rooms-facebook.css'), 'utf8');
@@ -110,6 +112,25 @@ for (const marker of [
 if (appJs.includes('Your session opened, but your profile could not be loaded. Try again.')) {
   throw new Error('production browser bundle still treats a transient profile read as a signed-out session');
 }
+
+for (const marker of [
+  'SAUTI_MEDIA_VARIANT_WIDTHS = Object.freeze([480, 960, 1440])',
+  'waitForSautiMediaNearViewport(button)',
+  'selectSautiMediaVariantWidth(media, button)',
+  "url.searchParams.set('w', String(variantWidth))",
+]) {
+  if (!workerApp.includes(marker)) throw new Error(`production browser source missing media performance marker: ${marker}`);
+}
+for (const marker of [
+  'IMAGE_VARIANT_WIDTHS = Object.freeze([480, 960, 1440])',
+  "output({ format: 'image/webp', quality: 'high', anim: true })",
+  'globalThis.caches?.default',
+  'private, max-age=0, must-revalidate',
+]) {
+  if (!mediaApi.includes(marker)) throw new Error(`production media Worker missing performance marker: ${marker}`);
+}
+if (!router.includes('protectedMediaDelivery')) throw new Error('production Worker does not preserve protected media cache policy');
+
 if (!roomsFacebookCss.includes('body.rooms-facebook-view')) throw new Error('production Rooms Groups-style stylesheet is missing its feature scope');
 if (!roomsFacebookCss.includes('room-fb-detail-aside')) throw new Error('production Rooms Groups-style detail layout is missing');
 if (appHtml.includes('Private preview') || appHtml.includes('Phase 31')) throw new Error('production app still contains staging/phase UI copy');
@@ -141,6 +162,8 @@ for (const marker of [
   'www.sautilink.com/signup*',
   'www.sautilink.com/home*',
   'sautilink-media-production',
+  '"binding": "IMAGES"',
+  '"SAUTI_MEDIA_VARIANTS_ENABLED": "true"',
 ]) {
   if (!config.includes(marker)) throw new Error(`production Wrangler config missing: ${marker}`);
 }
@@ -148,4 +171,4 @@ if (/"pattern"\s*:\s*"(?:www\.)?sautilink\.com\/\*"/.test(config)) {
   throw new Error('production Worker must not intercept the marketing/legal site root');
 }
 
-console.log(`Verified ${files.length} production artifact files: production DB isolated, CSP-safe X-style profile stylesheet present, transient read/session resilience present, scoped Messages WhatsApp UI present, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);
+console.log(`Verified ${files.length} production artifact files: production DB isolated, protected responsive media optimization present, CSP-safe X-style profile stylesheet present, transient read/session resilience present, scoped Messages WhatsApp UI present, clean social routes present, Rooms Groups-style runtime present, root site preserved, no secrets/source maps.`);

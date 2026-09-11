@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transformBootstrapResilienceSource } from './bootstrap-resilience-source-transform.mjs';
+import { transformMediaPerformanceSource } from './media-performance-source-transform.mjs';
 import { transformMemberBootstrapResilienceSource } from './member-bootstrap-resilience-source-transform.mjs';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
@@ -23,7 +24,10 @@ const appSource = transformMemberBootstrapResilienceSource(
         appSourcePath,
         transformMentionNotificationSource(
           appSourcePath,
-          transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
+          transformMediaPerformanceSource(
+            appSourcePath,
+            transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
+          ),
         ),
       ),
     ),
