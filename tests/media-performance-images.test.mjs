@@ -53,8 +53,12 @@ test('Home feed waits for viewport proximity and requests sized protected blobs'
   assert.ok(mediaFetchStart >= 0 && protectedFetch > mediaFetchStart, 'feed media fetch must happen after viewport gating');
 });
 
-test('app build applies post-media reservation before media performance transform', async () => {
-  const build = await read('scripts/build-app.mjs');
-  assert.match(build, /transformMediaPerformanceSource/);
-  assert.match(build, /transformMediaPerformanceSource\(\s*appSourcePath,\s*transformPostMediaSource/s);
+test('development and production builds apply post-media reservation before media performance transform', async () => {
+  const appBuild = await read('scripts/build-app.mjs');
+  assert.match(appBuild, /transformMediaPerformanceSource/);
+  assert.match(appBuild, /transformMediaPerformanceSource\(\s*appSourcePath,\s*transformPostMediaSource/s);
+
+  const productionBuild = await read('scripts/build-production-release.mjs');
+  assert.match(productionBuild, /transformMediaPerformanceSource/);
+  assert.match(productionBuild, /transformMediaPerformanceSource\(\s*file,\s*transformPostMediaSource/s);
 });
