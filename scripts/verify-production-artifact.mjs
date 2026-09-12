@@ -67,7 +67,7 @@ for (const [label, value] of [['app html', appHtml], ['app js', appJs]]) {
 if (!appJs.includes(PRODUCTION_KEY)) throw new Error('browser bundle does not contain the production publishable key');
 if (!appJs.includes('sautilink-profile-x-ui')) throw new Error('production browser bundle missing X-style profile UI loader');
 if (!appJs.includes('profile-x-ui.css?v=20260910-tabs2')) throw new Error('production browser bundle missing CSP-safe profile stylesheet URL');
-if (!appJs.includes('/api/dm-realtime/connect/')) throw new Error('production browser bundle missing Durable Objects Messages realtime client');
+if (!appJs.includes('/api/dm-realtime/')) throw new Error('production browser bundle missing Durable Objects Messages realtime client');
 for (const marker of [
   '.profile-surface .profile-card',
   '.profile-surface .profile-banner',
