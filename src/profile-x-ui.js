@@ -1,6 +1,7 @@
 const PROFILE_X_UI_STYLE_ID = 'sautilink-profile-x-ui';
 const PROFILE_X_UI_STYLESHEET = '/app/assets/profile-x-ui.css?v=20260910-tabs2';
 const PROFILE_SOCIAL_STATS_ORDER_STYLE_ID = 'sautilink-profile-social-stats-order';
+const PROFILE_SOCIAL_STATS_ORDER_STYLESHEET = '/app/assets/profile-social-stats-order.css?v=20260912-followers1';
 
 function ensureProfileXUiStyles() {
   if (document.getElementById(PROFILE_X_UI_STYLE_ID)) return;
@@ -13,13 +14,11 @@ function ensureProfileXUiStyles() {
 
 function ensureProfileSocialStatsOrderStyles() {
   if (document.getElementById(PROFILE_SOCIAL_STATS_ORDER_STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = PROFILE_SOCIAL_STATS_ORDER_STYLE_ID;
-  style.textContent = `
-.profile-surface .profile-social-stats > span:first-child { order: 1; }
-.profile-surface .profile-social-stats > span:nth-child(2) { order: 2; }
-`;
-  document.head.append(style);
+  const link = document.createElement('link');
+  link.id = PROFILE_SOCIAL_STATS_ORDER_STYLE_ID;
+  link.rel = 'stylesheet';
+  link.href = PROFILE_SOCIAL_STATS_ORDER_STYLESHEET;
+  document.head.append(link);
 }
 
 function installProfileXUi() {
