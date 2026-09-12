@@ -5,7 +5,7 @@ const AUTH_HELPER_MARKER = `async function currentAuthorizationHeader() {
 }
 `;
 
-const MESSAGES_AUTH_BRIDGE = `${AUTH_HELPER_MARKER}\nwindow.__sautilinkMessagesAuthorizationHeaders = currentAuthorizationHeader;\nwindow.__sautilinkDmRealtimeAuthHeaders = currentAuthorizationHeader;\nwindow.__sautilinkDmRealtimeContext = () => ({\n  conversationId: String(activeConversation?.id || ''),\n  activityEnabled: Boolean(activityStatusEnabled()),\n  blocked: Boolean(activeConversation?.blockedByYou),\n});\n`;
+const MESSAGES_AUTH_BRIDGE = `${AUTH_HELPER_MARKER}\nwindow.__sautilinkMessagesAuthorizationHeaders = currentAuthorizationHeader;\n`;
 
 export function transformMessagesMediaSource(file, source) {
   if (!String(file).endsWith('app.js')) return source;
