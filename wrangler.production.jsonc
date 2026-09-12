@@ -152,6 +152,9 @@
   "images": {
     "binding": "IMAGES"
   },
+  "ai": {
+    "binding": "AI"
+  },
   "r2_buckets": [
     {
       "binding": "PROFILE_MEDIA",
@@ -280,6 +283,14 @@
       "namespace_id": "3215",
       "simple": {
         "limit": 60,
+        "period": 60
+      }
+    },
+    {
+      "name": "POST_TRANSLATION_LIMITER",
+      "namespace_id": "3216",
+      "simple": {
+        "limit": 30,
         "period": 60
       }
     }

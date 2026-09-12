@@ -1,0 +1,29 @@
+.sauti-post-translation-toggle {
+  display: block;
+  width: fit-content;
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.35;
+  opacity: 0.72;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sauti-post-translation-toggle:hover,
+.sauti-post-translation-toggle:focus-visible {
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sauti-post-translation-toggle:disabled {
+  cursor: default;
+  opacity: 0.55;
+  text-decoration: none;
+}
