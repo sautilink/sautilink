@@ -24,19 +24,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t files < <(git grep -l "quality: 'high'" || true)
+          mapfile -t files < <(git grep -l "quality: 'high'" -- ':!.github/workflows/temp-patch-media-quality.yml' || true)
           printf 'Exact matches before patch:\n'
           printf '%s\n' "${files[@]:-}"
 
           if [ "${#files[@]}" -eq 0 ]; then
-            echo "No remaining quality:'high' matches; nothing to patch."
+            echo "No remaining media quality string matches; nothing to patch."
             exit 0
           fi
 
           allowed='^(src/sauti-media-api\.js|scripts/media-performance-source-transform\.mjs|tests/media-performance-images\.test\.mjs|scripts/verify-production-artifact\.mjs)$'
           for file in "${files[@]}"; do
             if ! [[ "$file" =~ $allowed ]]; then
-              echo "Unexpected quality:'high' match outside media allowlist: $file"
+              echo "Unexpected media quality string match outside allowlist: $file"
               exit 1
             fi
           done
@@ -62,8 +62,8 @@ jobs:
           PY
 
           git diff --check
-          echo 'Remaining exact matches:'
-          git grep -n "quality: 'high'" || true
+          echo 'Remaining exact media matches:'
+          git grep -n "quality: 'high'" -- src/sauti-media-api.js scripts/media-performance-source-transform.mjs tests/media-performance-images.test.mjs scripts/verify-production-artifact.mjs || true
           echo 'Numeric quality matches:'
           git grep -n 'quality: 85' -- src/sauti-media-api.js scripts/media-performance-source-transform.mjs tests/media-performance-images.test.mjs scripts/verify-production-artifact.mjs || true
 
