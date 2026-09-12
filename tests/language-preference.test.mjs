@@ -66,9 +66,9 @@ test('language switching preserves English origins across repeated language chan
 });
 
 test('language settings panel is isolated from the existing settings router', () => {
-  assert.match(languageSource, /data-settings-section=\\"language\\"/);
+  assert.match(languageSource, /button\.dataset\.settingsSection = 'language'/);
+  assert.match(languageSource, /panel\.dataset\.settingsPanel = 'language'/);
   assert.match(languageSource, /event\.stopPropagation\(\)/);
-  assert.match(languageSource, /data-settings-panel=\\"language\\"/);
 });
 
 test('production app build bundles the language runtime', () => {
