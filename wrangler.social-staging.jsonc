@@ -64,8 +64,8 @@
       "vars": {
         "DM_MEDIA_SUPABASE_URL": "https://bbrydwzlhweuqxpgbahu.supabase.co",
         "DM_MEDIA_SUPABASE_KEY": "sb_publishable_oTYKPMJoxN1b8YBmG-a5eQ_M75Kl6VF",
-        "DM_REALTIME_SUPABASE_URL": "https://bbrydwzlhweuqxpgbahu.supabase.co",
-        "DM_REALTIME_SUPABASE_KEY": "sb_publishable_oTYKPMJoxN1b8YBmG-a5eQ_M75Kl6VF"
+        "DM_REALTIME_SUPABASE_URL": "https://rggpyiterdbbugluejcs.supabase.co",
+        "DM_REALTIME_SUPABASE_KEY": "sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca"
       },
       "durable_objects": {
         "bindings": [
