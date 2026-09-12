@@ -44,6 +44,7 @@ test('profile navigation owns canonical history and responds to browser history'
 
 test('deep profile URLs resolve through Worker and static-asset fallbacks', async () => {
   const worker = await read('src/asset-router.js');
+  const entry = await read('src/worker-entry.js');
   const wrangler = JSON.parse(await read('wrangler.social-staging.jsonc'));
   const redirects = await read('_redirects');
   const staging = await read('scripts/stage-preview-site.mjs');
@@ -54,7 +55,9 @@ test('deep profile URLs resolve through Worker and static-asset fallbacks', asyn
   assert.match(worker, /CLEAN_PROFILE_ROUTE/);
   assert.match(worker, /new URL\('\/app\/', url\)/);
   assert.match(worker, /env\.ASSETS\.fetch/);
-  assert.equal(wrangler.main, 'src/asset-router.js');
+  assert.match(entry, /import router from '\.\/asset-router\.js'/);
+  assert.match(entry, /return router\.fetch\(request, env, ctx\)/);
+  assert.equal(wrangler.main, 'src/worker-entry.js');
   assert.equal(wrangler.assets.binding, 'ASSETS');
   assert.equal(wrangler.env.test.assets.binding, 'ASSETS');
   assert.match(redirects, /\/app\/u\/\* \/app\/ 200/);
