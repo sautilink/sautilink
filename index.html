@@ -3,6 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script data-sautilink-session-entry>
+    (() => {
+      try {
+        const raw = window.localStorage.getItem('sautilink.auth.session');
+        if (!raw) return;
+        const value = JSON.parse(raw);
+        const session = value?.access_token && value?.user?.id
+          ? value
+          : value?.currentSession?.access_token && value?.currentSession?.user?.id
+            ? value.currentSession
+            : null;
+        if (session) window.location.replace('/home');
+      } catch {
+        // Missing, unavailable or malformed storage is treated as signed out at the root entry.
+      }
+    })();
+  </script>
   <title>SautiLink — Continue to your account</title>
   <meta name="description" content="Continue to SautiLink to sign in or create an account.">
   <meta name="robots" content="noindex, follow">
