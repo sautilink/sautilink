@@ -1,0 +1,3 @@
+/* Profile social counts — keep Followers before Following. */
+.profile-surface .profile-social-stats > span:first-child { order: 1; }
+.profile-surface .profile-social-stats > span:nth-child(2) { order: 2; }
