@@ -32,7 +32,7 @@ test('production Worker binds Images and keeps a reversible media flag', async (
   assert.ok(wrangler.r2_buckets?.some((binding) => binding.binding === 'SAUTI_MEDIA'));
 });
 
-test('Home feed waits for viewport proximity and requests sized protected blobs', async () => {
+test('Home feed waits for viewport proximity, requests sized protected blobs, and releases blob URLs', async () => {
   const appPath = new URL('../src/app.js', import.meta.url).pathname;
   const source = await read('src/app.js');
   const reserved = transformPostMediaSource(appPath, source);
@@ -46,11 +46,20 @@ test('Home feed waits for viewport proximity and requests sized protected blobs'
     'selectSautiMediaVariantWidth(media, button)',
     'fetchSautiMediaBlobUrl(button.dataset.openMediaId)',
     'content.dataset.mediaViewerObjectUrl = originalUrl',
+    'function revokeHomeFeedMediaObjectUrls',
+    "root.querySelectorAll('[data-media-object-url]')",
+    'URL.revokeObjectURL(url)',
+    'revokeHomeFeedMediaObjectUrls();',
+    'revokeHomeFeedMediaObjectUrls(authorCard);',
   ]) assert.ok(optimized.includes(marker), `missing transformed marker: ${marker}`);
 
   const mediaFetchStart = optimized.indexOf('await waitForSautiMediaNearViewport(button)');
   const protectedFetch = optimized.indexOf('fetchSautiMediaBlobUrl(media.id, variantWidth)', mediaFetchStart);
   assert.ok(mediaFetchStart >= 0 && protectedFetch > mediaFetchStart, 'feed media fetch must happen after viewport gating');
+
+  const cleanup = optimized.indexOf('revokeHomeFeedMediaObjectUrls();');
+  const feedReset = optimized.indexOf("byId('stream-feed').replaceChildren();");
+  assert.ok(cleanup >= 0 && feedReset > cleanup, 'feed blob URLs must be revoked before reset removes media nodes');
   assert.doesNotMatch(optimized, /setTimeout\(finish,\s*45_000\)/);
 });
 
