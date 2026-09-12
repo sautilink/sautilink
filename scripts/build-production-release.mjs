@@ -7,6 +7,7 @@ import { transformLoginBootSource } from './login-boot-source-transform.mjs';
 import { transformMediaPerformanceSource } from './media-performance-source-transform.mjs';
 import { transformMemberBootstrapResilienceSource } from './member-bootstrap-resilience-source-transform.mjs';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
+import { transformMessagesDurableRealtimeSource } from './messages-durable-realtime-source-transform.mjs';
 import { transformMessagesMediaSource } from './messages-media-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
 import { transformProfileTabIconsSource } from './profile-tab-icons-source-transform.mjs';
@@ -21,7 +22,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
-const APP_JS_RELEASE = '20260910-profileui1';
+const APP_JS_RELEASE = '20260912-durable1';
 
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -68,27 +69,30 @@ await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: tru
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
   const source = await readFile(file, 'utf8');
-  let output = transformMessagesMediaSource(
+  let output = transformMessagesDurableRealtimeSource(
     file,
-    transformProfileTabIconsSource(
+    transformMessagesMediaSource(
       file,
-      transformRoomsStartupIsolationSource(
+      transformProfileTabIconsSource(
         file,
-        transformMemberBootstrapResilienceSource(
+        transformRoomsStartupIsolationSource(
           file,
-          transformBootstrapResilienceSource(
+          transformMemberBootstrapResilienceSource(
             file,
-            transformLoginBootSource(
+            transformBootstrapResilienceSource(
               file,
-              transformWhatsAppOtpSource(
+              transformLoginBootSource(
                 file,
-                transformVideoPlayerSource(
+                transformWhatsAppOtpSource(
                   file,
-                  transformMentionNotificationSource(
+                  transformVideoPlayerSource(
                     file,
-                    transformMediaPerformanceSource(
+                    transformMentionNotificationSource(
                       file,
-                      transformPostMediaSource(file, productionText(source)),
+                      transformMediaPerformanceSource(
+                        file,
+                        transformPostMediaSource(file, productionText(source)),
+                      ),
                     ),
                   ),
                 ),
@@ -137,6 +141,7 @@ await build({
     resolve(workerSource, 'home-feed-author-profile-links.js'),
     resolve(workerSource, 'messages-whatsapp-ui.js'),
     resolve(workerSource, 'messages-media-ui.js'),
+    resolve(workerSource, 'messages-durable-realtime.js'),
     resolve(workerSource, 'mobile-nav-icon-style.js'),
     resolve(workerSource, 'mobile-more-drawer.js'),
     resolve(workerSource, 'post-media-carousel.js'),
@@ -161,7 +166,7 @@ await build({
 
 const productionHeaders = `/app/*
   Cache-Control: no-store, max-age=0
-  Content-Security-Policy: default-src 'self'; connect-src 'self' ${PRODUCTION_URL} wss://${PRODUCTION_REF}.supabase.co; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; connect-src 'self' wss://sautilink.com wss://www.sautilink.com ${PRODUCTION_URL} wss://${PRODUCTION_REF}.supabase.co; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   Cross-Origin-Opener-Policy: same-origin
   Permissions-Policy: camera=(), microphone=(self), geolocation=(), payment=(), usb=()
   Referrer-Policy: strict-origin-when-cross-origin

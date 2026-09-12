@@ -6,6 +6,12 @@
     "directory": "./",
     "binding": "ASSETS"
   },
+  "exports": {
+    "DmRealtimeHub": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  },
   "env": {
     "preview": {
       "name": "sautilink-app-shell-preview",
@@ -71,7 +77,17 @@
       },
       "vars": {
         "DM_MEDIA_SUPABASE_URL": "https://bbrydwzlhweuqxpgbahu.supabase.co",
-        "DM_MEDIA_SUPABASE_KEY": "sb_publishable_oTYKPMJoxN1b8YBmG-a5eQ_M75Kl6VF"
+        "DM_MEDIA_SUPABASE_KEY": "sb_publishable_oTYKPMJoxN1b8YBmG-a5eQ_M75Kl6VF",
+        "DM_REALTIME_SUPABASE_URL": "https://rggpyiterdbbugluejcs.supabase.co",
+        "DM_REALTIME_SUPABASE_KEY": "sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca"
+      },
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "DM_REALTIME_HUB",
+            "class_name": "DmRealtimeHub"
+          }
+        ]
       },
       "ai": {
         "binding": "AI"
@@ -226,5 +242,5 @@
       ]
     }
   },
-  "main": "src/asset-router.js"
+  "main": "src/worker-entry.js"
 }

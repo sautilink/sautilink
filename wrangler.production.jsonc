@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "sautilink-social-production",
   "compatibility_date": "2026-08-17",
-  "main": "./dist-production-worker/src/asset-router.js",
+  "main": "./dist-production-worker/src/worker-entry.js",
   "routes": [
     {
       "pattern": "sautilink.com/app",
@@ -149,7 +149,23 @@
   "vars": {
     "SAUTI_MEDIA_VARIANTS_ENABLED": "true",
     "DM_MEDIA_SUPABASE_URL": "https://rggpyiterdbbugluejcs.supabase.co",
-    "DM_MEDIA_SUPABASE_KEY": "sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca"
+    "DM_MEDIA_SUPABASE_KEY": "sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca",
+    "DM_REALTIME_SUPABASE_URL": "https://rggpyiterdbbugluejcs.supabase.co",
+    "DM_REALTIME_SUPABASE_KEY": "sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "DM_REALTIME_HUB",
+        "class_name": "DmRealtimeHub"
+      }
+    ]
+  },
+  "exports": {
+    "DmRealtimeHub": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
   },
   "images": {
     "binding": "IMAGES"

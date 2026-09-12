@@ -20,7 +20,7 @@ test('Phase 32 production artifact targets production Supabase and removes previ
   assert.doesNotMatch(html, /Private preview|Phase 31/);
   assert.doesNotMatch(html, /name="robots"[^>]+noindex/i);
   assert.match(html, /app\.css\?v=20260909-home-loading/);
-  assert.match(html, /app\.js\?v=20260910-profileui1/);
+  assert.match(html, /app\.js\?v=20260912-durable1/);
   assert.match(html, /theme-init\.js\?v=20260904-account2/);
   assert.match(html, /\/logo\.png/);
   assert.doesNotMatch(html, /logo-compact\.webp/);
@@ -49,6 +49,7 @@ test('Phase 32 production Worker is path-scoped and keeps the account-entry root
 
   assert.doesNotMatch(config, /"pattern"\s*:\s*"(?:www\.)?sautilink\.com\/\*"/);
   assert.match(config, /"name": "sautilink-social-production"/);
+  assert.match(config, /"main": "\.\/dist-production-worker\/src\/worker-entry\.js"/);
   assert.match(config, /"bucket_name": "sautilink-media-production"/);
   assert.match(config, /"run_worker_first": true/);
   assert.match(config, /"binding": "AI"/);
@@ -56,6 +57,10 @@ test('Phase 32 production Worker is path-scoped and keeps the account-entry root
   assert.match(config, /"namespace_id": "3216"/);
   assert.match(config, /"name": "DM_MEDIA_UPLOAD_LIMITER"/);
   assert.match(config, /"namespace_id": "3217"/);
+  assert.match(config, /"name": "DM_REALTIME_HUB"/);
+  assert.match(config, /"class_name": "DmRealtimeHub"/);
+  assert.match(config, /"type": "durable-object"/);
+  assert.match(config, /"storage": "sqlite"/);
 
   const namespaceIds = [...config.matchAll(/"namespace_id": "(\d+)"/g)].map((match) => match[1]);
   assert.equal(namespaceIds.length, 17);
@@ -66,6 +71,7 @@ test('Phase 32 production Worker is path-scoped and keeps the account-entry root
 test('Phase 32 production headers use production CSP without staging noindex', async () => {
   const headers = await read('dist-production-site/_headers');
   assert.match(headers, /rggpyiterdbbugluejcs\.supabase\.co/);
+  assert.match(headers, /wss:\/\/sautilink\.com/);
   assert.match(headers, /media-src 'self' blob:/);
   assert.match(headers, /style-src 'self'/);
   assert.match(headers, /frame-ancestors 'none'/);
@@ -101,14 +107,15 @@ test('Phase 32 production build and verifier are permanent repository gates', as
     'https://sautilink.com/login',
     'https://sautilink.com/signup',
     'https://sautilink.com/home',
-    'app.js?v=20260910-profileui1',
+    'app.js?v=20260912-durable1',
     'sautilink-profile-x-ui',
   ]) assert.ok(workflow.includes(marker), `production workflow missing ${marker}`);
 
   assert.match(buildScript, /dist-production-worker/);
   assert.match(buildScript, /dist-production-site/);
   assert.match(buildScript, /PRODUCTION_URL/);
-  assert.match(buildScript, /APP_JS_RELEASE = '20260910-profileui1'/);
+  assert.match(buildScript, /APP_JS_RELEASE = '20260912-durable1'/);
+  assert.match(buildScript, /messages-durable-realtime\.js/);
   assert.match(verifyScript, /staging Supabase identity leaked into production artifact/);
   assert.match(verifyScript, /production browser bundle missing X-style profile UI loader/);
   assert.match(verifyScript, /profile-x-ui\.css\?v=20260910-tabs2/);
@@ -125,6 +132,9 @@ test('Phase 32 generated production files exist and no source map is emitted', a
     'dist-production-site/app/assets/theme-init.js',
     'dist-production-site/_headers',
     'dist-production-worker/src/asset-router.js',
+    'dist-production-worker/src/worker-entry.js',
+    'dist-production-worker/src/dm-realtime-api.js',
+    'dist-production-worker/src/dm-realtime-hub.js',
   ]) {
     assert.equal((await stat(new URL(`../${path}`, import.meta.url))).isFile(), true, `missing ${path}`);
   }
