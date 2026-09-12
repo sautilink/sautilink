@@ -68,6 +68,7 @@ test('Phase 35 media UI extends Messages without replacing plain-text sending', 
 test('Phase 35 enables microphone only for the SautiLink app and leaves camera blocked', async () => {
   const previewStep = await read('scripts/enable-messages-media-preview.mjs');
   const productionBuild = await read('scripts/build-production-release.mjs');
+  const androidRelease = await read('scripts/configure-android-release.mjs');
   const serviceWorker = await read('sw.js');
 
   for (const source of [previewStep, productionBuild]) {
@@ -76,6 +77,9 @@ test('Phase 35 enables microphone only for the SautiLink app and leaves camera b
     assert.match(source, /media-src 'self' blob:/);
   }
 
+  assert.match(androidRelease, /android\.permission\.RECORD_AUDIO/);
+  assert.match(androidRelease, /android\.permission\.MODIFY_AUDIO_SETTINGS/);
+  assert.doesNotMatch(androidRelease, /android\.permission\.CAMERA/);
   assert.match(serviceWorker, /sautilink-shell-v50/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
 });
