@@ -1,0 +1,27 @@
+name: Post-fix Authenticated Media Performance Probe
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/media-auth-performance-probe-v2.mjs"
+      - ".github/workflows/media-auth-performance-probe-v2.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Verify protected WebP variants and cache behavior
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Run authenticated production media probe
+        run: node scripts/media-auth-performance-probe-v2.mjs
