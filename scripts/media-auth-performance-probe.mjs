@@ -1,3 +1,4 @@
+import { randomBytes, randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
@@ -5,6 +6,8 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca
 const PROD_ORIGIN = 'https://sautilink.com';
 const MEDIA_ID = 'e8112731-c3c3-44dc-ac7f-573d99d6a24c';
 const WIDTHS = [480, 960, 1440];
+const SIGN_IN_ATTEMPTS = 12;
+const SIGN_IN_RETRY_MS = 10_000;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
@@ -13,6 +16,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     detectSessionInUrl: false,
   },
 });
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function pickHeaders(response) {
   return {
@@ -44,15 +49,61 @@ async function fetchMedia(token, label, suffix = '', extraHeaders = {}) {
   };
 }
 
-const { data, error } = await supabase.auth.signInAnonymously();
-if (error || !data?.session?.access_token || !data?.user?.id) {
-  console.log('ANONYMOUS_AUTH_UNAVAILABLE');
-  console.log(JSON.stringify({ code: error?.code || null, status: error?.status || null, message: error?.message || 'No session returned' }));
-  process.exit(3);
+const syntheticEmail = `sautilink-media-probe-${Date.now()}-${randomUUID().slice(0, 8)}@example.com`;
+const syntheticPassword = `${randomBytes(32).toString('base64url')}Aa1!`;
+
+const signUp = await supabase.auth.signUp({
+  email: syntheticEmail,
+  password: syntheticPassword,
+  options: {
+    data: { purpose: 'media-performance-probe' },
+  },
+});
+
+if (signUp.error || !signUp.data?.user?.id) {
+  console.log('SYNTHETIC_SIGNUP_FAILED');
+  console.log(JSON.stringify({
+    code: signUp.error?.code || null,
+    status: signUp.error?.status || null,
+    message: signUp.error?.message || 'No user returned',
+  }));
+  process.exit(4);
 }
 
-const token = data.session.access_token;
-const syntheticUserId = data.user.id;
+const syntheticUserId = signUp.data.user.id;
+console.log(`SYNTHETIC_SIGNUP_CREATED email=${syntheticEmail} user_id=${syntheticUserId}`);
+
+let session = signUp.data.session || null;
+let lastSignInError = null;
+
+for (let attempt = 1; !session && attempt <= SIGN_IN_ATTEMPTS; attempt += 1) {
+  const signIn = await supabase.auth.signInWithPassword({
+    email: syntheticEmail,
+    password: syntheticPassword,
+  });
+  if (signIn.data?.session?.access_token) {
+    session = signIn.data.session;
+    break;
+  }
+
+  lastSignInError = signIn.error;
+  console.log(`SYNTHETIC_SIGNIN_WAIT attempt=${attempt} code=${signIn.error?.code || 'unknown'} status=${signIn.error?.status || 'unknown'}`);
+  if (attempt < SIGN_IN_ATTEMPTS) await sleep(SIGN_IN_RETRY_MS);
+}
+
+if (!session?.access_token) {
+  console.log('SYNTHETIC_SIGNIN_FAILED');
+  console.log(JSON.stringify({
+    code: lastSignInError?.code || null,
+    status: lastSignInError?.status || null,
+    message: lastSignInError?.message || 'No session returned',
+    syntheticEmail,
+    syntheticUserId,
+  }));
+  process.exit(5);
+}
+
+const token = session.access_token;
 const results = [];
 
 try {
@@ -69,7 +120,7 @@ try {
   }
 
   console.log('AUTHORIZED_MEDIA_PROBE_PASS');
-  console.log(JSON.stringify({ syntheticUserId, mediaId: MEDIA_ID, results }, null, 2));
+  console.log(JSON.stringify({ syntheticEmail, syntheticUserId, mediaId: MEDIA_ID, results }, null, 2));
 } finally {
   await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
 }
