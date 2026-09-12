@@ -1,0 +1,95 @@
+/* SautiLink Messages composer refinements. Scoped to Messages only. */
+.messages-whatsapp-ui {
+  --message-brand: var(--brand-primary, #2563eb);
+  --message-brand-hover: var(--brand-primary-hover, #1d4ed8);
+}
+
+.messages-whatsapp-ui .message-composer {
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+}
+
+.messages-whatsapp-ui #message-body {
+  min-height: 44px;
+  padding: 11px 15px;
+  border-radius: 22px;
+}
+
+.messages-whatsapp-ui #message-body:focus {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--message-brand) 48%, transparent);
+}
+
+.messages-whatsapp-ui #message-send {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--message-brand);
+  color: #fff;
+  transition: background-color .16s ease, transform .16s ease, opacity .16s ease;
+}
+
+.messages-whatsapp-ui #message-send::before {
+  content: none;
+}
+
+.messages-whatsapp-ui #message-send svg {
+  width: 21px;
+  height: 21px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform: translateX(1px);
+}
+
+.messages-whatsapp-ui #message-send:hover:not(:disabled),
+.messages-whatsapp-ui #message-send:focus-visible:not(:disabled) {
+  background: var(--message-brand-hover);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.messages-whatsapp-ui #message-send:active:not(:disabled) {
+  transform: translateY(0) scale(.97);
+}
+
+.messages-whatsapp-ui #message-send:disabled {
+  background: color-mix(in srgb, var(--message-brand) 18%, var(--wa-panel));
+  color: color-mix(in srgb, var(--message-brand) 45%, var(--wa-muted));
+  opacity: .72;
+}
+
+.messages-whatsapp-ui .message-composer-actions {
+  align-self: center;
+}
+
+@media (max-width: 680px) {
+  .messages-whatsapp-ui .message-composer {
+    gap: 8px;
+    padding: 7px 8px calc(7px + env(safe-area-inset-bottom));
+  }
+
+  .messages-whatsapp-ui #message-body {
+    min-height: 42px;
+    padding: 10px 14px;
+  }
+
+  .messages-whatsapp-ui #message-send {
+    width: 42px;
+    height: 42px;
+  }
+
+  .messages-whatsapp-ui #message-send svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messages-whatsapp-ui #message-send {
+    transition: none;
+  }
+}

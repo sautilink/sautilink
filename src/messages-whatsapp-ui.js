@@ -2,12 +2,19 @@ const messagesSurface = document.getElementById('messages-surface');
 let messagesWhatsAppUiInitialized = false;
 
 function ensureMessagesWhatsAppStyles() {
-  if (document.querySelector('link[data-messages-whatsapp-style]')) return;
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = '/app/assets/messages-whatsapp.css?v=20260910-wa1';
-  link.dataset.messagesWhatsappStyle = 'true';
-  document.head.append(link);
+  const styles = [
+    ['data-messages-whatsapp-style', '/app/assets/messages-whatsapp.css?v=20260910-wa1'],
+    ['data-messages-composer-style', '/app/assets/messages-composer.css?v=20260912-composer1'],
+  ];
+
+  for (const [attribute, href] of styles) {
+    if (document.querySelector(`link[${attribute}]`)) continue;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    link.setAttribute(attribute, 'true');
+    document.head.append(link);
+  }
 }
 
 function createMessagesPlaceholder() {
@@ -44,6 +51,31 @@ function createNewChatButton(usernameInput) {
     usernameInput?.select?.();
   });
   return button;
+}
+
+function createMessageSendIcon() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+
+  const outline = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  outline.setAttribute('d', 'M22 2 15 22 11 13 2 9 22 2Z');
+
+  const fold = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  fold.setAttribute('d', 'M22 2 11 13');
+
+  svg.append(outline, fold);
+  return svg;
+}
+
+function configureMessageSendButton(send) {
+  if (!send) return;
+  send.dataset.messagesSendIcon = 'paper-plane';
+  send.dataset.messagesBrand = 'sautilink';
+  send.setAttribute('aria-label', 'Send message');
+  send.title = 'Send message';
+  send.replaceChildren(createMessageSendIcon());
 }
 
 function createConversationMenu(controls) {
@@ -128,12 +160,7 @@ function buildMessagesWhatsAppShell() {
     messageBody.placeholder = 'Message';
   }
 
-  const send = document.getElementById('message-send');
-  if (send) {
-    send.setAttribute('aria-label', 'Send message');
-    send.title = 'Send message';
-  }
-
+  configureMessageSendButton(document.getElementById('message-send'));
   createConversationMenu(messagesSurface.querySelector('.message-thread-controls'));
 }
 
