@@ -92,6 +92,26 @@ if (!mainActivity.includes(mainActivityMarker)) {
   fs.writeFileSync(mainActivityPath, mainActivity);
 }
 
+const configuredManifest = fs.readFileSync(manifestPath, "utf8");
+for (const permission of nativePermissions) {
+  if (!configuredManifest.includes(permission)) {
+    throw new Error(`Android permission configuration failed: ${permission}`);
+  }
+}
+
+const configuredMainActivity = fs.readFileSync(mainActivityPath, "utf8");
+for (const requiredMarker of [
+  mainActivityMarker,
+  'Manifest.permission.POST_NOTIFICATIONS',
+  'Build.VERSION_CODES.TIRAMISU',
+  'NOTIFICATION_CHANNEL_ID = "sautilink_updates"',
+  'notification_permission_requested_v1',
+]) {
+  if (!configuredMainActivity.includes(requiredMarker)) {
+    throw new Error(`Android notification runtime configuration failed: ${requiredMarker}`);
+  }
+}
+
 console.log(
   `Configured Android ${versionName} (${versionCode}); signing=${signingEnabled ? "enabled" : "disabled"}; microphone=enabled; notifications=permission-ready`,
 );
