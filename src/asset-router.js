@@ -7,6 +7,7 @@ import { handleSocialInteractionRequest } from './social-interactions-api.js';
 import { handleTrustSafetyRequest } from './trust-safety-api.js';
 import { handleModerationRequest } from './moderation-api.js';
 import { handleAccountControlRequest } from './account-controls-api.js';
+import { handlePostTranslationRequest } from './post-translation-api.js';
 
 const PROFILE_ROUTE = /^\/app\/u\/[^/]+\/?$/;
 const AUTH_CONFIRM_ROUTE = /^\/app\/auth\/confirm\/?$/;
@@ -280,6 +281,12 @@ async function routeRequest(request, env, url) {
     if (boundedVideoResponse) return boundedVideoResponse;
     const mediaResponse = await handleSautiMediaRequest(request, env);
     if (mediaResponse) return mediaResponse;
+    return new Response('Not found', { status: 404 });
+  }
+
+  if (url.pathname.startsWith('/api/post-translations/')) {
+    const translationResponse = await handlePostTranslationRequest(request, env);
+    if (translationResponse) return translationResponse;
     return new Response('Not found', { status: 404 });
   }
 
