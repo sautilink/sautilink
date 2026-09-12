@@ -69,6 +69,9 @@
         "directory": "./dist-preview-site",
         "binding": "ASSETS"
       },
+      "ai": {
+        "binding": "AI"
+      },
       "r2_buckets": [
         {
           "binding": "PROFILE_MEDIA",
@@ -199,10 +202,17 @@
             "limit": 60,
             "period": 60
           }
+        },
+        {
+          "name": "POST_TRANSLATION_LIMITER",
+          "namespace_id": "3101",
+          "simple": {
+            "limit": 30,
+            "period": 60
+          }
         }
       ]
     }
   },
   "main": "src/asset-router.js"
 }
-
