@@ -8,6 +8,9 @@ on:
       - "app/**"
       - "src/**"
       - "sw.js"
+      - "robots.txt"
+      - "sitemap.xml"
+      - "sitemap-static.xml"
       - "scripts/build-production-release.mjs"
       - "scripts/verify-production-artifact.mjs"
       - "tests/**"
@@ -22,6 +25,9 @@ on:
       - "app/**"
       - "src/**"
       - "sw.js"
+      - "robots.txt"
+      - "sitemap.xml"
+      - "sitemap-static.xml"
       - "scripts/build-production-release.mjs"
       - "scripts/verify-production-artifact.mjs"
       - "tests/**"
@@ -217,3 +223,87 @@ jobs:
           echo
           test "$api_code" = "401"
           grep -Fq '"AUTH_REQUIRED"' "$api_body"
+      - name: Verify production public indexing and privacy boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          profile_body="$(mktemp)"
+          profile_headers="$(mktemp)"
+          private_body="$(mktemp)"
+          private_headers="$(mktemp)"
+          social_sitemap_body="$(mktemp)"
+          profile_sitemap_body="$(mktemp)"
+          post_sitemap_body="$(mktemp)"
+          robots_body="$(mktemp)"
+          root_sitemap_body="$(mktemp)"
+          ready=0
+
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            release="$GITHUB_RUN_ID-$attempt"
+            echo "Public indexing convergence attempt $attempt"
+
+            profile_code="$(curl -sS -D "$profile_headers" -o "$profile_body" -w '%{http_code}' \
+              -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/u/drcharlestz?seo_release=$release")"
+            private_code="$(curl -sS -D "$private_headers" -o "$private_body" -w '%{http_code}' \
+              -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/u/seo_privacy_probe_404?seo_release=$release")"
+            social_sitemap_code="$(curl -sS -o "$social_sitemap_body" -w '%{http_code}' \
+              -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/api/public-index/sitemap.xml?release=$release")"
+            profile_sitemap_code="$(curl -sS -o "$profile_sitemap_body" -w '%{http_code}' \
+              -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/api/public-index/profiles.xml?page=1&release=$release")"
+            post_sitemap_code="$(curl -sS -o "$post_sitemap_body" -w '%{http_code}' \
+              -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/api/public-index/posts.xml?page=1&release=$release")"
+            robots_code="$(curl -sS -o "$robots_body" -w '%{http_code}' \
+              -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/robots.txt?release=$release")"
+            root_sitemap_code="$(curl -sS -o "$root_sitemap_body" -w '%{http_code}' \
+              -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/sitemap.xml?release=$release")"
+
+            echo "profile=$profile_code private_probe=$private_code social_sitemap=$social_sitemap_code profile_sitemap=$profile_sitemap_code post_sitemap=$post_sitemap_code robots=$robots_code root_sitemap=$root_sitemap_code"
+
+            if [ "$profile_code" = "200" ] \
+              && [ "$private_code" = "200" ] \
+              && [ "$social_sitemap_code" = "200" ] \
+              && [ "$profile_sitemap_code" = "200" ] \
+              && [ "$post_sitemap_code" = "200" ] \
+              && [ "$robots_code" = "200" ] \
+              && [ "$root_sitemap_code" = "200" ] \
+              && grep -Fqi 'x-robots-tag: index, follow' "$profile_headers" \
+              && grep -Fq 'Official Verified Profile on SautiLink' "$profile_body" \
+              && grep -Fq 'rel="canonical" href="https://sautilink.com/u/drcharlestz"' "$profile_body" \
+              && grep -Fq 'application/ld+json' "$profile_body" \
+              && grep -Fq 'SautiLink verification' "$profile_body" \
+              && grep -Fqi 'x-robots-tag: noindex, nofollow, noarchive' "$private_headers" \
+              && ! grep -Fq 'rel="canonical"' "$private_body" \
+              && grep -Fq 'https://sautilink.com/api/public-index/profiles.xml?page=1' "$social_sitemap_body" \
+              && grep -Fq 'https://sautilink.com/api/public-index/posts.xml?page=1' "$social_sitemap_body" \
+              && grep -Fq 'https://sautilink.com/u/drcharlestz' "$profile_sitemap_body" \
+              && grep -Fq '<url>' "$post_sitemap_body" \
+              && grep -Fq 'Allow: /api/public-index/' "$robots_body" \
+              && grep -Fq 'Sitemap: https://sautilink.com/sitemap.xml' "$robots_body" \
+              && grep -Fq 'https://sautilink.com/sitemap-static.xml' "$root_sitemap_body" \
+              && grep -Fq 'https://sautilink.com/api/public-index/sitemap.xml' "$root_sitemap_body"; then
+              ready=1
+              break
+            fi
+
+            sleep 3
+          done
+
+          if [ "$ready" != "1" ]; then
+            echo "Production public indexing did not converge safely."
+            echo "--- profile headers ---"; cat "$profile_headers" || true
+            echo "--- profile head ---"; head -c 2400 "$profile_body" || true; echo
+            echo "--- private headers ---"; cat "$private_headers" || true
+            echo "--- social sitemap ---"; cat "$social_sitemap_body" || true
+            echo "--- profile sitemap ---"; head -c 2400 "$profile_sitemap_body" || true; echo
+            echo "--- post sitemap ---"; head -c 2400 "$post_sitemap_body" || true; echo
+            echo "--- robots ---"; cat "$robots_body" || true
+            echo "--- root sitemap ---"; cat "$root_sitemap_body" || true
+            exit 1
+          fi
