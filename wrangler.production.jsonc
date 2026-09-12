@@ -147,7 +147,9 @@
     "run_worker_first": true
   },
   "vars": {
-    "SAUTI_MEDIA_VARIANTS_ENABLED": "true"
+    "SAUTI_MEDIA_VARIANTS_ENABLED": "true",
+    "DM_MEDIA_SUPABASE_URL": "https://rggpyiterdbbugluejcs.supabase.co",
+    "DM_MEDIA_SUPABASE_KEY": "sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca"
   },
   "images": {
     "binding": "IMAGES"
@@ -291,6 +293,14 @@
       "namespace_id": "3216",
       "simple": {
         "limit": 30,
+        "period": 60
+      }
+    },
+    {
+      "name": "DM_MEDIA_UPLOAD_LIMITER",
+      "namespace_id": "3217",
+      "simple": {
+        "limit": 20,
         "period": 60
       }
     }
