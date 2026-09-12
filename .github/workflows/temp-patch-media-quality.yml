@@ -1,0 +1,86 @@
+name: Temporary guarded media quality patch
+
+on:
+  push:
+    branches: [fix/media-images-quality-85]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/media-images-quality-85
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Guard and patch Cloudflare Images quality
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git grep -l "quality: 'high'" || true)
+          printf 'Exact matches before patch:\n'
+          printf '%s\n' "${files[@]:-}"
+
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No remaining quality:'high' matches; nothing to patch."
+            exit 0
+          fi
+
+          allowed='^(src/sauti-media-api\.js|scripts/media-performance-source-transform\.mjs|tests/media-performance-images\.test\.mjs|scripts/verify-production-artifact\.mjs)$'
+          for file in "${files[@]}"; do
+            if ! [[ "$file" =~ $allowed ]]; then
+              echo "Unexpected quality:'high' match outside media allowlist: $file"
+              exit 1
+            fi
+          done
+
+          python - <<'PY'
+          from pathlib import Path
+          allowed = [
+              Path('src/sauti-media-api.js'),
+              Path('scripts/media-performance-source-transform.mjs'),
+              Path('tests/media-performance-images.test.mjs'),
+              Path('scripts/verify-production-artifact.mjs'),
+          ]
+          changed = []
+          for path in allowed:
+              text = path.read_text()
+              updated = text.replace("quality: 'high'", 'quality: 85')
+              if updated != text:
+                  path.write_text(updated)
+                  changed.append(str(path))
+          print('Changed:', ', '.join(changed))
+          if not changed:
+              raise SystemExit('Expected at least one guarded media quality replacement')
+          PY
+
+          git diff --check
+          echo 'Remaining exact matches:'
+          git grep -n "quality: 'high'" || true
+          echo 'Numeric quality matches:'
+          git grep -n 'quality: 85' -- src/sauti-media-api.js scripts/media-performance-source-transform.mjs tests/media-performance-images.test.mjs scripts/verify-production-artifact.mjs || true
+
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Run full repository verification
+        run: npm run check
+      - name: Commit guarded patch to branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'No patch to commit.'
+            exit 0
+          fi
+          git config user.name 'sautilink'
+          git config user.email 'sautilinktz@gmail.com'
+          git add src/sauti-media-api.js scripts/media-performance-source-transform.mjs tests/media-performance-images.test.mjs scripts/verify-production-artifact.mjs
+          git commit -m 'Use numeric Cloudflare Images quality'
+          git push origin HEAD:fix/media-images-quality-85
