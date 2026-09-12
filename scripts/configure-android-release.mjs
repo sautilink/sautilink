@@ -3,6 +3,7 @@ import path from "node:path";
 
 const versionPath = path.resolve("android-version.json");
 const gradlePath = path.resolve("android/app/build.gradle");
+const manifestPath = path.resolve("android/app/src/main/AndroidManifest.xml");
 
 const version = JSON.parse(fs.readFileSync(versionPath, "utf8"));
 const versionCode = Number(version.versionCode);
@@ -16,6 +17,9 @@ if (!/^[0-9A-Za-z._-]+$/.test(versionName)) {
 }
 if (!fs.existsSync(gradlePath)) {
   throw new Error(`Android Gradle file not found: ${gradlePath}`);
+}
+if (!fs.existsSync(manifestPath)) {
+  throw new Error(`Android manifest not found: ${manifestPath}`);
 }
 
 const signingEnabled = process.env.SAUTILINK_SIGN_RELEASE === "true";
@@ -45,4 +49,23 @@ if (signingEnabled) {
 }
 
 fs.writeFileSync(gradlePath, gradle);
-console.log(`Configured Android ${versionName} (${versionCode}); signing=${signingEnabled ? "enabled" : "disabled"}`);
+
+let manifest = fs.readFileSync(manifestPath, "utf8");
+const audioPermissions = [
+  '<uses-permission android:name="android.permission.RECORD_AUDIO" />',
+  '<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />',
+];
+const missingAudioPermissions = audioPermissions.filter((permission) => !manifest.includes(permission));
+if (missingAudioPermissions.length) {
+  const applicationMarker = '<application';
+  const applicationIndex = manifest.indexOf(applicationMarker);
+  if (applicationIndex < 0) throw new Error("Android manifest application marker not found");
+  const beforeApplication = manifest.slice(0, applicationIndex);
+  const applicationAndAfter = manifest.slice(applicationIndex);
+  manifest = `${beforeApplication}${missingAudioPermissions.join("\n")}\n\n    ${applicationAndAfter}`;
+  fs.writeFileSync(manifestPath, manifest);
+}
+
+console.log(
+  `Configured Android ${versionName} (${versionCode}); signing=${signingEnabled ? "enabled" : "disabled"}; microphone=enabled`,
+);
