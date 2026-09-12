@@ -119,6 +119,8 @@ await writeFile(appCssPath, productionText(await readFile(appCssPath, 'utf8')));
 await build({
   entryPoints: [resolve(workerSource, 'app.js')],
   inject: [
+    resolve(workerSource, 'language-preference.js'),
+    resolve(workerSource, 'post-translation.js'),
     resolve(workerSource, 'caption-entities.js'),
     resolve(workerSource, 'composer-formats.js'),
     resolve(workerSource, 'username-login.js'),
