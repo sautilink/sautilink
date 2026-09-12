@@ -1,14 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://sautilink.com/about</loc><lastmod>2026-09-09</lastmod><priority>0.9</priority></url>
-  <url><loc>https://sautilink.com/help</loc><lastmod>2026-09-09</lastmod><priority>0.9</priority></url>
-  <url><loc>https://sautilink.com/contact</loc><lastmod>2026-09-09</lastmod><priority>0.8</priority></url>
-  <url><loc>https://sautilink.com/privacy</loc><lastmod>2026-09-09</lastmod><priority>0.8</priority></url>
-  <url><loc>https://sautilink.com/terms</loc><lastmod>2026-09-09</lastmod><priority>0.8</priority></url>
-  <url><loc>https://sautilink.com/account-deletion</loc><lastmod>2026-09-09</lastmod><priority>0.8</priority></url>
-  <url><loc>https://sautilink.com/sautinote</loc><lastmod>2026-09-09</lastmod><priority>0.7</priority></url>
-  <url><loc>https://sautilink.com/sw</loc><lastmod>2026-09-09</lastmod><priority>0.6</priority></url>
-  <url><loc>https://sautilink.com/fr</loc><lastmod>2026-09-09</lastmod><priority>0.6</priority></url>
-  <url><loc>https://sautilink.com/es</loc><lastmod>2026-09-09</lastmod><priority>0.6</priority></url>
-  <url><loc>https://sautilink.com/no</loc><lastmod>2026-09-09</lastmod><priority>0.6</priority></url>
-</urlset>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>https://sautilink.com/sitemap-static.xml</loc>
+  </sitemap>
+  <sitemap>
+    <loc>https://sautilink.com/api/public-index/sitemap.xml</loc>
+  </sitemap>
+</sitemapindex>
