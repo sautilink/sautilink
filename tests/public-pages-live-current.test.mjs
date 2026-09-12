@@ -66,11 +66,16 @@ test('Legacy localized landing pages now point to live account entry', () => {
   }
 });
 
-test('Sitemap reflects the current public pages and update date', () => {
-  const xml = read('sitemap.xml');
-  assert.match(xml, /2026-09-09/);
+test('Sitemap index preserves current public pages and adds privacy-filtered social discovery', () => {
+  const indexXml = read('sitemap.xml');
+  const staticXml = read('sitemap-static.xml');
+
+  assert.match(indexXml, /<sitemapindex/);
+  assert.match(indexXml, /https:\/\/sautilink\.com\/sitemap-static\.xml/);
+  assert.match(indexXml, /https:\/\/sautilink\.com\/api\/public-index\/sitemap\.xml/);
+  assert.match(staticXml, /2026-09-09/);
   for (const path of ['/about', '/help', '/contact', '/privacy', '/terms', '/account-deletion', '/sw', '/fr', '/es', '/no']) {
-    assert.match(xml, new RegExp(`https:\\/\\/sautilink\\.com${path.replace('/', '\\/')}`));
+    assert.match(staticXml, new RegExp(`https:\\/\\/sautilink\\.com${path.replace('/', '\\/')}`));
   }
 });
 

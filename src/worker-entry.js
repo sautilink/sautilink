@@ -1,5 +1,6 @@
 import router from './asset-router.js';
 import { handleDmRealtimeRequest } from './dm-realtime-api.js';
+import { handlePublicIndexingRoutes } from './public-indexing-routes.js';
 
 export { DmRealtimeHub } from './dm-realtime-hub.js';
 
@@ -10,6 +11,10 @@ export default {
       const response = await handleDmRealtimeRequest(request, env);
       if (response) return response;
     }
+
+    const indexingResponse = await handlePublicIndexingRoutes(request, env);
+    if (indexingResponse) return indexingResponse;
+
     return router.fetch(request, env, ctx);
   },
 };

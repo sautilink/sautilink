@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Allow: /api/profile-media/
+Allow: /api/public-index/
+Disallow: /api/
+
+Sitemap: https://sautilink.com/sitemap.xml
