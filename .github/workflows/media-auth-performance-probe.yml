@@ -1,0 +1,27 @@
+name: One-time Authenticated Media Performance Probe
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/media-auth-performance-probe.mjs"
+      - ".github/workflows/media-auth-performance-probe.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Measure authenticated protected image delivery
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Run one-time production media probe
+        run: node scripts/media-auth-performance-probe.mjs
