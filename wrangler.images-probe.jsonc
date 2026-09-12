@@ -1,0 +1,9 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "sautilink-images-binding-probe",
+  "compatibility_date": "2026-09-10",
+  "main": "./scripts/images-binding-remote-worker.js",
+  "images": {
+    "binding": "IMAGES"
+  }
+}
