@@ -16,13 +16,14 @@ test('Phase 33 installs a low-cost recurring production readiness workflow', asy
   assert.doesNotMatch(workflow, /secrets\.|CLOUDFLARE_API_TOKEN|SUPABASE_SERVICE_ROLE/);
 });
 
-test('Phase 33 readiness probe protects the production environment and root-site boundary', async () => {
+test('Phase 33 readiness probe protects production boundaries and responsive image readiness', async () => {
   const script = await read('scripts/check-production-readiness.mjs');
 
   for (const marker of [
     'https://sautilink.com',
     'https://www.sautilink.com',
     '/api/health',
+    '/api/sauti-media/status',
     '/app/',
     '/api/account/export',
     "'production'",
@@ -32,8 +33,14 @@ test('Phase 33 readiness probe protects the production environment and root-site
     'x-request-id',
     'noindex',
     'settings-surface',
-    'data-sautilink-entry="login-redirect"',
-    'url=/login',
+    'data-sautilink-entry="account-choice"',
+    'href="/login"',
+    'href="/signup"',
+    'responsive_images',
+    'image_variant_widths',
+    'EXPECTED_IMAGE_VARIANT_WIDTHS',
+    '480, 960, 1440',
+    'durationMs',
     'AUTH_REQUIRED',
     'PRODUCTION_READINESS_PASS',
     'PRODUCTION_READINESS_FAIL',
