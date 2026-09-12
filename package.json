@@ -23,7 +23,7 @@
     "serve:messages": "vite preview --config vite.messages.config.js",
     "serve:settings": "vite preview --config vite.settings.config.js",
     "test": "node --test tests/*.test.mjs",
-    "check": "npm run build && npm run verify:staging-artifact && npm run build:production && npm run verify:production-artifact && npm test",
+    "check": "npm run build && npm run verify:staging-artifact && npm run build:production && npm run verify:production-artifact && npm run verify:post-translation-artifact && npm test",
     "deploy:dry": "wrangler deploy --config wrangler.social-staging.jsonc --dry-run",
     "deploy:production:dry": "wrangler deploy --config wrangler.production.jsonc --dry-run",
     "deploy:preview:dry": "wrangler deploy --config wrangler.social-staging.jsonc --env preview --dry-run",
@@ -36,7 +36,8 @@
     "deploy:messages:dry": "wrangler deploy --config wrangler.social-staging.jsonc --env messages --dry-run",
     "deploy:settings:dry": "wrangler deploy --config wrangler.social-staging.jsonc --env settings --dry-run",
     "verify:staging-artifact": "node scripts/verify-staging-artifact.mjs",
-    "verify:production-artifact": "node scripts/verify-production-artifact.mjs && node scripts/verify-post-translation-artifact.mjs"
+    "verify:production-artifact": "node scripts/verify-production-artifact.mjs",
+    "verify:post-translation-artifact": "node scripts/verify-post-translation-artifact.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.3",
