@@ -506,7 +506,7 @@ async function serveImageVariant(request, env, row, id, width) {
     const output = await env.IMAGES
       .input(original.body)
       .transform({ width: targetWidth, fit: 'scale-down' })
-      .output({ format: 'image/webp', quality: 'high', anim: true });
+      .output({ format: 'image/webp', quality: 85, anim: true });
     const transformed = output.response();
     if (!transformed.ok) return serveOriginalMedia(request, env, row, id);
 
