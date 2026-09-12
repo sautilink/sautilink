@@ -62,6 +62,7 @@ await build({
     loader: 'js',
   },
   inject: [
+    resolve(projectRoot, 'src/language-preference.js'),
     resolve(projectRoot, 'src/caption-entities.js'),
     resolve(projectRoot, 'src/composer-formats.js'),
     resolve(projectRoot, 'src/username-login.js'),
