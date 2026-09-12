@@ -1,0 +1,54 @@
+name: Temporary Images Binding Remote Diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/images-binding-remote-worker.js"
+      - "wrangler.images-probe.jsonc"
+      - ".github/workflows/images-binding-remote-diagnostic.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    name: Diagnose Cloudflare Images binding remotely
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Start remote Images binding worker and probe it
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --no-install wrangler dev --remote --config wrangler.images-probe.jsonc --port 8787 > /tmp/images-probe.log 2>&1 &
+          worker_pid=$!
+          trap 'kill "$worker_pid" 2>/dev/null || true' EXIT
+
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8787/ > /tmp/images-probe-response.json; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+
+          echo "--- wrangler remote log ---"
+          cat /tmp/images-probe.log || true
+          echo "--- Images binding result ---"
+          cat /tmp/images-probe-response.json || true
+          echo
+          test "$ready" = "1"
