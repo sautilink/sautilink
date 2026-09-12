@@ -8,20 +8,9 @@ export const LANGUAGE_OPTIONS = Object.freeze([
 ]);
 
 // Product/navigation names intentionally stay original in every language.
-// These are SautiLink feature names, not prose translations.
 export const FEATURE_LABELS = Object.freeze(new Set([
-  'SautiLink',
-  'Home',
-  'Discover',
-  'Messages',
-  'Notifications',
-  'Sautify',
-  'Saved',
-  'Appeals',
-  'Moderation',
-  'Settings',
-  'Profile',
-  'Rooms',
+  'SautiLink', 'Home', 'Discover', 'Messages', 'Notifications', 'Sautify',
+  'Saved', 'Appeals', 'Moderation', 'Settings', 'Profile', 'Rooms',
 ]));
 
 const SW = Object.freeze({
@@ -465,34 +454,13 @@ let applying = false;
 let observer = null;
 
 const USER_CONTENT_SELECTOR = [
-  '.sauti-card-body',
-  '.sauti-caption-text',
-  '.sauti-comment-body',
-  '.sauti-quote-body',
-  '#profile-bio',
-  '#profile-display-name',
-  '#profile-username',
-  '#member-display-name',
-  '#member-username',
-  '#rail-name',
-  '#rail-username',
-  '.verified-name',
-  '.inline-verified-name',
-  '.message-inbox-preview',
-  '.dm-message p',
-  '#message-thread-name',
-  '#message-thread-username',
-  '.circle-card h3',
-  '.circle-card-description',
-  '#circle-detail-name',
-  '#circle-detail-description',
-  '.circle-member-person',
-  '.circle-request-person',
-  '.discover-profile-copy > p',
-  '.settings-account-row strong',
-  '.settings-account-row small',
-  '.moderation-context',
-  '.moderation-reporter-context',
+  '.sauti-card-body', '.sauti-caption-text', '.sauti-comment-body', '.sauti-quote-body',
+  '#profile-bio', '#profile-display-name', '#profile-username', '#member-display-name', '#member-username',
+  '#rail-name', '#rail-username', '.verified-name', '.inline-verified-name', '.message-inbox-preview',
+  '.dm-message p', '#message-thread-name', '#message-thread-username', '.circle-card h3',
+  '.circle-card-description', '#circle-detail-name', '#circle-detail-description', '.circle-member-person',
+  '.circle-request-person', '.discover-profile-copy > p', '.settings-account-row strong',
+  '.settings-account-row small', '.moderation-context', '.moderation-reporter-context',
   '[data-language-no-translate]',
 ].join(',');
 
@@ -528,8 +496,12 @@ function shouldSkipElement(element) {
   return Boolean(element.closest(USER_CONTENT_SELECTOR));
 }
 
-function translatedFromOrigin(origin, language) {
-  return translateSystemText(origin, language);
+function isKnownRendering(current, origin) {
+  if (current === origin) return true;
+  for (const { code } of LANGUAGE_OPTIONS) {
+    if (current === translateSystemText(origin, code)) return true;
+  }
+  return false;
 }
 
 function resolveTextOrigin(node) {
@@ -539,8 +511,7 @@ function resolveTextOrigin(node) {
     textOrigins.set(node, current);
     return current;
   }
-  const rendered = translatedFromOrigin(previous, activeLanguage);
-  if (current !== rendered && current !== previous) {
+  if (!isKnownRendering(current, previous)) {
     textOrigins.set(node, current);
     return current;
   }
@@ -551,7 +522,7 @@ function applyTextNode(node, language) {
   const parent = node.parentElement;
   if (!parent || shouldSkipElement(parent) || ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(parent.tagName)) return;
   const origin = resolveTextOrigin(node);
-  const next = translatedFromOrigin(origin, language);
+  const next = translateSystemText(origin, language);
   if (node.nodeValue !== next) node.nodeValue = next;
 }
 
@@ -568,8 +539,7 @@ function resolveAttributeOrigin(element, attribute) {
     return current;
   }
   const previous = origins.get(attribute);
-  const rendered = translatedFromOrigin(previous, activeLanguage);
-  if (current !== rendered && current !== previous) origins.set(attribute, current);
+  if (!isKnownRendering(current, previous)) origins.set(attribute, current);
   return origins.get(attribute);
 }
 
@@ -578,7 +548,7 @@ function applyAttributes(element, language) {
   for (const attribute of TRANSLATABLE_ATTRIBUTES) {
     if (!element.hasAttribute(attribute)) continue;
     const origin = resolveAttributeOrigin(element, attribute);
-    const next = translatedFromOrigin(origin, language);
+    const next = translateSystemText(origin, language);
     if (element.getAttribute(attribute) !== next) element.setAttribute(attribute, next);
   }
 }
@@ -672,8 +642,8 @@ function installLanguageSettings() {
     });
   }
 
-  // The existing settings router intentionally only knows its original sections.
-  // Stop this one click before it reaches that router, then show our isolated panel.
+  // Existing settings routing only knows its original sections. Keep this isolated
+  // from that router so no account/privacy/notification behavior is changed.
   button.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
