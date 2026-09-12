@@ -76,6 +76,31 @@ test('production variants privately revalidate while protected originals stay no
   assert.match(mediaApi, /headers\.set\('Cache-Control', 'private, no-store, max-age=0'\);/);
 });
 
+test('production protected media reports access, cache, R2, transform, and total Server-Timing', async () => {
+  const mediaApiPath = new URL('../src/sauti-media-api.js', import.meta.url).pathname;
+  const mediaApi = transformMediaPerformanceSource(mediaApiPath, await read('src/sauti-media-api.js'));
+
+  for (const marker of [
+    "headers.set('Server-Timing', metrics.join(', '))",
+    "add('access', timings.accessMs)",
+    "add('cache', timings.cacheMs, timings.cacheState || '')",
+    "add('r2', timings.r2Ms)",
+    "add('transform', timings.transformMs)",
+    "add('total', mediaTimingDuration(totalStartedAt))",
+    "timings.cacheState = 'HIT'",
+    "timings.cacheState = 'MISS'",
+    'const accessStartedAt = mediaTimingNow()',
+    'const r2StartedAt = mediaTimingNow()',
+    'const transformStartedAt = mediaTimingNow()',
+  ]) assert.ok(mediaApi.includes(marker), `missing media timing marker: ${marker}`);
+
+  const accessStart = mediaApi.indexOf('const accessStartedAt = mediaTimingNow()');
+  const accessQuery = mediaApi.indexOf('const row = await selectMedia(id, authorization(request))', accessStart);
+  const accessDone = mediaApi.indexOf('timings.accessMs = mediaTimingDuration(accessStartedAt)', accessQuery);
+  assert.ok(accessStart >= 0 && accessQuery > accessStart && accessDone > accessQuery, 'access timing must wrap the existing RLS media lookup');
+  assert.doesNotMatch(mediaApi, /Server-Timing[^\n]*(?:owner_id|object_key|Authorization|Bearer)/i);
+});
+
 test('development and production builds apply post-media reservation before media performance transform', async () => {
   const appBuild = await read('scripts/build-app.mjs');
   assert.match(appBuild, /transformMediaPerformanceSource/);
