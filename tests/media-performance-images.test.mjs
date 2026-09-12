@@ -56,10 +56,11 @@ test('Home feed waits for viewport proximity, requests sized protected blobs, an
   const mediaFetchStart = optimized.indexOf('await waitForSautiMediaNearViewport(button)');
   const protectedFetch = optimized.indexOf('fetchSautiMediaBlobUrl(media.id, variantWidth)', mediaFetchStart);
   assert.ok(mediaFetchStart >= 0 && protectedFetch > mediaFetchStart, 'feed media fetch must happen after viewport gating');
-
-  const cleanup = optimized.indexOf('revokeHomeFeedMediaObjectUrls();');
-  const feedReset = optimized.indexOf("byId('stream-feed').replaceChildren();");
-  assert.ok(cleanup >= 0 && feedReset > cleanup, 'feed blob URLs must be revoked before reset removes media nodes');
+  assert.match(
+    optimized,
+    /clearHomeFeedMediaState\(\);\s*byId\('stream-feed'\)\.replaceChildren\(\);/,
+    'feed state cleanup must run before reset removes media nodes',
+  );
   assert.doesNotMatch(optimized, /setTimeout\(finish,\s*45_000\)/);
 });
 
