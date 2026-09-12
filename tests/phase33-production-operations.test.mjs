@@ -16,7 +16,7 @@ test('Phase 33 installs a low-cost recurring production readiness workflow', asy
   assert.doesNotMatch(workflow, /secrets\.|CLOUDFLARE_API_TOKEN|SUPABASE_SERVICE_ROLE/);
 });
 
-test('Phase 33 readiness probe protects production boundaries and responsive image readiness', async () => {
+test('Phase 33 readiness probe protects production boundaries, responsive images, and media timing', async () => {
   const script = await read('scripts/check-production-readiness.mjs');
 
   for (const marker of [
@@ -24,6 +24,7 @@ test('Phase 33 readiness probe protects production boundaries and responsive ima
     'https://www.sautilink.com',
     '/api/health',
     '/api/sauti-media/status',
+    '/api/sauti-media/${SYNTHETIC_MEDIA_ID}?w=480',
     '/app/',
     '/api/account/export',
     "'production'",
@@ -40,11 +41,20 @@ test('Phase 33 readiness probe protects production boundaries and responsive ima
     'image_variant_widths',
     'EXPECTED_IMAGE_VARIANT_WIDTHS',
     '480, 960, 1440',
+    'SYNTHETIC_MEDIA_ID',
+    'server-timing',
+    "hasTimingMetric(serverTiming, 'access')",
+    "hasTimingMetric(serverTiming, 'total')",
+    'MEDIA_NOT_FOUND',
+    'mediaServerTiming',
     'durationMs',
     'AUTH_REQUIRED',
     'PRODUCTION_READINESS_PASS',
     'PRODUCTION_READINESS_FAIL',
   ]) assert.ok(script.includes(marker), `readiness probe missing ${marker}`);
+
+  assert.match(script, /mediaTimingProbe\.response\.status === 404/);
+  assert.match(script, /!\/\(\?:owner_id\|object_key\|authorization\|bearer\|token\)\/i\.test\(serverTiming\)/);
 });
 
 test('Phase 33 operations documentation preserves the launch architecture', async () => {
