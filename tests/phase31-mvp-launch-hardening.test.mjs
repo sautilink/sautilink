@@ -33,6 +33,7 @@ function readyEnv({ assetBody = '<!doctype html><p>asset</p>', throwAsset = fals
     'SAFETY_APPEAL_LIMITER',
     'MODERATION_ACTION_LIMITER',
     'ACCOUNT_CONTROL_LIMITER',
+    'DM_MEDIA_UPLOAD_LIMITER',
   ]) {
     env[name] = {};
   }
