@@ -85,6 +85,41 @@ async function fetchSautiMediaBlobUrl(id, variantWidth = 0) {
 
   output = replaceExactOnce(
     output,
+    `function clearHomeFeedMediaState() {
+  homeMediaOpenTimers.forEach((timer) => window.clearTimeout(timer));
+  homeMediaOpenTimers.clear();
+  homeDoubleTapState = { card: null, target: null, time: 0 };
+  pauseHomeFeedVideos();`,
+    `function revokeHomeFeedMediaObjectUrls(root = byId('stream-feed')) {
+  if (!root) return;
+  root.querySelectorAll('[data-media-object-url]').forEach((button) => {
+    const url = button.dataset.mediaObjectUrl || '';
+    if (url) URL.revokeObjectURL(url);
+    delete button.dataset.mediaObjectUrl;
+  });
+}
+
+function clearHomeFeedMediaState() {
+  homeMediaOpenTimers.forEach((timer) => window.clearTimeout(timer));
+  homeMediaOpenTimers.clear();
+  homeDoubleTapState = { card: null, target: null, time: 0 };
+  revokeHomeFeedMediaObjectUrls();
+  pauseHomeFeedVideos();`,
+    'the Home feed media state cleanup',
+  );
+
+  output = replaceExactOnce(
+    output,
+    `    homeAuthorCards(authorId).forEach((authorCard) => authorCard.remove());`,
+    `    homeAuthorCards(authorId).forEach((authorCard) => {
+      revokeHomeFeedMediaObjectUrls(authorCard);
+      authorCard.remove();
+    });`,
+    'the direct Home card removal cleanup',
+  );
+
+  output = replaceExactOnce(
+    output,
     `  await Promise.all(mediaEntries.map(async ({ media, button }) => {
     let visual = null;
     try {
