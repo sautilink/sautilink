@@ -17,7 +17,7 @@ test('responsive Sauti image variants use a bounded measured width contract', as
   const api = await read('src/sauti-media-api.js');
   for (const marker of [
     "IMAGE_VARIANT_WIDTHS = Object.freeze([480, 960, 1440])",
-    "output({ format: 'image/webp', quality: 'high', anim: true })",
+    "output({ format: 'image/webp', quality: 85, anim: true })",
     'globalThis.caches?.default',
     'X-Sauti-Media-Cache',
     'serveOriginalMedia(request, env, row, id)',

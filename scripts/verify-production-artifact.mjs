@@ -123,7 +123,7 @@ for (const marker of [
 }
 for (const marker of [
   'IMAGE_VARIANT_WIDTHS = Object.freeze([480, 960, 1440])',
-  "output({ format: 'image/webp', quality: 'high', anim: true })",
+  "output({ format: 'image/webp', quality: 85, anim: true })",
   'globalThis.caches?.default',
   'private, max-age=0, must-revalidate',
 ]) {
