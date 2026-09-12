@@ -20,10 +20,14 @@ if (!appHtml.includes("media-src 'self' blob:")) {
 }
 
 let headers = await readFile(headersPath, 'utf8');
-const appBlockEnd = headers.indexOf('\n\n', headers.indexOf('/app/*'));
-if (appBlockEnd < 0) throw new Error('Staging /app/* headers block is missing.');
-let appBlock = headers.slice(0, appBlockEnd);
+const appBlockStart = headers.indexOf('/app/*');
+if (appBlockStart < 0) throw new Error('Staging /app/* headers block is missing.');
+const nextBlock = headers.indexOf('\n\n', appBlockStart);
+const appBlockEnd = nextBlock < 0 ? headers.length : nextBlock;
+const prefix = headers.slice(0, appBlockStart);
+let appBlock = headers.slice(appBlockStart, appBlockEnd);
 const remainder = headers.slice(appBlockEnd);
+
 if (!appBlock.includes("media-src 'self' blob:")) {
   if (!appBlock.includes(cspMarker)) throw new Error('Staging /app/* CSP marker is missing.');
   appBlock = appBlock.replace(cspMarker, cspReplacement);
@@ -32,7 +36,8 @@ if (!appBlock.includes('microphone=(self)')) {
   if (!appBlock.includes(permissionsMarker)) throw new Error('Staging /app/* microphone policy marker is missing.');
   appBlock = appBlock.replace(permissionsMarker, permissionsReplacement);
 }
-headers = `${appBlock}${remainder}`;
+
+headers = `${prefix}${appBlock}${remainder}`;
 await writeFile(headersPath, headers);
 
 console.log('Enabled scoped Messages microphone and blob media support in staged /app/* output.');
