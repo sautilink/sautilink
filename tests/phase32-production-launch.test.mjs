@@ -51,11 +51,14 @@ test('Phase 32 production Worker is path-scoped and keeps the account-entry root
   assert.match(config, /"name": "sautilink-social-production"/);
   assert.match(config, /"bucket_name": "sautilink-media-production"/);
   assert.match(config, /"run_worker_first": true/);
+  assert.match(config, /"binding": "AI"/);
+  assert.match(config, /"name": "POST_TRANSLATION_LIMITER"/);
+  assert.match(config, /"namespace_id": "3216"/);
 
   const namespaceIds = [...config.matchAll(/"namespace_id": "(\d+)"/g)].map((match) => match[1]);
-  assert.equal(namespaceIds.length, 15);
+  assert.equal(namespaceIds.length, 16);
   assert.equal(new Set(namespaceIds).size, namespaceIds.length);
-  assert.ok(namespaceIds.every((id) => Number(id) >= 3201 && Number(id) <= 3215));
+  assert.ok(namespaceIds.every((id) => Number(id) >= 3201 && Number(id) <= 3216));
 });
 
 test('Phase 32 production headers use production CSP without staging noindex', async () => {
@@ -77,8 +80,10 @@ test('Phase 32 production build and verifier are permanent repository gates', as
 
   assert.equal(pkg.scripts['build:production'], 'node scripts/build-production-release.mjs');
   assert.equal(pkg.scripts['verify:production-artifact'], 'node scripts/verify-production-artifact.mjs');
+  assert.equal(pkg.scripts['verify:post-translation-artifact'], 'node scripts/verify-post-translation-artifact.mjs');
   assert.match(pkg.scripts.check, /build:production/);
   assert.match(pkg.scripts.check, /verify:production-artifact/);
+  assert.match(pkg.scripts.check, /verify:post-translation-artifact/);
   assert.equal(pkg.scripts['deploy:production:dry'], 'wrangler deploy --config wrangler.production.jsonc --dry-run');
 
   for (const marker of [
