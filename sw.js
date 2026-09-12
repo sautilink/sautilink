@@ -1,9 +1,9 @@
-const CACHE_NAME = "sautilink-shell-v50";
+const CACHE_NAME = "sautilink-shell-v51";
 const APP_SHELL = [
   "/",
   "/app/",
   "/app/assets/app.css?v=20260910-loginboot1",
-  "/app/assets/app.js?v=20260910-profileui1",
+  "/app/assets/app.js?v=20260912-language-sidebar1",
   "/app/assets/theme-init.js",
   "/manifest.json",
   "/logo.png",
@@ -44,7 +44,7 @@ self.addEventListener("fetch", (event) => {
     url.pathname.startsWith("/app/assets/verification/")
   )) {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: "reload" })
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
