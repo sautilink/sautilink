@@ -6,6 +6,7 @@ import { transformBootstrapResilienceSource } from './bootstrap-resilience-sourc
 import { transformMediaPerformanceSource } from './media-performance-source-transform.mjs';
 import { transformMemberBootstrapResilienceSource } from './member-bootstrap-resilience-source-transform.mjs';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
+import { transformMessagesMediaSource } from './messages-media-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
 import { transformProfileTabIconsSource } from './profile-tab-icons-source-transform.mjs';
 import { transformRoomsStartupIsolationSource } from './rooms-startup-isolation-source-transform.mjs';
@@ -14,19 +15,22 @@ import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const appSourcePath = resolve(projectRoot, 'src/app.js');
-const appSource = transformMemberBootstrapResilienceSource(
+const appSource = transformMessagesMediaSource(
   appSourcePath,
-  transformBootstrapResilienceSource(
+  transformMemberBootstrapResilienceSource(
     appSourcePath,
-    transformWhatsAppOtpSource(
+    transformBootstrapResilienceSource(
       appSourcePath,
-      transformVideoPlayerSource(
+      transformWhatsAppOtpSource(
         appSourcePath,
-        transformMentionNotificationSource(
+        transformVideoPlayerSource(
           appSourcePath,
-          transformMediaPerformanceSource(
+          transformMentionNotificationSource(
             appSourcePath,
-            transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
+            transformMediaPerformanceSource(
+              appSourcePath,
+              transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
+            ),
           ),
         ),
       ),
@@ -75,6 +79,7 @@ await build({
     resolve(projectRoot, 'src/profile-media-upload-icons.js'),
     resolve(projectRoot, 'src/home-feed-author-profile-links.js'),
     resolve(projectRoot, 'src/messages-whatsapp-ui.js'),
+    resolve(projectRoot, 'src/messages-media-ui.js'),
     resolve(projectRoot, 'src/rooms-platform.js'),
     resolve(projectRoot, 'src/room-post-images.js'),
     resolve(projectRoot, 'src/rooms-invitations-style.js'),

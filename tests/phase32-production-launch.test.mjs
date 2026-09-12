@@ -54,11 +54,13 @@ test('Phase 32 production Worker is path-scoped and keeps the account-entry root
   assert.match(config, /"binding": "AI"/);
   assert.match(config, /"name": "POST_TRANSLATION_LIMITER"/);
   assert.match(config, /"namespace_id": "3216"/);
+  assert.match(config, /"name": "DM_MEDIA_UPLOAD_LIMITER"/);
+  assert.match(config, /"namespace_id": "3217"/);
 
   const namespaceIds = [...config.matchAll(/"namespace_id": "(\d+)"/g)].map((match) => match[1]);
-  assert.equal(namespaceIds.length, 16);
+  assert.equal(namespaceIds.length, 17);
   assert.equal(new Set(namespaceIds).size, namespaceIds.length);
-  assert.ok(namespaceIds.every((id) => Number(id) >= 3201 && Number(id) <= 3216));
+  assert.ok(namespaceIds.every((id) => Number(id) >= 3201 && Number(id) <= 3217));
 });
 
 test('Phase 32 production headers use production CSP without staging noindex', async () => {

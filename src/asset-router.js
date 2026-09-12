@@ -8,6 +8,7 @@ import { handleTrustSafetyRequest } from './trust-safety-api.js';
 import { handleModerationRequest } from './moderation-api.js';
 import { handleAccountControlRequest } from './account-controls-api.js';
 import { handlePostTranslationRequest } from './post-translation-api.js';
+import { handleDmMediaRequest } from './dm-media-api.js';
 
 const PROFILE_ROUTE = /^\/app\/u\/[^/]+\/?$/;
 const AUTH_CONFIRM_ROUTE = /^\/app\/auth\/confirm\/?$/;
@@ -48,6 +49,7 @@ const RATE_LIMIT_BINDINGS = [
   'SAFETY_APPEAL_LIMITER',
   'MODERATION_ACTION_LIMITER',
   'ACCOUNT_CONTROL_LIMITER',
+  'DM_MEDIA_UPLOAD_LIMITER',
 ];
 
 function requestId(request) {
@@ -281,6 +283,12 @@ async function routeRequest(request, env, url) {
     if (boundedVideoResponse) return boundedVideoResponse;
     const mediaResponse = await handleSautiMediaRequest(request, env);
     if (mediaResponse) return mediaResponse;
+    return new Response('Not found', { status: 404 });
+  }
+
+  if (url.pathname.startsWith('/api/dm-media/')) {
+    const dmMediaResponse = await handleDmMediaRequest(request, env);
+    if (dmMediaResponse) return dmMediaResponse;
     return new Response('Not found', { status: 404 });
   }
 

@@ -69,6 +69,10 @@
         "directory": "./dist-preview-site",
         "binding": "ASSETS"
       },
+      "vars": {
+        "DM_MEDIA_SUPABASE_URL": "https://bbrydwzlhweuqxpgbahu.supabase.co",
+        "DM_MEDIA_SUPABASE_KEY": "sb_publishable_oTYKPMJoxN1b8YBmG-a5eQ_M75Kl6VF"
+      },
       "ai": {
         "binding": "AI"
       },
@@ -208,6 +212,14 @@
           "namespace_id": "3101",
           "simple": {
             "limit": 30,
+            "period": 60
+          }
+        },
+        {
+          "name": "DM_MEDIA_UPLOAD_LIMITER",
+          "namespace_id": "3102",
+          "simple": {
+            "limit": 20,
             "period": 60
           }
         }
