@@ -41,8 +41,11 @@ export default {
     const results = [];
     results.push(await runCase(env, 'basic-webp', { width: 1 }, { format: 'image/webp' }));
     results.push(await runCase(env, 'quality-high', { width: 1 }, { format: 'image/webp', quality: 'high' }));
+    results.push(await runCase(env, 'quality-85', { width: 1 }, { format: 'image/webp', quality: 85 }));
+    results.push(await runCase(env, 'quality-90', { width: 1 }, { format: 'image/webp', quality: 90 }));
     results.push(await runCase(env, 'anim-true', { width: 1 }, { format: 'image/webp', anim: true }));
-    results.push(await runCase(env, 'full-current-options', { width: 1, fit: 'scale-down' }, { format: 'image/webp', quality: 'high', anim: true }));
+    results.push(await runCase(env, 'full-quality-85', { width: 1, fit: 'scale-down' }, { format: 'image/webp', quality: 85, anim: true }));
+    results.push(await runCase(env, 'full-quality-90', { width: 1, fit: 'scale-down' }, { format: 'image/webp', quality: 90, anim: true }));
     return Response.json({ results });
   },
 };
