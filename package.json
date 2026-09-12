@@ -36,7 +36,7 @@
     "deploy:messages:dry": "wrangler deploy --config wrangler.social-staging.jsonc --env messages --dry-run",
     "deploy:settings:dry": "wrangler deploy --config wrangler.social-staging.jsonc --env settings --dry-run",
     "verify:staging-artifact": "node scripts/verify-staging-artifact.mjs",
-    "verify:production-artifact": "node scripts/verify-production-artifact.mjs"
+    "verify:production-artifact": "node scripts/verify-production-artifact.mjs && node scripts/verify-post-translation-artifact.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.3",
