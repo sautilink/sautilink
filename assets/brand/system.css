@@ -13,3 +13,11 @@
 }
 html, body, button, input, textarea, select, .logo, .brand, .brand-name, .brand-product, footer, .copyright, [data-brand-font] { font-family: var(--font-primary) !important; }
 ::selection { background: var(--brand-light); color: #0f172a; }
+
+/* Keep the Edit Profile bio field on the active light-theme surface while typing. */
+html[data-theme="light"] body .profile-editor .profile-form textarea:focus {
+  background: var(--app-panel);
+  color: var(--app-text);
+  caret-color: var(--app-text);
+  -webkit-text-fill-color: var(--app-text);
+}
