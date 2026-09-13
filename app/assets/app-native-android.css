@@ -1,0 +1,45 @@
+/* SautiLink Android-only performance layer.
+   Loaded by theme-init.js only when the Capacitor bridge reports Android. */
+
+html.native-android {
+  scroll-behavior: auto;
+}
+
+html.native-android body {
+  overscroll-behavior-y: none;
+}
+
+html.native-android button,
+html.native-android a,
+html.native-android input,
+html.native-android textarea,
+html.native-android select,
+html.native-android [role="button"] {
+  touch-action: manipulation;
+}
+
+html.native-android input,
+html.native-android textarea {
+  caret-color: currentColor;
+}
+
+/* Skip paint/layout work for off-screen feed cards on long Android feeds.
+   Modern Android System WebView supports content-visibility; older versions
+   simply ignore these declarations. */
+html.native-android .sauti-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 620px;
+}
+
+/* Backdrop blur is disproportionately expensive on lower-end Android GPUs. */
+html.native-android .composer-dialog::backdrop {
+  backdrop-filter: none;
+}
+
+/* Keep long scrolling surfaces on the compositor-friendly path. */
+html.native-android .composer-content,
+html.native-android .message-thread-feed,
+html.native-android .messages-inbox-list,
+html.native-android .notifications-list {
+  overscroll-behavior: contain;
+}
