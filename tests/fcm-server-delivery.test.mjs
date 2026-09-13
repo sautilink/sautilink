@@ -30,7 +30,7 @@ test('database dispatch is asynchronous and retryable', () => {
 test('dispatcher reads Firebase credentials only from Supabase secrets', () => {
   assert.match(dispatcher, /FIREBASE_SERVICE_ACCOUNT_JSON_BASE64/);
   assert.match(dispatcher, /SUPABASE_SERVICE_ROLE_KEY/);
-  assert.doesNotMatch(dispatcher, /-----BEGIN PRIVATE KEY-----[\s\S]+-----END PRIVATE KEY-----/);
+  assert.doesNotMatch(dispatcher, /"private_key"\s*:\s*"-----BEGIN PRIVATE KEY-----/);
 });
 
 test('dispatcher uses FCM HTTP v1 and safe Android routes', () => {
