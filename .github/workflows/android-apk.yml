@@ -84,10 +84,38 @@ jobs:
       - name: Build production web artifact
         run: npm run build:production
 
+      - name: Register push plugin for Capacitor discovery
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = 'package.json';
+          const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+          pkg.dependencies ||= {};
+          pkg.dependencies['@capacitor/push-notifications'] = '8.1.2';
+          fs.writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
+          NODE
+
       - name: Generate Android project
         run: |
           npx cap add android
           npx cap sync android
+
+      - name: Verify native push plugin registration
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = 'android/app/src/main/assets/capacitor.plugins.json';
+          if (!fs.existsSync(path)) throw new Error(`Capacitor plugin manifest not found: ${path}`);
+          const plugins = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const push = Array.isArray(plugins) && plugins.find((entry) =>
+            entry?.pkg === '@capacitor/push-notifications' ||
+            /PushNotificationsPlugin/.test(String(entry?.classpath || ''))
+          );
+          if (!push) throw new Error('Native PushNotifications plugin was not registered by Capacitor');
+          console.log(`Verified native push plugin: ${push.pkg || push.classpath}`);
+          NODE
 
       - name: Restore Firebase Android configuration
         shell: bash

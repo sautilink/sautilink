@@ -41,10 +41,10 @@ test('existing microphone permissions remain intact', () => {
   assert.match(source, /android\.permission\.MODIFY_AUDIO_SETTINGS/);
 });
 
-test('FCM client release advances the Android beta package version', () => {
+test('FCM native plugin fix advances the Android beta package version', () => {
   const version = JSON.parse(read('android-version.json'));
-  assert.equal(version.versionCode, 4);
-  assert.equal(version.versionName, '1.0.0-beta.4');
+  assert.equal(version.versionCode, 5);
+  assert.equal(version.versionName, '1.0.0-beta.5');
 });
 
 test('Android workflow applies permission patch after Capacitor project generation', () => {
@@ -57,7 +57,21 @@ test('Android workflow applies permission patch after Capacitor project generati
   assert.match(workflow, /node scripts\/configure-android-release\.mjs/);
 });
 
-test('permission foundation does not pretend FCM delivery is already configured', () => {
+test('Android workflow makes the FCM plugin discoverable and verifies native registration', () => {
+  const workflow = read('.github/workflows/android-apk.yml');
+  const registerIndex = workflow.indexOf('name: Register push plugin for Capacitor discovery');
+  const generateIndex = workflow.indexOf('name: Generate Android project');
+  const verifyIndex = workflow.indexOf('name: Verify native push plugin registration');
+
+  assert.ok(registerIndex >= 0, 'Capacitor push plugin discovery step is missing');
+  assert.ok(registerIndex < generateIndex, 'Push plugin must be declared before Capacitor sync');
+  assert.ok(verifyIndex > generateIndex, 'Native push plugin verification must run after Capacitor sync');
+  assert.match(workflow, /@capacitor\/push-notifications/);
+  assert.match(workflow, /capacitor\.plugins\.json/);
+  assert.match(workflow, /PushNotificationsPlugin/);
+});
+
+test('browser package remains free of native-only push dependencies outside Android CI', () => {
   const packageJson = read('package.json');
   const capacitorConfig = read('capacitor.config.json');
 
