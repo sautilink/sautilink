@@ -16,4 +16,25 @@
     'content',
     theme === 'light' ? '#ffffff' : '#0b0c0f',
   );
+
+  let nativeDetectionAttempts = 0;
+  const enableAndroidNativeMode = () => {
+    const platform = globalThis.Capacitor?.getPlatform?.();
+    if (platform === 'android') {
+      document.documentElement.classList.add('native-android');
+      if (!document.querySelector('link[data-sautilink-native-android]')) {
+        const stylesheet = document.createElement('link');
+        stylesheet.rel = 'stylesheet';
+        stylesheet.href = '/app/assets/app-native-android.css?v=20260913-perf1';
+        stylesheet.dataset.sautilinkNativeAndroid = '';
+        document.head.append(stylesheet);
+      }
+      return;
+    }
+
+    nativeDetectionAttempts += 1;
+    if (nativeDetectionAttempts < 8) window.setTimeout(enableAndroidNativeMode, 40);
+  };
+
+  enableAndroidNativeMode();
 })();
