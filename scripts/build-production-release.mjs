@@ -23,7 +23,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
-const APP_JS_RELEASE = '20260913-push1';
+const APP_JS_RELEASE = '20260912-durable1';
 
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
