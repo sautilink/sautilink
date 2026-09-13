@@ -41,10 +41,10 @@ test('existing microphone permissions remain intact', () => {
   assert.match(source, /android\.permission\.MODIFY_AUDIO_SETTINGS/);
 });
 
-test('FCM native plugin fix advances the Android beta package version', () => {
+test('OAuth App Links fix advances the Android beta package version', () => {
   const version = JSON.parse(read('android-version.json'));
-  assert.equal(version.versionCode, 5);
-  assert.equal(version.versionName, '1.0.0-beta.5');
+  assert.equal(version.versionCode, 6);
+  assert.equal(version.versionName, '1.0.0-beta.6');
 });
 
 test('Android workflow applies permission patch after Capacitor project generation', () => {
