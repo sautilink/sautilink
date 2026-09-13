@@ -5,6 +5,7 @@ import test from 'node:test';
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 const configure = read('scripts/configure-android-release.mjs');
+const loginBootTransform = read('scripts/login-boot-source-transform.mjs');
 const oauthSource = read('src/social-oauth-auth.js');
 const assetLinks = JSON.parse(read('.well-known/assetlinks.json'));
 
@@ -13,25 +14,37 @@ test('social OAuth keeps the canonical HTTPS callback used by Android App Links'
   assert.match(oauthSource, /redirectTo: SOCIAL_OAUTH_REDIRECT/);
 });
 
-test('Android manifest patch declares a verified SautiLink home App Link', () => {
+test('Android production bundle uses PKCE while browser OAuth remains unchanged', () => {
+  assert.match(loginBootTransform, /SAUTILINK_ANDROID_OAUTH_PKCE/);
+  assert.match(loginBootTransform, /globalThis\.Capacitor\?\.getPlatform\?\.\(\) === 'android'/);
+  assert.match(loginBootTransform, /\? 'pkce' : 'implicit'/);
+  assert.match(loginBootTransform, /detectSessionInUrl: true/);
+});
+
+test('Android manifest patch declares verified SautiLink home App Links for apex and www', () => {
   assert.match(configure, /android:autoVerify=\"true\"/);
   assert.match(configure, /android:scheme=\"https\"/);
   assert.match(configure, /android:host=\"sautilink\.com\"/);
+  assert.match(configure, /android:host=\"www\.sautilink\.com\"/);
   assert.match(configure, /android:pathPrefix=\"\/home\"/);
   assert.match(configure, /android\.intent\.category\.BROWSABLE/);
 });
 
-test('native callback accepts only SautiLink OAuth-result URLs before loading the WebView', () => {
+test('native callback accepts trusted OAuth results on warm and cold app starts', () => {
   assert.match(configure, /APP_LINK_SCHEME = \"https\"/);
   assert.match(configure, /APP_LINK_HOST = \"sautilink\.com\"/);
+  assert.match(configure, /APP_LINK_WWW_HOST = \"www\.sautilink\.com\"/);
   assert.match(configure, /OAUTH_CALLBACK_PATH = \"\/home\"/);
+  assert.match(configure, /\!\"\/home\/\"\.equals\(callbackPath\)/);
   assert.match(configure, /Intent\.ACTION_VIEW/);
+  assert.match(configure, /handleOAuthAppLink\(getIntent\(\)\)/);
+  assert.match(configure, /handleOAuthAppLink\(intent\)/);
   assert.match(configure, /getQueryParameter\(\"code\"\)/);
   assert.match(configure, /hasFragmentParameter\(uri, \"access_token\"\)/);
   assert.match(configure, /getBridge\(\)\.getWebView\(\)\.loadUrl\(target\)/);
 });
 
-test('Digital Asset Links binds sautilink.com to the production Android signing identity', () => {
+test('Digital Asset Links binds SautiLink hosts to the production Android signing identity', () => {
   assert.ok(Array.isArray(assetLinks));
   assert.equal(assetLinks.length, 1);
   assert.deepEqual(assetLinks[0].relation, ['delegate_permission/common.handle_all_urls']);

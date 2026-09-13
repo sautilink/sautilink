@@ -115,5 +115,22 @@ async function loadStream({ reset = false } = {})`,
     output = output.replace(oldGetUser, newGetUser);
   }
 
+  // 5) Android external-browser OAuth must use PKCE. The verifier remains in the
+  // app WebView storage while the provider runs in the browser; the verified App
+  // Link then returns a short-lived code that the same WebView can exchange.
+  const oauthAuthConfig = `    detectSessionInUrl: true,
+    storageKey: 'sautilink.auth.session',`;
+  const oauthAuthConfigWithNativePkce = `    detectSessionInUrl: true,
+    // SAUTILINK_ANDROID_OAUTH_PKCE
+    flowType: globalThis.Capacitor?.getPlatform?.() === 'android' ? 'pkce' : 'implicit',
+    storageKey: 'sautilink.auth.session',`;
+
+  if (!output.includes('SAUTILINK_ANDROID_OAUTH_PKCE')) {
+    if (!output.includes(oauthAuthConfig)) {
+      throw new Error('Login boot transform could not find the Supabase auth configuration anchor');
+    }
+    output = output.replace(oauthAuthConfig, oauthAuthConfigWithNativePkce);
+  }
+
   return output;
 }
