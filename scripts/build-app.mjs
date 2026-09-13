@@ -2,6 +2,7 @@ import { build } from 'esbuild';
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { transformAndroidPushSource } from './android-push-source-transform.mjs';
 import { transformBootstrapResilienceSource } from './bootstrap-resilience-source-transform.mjs';
 import { transformMediaPerformanceSource } from './media-performance-source-transform.mjs';
 import { transformMemberBootstrapResilienceSource } from './member-bootstrap-resilience-source-transform.mjs';
@@ -16,23 +17,26 @@ import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const appSourcePath = resolve(projectRoot, 'src/app.js');
-const appSource = transformMessagesDurableRealtimeSource(
+const appSource = transformAndroidPushSource(
   appSourcePath,
-  transformMessagesMediaSource(
+  transformMessagesDurableRealtimeSource(
     appSourcePath,
-    transformMemberBootstrapResilienceSource(
+    transformMessagesMediaSource(
       appSourcePath,
-      transformBootstrapResilienceSource(
+      transformMemberBootstrapResilienceSource(
         appSourcePath,
-        transformWhatsAppOtpSource(
+        transformBootstrapResilienceSource(
           appSourcePath,
-          transformVideoPlayerSource(
+          transformWhatsAppOtpSource(
             appSourcePath,
-            transformMentionNotificationSource(
+            transformVideoPlayerSource(
               appSourcePath,
-              transformMediaPerformanceSource(
+              transformMentionNotificationSource(
                 appSourcePath,
-                transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
+                transformMediaPerformanceSource(
+                  appSourcePath,
+                  transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
+                ),
               ),
             ),
           ),
@@ -97,6 +101,7 @@ await build({
     resolve(projectRoot, 'src/social-oauth-auth.js'),
     resolve(projectRoot, 'src/whatsapp-otp-auth.js'),
     resolve(projectRoot, 'src/sautilink-video-player.js'),
+    resolve(projectRoot, 'src/android-push-notifications.js'),
   ],
   plugins: [profileTabIconsPlugin, roomsStartupIsolationPlugin],
   outfile: resolve(projectRoot, 'app/assets/app.js'),

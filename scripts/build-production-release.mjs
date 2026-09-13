@@ -2,6 +2,7 @@ import { build } from 'esbuild';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { transformAndroidPushSource } from './android-push-source-transform.mjs';
 import { transformBootstrapResilienceSource } from './bootstrap-resilience-source-transform.mjs';
 import { transformLoginBootSource } from './login-boot-source-transform.mjs';
 import { transformMediaPerformanceSource } from './media-performance-source-transform.mjs';
@@ -69,29 +70,32 @@ await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: tru
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
   const source = await readFile(file, 'utf8');
-  let output = transformMessagesDurableRealtimeSource(
+  let output = transformAndroidPushSource(
     file,
-    transformMessagesMediaSource(
+    transformMessagesDurableRealtimeSource(
       file,
-      transformProfileTabIconsSource(
+      transformMessagesMediaSource(
         file,
-        transformRoomsStartupIsolationSource(
+        transformProfileTabIconsSource(
           file,
-          transformMemberBootstrapResilienceSource(
+          transformRoomsStartupIsolationSource(
             file,
-            transformBootstrapResilienceSource(
+            transformMemberBootstrapResilienceSource(
               file,
-              transformLoginBootSource(
+              transformBootstrapResilienceSource(
                 file,
-                transformWhatsAppOtpSource(
+                transformLoginBootSource(
                   file,
-                  transformVideoPlayerSource(
+                  transformWhatsAppOtpSource(
                     file,
-                    transformMentionNotificationSource(
+                    transformVideoPlayerSource(
                       file,
-                      transformMediaPerformanceSource(
+                      transformMentionNotificationSource(
                         file,
-                        transformPostMediaSource(file, productionText(source)),
+                        transformMediaPerformanceSource(
+                          file,
+                          transformPostMediaSource(file, productionText(source)),
+                        ),
                       ),
                     ),
                   ),
@@ -154,6 +158,7 @@ await build({
     resolve(workerSource, 'rooms-invitations-style.js'),
     resolve(workerSource, 'rooms-invitations.js'),
     resolve(workerSource, 'rooms-facebook-ui.js'),
+    resolve(workerSource, 'android-push-notifications.js'),
   ],
   outfile: resolve(siteRoot, 'app/assets/app.js'),
   bundle: true,

@@ -12,6 +12,8 @@ on:
       - "src/**"
       - "scripts/build-production-release.mjs"
       - "scripts/configure-android-release.mjs"
+      - "scripts/android-push-source-transform.mjs"
+      - "scripts/verify-firebase-android-config.mjs"
       - "package.json"
       - "package-lock.json"
   push:
@@ -26,6 +28,8 @@ on:
       - "src/**"
       - "scripts/build-production-release.mjs"
       - "scripts/configure-android-release.mjs"
+      - "scripts/android-push-source-transform.mjs"
+      - "scripts/verify-firebase-android-config.mjs"
       - "package.json"
       - "package-lock.json"
 
@@ -69,12 +73,13 @@ jobs:
       - name: Install pinned web dependencies
         run: npm ci
 
-      - name: Install pinned Capacitor toolchain
+      - name: Install pinned Capacitor toolchain and push plugin
         run: >-
           npm install --no-save --package-lock=false
           @capacitor/core@8.5.1
           @capacitor/cli@8.5.1
           @capacitor/android@8.5.1
+          @capacitor/push-notifications@8.1.2
 
       - name: Build production web artifact
         run: npm run build:production
@@ -83,6 +88,23 @@ jobs:
         run: |
           npx cap add android
           npx cap sync android
+
+      - name: Restore Firebase Android configuration
+        shell: bash
+        env:
+          FIREBASE_GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [[ -z "$FIREBASE_GOOGLE_SERVICES_JSON_BASE64" ]]; then
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              echo "::warning::FIREBASE_GOOGLE_SERVICES_JSON_BASE64 is unavailable to this pull-request run; FCM runtime verification will be skipped."
+              exit 0
+            fi
+            echo "::error::Missing FIREBASE_GOOGLE_SERVICES_JSON_BASE64. Refusing to publish an Android build without the registered Firebase client."
+            exit 1
+          fi
+
+          printf '%s' "$FIREBASE_GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/google-services.json
+          node scripts/verify-firebase-android-config.mjs android/app/google-services.json
 
       - name: Apply safe-zone SautiLink launcher icons
         shell: bash
@@ -265,7 +287,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          notes="Official signed SautiLink Android beta ${ANDROID_VERSION_NAME} (${ANDROID_VERSION_CODE}). Built from main with the permanent SautiLink Android signing identity."
+          notes="Official signed SautiLink Android beta ${ANDROID_VERSION_NAME} (${ANDROID_VERSION_CODE}). Built from main with the permanent SautiLink Android signing identity and Firebase Cloud Messaging client configuration."
           if gh release view android-beta >/dev/null 2>&1; then
             gh release upload android-beta \
               release/signed/SautiLink-Android-Beta.apk \
