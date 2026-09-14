@@ -28,6 +28,20 @@ test('post view metrics count meaningful unique non-author views', async () => {
   assert.match(migration, /increment_social_post_view_metric/);
 });
 
+test('conversation replies are excluded from post view metrics', async () => {
+  const runtime = await read('src/post-view-metrics.js');
+
+  assert.match(runtime, /THREAD_REPLY_SELECTOR = '\.thread-sauti'/);
+  assert.match(runtime, /THREAD_CONTAINER_SELECTOR = '#conversation-thread'/);
+  assert.match(runtime, /function isConversationReply\(card\)/);
+  assert.match(runtime, /card\.matches\(THREAD_REPLY_SELECTOR\)/);
+  assert.match(runtime, /card\.closest\(THREAD_CONTAINER_SELECTOR\)/);
+  assert.match(runtime, /if \(isConversationReply\(card\)\) \{/);
+  assert.match(runtime, /card\.querySelector\(VIEW_METRIC_SELECTOR\)\?\.remove\(\)/);
+  assert.match(runtime, /intersectionObserver\.unobserve\(card\)/);
+  assert.doesNotMatch(runtime, /conversation-root[^\n]*unobserve/);
+});
+
 test('post view metric is wired through both app builders', async () => {
   const [source, normal, production] = await Promise.all([
     read('src/app.js'),
@@ -44,7 +58,7 @@ test('post view metric is wired through both app builders', async () => {
     assert.match(builder, /post-view-metrics\.js/);
   }
 
-  assert.match(production, /APP_JS_FEATURE_RELEASE = '20260914-roompreview1'/);
+  assert.match(production, /APP_JS_FEATURE_RELEASE = '20260914-repliesui1'/);
   assert.match(production, /app\.js\?v=\$\{APP_JS_RELEASE\}&feature=\$\{APP_JS_FEATURE_RELEASE\}/);
 });
 
