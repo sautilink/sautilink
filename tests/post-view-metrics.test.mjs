@@ -48,13 +48,14 @@ test('post view metric is wired through both app builders', async () => {
   assert.match(production, /app\.js\?v=\$\{APP_JS_RELEASE\}&feature=\$\{APP_JS_FEATURE_RELEASE\}/);
 });
 
-test('creator metric keeps the 24px post action scale without becoming an action button', async () => {
-  const [runtime, css] = await Promise.all([
+test('creator metric reuses the 24px post action scale without becoming an action button', async () => {
+  const [runtime, actionCss] = await Promise.all([
     read('src/post-view-metrics.js'),
-    read('app/assets/post-view-metrics.css'),
+    read('app/assets/post-media-carousel.css'),
   ]);
 
   assert.match(runtime, /className = 'sauti-action sauti-view-metric'/);
+  assert.match(runtime, /pointerEvents = 'none'/);
   assert.doesNotMatch(runtime, /dataset\.sautiAction\s*=/);
-  assert.match(css, /\.sauti-view-metric svg\s*\{[^}]*width:\s*24px;[^}]*height:\s*24px;/s);
+  assert.match(actionCss, /\.sauti-action svg\s*\{[^}]*width:\s*24px;[^}]*height:\s*24px;/s);
 });
