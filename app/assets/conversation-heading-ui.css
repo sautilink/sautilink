@@ -1,5 +1,0 @@
-/* Conversation heading cleanup: keep the main stream title as the single visible page heading. */
-#conversation-surface .conversation-toolbar .section-label,
-#conversation-surface .conversation-toolbar h2 {
-  display: none;
-}
