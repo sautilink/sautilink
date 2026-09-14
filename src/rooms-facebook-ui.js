@@ -1,4 +1,5 @@
 const ROOMS_FACEBOOK_UI_CSS = '/app/assets/rooms-facebook.css?v=20260909-fbgroups1';
+const ROOMS_MOBILE_PREVIEW_CSS = '/app/assets/rooms-mobile-preview.css?v=20260914-mobile1';
 let roomsFacebookTimer = 0;
 let roomsFacebookFilter = 'discover';
 
@@ -19,11 +20,18 @@ function roomFbIcon(path) {
 }
 
 function ensureRoomsFacebookStyles() {
-  if (document.querySelector(`link[href^="/app/assets/rooms-facebook.css"]`)) return;
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = ROOMS_FACEBOOK_UI_CSS;
-  document.head.append(link);
+  if (!document.querySelector(`link[href^="/app/assets/rooms-facebook.css"]`)) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = ROOMS_FACEBOOK_UI_CSS;
+    document.head.append(link);
+  }
+  if (!document.querySelector(`link[href^="/app/assets/rooms-mobile-preview.css"]`)) {
+    const mobilePreview = document.createElement('link');
+    mobilePreview.rel = 'stylesheet';
+    mobilePreview.href = ROOMS_MOBILE_PREVIEW_CSS;
+    document.head.append(mobilePreview);
+  }
 }
 
 function roomFbSurfaceOpen() {
