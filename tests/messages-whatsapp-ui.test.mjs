@@ -39,6 +39,30 @@ test('Messages UI provides WhatsApp-style two-pane desktop and focused mobile la
   assert.match(css, /#messages-inbox\[hidden\][\s\S]*display: block !important/);
 });
 
+test('reference refresh keeps SautiLink branding and the existing paper-plane send action', async () => {
+  const [source, css, productionBuilder] = await Promise.all([
+    read('src/messages-whatsapp-ui.js'),
+    read('app/assets/messages-composer.css'),
+    read('scripts/build-production-release.mjs'),
+  ]);
+
+  assert.match(source, /toolbarTitle\.textContent = 'Messages'/);
+  assert.match(source, /messages-wa-brand-logo/);
+  assert.match(source, /logo-compact\.webp/);
+  assert.match(source, /data\.messagesSendIcon|dataset\.messagesSendIcon/);
+  assert.match(source, /M22 2 15 22 11 13 2 9 22 2Z/);
+  assert.match(source, /messages-composer\.css\?v=20260914-messagesui1/);
+
+  assert.match(css, /--message-brand: var\(--brand-primary, #2563eb\)/);
+  assert.match(css, /grid-template-columns: minmax\(290px, 360px\) minmax\(0, 1fr\)/);
+  assert.match(css, /\.dm-message\.own[\s\S]*background: var\(--message-own\)/);
+  assert.match(css, /#message-send[\s\S]*background: var\(--message-brand\)/);
+  assert.match(css, /\.messages-wa-brand-logo/);
+  assert.match(css, /@media \(max-width: 680px\)/);
+
+  assert.match(productionBuilder, /APP_JS_FEATURE_RELEASE = '20260914-messagesui1'/);
+});
+
 test('Messages presentation preserves the existing privacy and feature boundary', async () => {
   const html = await read('app/index.html');
   const source = await read('src/messages-whatsapp-ui.js');

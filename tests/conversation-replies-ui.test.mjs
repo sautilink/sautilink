@@ -49,5 +49,5 @@ test('conversation replies stylesheet is versioned and bundled by both builders'
   assert.match(runtime, /ensureConversationRepliesUiStyles/);
   assert.match(normal, /src\/conversation-replies-ui\.js/);
   assert.match(production, /conversation-replies-ui\.js/);
-  assert.match(production, /APP_JS_FEATURE_RELEASE = '20260914-repliesui2'/);
+  assert.match(production, /APP_JS_FEATURE_RELEASE = '\d{8}-[a-z0-9-]+'/);
 });

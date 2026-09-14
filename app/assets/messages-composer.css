@@ -1,23 +1,276 @@
-/* SautiLink Messages composer refinements. Scoped to Messages only. */
+/* SautiLink Messages visual refinement. Scoped to Messages only. */
 .messages-whatsapp-ui {
   --message-brand: var(--brand-primary, #2563eb);
   --message-brand-hover: var(--brand-primary-hover, #1d4ed8);
+  --message-bg: #0d1117;
+  --message-panel: #111827;
+  --message-panel-soft: #18212f;
+  --message-line: rgba(148, 163, 184, .17);
+  --message-text: #f8fafc;
+  --message-muted: #94a3b8;
+  --message-incoming: #18212f;
+  --message-own: var(--message-brand);
+
+  /* Map the previous presentation tokens onto the current SautiLink treatment. */
+  --wa-bg: var(--message-bg);
+  --wa-panel: var(--message-panel);
+  --wa-panel-soft: var(--message-panel-soft);
+  --wa-chat: var(--message-bg);
+  --wa-line: var(--message-line);
+  --wa-text: var(--message-text);
+  --wa-muted: var(--message-muted);
+  --wa-green: var(--message-brand);
+  --wa-green-strong: var(--message-brand-hover);
+  --wa-incoming: var(--message-incoming);
+  --wa-outgoing: var(--message-own);
+  --wa-unread: var(--message-brand);
 }
 
+:root[data-theme="light"] .messages-whatsapp-ui {
+  --message-bg: #f7f8fb;
+  --message-panel: #ffffff;
+  --message-panel-soft: #f4f6f9;
+  --message-line: #e8ebf0;
+  --message-text: #111827;
+  --message-muted: #7b8494;
+  --message-incoming: #ffffff;
+  --message-own: var(--message-brand);
+}
+
+/* Desktop/web keeps a WhatsApp-Web-like split: list on the left, opened chat on the right. */
+.messages-whatsapp-ui .messages-wa-shell {
+  grid-template-columns: minmax(290px, 360px) minmax(0, 1fr);
+  min-height: 620px;
+  overflow: hidden;
+  border: 1px solid var(--message-line);
+  border-radius: 18px;
+  background: var(--message-panel);
+  box-shadow: 0 14px 42px rgba(15, 23, 42, .08);
+}
+
+.messages-whatsapp-ui .messages-wa-sidebar {
+  border-right: 1px solid var(--message-line);
+  background: var(--message-panel);
+}
+
+.messages-whatsapp-ui .messages-wa-stage,
+.messages-whatsapp-ui .message-thread {
+  background: var(--message-bg);
+}
+
+/* Header: SautiLink logo immediately before the existing Messages title. */
+.messages-whatsapp-ui .messages-toolbar {
+  min-height: 64px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--message-line);
+  background: var(--message-panel);
+}
+
+.messages-whatsapp-ui .messages-wa-title-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.messages-whatsapp-ui .messages-wa-brand-logo {
+  display: block;
+  width: 30px;
+  height: 22px;
+  flex: 0 0 30px;
+  object-fit: contain;
+}
+
+.messages-whatsapp-ui .messages-toolbar h2 {
+  margin: 0;
+  color: var(--message-text);
+  font-size: 18px;
+  font-weight: 720;
+  letter-spacing: -.02em;
+}
+
+.messages-whatsapp-ui .messages-wa-new-chat {
+  width: 36px;
+  height: 36px;
+  background: var(--message-panel-soft);
+  color: var(--message-text);
+  font-size: 24px;
+}
+
+.messages-whatsapp-ui .messages-wa-new-chat:hover,
+.messages-whatsapp-ui .messages-wa-new-chat:focus-visible {
+  background: color-mix(in srgb, var(--message-brand) 10%, var(--message-panel-soft));
+}
+
+/* Keep the existing start-conversation section, but visually merge it with the clean header/search flow. */
+.messages-whatsapp-ui .message-new-form {
+  gap: 6px;
+  padding: 8px 12px 5px;
+  background: var(--message-panel);
+}
+
+.messages-whatsapp-ui .message-new-form > div {
+  min-height: 38px;
+  border: 1px solid var(--message-line);
+  border-radius: 12px;
+  background: var(--message-panel-soft);
+}
+
+.messages-whatsapp-ui .message-new-form > div:focus-within {
+  border-color: color-mix(in srgb, var(--message-brand) 52%, var(--message-line));
+}
+
+.messages-whatsapp-ui .message-new-form .secondary-action {
+  border-radius: 999px;
+  background: var(--message-brand);
+  color: #fff;
+}
+
+.messages-whatsapp-ui .messages-search {
+  padding: 7px 12px 10px;
+  background: var(--message-panel);
+}
+
+.messages-whatsapp-ui #messages-search {
+  height: 40px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--message-panel-soft);
+  color: var(--message-text);
+}
+
+.messages-whatsapp-ui #messages-search:focus {
+  border-color: color-mix(in srgb, var(--message-brand) 38%, var(--message-line));
+  box-shadow: none;
+}
+
+/* Compact conversation rows modeled on the supplied mobile reference, without adding sections/features. */
+.messages-whatsapp-ui .message-inbox-item {
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  min-height: 68px;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--message-panel);
+}
+
+.messages-whatsapp-ui .message-inbox-item::after {
+  left: 68px;
+  background: var(--message-line);
+}
+
+.messages-whatsapp-ui .message-inbox-item:hover,
+.messages-whatsapp-ui .message-inbox-item:focus-visible {
+  background: color-mix(in srgb, var(--message-panel-soft) 74%, var(--message-panel));
+}
+
+.messages-whatsapp-ui .message-inbox-item.unread {
+  background: color-mix(in srgb, var(--message-brand) 5%, var(--message-panel));
+}
+
+.messages-whatsapp-ui .message-inbox-avatar {
+  width: 46px;
+  height: 46px;
+  border: 0;
+  background: var(--message-panel-soft);
+}
+
+.messages-whatsapp-ui .message-inbox-top strong,
+.messages-whatsapp-ui .message-inbox-top .verified-name {
+  color: var(--message-text);
+  font-size: 13px;
+  font-weight: 690;
+}
+
+.messages-whatsapp-ui .message-inbox-preview {
+  margin-top: 3px;
+  color: var(--message-muted);
+  font-size: 11px;
+}
+
+.messages-whatsapp-ui .message-inbox-meta {
+  color: var(--message-muted);
+  font-size: 9px;
+}
+
+.messages-whatsapp-ui .message-inbox-meta b {
+  background: var(--message-brand);
+  color: #fff;
+}
+
+/* Opened conversation. */
+.messages-whatsapp-ui .message-thread-header {
+  min-height: 64px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--message-line);
+  background: var(--message-panel);
+}
+
+.messages-whatsapp-ui .message-thread-feed {
+  gap: 8px;
+  padding: 16px 18px 12px;
+  background: var(--message-bg);
+}
+
+.messages-whatsapp-ui .dm-message {
+  max-width: min(76%, 520px);
+  gap: 3px;
+  padding: 9px 11px 7px;
+  border: 1px solid var(--message-line);
+  border-radius: 15px;
+  background: var(--message-incoming);
+  color: var(--message-text);
+  box-shadow: 0 1px 1px rgba(15, 23, 42, .04);
+}
+
+.messages-whatsapp-ui .dm-message.incoming {
+  border-top-left-radius: 6px;
+}
+
+.messages-whatsapp-ui .dm-message.own {
+  border: 0;
+  border-top-right-radius: 6px;
+  background: var(--message-own);
+  color: #fff;
+}
+
+.messages-whatsapp-ui .dm-message.own p,
+.messages-whatsapp-ui .dm-message.own small,
+.messages-whatsapp-ui .dm-message.own time {
+  color: #fff;
+}
+
+.messages-whatsapp-ui .dm-message p {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.messages-whatsapp-ui .dm-message small,
+.messages-whatsapp-ui .dm-message time {
+  color: var(--message-muted);
+  font-size: 9px;
+}
+
+/* Composer keeps the existing Telegram-style paper-plane icon; only its visual treatment changes. */
 .messages-whatsapp-ui .message-composer {
   align-items: center;
   gap: 9px;
-  padding: 8px 10px;
+  padding: 9px 10px;
+  border-top: 1px solid var(--message-line);
+  background: var(--message-panel);
 }
 
 .messages-whatsapp-ui #message-body {
   min-height: 44px;
   padding: 11px 15px;
-  border-radius: 22px;
+  border: 1px solid var(--message-line);
+  border-radius: 24px;
+  background: var(--message-panel-soft);
+  color: var(--message-text);
 }
 
 .messages-whatsapp-ui #message-body:focus {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--message-brand) 48%, transparent);
+  border-color: color-mix(in srgb, var(--message-brand) 42%, var(--message-line));
+  box-shadow: none;
 }
 
 .messages-whatsapp-ui #message-send {
@@ -57,16 +310,104 @@
 }
 
 .messages-whatsapp-ui #message-send:disabled {
-  background: color-mix(in srgb, var(--message-brand) 18%, var(--wa-panel));
-  color: color-mix(in srgb, var(--message-brand) 45%, var(--wa-muted));
-  opacity: .72;
+  background: color-mix(in srgb, var(--message-brand) 14%, var(--message-panel-soft));
+  color: color-mix(in srgb, var(--message-brand) 45%, var(--message-muted));
+  opacity: .75;
 }
 
 .messages-whatsapp-ui .message-composer-actions {
   align-self: center;
 }
 
+/* Mobile follows the supplied single-column reference: inbox first, then the selected chat fills the screen. */
 @media (max-width: 680px) {
+  .messages-whatsapp-ui {
+    min-height: calc(100dvh - 112px);
+  }
+
+  .messages-whatsapp-ui .messages-wa-shell {
+    min-height: calc(100dvh - 112px);
+    height: calc(100dvh - 112px);
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .messages-whatsapp-ui .messages-toolbar {
+    min-height: 56px;
+    padding: 8px 12px;
+  }
+
+  .messages-whatsapp-ui .messages-wa-title-row {
+    gap: 7px;
+  }
+
+  .messages-whatsapp-ui .messages-wa-brand-logo {
+    width: 27px;
+    height: 20px;
+    flex-basis: 27px;
+  }
+
+  .messages-whatsapp-ui .messages-toolbar h2 {
+    font-size: 16px;
+  }
+
+  .messages-whatsapp-ui .message-new-form {
+    padding: 7px 10px 4px;
+  }
+
+  .messages-whatsapp-ui .messages-search {
+    padding: 6px 10px 9px;
+  }
+
+  .messages-whatsapp-ui #messages-search {
+    height: 38px;
+    font-size: 11px;
+  }
+
+  .messages-whatsapp-ui .message-inbox-item {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    min-height: 65px;
+    gap: 9px;
+    padding: 7px 10px;
+  }
+
+  .messages-whatsapp-ui .message-inbox-item::after {
+    left: 63px;
+  }
+
+  .messages-whatsapp-ui .message-inbox-avatar {
+    width: 44px;
+    height: 44px;
+  }
+
+  .messages-whatsapp-ui .message-thread-header {
+    min-height: 56px;
+    padding: 7px 9px;
+  }
+
+  .messages-whatsapp-ui #message-thread-back {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    font-size: 27px;
+  }
+
+  .messages-whatsapp-ui .message-thread-feed {
+    padding: 12px 10px 9px;
+  }
+
+  .messages-whatsapp-ui .dm-message {
+    max-width: 86%;
+    padding: 8px 10px 6px;
+    border-radius: 14px;
+  }
+
+  .messages-whatsapp-ui .dm-message p {
+    font-size: 12px;
+  }
+
   .messages-whatsapp-ui .message-composer {
     gap: 8px;
     padding: 7px 8px calc(7px + env(safe-area-inset-bottom));

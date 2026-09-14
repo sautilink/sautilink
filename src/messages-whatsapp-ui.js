@@ -3,8 +3,8 @@ let messagesWhatsAppUiInitialized = false;
 
 function ensureMessagesWhatsAppStyles() {
   const styles = [
-    ['data-messages-whatsapp-style', '/app/assets/messages-whatsapp.css?v=20260910-wa1'],
-    ['data-messages-composer-style', '/app/assets/messages-composer.css?v=20260912-composer1'],
+    ['data-messages-whatsapp-style', '/app/assets/messages-whatsapp.css?v=20260914-messagesui1'],
+    ['data-messages-composer-style', '/app/assets/messages-composer.css?v=20260914-messagesui1'],
   ];
 
   for (const [attribute, href] of styles) {
@@ -51,6 +51,30 @@ function createNewChatButton(usernameInput) {
     usernameInput?.select?.();
   });
   return button;
+}
+
+function createMessagesBrandLogo() {
+  const logo = document.createElement('img');
+  logo.className = 'messages-wa-brand-logo';
+  logo.src = '/assets/brand/logo-compact.webp';
+  logo.alt = '';
+  logo.width = 30;
+  logo.height = 22;
+  logo.setAttribute('aria-hidden', 'true');
+  return logo;
+}
+
+function configureMessagesTitle(toolbar) {
+  const toolbarTitle = toolbar?.querySelector('h2');
+  if (!toolbarTitle) return;
+
+  toolbarTitle.textContent = 'Messages';
+  const titleRow = toolbarTitle.parentElement;
+  if (!titleRow) return;
+  titleRow.classList.add('messages-wa-title-row');
+  if (!titleRow.querySelector('.messages-wa-brand-logo')) {
+    toolbarTitle.before(createMessagesBrandLogo());
+  }
 }
 
 function createMessageSendIcon() {
@@ -103,7 +127,7 @@ function buildMessagesWhatsAppShell() {
   messagesWhatsAppUiInitialized = true;
   ensureMessagesWhatsAppStyles();
   messagesSurface.classList.add('messages-whatsapp-ui');
-  messagesSurface.dataset.messagesUi = 'whatsapp-inspired';
+  messagesSurface.dataset.messagesUi = 'sautilink-reference-refresh';
 
   const toolbar = messagesSurface.querySelector('.messages-toolbar');
   const newForm = document.getElementById('message-new-form');
@@ -120,14 +144,13 @@ function buildMessagesWhatsAppShell() {
 
   const sidebar = document.createElement('aside');
   sidebar.className = 'messages-wa-sidebar';
-  sidebar.setAttribute('aria-label', 'Chats');
+  sidebar.setAttribute('aria-label', 'Messages');
 
   const stage = document.createElement('section');
   stage.className = 'messages-wa-stage';
   stage.setAttribute('aria-label', 'Conversation');
 
-  const toolbarTitle = toolbar.querySelector('h2');
-  if (toolbarTitle) toolbarTitle.textContent = 'Chats';
+  configureMessagesTitle(toolbar);
   const usernameInput = document.getElementById('message-new-username');
   if (usernameInput) usernameInput.placeholder = 'Username';
   const searchInput = document.getElementById('messages-search');
