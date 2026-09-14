@@ -11,6 +11,7 @@ import { transformMentionNotificationSource } from './mention-notification-sourc
 import { transformMessagesDurableRealtimeSource } from './messages-durable-realtime-source-transform.mjs';
 import { transformMessagesMediaSource } from './messages-media-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
+import { transformPostViewMetricsSource } from './post-view-metrics-source-transform.mjs';
 import { transformProfileTabIconsSource } from './profile-tab-icons-source-transform.mjs';
 import { transformRoomsStartupIsolationSource } from './rooms-startup-isolation-source-transform.mjs';
 import { transformRuntimePerformanceSource } from './runtime-performance-source-transform.mjs';
@@ -25,6 +26,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
 const APP_JS_RELEASE = '20260912-durable1';
+const APP_JS_FEATURE_RELEASE = '20260914-postmetrics1';
 const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram2';
 
 async function walk(directory) {
@@ -76,33 +78,36 @@ await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: tru
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
   const source = await readFile(file, 'utf8');
-  let output = transformRuntimePerformanceSource(
+  let output = transformPostViewMetricsSource(
     file,
-    transformAndroidPushSource(
+    transformRuntimePerformanceSource(
       file,
-      transformMessagesDurableRealtimeSource(
+      transformAndroidPushSource(
         file,
-        transformMessagesMediaSource(
+        transformMessagesDurableRealtimeSource(
           file,
-          transformProfileTabIconsSource(
+          transformMessagesMediaSource(
             file,
-            transformRoomsStartupIsolationSource(
+            transformProfileTabIconsSource(
               file,
-              transformMemberBootstrapResilienceSource(
+              transformRoomsStartupIsolationSource(
                 file,
-                transformBootstrapResilienceSource(
+                transformMemberBootstrapResilienceSource(
                   file,
-                  transformLoginBootSource(
+                  transformBootstrapResilienceSource(
                     file,
-                    transformWhatsAppOtpSource(
+                    transformLoginBootSource(
                       file,
-                      transformVideoPlayerSource(
+                      transformWhatsAppOtpSource(
                         file,
-                        transformMentionNotificationSource(
+                        transformVideoPlayerSource(
                           file,
-                          transformMediaPerformanceSource(
+                          transformMentionNotificationSource(
                             file,
-                            transformPostMediaSource(file, productionText(source)),
+                            transformMediaPerformanceSource(
+                              file,
+                              transformPostMediaSource(file, productionText(source)),
+                            ),
                           ),
                         ),
                       ),
@@ -130,7 +135,7 @@ let appHtml = productionText(await readFile(appHtmlPath, 'utf8'));
 appHtml = appHtml
   .replace(/\s*<meta name="robots" content="noindex, nofollow">\s*/i, '\n')
   .replace("img-src 'self' data: blob:; script-src", "img-src 'self' data: blob:; media-src 'self' blob:; script-src")
-  .replace(/app\.js\?v=[^"']+/g, `app.js?v=${APP_JS_RELEASE}`);
+  .replace(/app\.js\?v=[^"']+/g, `app.js?v=${APP_JS_RELEASE}&feature=${APP_JS_FEATURE_RELEASE}`);
 appHtml = wireProductionPwa(appHtml);
 await writeFile(appHtmlPath, appHtml);
 
@@ -158,6 +163,7 @@ await build({
     resolve(workerSource, 'mobile-nav-icon-style.js'),
     resolve(workerSource, 'mobile-more-drawer.js'),
     resolve(workerSource, 'post-media-carousel.js'),
+    resolve(workerSource, 'post-view-metrics.js'),
     resolve(workerSource, 'short-videos-feed.js'),
     resolve(workerSource, 'social-oauth-auth.js'),
     resolve(workerSource, 'whatsapp-otp-auth.js'),
