@@ -25,7 +25,7 @@ test('reply visual layer keeps one visible replies heading', async () => {
 });
 
 test('conversation page keeps one visible Conversation heading', async () => {
-  const css = await read('app/assets/conversation-heading-ui.css');
+  const css = await read('app/assets/conversation-replies-ui.css');
 
   assert.match(css, /#conversation-surface \.conversation-toolbar \.section-label/);
   assert.match(css, /#conversation-surface \.conversation-toolbar h2 \{[^}]*display:\s*none;/s);
@@ -46,7 +46,6 @@ test('conversation replies stylesheet is versioned and bundled by both builders'
   ]);
 
   assert.match(runtime, /conversation-replies-ui\.css\?v=20260914-conversation1/);
-  assert.match(runtime, /conversation-heading-ui\.css\?v=20260914-conversation1/);
   assert.match(runtime, /ensureConversationRepliesUiStyles/);
   assert.match(normal, /src\/conversation-replies-ui\.js/);
   assert.match(production, /conversation-replies-ui\.js/);
