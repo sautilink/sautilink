@@ -1,10 +1,15 @@
-const CACHE_NAME = "sautilink-shell-v50";
+const CACHE_NAME = "sautilink-shell-v51";
+const CORE_ASSET_PATHS = new Set([
+  "/app/assets/app.css",
+  "/app/assets/app.js",
+  "/app/assets/theme-init.js"
+]);
 const APP_SHELL = [
   "/",
   "/app/",
-  "/app/assets/app.css?v=20260910-loginboot1",
-  "/app/assets/app.js?v=20260910-profileui1",
-  "/app/assets/theme-init.js",
+  "/app/assets/app.css?v=20260909-home-loading",
+  "/app/assets/app.js?v=20260912-durable1",
+  "/app/assets/theme-init.js?v=20260904-account2",
   "/manifest.json",
   "/logo.png",
   "/assets/favicon.png",
@@ -16,9 +21,30 @@ const APP_SHELL = [
   "/assets/launch-splash.js"
 ];
 
+async function cacheAppShell() {
+  const cache = await caches.open(CACHE_NAME);
+  await Promise.allSettled(APP_SHELL.map((url) => cache.add(url)));
+}
+
+async function matchCachedPath(pathname) {
+  const exact = await caches.match(pathname);
+  if (exact) return exact;
+
+  const cache = await caches.open(CACHE_NAME);
+  const requests = await cache.keys();
+  const request = requests.find((candidate) => {
+    try {
+      return new URL(candidate.url).pathname === pathname;
+    } catch {
+      return false;
+    }
+  });
+  return request ? cache.match(request) : undefined;
+}
+
 self.addEventListener("install", (event) => {
   self.skipWaiting();
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
+  event.waitUntil(cacheAppShell());
 });
 
 self.addEventListener("activate", (event) => {
@@ -38,9 +64,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (url.origin === self.location.origin && (
-    url.pathname === "/app/assets/app.js" ||
-    url.pathname === "/app/assets/app.css" ||
-    url.pathname === "/app/assets/theme-init.js" ||
+    CORE_ASSET_PATHS.has(url.pathname) ||
     url.pathname.startsWith("/app/assets/verification/")
   )) {
     event.respondWith(
@@ -48,11 +72,14 @@ self.addEventListener("fetch", (event) => {
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)));
           }
           return response;
         })
-        .catch(() => caches.match(event.request).then((cached) => cached || caches.match(url.pathname))),
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          return cached || matchCachedPath(url.pathname);
+        }),
     );
     return;
   }
@@ -60,7 +87,7 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
     if (response.ok && url.origin === self.location.origin) {
       const copy = response.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+      event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)));
     }
     return response;
   })));
