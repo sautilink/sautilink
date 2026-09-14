@@ -43,8 +43,8 @@ test('existing microphone permissions remain intact', () => {
 
 test('OAuth session handoff fix advances the Android beta package version', () => {
   const version = JSON.parse(read('android-version.json'));
-  assert.equal(version.versionCode, 7);
-  assert.equal(version.versionName, '1.0.0-beta.7');
+  assert.equal(version.versionCode, 8);
+  assert.equal(version.versionName, '1.0.0-beta.8');
 });
 
 test('Android workflow applies permission patch after Capacitor project generation', () => {
