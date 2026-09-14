@@ -1,6 +1,12 @@
 /* SautiLink conversation replies visual refresh.
    Scoped to thread replies only: root posts, wording, features and behavior stay unchanged. */
 
+/* Keep the stream header as the single visible Conversation title. */
+#conversation-surface .conversation-toolbar .section-label,
+#conversation-surface .conversation-toolbar h2 {
+  display: none;
+}
+
 #conversation-thread {
   background: var(--app-panel);
 }
