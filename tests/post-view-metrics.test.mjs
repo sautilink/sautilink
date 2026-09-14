@@ -58,7 +58,7 @@ test('post view metric is wired through both app builders', async () => {
     assert.match(builder, /post-view-metrics\.js/);
   }
 
-  assert.match(production, /APP_JS_FEATURE_RELEASE = '20260914-repliesui1'/);
+  assert.match(production, /APP_JS_FEATURE_RELEASE = '20260914-repliesui2'/);
   assert.match(production, /app\.js\?v=\$\{APP_JS_RELEASE\}&feature=\$\{APP_JS_FEATURE_RELEASE\}/);
 });
 

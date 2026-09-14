@@ -175,6 +175,11 @@
   background: var(--app-panel);
 }
 
+/* Keep the single existing "Replies" label and suppress the duplicate heading. */
+#conversation-reply-heading {
+  display: none;
+}
+
 .conversation-thread-heading h3 {
   margin: 0;
   color: var(--app-text);

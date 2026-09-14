@@ -18,6 +18,12 @@ test('conversation replies use a compact thread-only visual layer', async () => 
   assert.doesNotMatch(css, /#conversation-root\s+\.sauti-card/);
 });
 
+test('reply visual layer keeps one visible replies heading', async () => {
+  const css = await read('app/assets/conversation-replies-ui.css');
+
+  assert.match(css, /#conversation-reply-heading \{[^}]*display:\s*none;/s);
+});
+
 test('reply visual layer explicitly keeps view metrics off replies', async () => {
   const css = await read('app/assets/conversation-replies-ui.css');
 
@@ -32,9 +38,9 @@ test('conversation replies stylesheet is versioned and bundled by both builders'
     read('scripts/build-production-release.mjs'),
   ]);
 
-  assert.match(runtime, /conversation-replies-ui\.css\?v=20260914-replies1/);
+  assert.match(runtime, /conversation-replies-ui\.css\?v=20260914-replies2/);
   assert.match(runtime, /ensureConversationRepliesUiStyles/);
   assert.match(normal, /src\/conversation-replies-ui\.js/);
   assert.match(production, /conversation-replies-ui\.js/);
-  assert.match(production, /APP_JS_FEATURE_RELEASE = '20260914-repliesui1'/);
+  assert.match(production, /APP_JS_FEATURE_RELEASE = '20260914-repliesui2'/);
 });
