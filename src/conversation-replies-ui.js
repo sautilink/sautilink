@@ -1,13 +1,20 @@
-const CONVERSATION_REPLIES_UI_CSS = '/app/assets/conversation-replies-ui.css?v=20260914-conversation1';
+const CONVERSATION_UI_STYLESHEETS = [
+  '/app/assets/conversation-replies-ui.css?v=20260914-conversation1',
+  '/app/assets/conversation-heading-ui.css?v=20260914-conversation1',
+];
 
 export function ensureConversationRepliesUiStyles() {
   if (typeof document === 'undefined') return;
-  if (document.querySelector('link[href^="/app/assets/conversation-replies-ui.css"]')) return;
 
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = CONVERSATION_REPLIES_UI_CSS;
-  document.head.append(link);
+  for (const href of CONVERSATION_UI_STYLESHEETS) {
+    const pathname = href.split('?')[0];
+    if (document.querySelector(`link[href^="${pathname}"]`)) continue;
+
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.append(link);
+  }
 }
 
 function installConversationRepliesUi() {
