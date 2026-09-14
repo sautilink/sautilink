@@ -25,7 +25,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
 const APP_JS_RELEASE = '20260912-durable1';
-const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram1';
+const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram2';
 
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true });

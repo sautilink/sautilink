@@ -213,9 +213,7 @@
   }
 }
 
-.sauti-action[data-sauti-action="like"] svg,
-.sauti-action[data-sauti-action="comments"] svg,
-.sauti-action[data-sauti-action="share"] svg {
+.sauti-action svg {
   width: 24px;
   height: 24px;
 }
