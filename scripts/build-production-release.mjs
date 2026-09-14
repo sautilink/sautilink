@@ -25,6 +25,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
 const APP_JS_RELEASE = '20260912-durable1';
+const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram1';
 
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -53,6 +54,10 @@ function wireProductionPwa(input) {
       '  <link rel="apple-touch-icon" href="/assets/favicon.png">',
     ].join('\n');
     output = output.replace(/(\s*<meta name="theme-color"[^>]*>\s*)/i, `$1\n${pwaHead}\n`);
+  }
+  const postActionIconStylesheet = `/app/assets/post-media-carousel.css?v=${POST_ACTION_ICON_CSS_RELEASE}`;
+  if (!output.includes(postActionIconStylesheet)) {
+    output = output.replace('</head>', `  <link rel="stylesheet" href="${postActionIconStylesheet}">\n</head>`);
   }
   if (!output.includes('<script src="/assets/pwa.js" defer></script>')) {
     output = output.replace('</body>', '  <script src="/assets/pwa.js" defer></script>\n</body>');
