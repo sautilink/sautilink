@@ -3,15 +3,6 @@ const ACTION_ROW_SELECTOR = '.sauti-actions';
 const VIEW_METRIC_SELECTOR = '[data-sauti-metric="views"]';
 const MEANINGFUL_VIEW_MS = 1000;
 const VIEW_THRESHOLD = 0.5;
-const METRICS_STYLESHEET = '/app/assets/post-view-metrics.css?v=20260914-postmetrics1';
-
-function ensureMetricsStylesheet() {
-  if (document.querySelector(`link[href="${METRICS_STYLESHEET}"]`)) return;
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = METRICS_STYLESHEET;
-  document.head.append(link);
-}
 
 function metricIcon() {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -41,7 +32,9 @@ function createMetricNode(postId) {
   metric.dataset.postId = postId;
   metric.setAttribute('role', 'status');
   metric.setAttribute('aria-label', '0 views');
-  metric.title = 'Views';
+  metric.style.cursor = 'default';
+  metric.style.userSelect = 'none';
+  metric.style.pointerEvents = 'none';
 
   const label = document.createElement('span');
   label.className = 'sr-only';
@@ -62,15 +55,12 @@ function updateMetricNode(metric, value) {
   const count = metric.querySelector('[data-metric-count-for="views"]');
   if (count) count.textContent = compactCount(numeric);
   metric.setAttribute('aria-label', `${numeric} ${numeric === 1 ? 'view' : 'views'}`);
-  metric.title = `${numeric.toLocaleString()} ${numeric === 1 ? 'view' : 'views'}`;
 }
 
 export function installPostViewMetrics({ supabase, getCurrentMemberId }) {
   if (!supabase || typeof getCurrentMemberId !== 'function' || typeof document === 'undefined') return;
   if (globalThis.__sautilinkPostViewMetricsInstalled) return;
   globalThis.__sautilinkPostViewMetricsInstalled = true;
-
-  ensureMetricsStylesheet();
 
   const attemptedPostIds = new Set();
   const observedCards = new WeakSet();
@@ -124,9 +114,9 @@ export function installPostViewMetrics({ supabase, getCurrentMemberId }) {
 
     if (error) return;
     const metrics = new Map((data || []).map((row) => [String(row.post_id), Number(row.view_count) || 0]));
-    for (const postId of postIds) {
-      document.querySelectorAll(`${VIEW_METRIC_SELECTOR}[data-post-id="${CSS.escape(postId)}"]`)
-        .forEach((node) => updateMetricNode(node, metrics.get(postId) || 0));
+    for (const node of document.querySelectorAll(VIEW_METRIC_SELECTOR)) {
+      const postId = String(node.dataset.postId || '');
+      if (metrics.has(postId)) updateMetricNode(node, metrics.get(postId) || 0);
     }
   }
 
