@@ -11,7 +11,7 @@ function transformAppSource(source) {
 }
 
 export function transformPostViewMetricsSource(sourcePath, source) {
-  const normalized = String(sourcePath || '').replaceAll('\\\\', '/');
+  const normalized = String(sourcePath || '').replaceAll('\\', '/');
   if (normalized.endsWith('/src/app.js') || normalized.endsWith('src/app.js')) {
     return transformAppSource(source);
   }
