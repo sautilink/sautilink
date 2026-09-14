@@ -48,5 +48,5 @@ test('service worker tolerates partial precache failures and can recover assets 
   assert.match(serviceWorker, /Promise\.allSettled\(APP_SHELL\.map/);
   assert.match(serviceWorker, /async function matchCachedPath\(pathname\)/);
   assert.match(serviceWorker, /CORE_ASSET_PATHS\.has\(url\.pathname\)/);
-  assert.match(serviceWorker, /event\.waitUntil\(caches\.open\(CACHE_NAME\)/);
+  assert.match(serviceWorker, /caches\.open\(CACHE_NAME\)\.then\(\(cache\) => cache\.put\(event\.request, copy\)\)/);
 });
