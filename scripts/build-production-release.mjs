@@ -13,6 +13,7 @@ import { transformMessagesMediaSource } from './messages-media-source-transform.
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
 import { transformProfileTabIconsSource } from './profile-tab-icons-source-transform.mjs';
 import { transformRoomsStartupIsolationSource } from './rooms-startup-isolation-source-transform.mjs';
+import { transformRuntimePerformanceSource } from './runtime-performance-source-transform.mjs';
 import { transformVideoPlayerSource } from './video-player-source-transform.mjs';
 import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs';
 
@@ -70,31 +71,34 @@ await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: tru
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
   const source = await readFile(file, 'utf8');
-  let output = transformAndroidPushSource(
+  let output = transformRuntimePerformanceSource(
     file,
-    transformMessagesDurableRealtimeSource(
+    transformAndroidPushSource(
       file,
-      transformMessagesMediaSource(
+      transformMessagesDurableRealtimeSource(
         file,
-        transformProfileTabIconsSource(
+        transformMessagesMediaSource(
           file,
-          transformRoomsStartupIsolationSource(
+          transformProfileTabIconsSource(
             file,
-            transformMemberBootstrapResilienceSource(
+            transformRoomsStartupIsolationSource(
               file,
-              transformBootstrapResilienceSource(
+              transformMemberBootstrapResilienceSource(
                 file,
-                transformLoginBootSource(
+                transformBootstrapResilienceSource(
                   file,
-                  transformWhatsAppOtpSource(
+                  transformLoginBootSource(
                     file,
-                    transformVideoPlayerSource(
+                    transformWhatsAppOtpSource(
                       file,
-                      transformMentionNotificationSource(
+                      transformVideoPlayerSource(
                         file,
-                        transformMediaPerformanceSource(
+                        transformMentionNotificationSource(
                           file,
-                          transformPostMediaSource(file, productionText(source)),
+                          transformMediaPerformanceSource(
+                            file,
+                            transformPostMediaSource(file, productionText(source)),
+                          ),
                         ),
                       ),
                     ),
