@@ -119,8 +119,8 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   assert.match(verifyScript, /staging Supabase identity leaked into production artifact/);
   assert.match(verifyScript, /production browser bundle missing X-style profile UI loader/);
   assert.match(verifyScript, /profile-x-ui\.css\?v=20260910-tabs2/);
-  assert.match(serviceWorker, /sautilink-shell-v50/);
-  assert.match(serviceWorker, /app\.js\?v=20260910-profileui1/);
+  assert.match(serviceWorker, /sautilink-shell-v51/);
+  assert.match(serviceWorker, /app\.js\?v=20260912-durable1/);
 });
 
 test('Phase 32 generated production files exist and no source map is emitted', async () => {
