@@ -34,6 +34,25 @@ test('Rooms uses the dedicated Groups-style layout without changing other app su
   assert.doesNotMatch(css, /^\.app-layout\s*\{/m);
 });
 
+test('mobile Rooms landing uses a preview-card layer while preserving the existing Room detail view', async () => {
+  const [runtime, previewCss] = await Promise.all([
+    read('src/rooms-facebook-ui.js'),
+    read('app/assets/rooms-mobile-preview.css'),
+  ]);
+
+  assert.match(runtime, /rooms-mobile-preview\.css\?v=20260914-mobile1/);
+  assert.match(previewCss, /@media \(max-width:\s*680px\)/);
+  assert.match(previewCss, /#circles-surface:not\(\.room-fb-detail-open\)/);
+  assert.match(previewCss, /#circles-list \.circle-card/);
+  assert.match(previewCss, /grid-template-columns:\s*minmax\(0, 1\.42fr\) minmax\(122px, \.88fr\)/);
+  assert.match(previewCss, /\.room-card-cover/);
+  assert.match(previewCss, /\.room-cover-image/);
+  assert.match(previewCss, /data-room-category/);
+  assert.doesNotMatch(previewCss, /\.room-fb-detail-tabs/);
+  assert.doesNotMatch(previewCss, /\.circle-detail\.room-fb-detail/);
+  assert.doesNotMatch(previewCss, /^body\s*\{/m);
+});
+
 test('Rooms Groups-style runtime is injected into normal and production bundles', async () => {
   const [appBuilder, productionBuilder] = await Promise.all([
     read('scripts/build-app.mjs'),
