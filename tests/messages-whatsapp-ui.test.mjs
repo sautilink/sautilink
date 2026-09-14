@@ -52,6 +52,7 @@ test('reference refresh keeps SautiLink branding and the existing paper-plane se
   assert.match(source, /data\.messagesSendIcon|dataset\.messagesSendIcon/);
   assert.match(source, /M22 2 15 22 11 13 2 9 22 2Z/);
   assert.match(source, /messages-composer\.css\?v=20260914-messagesui1/);
+  assert.match(source, /messages-header-polish\.css\?v=20260915-messagesui2/);
 
   assert.match(css, /--message-brand: var\(--brand-primary, #2563eb\)/);
   assert.match(css, /grid-template-columns: minmax\(290px, 360px\) minmax\(0, 1fr\)/);
@@ -60,7 +61,16 @@ test('reference refresh keeps SautiLink branding and the existing paper-plane se
   assert.match(css, /\.messages-wa-brand-logo/);
   assert.match(css, /@media \(max-width: 680px\)/);
 
-  assert.match(productionBuilder, /APP_JS_FEATURE_RELEASE = '20260914-messagesui1'/);
+  assert.match(productionBuilder, /APP_JS_FEATURE_RELEASE = '20260915-messagesui2'/);
+});
+
+test('Messages header removes the duplicate page title and centers the branded title row', async () => {
+  const css = await read('app/assets/messages-header-polish.css');
+
+  assert.match(css, /body:has\(#messages-surface:not\(\[hidden\]\)\) \.stream-header\s*\{[^}]*display:\s*none;/s);
+  assert.match(css, /\.messages-whatsapp-ui \.messages-toolbar\s*\{[^}]*position:\s*relative;/s);
+  assert.match(css, /\.messages-whatsapp-ui \.messages-wa-title-row\s*\{[^}]*position:\s*absolute;[^}]*left:\s*50%;[^}]*transform:\s*translate\(-50%, -50%\);/s);
+  assert.match(css, /\.messages-whatsapp-ui \.messages-wa-toolbar-actions\s*\{[^}]*margin-left:\s*auto;/s);
 });
 
 test('Messages presentation preserves the existing privacy and feature boundary', async () => {
