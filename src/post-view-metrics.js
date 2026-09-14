@@ -1,6 +1,8 @@
 const POST_CARD_SELECTOR = '.sauti-card[data-post-id][data-author-id]';
 const ACTION_ROW_SELECTOR = '.sauti-actions';
 const VIEW_METRIC_SELECTOR = '[data-sauti-metric="views"]';
+const THREAD_REPLY_SELECTOR = '.thread-sauti';
+const THREAD_CONTAINER_SELECTOR = '#conversation-thread';
 const MEANINGFUL_VIEW_MS = 1000;
 const VIEW_THRESHOLD = 0.5;
 
@@ -55,6 +57,11 @@ function updateMetricNode(metric, value) {
   const count = metric.querySelector('[data-metric-count-for="views"]');
   if (count) count.textContent = compactCount(numeric);
   metric.setAttribute('aria-label', `${numeric} ${numeric === 1 ? 'view' : 'views'}`);
+}
+
+function isConversationReply(card) {
+  if (!(card instanceof Element)) return false;
+  return card.matches(THREAD_REPLY_SELECTOR) || Boolean(card.closest(THREAD_CONTAINER_SELECTOR));
 }
 
 export function installPostViewMetrics({ supabase, getCurrentMemberId }) {
@@ -128,6 +135,18 @@ export function installPostViewMetrics({ supabase, getCurrentMemberId }) {
 
   function prepareCard(card) {
     if (!(card instanceof Element) || !card.matches(POST_CARD_SELECTOR)) return;
+
+    if (isConversationReply(card)) {
+      card.querySelector(VIEW_METRIC_SELECTOR)?.remove();
+      const existingTimer = viewTimers.get(card);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        viewTimers.delete(card);
+      }
+      if (intersectionObserver) intersectionObserver.unobserve(card);
+      return;
+    }
+
     const postId = String(card.dataset.postId || '').trim();
     const authorId = String(card.dataset.authorId || '').trim();
     const memberId = String(getCurrentMemberId() || '').trim();

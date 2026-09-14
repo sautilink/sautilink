@@ -106,6 +106,7 @@ await build({
     resolve(projectRoot, 'src/mobile-more-drawer.js'),
     resolve(projectRoot, 'src/post-media-carousel.js'),
     resolve(projectRoot, 'src/post-view-metrics.js'),
+    resolve(projectRoot, 'src/conversation-replies-ui.js'),
     resolve(projectRoot, 'src/short-videos-feed.js'),
     resolve(projectRoot, 'src/social-oauth-auth.js'),
     resolve(projectRoot, 'src/whatsapp-otp-auth.js'),
