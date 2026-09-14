@@ -26,7 +26,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
 const APP_JS_RELEASE = '20260912-durable1';
-const APP_JS_FEATURE_RELEASE = '20260914-roompreview1';
+const APP_JS_FEATURE_RELEASE = '20260914-repliesui1';
 const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram2';
 
 async function walk(directory) {
@@ -164,6 +164,7 @@ await build({
     resolve(workerSource, 'mobile-more-drawer.js'),
     resolve(workerSource, 'post-media-carousel.js'),
     resolve(workerSource, 'post-view-metrics.js'),
+    resolve(workerSource, 'conversation-replies-ui.js'),
     resolve(workerSource, 'short-videos-feed.js'),
     resolve(workerSource, 'social-oauth-auth.js'),
     resolve(workerSource, 'whatsapp-otp-auth.js'),
