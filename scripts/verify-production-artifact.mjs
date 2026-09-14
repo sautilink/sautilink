@@ -89,8 +89,9 @@ for (const marker of [
   if (!appJs.includes(marker)) throw new Error(`production browser bundle missing Rooms runtime marker: ${marker}`);
 }
 for (const marker of [
-  'messages-whatsapp.css?v=20260910-wa1',
-  'whatsapp-inspired',
+  'messages-whatsapp.css?v=20260914-messagesui1',
+  'messages-composer.css?v=20260914-messagesui1',
+  'sautilink-reference-refresh',
   'Search or start new chat',
   'Conversation options',
 ]) {
