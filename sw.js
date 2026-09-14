@@ -72,7 +72,7 @@ self.addEventListener("fetch", (event) => {
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
-            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)));
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
           }
           return response;
         })
@@ -87,7 +87,7 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
     if (response.ok && url.origin === self.location.origin) {
       const copy = response.clone();
-      event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)));
+      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
     }
     return response;
   })));
