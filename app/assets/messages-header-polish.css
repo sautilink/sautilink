@@ -1,0 +1,32 @@
+/* Messages header polish. Loaded only for the Messages experience. */
+body:has(#messages-surface:not([hidden])) .stream-header {
+  display: none;
+}
+
+.messages-whatsapp-ui .messages-toolbar {
+  position: relative;
+}
+
+.messages-whatsapp-ui .messages-wa-title-row {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  max-width: calc(100% - 112px);
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+}
+
+.messages-whatsapp-ui .messages-wa-toolbar-actions {
+  margin-left: auto;
+}
+
+@media (max-width: 680px) {
+  .messages-whatsapp-ui .messages-wa-title-row {
+    max-width: calc(100% - 96px);
+    gap: 7px;
+  }
+}
