@@ -24,10 +24,13 @@ test('verification submission confirmation uses the 14-day review window and dur
 
   assert.match(transformed, /We've received your verification request/);
   assert.match(transformed, /usually completed within 14 days/);
+  assert.match(transformed, /verification requests are usually reviewed within 14 days/);
   assert.match(transformed, /spam folder/);
   assert.match(transformed, /Verification request received/);
+  assert.match(transformed, /normalizeVerificationDialogReviewCopy/);
   assert.match(transformed, /closeVerificationRequestDialog\(\)/);
   assert.match(transformed, /await loadVerificationCaseStatus\(currentMember\)/);
+  assert.doesNotMatch(transformed, /72 hours/i);
 });
 
 test('social ownership signal appears only with a supplied social handle and remains optional', async () => {
