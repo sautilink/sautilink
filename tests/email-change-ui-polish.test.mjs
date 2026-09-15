@@ -26,7 +26,7 @@ test('email change OTP styling has an explicit readable light-theme contract', (
 });
 
 test('production rotates the app bundle cache and removes legacy link copy', () => {
-  assert.match(production, /APP_JS_FEATURE_RELEASE = '20260915-emailchange3'/);
+  assert.match(production, /APP_JS_FEATURE_RELEASE = '20260915-verification1'/);
   assert.match(production, /We will send an 8-digit verification code before the address changes\./);
   assert.match(production, />Send verification code<\/button>/);
   assert.match(production, /Verification code sent\. Enter the 8-digit code below to finish changing your email address\./);

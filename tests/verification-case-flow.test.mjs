@@ -48,3 +48,11 @@ test('verification case bridge stays browser-safe and is wired into the canonica
   assert.doesNotMatch(transformed, /SUPABASE_SERVICE_ROLE_KEY|sb_secret_|service_role/i);
   assert.doesNotMatch(transformed, /government[_-]?id[^\n]*(upload|file)/i);
 });
+
+test('production release builder cannot bypass the Phase 2 verification bridge', async () => {
+  const productionBuild = await read('scripts/build-production-release.mjs');
+
+  assert.match(productionBuild, /import \{ transformVerificationCaseFlowSource \} from '\.\/verification-case-flow-source-transform\.mjs';/);
+  assert.match(productionBuild, /if \(file === productionAppSource\) \{\s*output = transformVerificationCaseFlowSource\(file, output\);\s*\}/s);
+  assert.match(productionBuild, /APP_JS_FEATURE_RELEASE = '20260915-verification1'/);
+});
