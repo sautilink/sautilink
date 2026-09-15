@@ -165,6 +165,15 @@ test('translation implementation stays isolated from post mutation and database 
   assert.match(client, /\/api\/post-translations\//);
   assert.doesNotMatch(client, /\.from\(|supabase|service_role/i);
 
+  assert.match(client, /function placeMediaCaptionAboveGallery\(article, caption\)/);
+  assert.match(client, /article\.classList\.contains\('has-media'\)/);
+  assert.match(client, /gallery\.before\(caption, translation\)/);
+  assert.match(client, /gallery\.before\(caption\)/);
+  assert.ok(
+    client.indexOf('placeMediaCaptionAboveGallery(article, caption);') < client.indexOf('if (!postId || !caption || !text) return;'),
+    'media caption placement must run before translation-language eligibility checks',
+  );
+
   assert.match(api, /@cf\/meta\/m2m100-1\.2b/);
   assert.match(api, /source_lang: sourceLanguage/);
   assert.match(api, /target_lang: 'en'/);
