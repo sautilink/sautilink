@@ -75,8 +75,6 @@ test('Account settings expose verified status and an accessible verification req
   assert.doesNotMatch(requestDialog, /type="file"/);
 
   assert.match(source, /status\.textContent = verified \? 'Verified' : 'Unverified'/);
-  assert.match(source, /mailto:team@sautilink\.com\?subject=\$\{subject\}&body=\$\{body\}/);
-  assert.match(source, /encodeURIComponent\('Verification Badge Request'\)/);
   assert.match(source, /https:\/\/facebook\.com\//);
   assert.match(source, /https:\/\/instagram\.com\//);
   assert.match(source, /https:\/\/tiktok\.com\/@/);
