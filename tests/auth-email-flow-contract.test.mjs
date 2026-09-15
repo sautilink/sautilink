@@ -24,6 +24,7 @@ test('email OTP contract is one exact eight-digit code across SautiLink auth sur
   assert.equal(EMAIL_OTP_MAX_LENGTH, 8);
   assert.equal(AUTH_EMAIL_FLOWS.signupConfirmation.otpLength, EMAIL_OTP_LENGTH);
   assert.equal(AUTH_EMAIL_FLOWS.magicLinkOrOtp.otpLength, EMAIL_OTP_LENGTH);
+  assert.equal(AUTH_EMAIL_FLOWS.emailChange.otpLength, EMAIL_OTP_LENGTH);
   assert.equal(AUTH_EMAIL_FLOWS.reauthentication.otpLength, EMAIL_OTP_LENGTH);
 
   assert.equal(normalizeEmailOtp('12 34-56 78'), '12345678');
@@ -37,7 +38,7 @@ test('email OTP contract is one exact eight-digit code across SautiLink auth sur
 test('link and OTP delivery modes are explicitly separated', () => {
   assert.equal(AUTH_EMAIL_FLOWS.signupConfirmation.delivery, 'otp');
   assert.equal(AUTH_EMAIL_FLOWS.passwordRecovery.delivery, 'link');
-  assert.equal(AUTH_EMAIL_FLOWS.emailChange.delivery, 'link');
+  assert.equal(AUTH_EMAIL_FLOWS.emailChange.delivery, 'otp');
   assert.equal(AUTH_EMAIL_FLOWS.invite.delivery, 'link');
   assert.equal(AUTH_EMAIL_FLOWS.reauthentication.delivery, 'otp');
   assert.equal(AUTH_EMAIL_FLOWS.magicLinkOrOtp.delivery, 'otp');
@@ -95,10 +96,10 @@ test('canonical hosted templates match their delivery modes and one SautiLink br
   const otpTemplates = [
     'confirmation-code-only.html',
     'magic-link-code-only.html',
+    'email-change-link.html',
     'reauthentication-code-only.html',
   ];
   const linkTemplates = [
-    'email-change-link.html',
     'recovery-link.html',
   ];
 
@@ -128,4 +129,5 @@ test('canonical hosted templates match their delivery modes and one SautiLink br
   }
 
   assert.match(template('email-change-link.html'), /{{ \.NewEmail }}/);
+  assert.match(template('email-change-link.html'), /8-digit code/i);
 });
