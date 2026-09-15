@@ -117,6 +117,22 @@ function visibleOriginalCaption(text, toggle) {
   return expanded ? full : preview;
 }
 
+function placeMediaCaptionAboveGallery(article, caption) {
+  if (!article.classList.contains('has-media') || caption.hidden) return;
+  const gallery = article.querySelector('.sauti-media-gallery');
+  if (!gallery || caption.parentElement !== gallery.parentElement) return;
+
+  const translation = article.querySelector('.sauti-post-translation-toggle');
+  if (translation) {
+    if (caption.nextElementSibling === translation && translation.nextElementSibling === gallery) return;
+    gallery.before(caption, translation);
+    return;
+  }
+
+  if (caption.nextElementSibling === gallery) return;
+  gallery.before(caption);
+}
+
 async function requestTranslation(postId, sourceLanguage, body) {
   const memoryKey = `${postId}:${sourceLanguage}:${body}`;
   if (translationMemory.has(memoryKey)) return translationMemory.get(memoryKey);
@@ -156,6 +172,7 @@ function enhancePostTranslation(article) {
   const postId = String(article.dataset.postId || '').trim();
   const caption = article.querySelector('.sauti-caption');
   const text = caption?.querySelector('.sauti-caption-text');
+  if (caption) placeMediaCaptionAboveGallery(article, caption);
   if (!postId || !caption || !text) return;
 
   const body = String(text.dataset.fullCaption || text.textContent || '').trim();
