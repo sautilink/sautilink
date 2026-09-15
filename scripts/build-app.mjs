@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transformAndroidPushSource } from './android-push-source-transform.mjs';
+import { transformAuthSessionStabilitySource } from './auth-session-stability-source-transform.mjs';
 import { transformBootstrapResilienceSource } from './bootstrap-resilience-source-transform.mjs';
 import { transformMediaPerformanceSource } from './media-performance-source-transform.mjs';
 import { transformMemberBootstrapResilienceSource } from './member-bootstrap-resilience-source-transform.mjs';
@@ -19,29 +20,32 @@ import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const appSourcePath = resolve(projectRoot, 'src/app.js');
-const appSource = transformPostViewMetricsSource(
+const appSource = transformAuthSessionStabilitySource(
   appSourcePath,
-  transformRuntimePerformanceSource(
+  transformPostViewMetricsSource(
     appSourcePath,
-    transformAndroidPushSource(
+    transformRuntimePerformanceSource(
       appSourcePath,
-      transformMessagesDurableRealtimeSource(
+      transformAndroidPushSource(
         appSourcePath,
-        transformMessagesMediaSource(
+        transformMessagesDurableRealtimeSource(
           appSourcePath,
-          transformMemberBootstrapResilienceSource(
+          transformMessagesMediaSource(
             appSourcePath,
-            transformBootstrapResilienceSource(
+            transformMemberBootstrapResilienceSource(
               appSourcePath,
-              transformWhatsAppOtpSource(
+              transformBootstrapResilienceSource(
                 appSourcePath,
-                transformVideoPlayerSource(
+                transformWhatsAppOtpSource(
                   appSourcePath,
-                  transformMentionNotificationSource(
+                  transformVideoPlayerSource(
                     appSourcePath,
-                    transformMediaPerformanceSource(
+                    transformMentionNotificationSource(
                       appSourcePath,
-                      transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
+                      transformMediaPerformanceSource(
+                        appSourcePath,
+                        transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
+                      ),
                     ),
                   ),
                 ),

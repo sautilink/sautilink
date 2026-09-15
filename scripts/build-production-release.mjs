@@ -3,6 +3,7 @@ import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transformAndroidPushSource } from './android-push-source-transform.mjs';
+import { transformAuthSessionStabilitySource } from './auth-session-stability-source-transform.mjs';
 import { transformBootstrapResilienceSource } from './bootstrap-resilience-source-transform.mjs';
 import { transformLoginBootSource } from './login-boot-source-transform.mjs';
 import { transformMediaPerformanceSource } from './media-performance-source-transform.mjs';
@@ -26,7 +27,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
 const APP_JS_RELEASE = '20260912-durable1';
-const APP_JS_FEATURE_RELEASE = '20260915-emailchange2';
+const APP_JS_FEATURE_RELEASE = '20260915-emailchange3';
 const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram2';
 
 async function walk(directory) {
@@ -88,35 +89,38 @@ await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: tru
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
   const source = await readFile(file, 'utf8');
-  let output = transformPostViewMetricsSource(
+  let output = transformAuthSessionStabilitySource(
     file,
-    transformRuntimePerformanceSource(
+    transformPostViewMetricsSource(
       file,
-      transformAndroidPushSource(
+      transformRuntimePerformanceSource(
         file,
-        transformMessagesDurableRealtimeSource(
+        transformAndroidPushSource(
           file,
-          transformMessagesMediaSource(
+          transformMessagesDurableRealtimeSource(
             file,
-            transformProfileTabIconsSource(
+            transformMessagesMediaSource(
               file,
-              transformRoomsStartupIsolationSource(
+              transformProfileTabIconsSource(
                 file,
-                transformMemberBootstrapResilienceSource(
+                transformRoomsStartupIsolationSource(
                   file,
-                  transformBootstrapResilienceSource(
+                  transformMemberBootstrapResilienceSource(
                     file,
-                    transformLoginBootSource(
+                    transformBootstrapResilienceSource(
                       file,
-                      transformWhatsAppOtpSource(
+                      transformLoginBootSource(
                         file,
-                        transformVideoPlayerSource(
+                        transformWhatsAppOtpSource(
                           file,
-                          transformMentionNotificationSource(
+                          transformVideoPlayerSource(
                             file,
-                            transformMediaPerformanceSource(
+                            transformMentionNotificationSource(
                               file,
-                              transformPostMediaSource(file, productionText(source)),
+                              transformMediaPerformanceSource(
+                                file,
+                                transformPostMediaSource(file, productionText(source)),
+                              ),
                             ),
                           ),
                         ),
