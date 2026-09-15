@@ -1,11 +1,12 @@
 const messagesSurface = document.getElementById('messages-surface');
 let messagesWhatsAppUiInitialized = false;
+let messagesReturnView = 'stream';
 
 function ensureMessagesWhatsAppStyles() {
   const styles = [
     ['data-messages-whatsapp-style', '/app/assets/messages-whatsapp.css?v=20260914-messagesui1'],
     ['data-messages-composer-style', '/app/assets/messages-composer.css?v=20260914-messagesui1'],
-    ['data-messages-header-polish-style', '/app/assets/messages-header-polish.css?v=20260915-messagesui3'],
+    ['data-messages-header-polish-style', '/app/assets/messages-header-polish.css?v=20260915-messagesui4'],
   ];
 
   for (const [attribute, href] of styles) {
@@ -16,6 +17,59 @@ function ensureMessagesWhatsAppStyles() {
     link.setAttribute(attribute, 'true');
     document.head.append(link);
   }
+}
+
+function currentMemberView() {
+  const active = document.querySelector('.app-nav [data-member-view].active')
+    || document.querySelector('.mobile-nav [data-member-view].active')
+    || document.querySelector('[data-member-view][aria-current="page"]');
+  return active?.dataset?.memberView || '';
+}
+
+function rememberMessagesOrigin(view = currentMemberView()) {
+  if (view && view !== 'messages') messagesReturnView = view;
+}
+
+function captureMessagesNavigationOrigin(event) {
+  const target = event.target instanceof Element
+    ? event.target.closest('[data-member-view]')
+    : null;
+  if (!target) return;
+  const nextView = target.dataset.memberView || '';
+  if (nextView === 'messages') rememberMessagesOrigin();
+  else if (nextView) rememberMessagesOrigin(nextView);
+}
+
+document.addEventListener('click', captureMessagesNavigationOrigin, true);
+rememberMessagesOrigin();
+
+function returnFromMessages() {
+  const preferred = document.querySelector(`.app-nav [data-member-view="${messagesReturnView}"]`)
+    || document.querySelector(`.mobile-nav [data-member-view="${messagesReturnView}"]`)
+    || document.querySelector('.app-nav [data-member-view="stream"]')
+    || document.querySelector('.mobile-nav [data-member-view="stream"]');
+  if (preferred instanceof HTMLButtonElement && !preferred.disabled) preferred.click();
+}
+
+function createMessagesBackButton() {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'messages-wa-app-back';
+  button.setAttribute('aria-label', 'Back to previous section');
+  button.title = 'Back';
+
+  const chevron = document.createElement('span');
+  chevron.className = 'messages-wa-app-back-chevron';
+  chevron.setAttribute('aria-hidden', 'true');
+  chevron.textContent = '‹';
+
+  const label = document.createElement('span');
+  label.className = 'messages-wa-app-back-label';
+  label.textContent = 'Back';
+
+  button.append(chevron, label);
+  button.addEventListener('click', returnFromMessages);
+  return button;
 }
 
 function createMessagesPlaceholder() {
@@ -40,16 +94,16 @@ function createMessagesPlaceholder() {
   return placeholder;
 }
 
-function createNewChatButton(usernameInput) {
+function createNewChatButton(searchInput) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'messages-wa-new-chat';
-  button.setAttribute('aria-label', 'Start a new conversation');
-  button.title = 'New conversation';
+  button.setAttribute('aria-label', 'Search conversations');
+  button.title = 'Search conversations';
   button.textContent = '+';
   button.addEventListener('click', () => {
-    usernameInput?.focus({ preventScroll: false });
-    usernameInput?.select?.();
+    searchInput?.focus({ preventScroll: false });
+    searchInput?.select?.();
   });
   return button;
 }
@@ -76,6 +130,87 @@ function configureMessagesTitle(toolbar) {
   if (!titleRow.querySelector('.messages-wa-brand-logo')) {
     toolbarTitle.before(createMessagesBrandLogo());
   }
+}
+
+function messageUnreadCount() {
+  const badgeCounts = Array.from(document.querySelectorAll('[data-message-badge]'), (badge) => {
+    const count = Number.parseInt(String(badge.textContent || '').trim(), 10);
+    return Number.isFinite(count) ? count : 0;
+  });
+  const inboxUnread = document.querySelectorAll('#messages-inbox-list .message-inbox-item.unread').length;
+  return Math.max(inboxUnread, ...badgeCounts, 0);
+}
+
+function syncThreadBackUnreadCount(back) {
+  if (!back) return;
+  const count = messageUnreadCount();
+  const countNode = back.querySelector('.message-thread-back-count');
+  if (!countNode) return;
+  countNode.textContent = count > 99 ? '99+' : String(count);
+  countNode.hidden = count < 1;
+  back.setAttribute('aria-label', count > 0
+    ? `Back to chats, ${count} unread message${count === 1 ? '' : 's'}`
+    : 'Back to chats');
+}
+
+function configureThreadBackButton(back) {
+  if (!back) return;
+
+  const chevron = document.createElement('span');
+  chevron.className = 'message-thread-back-chevron';
+  chevron.setAttribute('aria-hidden', 'true');
+  chevron.textContent = '‹';
+
+  const count = document.createElement('span');
+  count.className = 'message-thread-back-count';
+  count.hidden = true;
+
+  back.replaceChildren(chevron, count);
+  back.title = 'Back to chats';
+  syncThreadBackUnreadCount(back);
+
+  document.querySelectorAll('[data-message-badge]').forEach((badge) => {
+    new MutationObserver(() => syncThreadBackUnreadCount(back)).observe(badge, {
+      attributes: true,
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+  });
+
+  const list = document.getElementById('messages-inbox-list');
+  if (list) {
+    new MutationObserver(() => syncThreadBackUnreadCount(back)).observe(list, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      attributeFilter: ['class'],
+    });
+  }
+}
+
+function createInboxEndNote(inbox) {
+  const list = document.getElementById('messages-inbox-list');
+  if (!inbox || !list || inbox.querySelector('.messages-wa-list-end')) return;
+
+  const note = document.createElement('div');
+  note.className = 'messages-wa-list-end';
+  note.hidden = true;
+
+  const label = document.createElement('span');
+  label.textContent = 'No more chats';
+
+  const copy = document.createElement('small');
+  copy.textContent = "You're all caught up.";
+
+  note.append(label, copy);
+  inbox.append(note);
+
+  const sync = () => {
+    note.hidden = !list.querySelector('.message-inbox-item');
+  };
+  new MutationObserver(sync).observe(list, { childList: true });
+  sync();
 }
 
 function createMessageSendIcon() {
@@ -152,31 +287,30 @@ function buildMessagesWhatsAppShell() {
   stage.setAttribute('aria-label', 'Conversation');
 
   configureMessagesTitle(toolbar);
-  const usernameInput = document.getElementById('message-new-username');
-  if (usernameInput) usernameInput.placeholder = 'Username';
+  if (!toolbar.querySelector('.messages-wa-app-back')) toolbar.prepend(createMessagesBackButton());
+
+  newForm.hidden = true;
+  newForm.setAttribute('aria-hidden', 'true');
+
   const searchInput = document.getElementById('messages-search');
   if (searchInput) searchInput.placeholder = 'Search or start new chat';
 
   const toolbarActions = document.createElement('div');
   toolbarActions.className = 'messages-wa-toolbar-actions';
-  toolbarActions.append(createNewChatButton(usernameInput));
+  toolbarActions.append(createNewChatButton(searchInput));
   toolbar.append(toolbarActions);
 
   sidebar.append(toolbar, newForm, search);
   if (loading) sidebar.append(loading);
   if (error) sidebar.append(error);
   sidebar.append(inbox);
+  createInboxEndNote(inbox);
 
   stage.append(createMessagesPlaceholder(), thread);
   shell.append(sidebar, stage);
   messagesSurface.append(shell);
 
-  const back = document.getElementById('message-thread-back');
-  if (back) {
-    back.textContent = '‹';
-    back.setAttribute('aria-label', 'Back to chats');
-    back.title = 'Back to chats';
-  }
+  configureThreadBackButton(document.getElementById('message-thread-back'));
 
   const messageBody = document.getElementById('message-body');
   if (messageBody) {
@@ -201,6 +335,15 @@ function startMessagesWhatsAppUiWhenVisible() {
     buildMessagesWhatsAppShell();
   });
   visibilityObserver.observe(messagesSurface, {
+    attributes: true,
+    attributeFilter: ['hidden'],
+  });
+}
+
+if (messagesSurface) {
+  new MutationObserver(() => {
+    if (messagesSurface.hidden) rememberMessagesOrigin();
+  }).observe(messagesSurface, {
     attributes: true,
     attributeFilter: ['hidden'],
   });
