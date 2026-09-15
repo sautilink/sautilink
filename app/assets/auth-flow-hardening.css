@@ -1,0 +1,76 @@
+.email-change-verify-form {
+  margin-top: 14px;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.email-change-code-intro {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.email-change-code-intro strong {
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.email-change-code-intro p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  opacity: .74;
+}
+
+.email-change-code-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.email-change-otp-boxes {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 7px;
+  width: min(100%, 430px);
+  margin-bottom: 9px;
+}
+
+.email-change-otp-boxes input {
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  color: inherit;
+  text-align: center;
+  font: inherit;
+  font-size: clamp(16px, 3.5vw, 20px);
+  font-weight: 700;
+  line-height: 1;
+  outline: none;
+  caret-color: currentColor;
+}
+
+.email-change-otp-boxes input:focus-visible {
+  border-color: #2f7cf6;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #2f7cf6 25%, transparent);
+}
+
+.email-change-resend {
+  margin-top: 2px;
+}
+
+@media (max-width: 520px) {
+  .email-change-otp-boxes {
+    gap: 4px;
+  }
+
+  .email-change-otp-boxes input {
+    border-radius: 8px;
+    font-size: 16px;
+  }
+}
