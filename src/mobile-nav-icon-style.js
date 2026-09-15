@@ -1,3 +1,5 @@
+import './auth-flow-hardening.js';
+
 const MOBILE_NAV_SELECTOR = '.mobile-nav';
 const MOBILE_NAV_STYLE_HREF = '/app/assets/mobile-nav-icon-style.css?v=20260907-nav1';
 const SVG_NS = 'http://www.w3.org/2000/svg';

@@ -19,9 +19,10 @@ export const AUTH_EMAIL_FLOWS = Object.freeze({
   }),
   emailChange: Object.freeze({
     template: 'email_change',
-    delivery: 'link',
-    websiteAction: 'follow_email_change_link',
+    delivery: 'otp',
+    websiteAction: 'enter_email_change_otp',
     verifyType: 'email_change',
+    otpLength: EMAIL_OTP_LENGTH,
   }),
   passwordRecovery: Object.freeze({
     template: 'recovery',
