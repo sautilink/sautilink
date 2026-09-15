@@ -52,7 +52,7 @@ test('reference refresh keeps SautiLink branding and the existing paper-plane se
   assert.match(source, /data\.messagesSendIcon|dataset\.messagesSendIcon/);
   assert.match(source, /M22 2 15 22 11 13 2 9 22 2Z/);
   assert.match(source, /messages-composer\.css\?v=20260914-messagesui1/);
-  assert.match(source, /messages-header-polish\.css\?v=20260915-messagesui6/);
+  assert.match(source, /messages-header-polish\.css\?v=20260915-messagesui7/);
 
   assert.match(css, /--message-brand: var\(--brand-primary, #2563eb\)/);
   assert.match(css, /grid-template-columns: minmax\(290px, 360px\) minmax\(0, 1fr\)/);
@@ -61,7 +61,7 @@ test('reference refresh keeps SautiLink branding and the existing paper-plane se
   assert.match(css, /\.messages-wa-brand-logo/);
   assert.match(css, /@media \(max-width: 680px\)/);
 
-  assert.match(productionBuilder, /APP_JS_FEATURE_RELEASE = '20260915-messagesui6'/);
+  assert.match(productionBuilder, /APP_JS_FEATURE_RELEASE = '20260915-messagesui7'/);
 });
 
 test('Messages header removes global chrome and keeps the branded title centered', async () => {
@@ -93,6 +93,15 @@ test('Messages bubbles stay readable in light mode and use compact iOS-style geo
   assert.match(css, /\.messages-whatsapp-ui \.dm-message > p,[\s\S]*color:\s*var\(--message-ios-incoming-text\);[^}]*font-size:\s*14px;/s);
   assert.match(css, /:root\[data-theme="light"\] \.messages-whatsapp-ui \.dm-message\.own,[\s\S]*color:\s*#ffffff;/s);
   assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.messages-whatsapp-ui \.dm-message,[\s\S]*max-width:\s*82%;[^}]*border-radius:\s*19px;/s);
+});
+
+test('Messages report dialog follows light theme and removes the Trust & Safety eyebrow', async () => {
+  const css = await read('app/assets/messages-header-polish.css');
+
+  assert.match(css, /\.report-dialog \.report-form header \.section-label\s*\{[^}]*display:\s*none;/s);
+  assert.match(css, /:root\[data-theme="light"\] body:has\(#messages-surface:not\(\[hidden\]\)\) \.report-dialog\s*\{[^}]*background:\s*var\(--app-panel, #ffffff\);[^}]*color:\s*var\(--app-text, #101318\);/s);
+  assert.match(css, /:root\[data-theme="light"\] body:has\(#messages-surface:not\(\[hidden\]\)\) \.report-form select,[\s\S]*background:\s*var\(--app-input, #f3f4f6\);[^}]*color:\s*var\(--app-text, #101318\);/s);
+  assert.match(css, /:root\[data-theme="light"\] \.report-dialog::backdrop\s*\{[^}]*background:\s*rgba\(15, 23, 42, \.42\);/s);
 });
 
 test('Messages inbox uses iOS-style return navigation without changing core message routing', async () => {
