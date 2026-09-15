@@ -52,7 +52,7 @@ test('reference refresh keeps SautiLink branding and the existing paper-plane se
   assert.match(source, /data\.messagesSendIcon|dataset\.messagesSendIcon/);
   assert.match(source, /M22 2 15 22 11 13 2 9 22 2Z/);
   assert.match(source, /messages-composer\.css\?v=20260914-messagesui1/);
-  assert.match(source, /messages-header-polish\.css\?v=20260915-messagesui3/);
+  assert.match(source, /messages-header-polish\.css\?v=20260915-messagesui4/);
 
   assert.match(css, /--message-brand: var\(--brand-primary, #2563eb\)/);
   assert.match(css, /grid-template-columns: minmax\(290px, 360px\) minmax\(0, 1fr\)/);
@@ -61,7 +61,7 @@ test('reference refresh keeps SautiLink branding and the existing paper-plane se
   assert.match(css, /\.messages-wa-brand-logo/);
   assert.match(css, /@media \(max-width: 680px\)/);
 
-  assert.match(productionBuilder, /APP_JS_FEATURE_RELEASE = '20260915-messagesui3'/);
+  assert.match(productionBuilder, /APP_JS_FEATURE_RELEASE = '20260915-messagesui4'/);
 });
 
 test('Messages header removes global chrome and keeps the branded title centered', async () => {
@@ -74,6 +74,59 @@ test('Messages header removes global chrome and keeps the branded title centered
   assert.match(css, /@media \(max-width: 680px\)[\s\S]*body:has\(#messages-surface:not\(\[hidden\]\)\) \.mobile-header\s*\{[^}]*display:\s*none;/s);
   assert.match(css, /\.messages-whatsapp-ui\s*\{[^}]*min-height:\s*calc\(100dvh - 60px\);/s);
   assert.match(css, /\.messages-whatsapp-ui \.messages-wa-shell\s*\{[^}]*min-height:\s*calc\(100dvh - 60px\);[^}]*height:\s*calc\(100dvh - 60px\);/s);
+});
+
+test('Messages inbox uses iOS-style return navigation without changing core message routing', async () => {
+  const [source, css] = await Promise.all([
+    read('src/messages-whatsapp-ui.js'),
+    read('app/assets/messages-header-polish.css'),
+  ]);
+
+  assert.match(source, /let messagesReturnView = 'stream'/);
+  assert.match(source, /captureMessagesNavigationOrigin/);
+  assert.match(source, /\.app-nav \[data-member-view=/);
+  assert.match(source, /\.mobile-nav \[data-member-view=/);
+  assert.match(source, /className = 'messages-wa-app-back'/);
+  assert.match(source, /Back to previous section/);
+  assert.match(css, /\.messages-whatsapp-ui \.messages-wa-app-back\s*\{[^}]*display:\s*none;/s);
+  assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.messages-whatsapp-ui \.messages-wa-app-back\s*\{[^}]*display:\s*inline-flex;/s);
+});
+
+test('thread back control surfaces unread message count in the existing back action', async () => {
+  const [source, css] = await Promise.all([
+    read('src/messages-whatsapp-ui.js'),
+    read('app/assets/messages-header-polish.css'),
+  ]);
+
+  assert.match(source, /querySelectorAll\('\[data-message-badge\]'\)/);
+  assert.match(source, /message-thread-back-count/);
+  assert.match(source, /Back to chats, \$\{count\} unread message/);
+  assert.match(source, /configureThreadBackButton\(document\.getElementById\('message-thread-back'\)\)/);
+  assert.match(css, /\.messages-whatsapp-ui \.message-thread-back-count\s*\{/);
+});
+
+test('manual username new-message form is hidden while search and profile messaging remain intact', async () => {
+  const [source, css] = await Promise.all([
+    read('src/messages-whatsapp-ui.js'),
+    read('app/assets/messages-header-polish.css'),
+  ]);
+
+  assert.match(source, /newForm\.hidden = true/);
+  assert.match(source, /searchInput\.placeholder = 'Search or start new chat'/);
+  assert.match(css, /\.messages-whatsapp-ui \.message-new-form\s*\{[^}]*display:\s*none !important;/s);
+});
+
+test('Messages inbox shows a quiet end-of-list state after existing conversations', async () => {
+  const [source, css] = await Promise.all([
+    read('src/messages-whatsapp-ui.js'),
+    read('app/assets/messages-header-polish.css'),
+  ]);
+
+  assert.match(source, /className = 'messages-wa-list-end'/);
+  assert.match(source, /No more chats/);
+  assert.match(source, /You're all caught up\./);
+  assert.match(source, /list\.querySelector\('\.message-inbox-item'\)/);
+  assert.match(css, /\.messages-whatsapp-ui \.messages-wa-list-end\s*\{/);
 });
 
 test('Messages presentation preserves the existing privacy and feature boundary', async () => {
