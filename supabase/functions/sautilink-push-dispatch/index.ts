@@ -148,7 +148,7 @@ async function googleAccessToken() {
       signal: controller.signal,
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        grant_type: "urn:ietf:params:oauth-type:jwt-bearer",
         assertion,
       }),
     });
@@ -189,37 +189,61 @@ function actorName(actor: Record<string, unknown> | null) {
   return clean(actor?.display_name) || (clean(actor?.username) ? `@${clean(actor?.username)}` : "Someone");
 }
 
+function memberNoticeCopy(event: string) {
+  if (event === "post_removed_author") return "Your post was removed. Tap to review the reason and appeal. Repeated violations may lead to a permanent ban.";
+  if (event === "comment_removed_author") return "Your comment was removed. Tap to review the reason and appeal. Repeated violations may lead to a permanent ban.";
+  if (event === "post_removed_reporter") return "The post you reported was removed. Thank you for helping SautiLink. Your identity was not shared with the author.";
+  if (event === "comment_removed_reporter") return "The comment you reported was removed. Thank you for helping SautiLink. Your identity was not shared with the author.";
+  if (event === "visibility_limited_author") return "SautiLink limited the visibility of your content. Tap to review the reason and appeal options.";
+  if (event === "appeal_upheld") return "Your moderation appeal was reviewed. The original decision remains in place.";
+  if (event === "appeal_reversed") return "Your moderation appeal was successful. SautiLink reversed the original decision.";
+  if (event === "verification_approved") return "Your account is now verified. The checkmark is on your profile. Verification may be removed if you violate SautiLink rules.";
+  if (event === "verification_action_required") return "Your verification request needs more information. Open SautiLink to review the team message.";
+  if (event === "verification_rejected") return "Your verification request was not approved. Open SautiLink to review the reason.";
+  return "";
+}
+
 async function buildSocialPayload(sourceId: string, recipientId: string) {
   if (!/^\d+$/.test(sourceId)) return null;
   const result = await adminRest(
-    `social_notifications?id=eq.${encodeURIComponent(sourceId)}&recipient_id=eq.${encodeURIComponent(recipientId)}&select=id,recipient_id,actor_id,post_id,notification_type&limit=1`,
+    `social_notifications?id=eq.${encodeURIComponent(sourceId)}&recipient_id=eq.${encodeURIComponent(recipientId)}&select=id,recipient_id,actor_id,post_id,notification_type,notification_event,moderation_action_id,verification_case_id&limit=1`,
     { method: "GET" },
   );
   if (!result.ok || !Array.isArray(result.body) || !result.body[0]) return null;
   const notification = result.body[0] as Record<string, unknown>;
   const type = clean(notification.notification_type);
+  const event = clean(notification.notification_event);
+  const moderationActionId = clean(notification.moderation_action_id);
   const actorId = clean(notification.actor_id) || null;
   const actor = await getActor(actorId);
   const name = actorName(actor);
   const username = clean(actor?.username);
   const postId = clean(notification.post_id);
 
-  let body = "You have a new SautiLink notification.";
-  if (type === "follow") body = `${name} followed you.`;
-  else if (type === "like") body = `${name} liked your post.`;
-  else if (type === "reply") body = `${name} replied to your post.`;
-  else if (type === "mention") body = `${name} mentioned you.`;
-  else if (type === "reshare") body = `${name} reposted your post.`;
+  let body = memberNoticeCopy(event) || "You have a new SautiLink notification.";
+  if (!event && type === "follow") body = `${name} followed you.`;
+  else if (!event && type === "like") body = `${name} liked your post.`;
+  else if (!event && type === "reply") body = `${name} replied to your post.`;
+  else if (!event && type === "mention") body = `${name} mentioned you.`;
+  else if (!event && type === "reshare") body = `${name} reposted your post.`;
 
   let route = "/notifications";
-  if (postId && isUuid(postId)) route = `/post/${postId}`;
-  else if (username && /^[a-z0-9][a-z0-9._]{2,29}$/i.test(username)) route = `/u/${username}`;
+  if (["post_removed_author", "comment_removed_author", "visibility_limited_author", "appeal_upheld", "appeal_reversed"].includes(event) && /^\d+$/.test(moderationActionId)) {
+    route = `/appeals?action=${encodeURIComponent(moderationActionId)}`;
+  } else if (event.startsWith("verification_")) {
+    route = "/settings";
+  } else if (postId && isUuid(postId)) {
+    route = `/post/${postId}`;
+  } else if (username && /^[a-z0-9][a-z0-9._]{2,29}$/i.test(username)) {
+    route = `/u/${username}`;
+  }
 
   return {
     title: "SautiLink",
     body,
     route,
     type,
+    event,
     sourceId,
   };
 }
@@ -255,6 +279,7 @@ async function buildMessagePayload(sourceId: string, recipientId: string) {
     body: `${name} sent you a message.`,
     route: `/messages/${conversationId}`,
     type: "message",
+    event: "",
     sourceId,
   };
 }
@@ -281,6 +306,7 @@ async function sendFcm(token: string, payload: Record<string, string>) {
             data: {
               route: payload.route,
               type: payload.type,
+              event: payload.event || "",
               source_id: payload.sourceId,
             },
             android: {
