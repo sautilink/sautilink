@@ -5,9 +5,187 @@ const SUBMIT_PATTERN = /function submitVerificationRequest\(event\) \{[\s\S]*?\n
 const STATUS_ANCHOR = "  if (verified) applyVerificationBadgeAsset(badge, profile?.verification_badge_type);";
 const HELPER_ANCHOR = 'function verificationRequestEmailBody() {';
 
-const helperSource = `// PHASE2_VERIFICATION_CASE_FLOW\nlet currentVerificationCase = null;\nlet verificationCaseRequest = 0;\n\nfunction normalizedVerificationCase(value) {\n  if (!value || typeof value !== 'object') return null;\n  return {\n    ...value,\n    status: String(value.status || value.case_status || '').trim().toLowerCase(),\n    case_number: String(value.case_number || '').trim(),\n    staff_message: String(value.staff_message || '').trim(),\n  };\n}\n\nfunction verificationCaseStatusCopy(caseItem) {\n  const state = caseItem?.status || '';\n  if (state === 'submitted') return 'Verification pending';\n  if (state === 'reviewing') return 'Under review';\n  if (state === 'action_required') return 'More information needed';\n  if (state === 'rejected') return 'Not approved';\n  if (state === 'approved') return 'Approved';\n  return 'Unverified';\n}\n\nfunction verificationCaseNote(caseItem) {\n  const state = caseItem?.status || '';\n  const message = caseItem?.staff_message || '';\n  if (state === 'submitted') return 'Your verification request has been received and is waiting for review.';\n  if (state === 'reviewing') return 'Your verification request is currently being reviewed by the SautiLink team.';\n  if (state === 'action_required') return message\n    ? \\`More information is required: \\${message}\\`\n    : 'More information is required before we can continue reviewing your request.';\n  if (state === 'rejected') return message\n    ? \\`Verification was not approved: \\${message}\\`\n    : 'Your latest verification request was not approved. You can submit a new request with stronger public evidence.';\n  if (state === 'approved') return message || 'Your verification request was approved. Your badge is being applied to your account.';\n  return 'You can request review below. We return feedback within 72 hours.';\n}\n\nfunction renderVerificationCaseStatus(profile = currentMember, caseValue = currentVerificationCase) {\n  const status = byId('settings-verification-status');\n  const badge = byId('settings-verification-badge');\n  const request = byId('settings-verification-request');\n  const note = byId('settings-verification-note');\n  if (!status || !badge || !request || !note) return;\n\n  const caseItem = normalizedVerificationCase(caseValue);\n  const verified = Boolean(profile?.is_verified) || caseItem?.status === 'approved';\n  status.textContent = verified ? 'Verified' : verificationCaseStatusCopy(caseItem);\n  status.classList.toggle('verified', verified);\n  badge.hidden = !Boolean(profile?.is_verified);\n  if (profile?.is_verified) applyVerificationBadgeAsset(badge, profile?.verification_badge_type);\n\n  if (verified) {\n    request.hidden = true;\n    note.textContent = caseItem?.staff_message || 'Your account currently has an active SautiLink verification badge.';\n    return;\n  }\n\n  if (caseItem?.status === 'submitted' || caseItem?.status === 'reviewing') {\n    request.hidden = true;\n  } else {\n    request.hidden = false;\n    request.textContent = caseItem?.status === 'action_required'\n      ? 'Update verification request'\n      : caseItem?.status === 'rejected'\n        ? 'Request verification again'\n        : 'Request verification';\n  }\n  note.textContent = verificationCaseNote(caseItem);\n}\n\nasync function refreshVerifiedProfileFromCase(caseItem) {\n  if (caseItem?.status !== 'approved' || !currentMemberId) return null;\n  const { data, error } = await supabase\n    .from('social_profiles')\n    .select('id, username, display_name, avatar_key, updated_at, is_verified, verification_badge_type')\n    .eq('id', currentMemberId)\n    .maybeSingle();\n  if (error || !data) return null;\n  currentMember = { ...currentMember, ...data };\n  return currentMember;\n}\n\nasync function loadVerificationCaseStatus(profile = currentMember) {\n  if (!currentMemberId) return null;\n  if (profile?.is_verified) {\n    currentVerificationCase = null;\n    renderVerificationCaseStatus(profile, null);\n    return null;\n  }\n\n  const requestId = ++verificationCaseRequest;\n  const { data, error } = await supabase.rpc('get_my_verification_case');\n  if (requestId !== verificationCaseRequest) return null;\n  if (error) {\n    renderVerificationCaseStatus(profile, currentVerificationCase);\n    return null;\n  }\n\n  currentVerificationCase = normalizedVerificationCase(data);\n  const refreshedProfile = await refreshVerifiedProfileFromCase(currentVerificationCase);\n  if (requestId !== verificationCaseRequest) return currentVerificationCase;\n  renderVerificationCaseStatus(refreshedProfile || profile, currentVerificationCase);\n  return currentVerificationCase;\n}\n\nfunction verificationSubmissionError(error) {\n  const message = String(error?.message || '');\n  if (message.includes('ALREADY_VERIFIED')) return 'This account is already verified.';\n  if (message.includes('AUTH_REQUIRED')) return 'Sign in again before sending a verification request.';\n  if (message.includes('PROFILE_UNAVAILABLE')) return 'Your SautiLink profile is unavailable. Refresh and try again.';\n  if (message.includes('VERIFICATION_REASON_INVALID')) return 'Add a verification reason between 20 and 2,000 characters.';\n  if (message.includes('ARTICLE_LINKS_INVALID')) return 'Use up to five complete http:// or https:// article links.';\n  if (message.includes('VERIFICATION_CONSENT_REQUIRED')) return 'Accept the Privacy Policy and Terms before sending your request.';\n  return 'Your verification request could not be sent. Please try again.';\n}\n\nwindow.addEventListener('focus', () => {\n  if (currentMemberId && !currentMember?.is_verified) void loadVerificationCaseStatus(currentMember);\n});\n`;
+const helperSource = `// PHASE2_VERIFICATION_CASE_FLOW
+let currentVerificationCase = null;
+let verificationCaseRequest = 0;
 
-const replacementSubmit = `async function submitVerificationRequest(event) {\n  event.preventDefault();\n  const form = byId('verification-request-form');\n  const send = byId('verification-request-send');\n  form.dataset.evidenceTouched = 'true';\n  syncVerificationRequestState();\n  if (!form.checkValidity()) {\n    form.reportValidity();\n    return;\n  }\n  if (send.disabled) {\n    byId('verification-evidence-message').hidden = false;\n    return;\n  }\n\n  const socialLinks = {};\n  VERIFICATION_SOCIAL_FIELDS.forEach(([id, label, prefix]) => {\n    const handle = verificationSocialHandle(byId(id)?.value);\n    if (handle) socialLinks[label.toLowerCase()] = \\`\\${prefix}\\${handle}\\`;\n  });\n\n  send.disabled = true;\n  send.setAttribute('aria-disabled', 'true');\n  setMessage(byId('verification-request-message'), 'Sending your verification request…', '');\n\n  try {\n    const { data, error } = await supabase.rpc('submit_verification_case', {\n      p_legal_name: byId('verification-legal-name').value.trim(),\n      p_public_name: byId('verification-famous-name').value.trim() || null,\n      p_account_category: byId('verification-category').value,\n      p_country: byId('verification-country').value.trim(),\n      p_social_links: socialLinks,\n      p_article_links: verificationArticleLinks(),\n      p_reason: byId('verification-reason').value.trim(),\n      p_terms_accepted: Boolean(byId('verification-consent').checked),\n    });\n    if (error) throw error;\n\n    currentVerificationCase = normalizedVerificationCase(data);\n    renderVerificationCaseStatus(currentMember, currentVerificationCase);\n    const caseNumber = currentVerificationCase?.case_number;\n    const wasResubmitted = String(data?.status || '').toLowerCase() === 'resubmitted';\n    settingsMessage(\n      caseNumber\n        ? \\`\\${wasResubmitted ? 'Verification information updated' : 'Verification request sent'} · \\${caseNumber}\\`\n        : (wasResubmitted ? 'Verification information updated.' : 'Verification request sent.'),\n      'success',\n    );\n    closeVerificationRequestDialog();\n    await loadVerificationCaseStatus(currentMember);\n  } catch (error) {\n    setMessage(byId('verification-request-message'), verificationSubmissionError(error), 'error');\n  } finally {\n    syncVerificationRequestState();\n  }\n}\n\nfunction updateVerificationRequestState`;
+function normalizedVerificationCase(value) {
+  if (!value || typeof value !== 'object') return null;
+  return {
+    ...value,
+    status: String(value.status || value.case_status || '').trim().toLowerCase(),
+    case_number: String(value.case_number || '').trim(),
+    staff_message: String(value.staff_message || '').trim(),
+  };
+}
+
+function verificationCaseStatusCopy(caseItem) {
+  const state = caseItem?.status || '';
+  if (state === 'submitted') return 'Verification pending';
+  if (state === 'reviewing') return 'Under review';
+  if (state === 'action_required') return 'More information needed';
+  if (state === 'rejected') return 'Not approved';
+  if (state === 'approved') return 'Approved';
+  return 'Unverified';
+}
+
+function verificationCaseNote(caseItem) {
+  const state = caseItem?.status || '';
+  const message = caseItem?.staff_message || '';
+  if (state === 'submitted') return 'Your verification request has been received and is waiting for review.';
+  if (state === 'reviewing') return 'Your verification request is currently being reviewed by the SautiLink team.';
+  if (state === 'action_required') return message
+    ? 'More information is required: ' + message
+    : 'More information is required before we can continue reviewing your request.';
+  if (state === 'rejected') return message
+    ? 'Verification was not approved: ' + message
+    : 'Your latest verification request was not approved. You can submit a new request with stronger public evidence.';
+  if (state === 'approved') return message || 'Your verification request was approved. Your badge is being applied to your account.';
+  return 'You can request review below. We return feedback within 72 hours.';
+}
+
+function renderVerificationCaseStatus(profile = currentMember, caseValue = currentVerificationCase) {
+  const status = byId('settings-verification-status');
+  const badge = byId('settings-verification-badge');
+  const request = byId('settings-verification-request');
+  const note = byId('settings-verification-note');
+  if (!status || !badge || !request || !note) return;
+
+  const caseItem = normalizedVerificationCase(caseValue);
+  const verified = Boolean(profile?.is_verified) || caseItem?.status === 'approved';
+  status.textContent = verified ? 'Verified' : verificationCaseStatusCopy(caseItem);
+  status.classList.toggle('verified', verified);
+  badge.hidden = !Boolean(profile?.is_verified);
+  if (profile?.is_verified) applyVerificationBadgeAsset(badge, profile?.verification_badge_type);
+
+  if (verified) {
+    request.hidden = true;
+    note.textContent = caseItem?.staff_message || 'Your account currently has an active SautiLink verification badge.';
+    return;
+  }
+
+  if (caseItem?.status === 'submitted' || caseItem?.status === 'reviewing') {
+    request.hidden = true;
+  } else {
+    request.hidden = false;
+    request.textContent = caseItem?.status === 'action_required'
+      ? 'Update verification request'
+      : caseItem?.status === 'rejected'
+        ? 'Request verification again'
+        : 'Request verification';
+  }
+  note.textContent = verificationCaseNote(caseItem);
+}
+
+async function refreshVerifiedProfileFromCase(caseItem) {
+  if (caseItem?.status !== 'approved' || !currentMemberId) return null;
+  const { data, error } = await supabase
+    .from('social_profiles')
+    .select('id, username, display_name, avatar_key, updated_at, is_verified, verification_badge_type')
+    .eq('id', currentMemberId)
+    .maybeSingle();
+  if (error || !data) return null;
+  currentMember = { ...currentMember, ...data };
+  return currentMember;
+}
+
+async function loadVerificationCaseStatus(profile = currentMember) {
+  if (!currentMemberId) return null;
+  if (profile?.is_verified) {
+    currentVerificationCase = null;
+    renderVerificationCaseStatus(profile, null);
+    return null;
+  }
+
+  const requestId = ++verificationCaseRequest;
+  const { data, error } = await supabase.rpc('get_my_verification_case');
+  if (requestId !== verificationCaseRequest) return null;
+  if (error) {
+    renderVerificationCaseStatus(profile, currentVerificationCase);
+    return null;
+  }
+
+  currentVerificationCase = normalizedVerificationCase(data);
+  const refreshedProfile = await refreshVerifiedProfileFromCase(currentVerificationCase);
+  if (requestId !== verificationCaseRequest) return currentVerificationCase;
+  renderVerificationCaseStatus(refreshedProfile || profile, currentVerificationCase);
+  return currentVerificationCase;
+}
+
+function verificationSubmissionError(error) {
+  const message = String(error?.message || '');
+  if (message.includes('ALREADY_VERIFIED')) return 'This account is already verified.';
+  if (message.includes('AUTH_REQUIRED')) return 'Sign in again before sending a verification request.';
+  if (message.includes('PROFILE_UNAVAILABLE')) return 'Your SautiLink profile is unavailable. Refresh and try again.';
+  if (message.includes('VERIFICATION_REASON_INVALID')) return 'Add a verification reason between 20 and 2,000 characters.';
+  if (message.includes('ARTICLE_LINKS_INVALID')) return 'Use up to five complete http:// or https:// article links.';
+  if (message.includes('VERIFICATION_CONSENT_REQUIRED')) return 'Accept the Privacy Policy and Terms before sending your request.';
+  return 'Your verification request could not be sent. Please try again.';
+}
+
+window.addEventListener('focus', () => {
+  if (currentMemberId && !currentMember?.is_verified) void loadVerificationCaseStatus(currentMember);
+});
+`;
+
+const replacementSubmit = `async function submitVerificationRequest(event) {
+  event.preventDefault();
+  const form = byId('verification-request-form');
+  const send = byId('verification-request-send');
+  form.dataset.evidenceTouched = 'true';
+  syncVerificationRequestState();
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+  if (send.disabled) {
+    byId('verification-evidence-message').hidden = false;
+    return;
+  }
+
+  const socialLinks = {};
+  VERIFICATION_SOCIAL_FIELDS.forEach(([id, label, prefix]) => {
+    const handle = verificationSocialHandle(byId(id)?.value);
+    if (handle) socialLinks[label.toLowerCase()] = prefix + handle;
+  });
+
+  send.disabled = true;
+  send.setAttribute('aria-disabled', 'true');
+  setMessage(byId('verification-request-message'), 'Sending your verification request…', '');
+
+  try {
+    const { data, error } = await supabase.rpc('submit_verification_case', {
+      p_legal_name: byId('verification-legal-name').value.trim(),
+      p_public_name: byId('verification-famous-name').value.trim() || null,
+      p_account_category: byId('verification-category').value,
+      p_country: byId('verification-country').value.trim(),
+      p_social_links: socialLinks,
+      p_article_links: verificationArticleLinks(),
+      p_reason: byId('verification-reason').value.trim(),
+      p_terms_accepted: Boolean(byId('verification-consent').checked),
+    });
+    if (error) throw error;
+
+    currentVerificationCase = normalizedVerificationCase(data);
+    renderVerificationCaseStatus(currentMember, currentVerificationCase);
+    const caseNumber = currentVerificationCase?.case_number;
+    const wasResubmitted = String(data?.status || '').toLowerCase() === 'resubmitted';
+    settingsMessage(
+      caseNumber
+        ? (wasResubmitted ? 'Verification information updated · ' : 'Verification request sent · ') + caseNumber
+        : (wasResubmitted ? 'Verification information updated.' : 'Verification request sent.'),
+      'success',
+    );
+    closeVerificationRequestDialog();
+    await loadVerificationCaseStatus(currentMember);
+  } catch (error) {
+    setMessage(byId('verification-request-message'), verificationSubmissionError(error), 'error');
+  } finally {
+    syncVerificationRequestState();
+  }
+}
+
+function updateVerificationRequestState`;
 
 export function transformVerificationCaseFlowSource(sourcePath, source) {
   if (source.includes(FLOW_MARKER)) return source;
