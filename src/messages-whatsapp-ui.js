@@ -31,9 +31,15 @@ function rememberMessagesOrigin(view = currentMemberView()) {
 }
 
 function captureMessagesNavigationOrigin(event) {
-  const target = event.target instanceof Element
-    ? event.target.closest('[data-member-view]')
-    : null;
+  const clicked = event.target instanceof Element ? event.target : null;
+  if (!clicked) return;
+
+  if (clicked.closest('#profile-message-button')) {
+    rememberMessagesOrigin('profile');
+    return;
+  }
+
+  const target = clicked.closest('[data-member-view]');
   if (!target) return;
   const nextView = target.dataset.memberView || '';
   if (nextView === 'messages') rememberMessagesOrigin();
