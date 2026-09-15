@@ -64,6 +64,41 @@
   margin-top: 2px;
 }
 
+:root[data-theme="light"] .account-security-panel .security-form label,
+:root[data-theme="light"] .account-security-panel .email-change-code-label,
+:root[data-theme="light"] .account-security-panel .reauth-intro strong {
+  color: #172033;
+}
+
+:root[data-theme="light"] .account-security-panel .field-hint,
+:root[data-theme="light"] .account-security-panel .email-change-code-intro p,
+:root[data-theme="light"] .account-security-panel .reauth-intro small,
+:root[data-theme="light"] .account-security-panel .account-security-heading > div > p:last-child {
+  color: #596579;
+  opacity: 1;
+}
+
+:root[data-theme="light"] .account-security-panel .security-form input,
+:root[data-theme="light"] .account-security-panel .email-change-otp-boxes input {
+  border-color: #c8d1dc;
+  background: #ffffff;
+  color: #111827;
+}
+
+:root[data-theme="light"] .account-security-panel .security-form input::placeholder,
+:root[data-theme="light"] .account-security-panel .email-change-otp-boxes input::placeholder {
+  color: #6b7280;
+  opacity: 1;
+}
+
+:root[data-theme="light"] .account-security-panel .email-change-code-intro strong {
+  color: #111827;
+}
+
+:root[data-theme="light"] .account-security-panel .email-change-verify-form {
+  border-top-color: #d7dee8;
+}
+
 @media (max-width: 520px) {
   .email-change-otp-boxes {
     gap: 4px;
