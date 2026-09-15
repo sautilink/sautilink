@@ -15,36 +15,40 @@ import { transformPostViewMetricsSource } from './post-view-metrics-source-trans
 import { transformProfileTabIconsSource } from './profile-tab-icons-source-transform.mjs';
 import { transformRoomsStartupIsolationSource } from './rooms-startup-isolation-source-transform.mjs';
 import { transformRuntimePerformanceSource } from './runtime-performance-source-transform.mjs';
+import { transformVerificationCaseFlowSource } from './verification-case-flow-source-transform.mjs';
 import { transformVideoPlayerSource } from './video-player-source-transform.mjs';
 import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const appSourcePath = resolve(projectRoot, 'src/app.js');
-const appSource = transformAuthSessionStabilitySource(
+const appSource = transformVerificationCaseFlowSource(
   appSourcePath,
-  transformPostViewMetricsSource(
+  transformAuthSessionStabilitySource(
     appSourcePath,
-    transformRuntimePerformanceSource(
+    transformPostViewMetricsSource(
       appSourcePath,
-      transformAndroidPushSource(
+      transformRuntimePerformanceSource(
         appSourcePath,
-        transformMessagesDurableRealtimeSource(
+        transformAndroidPushSource(
           appSourcePath,
-          transformMessagesMediaSource(
+          transformMessagesDurableRealtimeSource(
             appSourcePath,
-            transformMemberBootstrapResilienceSource(
+            transformMessagesMediaSource(
               appSourcePath,
-              transformBootstrapResilienceSource(
+              transformMemberBootstrapResilienceSource(
                 appSourcePath,
-                transformWhatsAppOtpSource(
+                transformBootstrapResilienceSource(
                   appSourcePath,
-                  transformVideoPlayerSource(
+                  transformWhatsAppOtpSource(
                     appSourcePath,
-                    transformMentionNotificationSource(
+                    transformVideoPlayerSource(
                       appSourcePath,
-                      transformMediaPerformanceSource(
+                      transformMentionNotificationSource(
                         appSourcePath,
-                        transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
+                        transformMediaPerformanceSource(
+                          appSourcePath,
+                          transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
+                        ),
                       ),
                     ),
                   ),
