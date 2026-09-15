@@ -6,7 +6,7 @@ function ensureMessagesWhatsAppStyles() {
   const styles = [
     ['data-messages-whatsapp-style', '/app/assets/messages-whatsapp.css?v=20260914-messagesui1'],
     ['data-messages-composer-style', '/app/assets/messages-composer.css?v=20260914-messagesui1'],
-    ['data-messages-header-polish-style', '/app/assets/messages-header-polish.css?v=20260915-messagesui4'],
+    ['data-messages-header-polish-style', '/app/assets/messages-header-polish.css?v=20260915-messagesui5'],
   ];
 
   for (const [attribute, href] of styles) {

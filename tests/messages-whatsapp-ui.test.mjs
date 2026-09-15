@@ -52,7 +52,7 @@ test('reference refresh keeps SautiLink branding and the existing paper-plane se
   assert.match(source, /data\.messagesSendIcon|dataset\.messagesSendIcon/);
   assert.match(source, /M22 2 15 22 11 13 2 9 22 2Z/);
   assert.match(source, /messages-composer\.css\?v=20260914-messagesui1/);
-  assert.match(source, /messages-header-polish\.css\?v=20260915-messagesui4/);
+  assert.match(source, /messages-header-polish\.css\?v=20260915-messagesui5/);
 
   assert.match(css, /--message-brand: var\(--brand-primary, #2563eb\)/);
   assert.match(css, /grid-template-columns: minmax\(290px, 360px\) minmax\(0, 1fr\)/);
@@ -61,7 +61,7 @@ test('reference refresh keeps SautiLink branding and the existing paper-plane se
   assert.match(css, /\.messages-wa-brand-logo/);
   assert.match(css, /@media \(max-width: 680px\)/);
 
-  assert.match(productionBuilder, /APP_JS_FEATURE_RELEASE = '20260915-messagesui4'/);
+  assert.match(productionBuilder, /APP_JS_FEATURE_RELEASE = '20260915-messagesui5'/);
 });
 
 test('Messages header removes global chrome and keeps the branded title centered', async () => {
@@ -74,6 +74,14 @@ test('Messages header removes global chrome and keeps the branded title centered
   assert.match(css, /@media \(max-width: 680px\)[\s\S]*body:has\(#messages-surface:not\(\[hidden\]\)\) \.mobile-header\s*\{[^}]*display:\s*none;/s);
   assert.match(css, /\.messages-whatsapp-ui\s*\{[^}]*min-height:\s*calc\(100dvh - 60px\);/s);
   assert.match(css, /\.messages-whatsapp-ui \.messages-wa-shell\s*\{[^}]*min-height:\s*calc\(100dvh - 60px\);[^}]*height:\s*calc\(100dvh - 60px\);/s);
+});
+
+test('mobile Messages header gets rounded iOS-inspired corners and distant shadow', async () => {
+  const css = await read('app/assets/messages-header-polish.css');
+
+  assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.messages-whatsapp-ui \.messages-toolbar\s*\{[^}]*border-radius:\s*28px;[^}]*box-shadow:/s);
+  assert.match(css, /\.messages-whatsapp-ui \.messages-wa-app-back\s*\{[^}]*border-radius:\s*18px;[^}]*box-shadow:/s);
+  assert.match(css, /\.messages-whatsapp-ui \.messages-wa-new-chat\s*\{[^}]*border-radius:\s*18px;[^}]*box-shadow:/s);
 });
 
 test('Messages inbox uses iOS-style return navigation without changing core message routing', async () => {
