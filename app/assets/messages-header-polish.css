@@ -137,9 +137,24 @@ body:has(#messages-surface:not([hidden])) .stream-header {
   color: #111111;
 }
 
-:root[data-theme="light"] .messages-whatsapp-ui .dm-message.own,
+/*
+ * The global light-theme DM rule uses a pale background. Keep the scoped
+ * Messages treatment authoritative so the white outgoing copy never lands on
+ * that pale surface.
+ */
+:root[data-theme="light"] .messages-whatsapp-ui .dm-message.own {
+  background: var(--message-ios-outgoing);
+  color: var(--message-ios-outgoing-text);
+}
+
 :root[data-theme="light"] .messages-whatsapp-ui .dm-message.own > p {
-  color: #ffffff;
+  color: var(--message-ios-outgoing-text);
+}
+
+:root[data-theme="light"] .messages-whatsapp-ui .dm-message.own .dm-message-meta,
+:root[data-theme="light"] .messages-whatsapp-ui .dm-message.own small,
+:root[data-theme="light"] .messages-whatsapp-ui .dm-message.own time {
+  color: rgba(255, 255, 255, .82);
 }
 
 /* Report dialog opened from Messages follows the active theme instead of keeping a dark-only surface. */
