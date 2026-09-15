@@ -52,7 +52,7 @@ test('reference refresh keeps SautiLink branding and the existing paper-plane se
   assert.match(source, /data\.messagesSendIcon|dataset\.messagesSendIcon/);
   assert.match(source, /M22 2 15 22 11 13 2 9 22 2Z/);
   assert.match(source, /messages-composer\.css\?v=20260914-messagesui1/);
-  assert.match(source, /messages-header-polish\.css\?v=20260915-messagesui7/);
+  assert.match(source, /messages-header-polish\.css\?v=20260915-messagesui8/);
 
   assert.match(css, /--message-brand: var\(--brand-primary, #2563eb\)/);
   assert.match(css, /grid-template-columns: minmax\(290px, 360px\) minmax\(0, 1fr\)/);
@@ -91,7 +91,9 @@ test('Messages bubbles stay readable in light mode and use compact iOS-style geo
   assert.match(css, /\.messages-whatsapp-ui \.dm-message\.incoming\s*\{[^}]*border-bottom-left-radius:\s*5px;/s);
   assert.match(css, /\.messages-whatsapp-ui \.dm-message\.own\s*\{[^}]*border-bottom-right-radius:\s*5px;[^}]*background:\s*var\(--message-ios-outgoing\);/s);
   assert.match(css, /\.messages-whatsapp-ui \.dm-message > p,[\s\S]*color:\s*var\(--message-ios-incoming-text\);[^}]*font-size:\s*14px;/s);
-  assert.match(css, /:root\[data-theme="light"\] \.messages-whatsapp-ui \.dm-message\.own,[\s\S]*color:\s*#ffffff;/s);
+  assert.match(css, /:root\[data-theme="light"\] \.messages-whatsapp-ui \.dm-message\.own\s*\{[^}]*background:\s*var\(--message-ios-outgoing\);[^}]*color:\s*var\(--message-ios-outgoing-text\);/s);
+  assert.match(css, /:root\[data-theme="light"\] \.messages-whatsapp-ui \.dm-message\.own > p\s*\{[^}]*color:\s*var\(--message-ios-outgoing-text\);/s);
+  assert.match(css, /:root\[data-theme="light"\] \.messages-whatsapp-ui \.dm-message\.own \.dm-message-meta,[\s\S]*color:\s*rgba\(255, 255, 255, \.82\);/s);
   assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.messages-whatsapp-ui \.dm-message,[\s\S]*max-width:\s*82%;[^}]*border-radius:\s*19px;/s);
 });
 
