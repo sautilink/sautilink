@@ -16,18 +16,20 @@ import { transformPostViewMetricsSource } from './post-view-metrics-source-trans
 import { transformProfileTabIconsSource } from './profile-tab-icons-source-transform.mjs';
 import { transformRoomsStartupIsolationSource } from './rooms-startup-isolation-source-transform.mjs';
 import { transformRuntimePerformanceSource } from './runtime-performance-source-transform.mjs';
+import { transformVerificationCaseFlowSource } from './verification-case-flow-source-transform.mjs';
 import { transformVideoPlayerSource } from './video-player-source-transform.mjs';
 import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const workerRoot = resolve(projectRoot, 'dist-production-worker');
 const workerSource = resolve(workerRoot, 'src');
+const productionAppSource = resolve(workerSource, 'app.js');
 const siteRoot = resolve(projectRoot, 'dist-production-site');
 
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
 const APP_JS_RELEASE = '20260912-durable1';
-const APP_JS_FEATURE_RELEASE = '20260915-emailchange3';
+const APP_JS_FEATURE_RELEASE = '20260915-verification1';
 const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram2';
 
 async function walk(directory) {
@@ -135,6 +137,9 @@ for (const file of await walk(workerSource)) {
       ),
     ),
   );
+  if (file === productionAppSource) {
+    output = transformVerificationCaseFlowSource(file, output);
+  }
   if (file.endsWith('asset-router.js')) {
     output = output.replace(
       "environment: isStaging(url) ? 'staging' : 'unknown',",
@@ -157,7 +162,7 @@ const appCssPath = resolve(siteRoot, 'app/assets/app.css');
 await writeFile(appCssPath, productionText(await readFile(appCssPath, 'utf8')));
 
 await build({
-  entryPoints: [resolve(workerSource, 'app.js')],
+  entryPoints: [productionAppSource],
   inject: [
     resolve(workerSource, 'language-preference.js'),
     resolve(workerSource, 'post-translation.js'),
