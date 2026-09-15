@@ -25,6 +25,19 @@ body:has(#messages-surface:not([hidden])) .stream-header {
 }
 
 @media (max-width: 680px) {
+  body:has(#messages-surface:not([hidden])) .mobile-header {
+    display: none;
+  }
+
+  .messages-whatsapp-ui {
+    min-height: calc(100dvh - 60px);
+  }
+
+  .messages-whatsapp-ui .messages-wa-shell {
+    min-height: calc(100dvh - 60px);
+    height: calc(100dvh - 60px);
+  }
+
   .messages-whatsapp-ui .messages-wa-title-row {
     max-width: calc(100% - 96px);
     gap: 7px;
