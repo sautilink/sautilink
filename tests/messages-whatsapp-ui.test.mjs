@@ -61,7 +61,7 @@ test('reference refresh keeps SautiLink branding and the existing paper-plane se
   assert.match(css, /\.messages-wa-brand-logo/);
   assert.match(css, /@media \(max-width: 680px\)/);
 
-  assert.match(productionBuilder, /APP_JS_FEATURE_RELEASE = '20260915-messagesui7'/);
+  assert.match(productionBuilder, /APP_JS_FEATURE_RELEASE = '20260915-emailchange2'/);
 });
 
 test('Messages header removes global chrome and keeps the branded title centered', async () => {

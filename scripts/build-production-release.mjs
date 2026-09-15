@@ -26,7 +26,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
 const APP_JS_RELEASE = '20260912-durable1';
-const APP_JS_FEATURE_RELEASE = '20260915-messagesui7';
+const APP_JS_FEATURE_RELEASE = '20260915-emailchange2';
 const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram2';
 
 async function walk(directory) {
@@ -41,7 +41,17 @@ async function walk(directory) {
 }
 
 function productionText(input) {
-  return input.replaceAll('/assets/brand/logo-compact.webp', '/logo.png');
+  return input
+    .replaceAll('/assets/brand/logo-compact.webp', '/logo.png')
+    .replaceAll(
+      'We will send the required confirmation email before the address changes.',
+      'We will send an 8-digit verification code before the address changes.',
+    )
+    .replaceAll('>Send confirmation</button>', '>Send verification code</button>')
+    .replaceAll(
+      'Confirmation email sent. Follow the SautiLink confirmation link to finish changing your email address.',
+      'Verification code sent. Enter the 8-digit code below to finish changing your email address.',
+    );
 }
 
 function wireProductionPwa(input) {
