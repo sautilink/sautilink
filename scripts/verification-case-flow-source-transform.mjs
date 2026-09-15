@@ -8,6 +8,8 @@ const OPEN_DIALOG_ANCHOR = `function openVerificationRequestDialog() {
   if (!currentMember || currentMember.is_verified) return;`;
 const SYNC_STATE_ANCHOR = `function syncVerificationRequestState() {
   const form = byId('verification-request-form');`;
+const LEGACY_REVIEW_COPY = 'You can request review below. We return feedback within 72 hours.';
+const CURRENT_REVIEW_COPY = 'You can request verification below. Due to request volume, reviews are usually completed within 14 days.';
 
 const helperSource = `// PHASE2_VERIFICATION_CASE_FLOW
 let currentVerificationCase = null;
@@ -81,6 +83,13 @@ function verificationCaseNote(caseItem) {
   }
   if (state === 'approved') return message || 'Your verification request was approved. Your badge is being applied to your account.';
   return 'You can request verification below. Due to request volume, reviews are usually completed within 14 days.';
+}
+
+function normalizeVerificationDialogReviewCopy() {
+  const dialogCopy = document.querySelector('#verification-request-dialog .settings-dialog-head p');
+  if (dialogCopy) {
+    dialogCopy.textContent = 'Complete the details below. Due to request volume, verification requests are usually reviewed within 14 days.';
+  }
 }
 
 function renderVerificationCaseStatus(profile = currentMember, caseValue = currentVerificationCase) {
@@ -317,10 +326,11 @@ export function transformVerificationCaseFlowSource(sourcePath, source) {
     STATUS_ANCHOR,
     `  if (verified) {\n    currentVerificationCase = null;\n    applyVerificationBadgeAsset(badge, profile?.verification_badge_type);\n  } else if (!loading) {\n    void loadVerificationCaseStatus(profile);\n  }`,
   );
+  output = output.replaceAll(LEGACY_REVIEW_COPY, CURRENT_REVIEW_COPY);
   output = output.replace(HELPER_ANCHOR, `${helperSource}\n${HELPER_ANCHOR}`);
   output = output.replace(
     OPEN_DIALOG_ANCHOR,
-    `${OPEN_DIALOG_ANCHOR}\n  if (verificationReapplyLocked(currentVerificationCase)) {\n    renderVerificationCaseStatus(currentMember, currentVerificationCase);\n    return;\n  }`,
+    `${OPEN_DIALOG_ANCHOR}\n  normalizeVerificationDialogReviewCopy();\n  if (verificationReapplyLocked(currentVerificationCase)) {\n    renderVerificationCaseStatus(currentMember, currentVerificationCase);\n    return;\n  }`,
   );
   output = output.replace(
     SYNC_STATE_ANCHOR,
