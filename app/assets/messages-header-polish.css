@@ -142,6 +142,74 @@ body:has(#messages-surface:not([hidden])) .stream-header {
   color: #ffffff;
 }
 
+/* Report dialog opened from Messages follows the active theme instead of keeping a dark-only surface. */
+.report-dialog .report-form header .section-label {
+  display: none;
+}
+
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) .report-dialog {
+  border-color: var(--app-line-strong, #cbd0d6);
+  background: var(--app-panel, #ffffff);
+  color: var(--app-text, #101318);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .16);
+}
+
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) .report-form header {
+  border-bottom-color: var(--app-line, #e1e4e8);
+}
+
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) .report-form header h2,
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) .report-form > label {
+  color: var(--app-text, #101318);
+}
+
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) #report-target-label,
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) .report-form > label span,
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) .report-form .field-hint {
+  color: var(--app-muted, #68717d);
+}
+
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) .report-form select,
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) .report-form textarea {
+  border-color: var(--app-line-strong, #cbd0d6);
+  background: var(--app-input, #f3f4f6);
+  color: var(--app-text, #101318);
+}
+
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) .report-form textarea::placeholder {
+  color: var(--app-muted, #68717d);
+}
+
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) .report-form select option {
+  background: var(--app-panel, #ffffff);
+  color: var(--app-text, #101318);
+}
+
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) #report-dialog-close {
+  background: transparent;
+  color: var(--app-muted, #68717d);
+}
+
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) #report-dialog-close:hover,
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) #report-dialog-close:focus-visible {
+  background: var(--app-panel-soft, #f6f7f9);
+  color: var(--app-text, #101318);
+}
+
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) .report-form footer {
+  border-top-color: var(--app-line, #e1e4e8);
+}
+
+:root[data-theme="light"] body:has(#messages-surface:not([hidden])) #report-cancel {
+  border-color: var(--app-line-strong, #cbd0d6);
+  background: var(--app-panel-soft, #f6f7f9);
+  color: var(--app-text, #101318);
+}
+
+:root[data-theme="light"] .report-dialog::backdrop {
+  background: rgba(15, 23, 42, .42);
+}
+
 @media (max-width: 680px) {
   body:has(#messages-surface:not([hidden])) .mobile-header {
     display: none;
