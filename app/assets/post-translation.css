@@ -27,3 +27,73 @@
   opacity: 0.55;
   text-decoration: none;
 }
+
+.sauti-home-facebook-style .sauti-card-identity {
+  gap: 2px;
+}
+
+.sauti-home-facebook-style .sauti-card-post-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.sauti-home-facebook-style .sauti-card-post-meta > a {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sauti-home-facebook-style .sauti-card-post-meta time {
+  margin-left: 0;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.sauti-home-facebook-style .sauti-card-post-meta-separator {
+  flex: 0 0 auto;
+  color: inherit;
+}
+
+.sauti-home-facebook-style .sauti-card-public-icon {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.sauti-home-facebook-style .sauti-card-public-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sauti-home-facebook-style .sauti-caption {
+  margin: 7px 16px 12px;
+  line-height: 1.48;
+}
+
+.sauti-home-facebook-style .sauti-caption-toggle {
+  color: var(--app-muted);
+  font-weight: 600;
+}
+
+.sauti-home-facebook-style .sauti-caption-toggle:hover,
+.sauti-home-facebook-style .sauti-caption-toggle:focus-visible {
+  color: var(--app-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
