@@ -67,6 +67,7 @@ test('database migration enforces cooldown, evidence and social-proof priority s
 
 test('public verification ownership URL has a real explanatory page', async () => {
   const page = await read('verify.html');
+  assert.match(page, /<html lang="en" data-theme="light">/);
   assert.match(page, /<link rel="canonical" href="https:\/\/sautilink\.com\/verify">/);
   assert.match(page, /public ownership signal/i);
   assert.match(page, /sautilink\.com\/verify/);
