@@ -35,15 +35,32 @@ jobs:
           node --check assets/launch-splash.js
           node --check sw.js
 
-      - name: Run full project checks
-        run: npm run check
+      - name: Build app and previews
+        run: npm run build
 
-      - name: Verify production artifact carries the loader
+      - name: Verify staging artifact
+        run: npm run verify:staging-artifact
+
+      - name: Build production artifact
+        run: npm run build:production
+
+      - name: Verify production artifact
+        run: npm run verify:production-artifact
+
+      - name: Verify post translation artifact
+        run: npm run verify:post-translation-artifact
+
+      - name: Run full test suite
+        run: npm test
+
+      - name: Verify distributed Lottie files
         run: |
           grep -Fq '<script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>' dist-production-site/app/index.html
-          test -s assets/vendor/lottie-web/lottie_light.min.js
-          test -s assets/vendor/lottie-web/LICENSE.md
-          test -s assets/animations/sautilink-loader/animations/12345.json
+          test -s dist-production-site/assets/lottie-loader.js
+          test -s dist-production-site/assets/lottie-loader.css
+          test -s dist-production-site/assets/vendor/lottie-web/lottie_light.min.js
+          test -s dist-production-site/assets/vendor/lottie-web/LICENSE.md
+          test -s dist-production-site/assets/animations/sautilink-loader/animations/12345.json
           git diff --check
 
       - name: Dry-run production worker deployment
