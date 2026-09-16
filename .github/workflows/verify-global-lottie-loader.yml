@@ -65,14 +65,17 @@ jobs:
       - name: Run full test suite
         run: npm test
 
-      - name: Verify distributed Lottie files
+      - name: Verify Lottie integration and source assets
         run: |
           grep -Fq '<script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>' dist-production-site/app/index.html
-          test -s dist-production-site/assets/lottie-loader.js
-          test -s dist-production-site/assets/lottie-loader.css
-          test -s dist-production-site/assets/vendor/lottie-web/lottie_light.min.js
-          test -s dist-production-site/assets/vendor/lottie-web/LICENSE.md
-          test -s dist-production-site/assets/animations/sautilink-loader/animations/12345.json
+          test -s assets/lottie-loader.js
+          test -s assets/lottie-loader.css
+          test -s assets/vendor/lottie-web/lottie_light.min.js
+          test -s assets/vendor/lottie-web/LICENSE.md
+          test -s assets/animations/sautilink-loader/animations/12345.json
+          grep -Fq '/assets/lottie-loader.js?v=20260917-lottie1' sw.js
+          grep -Fq '/assets/vendor/lottie-web/lottie_light.min.js' sw.js
+          grep -Fq '/assets/animations/sautilink-loader/animations/12345.json' sw.js
           git diff --check
 
       - name: Dry-run production worker deployment
