@@ -73,3 +73,16 @@ test('public verification ownership URL has a real explanatory page', async () =
   assert.match(page, /not a guarantee of verification/i);
   assert.match(page, /usually completed within 14 days/i);
 });
+
+test('production build publishes the verification ownership page on apex and www routes', async () => {
+  const [build, wrangler] = await Promise.all([
+    read('scripts/build-production-release.mjs'),
+    read('wrangler.production.jsonc'),
+  ]);
+
+  assert.match(build, /cp\(resolve\(projectRoot, 'verify\.html'\), resolve\(siteRoot, 'verify\.html'\)\)/);
+  assert.match(wrangler, /"pattern": "sautilink\.com\/verify"/);
+  assert.match(wrangler, /"pattern": "sautilink\.com\/verify\/\*"/);
+  assert.match(wrangler, /"pattern": "www\.sautilink\.com\/verify"/);
+  assert.match(wrangler, /"pattern": "www\.sautilink\.com\/verify\/\*"/);
+});

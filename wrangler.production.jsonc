@@ -65,6 +65,14 @@
       "zone_name": "sautilink.com"
     },
     {
+      "pattern": "sautilink.com/verify",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "sautilink.com/verify/*",
+      "zone_name": "sautilink.com"
+    },
+    {
       "pattern": "sautilink.com/u/*",
       "zone_name": "sautilink.com"
     },
@@ -130,6 +138,14 @@
     },
     {
       "pattern": "www.sautilink.com/sautify*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.sautilink.com/verify",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.sautilink.com/verify/*",
       "zone_name": "sautilink.com"
     },
     {

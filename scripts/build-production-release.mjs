@@ -87,6 +87,7 @@ await mkdir(siteRoot, { recursive: true });
 
 await cp(resolve(projectRoot, 'src'), workerSource, { recursive: true });
 await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: true });
+await cp(resolve(projectRoot, 'verify.html'), resolve(siteRoot, 'verify.html'));
 
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
