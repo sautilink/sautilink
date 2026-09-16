@@ -117,15 +117,15 @@ function visibleOriginalCaption(text, toggle) {
   return expanded ? full : preview;
 }
 
-function placeMediaCaptionAboveGallery(article, caption) {
-  if (!article.classList.contains('has-media') || caption.hidden) return;
+export function placeMediaCaptionAboveGallery(article, caption) {
   const gallery = article.querySelector('.sauti-media-gallery');
-  if (!gallery || caption.parentElement !== gallery.parentElement) return;
+  if (!gallery) return;
 
   const translation = article.querySelector('.sauti-post-translation-toggle');
   if (translation) {
     if (caption.nextElementSibling === translation && translation.nextElementSibling === gallery) return;
-    gallery.before(caption, translation);
+    gallery.before(caption);
+    gallery.before(translation);
     return;
   }
 
@@ -261,7 +261,13 @@ function installPostTranslations() {
     }
     cards.forEach(enhancePostTranslation);
   });
-  observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+  observer.observe(document.body, {
+    subtree: true,
+    childList: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ['class', 'hidden'],
+  });
 }
 
 if (typeof document !== 'undefined') {
