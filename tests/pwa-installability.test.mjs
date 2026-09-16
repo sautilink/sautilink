@@ -22,7 +22,7 @@ test('SautiLink exposes an installable PWA shell without changing app behavior',
   const manifest = JSON.parse(manifestText);
 
   assert.match(rootHtml, /<link rel="manifest" href="\/manifest\.json">/);
-  assert.match(rootHtml, /<script src="\/assets\/pwa\.js" defer><\/script>/);
+  assert.match(rootHtml, /<script src="\/assets\/pwa\.js\?v=20260916-captionlayout2" defer><\/script>/);
   assert.equal(manifest.name, 'SautiLink');
   assert.equal(manifest.start_url, '/home');
   assert.equal(manifest.scope, '/');
@@ -30,7 +30,8 @@ test('SautiLink exposes an installable PWA shell without changing app behavior',
   assert.ok(manifest.icons.some((icon) => icon.sizes === '192x192'));
   assert.ok(manifest.icons.some((icon) => icon.sizes === '512x512' && String(icon.purpose || '').includes('maskable')));
 
-  assert.match(registration, /navigator\.serviceWorker\.register\('\/sw\.js'/);
+  assert.match(registration, /SERVICE_WORKER_URL = `\/sw\.js\?v=\$\{PWA_RELEASE\}`/);
+  assert.match(registration, /registration\.update\(\)/);
   assert.match(registration, /scope:\s*'\/'/);
   assert.match(registration, /beforeinstallprompt/);
   assert.match(registration, /event\.preventDefault\(\)/);
@@ -46,11 +47,15 @@ test('SautiLink exposes an installable PWA shell without changing app behavior',
   assert.match(installStyles, /var\(--brand-primary, #2563eb\)/);
   assert.match(installStyles, /\.sautilink-pwa-app-shell \.sautilink-pwa-install/);
 
-  assert.match(serviceWorker, /sautilink-shell-v51/);
+  assert.match(serviceWorker, /sautilink-shell-v52/);
+  assert.match(serviceWorker, /hadPreviousShell/);
+  assert.match(serviceWorker, /key\.startsWith\("sautilink-shell-"\)/);
+  assert.match(serviceWorker, /client\.navigate\(client\.url\)/);
+  assert.match(serviceWorker, /isAppCodeAsset/);
   assert.match(serviceWorker, /\(\?:rooms\|sautify\)/);
   assert.match(serviceWorker, /url\.pathname\.startsWith\("\/api\/"\)/);
 
   assert.match(productionBuild, /wireProductionPwa/);
   assert.match(productionBuild, /<link rel=\\?"manifest\\?" href=\\?"\/manifest\.json\\?">/);
-  assert.match(productionBuild, /<script src=\\?"\/assets\/pwa\.js\\?" defer><\/script>/);
+  assert.match(productionBuild, /\/assets\/pwa\.js\?v=\$\{PWA_RELEASE\}/);
 });

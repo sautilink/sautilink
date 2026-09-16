@@ -88,7 +88,7 @@ test('Phase 36 build pipelines bundle the client and preserve same-origin WebSoc
     assert.match(source, /transformMessagesDurableRealtimeSource/);
   }
   assert.match(productionBuild, /wss:\/\/sautilink\.com/);
-  assert.match(productionBuild, /APP_JS_RELEASE = '20260912-durable1'/);
+  assert.match(productionBuild, /APP_JS_RELEASE = '20260916-captionlayout2'/);
   assert.match(stagingEnable, /wss:\/\/test\.sautilink\.com/);
 });
 
