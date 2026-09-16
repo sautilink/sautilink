@@ -123,10 +123,10 @@ test('official verification badges stay consistent in notifications and messages
   assert.match(css, /#message-thread-name\.verified\s*\{[^}]*display:\s*inline-flex/);
 });
 
-test('verified identity propagates across reposts, captions, navigation, settings and Sautify', () => {
+test('verified identity propagates across reposts, navigation, settings and Sautify', () => {
   assert.match(app, /function inlineVerifiedNameNode/);
   assert.match(app, /function setInlineVerifiedName/);
-  assert.match(app, /createSautiCaption\(author, post\.body\)/);
+  assert.match(app, /createSautiCaption\(post\.body\)/);
   assert.match(app, /item\.actor\.is_verified[\s\S]{0,120}item\.actor\.verification_badge_type/);
   assert.match(app, /setInlineVerifiedName\(byId\('rail-name'\), displayName, currentMember\)/);
   assert.match(app, /setInlineVerifiedName\(byId\('member-display-name'\), displayName, currentMember\)/);

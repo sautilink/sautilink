@@ -26,18 +26,28 @@ test('Home offers a persistent dark and light theme without a startup flash', as
   assert.match(css, /\.theme-toggle-moon/);
 });
 
-test('Home Sauti cards use a media-first viewer with compact expandable captions', async () => {
+test('Home Sauti cards place plain captions above media with compact expansion', async () => {
   const [source, css] = await Promise.all([
     read('src/app.js'),
     read('app/assets/app.css'),
   ]);
 
   assert.match(source, /const CAPTION_PREVIEW_LIMIT = 180/);
-  assert.match(source, /function createSautiCaption\(authorProfile, value\)/);
+  assert.match(source, /function createSautiCaption\(value\)/);
+  assert.match(source, /caption\.append\(text\)/);
+  assert.doesNotMatch(
+    source.slice(source.indexOf('function createSautiCaption'), source.indexOf('function toggleSautiCaption')),
+    /sauti-caption-author|memberProfilePath/,
+  );
   assert.match(source, /toggle\.dataset\.captionToggle = ''/);
   assert.match(source, /button\.textContent = expanded \? 'more' : 'less'/);
   assert.match(source, /card\?\.classList\.add\('has-media'\)/);
   assert.match(source, /gallery\.style\.setProperty\('--single-media-aspect-ratio'/);
+
+  const cardStart = source.indexOf('function createSautiCard');
+  const captionAppend = source.indexOf('if (caption) main.append(caption);', cardStart);
+  const galleryAppend = source.indexOf('main.append(mediaGallery);', cardStart);
+  assert.ok(captionAppend >= 0 && galleryAppend >= 0 && captionAppend < galleryAppend);
 
   const actionStart = source.indexOf('actions.append(', source.indexOf('function createSautiCard'));
   const actionEnd = source.indexOf(');', actionStart);
