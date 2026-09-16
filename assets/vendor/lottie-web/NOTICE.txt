@@ -1,0 +1,1 @@
+lottie-web 5.13.0 — MIT License — https://github.com/airbnb/lottie-web
