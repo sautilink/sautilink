@@ -84,6 +84,32 @@ test('caption and translation control stay together above media', () => {
   assert.deepEqual(moves, [caption, translation]);
 });
 
+test('carousel captions stay outside the media shell so controls only overlay media', () => {
+  const moves = [];
+  const caption = { nextElementSibling: null };
+  const shell = {
+    before(node) {
+      moves.push(node);
+    },
+  };
+  const gallery = {
+    closest(selector) {
+      assert.equal(selector, '.sauti-media-carousel-shell');
+      return shell;
+    },
+  };
+  const article = {
+    querySelector(selector) {
+      if (selector === '.sauti-media-gallery') return gallery;
+      if (selector === '.sauti-post-translation-toggle') return null;
+      return null;
+    },
+  };
+
+  placeMediaCaptionAboveGallery(article, caption);
+  assert.deepEqual(moves, [caption]);
+});
+
 test('translation API rechecks auth and RLS before serving a cached translation', async () => {
   const originalFetch = globalThis.fetch;
   const originalCachesDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'caches');
@@ -209,8 +235,8 @@ test('translation implementation stays isolated from post mutation and database 
 
   assert.match(client, /export function placeMediaCaptionAboveGallery\(article, caption\)/);
   assert.doesNotMatch(client, /article\.classList\.contains\('has-media'\) \|\| caption\.hidden/);
-  assert.match(client, /gallery\.before\(caption\)/);
-  assert.match(client, /gallery\.before\(translation\)/);
+  assert.match(client, /mediaContainer\.before\(caption\)/);
+  assert.match(client, /mediaContainer\.before\(translation\)/);
   assert.match(client, /attributes: true/);
   assert.match(client, /attributeFilter: \['class', 'hidden'\]/);
   assert.ok(
