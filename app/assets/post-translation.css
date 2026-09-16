@@ -29,5 +29,5 @@
 }
 
 .sauti-caption-author {
-  display: none;
+  display: none !important;
 }
