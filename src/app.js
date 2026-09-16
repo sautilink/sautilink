@@ -3116,32 +3116,21 @@ function captionPreview(value, limit = CAPTION_PREVIEW_LIMIT) {
   return { text: `${text.slice(0, cutoff).trimEnd()}…`, truncated: true };
 }
 
-function createSautiCaption(authorProfile, value) {
+function createSautiCaption(value) {
   const fullText = String(value || '').trim();
   if (!fullText) return null;
-
-  const username = String(authorProfile?.username || 'member');
 
   const preview = captionPreview(fullText);
   const caption = document.createElement('p');
   caption.className = 'sauti-caption';
   caption.hidden = true;
 
-  const author = document.createElement('a');
-  author.className = 'sauti-caption-author';
-  author.href = memberProfilePath(username);
-  author.append(inlineVerifiedNameNode(
-    username,
-    Boolean(authorProfile?.is_verified),
-    authorProfile?.verification_badge_type,
-  ));
-
   const text = document.createElement('span');
   text.className = 'sauti-caption-text';
   text.dataset.fullCaption = fullText;
   text.dataset.previewCaption = preview.text;
   text.textContent = preview.text;
-  caption.append(author, document.createTextNode(' '), text);
+  caption.append(text);
 
   if (preview.truncated) {
     const toggle = document.createElement('button');
@@ -3384,7 +3373,7 @@ function createSautiCard(item, { home = false } = {}) {
   );
   footer.append(actions);
 
-  const caption = createSautiCaption(author, post.body);
+  const caption = createSautiCaption(post.body);
 
   const meta = document.createElement('div');
   meta.className = 'sauti-card-meta';
@@ -3457,6 +3446,7 @@ function createSautiCard(item, { home = false } = {}) {
 
   main.append(head);
   if (body.textContent) main.append(body);
+  if (caption) main.append(caption);
   const mediaGallery = document.createElement('div');
   mediaGallery.className = 'sauti-media-gallery loading';
   mediaGallery.setAttribute('aria-label', 'Post media');
@@ -3464,7 +3454,6 @@ function createSautiCard(item, { home = false } = {}) {
   void hydrateSautiMediaGallery(post.id, mediaGallery);
   if (quoteCard) main.append(quoteCard);
   main.append(footer, repostMenu);
-  if (caption) main.append(caption);
   main.append(meta, comments);
   article.append(main);
   return article;

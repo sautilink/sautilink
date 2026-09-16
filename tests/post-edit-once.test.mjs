@@ -43,6 +43,8 @@ test('post editor implementation remains author-scoped and text-only while start
   assert.match(ui, /JSON\.stringify\(\{ body \}\)/);
   assert.match(ui, /postEditCards\(postId\)\.forEach/);
   assert.match(ui, /markPostEdited/);
+  assert.match(ui, /media\.insertAdjacentElement\('beforebegin', caption\)/);
+  assert.doesNotMatch(ui, /author\.className = 'sauti-caption-author'/);
   assert.doesNotMatch(ui, /location\.reload/);
   assert.doesNotMatch(ui, /sauti-media\/upload/);
   assert.match(css, /\.post-edit-dialog/);
