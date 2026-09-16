@@ -1,4 +1,4 @@
-const CACHE_NAME = "sautilink-shell-v52";
+const CACHE_NAME = "sautilink-shell-v53";
 const APP_RELEASE = "20260916-captionlayout2";
 const APP_FEATURE_RELEASE = "20260915-verification1";
 const CORE_ASSET_PATHS = new Set([
@@ -52,24 +52,10 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    const hadPreviousShell = keys.some((key) => key.startsWith("sautilink-shell-") && key !== CACHE_NAME);
     await Promise.all(keys
       .filter((key) => key.startsWith("sautilink-shell-") && key !== CACHE_NAME)
       .map((key) => caches.delete(key)));
     await self.clients.claim();
-    if (!hadPreviousShell) return;
-
-    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-    await Promise.all(windows.map(async (client) => {
-      try {
-        const url = new URL(client.url);
-        if (url.origin !== self.location.origin) return;
-        const isAppRoute = /^(?:\/app(?:\/|$)|\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications)(?:\/|$)|\/messages(?:\/|$)|\/(?:rooms|sautify)(?:\/|$)|\/u\/|\/post\/)/.test(url.pathname);
-        if (isAppRoute) await client.navigate(client.url);
-      } catch {
-        // A closed or non-navigable client must not block the release activation.
-      }
-    }));
   })());
 });
 
