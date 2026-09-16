@@ -27,3 +27,7 @@
   opacity: 0.55;
   text-decoration: none;
 }
+
+.sauti-caption-author {
+  display: none;
+}
