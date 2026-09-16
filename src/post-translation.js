@@ -133,81 +133,6 @@ export function placeMediaCaptionAboveGallery(article, caption) {
   gallery.before(caption);
 }
 
-function homePostPublicIcon() {
-  const icon = document.createElement('span');
-  icon.className = 'sauti-card-public-icon';
-  icon.setAttribute('role', 'img');
-  icon.setAttribute('aria-label', 'Public post');
-  icon.title = 'Public';
-
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('aria-hidden', 'true');
-
-  const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  circle.setAttribute('cx', '12');
-  circle.setAttribute('cy', '12');
-  circle.setAttribute('r', '9');
-
-  const vertical = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  vertical.setAttribute('d', 'M12 3c2.4 2.45 3.65 5.45 3.65 9S14.4 18.55 12 21M12 3C9.6 5.45 8.35 8.45 8.35 12S9.6 18.55 12 21');
-
-  const horizontal = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  horizontal.setAttribute('d', 'M3.6 9h16.8M3.6 15h16.8');
-
-  svg.append(circle, vertical, horizontal);
-  icon.append(svg);
-  return icon;
-}
-
-function enhanceHomePostPresentation(article, caption) {
-  const head = article.querySelector('.sauti-card-head');
-  if (!head?.querySelector('.sauti-card-head-actions')) return;
-
-  article.classList.add('sauti-home-facebook-style');
-  const identity = head.querySelector('.sauti-card-identity');
-  const time = head.querySelector(':scope > time');
-
-  if (identity && time && !identity.querySelector('.sauti-card-post-meta')) {
-    const profileLink = identity.querySelector(':scope > a');
-    const meta = document.createElement('div');
-    meta.className = 'sauti-card-post-meta';
-
-    if (profileLink) meta.append(profileLink);
-    if (profileLink) {
-      const separator = document.createElement('span');
-      separator.className = 'sauti-card-post-meta-separator';
-      separator.textContent = '·';
-      meta.append(separator);
-    }
-
-    meta.append(time);
-
-    if (String(article.dataset.visibility || 'public') === 'public') {
-      const separator = document.createElement('span');
-      separator.className = 'sauti-card-post-meta-separator';
-      separator.textContent = '·';
-      meta.append(separator, homePostPublicIcon());
-    }
-
-    identity.append(meta);
-  }
-
-  if (!caption) return;
-  const author = caption.querySelector('.sauti-caption-author');
-  if (author) {
-    const spacer = author.nextSibling;
-    author.remove();
-    if (spacer?.nodeType === Node.TEXT_NODE && !String(spacer.textContent || '').trim()) spacer.remove();
-  }
-
-  const toggle = caption.querySelector('[data-caption-toggle]');
-  if (toggle) {
-    const label = toggle.getAttribute('aria-expanded') === 'true' ? 'See less' : 'See more';
-    if (toggle.textContent !== label) toggle.textContent = label;
-  }
-}
-
 async function requestTranslation(postId, sourceLanguage, body) {
   const memoryKey = `${postId}:${sourceLanguage}:${body}`;
   if (translationMemory.has(memoryKey)) return translationMemory.get(memoryKey);
@@ -247,7 +172,6 @@ function enhancePostTranslation(article) {
   const postId = String(article.dataset.postId || '').trim();
   const caption = article.querySelector('.sauti-caption');
   const text = caption?.querySelector('.sauti-caption-text');
-  enhanceHomePostPresentation(article, caption);
   if (caption) placeMediaCaptionAboveGallery(article, caption);
   if (!postId || !caption || !text) return;
 
