@@ -1,0 +1,49 @@
+name: Verify global Lottie loader
+
+on:
+  push:
+    branches:
+      - feature/global-lottie-loader
+    paths:
+      - .github/workflows/verify-global-lottie-loader.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/global-lottie-loader
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Syntax-check loader scripts
+        run: |
+          node --check assets/lottie-loader.js
+          node --check assets/launch-splash.js
+          node --check sw.js
+
+      - name: Run full project checks
+        run: npm check
+
+      - name: Verify production artifact carries the loader
+        run: |
+          grep -Fq '<script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>' dist-production-site/app/index.html
+          test -s assets/vendor/lottie-web/lottie_light.min.js
+          test -s assets/animations/sautilink-loader/animations/12345.json
+          git diff --check
+
+      - name: Dry-run production worker deployment
+        run: npx wrangler deploy --config wrangler.production.jsonc --dry-run
