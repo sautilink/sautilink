@@ -6,6 +6,18 @@ on:
       - feature/global-lottie-loader
     paths:
       - .github/workflows/verify-global-lottie-loader.yml
+      - app/index.html
+      - assets/lottie-loader.js
+      - assets/lottie-loader.css
+      - assets/launch-splash.js
+      - assets/launch-splash.css
+      - assets/animations/**
+      - assets/vendor/lottie-web/**
+      - sw.js
+      - THIRD_PARTY_NOTICES.md
+      - tests/**
+      - package.json
+      - package-lock.json
 
 permissions:
   contents: read
