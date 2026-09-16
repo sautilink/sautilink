@@ -69,6 +69,7 @@ html[data-launch-splash="skip"] .sl-launch-splash { display: none; }
 .sl-launch-orbit {
   border: 1px solid rgba(96, 165, 250, .16);
   animation: sl-launch-spin 2.4s linear infinite;
+  transition: opacity .14s ease, visibility .14s ease;
 }
 
 .sl-launch-orbit::before {
@@ -86,6 +87,14 @@ html[data-launch-splash="skip"] .sl-launch-splash { display: none; }
   object-fit: contain;
   filter: drop-shadow(0 16px 28px rgba(0, 0, 0, .25));
   animation: sl-launch-logo-in .78s cubic-bezier(.2, .85, .25, 1) both, sl-launch-breathe 1.9s .8s ease-in-out infinite;
+  transition: opacity .14s ease, visibility .14s ease;
+}
+
+.sl-launch-logo-stage.sl-lottie-ready .sl-launch-orbit,
+.sl-launch-logo-stage.sl-lottie-ready .sl-launch-logo {
+  opacity: 0;
+  visibility: hidden;
+  animation: none;
 }
 
 .sl-launch-product {
