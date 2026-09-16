@@ -13,6 +13,7 @@
   let animationDataPromise = null;
   let observer = null;
   let scanQueued = false;
+  let unavailable = false;
 
   function ensureStyles() {
     if (document.querySelector('link[data-sautilink-lottie-style="true"]')) return;
@@ -53,6 +54,7 @@
       }
     }).catch((error) => {
       runtimePromise = null;
+      unavailable = true;
       throw error;
     });
 
@@ -69,6 +71,7 @@
       return response.json();
     }).catch((error) => {
       animationDataPromise = null;
+      unavailable = true;
       throw error;
     });
     return animationDataPromise;
@@ -114,21 +117,21 @@
         () => finish(reject, new Error("SautiLink loader render timed out.")),
         3000,
       );
-      animation.addEventListener("DOMLoaded", () => finish(resolve), { once: true });
+      animation.addEventListener("DOMLoaded", () => finish(resolve));
       animation.addEventListener(
         "data_failed",
         () => finish(reject, new Error("SautiLink loader animation data failed.")),
-        { once: true },
       );
     });
   }
 
   function mount(target, options = {}) {
-    if (!(target instanceof Element)) return Promise.resolve(null);
+    if (!(target instanceof Element) || unavailable) return Promise.resolve(null);
     const existing = mounted.get(target);
     if (existing) return existing.ready;
 
     ensureStyles();
+    delete target.dataset.sautilinkLottieFallback;
 
     const surface = document.createElement("span");
     surface.className = "sl-lottie-loader-surface";
@@ -144,6 +147,7 @@
       surface,
       animation: null,
       ready: null,
+      auto: options.auto === true,
     };
 
     record.ready = Promise.all([ensureRuntime(), ensureAnimationData()])
@@ -193,15 +197,15 @@
   }
 
   function scan(root = document) {
-    if (!root?.querySelectorAll) return;
+    if (!root?.querySelectorAll || unavailable) return;
 
     root.querySelectorAll(AUTO_TARGET_SELECTOR).forEach((target) => {
       if (!contextIsVisible(target)) return;
-      if (!mounted.has(target)) mount(target);
+      if (!mounted.has(target)) mount(target, { auto: true });
     });
 
     for (const [target, record] of mounted) {
-      if (!target.isConnected || (record.target.matches(AUTO_TARGET_SELECTOR) && !target.matches(AUTO_TARGET_SELECTOR))) {
+      if (!target.isConnected || (record.auto && !target.matches(AUTO_TARGET_SELECTOR))) {
         destroy(target);
         continue;
       }
