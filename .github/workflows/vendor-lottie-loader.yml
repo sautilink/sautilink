@@ -1,0 +1,78 @@
+name: Vendor SautiLink Lottie loader
+
+on:
+  push:
+    branches:
+      - feature/global-lottie-loader
+    paths:
+      - .github/workflows/vendor-lottie-loader.yml
+
+permissions:
+  contents: write
+
+jobs:
+  vendor-loader:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/global-lottie-loader
+
+      - name: Download and validate the selected dotLottie asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p assets/animations/sautilink-loader
+          curl --fail --location --retry 3 --retry-delay 2 \
+            'https://lottie.host/9c39a2e2-0d36-475e-a95c-f3bd34cb7a30/32JVruIeDz.lottie' \
+            --output assets/animations/sautilink-loader.lottie
+          test -s assets/animations/sautilink-loader.lottie
+          unzip -t assets/animations/sautilink-loader.lottie
+          rm -rf assets/animations/sautilink-loader/*
+          unzip -q assets/animations/sautilink-loader.lottie -d assets/animations/sautilink-loader
+          test -f assets/animations/sautilink-loader/manifest.json
+          find assets/animations/sautilink-loader -type f -maxdepth 4 -print | sort
+
+      - name: Vendor a pinned local Lottie web runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          cd "$tmpdir"
+          npm pack lottie-web@5.13.0 --silent >/dev/null
+          tar -xzf lottie-web-5.13.0.tgz
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p assets/vendor/lottie-web
+          cp "$tmpdir/package/build/player/lottie.min.js" assets/vendor/lottie-web/lottie.min.js
+          printf '%s\n' 'lottie-web 5.13.0 — MIT License — https://github.com/airbnb/lottie-web' > assets/vendor/lottie-web/NOTICE.txt
+          test -s assets/vendor/lottie-web/lottie.min.js
+
+      - name: Record asset metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '# SautiLink loading animation asset'
+            echo
+            echo 'Source: https://lottie.host/9c39a2e2-0d36-475e-a95c-f3bd34cb7a30/32JVruIeDz.lottie'
+            echo 'Fetched by GitHub Actions and self-hosted so production clients do not depend on lottie.host.'
+            echo
+            echo "Original dotLottie bytes: $(wc -c < assets/animations/sautilink-loader.lottie)"
+            echo "Vendored lottie-web bytes: $(wc -c < assets/vendor/lottie-web/lottie.min.js)"
+            echo
+            echo 'SHA-256:'
+            sha256sum assets/animations/sautilink-loader.lottie assets/vendor/lottie-web/lottie.min.js
+          } > assets/animations/sautilink-loader/ASSET.md
+
+      - name: Commit vendored files to the feature branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/animations/sautilink-loader.lottie assets/animations/sautilink-loader assets/vendor/lottie-web
+          git diff --cached --quiet && exit 0
+          git commit -m 'Vendor self-hosted Lottie loader assets'
+          git push origin HEAD:feature/global-lottie-loader
