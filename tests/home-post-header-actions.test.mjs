@@ -62,5 +62,5 @@ test('Home header release cache is advanced for immediate browser pickup', async
   const [html, sw] = await Promise.all([read('app/index.html'), read('sw.js')]);
   assert.match(html, /app\.css\?v=20260916-captionlayout2/);
   assert.match(html, /app\.js\?v=20260916-captionlayout2/);
-  assert.match(sw, /sautilink-shell-v53/);
+  assert.match(sw, /sautilink-shell-v54/);
 });
