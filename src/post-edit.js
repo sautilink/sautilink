@@ -184,18 +184,20 @@ function updatePostEditCaption(card, body) {
   if (!caption) {
     caption = document.createElement('p');
     caption.className = 'sauti-caption';
-    const author = document.createElement('a');
-    author.className = 'sauti-caption-author';
-    const username = String(card.dataset.authorUsername || 'member');
-    author.href = `/u/${encodeURIComponent(username)}`;
-    author.textContent = username;
     const text = document.createElement('span');
     text.className = 'sauti-caption-text';
-    caption.append(author, document.createTextNode(' '), text);
-    const meta = card.querySelector('.sauti-card-meta');
-    if (meta) meta.insertAdjacentElement('beforebegin', caption);
+    caption.append(text);
+    if (media) media.insertAdjacentElement('beforebegin', caption);
     else card.querySelector('.sauti-card-main')?.append(caption);
   }
+
+  const staleAuthor = caption.querySelector('.sauti-caption-author');
+  if (staleAuthor) {
+    const spacer = staleAuthor.nextSibling;
+    staleAuthor.remove();
+    if (spacer?.nodeType === Node.TEXT_NODE && !String(spacer.textContent || '').trim()) spacer.remove();
+  }
+  if (media && caption.nextElementSibling !== media) media.insertAdjacentElement('beforebegin', caption);
 
   const text = caption.querySelector('.sauti-caption-text');
   if (!text) return;
