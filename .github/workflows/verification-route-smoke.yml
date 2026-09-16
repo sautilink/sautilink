@@ -1,0 +1,96 @@
+name: Verification Route Smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "verify.html"
+      - "scripts/build-production-release.mjs"
+      - "wrangler.production.jsonc"
+      - "tests/verification-application-lifecycle.test.mjs"
+      - ".github/workflows/verification-route-smoke.yml"
+  push:
+    branches: [main]
+    paths:
+      - "verify.html"
+      - "scripts/build-production-release.mjs"
+      - "wrangler.production.jsonc"
+      - "tests/verification-application-lifecycle.test.mjs"
+      - ".github/workflows/verification-route-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-source-contract:
+    name: Verify verification route source contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify verification lifecycle and public route contract
+        run: node --test tests/verification-application-lifecycle.test.mjs
+
+  verify-live-production:
+    name: Verify live verification ownership page
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify-source-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wait for apex and www verification pages to converge
+        shell: bash
+        run: |
+          set -euo pipefail
+          apex_body="$(mktemp)"
+          apex_headers="$(mktemp)"
+          www_body="$(mktemp)"
+          www_headers="$(mktemp)"
+          ready=0
+
+          for attempt in $(seq 1 24); do
+            release="verify-$GITHUB_RUN_ID-$attempt"
+            echo "Verification route convergence attempt $attempt"
+
+            apex_code="$(curl -sS -L -D "$apex_headers" -o "$apex_body" -w '%{http_code}' \
+              -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/verify?release=$release")"
+            www_code="$(curl -sS -L -D "$www_headers" -o "$www_body" -w '%{http_code}' \
+              -H 'Cache-Control: no-cache' \
+              "https://www.sautilink.com/verify?release=$release")"
+
+            echo "apex=$apex_code www=$www_code"
+
+            if [ "$apex_code" = "200" ] \
+              && [ "$www_code" = "200" ] \
+              && grep -Fqi 'content-type: text/html' "$apex_headers" \
+              && grep -Fq '<html lang="en" data-theme="light">' "$apex_body" \
+              && grep -Fq '<title>SautiLink Verification — Public Ownership Signal</title>' "$apex_body" \
+              && grep -Fq 'rel="canonical" href="https://sautilink.com/verify"' "$apex_body" \
+              && grep -Fqi 'public ownership signal' "$apex_body" \
+              && grep -Fq 'sautilink.com/verify' "$apex_body" \
+              && grep -Fqi 'not a guarantee of verification' "$apex_body" \
+              && grep -Fqi 'usually completed within 14 days' "$apex_body" \
+              && grep -Fq '<title>SautiLink Verification — Public Ownership Signal</title>' "$www_body" \
+              && grep -Fq 'rel="canonical" href="https://sautilink.com/verify"' "$www_body"; then
+              ready=1
+              break
+            fi
+
+            sleep 5
+          done
+
+          if [ "$ready" != "1" ]; then
+            echo "Verification ownership page did not converge safely."
+            echo "--- apex headers ---"; cat "$apex_headers" || true
+            echo "--- apex head ---"; head -c 2400 "$apex_body" || true; echo
+            echo "--- www headers ---"; cat "$www_headers" || true
+            echo "--- www head ---"; head -c 2400 "$www_body" || true; echo
+            exit 1
+          fi
+
+          echo "Live verification ownership page accepted on apex and www."
