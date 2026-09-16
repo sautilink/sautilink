@@ -1,6 +1,8 @@
 (() => {
   if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
 
+  const PWA_RELEASE = '20260916-captionlayout2';
+  const SERVICE_WORKER_URL = `/sw.js?v=${PWA_RELEASE}`;
   let deferredInstallPrompt = null;
 
   const isStandalone = () => (
@@ -65,13 +67,16 @@
     hideInstallButton();
   });
 
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', {
+  window.addEventListener('load', async () => {
+    const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL, {
       scope: '/',
       updateViaCache: 'none',
-    }).catch(() => {
+    }).catch(() => null);
+    if (!registration) {
       // PWA support is progressive enhancement; the web app must keep working
       // normally if service-worker registration is unavailable.
-    });
+      return;
+    }
+    await registration.update().catch(() => {});
   }, { once: true });
 })();

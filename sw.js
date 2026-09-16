@@ -1,4 +1,6 @@
-const CACHE_NAME = "sautilink-shell-v51";
+const CACHE_NAME = "sautilink-shell-v52";
+const APP_RELEASE = "20260916-captionlayout2";
+const APP_FEATURE_RELEASE = "20260915-verification1";
 const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.css",
   "/app/assets/app.js",
@@ -7,8 +9,8 @@ const CORE_ASSET_PATHS = new Set([
 const APP_SHELL = [
   "/",
   "/app/",
-  "/app/assets/app.css?v=20260909-home-loading",
-  "/app/assets/app.js?v=20260912-durable1",
+  `/app/assets/app.css?v=${APP_RELEASE}`,
+  `/app/assets/app.js?v=${APP_RELEASE}&feature=${APP_FEATURE_RELEASE}`,
   "/app/assets/theme-init.js?v=20260904-account2",
   "/manifest.json",
   "/logo.png",
@@ -16,7 +18,7 @@ const APP_SHELL = [
   "/assets/icon-192.png",
   "/assets/icon-maskable-512.png",
   "/assets/brand/system.css",
-  "/assets/pwa.js",
+  `/assets/pwa.js?v=${APP_RELEASE}`,
   "/assets/launch-splash.css",
   "/assets/launch-splash.js"
 ];
@@ -48,8 +50,27 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))));
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    const hadPreviousShell = keys.some((key) => key.startsWith("sautilink-shell-") && key !== CACHE_NAME);
+    await Promise.all(keys
+      .filter((key) => key.startsWith("sautilink-shell-") && key !== CACHE_NAME)
+      .map((key) => caches.delete(key)));
+    await self.clients.claim();
+    if (!hadPreviousShell) return;
+
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    await Promise.all(windows.map(async (client) => {
+      try {
+        const url = new URL(client.url);
+        if (url.origin !== self.location.origin) return;
+        const isAppRoute = /^(?:\/app(?:\/|$)|\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications)(?:\/|$)|\/messages(?:\/|$)|\/(?:rooms|sautify)(?:\/|$)|\/u\/|\/post\/)/.test(url.pathname);
+        if (isAppRoute) await client.navigate(client.url);
+      } catch {
+        // A closed or non-navigable client must not block the release activation.
+      }
+    }));
+  })());
 });
 
 self.addEventListener("fetch", (event) => {
@@ -63,8 +84,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  const isAppCodeAsset = url.pathname.startsWith("/app/assets/") && /\.(?:css|js)$/i.test(url.pathname);
   if (url.origin === self.location.origin && (
     CORE_ASSET_PATHS.has(url.pathname) ||
+    isAppCodeAsset ||
     url.pathname.startsWith("/app/assets/verification/")
   )) {
     event.respondWith(

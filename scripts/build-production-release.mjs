@@ -28,8 +28,9 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
-const APP_JS_RELEASE = '20260912-durable1';
+const APP_JS_RELEASE = '20260916-captionlayout2';
 const APP_JS_FEATURE_RELEASE = '20260915-verification1';
+const PWA_RELEASE = '20260916-captionlayout2';
 const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram2';
 
 async function walk(directory) {
@@ -74,8 +75,8 @@ function wireProductionPwa(input) {
   if (!output.includes(postActionIconStylesheet)) {
     output = output.replace('</head>', `  <link rel="stylesheet" href="${postActionIconStylesheet}">\n</head>`);
   }
-  if (!output.includes('<script src="/assets/pwa.js" defer></script>')) {
-    output = output.replace('</body>', '  <script src="/assets/pwa.js" defer></script>\n</body>');
+  if (!output.includes(`/assets/pwa.js?v=${PWA_RELEASE}`)) {
+    output = output.replace('</body>', `  <script src="/assets/pwa.js?v=${PWA_RELEASE}" defer></script>\n</body>`);
   }
   return output;
 }

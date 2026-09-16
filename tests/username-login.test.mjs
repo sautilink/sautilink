@@ -18,6 +18,9 @@ test('login bridge keeps email flow and adds username support', async () => {
   ]) assert.match(source, new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 
   assert.match(source, /import \{ consumeGuestReturnTarget \} from '\.\/guest-entry-gate\.js'/);
+  assert.match(source, /let usernameLoginClient = null/);
+  assert.match(source, /getUsernameLoginClient\(\)\.auth\.setSession/);
+  assert.doesNotMatch(source, /const usernameLoginClient = createClient/);
   assert.match(source, /if \(looksLikeLoginEmail\(identifier\)\) return;/);
   assert.match(source, /addEventListener\('submit', handleUsernameSubmit, true\)/);
   assert.doesNotMatch(source, /service_role|SUPABASE_SECRET_KEYS|SUPABASE_SERVICE_ROLE_KEY/i);

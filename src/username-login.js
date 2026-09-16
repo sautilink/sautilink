@@ -6,14 +6,20 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca
 const USERNAME_LOGIN_URL = `${SUPABASE_URL}/functions/v1/sautilink-username-login`;
 const GENERIC_LOGIN_ERROR = 'Incorrect email/username or password.';
 
-const usernameLoginClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-    storageKey: 'sautilink.auth.session',
-  },
-});
+let usernameLoginClient = null;
+
+function getUsernameLoginClient() {
+  if (usernameLoginClient) return usernameLoginClient;
+  usernameLoginClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false,
+      storageKey: 'sautilink.auth.session',
+    },
+  });
+  return usernameLoginClient;
+}
 
 export function normalizeLoginUsername(value) {
   return String(value || '').trim().replace(/^@+/, '').toLowerCase();
@@ -102,7 +108,7 @@ async function handleUsernameSubmit(event) {
     const session = await usernamePasswordLogin(username, password);
     if (!session?.access_token || !session?.refresh_token) throw new Error('SESSION_MISSING');
 
-    const { error } = await usernameLoginClient.auth.setSession({
+    const { error } = await getUsernameLoginClient().auth.setSession({
       access_token: session.access_token,
       refresh_token: session.refresh_token,
     });

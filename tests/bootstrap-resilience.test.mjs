@@ -30,11 +30,11 @@ test('startup hotfix rotates both browser and service-worker cache identities', 
     read('sw.js'),
   ]);
 
-  assert.match(html, /app\.css\?v=20260909-home-loading/);
-  assert.match(html, /app\.js\?v=20260909-authsession4/);
-  assert.match(serviceWorker, /sautilink-shell-v51/);
-  assert.match(serviceWorker, /app\.css\?v=20260909-home-loading/);
-  assert.match(serviceWorker, /app\.js\?v=20260912-durable1/);
+  assert.match(html, /app\.css\?v=20260916-captionlayout2/);
+  assert.match(html, /app\.js\?v=20260916-captionlayout2/);
+  assert.match(serviceWorker, /sautilink-shell-v52/);
+  assert.match(serviceWorker, /20260916-captionlayout2/);
+  assert.match(serviceWorker, /APP_FEATURE_RELEASE/);
   assert.match(serviceWorker, /theme-init\.js\?v=20260904-account2/);
   assert.doesNotMatch(html, /app\.(?:css|js)\?v=20260906-optimistic/);
   assert.doesNotMatch(serviceWorker, /sautilink-shell-v45/);
