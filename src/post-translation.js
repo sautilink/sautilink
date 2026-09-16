@@ -120,17 +120,18 @@ function visibleOriginalCaption(text, toggle) {
 export function placeMediaCaptionAboveGallery(article, caption) {
   const gallery = article.querySelector('.sauti-media-gallery');
   if (!gallery) return;
+  const mediaContainer = gallery.closest?.('.sauti-media-carousel-shell') || gallery;
 
   const translation = article.querySelector('.sauti-post-translation-toggle');
   if (translation) {
-    if (caption.nextElementSibling === translation && translation.nextElementSibling === gallery) return;
-    gallery.before(caption);
-    gallery.before(translation);
+    if (caption.nextElementSibling === translation && translation.nextElementSibling === mediaContainer) return;
+    mediaContainer.before(caption);
+    mediaContainer.before(translation);
     return;
   }
 
-  if (caption.nextElementSibling === gallery) return;
-  gallery.before(caption);
+  if (caption.nextElementSibling === mediaContainer) return;
+  mediaContainer.before(caption);
 }
 
 async function requestTranslation(postId, sourceLanguage, body) {
