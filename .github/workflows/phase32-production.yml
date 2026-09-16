@@ -180,6 +180,7 @@ jobs:
               && grep -Fq 'theme-init.js?v=20260904-account2' "$app_body" \
               && grep -Fq 'app.css?v=20260916-captionlayout2' "$app_body" \
               && grep -Fq 'app.js?v=20260916-captionlayout2' "$app_body" \
+              && grep -Fq 'pwa.js?v=20260916-loadingfix1' "$app_body" \
               && grep -Fq 'sautilink-profile-x-ui' "$app_js_body" \
               && ! grep -Fq 'Private preview' "$app_body" \
               && ! grep -Fq 'Phase 31' "$app_body" \

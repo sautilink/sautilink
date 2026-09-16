@@ -167,6 +167,7 @@ if (/name="robots"[^>]+noindex/i.test(appHtml)) throw new Error('production app 
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('production theme bootstrap is missing');
 if (!appHtml.includes('app.css?v=20260916-captionlayout2')) throw new Error('production CSS cache marker is missing');
 if (!appHtml.includes('app.js?v=20260916-captionlayout2')) throw new Error('production JS cache marker is missing');
+if (!appHtml.includes('pwa.js?v=20260916-loadingfix1')) throw new Error('production PWA cache marker is missing');
 if (!appHtml.includes('/logo.png')) throw new Error('production app must use the main-site logo path');
 if (appHtml.includes('/assets/brand/logo-compact.webp')) throw new Error('production app references a logo asset absent from the main-site repo');
 if (!headers.includes(`https://${PRODUCTION_REF}.supabase.co`)) throw new Error('production CSP does not target production Supabase');
