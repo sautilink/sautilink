@@ -28,7 +28,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
-const APP_JS_RELEASE = '20260917-homefeeds1';
+const APP_JS_RELEASE = '20260917-feedcomments1';
 const APP_JS_FEATURE_RELEASE = '20260915-verification1';
 const PWA_RELEASE = '20260916-loadingfix1';
 const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram2';
@@ -172,7 +172,7 @@ await build({
   entryPoints: [productionAppSource],
   inject: [
     resolve(workerSource, 'language-preference.js'),
-    resolve(workerSource, 'post-translation.js'),
+    resolve(workerSource, 'post-caption-placement.js'),
     resolve(workerSource, 'caption-entities.js'),
     resolve(workerSource, 'composer-formats.js'),
     resolve(workerSource, 'username-login.js'),

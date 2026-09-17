@@ -146,27 +146,24 @@ const HOME_FEED_COPY = Object.freeze({
   'for-you': {
     rpcMode: 'for_you',
     ariaLabel: 'For You feed',
-    loading: 'Personalizing posts for you…',
-    error: 'Something went wrong while personalizing your feed.',
-    welcome: 'For You learns from who you follow and the posts you choose to like, save or mark as interesting.',
-    emptyTitle: 'Your For You feed is warming up.',
-    emptyCopy: 'Follow people or explore public posts to help us shape this feed for you.',
+    loading: 'Loading the latest posts…',
+    error: 'Something went wrong while opening the latest posts.',
+    emptyTitle: 'No posts yet.',
+    emptyCopy: 'New posts from across SautiLink will appear here.',
   },
   following: {
     rpcMode: 'following',
     ariaLabel: 'Following feed',
     loading: 'Loading posts from people you follow…',
     error: 'Something went wrong while opening posts from people you follow.',
-    welcome: 'Following shows the newest posts from people you follow, in time order.',
     emptyTitle: 'Your Following feed is quiet.',
     emptyCopy: 'Follow people in Discover and their newest posts will appear here.',
   },
   'short-videos': {
     rpcMode: 'short_videos',
     ariaLabel: 'Short Videos feed',
-    loading: 'Finding short videos for you…',
+    loading: 'Loading short videos…',
     error: 'Something went wrong while opening Short Videos.',
-    welcome: 'Short Videos brings together quick videos ranked from your follows and activity.',
     emptyTitle: 'No short videos yet.',
     emptyCopy: 'New short videos from across SautiLink will appear here.',
   },
@@ -3092,7 +3089,6 @@ function syncHomeFeedModeUi() {
   byId('stream-empty').setAttribute('aria-label', `Empty ${copy.ariaLabel}`);
   byId('stream-loading-copy').textContent = copy.loading;
   byId('stream-error-copy').textContent = copy.error;
-  byId('stream-welcome-copy').textContent = copy.welcome;
   byId('stream-empty-title').textContent = copy.emptyTitle;
   byId('stream-empty-copy').textContent = copy.emptyCopy;
 }
@@ -3702,7 +3698,6 @@ function renderStreamRows(rows, { reset = false } = {}) {
 
   const hasRows = feed.childElementCount > 0;
   byId('stream-empty').hidden = hasRows;
-  byId('stream-welcome').hidden = hasRows;
   byId('stream-more').hidden = !streamHasMore;
 }
 
@@ -3877,7 +3872,6 @@ async function loadStream({ reset = false } = {}) {
     clearHomeFeedMediaState();
     byId('stream-feed').replaceChildren();
     byId('stream-empty').hidden = true;
-    byId('stream-welcome').hidden = false;
   }
 
   error.hidden = true;
@@ -4496,7 +4490,6 @@ async function hideHomeAuthorPosts(card, button) {
     homeAuthorCards(authorId).forEach((authorCard) => authorCard.remove());
     const hasRows = byId('stream-feed').childElementCount > 0;
     byId('stream-empty').hidden = hasRows;
-    byId('stream-welcome').hidden = hasRows;
     syncHomeFeedVideoPlayback();
     showToast(`Posts from @${username} won’t appear in Home. You can undo this in Settings.`);
   } catch (error) {
@@ -5800,7 +5793,6 @@ async function loadSharedSautiTarget(postId) {
   const errorCopy = byId('stream-error-copy');
 
   byId('sauti-composer').hidden = true;
-  byId('stream-welcome').hidden = true;
   byId('stream-empty').hidden = true;
   byId('stream-more').hidden = true;
   errorState.hidden = true;
@@ -5893,8 +5885,9 @@ function conversationAuthorLabel(post) {
 function setConversationReplyTarget(post) {
   if (!activeSautiConversation || !post?.id) return;
   activeSautiConversation.replyTargetId = post.id;
-  byId('conversation-reply-target').textContent = conversationAuthorLabel(post);
-  byId('conversation-reply-root').hidden = post.id === activeSautiConversation.rootId;
+  byId('conversation-reply-body').placeholder = post.id === activeSautiConversation.rootId
+    ? 'Write a comment…'
+    : `Reply to ${conversationAuthorLabel(post)}…`;
   updateConversationReplyState();
   persistThreadReplyDraft();
 }
@@ -5943,18 +5936,12 @@ function restoreThreadReplyDraft() {
 function updateConversationReplyState() {
   const body = byId('conversation-reply-body');
   const submit = byId('conversation-reply-submit');
-  const count = byId('conversation-reply-count');
-  const note = byId('conversation-reply-note');
-  if (!body || !submit || !count || !note) return;
+  if (!body || !submit) return;
 
   const length = body.value.length;
   const hasBody = Boolean(body.value.trim());
-  count.textContent = String(length);
   submit.textContent = navigator.onLine ? 'Comment' : 'Save draft';
   submit.disabled = !currentMemberId || !activeSautiConversation?.replyTargetId || !hasBody || length > 500;
-  note.textContent = navigator.onLine
-    ? 'Your comment follows this post\'s audience and privacy.'
-    : 'Offline — this comment stays on this device until you send it.';
 }
 
 function threadRelevantScore(post) {
@@ -5966,10 +5953,6 @@ function threadRelevantScore(post) {
 }
 
 function threadSiblingSort(a, b) {
-  const mode = byId('conversation-sort').value || 'relevant';
-  if (mode === 'newest') {
-    return Date.parse(b.post.created_at || 0) - Date.parse(a.post.created_at || 0);
-  }
   const score = threadRelevantScore(b.post) - threadRelevantScore(a.post);
   if (score !== 0) return score;
   return Date.parse(b.post.created_at || 0) - Date.parse(a.post.created_at || 0);
@@ -5987,19 +5970,14 @@ function renderThreadContinuation(parentItem, childCount) {
 function renderConversationThread() {
   const feed = byId('conversation-thread');
   const empty = byId('conversation-empty');
-  const total = byId('conversation-reply-total');
-  const heading = byId('conversation-reply-heading');
   feed.replaceChildren();
 
   if (!activeSautiConversation) {
     empty.hidden = false;
-    total.textContent = '0 comments';
     return;
   }
 
-  const { rootId, focusId, replyItems, postMap } = activeSautiConversation;
-  total.textContent = `${replyItems.length} ${replyItems.length === 1 ? 'comment' : 'comments'}`;
-  heading.textContent = focusId !== rootId ? 'Focused comments' : 'Comments';
+  const { rootId, focusId, replyItems } = activeSautiConversation;
 
   if (!replyItems.length) {
     empty.hidden = false;
@@ -6035,18 +6013,13 @@ function renderConversationThread() {
     childItems.forEach((child) => appendItem(child, visualDepth + 1));
   };
 
-  if (focusId !== rootId) {
-    const focused = postMap.get(focusId);
-    if (focused) appendItem(focused, 0);
-  } else {
-    (children.get(rootId) || []).forEach((item) => appendItem(item, 0));
+  (children.get(rootId) || []).forEach((item) => appendItem(item, 0));
 
-    const visibleIds = new Set(replyItems.map((item) => item.post.id));
-    replyItems
-      .filter((item) => item.post.parent_post_id !== rootId && !visibleIds.has(item.post.parent_post_id))
-      .sort(threadSiblingSort)
-      .forEach((item) => appendItem(item, 0, { orphan: true }));
-  }
+  const visibleIds = new Set(replyItems.map((item) => item.post.id));
+  replyItems
+    .filter((item) => item.post.parent_post_id !== rootId && !visibleIds.has(item.post.parent_post_id))
+    .sort(threadSiblingSort)
+    .forEach((item) => appendItem(item, 0, { orphan: true }));
 }
 
 async function loadConversation(postId) {
@@ -6055,13 +6028,11 @@ async function loadConversation(postId) {
   const loading = byId('conversation-loading');
   const errorState = byId('conversation-error');
   const errorCopy = byId('conversation-error-copy');
-  const rootSlot = byId('conversation-root');
   const thread = byId('conversation-thread');
 
   loading.hidden = false;
   errorState.hidden = true;
   byId('conversation-empty').hidden = true;
-  rootSlot.replaceChildren();
   thread.replaceChildren();
   setMessage(byId('conversation-reply-message'), '', '');
 
@@ -6122,12 +6093,6 @@ async function loadConversation(postId) {
       postMap,
     };
 
-    const rootCard = createSautiCard(rootItem);
-    if (rootCard) {
-      rootCard.classList.add('conversation-root-card');
-      rootSlot.append(rootCard);
-    }
-
     renderConversationThread();
     const defaultTarget = postMap.get(target.id)?.post || rootItem.post;
     setConversationReplyTarget(defaultTarget);
@@ -6173,7 +6138,7 @@ async function submitThreadReply() {
   submit.textContent = 'Commenting…';
 
   try {
-    const payload = await socialMutation(
+    await socialMutation(
       `/api/social/posts/${activeSautiConversation.replyTargetId}/comments`,
       {
         method: 'POST',
@@ -6184,16 +6149,12 @@ async function submitThreadReply() {
       },
     );
 
-    const reply = payload?.comment || null;
     textarea.value = '';
     writeThreadDraft(null);
     threadReplyRequestId = '';
-    if (reply?.id) {
-      window.history.replaceState({}, '', conversationPath(reply.id));
-      await loadConversation(reply.id);
-    } else {
-      await loadConversation(activeSautiConversation.rootId);
-    }
+    const rootId = activeSautiConversation.rootId;
+    window.history.replaceState({}, '', conversationPath(rootId));
+    await loadConversation(rootId);
     showToast('Comment shared.');
   } catch (error) {
     setMessage(message, error?.message || 'This comment could not be shared.');
@@ -7608,11 +7569,8 @@ function syncMemberIdentityVisuals() {
   if (!currentMember) return;
   const displayName = currentMember.display_name || currentMember.full_name || currentMember.username;
   const username = currentMember.username;
-  setInlineVerifiedName(byId('member-display-name'), displayName, currentMember);
-  byId('member-username').textContent = `@${username}`;
   setInlineVerifiedName(byId('rail-name'), displayName, currentMember);
   byId('rail-username').textContent = `@${username}`;
-  byId('member-first-name').textContent = displayName.split(/\s+/)[0];
   renderProfileAvatar(byId('member-avatar'), currentMember, displayName);
   renderProfileAvatar(byId('rail-avatar'), currentMember, displayName);
   renderProfile(currentMember, { owner: true });
@@ -8113,11 +8071,8 @@ function renderMember(profile, userId = currentMemberId) {
 
   renderProfileAvatar(byId('member-avatar'), currentMember, displayName);
   renderProfileAvatar(byId('rail-avatar'), currentMember, displayName);
-  setInlineVerifiedName(byId('member-display-name'), displayName, currentMember);
-  byId('member-username').textContent = `@${username}`;
   setInlineVerifiedName(byId('rail-name'), displayName, currentMember);
   byId('rail-username').textContent = `@${username}`;
-  byId('member-first-name').textContent = displayName.split(/\s+/)[0];
   renderProfile(currentMember);
 
   loadingView.hidden = true;
@@ -9394,14 +9349,6 @@ byId('conversation-retry').addEventListener('click', () => {
   const route = readConversationRoute();
   if (route?.postId) void loadConversation(route.postId);
 });
-byId('conversation-sort').addEventListener('change', renderConversationThread);
-byId('conversation-reply-root').addEventListener('click', () => {
-  const root = conversationPostById(activeSautiConversation?.rootId);
-  if (root) {
-    setConversationReplyTarget(root);
-    byId('conversation-reply-body').focus();
-  }
-});
 byId('conversation-reply-body').addEventListener('input', () => {
   ensureThreadReplyRequestId();
   updateConversationReplyState();
@@ -9631,7 +9578,7 @@ function handleSautiFeedSubmit(event) {
   void submitComment(form);
 }
 
-for (const feedId of ['stream-feed', 'circle-stream-feed', 'discover-sauti-feed', 'saved-sauti-feed', 'conversation-root', 'conversation-thread']) {
+for (const feedId of ['stream-feed', 'circle-stream-feed', 'discover-sauti-feed', 'saved-sauti-feed', 'conversation-thread']) {
   byId(feedId).addEventListener('click', handleSautiFeedClick);
   byId(feedId).addEventListener('submit', handleSautiFeedSubmit);
 }

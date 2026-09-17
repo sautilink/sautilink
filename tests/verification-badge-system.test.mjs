@@ -129,7 +129,6 @@ test('verified identity propagates across reposts, navigation, settings and Saut
   assert.match(app, /createSautiCaption\(post\.body\)/);
   assert.match(app, /item\.actor\.is_verified[\s\S]{0,120}item\.actor\.verification_badge_type/);
   assert.match(app, /setInlineVerifiedName\(byId\('rail-name'\), displayName, currentMember\)/);
-  assert.match(app, /setInlineVerifiedName\(byId\('member-display-name'\), displayName, currentMember\)/);
   assert.match(app, /select\('id,username,display_name,avatar_key,updated_at,is_verified,verification_badge_type'\)/);
   assert.match(app, /select\('id, username, display_name, is_verified, verification_badge_type'\)[\s\S]{0,80}\.in\('id', ids\)/);
   assert.match(app, /function loadCircleOwnerProfile[\s\S]{0,260}is_verified, verification_badge_type/);

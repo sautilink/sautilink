@@ -106,7 +106,6 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/mobile-more-drawer.css'));
   assert.ok(files.includes('app/assets/post-edit.css'));
   assert.ok(files.includes('app/assets/post-media-carousel.css'));
-  assert.ok(files.includes('app/assets/post-translation.css'));
   assert.ok(files.includes('app/assets/short-videos-feed.css'));
   assert.ok(files.includes('app/assets/sautilink-video-player.css'));
   assert.ok(files.includes('app/assets/professional-profile-category.css'));
@@ -176,7 +175,6 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/mobile-more-drawer.css',
     'app/assets/post-edit.css',
     'app/assets/post-media-carousel.css',
-    'app/assets/post-translation.css',
     'app/assets/short-videos-feed.css',
     'app/assets/sautilink-video-player.css',
     'app/assets/professional-profile-category.css',

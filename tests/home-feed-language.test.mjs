@@ -10,7 +10,7 @@ test('member-facing timeline language uses Home and Feed instead of Stream', asy
 
   assert.match(html, /data-member-view="stream"[\s\S]*?<span>Home<\/span>/);
   assert.match(html, /id="view-title">Home<\/h1>/);
-  assert.match(html, /Welcome to SautiLink, <span id="member-first-name">member<\/span>\./);
+  assert.doesNotMatch(html, /Welcome to SautiLink|id="stream-welcome"/);
   assert.match(html, /aria-label="Home feed"/);
   assert.match(html, /<h3>Sautify posts<\/h3>/);
 

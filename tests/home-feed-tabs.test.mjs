@@ -21,32 +21,30 @@ test('Home exposes three accessible feeds with For You selected by default', asy
   assert.match(css, /\.home-feed-tab\.active::after/);
 });
 
-test('For You ranking uses durable signals and Following remains chronological', async () => {
+test('Home feeds are chronological and apply only the requested audience filter', async () => {
   const [source, migration] = await Promise.all([
     read('src/app.js'),
-    read('supabase/migrations/20260917152000_enable_ranked_home_feeds.sql'),
+    read('supabase/migrations/20260917155622_simplify_home_feeds.sql'),
   ]);
 
   assert.match(source, /supabase\.rpc\('social_home_feed'/);
   assert.match(source, /p_mode: HOME_FEED_COPY\[modeAtRequest\]\.rpcMode/);
   assert.match(migration, /security invoker/i);
-  assert.match(migration, /social_feed_author_interests/);
   assert.match(migration, /social_follows/);
-  assert.match(migration, /social_post_reactions/);
-  assert.match(migration, /social_saved_posts/);
-  assert.match(migration, /social_reposts/);
-  assert.match(migration, /author_position/);
-  assert.match(migration, /when p_mode = 'following' then 0/);
-  assert.match(migration, /diversified\.created_at desc/);
+  assert.match(migration, /follow\.follower_id = \(select auth\.uid\(\)\)/);
+  assert.match(migration, /follow\.followed_id = post\.author_id/);
+  assert.doesNotMatch(migration, /post\.author_id = \(select auth\.uid\(\)\)/);
+  assert.match(migration, /order by post\.created_at desc, post\.id desc/);
   assert.match(migration, /parent_post_id is null/);
   assert.match(migration, /grant execute[\s\S]*to authenticated/);
+  assert.doesNotMatch(migration, /affinity|interest|reaction|saved|repost/i);
 });
 
 test('Short Videos tab filters video posts and opens the existing canonical viewer', async () => {
   const [source, shortVideos, migration] = await Promise.all([
     read('src/app.js'),
     read('src/short-videos-feed.js'),
-    read('supabase/migrations/20260917152000_enable_ranked_home_feeds.sql'),
+    read('supabase/migrations/20260917155622_simplify_home_feeds.sql'),
   ]);
 
   assert.match(source, /sautilink:open-short-videos/);

@@ -13,12 +13,9 @@ test('Phase 26 activates focused Sauti conversations inside the accepted shell',
 
   for (const marker of [
     'id="conversation-surface"',
-    'id="conversation-root"',
     'id="conversation-thread"',
     'id="conversation-reply-form"',
     'id="conversation-reply-body"',
-    'id="conversation-sort"',
-    'id="conversation-reply-target"',
   ]) {
     assert.ok(html.includes(marker), `missing Phase 26 UI marker: ${marker}`);
   }
@@ -118,8 +115,8 @@ test('Phase 26 browser supports direct Sauti routes, bounded branches, reply dra
 
   assert.match(source, /\/post\//);
   assert.match(source, /\/app\/sauti/);
-  assert.match(html, /<option value="relevant">Relevant<\/option>/);
-  assert.match(html, /<option value="newest">Newest<\/option>/);
+  assert.match(html, /<header class="conversation-toolbar">[\s\S]*?<h2>Comments<\/h2>/);
+  assert.doesNotMatch(html, /id="conversation-root"|id="conversation-sort"|id="conversation-reply-target"/);
   assert.match(source, /client_request_id: threadReplyRequestId/);
   assert.match(source, /window\.localStorage/);
   assert.match(source, /navigator\.onLine/);

@@ -91,7 +91,7 @@ await build({
   },
   inject: [
     resolve(projectRoot, 'src/language-preference.js'),
-    resolve(projectRoot, 'src/post-translation.js'),
+    resolve(projectRoot, 'src/post-caption-placement.js'),
     resolve(projectRoot, 'src/member-notices.js'),
     resolve(projectRoot, 'src/caption-entities.js'),
     resolve(projectRoot, 'src/composer-formats.js'),

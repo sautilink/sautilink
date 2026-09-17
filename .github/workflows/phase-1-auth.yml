@@ -127,7 +127,7 @@ jobs:
             cat "$health_body"
             echo
 
-            if [ "$health_code" = "200" ]               && [ "$app_code" = "200" ]               && [ "$robots_code" = "200" ]               && grep -Fq '"status":"ok"' "$health_body"               && grep -Fq '"release_generation":31' "$health_body"               && grep -Fqi 'x-robots-tag: noindex, nofollow, noarchive' "$health_headers"               && grep -Fqi "x-request-id: staging-$GITHUB_RUN_ID-$attempt" "$health_headers"               && grep -Fq 'name="sautilink-release-generation" content="33"' "$app_body"               && grep -Fq 'id="settings-surface"' "$app_body"               && grep -Fq 'Disallow: /' "$robots_body"; then
+            if [ "$health_code" = "200" ]               && [ "$app_code" = "200" ]               && [ "$robots_code" = "200" ]               && grep -Fq '"status":"ok"' "$health_body"               && grep -Fq '"release_generation":31' "$health_body"               && grep -Fqi 'x-robots-tag: noindex, nofollow, noarchive' "$health_headers"               && grep -Fqi "x-request-id: staging-$GITHUB_RUN_ID-$attempt" "$health_headers"               && grep -Fq 'name="sautilink-release-generation" content="34"' "$app_body"               && grep -Fq 'id="settings-surface"' "$app_body"               && grep -Fq 'Disallow: /' "$robots_body"; then
               ready=1
               break
             fi

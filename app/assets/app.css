@@ -2059,38 +2059,6 @@ svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: 
   font-size: 10px;
   line-height: 1.5;
 }
-.conversation-sort {
-  display: grid;
-  gap: 5px;
-  min-width: 118px;
-  color: #71859d;
-  font-size: 8px;
-  font-weight: 760;
-}
-.conversation-sort select {
-  min-height: 34px;
-  padding: 0 9px;
-  border: 1px solid var(--app-line-strong);
-  border-radius: 9px;
-  outline: 0;
-  background: #07111f;
-  color: #dbe7f5;
-  font: inherit;
-}
-.conversation-sort option { background: #0b1727; color: #e5edf7; }
-
-.conversation-root {
-  border-bottom: 1px solid var(--app-line);
-}
-.conversation-root-card {
-  border-bottom: 0 !important;
-  background: #081321;
-}
-.conversation-root-card .sauti-card-body {
-  font-size: 12px;
-  line-height: 1.6;
-}
-
 .conversation-reply-form {
   display: grid;
   gap: 9px;
@@ -2242,7 +2210,6 @@ svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: 
     justify-self: start;
   }
   .conversation-toolbar > div { min-width: 0; }
-  .conversation-sort { min-width: 105px; }
   .conversation-reply-form { padding: 13px 14px 15px; }
   .conversation-reply-context { align-items: flex-start; }
   .conversation-reply-meta,

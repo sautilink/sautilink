@@ -9,12 +9,12 @@
   <title>SautiLink App — Your voice, connected</title>
   <meta name="description" content="Sign in or create your SautiLink account.">
   <meta name="theme-color" content="#0b0c0f">
-  <meta name="sautilink-release-generation" content="33">
+  <meta name="sautilink-release-generation" content="34">
   <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512">
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <script src="/app/assets/theme-init.js?v=20260904-account2"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260917-homefeeds1">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260917-feedcomments1">
   <script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>
 </head>
 <body>
@@ -370,15 +370,9 @@
             </button>
           </nav>
 
-          <article class="welcome-card" id="stream-welcome">
-            <h2>Welcome to SautiLink, <span id="member-first-name">member</span>.</h2>
-            <p id="stream-welcome-copy">For You learns from who you follow and the posts you choose to like, save or mark as interesting.</p>
-            <div class="member-identity"><strong id="member-display-name">SautiLink member</strong><span id="member-username">@username</span></div>
-          </article>
-
           <section class="stream-state" id="stream-loading" role="status" aria-live="polite" hidden>
             <span class="loading-mark"></span>
-            <p id="stream-loading-copy">Personalizing posts for you…</p>
+            <p id="stream-loading-copy">Loading the latest posts…</p>
           </section>
 
           <section class="stream-state error" id="stream-error" role="alert" hidden>
@@ -391,8 +385,8 @@
 
           <section class="stream-empty" id="stream-empty" aria-label="Empty Home feed" hidden>
             <span></span><span></span><span></span>
-            <h2 id="stream-empty-title">Your For You feed is warming up.</h2>
-            <p id="stream-empty-copy">Follow people or explore public posts to help us shape this feed for you.</p>
+            <h2 id="stream-empty-title">No posts yet.</h2>
+            <p id="stream-empty-copy">New posts from across SautiLink will appear here.</p>
           </section>
 
           <div class="stream-more" id="stream-more" hidden>
@@ -400,26 +394,18 @@
           </div>
         </div>
 
-        <section class="conversation-surface" id="conversation-surface" aria-label="Post conversation" hidden>
+        <section class="conversation-surface" id="conversation-surface" aria-label="Comments" hidden>
           <header class="conversation-toolbar">
-            <button class="text-action conversation-back" id="conversation-back" type="button">← Back</button>
-            <div>
-              <p class="section-label">Focused conversation</p>
-              <h2>Conversation</h2>
-              <p>Read comments, join the conversation, or return to your Home feed.</p>
-            </div>
-            <label class="conversation-sort">
-              <span>Order</span>
-              <select id="conversation-sort" aria-label="Comment order">
-                <option value="relevant">Relevant</option>
-                <option value="newest">Newest</option>
-              </select>
-            </label>
+            <button class="conversation-back" id="conversation-back" type="button" aria-label="Back">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+              <span>Back</span>
+            </button>
+            <h2>Comments</h2>
           </header>
 
           <section class="stream-state" id="conversation-loading" role="status" hidden>
             <span class="loading-mark"></span>
-            <p>Opening conversation…</p>
+            <p>Loading comments…</p>
           </section>
           <section class="stream-state error" id="conversation-error" hidden>
             <h2>Conversation could not load.</h2>
@@ -427,43 +413,20 @@
             <button class="secondary-action" id="conversation-retry" type="button">Try again</button>
           </section>
 
-          <section class="conversation-root" id="conversation-root" aria-label="Conversation root"></section>
+          <section class="conversation-thread" id="conversation-thread" aria-label="Comments" aria-live="polite"></section>
+          <section class="stream-empty conversation-empty" id="conversation-empty" hidden>
+            <span></span><span></span><span></span>
+            <h2>No comments yet.</h2>
+          </section>
 
           <form class="conversation-reply-form" id="conversation-reply-form" novalidate>
-            <div class="conversation-reply-context">
-              <div>
-                <span>Commenting on</span>
-                <strong id="conversation-reply-target">SautiLink member</strong>
-              </div>
-              <button class="text-action" id="conversation-reply-root" type="button" hidden>Comment on original post</button>
-            </div>
             <label class="sr-only" for="conversation-reply-body">Comment text</label>
-            <textarea id="conversation-reply-body" name="body" rows="3" maxlength="500" placeholder="Write a comment…"></textarea>
-            <div class="conversation-reply-meta">
-              <span id="conversation-reply-note">Your comment follows this post's audience and privacy.</span>
-              <span><b id="conversation-reply-count">0</b> / 500</span>
-            </div>
-            <div class="conversation-reply-actions">
-              <span>Text comment</span>
+            <div class="conversation-reply-compose">
+              <textarea id="conversation-reply-body" name="body" rows="1" maxlength="500" placeholder="Write a comment…"></textarea>
               <button id="conversation-reply-submit" type="submit" disabled>Comment</button>
             </div>
             <div class="form-message composer-message" id="conversation-reply-message" role="alert" hidden></div>
           </form>
-
-          <div class="conversation-thread-heading">
-            <div>
-              <p class="section-label">Comments</p>
-              <h3 id="conversation-reply-heading">Comments</h3>
-            </div>
-            <span id="conversation-reply-total">0 comments</span>
-          </div>
-
-          <section class="conversation-thread" id="conversation-thread" aria-live="polite"></section>
-          <section class="stream-empty conversation-empty" id="conversation-empty" hidden>
-            <span></span><span></span><span></span>
-            <h2>No comments yet.</h2>
-            <p>Start the conversation with a thoughtful comment.</p>
-          </section>
         </section>
 
         <section class="discover-surface" id="discover-surface" aria-label="Discover" hidden>
@@ -1417,6 +1380,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="/app/assets/app.js?v=20260917-homefeeds1"></script>
+  <script type="module" src="/app/assets/app.js?v=20260917-feedcomments1"></script>
 </body>
 </html>
