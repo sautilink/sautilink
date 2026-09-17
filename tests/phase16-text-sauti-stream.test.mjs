@@ -29,17 +29,20 @@ test('Phase 16 text composer foundation remains bounded as later media phases ev
   assert.match(html, /app\.js\?v=\d+/);
 });
 
-test('Stream is canonical, chronological, bounded and rendered without innerHTML', async () => {
-  const source = await read('src/app.js');
+test('Stream is canonical, bounded and rendered without innerHTML while Following stays chronological', async () => {
+  const [source, migration] = await Promise.all([
+    read('src/app.js'),
+    read('supabase/migrations/20260917152000_enable_ranked_home_feeds.sql'),
+  ]);
 
   assert.match(source, /const STREAM_PAGE_SIZE = 20/);
-  assert.match(source, /\.from\('social_stream_events'\)/);
+  assert.match(source, /supabase\.rpc\('social_home_feed'/);
   assert.match(source, /\.from\('social_posts'\)/);
-  assert.match(source, /\.order\('event_at', \{ ascending: false \}\)/);
-  assert.match(source, /\.order\('event_key', \{ ascending: false \}\)/);
-  assert.match(source, /\.limit\(STREAM_PAGE_SIZE \+ 1\)/);
-  assert.match(source, /event_at\.lt/);
-  assert.match(source, /event_key\.lt/);
+  assert.match(source, /p_limit: STREAM_PAGE_SIZE \+ 1/);
+  assert.match(source, /p_offset: streamOffset/);
+  assert.match(migration, /when p_mode = 'following' then null else diversified\.final_score/);
+  assert.match(migration, /diversified\.created_at desc/);
+  assert.match(migration, /limit least\(greatest\(coalesce\(p_limit, 21\), 1\), 50\)/);
   assert.match(source, /body\.textContent = String\(post\.body \|\| ''\)/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
 });

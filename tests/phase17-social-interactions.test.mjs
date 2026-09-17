@@ -30,7 +30,7 @@ test('Phase 17 adds follow counts and interaction surfaces without redesign', as
 test('Phase 17 Stream uses the security-invoker event read model and canonical post hydration', async () => {
   const source = await read('src/app.js');
 
-  assert.match(source, /\.from\('social_stream_events'\)/);
+  assert.match(source, /supabase\.rpc\('social_home_feed'/);
   assert.match(source, /\.from\('social_posts'\)/);
   assert.match(source, /\.from\('social_post_reactions'\)/);
   assert.match(source, /\.from\('social_reposts'\)/);

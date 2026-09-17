@@ -9,12 +9,12 @@
   <title>SautiLink App — Your voice, connected</title>
   <meta name="description" content="Sign in or create your SautiLink account.">
   <meta name="theme-color" content="#0b0c0f">
-  <meta name="sautilink-release-generation" content="32">
+  <meta name="sautilink-release-generation" content="33">
   <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512">
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <script src="/app/assets/theme-init.js?v=20260904-account2"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260917-comments1">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260917-homefeeds1">
   <script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>
 </head>
 <body>
@@ -358,15 +358,27 @@
           </form>
           </dialog>
 
+          <nav class="home-feed-tabs" id="home-feed-tabs" role="tablist" aria-label="Choose Home feed">
+            <button class="home-feed-tab" id="home-feed-tab-following" type="button" role="tab" aria-selected="false" aria-controls="stream-feed" tabindex="-1" data-home-feed-tab="following">
+              <span>Following</span>
+            </button>
+            <button class="home-feed-tab active" id="home-feed-tab-for-you" type="button" role="tab" aria-selected="true" aria-controls="stream-feed" data-home-feed-tab="for-you">
+              <span>For You</span>
+            </button>
+            <button class="home-feed-tab" id="home-feed-tab-short-videos" type="button" role="tab" aria-selected="false" aria-controls="stream-feed" tabindex="-1" data-home-feed-tab="short-videos">
+              <span>Short Videos</span>
+            </button>
+          </nav>
+
           <article class="welcome-card" id="stream-welcome">
             <h2>Welcome to SautiLink, <span id="member-first-name">member</span>.</h2>
-            <p>Your Home feed brings together fresh posts from people and Sautify communities you follow.</p>
+            <p id="stream-welcome-copy">For You learns from who you follow and the posts you choose to like, save or mark as interesting.</p>
             <div class="member-identity"><strong id="member-display-name">SautiLink member</strong><span id="member-username">@username</span></div>
           </article>
 
           <section class="stream-state" id="stream-loading" role="status" aria-live="polite" hidden>
             <span class="loading-mark"></span>
-            <p>Loading the latest posts…</p>
+            <p id="stream-loading-copy">Personalizing posts for you…</p>
           </section>
 
           <section class="stream-state error" id="stream-error" role="alert" hidden>
@@ -375,12 +387,12 @@
             <button class="secondary-action" id="stream-retry" type="button">Try again</button>
           </section>
 
-          <section class="stream-feed" id="stream-feed" aria-label="Home feed"></section>
+          <section class="stream-feed" id="stream-feed" role="tabpanel" aria-label="Home feed" aria-labelledby="home-feed-tab-for-you" tabindex="0"></section>
 
           <section class="stream-empty" id="stream-empty" aria-label="Empty Home feed" hidden>
             <span></span><span></span><span></span>
-            <h2>No posts yet.</h2>
-            <p>Publish the first public post and it will appear here.</p>
+            <h2 id="stream-empty-title">Your For You feed is warming up.</h2>
+            <p id="stream-empty-copy">Follow people or explore public posts to help us shape this feed for you.</p>
           </section>
 
           <div class="stream-more" id="stream-more" hidden>
@@ -1405,6 +1417,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="/app/assets/app.js?v=20260917-comments1"></script>
+  <script type="module" src="/app/assets/app.js?v=20260917-homefeeds1"></script>
 </body>
 </html>

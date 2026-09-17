@@ -3575,6 +3575,69 @@ body:not(.auth-entry) {
   box-shadow: var(--app-shadow);
 }
 
+.home-feed-tabs {
+  position: sticky;
+  top: 72px;
+  z-index: 18;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-height: 52px;
+  border-bottom: 1px solid var(--app-line);
+  background: var(--app-header-bg);
+  backdrop-filter: blur(18px);
+}
+
+.home-feed-tab {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 52px;
+  place-items: center;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--app-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 720;
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.home-feed-tab::after {
+  position: absolute;
+  right: 22%;
+  bottom: -1px;
+  left: 22%;
+  height: 3px;
+  border-radius: 999px 999px 0 0;
+  background: var(--app-accent);
+  content: '';
+  opacity: 0;
+  transform: scaleX(.55);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.home-feed-tab:hover {
+  background: var(--app-panel-soft);
+  color: var(--app-text);
+}
+
+.home-feed-tab.active {
+  color: var(--app-text);
+}
+
+.home-feed-tab.active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.home-feed-tab:focus-visible {
+  z-index: 1;
+  outline: 2px solid var(--app-accent);
+  outline-offset: -4px;
+}
+
 .welcome-card h2 span,
 .section-label,
 .text-action {
@@ -4315,6 +4378,22 @@ body:not(.auth-entry) select {
   .stream-header {
     min-height: 56px;
     padding: 8px 14px;
+  }
+
+  .home-feed-tabs {
+    top: 114px;
+    min-height: 48px;
+  }
+
+  .home-feed-tab {
+    min-height: 48px;
+    padding: 0 5px;
+    font-size: 12px;
+  }
+
+  .home-feed-tab::after {
+    right: 18%;
+    left: 18%;
   }
 
   .stream-header .theme-toggle {
