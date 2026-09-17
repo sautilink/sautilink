@@ -81,29 +81,42 @@ jobs:
       - name: Dry-run production worker deployment
         run: npx wrangler deploy --config wrangler.production.jsonc --dry-run
 
-      - name: Smoke-test live Lottie release
+      - name: Diagnose live Lottie release
         shell: bash
         run: |
           set -euo pipefail
           release="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          app="$(mktemp)"
-          loader="$(mktemp)"
-          css="$(mktemp)"
-          runtime="$(mktemp)"
-          animation="$(mktemp)"
-          health="$(mktemp)"
 
-          curl -fsS -H 'Cache-Control: no-cache' "https://sautilink.com/app/?lottie_release=$release" -o "$app"
-          curl -fsS -H 'Cache-Control: no-cache' "https://sautilink.com/assets/lottie-loader.js?v=20260917-lottie1&release=$release" -o "$loader"
-          curl -fsS -H 'Cache-Control: no-cache' "https://sautilink.com/assets/lottie-loader.css?v=20260917-lottie1&release=$release" -o "$css"
-          curl -fsS -H 'Cache-Control: no-cache' "https://sautilink.com/assets/vendor/lottie-web/lottie_light.min.js?release=$release" -o "$runtime"
-          curl -fsS -H 'Cache-Control: no-cache' "https://sautilink.com/assets/animations/sautilink-loader/animations/12345.json?release=$release" -o "$animation"
-          curl -fsS -H 'Cache-Control: no-cache' "https://sautilink.com/api/health?release=$release" -o "$health"
+          check() {
+            name="$1"
+            url="$2"
+            marker="${3:-}"
+            body="$(mktemp)"
+            code="$(curl -sS -L -H 'Cache-Control: no-cache' -o "$body" -w '%{http_code}' "$url")"
+            bytes="$(wc -c < "$body" | tr -d ' ')"
+            echo "$name HTTP=$code bytes=$bytes"
+            if [ "$code" != "200" ]; then
+              echo "$name response preview:"
+              head -c 300 "$body" || true
+              echo
+              exit 1
+            fi
+            if [ -n "$marker" ]; then
+              if grep -Fq "$marker" "$body"; then
+                echo "$name marker=ok"
+              else
+                echo "$name marker=missing expected=$marker"
+                echo "$name response preview:"
+                head -c 300 "$body" || true
+                echo
+                exit 1
+              fi
+            fi
+          }
 
-          grep -Fq '<script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>' "$app"
-          grep -Fq 'SautiLinkLottieLoader' "$loader"
-          grep -Fq '.sautilink-lottie-loader' "$css"
-          test -s "$runtime"
-          grep -Fq '"layers"' "$animation"
-          grep -Fq '"status":"ok"' "$health"
-          grep -Fq '"environment":"production"' "$health"
+          check app "https://sautilink.com/app/?lottie_release=$release" '<script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>'
+          check loader "https://sautilink.com/assets/lottie-loader.js?v=20260917-lottie1&release=$release" 'SautiLinkLottieLoader'
+          check css "https://sautilink.com/assets/lottie-loader.css?v=20260917-lottie1&release=$release" '.sautilink-lottie-loader'
+          check runtime "https://sautilink.com/assets/vendor/lottie-web/lottie_light.min.js?release=$release"
+          check animation "https://sautilink.com/assets/animations/sautilink-loader/animations/12345.json?release=$release" '"layers"'
+          check health "https://sautilink.com/api/health?release=$release" '"environment":"production"'
