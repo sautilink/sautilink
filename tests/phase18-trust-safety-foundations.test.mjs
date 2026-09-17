@@ -23,7 +23,7 @@ test('Phase 18 exposes member safety controls without redesigning the app shell'
     assert.match(html, new RegExp(`id="${id}"`));
   }
 
-  assert.match(html, /name="sautilink-release-generation" content="35"/);
+  assert.match(html, /name="sautilink-release-generation" content="36"/);
   const cssVersion = Number(html.match(/app\.css\?v=(\d+)/)?.[1] || 0);
   const jsVersion = Number(html.match(/app\.js\?v=(\d+)/)?.[1] || 0);
   assert.ok(cssVersion >= 18, `app CSS version regressed below Phase 18: ${cssVersion}`);

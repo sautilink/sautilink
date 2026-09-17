@@ -13,6 +13,7 @@ test('conversation UI presents comments while preserving the Home comment icon',
   assert.match(source, /reply\.dataset\.commentReply = post\.id/);
   assert.match(source, /menuToggle\.append\(homePostMoreIcon\(\)\)/);
   assert.match(source, /report\.dataset\.reportComment = post\.id/);
+  assert.match(source, /text\.className = 'comment-menu-label'/);
   assert.match(source, /interactionButton\('comments', 'Comment', post\.comment_count/);
   assert.match(html, />Comments<\/span>/);
   assert.match(html, /Write a comment…/);
@@ -49,5 +50,18 @@ test('comment controls expose accessible icon-only actions and reaction counts',
   assert.match(source, /number\.hidden = Number\(count\) < 1/);
   assert.match(css, /\.comment-menu-toggle svg,[\s\S]*\.comment-action svg \{[\s\S]*width: 20px;[\s\S]*height: 20px;/);
   assert.match(css, /\.comment-reaction-count \{/);
+  assert.match(css, /:root\[data-theme="light"\] \.comment-menu \{/);
+  assert.match(css, /:root\[data-theme="light"\] \.comment-menu-item \{/);
+  assert.match(css, /\.comment-card\.comment-menu-open \{/);
   assert.match(css, /@media \(max-width: 680px\)/);
+});
+
+test('comment menus dismiss on scroll gestures and do not remain over the thread', async () => {
+  const source = await read('src/app.js');
+
+  assert.match(source, /let openCommentMenuShell = null/);
+  assert.match(source, /classList\.toggle\('comment-menu-open', opening\)/);
+  assert.match(source, /document\.addEventListener\('scroll', dismissCommentMenuOnViewportMove, \{ capture: true, passive: true \}\)/);
+  assert.match(source, /document\.addEventListener\('touchmove', dismissCommentMenuOnViewportMove, \{ capture: true, passive: true \}\)/);
+  assert.match(source, /document\.addEventListener\('wheel', dismissCommentMenuOnViewportMove, \{ capture: true, passive: true \}\)/);
 });
