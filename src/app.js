@@ -3357,7 +3357,7 @@ function commentMenuItem(label) {
   button.className = 'comment-menu-item';
   button.setAttribute('role', 'menuitem');
   const text = document.createElement('span');
-  text.className = 'sauti-action-label';
+  text.className = 'comment-menu-label';
   text.textContent = label;
   button.append(text);
   return button;
@@ -3964,6 +3964,8 @@ async function toggleCommentReaction(card, button) {
   }
 }
 
+let openCommentMenuShell = null;
+
 function closeCommentMenus(except = null) {
   document.querySelectorAll('[data-comment-menu]').forEach((shell) => {
     if (shell === except) return;
@@ -3971,7 +3973,9 @@ function closeCommentMenus(except = null) {
     const panel = shell.querySelector('[data-comment-menu-panel]');
     if (toggle) toggle.setAttribute('aria-expanded', 'false');
     if (panel) panel.hidden = true;
+    shell.closest('.comment-card')?.classList.remove('comment-menu-open');
   });
+  openCommentMenuShell = except?.isConnected ? except : null;
 }
 
 function toggleCommentMenu(card) {
@@ -3984,6 +3988,8 @@ function toggleCommentMenu(card) {
   closeHomePostMenus();
   toggle.setAttribute('aria-expanded', String(opening));
   panel.hidden = !opening;
+  card.classList.toggle('comment-menu-open', opening);
+  openCommentMenuShell = opening ? shell : null;
 }
 
 function syncPostActionButton(button, action, active, { pending = false } = {}) {
@@ -9588,6 +9594,12 @@ document.addEventListener('click', (event) => {
   if (!event.target.closest('[data-home-post-menu]')) closeHomePostMenus();
   if (!event.target.closest('[data-comment-menu]')) closeCommentMenus();
 });
+const dismissCommentMenuOnViewportMove = () => {
+  if (openCommentMenuShell) closeCommentMenus();
+};
+document.addEventListener('scroll', dismissCommentMenuOnViewportMove, { capture: true, passive: true });
+document.addEventListener('touchmove', dismissCommentMenuOnViewportMove, { capture: true, passive: true });
+document.addEventListener('wheel', dismissCommentMenuOnViewportMove, { capture: true, passive: true });
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
   const openToggle = document.querySelector(

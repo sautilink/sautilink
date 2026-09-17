@@ -88,6 +88,10 @@
   background: color-mix(in srgb, var(--app-panel-soft) 42%, var(--app-panel));
 }
 
+#conversation-thread .comment-card.comment-menu-open {
+  z-index: 30;
+}
+
 #conversation-thread .comment-card::before {
   display: none;
 }
@@ -166,7 +170,12 @@
 
 .comment-menu-shell {
   position: relative;
+  z-index: 1;
   margin-left: auto;
+}
+
+.comment-card.comment-menu-open .comment-menu-shell {
+  z-index: 31;
 }
 
 .comment-menu-toggle,
@@ -213,7 +222,7 @@
 
 .comment-menu {
   position: absolute;
-  z-index: 12;
+  z-index: 32;
   top: 34px;
   right: 0;
   width: 150px;
@@ -239,6 +248,17 @@
   text-align: left;
 }
 
+.comment-menu-label {
+  position: static;
+  display: block;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  color: inherit;
+  clip: auto;
+  white-space: nowrap;
+}
+
 .comment-menu-item:hover,
 .comment-menu-item.active {
   background: var(--app-panel-soft);
@@ -246,6 +266,26 @@
 
 .comment-menu-item.danger {
   color: var(--app-danger, #dc3f4a);
+}
+
+:root[data-theme="light"] .comment-menu {
+  border-color: #d9dde3;
+  background: #fff;
+  color: #101318;
+  box-shadow: 0 14px 38px rgb(20 24 30 / 18%);
+}
+
+:root[data-theme="light"] .comment-menu-item {
+  color: #101318;
+}
+
+:root[data-theme="light"] .comment-menu-item:hover,
+:root[data-theme="light"] .comment-menu-item.active {
+  background: #f1f3f5;
+}
+
+:root[data-theme="light"] .comment-menu-item.danger {
+  color: #b42335;
 }
 
 .comment-body {
