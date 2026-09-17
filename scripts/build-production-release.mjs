@@ -32,6 +32,7 @@ const APP_JS_RELEASE = '20260916-captionlayout2';
 const APP_JS_FEATURE_RELEASE = '20260915-verification1';
 const PWA_RELEASE = '20260916-loadingfix1';
 const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram2';
+const SETTINGS_LIGHT_THEME_CSS_RELEASE = '20260917-settings1';
 
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -74,6 +75,10 @@ function wireProductionPwa(input) {
   const postActionIconStylesheet = `/app/assets/post-media-carousel.css?v=${POST_ACTION_ICON_CSS_RELEASE}`;
   if (!output.includes(postActionIconStylesheet)) {
     output = output.replace('</head>', `  <link rel="stylesheet" href="${postActionIconStylesheet}">\n</head>`);
+  }
+  const settingsLightThemeStylesheet = `/app/assets/settings-light-theme-hotfix.css?v=${SETTINGS_LIGHT_THEME_CSS_RELEASE}`;
+  if (!output.includes(settingsLightThemeStylesheet)) {
+    output = output.replace('</head>', `  <link rel="stylesheet" href="${settingsLightThemeStylesheet}">\n</head>`);
   }
   if (!output.includes(`/assets/pwa.js?v=${PWA_RELEASE}`)) {
     output = output.replace('</body>', `  <script src="/assets/pwa.js?v=${PWA_RELEASE}" defer></script>\n</body>`);
