@@ -13,8 +13,8 @@ shell, navigation, seed data, or backend contracts.
 - Public profile, profile editing, follow/unfollow, and basic Circles
 - Stream, Discover, Saved Sauti, and meaningful notifications
 - Basic one-to-one text Messages with unread state and safety controls
-- Share a Sauti with audience and reply controls
-- Public replies and threads, including basic like, reshare, quote, and save
+- Share a Sauti with audience and comment controls
+- Public comments and threads, including basic like, dislike, reshare, quote, and save
 - Image/video accessibility and upload validation foundations
 - Block, mute, report, moderation review, and appeal foundations
 - Account, privacy, notification, session, data-export, and deletion controls
@@ -31,7 +31,7 @@ shell, navigation, seed data, or backend contracts.
 Basic one-to-one Messages are now part of the web MVP. Their first contract is
 text-only and includes a conversation list, timestamps, unread state, send,
 block, report, and delete controls. The seeded preview never reaches production
-accounts or a backend. Public replies and threads remain a separate part of the
+accounts or a backend. Public comments and threads remain a separate part of the
 open Sauti conversation loop.
 
 ## Scope rule

@@ -176,7 +176,7 @@ let sautiConversationRequest = 0;
 let activeSautiConversation = null;
 let threadReplyRequestId = '';
 const THREAD_DRAFT_PREFIX = 'sautilink.thread.draft.v1:';
-const THREAD_POST_SELECT = 'id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)';
+const THREAD_POST_SELECT = 'id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)';
 const THREAD_RENDER_DEPTH = 4;
 let circlesRequest = 0;
 let activeCircle = null;
@@ -3029,7 +3029,7 @@ function updateComposerState({ persist = true } = {}) {
 
   const audienceLabel = audience.selectedOptions[0]?.textContent || 'Public';
   byId('composer-audience-note').textContent =
-    `${audienceLabel} · ${replyAccessLabel(replies.value)} can reply`;
+    `${audienceLabel} · ${replyAccessLabel(replies.value)} can comment`;
 
   if (persist) persistComposerCurrent();
 }
@@ -3244,6 +3244,161 @@ function createHomePostHeadActions(item, post, username) {
   return controls;
 }
 
+function commentActionIcon(action) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  const paths = {
+    like: 'M7 10v11H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3Zm0 0 4-7c.7-1.1 2.5-.6 2.4.8L13 8h5.3a2.7 2.7 0 0 1 2.6 3.4l-1.8 7A3.5 3.5 0 0 1 15.7 21H7V10Z',
+    dislike: 'M7 14V3H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3Zm0 0 4 7c.7 1.1 2.5.6 2.4-.8L13 16h5.3a2.7 2.7 0 0 0 2.6-3.4l-1.8-7A3.5 3.5 0 0 0 15.7 3H7v11Z',
+    reply: 'M20 15a3 3 0 0 1-3 3H9l-5 3v-6a3 3 0 0 1-1-2.2V7a3 3 0 0 1 3-3h11a3 3 0 0 1 3 3v8Z',
+  };
+  path.setAttribute('d', paths[action] || paths.reply);
+  svg.append(path);
+  return svg;
+}
+
+function commentReactionButton(action, count, active) {
+  const label = action === 'like' ? 'Like comment' : 'Dislike comment';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `comment-action${active ? ' active' : ''}`;
+  button.dataset.commentReaction = action;
+  button.dataset.active = String(Boolean(active));
+  button.setAttribute('aria-label', label);
+  button.setAttribute('aria-pressed', String(Boolean(active)));
+  button.setAttribute('aria-busy', 'false');
+  button.title = label;
+  button.append(commentActionIcon(action));
+
+  const number = document.createElement('span');
+  number.className = 'comment-reaction-count';
+  number.dataset.commentReactionCount = action;
+  number.textContent = String(Number(count) || 0);
+  number.hidden = Number(count) < 1;
+  button.append(number);
+  return button;
+}
+
+function commentMenuItem(label) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'comment-menu-item';
+  button.setAttribute('role', 'menuitem');
+  const text = document.createElement('span');
+  text.className = 'sauti-action-label';
+  text.textContent = label;
+  button.append(text);
+  return button;
+}
+
+function createCommentCard(item) {
+  const post = item?.post;
+  if (!post) return null;
+
+  const author = authorFromPost(post) || {};
+  const username = String(author.username || 'member');
+  const displayName = String(author.display_name || username || 'SautiLink member');
+  const article = document.createElement('article');
+  article.className = 'sauti-card thread-sauti comment-card';
+  article.dataset.postId = post.id;
+  article.dataset.parentPostId = String(post.parent_post_id || '');
+  article.dataset.rootPostId = String(post.root_post_id || '');
+  article.dataset.threadDepth = String(post.thread_depth || 0);
+  article.dataset.authorUsername = username;
+  article.dataset.authorName = displayName;
+  article.dataset.authorId = String(post.author_id || '');
+  article.dataset.viewerReaction = item.disliked ? 'dislike' : item.liked ? 'like' : '';
+
+  const avatar = document.createElement('a');
+  avatar.className = 'comment-avatar';
+  avatar.href = memberProfilePath(username);
+  avatar.setAttribute('aria-label', `Open ${displayName}'s profile`);
+  renderProfileAvatar(avatar, author, displayName);
+
+  const main = document.createElement('div');
+  main.className = 'comment-main';
+
+  const head = document.createElement('div');
+  head.className = 'comment-head';
+  const identity = document.createElement('a');
+  identity.className = 'comment-author';
+  identity.href = memberProfilePath(username);
+  identity.append(verifiedNameNode(
+    displayName,
+    Boolean(author.is_verified),
+    author.verification_badge_type,
+  ));
+  const time = document.createElement('time');
+  time.dateTime = String(post.created_at || '');
+  time.textContent = formatSautiTime(post.created_at);
+  time.title = post.created_at ? new Date(post.created_at).toLocaleString() : '';
+
+  const menuShell = document.createElement('div');
+  menuShell.className = 'comment-menu-shell';
+  menuShell.dataset.commentMenu = '';
+  const menuToggle = document.createElement('button');
+  menuToggle.type = 'button';
+  menuToggle.className = 'comment-menu-toggle';
+  menuToggle.dataset.commentMenuToggle = '';
+  menuToggle.setAttribute('aria-label', `More options for ${displayName}'s comment`);
+  menuToggle.setAttribute('aria-haspopup', 'menu');
+  menuToggle.setAttribute('aria-expanded', 'false');
+  menuToggle.append(homePostMoreIcon());
+
+  const menu = document.createElement('div');
+  menu.className = 'comment-menu';
+  menu.dataset.commentMenuPanel = '';
+  menu.setAttribute('role', 'menu');
+  menu.hidden = true;
+
+  const save = commentMenuItem(item.saved ? 'Saved' : 'Save');
+  save.dataset.sautiAction = 'save';
+  save.dataset.active = String(Boolean(item.saved));
+  save.classList.toggle('active', Boolean(item.saved));
+  save.setAttribute('aria-pressed', String(Boolean(item.saved)));
+  menu.append(save);
+
+  if (post.author_id === currentMemberId) {
+    const remove = commentMenuItem('Delete');
+    remove.classList.add('danger');
+    remove.dataset.deleteSauti = post.id;
+    menu.append(remove);
+  } else {
+    const report = commentMenuItem('Report');
+    report.classList.add('danger');
+    report.dataset.reportComment = post.id;
+    report.dataset.reportLabel = `Report comment by ${displayName}`;
+    menu.append(report);
+  }
+  menuShell.append(menuToggle, menu);
+  head.append(identity, time, menuShell);
+
+  const body = document.createElement('p');
+  body.className = 'comment-body';
+  body.textContent = String(post.body || '');
+
+  const actions = document.createElement('div');
+  actions.className = 'comment-actions';
+  const reply = document.createElement('button');
+  reply.type = 'button';
+  reply.className = 'comment-action comment-reply-action';
+  reply.dataset.commentReply = post.id;
+  reply.setAttribute('aria-label', `Reply to ${displayName}`);
+  reply.title = `Reply to ${displayName}`;
+  reply.append(commentActionIcon('reply'));
+  actions.append(
+    commentReactionButton('like', post.like_count, item.liked),
+    commentReactionButton('dislike', post.dislike_count, item.disliked),
+    reply,
+  );
+
+  main.append(head, body, actions);
+  article.append(avatar, main);
+  return article;
+}
+
 function createSautiCard(item, { home = false } = {}) {
   const post = item.post;
   if (!post) return null;
@@ -3322,7 +3477,7 @@ function createSautiCard(item, { home = false } = {}) {
     : post.visibility === 'circle'
       ? 'Sautify members'
       : 'Public';
-  context.textContent = `${audienceLabel} · Replies: ${replyAccessLabel(post.reply_access)}`;
+  context.textContent = `${audienceLabel} · Comments: ${replyAccessLabel(post.reply_access)}`;
 
   let quoteCard = null;
   if (post.quote_post_id) {
@@ -3491,7 +3646,7 @@ async function loadQuotedPostMap(posts) {
 
   const { data, error } = await supabase
     .from('social_posts')
-    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
     .in('id', quoteIds);
 
   if (error) throw error;
@@ -3506,7 +3661,7 @@ async function hydrateStreamEvents(events) {
 
   const postQuery = supabase
     .from('social_posts')
-    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
     .in('id', postIds);
 
   const actorQuery = supabase
@@ -3516,7 +3671,7 @@ async function hydrateStreamEvents(events) {
 
   const likeQuery = supabase
     .from('social_post_reactions')
-    .select('post_id')
+    .select('post_id,reaction_type')
     .eq('user_id', currentMemberId)
     .in('post_id', postIds);
 
@@ -3547,7 +3702,8 @@ async function hydrateStreamEvents(events) {
   const quoteMap = await loadQuotedPostMap(posts || []);
   const postMap = new Map((posts || []).map((post) => [post.id, post]));
   const actorMap = new Map((actors || []).map((profile) => [profile.id, profile]));
-  const liked = new Set((likes || []).map((row) => row.post_id));
+  const liked = new Set((likes || []).filter((row) => row.reaction_type === 'like').map((row) => row.post_id));
+  const disliked = new Set((likes || []).filter((row) => row.reaction_type === 'dislike').map((row) => row.post_id));
   const reposted = new Set((reposts || []).map((row) => row.post_id));
   const saved = new Set((saves || []).map((row) => row.post_id));
 
@@ -3582,6 +3738,7 @@ async function hydrateStreamEvents(events) {
       post: postMap.get(event.post_id) || null,
       actor: actorMap.get(event.actor_id) || null,
       liked: liked.has(event.post_id),
+      disliked: disliked.has(event.post_id),
       reposted: reposted.has(event.post_id),
       saved: saved.has(event.post_id),
       following: followedAuthors.has(postMap.get(event.post_id)?.author_id),
@@ -3599,7 +3756,7 @@ async function hydrateDirectPosts(posts) {
   const [likeResult, repostResult, savedResult] = await Promise.all([
     supabase
       .from('social_post_reactions')
-      .select('post_id')
+      .select('post_id,reaction_type')
       .eq('user_id', currentMemberId)
       .in('post_id', postIds),
     supabase
@@ -3618,7 +3775,8 @@ async function hydrateDirectPosts(posts) {
     throw likeResult.error || repostResult.error || savedResult.error;
   }
 
-  const liked = new Set((likeResult.data || []).map((row) => row.post_id));
+  const liked = new Set((likeResult.data || []).filter((row) => row.reaction_type === 'like').map((row) => row.post_id));
+  const disliked = new Set((likeResult.data || []).filter((row) => row.reaction_type === 'dislike').map((row) => row.post_id));
   const reposted = new Set((repostResult.data || []).map((row) => row.post_id));
   const saved = new Set((savedResult.data || []).map((row) => row.post_id));
   const quoteMap = await loadQuotedPostMap(rows);
@@ -3629,6 +3787,7 @@ async function hydrateDirectPosts(posts) {
     event_at: post.created_at,
     post,
     liked: liked.has(post.id),
+    disliked: disliked.has(post.id),
     reposted: reposted.has(post.id),
     saved: saved.has(post.id),
     quotedPost: quoteMap.get(post.quote_post_id) || null,
@@ -3701,6 +3860,75 @@ function sautiCardsForPost(postId) {
     .filter((card) => card.dataset.postId === postId);
 }
 
+function syncCommentReactionCard(card, data) {
+  if (!card?.classList.contains('comment-card')) return;
+  const reaction = data?.reaction === 'like' || data?.reaction === 'dislike' ? data.reaction : '';
+  card.dataset.viewerReaction = reaction;
+
+  for (const action of ['like', 'dislike']) {
+    const button = card.querySelector(`[data-comment-reaction="${action}"]`);
+    const active = reaction === action;
+    if (!button) continue;
+    button.dataset.active = String(active);
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+    button.setAttribute('aria-busy', 'false');
+    const count = button.querySelector(`[data-comment-reaction-count="${action}"]`);
+    const value = Math.max(0, Number(data?.[`${action}_count`]) || 0);
+    if (count) {
+      count.textContent = String(value);
+      count.hidden = value < 1;
+    }
+  }
+}
+
+async function toggleCommentReaction(card, button) {
+  if (!card?.dataset.postId || button?.getAttribute('aria-busy') === 'true') return;
+  const action = button.dataset.commentReaction;
+  const nextReaction = card.dataset.viewerReaction === action ? null : action;
+  card.querySelectorAll('[data-comment-reaction]').forEach((control) => {
+    control.setAttribute('aria-busy', 'true');
+    control.disabled = true;
+  });
+
+  try {
+    const data = await socialMutation(`/api/social/comments/${card.dataset.postId}/reaction`, {
+      method: 'POST',
+      body: { reaction: nextReaction },
+    });
+    sautiCardsForPost(card.dataset.postId).forEach((candidate) => syncCommentReactionCard(candidate, data));
+  } catch (error) {
+    showToast(error?.message || 'Your comment reaction could not be saved.');
+  } finally {
+    card.querySelectorAll('[data-comment-reaction]').forEach((control) => {
+      control.setAttribute('aria-busy', 'false');
+      control.disabled = false;
+    });
+  }
+}
+
+function closeCommentMenus(except = null) {
+  document.querySelectorAll('[data-comment-menu]').forEach((shell) => {
+    if (shell === except) return;
+    const toggle = shell.querySelector('[data-comment-menu-toggle]');
+    const panel = shell.querySelector('[data-comment-menu-panel]');
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    if (panel) panel.hidden = true;
+  });
+}
+
+function toggleCommentMenu(card) {
+  const shell = card?.querySelector('[data-comment-menu]');
+  const toggle = shell?.querySelector('[data-comment-menu-toggle]');
+  const panel = shell?.querySelector('[data-comment-menu-panel]');
+  if (!shell || !toggle || !panel) return;
+  const opening = toggle.getAttribute('aria-expanded') !== 'true';
+  closeCommentMenus(opening ? shell : null);
+  closeHomePostMenus();
+  toggle.setAttribute('aria-expanded', String(opening));
+  panel.hidden = !opening;
+}
+
 function syncPostActionButton(button, action, active, { pending = false } = {}) {
   if (!button) return;
   const labels = {
@@ -3756,12 +3984,12 @@ async function refreshPostInteractionControls(postId) {
   ] = await Promise.all([
     supabase
       .from('social_posts')
-      .select('like_count, comment_count, repost_count')
+      .select('like_count, dislike_count, comment_count, repost_count')
       .eq('id', postId)
       .maybeSingle(),
     supabase
       .from('social_post_reactions')
-      .select('post_id')
+      .select('post_id,reaction_type')
       .eq('post_id', postId)
       .eq('user_id', currentMemberId),
     supabase
@@ -3777,7 +4005,8 @@ async function refreshPostInteractionControls(postId) {
   ]);
 
   if (postError || likeError || repostError || savedError || !post) return;
-  const liked = Boolean(likeRows?.length);
+  const viewerReaction = likeRows?.[0]?.reaction_type || null;
+  const liked = viewerReaction === 'like';
   const reposted = Boolean(repostRows?.length);
   const saved = Boolean(savedRows?.length);
 
@@ -3810,6 +4039,14 @@ async function refreshPostInteractionControls(postId) {
 
     const saveButton = card.querySelector('[data-sauti-action="save"]');
     syncPostActionButton(saveButton, 'save', saved);
+
+    if (card.classList.contains('comment-card')) {
+      syncCommentReactionCard(card, {
+        reaction: viewerReaction,
+        like_count: post.like_count,
+        dislike_count: post.dislike_count,
+      });
+    }
   });
 }
 
@@ -3975,7 +4212,7 @@ async function toggleSave(card, button) {
       const hasSavedPosts = byId('saved-sauti-feed').childElementCount > 0;
       byId('saved-empty').hidden = hasSavedPosts;
     }
-    showToast(active ? 'Removed from Saved.' : 'Post saved.');
+    showToast(active ? 'Removed from Saved.' : card.classList.contains('comment-card') ? 'Comment saved.' : 'Post saved.');
   } catch {
     setPostInteractionState(postId, 'save', active);
     showToast('Saved state could not be updated.');
@@ -4327,7 +4564,7 @@ async function shareSauti() {
   }
   if (textarea.value.length > 500) return setMessage(message, 'Post text must be 500 characters or fewer.');
   if (replyAccess === 'mentioned' && !composerHasMention(textarea.value)) {
-    return setMessage(message, 'Mention at least one SautiLink username or change who can reply.');
+    return setMessage(message, 'Mention at least one SautiLink username or change who can comment.');
   }
 
   if (!navigator.onLine) {
@@ -4378,6 +4615,22 @@ async function shareSauti() {
     submit.textContent = previous;
     submit.removeAttribute('aria-busy');
     updateComposerState();
+  }
+}
+
+async function deleteThreadComment(commentId, button) {
+  if (!currentMember || !commentId) return;
+  if (!window.confirm('Delete this comment? This cannot be undone.')) return;
+
+  const rootId = button.closest('.comment-card')?.dataset.rootPostId || activeSautiConversation?.rootId || '';
+  button.disabled = true;
+  try {
+    await socialMutation(`/api/social/comments/${encodeURIComponent(commentId)}`, { method: 'DELETE' });
+    showToast('Comment deleted.');
+    if (rootId) await loadConversation(rootId);
+  } catch (error) {
+    button.disabled = false;
+    showToast(error?.message || 'This comment could not be deleted.');
   }
 }
 
@@ -5044,7 +5297,7 @@ function notificationCopy(notification, actorName, circleName = '') {
   const copy = {
     follow: [actor, ' followed you.'],
     like: [actor, notification.circle_id ? ` liked your post${circleLabel}.` : ' liked your post.'],
-    reply: [actor, notification.circle_id ? ` replied to your post${circleLabel}.` : ' replied to your post.'],
+    reply: [actor, notification.circle_id ? ` commented on your post${circleLabel}.` : ' commented on your post.'],
     reshare: [actor, notification.circle_id ? ` reposted your post${circleLabel}.` : ' reposted your post.'],
     safety: ['SautiLink', ' updated a moderation decision affecting your content.'],
   };
@@ -5338,7 +5591,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
 
     let postQuery = supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
       .eq('visibility', 'public')
       .is('circle_id', null)
       .is('reply_to_post_id', null)
@@ -5432,7 +5685,7 @@ async function loadSavedSauti() {
 
     const { data: posts, error: postError } = await supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
       .in('id', postIds);
 
     if (postError) throw postError;
@@ -5493,7 +5746,7 @@ async function loadSharedSautiTarget(postId) {
   try {
     const { data: post, error } = await supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
       .eq('id', postId)
       .maybeSingle();
 
@@ -5570,7 +5823,7 @@ function conversationPostById(postId) {
 
 function conversationAuthorLabel(post) {
   const author = authorFromPost(post) || {};
-  return author.username ? `@${author.username}` : author.display_name || '@member';
+  return author.display_name || author.username || 'SautiLink member';
 }
 
 function setConversationReplyTarget(post) {
@@ -5633,11 +5886,11 @@ function updateConversationReplyState() {
   const length = body.value.length;
   const hasBody = Boolean(body.value.trim());
   count.textContent = String(length);
-  submit.textContent = navigator.onLine ? 'Reply' : 'Save draft';
+  submit.textContent = navigator.onLine ? 'Comment' : 'Save draft';
   submit.disabled = !currentMemberId || !activeSautiConversation?.replyTargetId || !hasBody || length > 500;
   note.textContent = navigator.onLine
-    ? 'Your reply follows this conversation\'s audience and privacy.'
-    : 'Offline — this reply stays on this device until you send it.';
+    ? 'Your comment follows this post\'s audience and privacy.'
+    : 'Offline — this comment stays on this device until you send it.';
 }
 
 function threadRelevantScore(post) {
@@ -5663,7 +5916,7 @@ function renderThreadContinuation(parentItem, childCount) {
   button.type = 'button';
   button.className = 'thread-continue';
   button.dataset.openThreadBranch = parentItem.post.id;
-  button.textContent = `${childCount} deeper ${childCount === 1 ? 'reply' : 'replies'} · Continue thread`;
+  button.textContent = `${childCount} more ${childCount === 1 ? 'comment' : 'comments'} · Continue thread`;
   return button;
 }
 
@@ -5676,13 +5929,13 @@ function renderConversationThread() {
 
   if (!activeSautiConversation) {
     empty.hidden = false;
-    total.textContent = '0 replies';
+    total.textContent = '0 comments';
     return;
   }
 
   const { rootId, focusId, replyItems, postMap } = activeSautiConversation;
-  total.textContent = `${replyItems.length} ${replyItems.length === 1 ? 'reply' : 'replies'}`;
-  heading.textContent = focusId !== rootId ? 'Focused branch' : 'Conversation replies';
+  total.textContent = `${replyItems.length} ${replyItems.length === 1 ? 'comment' : 'comments'}`;
+  heading.textContent = focusId !== rootId ? 'Focused comments' : 'Comments';
 
   if (!replyItems.length) {
     empty.hidden = false;
@@ -5699,12 +5952,13 @@ function renderConversationThread() {
   children.forEach((items) => items.sort(threadSiblingSort));
 
   const appendItem = (item, visualDepth = 0, { orphan = false } = {}) => {
-    const card = createSautiCard(item);
+    const card = createCommentCard(item);
     if (!card) return;
     card.classList.add('thread-sauti');
     if (orphan) card.classList.add('thread-orphan');
     if (item.post.id === focusId) card.classList.add('thread-focused');
     card.style.setProperty('--thread-depth', String(Math.min(visualDepth, THREAD_RENDER_DEPTH)));
+    card.style.setProperty('--thread-indent', `${Math.min(visualDepth, THREAD_RENDER_DEPTH) * 8}px`);
     card.dataset.threadDepth = String(item.post.thread_depth || 0);
     feed.append(card);
 
@@ -5838,13 +6092,13 @@ async function submitThreadReply() {
   setMessage(message, '', '');
 
   if (!body) return;
-  if (textarea.value.length > 500) return setMessage(message, 'Replies must be 500 characters or fewer.');
+  if (textarea.value.length > 500) return setMessage(message, 'Comments must be 500 characters or fewer.');
 
   ensureThreadReplyRequestId();
   persistThreadReplyDraft();
 
   if (!navigator.onLine) {
-    setMessage(message, 'Reply saved on this device. Send it when you are back online.', 'success');
+    setMessage(message, 'Comment saved on this device. Send it when you are back online.', 'success');
     updateConversationReplyState();
     return;
   }
@@ -5852,11 +6106,11 @@ async function submitThreadReply() {
   submit.disabled = true;
   submit.setAttribute('aria-busy', 'true');
   const previous = submit.textContent;
-  submit.textContent = 'Replying…';
+  submit.textContent = 'Commenting…';
 
   try {
     const payload = await socialMutation(
-      `/api/social/posts/${activeSautiConversation.replyTargetId}/replies`,
+      `/api/social/posts/${activeSautiConversation.replyTargetId}/comments`,
       {
         method: 'POST',
         body: {
@@ -5866,7 +6120,7 @@ async function submitThreadReply() {
       },
     );
 
-    const reply = payload?.reply || null;
+    const reply = payload?.comment || null;
     textarea.value = '';
     writeThreadDraft(null);
     threadReplyRequestId = '';
@@ -5876,9 +6130,9 @@ async function submitThreadReply() {
     } else {
       await loadConversation(activeSautiConversation.rootId);
     }
-    showToast('Reply shared.');
+    showToast('Comment shared.');
   } catch (error) {
-    setMessage(message, error?.message || 'This reply could not be shared.');
+    setMessage(message, error?.message || 'This comment could not be shared.');
   } finally {
     submit.textContent = previous;
     submit.removeAttribute('aria-busy');
@@ -6978,7 +7232,7 @@ function updateCircleComposerState() {
   count.textContent = String(length);
   note.textContent = !navigator.onLine
     ? 'Connect to post. Sautify drafts can be saved from the Home composer.'
-    : `${replyAccessLabel(replies.value)} can reply in this Sautify`;
+    : `${replyAccessLabel(replies.value)} can comment in this Sautify`;
   submit.disabled = !allowed || !navigator.onLine || !textarea.value.trim() || length > 500 || !mentionedReady || circleStreamLoading;
 }
 
@@ -7033,7 +7287,7 @@ async function loadCircleStream(circleId) {
   try {
     const { data: posts, error } = await supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
       .eq('circle_id', circleId)
       .eq('visibility', 'circle')
       .is('reply_to_post_id', null)
@@ -7078,7 +7332,7 @@ async function shareCircleSauti() {
   if (!body) return setMessage(message, 'Write something before sharing.');
   if (body.length > 500) return setMessage(message, 'Post text must be 500 characters or fewer.');
   if (replyAccess === 'mentioned' && !composerHasMention(textarea.value)) {
-    return setMessage(message, 'Mention at least one SautiLink username or change who can reply.');
+    return setMessage(message, 'Mention at least one SautiLink username or change who can comment.');
   }
   if (!navigator.onLine) {
     return setMessage(message, 'You are offline. Use the Home composer to save this Sautify post as a device draft.');
@@ -9149,6 +9403,29 @@ function openHomeMediaAfterTap(event, media) {
 }
 
 function handleSautiFeedClick(event) {
+  const commentMenuToggle = event.target.closest('[data-comment-menu-toggle]');
+  if (commentMenuToggle) {
+    toggleCommentMenu(commentMenuToggle.closest('.comment-card'));
+    return;
+  }
+
+  const commentReaction = event.target.closest('[data-comment-reaction]');
+  if (commentReaction) {
+    void toggleCommentReaction(commentReaction.closest('.comment-card'), commentReaction);
+    return;
+  }
+
+  const commentReply = event.target.closest('[data-comment-reply]');
+  if (commentReply) {
+    const post = conversationPostById(commentReply.dataset.commentReply);
+    if (post) {
+      setConversationReplyTarget(post);
+      byId('conversation-reply-body').focus();
+      byId('conversation-reply-form').scrollIntoView({ behavior: motionBehavior(), block: 'center' });
+    }
+    return;
+  }
+
   const homeFollow = event.target.closest('[data-home-follow]');
   if (homeFollow) {
     void toggleHomeAuthorFollow(homeFollow.closest('.sauti-card'));
@@ -9217,13 +9494,19 @@ function handleSautiFeedClick(event) {
 
   const reportCommentButton = event.target.closest('[data-report-comment]');
   if (reportCommentButton) {
+    closeCommentMenus();
     openReportDialog('comment', reportCommentButton.dataset.reportComment, reportCommentButton.dataset.reportLabel);
     return;
   }
 
   const deleteSautiButton = event.target.closest('[data-delete-sauti]');
   if (deleteSautiButton) {
-    void deleteSauti(deleteSautiButton.dataset.deleteSauti, deleteSautiButton);
+    if (deleteSautiButton.closest('.comment-card')) {
+      closeCommentMenus();
+      void deleteThreadComment(deleteSautiButton.dataset.deleteSauti, deleteSautiButton);
+    } else {
+      void deleteSauti(deleteSautiButton.dataset.deleteSauti, deleteSautiButton);
+    }
     return;
   }
 
@@ -9254,7 +9537,10 @@ function handleSautiFeedClick(event) {
     }
   }
   if (action.dataset.sautiAction === 'repost') toggleRepostMenu(card);
-  if (action.dataset.sautiAction === 'save') void toggleSave(card, action);
+  if (action.dataset.sautiAction === 'save') {
+    closeCommentMenus();
+    void toggleSave(card, action);
+  }
   if (action.dataset.sautiAction === 'share') void shareSautiLink(card, action);
 }
 
@@ -9273,11 +9559,15 @@ byId('stream-feed').addEventListener('pointerup', handleHomeFeedPointerUp);
 byId('stream-feed').addEventListener('scroll', () => closeHomePostMenus(), { passive: true });
 document.addEventListener('click', (event) => {
   if (!event.target.closest('[data-home-post-menu]')) closeHomePostMenus();
+  if (!event.target.closest('[data-comment-menu]')) closeCommentMenus();
 });
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
-  const openToggle = document.querySelector('[data-home-post-menu-toggle][aria-expanded="true"]');
+  const openToggle = document.querySelector(
+    '[data-home-post-menu-toggle][aria-expanded="true"], [data-comment-menu-toggle][aria-expanded="true"]',
+  );
   closeHomePostMenus();
+  closeCommentMenus();
   openToggle?.focus();
 });
 

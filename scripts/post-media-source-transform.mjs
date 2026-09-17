@@ -103,7 +103,7 @@ async function hydrateStreamEvents(events) {`,
     `  const [likeResult, repostResult, savedResult] = await Promise.all([
     supabase
       .from('social_post_reactions')
-      .select('post_id')
+      .select('post_id,reaction_type')
       .eq('user_id', currentMemberId)
       .in('post_id', postIds),
     supabase
@@ -120,7 +120,7 @@ async function hydrateStreamEvents(events) {`,
     `  const [likeResult, repostResult, savedResult, mediaMap] = await Promise.all([
     supabase
       .from('social_post_reactions')
-      .select('post_id')
+      .select('post_id,reaction_type')
       .eq('user_id', currentMemberId)
       .in('post_id', postIds),
     supabase

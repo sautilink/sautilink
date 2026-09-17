@@ -21,7 +21,7 @@ export function transformMentionNotificationSource(filePath, source) {
   output = replaceExactOnce(
     output,
     "    reshare: [actor, notification.circle_id ? ` reposted your post${circleLabel}.` : ' reposted your post.'],\n    safety: ['SautiLink', ' updated a moderation decision affecting your content.'],",
-    "    reshare: [actor, notification.circle_id ? ` reposted your post${circleLabel}.` : ' reposted your post.'],\n    mention: [actor, post?.id ? (post.parent_post_id ? ' tagged you in a reply.' : ' tagged you in a post.') : ' tagged you in a bio.'],\n    safety: ['SautiLink', ' updated a moderation decision affecting your content.'],",
+    "    reshare: [actor, notification.circle_id ? ` reposted your post${circleLabel}.` : ' reposted your post.'],\n    mention: [actor, post?.id ? (post.parent_post_id ? ' tagged you in a comment.' : ' tagged you in a post.') : ' tagged you in a bio.'],\n    safety: ['SautiLink', ' updated a moderation decision affecting your content.'],",
     'mention notification copy',
   );
 

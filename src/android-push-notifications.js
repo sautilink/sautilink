@@ -135,7 +135,7 @@ async function ensureChannel(plugin) {
   await plugin.createChannel({
     id: PUSH_CHANNEL_ID,
     name: 'SautiLink notifications',
-    description: 'Likes, replies, follows, mentions, messages and important SautiLink updates.',
+    description: 'Likes, comments, follows, mentions, messages and important SautiLink updates.',
     importance: 3,
     visibility: 1,
     vibration: true,

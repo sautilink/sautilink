@@ -1,7 +1,5 @@
-/* SautiLink conversation replies visual refresh.
-   Scoped to thread replies only: root posts, wording, features and behavior stay unchanged. */
+/* SautiLink comments: compact, touch-friendly conversation UI. */
 
-/* Keep the stream header as the single visible Conversation title. */
 #conversation-surface .conversation-toolbar .section-label,
 #conversation-surface .conversation-toolbar h2 {
   display: none;
@@ -11,169 +9,6 @@
   background: var(--app-panel);
 }
 
-#conversation-thread .thread-sauti {
-  position: relative;
-  margin: 0;
-  overflow: visible;
-  border: 0;
-  border-bottom: 1px solid var(--app-line);
-  border-radius: 0;
-  background: var(--app-panel);
-  box-shadow: none;
-}
-
-#conversation-thread .thread-sauti:hover {
-  background: color-mix(in srgb, var(--app-panel-soft) 46%, var(--app-panel));
-}
-
-#conversation-thread .thread-sauti::before {
-  display: none;
-}
-
-#conversation-thread .thread-sauti.thread-orphan {
-  border-left: 0;
-}
-
-#conversation-thread .thread-sauti .sauti-card-main {
-  width: 100%;
-  min-width: 0;
-}
-
-#conversation-thread .thread-sauti .sauti-card-head {
-  min-height: 0;
-  flex-wrap: nowrap;
-  align-items: flex-start;
-  gap: 7px;
-  padding: 10px 14px 0;
-}
-
-#conversation-thread .thread-sauti .sauti-card-avatar {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
-  border-color: color-mix(in srgb, var(--app-line-strong) 70%, transparent);
-}
-
-#conversation-thread .thread-sauti .sauti-card-identity {
-  display: flex;
-  min-width: 0;
-  flex: 0 1 auto;
-  align-items: baseline;
-  gap: 4px;
-  padding-top: 1px;
-}
-
-#conversation-thread .thread-sauti .sauti-card-head .verified-name,
-#conversation-thread .thread-sauti .sauti-card-head strong {
-  max-width: 190px;
-  color: var(--app-text);
-  font-size: 13px;
-  font-weight: 780;
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-#conversation-thread .thread-sauti .sauti-card-head a {
-  max-width: 170px;
-  color: var(--app-muted);
-  font-size: 12px;
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-#conversation-thread .thread-sauti .sauti-card-head time {
-  width: auto;
-  flex: 0 0 auto;
-  margin: 2px 0 0;
-  color: var(--app-muted);
-  font-size: 11px;
-  line-height: 1.25;
-}
-
-#conversation-thread .thread-sauti .sauti-card-body {
-  margin: 0;
-  padding: 2px 14px 5px 57px;
-  color: var(--app-text);
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-#conversation-thread .thread-sauti .sauti-repost-note {
-  margin: 4px 14px 0 57px;
-  color: var(--app-muted);
-}
-
-#conversation-thread .thread-sauti .sauti-media-gallery,
-#conversation-thread .thread-sauti .sauti-media-carousel,
-#conversation-thread .thread-sauti .sauti-video-player {
-  width: calc(100% - 71px);
-  margin-right: 14px;
-  margin-left: 57px;
-  overflow: hidden;
-  border-radius: 14px;
-}
-
-#conversation-thread .thread-sauti .sauti-card-footer {
-  min-height: 36px;
-  margin: 0;
-  padding: 0 10px 6px 50px;
-  color: var(--app-muted);
-}
-
-#conversation-thread .thread-sauti .sauti-actions {
-  width: 100%;
-  max-width: 460px;
-  flex-wrap: nowrap;
-  justify-content: flex-start;
-  gap: 12px;
-}
-
-#conversation-thread .thread-sauti .sauti-action {
-  min-width: 30px;
-  min-height: 30px;
-  gap: 4px;
-  justify-content: center;
-  padding: 0 4px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--app-muted);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-#conversation-thread .thread-sauti .sauti-action:hover {
-  border: 0;
-  background: color-mix(in srgb, var(--app-accent) 10%, transparent);
-  color: var(--app-text);
-}
-
-#conversation-thread .thread-sauti .sauti-action svg {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
-  stroke-width: 1.75;
-}
-
-#conversation-thread .thread-sauti .sauti-action-count {
-  min-width: 0;
-  font-size: 11px;
-  font-weight: 560;
-}
-
-#conversation-thread .thread-sauti .sauti-action[data-sauti-action="save"] {
-  margin-left: auto;
-}
-
-/* Replies never surface the post-view metric. The root/original post is outside this scope. */
-#conversation-thread [data-sauti-metric="views"] {
-  display: none !important;
-}
-
 .conversation-thread-heading {
   align-items: center;
   padding: 12px 14px 9px;
@@ -181,16 +16,8 @@
   background: var(--app-panel);
 }
 
-/* Keep the single existing "Replies" label and suppress the duplicate heading. */
 #conversation-reply-heading {
   display: none;
-}
-
-.conversation-thread-heading h3 {
-  margin: 0;
-  color: var(--app-text);
-  font-size: 14px;
-  font-weight: 760;
 }
 
 .conversation-thread-heading > span {
@@ -198,10 +25,236 @@
   font-size: 11px;
 }
 
+#conversation-thread .comment-card {
+  --verification-badge-size: clamp(12px, 1.08em, 14px);
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  width: auto;
+  margin: 0 0 0 var(--thread-indent, 0);
+  padding: 13px 14px 10px;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-line) 72%, transparent);
+  border-radius: 0;
+  background: var(--app-panel);
+  box-shadow: none;
+}
+
+#conversation-thread .comment-card:hover {
+  background: color-mix(in srgb, var(--app-panel-soft) 42%, var(--app-panel));
+}
+
+#conversation-thread .comment-card::before {
+  display: none;
+}
+
+#conversation-thread .comment-card[style*="--thread-depth: 1"]::after,
+#conversation-thread .comment-card[style*="--thread-depth: 2"]::after,
+#conversation-thread .comment-card[style*="--thread-depth: 3"]::after,
+#conversation-thread .comment-card[style*="--thread-depth: 4"]::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -7px;
+  width: 1px;
+  background: var(--app-line);
+  content: '';
+}
+
+.comment-avatar {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--app-line-strong) 70%, transparent);
+  border-radius: 50%;
+  background: var(--app-panel-soft);
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 780;
+  text-decoration: none;
+}
+
+.comment-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.comment-main {
+  min-width: 0;
+}
+
+.comment-head {
+  display: flex;
+  min-width: 0;
+  min-height: 25px;
+  align-items: center;
+  gap: 6px;
+}
+
+.comment-author {
+  min-width: 0;
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.comment-author .verified-name {
+  max-width: min(42vw, 260px);
+}
+
+.comment-author .verified-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comment-head time {
+  flex: 0 0 auto;
+  color: var(--app-muted);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.comment-menu-shell {
+  position: relative;
+  margin-left: auto;
+}
+
+.comment-menu-toggle,
+.comment-action {
+  display: inline-grid;
+  min-width: 36px;
+  min-height: 36px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--app-muted);
+}
+
+.comment-menu-toggle {
+  width: 36px;
+  height: 32px;
+  min-height: 32px;
+}
+
+.comment-menu-toggle:hover,
+.comment-menu-toggle[aria-expanded="true"],
+.comment-action:hover {
+  background: color-mix(in srgb, var(--app-accent) 10%, transparent);
+  color: var(--app-text);
+}
+
+.comment-menu-toggle svg,
+.comment-action svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.75;
+}
+
+.comment-menu-toggle svg {
+  width: 21px;
+  height: 21px;
+}
+
+.comment-menu {
+  position: absolute;
+  z-index: 12;
+  top: 34px;
+  right: 0;
+  width: 150px;
+  padding: 6px;
+  border: 1px solid var(--app-line);
+  border-radius: 12px;
+  background: var(--app-panel);
+  box-shadow: 0 14px 38px rgb(0 0 0 / 18%);
+}
+
+.comment-menu-item {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--app-text);
+  font-size: 13px;
+  text-align: left;
+}
+
+.comment-menu-item:hover,
+.comment-menu-item.active {
+  background: var(--app-panel-soft);
+}
+
+.comment-menu-item.danger {
+  color: var(--app-danger, #dc3f4a);
+}
+
+.comment-body {
+  margin: 2px 38px 2px 0;
+  color: var(--app-text);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.comment-actions {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.comment-action {
+  display: inline-flex;
+  width: auto;
+  gap: 4px;
+  justify-content: center;
+  color: var(--app-muted);
+}
+
+.comment-action.active {
+  color: var(--app-accent);
+}
+
+.comment-reaction-count {
+  min-width: 7px;
+  color: currentColor;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.comment-reply-action {
+  margin-left: 2px;
+}
+
+#conversation-thread .thread-focused {
+  background: color-mix(in srgb, var(--app-accent) 6%, var(--app-panel));
+}
+
 #conversation-thread .thread-continue,
 .thread-continue {
-  margin: 8px 14px 10px 57px;
-  padding: 6px 8px;
+  margin: 8px 14px 10px 62px;
+  padding: 7px 10px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -212,7 +265,6 @@
 
 .thread-continue:hover {
   background: color-mix(in srgb, var(--app-accent) 10%, transparent);
-  color: var(--app-accent);
 }
 
 .conversation-reply-form {
@@ -240,14 +292,10 @@
   line-height: 1.45;
 }
 
-.conversation-reply-form textarea::placeholder {
-  color: var(--app-muted);
-}
-
 .conversation-reply-form textarea:focus {
   border-color: color-mix(in srgb, var(--app-accent) 70%, var(--app-line));
-  box-shadow: none;
   outline: none;
+  box-shadow: none;
 }
 
 .conversation-reply-meta,
@@ -263,7 +311,7 @@
 
 .conversation-reply-actions button {
   width: auto;
-  min-width: 74px;
+  min-width: 82px;
   min-height: 34px;
   padding: 0 16px;
   border: 0;
@@ -279,85 +327,33 @@
 }
 
 @media (max-width: 680px) {
-  #conversation-thread .thread-sauti {
-    margin-left: calc(min(var(--thread-depth, 0), 4) * 4px);
+  #conversation-thread .comment-card {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    margin-left: var(--thread-indent, 0);
+    padding: 11px 10px 8px;
   }
 
-  #conversation-thread .thread-sauti .sauti-card-head {
-    gap: 7px;
-    padding: 9px 11px 0;
-  }
-
-  #conversation-thread .thread-sauti .sauti-card-avatar {
+  .comment-avatar {
     width: 34px;
     height: 34px;
-    flex-basis: 34px;
   }
 
-  #conversation-thread .thread-sauti .sauti-card-head .verified-name,
-  #conversation-thread .thread-sauti .sauti-card-head strong {
-    max-width: 140px;
-    font-size: 12px;
+  .comment-author {
+    font-size: 12.5px;
   }
 
-  #conversation-thread .thread-sauti .sauti-card-head a {
-    max-width: 112px;
-    font-size: 11px;
+  .comment-author .verified-name {
+    max-width: 46vw;
   }
 
-  #conversation-thread .thread-sauti .sauti-card-head time {
+  .comment-head time {
     font-size: 10px;
   }
 
-  #conversation-thread .thread-sauti .sauti-card-body {
-    padding: 2px 11px 4px 52px;
+  .comment-body {
+    margin-right: 8px;
     font-size: 13.5px;
-    line-height: 1.38;
-  }
-
-  #conversation-thread .thread-sauti .sauti-repost-note {
-    margin-right: 11px;
-    margin-left: 52px;
-  }
-
-  #conversation-thread .thread-sauti .sauti-media-gallery,
-  #conversation-thread .thread-sauti .sauti-media-carousel,
-  #conversation-thread .thread-sauti .sauti-video-player {
-    width: calc(100% - 63px);
-    margin-right: 11px;
-    margin-left: 52px;
-    border-radius: 12px;
-  }
-
-  #conversation-thread .thread-sauti .sauti-card-footer {
-    min-height: 34px;
-    padding: 0 6px 6px 46px;
-  }
-
-  #conversation-thread .thread-sauti .sauti-actions {
-    max-width: none;
-    justify-content: space-between;
-    gap: 0;
-  }
-
-  #conversation-thread .thread-sauti .sauti-action {
-    min-width: 31px;
-    min-height: 30px;
-    padding: 0 3px;
-  }
-
-  #conversation-thread .thread-sauti .sauti-action[data-sauti-action="save"] {
-    margin-left: 0;
-  }
-
-  #conversation-thread .thread-sauti .sauti-action svg {
-    width: 17px;
-    height: 17px;
-    flex-basis: 17px;
-  }
-
-  #conversation-thread .thread-sauti .sauti-action-count {
-    font-size: 10px;
   }
 
   .conversation-thread-heading {
@@ -373,16 +369,11 @@
     padding: 10px 10px 12px;
   }
 
-  .conversation-reply-context {
-    align-items: center;
-  }
-
   .conversation-reply-form textarea {
     min-height: 44px;
     max-height: 120px;
     resize: none;
     padding: 10px 14px;
-    border-radius: 22px;
     font-size: 13px;
   }
 
@@ -392,15 +383,12 @@
     align-items: center;
     gap: 8px;
   }
+}
 
-  .conversation-reply-meta {
-    font-size: 9px;
-  }
-
-  .conversation-reply-actions button {
-    width: auto;
-    min-width: 70px;
-    min-height: 33px;
-    padding: 0 14px;
+@media (prefers-reduced-motion: reduce) {
+  .comment-menu,
+  .comment-action,
+  .comment-menu-toggle {
+    transition: none !important;
   }
 }

@@ -6,7 +6,7 @@ const PROFILE_ACTIVITY_TABS = Object.freeze(['posts', 'reposts', 'replies', 'lik
 const PROFILE_ACTIVITY_LABELS = Object.freeze({
   posts: 'Posts',
   reposts: 'Reposts',
-  replies: 'Replies',
+  replies: 'Comments',
   likes: 'Likes',
   saves: 'Saves',
   hashtags: 'Hashtags',
@@ -119,7 +119,7 @@ function ensureProfileActivityShell() {
     <section class="profile-activity-privacy" id="profile-activity-privacy" aria-labelledby="profile-activity-privacy-title" hidden>
       <div class="profile-activity-privacy-heading">
         <h3 id="profile-activity-privacy-title">Activity privacy</h3>
-        <p>Choose who can see your Likes, Saves and Hashtags on your profile. Posts and Replies still follow each post’s own audience settings.</p>
+        <p>Choose who can see your Likes, Saves and Hashtags on your profile. Posts and Comments still follow each post’s own audience settings.</p>
       </div>
       <form id="profile-activity-privacy-form">
         <div class="profile-activity-privacy-grid">
@@ -423,7 +423,7 @@ function createProfileActivityCard(item, { pinned = false, allowPin = false, req
     pin.textContent = isPinned ? 'Unpin' : 'Pin';
     if (!isPinned && profileActivityPinCount >= 3) {
       pin.disabled = true;
-      pin.title = 'You can pin up to 3 posts or replies.';
+      pin.title = 'You can pin up to 3 posts or comments.';
     } else {
       pin.title = isPinned ? 'Remove from pinned posts' : 'Pin to profile';
     }
@@ -435,7 +435,7 @@ function createProfileActivityCard(item, { pinned = false, allowPin = false, req
   if (item.replying_to?.username) {
     const replying = document.createElement('p');
     replying.className = 'profile-activity-replying';
-    replying.append(document.createTextNode('Replying to '));
+    replying.append(document.createTextNode('Commenting on '));
     const link = document.createElement('a');
     link.href = `/u/${encodeURIComponent(item.replying_to.username)}`;
     link.textContent = `@${item.replying_to.username}`;
@@ -481,8 +481,8 @@ function profileActivityEmptyCopy(tab, owner) {
       ? ['You haven’t reposted anything yet.', 'Posts you repost will appear here without being published as new Home posts.']
       : ['No reposts yet.', 'When this account reposts a post, you’ll see it here.'],
     replies: owner
-      ? ['You haven’t replied yet.', 'Join a conversation and your replies will appear here.']
-      : ['No replies yet.', 'This account hasn’t replied to any conversations yet.'],
+      ? ['You haven’t commented yet.', 'Join a conversation and your comments will appear here.']
+      : ['No comments yet.', 'This account hasn’t commented on any conversations yet.'],
     likes: owner
       ? ['No liked posts yet.', 'Posts you like will appear here based on your Activity privacy setting.']
       : ['No liked posts to show.', 'There aren’t any visible liked posts from this account.'],
@@ -764,7 +764,7 @@ async function toggleProfileActivityPin(button) {
     const provider = String(error?.message || '');
     setProfileActivityStatus(
       provider.includes('PROFILE_PIN_LIMIT')
-        ? 'You can pin up to 3 posts or replies. Unpin one first.'
+        ? 'You can pin up to 3 posts or comments. Unpin one first.'
         : 'This post could not be pinned right now.',
       'error',
     );

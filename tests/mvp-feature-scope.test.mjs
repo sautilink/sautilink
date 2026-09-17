@@ -13,7 +13,7 @@ test('MVP scope guard allows basic Messages while keeping advanced messaging def
   assert.match(scope, /Deferred until there is a clear product or traffic need/);
   assert.match(scope, /Basic one-to-one text Messages/);
   assert.match(scope, /Group chats, voice\/video calls/);
-  assert.match(scope, /Public replies and threads/);
+  assert.match(scope, /Public comments and threads/);
   assert.match(scope, /Account, privacy, notification, session, data-export, and deletion controls/);
   assert.match(app, /function MessagesScreen/);
   assert.match(app, /id: ['"]messages['"]/);

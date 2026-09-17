@@ -17,7 +17,7 @@ test('mention notification UI copy covers post, reply and bio without changing s
   );
 
   assert.match(transformed, /tagged you in a post\./);
-  assert.match(transformed, /tagged you in a reply\./);
+  assert.match(transformed, /tagged you in a comment\./);
   assert.match(transformed, /tagged you in a bio\./);
   assert.match(transformed, /notification\.notification_type === 'mention'/);
   assert.match(transformed, /item\.dataset\.profileUsername/);
