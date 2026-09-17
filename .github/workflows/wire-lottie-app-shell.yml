@@ -1,0 +1,58 @@
+name: Wire Lottie app shell
+
+on:
+  push:
+    branches:
+      - feature/global-lottie-loader
+    paths:
+      - .github/workflows/wire-lottie-app-shell.yml
+
+permissions:
+  contents: write
+
+jobs:
+  wire-app-shell:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/global-lottie-loader
+
+      - name: Add the self-hosted loader helper to the app shell
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('app/index.html')
+          source = path.read_text(encoding='utf-8')
+          marker = '  <link rel="stylesheet" href="/app/assets/app.css?v=20260916-captionlayout2">\n'
+          loader = '  <script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>\n'
+
+          if loader in source:
+              raise SystemExit(0)
+          if source.count(marker) != 1:
+              raise SystemExit('Expected exactly one app CSS marker; refusing to patch app/index.html')
+
+          path.write_text(source.replace(marker, marker + loader, 1), encoding='utf-8')
+
+      - name: Verify patch scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git diff --name-only | wc -l)" -eq 1
+          test "$(git diff --name-only)" = "app/index.html"
+          grep -Fq '<script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>' app/index.html
+
+      - name: Commit app-shell wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Wire Lottie loader into app shell'
+          git push origin HEAD:feature/global-lottie-loader

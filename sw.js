@@ -1,4 +1,4 @@
-const CACHE_NAME = "sautilink-shell-v53";
+const CACHE_NAME = "sautilink-shell-v54";
 const APP_RELEASE = "20260916-captionlayout2";
 const APP_FEATURE_RELEASE = "20260915-verification1";
 const CORE_ASSET_PATHS = new Set([
@@ -20,7 +20,11 @@ const APP_SHELL = [
   "/assets/brand/system.css",
   `/assets/pwa.js?v=${APP_RELEASE}`,
   "/assets/launch-splash.css",
-  "/assets/launch-splash.js"
+  "/assets/launch-splash.js",
+  "/assets/lottie-loader.js?v=20260917-lottie1",
+  "/assets/lottie-loader.css?v=20260917-lottie1",
+  "/assets/vendor/lottie-web/lottie_light.min.js",
+  "/assets/animations/sautilink-loader/animations/12345.json"
 ];
 
 async function cacheAppShell() {

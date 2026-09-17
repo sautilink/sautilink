@@ -1,0 +1,102 @@
+.sl-lottie-host {
+  position: relative;
+  overflow: visible;
+  background: transparent;
+}
+
+.sl-lottie-loader-surface {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.sl-lottie-loader-surface svg {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: visible !important;
+  background: transparent !important;
+}
+
+.sl-lottie-ready > .sl-lottie-loader-surface {
+  opacity: 1;
+}
+
+.loading-mark.sl-lottie-host,
+.profile-route-brand-spinner.sl-lottie-host {
+  --sl-loader-size: 64px;
+  display: inline-grid !important;
+  width: var(--sl-loader-size) !important;
+  height: var(--sl-loader-size) !important;
+  min-width: var(--sl-loader-size);
+  min-height: var(--sl-loader-size);
+  place-items: center;
+  box-sizing: border-box;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  animation: none !important;
+}
+
+.loading-mark.sl-lottie-pending::before,
+.profile-route-brand-spinner.sl-lottie-pending::before {
+  width: 30px;
+  height: 30px;
+  box-sizing: border-box;
+  border: 2px solid rgba(127, 141, 163, .35);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  content: "";
+  animation: sl-lottie-fallback-spin 800ms linear infinite;
+}
+
+.loading-mark.sl-lottie-ready::before,
+.profile-route-brand-spinner.sl-lottie-ready::before {
+  display: none;
+}
+
+.loading-view .loading-mark.sl-lottie-host,
+.stream-state .loading-mark.sl-lottie-host,
+#circle-route-state .loading-mark.sl-lottie-host,
+#profile-route-state .profile-route-brand-spinner.sl-lottie-host {
+  --sl-loader-size: clamp(60px, 12vw, 72px);
+}
+
+.profile-activity-loading .loading-mark.sl-lottie-host {
+  --sl-loader-size: 60px;
+}
+
+.sl-launch-logo-stage.sl-lottie-host > .sl-lottie-loader-surface {
+  inset: 2%;
+  width: 96%;
+  height: 96%;
+}
+
+@keyframes sl-lottie-fallback-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 520px) {
+  .loading-view .loading-mark.sl-lottie-host,
+  .stream-state .loading-mark.sl-lottie-host,
+  #circle-route-state .loading-mark.sl-lottie-host,
+  #profile-route-state .profile-route-brand-spinner.sl-lottie-host {
+    --sl-loader-size: 64px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-lottie-loader-surface { transition: none; }
+  .loading-mark.sl-lottie-pending::before,
+  .profile-route-brand-spinner.sl-lottie-pending::before {
+    animation: none;
+  }
+}
