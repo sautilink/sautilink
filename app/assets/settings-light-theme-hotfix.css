@@ -1,0 +1,44 @@
+/*
+ * Settings / feedback light-theme contrast hotfix.
+ *
+ * Scope this to the existing semantic status surfaces so no layout, routing,
+ * interaction or dark-theme behavior changes. The shared --app-good/--app-bad
+ * tokens also improve contrast in profile, Rooms and other reusable status UI.
+ */
+
+:root[data-theme="light"] {
+  --app-good: #166534;
+  --app-bad: #b4233b;
+}
+
+:root[data-theme="light"] .form-message {
+  border-color: rgba(180, 35, 59, 0.24);
+  background: #fff1f2;
+  color: #9f1239;
+}
+
+:root[data-theme="light"] .form-message.success {
+  border-color: rgba(22, 101, 52, 0.24);
+  background: #edf9f1;
+  color: #166534;
+}
+
+:root[data-theme="light"] .settings-message {
+  color: #9f1239;
+}
+
+:root[data-theme="light"] .settings-message.success {
+  color: #166534;
+}
+
+:root[data-theme="light"] .field-hint.good,
+:root[data-theme="light"] .profile-activity-status.success,
+:root[data-theme="light"] .room-admin-message[data-state="success"] {
+  color: var(--app-good);
+}
+
+:root[data-theme="light"] .field-hint.bad,
+:root[data-theme="light"] .profile-activity-status.error,
+:root[data-theme="light"] .room-admin-message[data-state="error"] {
+  color: var(--app-bad);
+}
