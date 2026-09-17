@@ -28,6 +28,18 @@ test('Short Videos carries profile identity and verification without inventing a
   assert.match(source, /View @\$\{username\} profile/);
 });
 
+test('Short Videos renders a fresh eager avatar image with a visible fallback', async () => {
+  const source = await read('src/short-videos-feed.js');
+
+  assert.match(source, /sourceImage\?\.currentSrc \|\| sourceImage\?\.src/);
+  assert.match(source, /image\.className = 'profile-avatar-photo'/);
+  assert.match(source, /image\.loading = 'eager'/);
+  assert.match(source, /fallback\.hidden = true/);
+  assert.match(source, /fallback\.hidden = false/);
+  assert.match(source, /image\.complete && image\.naturalWidth > 0/);
+  assert.doesNotMatch(source, /source\.childNodes/);
+});
+
 test('Short Videos opens from the Home video tile without stealing player control clicks', async () => {
   const source = await read('src/short-videos-feed.js');
 

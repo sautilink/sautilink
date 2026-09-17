@@ -28,7 +28,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
-const APP_JS_RELEASE = '20260917-feedcomments1';
+const APP_JS_RELEASE = '20260917-shortavatar1';
 const APP_JS_FEATURE_RELEASE = '20260915-verification1';
 const PWA_RELEASE = '20260916-loadingfix1';
 const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram2';
