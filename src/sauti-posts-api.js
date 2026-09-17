@@ -95,7 +95,7 @@ async function createSauti(request, env) {
 
   if (payload?.circle_id && !requestedCircle) return apiError(400, 'INVALID_CIRCLE', 'This Sautify is unavailable.');
   if (payload?.quote_post_id && !requestedQuote) return apiError(400, 'INVALID_QUOTE', 'The quoted post is unavailable.');
-  if (!requestedReplyAccess) return apiError(400, 'INVALID_REPLY_ACCESS', 'Choose who can reply to this post.');
+  if (!requestedReplyAccess) return apiError(400, 'INVALID_REPLY_ACCESS', 'Choose who can comment on this post.');
   if (!requestedVisibility) return apiError(400, 'INVALID_AUDIENCE', 'Choose a valid post audience.');
   if (requestedMedia.length > 4) return apiError(400, 'MEDIA_LIMIT', 'A post can include up to four media items.');
   if (!body && !requestedQuote && !requestedMedia.length) {
@@ -103,7 +103,7 @@ async function createSauti(request, env) {
   }
   if (body.length > 500) return apiError(400, 'BODY_TOO_LONG', 'Post text must be 500 characters or fewer.');
   if (requestedReplyAccess === 'mentioned' && !hasMentionToken(body)) {
-    return apiError(400, 'MENTION_REQUIRED', 'Mention at least one SautiLink username or change who can reply.');
+    return apiError(400, 'MENTION_REQUIRED', 'Mention at least one SautiLink username or change who can comment.');
   }
 
   const media = [];
@@ -273,7 +273,7 @@ async function editSauti(request, postId) {
       return apiError(400, 'BODY_REQUIRED', 'This post needs text because it has no attached media or quoted post.');
     }
     if (detail.includes('POST_EDIT_MENTION_REQUIRED')) {
-      return apiError(400, 'MENTION_REQUIRED', 'Keep at least one mentioned SautiLink username because replies are limited to mentioned people.');
+      return apiError(400, 'MENTION_REQUIRED', 'Keep at least one mentioned SautiLink username because comments are limited to mentioned people.');
     }
     if (detail.includes('POST_EDIT_AUTH_REQUIRED')) {
       return apiError(401, 'AUTH_REQUIRED', 'Sign in before editing a post.');

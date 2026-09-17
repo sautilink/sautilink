@@ -59,7 +59,7 @@ test('profile activity UI follows the X-style tabs, privacy controls and profess
   const source = await read('src/profile-activity.js');
   const css = await read('app/assets/profile-activity.css');
 
-  for (const label of ['Posts', 'Replies', 'Likes', 'Saves', 'Hashtags']) {
+  for (const label of ['Posts', 'Comments', 'Likes', 'Saves', 'Hashtags']) {
     assert.ok(source.includes(label), `missing profile activity tab: ${label}`);
   }
 
@@ -71,7 +71,7 @@ test('profile activity UI follows the X-style tabs, privacy controls and profess
   assert.match(source, /profile_activity_feed_phase33/);
   assert.match(source, /profile_hashtags_phase33/);
   assert.match(source, /set_profile_pin_phase33/);
-  assert.match(source, /You can pin up to 3 posts or replies/);
+  assert.match(source, /You can pin up to 3 posts or comments/);
   assert.match(source, /You haven’t posted yet\./);
   assert.match(source, /When this account posts, you’ll see it here\./);
   assert.match(source, /Create your first post/);

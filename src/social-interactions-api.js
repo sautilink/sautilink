@@ -175,6 +175,54 @@ async function setLike(request, env, postId, active) {
   return json(200, { ok: true, data: { post_id: postId, liked: active } });
 }
 
+async function setCommentReaction(request, env, commentId) {
+  const gate = await requireSessionAndLimit(
+    request,
+    env.SOCIAL_LIKE_LIMITER,
+    'You are reacting to comments too quickly. Try again shortly.',
+  );
+  if (gate.response) return gate.response;
+
+  const payload = await request.json().catch(() => null);
+  const reaction = payload?.reaction == null ? null : String(payload.reaction).toLowerCase();
+  if (reaction !== null && reaction !== 'like' && reaction !== 'dislike') {
+    return apiError(400, 'INVALID_COMMENT_REACTION', 'Choose Like, Dislike, or remove your reaction.');
+  }
+
+  const response = await rest('rpc/set_comment_reaction', {
+    method: 'POST',
+    auth: gate.session.auth,
+    body: {
+      p_comment_id: commentId,
+      p_reaction_type: reaction,
+    },
+  });
+  if (!response.ok) {
+    const databaseError = await response.json().catch(() => null);
+    const detail = String(databaseError?.message || databaseError?.details || '');
+    if (detail.includes('COMMENT_UNAVAILABLE')) {
+      return apiError(404, 'COMMENT_UNAVAILABLE', 'This comment is unavailable.');
+    }
+    return apiError(409, 'COMMENT_REACTION_FAILED', 'Your comment reaction could not be saved.');
+  }
+
+  const rows = await response.json().catch(() => []);
+  const result = Array.isArray(rows) ? rows[0] || null : rows;
+  if (!result?.comment_id) {
+    return apiError(409, 'COMMENT_REACTION_FAILED', 'Your comment reaction could not be saved.');
+  }
+
+  return json(200, {
+    ok: true,
+    data: {
+      comment_id: result.comment_id,
+      reaction: result.reaction_type || null,
+      like_count: Number(result.like_count) || 0,
+      dislike_count: Number(result.dislike_count) || 0,
+    },
+  });
+}
+
 async function checkReplyPermission(session, postId) {
   const postParams = new URLSearchParams({
     id: `eq.${postId}`,
@@ -183,7 +231,7 @@ async function checkReplyPermission(session, postId) {
   });
   const postResponse = await rest(`social_posts?${postParams}`, { auth: session.auth });
   if (!postResponse.ok) {
-    return { response: apiError(409, 'REPLY_CHECK_FAILED', 'Reply permissions could not be checked.') };
+    return { response: apiError(409, 'COMMENT_CHECK_FAILED', 'Comment permissions could not be checked.') };
   }
 
   const postRows = await postResponse.json().catch(() => []);
@@ -202,7 +250,7 @@ async function checkReplyPermission(session, postId) {
     const followResponse = await rest(`social_follows?${followParams}`, { auth: session.auth });
     const rows = followResponse.ok ? await followResponse.json().catch(() => []) : [];
     if (Array.isArray(rows) && rows[0]) return { allowed: true };
-    return { response: apiError(403, 'REPLIES_RESTRICTED', 'Only people this author follows can reply to this post.') };
+    return { response: apiError(403, 'COMMENTS_RESTRICTED', 'Only people this author follows can comment on this post.') };
   }
 
   if (post.reply_access === 'mentioned') {
@@ -219,17 +267,17 @@ async function checkReplyPermission(session, postId) {
         .map((match) => String(match[2] || '').toLowerCase());
       if (mentions.includes(handle)) return { allowed: true };
     }
-    return { response: apiError(403, 'REPLIES_RESTRICTED', 'Only people mentioned in this post can reply.') };
+    return { response: apiError(403, 'COMMENTS_RESTRICTED', 'Only people mentioned in this post can comment.') };
   }
 
-  return { response: apiError(403, 'REPLIES_RESTRICTED', 'Replies are restricted on this post.') };
+  return { response: apiError(403, 'COMMENTS_RESTRICTED', 'Comments are restricted on this post.') };
 }
 
 async function findReplyByRequest(session, requestId) {
   const params = new URLSearchParams({
     author_id: `eq.${session.user.id}`,
     client_request_id: `eq.${requestId}`,
-    select: 'id,author_id,parent_post_id,root_post_id,thread_depth,audience_owner_id,visibility,circle_id,reply_access,quote_post_id,body,created_at,comment_count,like_count,repost_count',
+    select: 'id,author_id,parent_post_id,root_post_id,thread_depth,audience_owner_id,visibility,circle_id,reply_access,quote_post_id,body,created_at,comment_count,like_count,dislike_count,repost_count',
     limit: '1',
   });
   const response = await rest(`social_posts?${params}`, { auth: session.auth });
@@ -242,28 +290,28 @@ async function createReply(request, env, postId) {
   const gate = await requireSessionAndLimit(
     request,
     env.SOCIAL_COMMENT_LIMITER,
-    'You are replying too quickly. Try again shortly.',
+    'You are commenting too quickly. Try again shortly.',
   );
   if (gate.response) return gate.response;
 
   const contentLength = Number(request.headers.get('Content-Length') || '0');
-  if (contentLength > 4096) return apiError(413, 'BODY_TOO_LARGE', 'Replies must be 500 characters or fewer.');
+  if (contentLength > 4096) return apiError(413, 'BODY_TOO_LARGE', 'Comments must be 500 characters or fewer.');
 
   const payload = await request.json().catch(() => null);
   const body = String(payload?.body || '').trim();
   const requestId = uuid(payload?.client_request_id) || crypto.randomUUID();
 
-  if (!body) return apiError(400, 'BODY_REQUIRED', 'Write a reply first.');
-  if (body.length > 500) return apiError(400, 'BODY_TOO_LONG', 'Replies must be 500 characters or fewer.');
+  if (!body) return apiError(400, 'BODY_REQUIRED', 'Write a comment first.');
+  if (body.length > 500) return apiError(400, 'BODY_TOO_LONG', 'Comments must be 500 characters or fewer.');
 
   const permission = await checkReplyPermission(gate.session, postId);
   if (permission.response) return permission.response;
 
   const existing = await findReplyByRequest(gate.session, requestId);
-  if (existing) return json(200, { ok: true, data: { reply: existing, idempotent: true } });
+  if (existing) return json(200, { ok: true, data: { comment: existing, idempotent: true } });
 
   const response = await rest(
-    'social_posts?select=id,author_id,parent_post_id,root_post_id,thread_depth,audience_owner_id,visibility,circle_id,reply_access,quote_post_id,body,created_at,comment_count,like_count,repost_count',
+    'social_posts?select=id,author_id,parent_post_id,root_post_id,thread_depth,audience_owner_id,visibility,circle_id,reply_access,quote_post_id,body,created_at,comment_count,like_count,dislike_count,repost_count',
     {
       method: 'POST',
       auth: gate.session.auth,
@@ -285,32 +333,32 @@ async function createReply(request, env, postId) {
 
     if (code === '23505') {
       const duplicate = await findReplyByRequest(gate.session, requestId);
-      if (duplicate) return json(200, { ok: true, data: { reply: duplicate, idempotent: true } });
+      if (duplicate) return json(200, { ok: true, data: { comment: duplicate, idempotent: true } });
     }
     if (code === '42501' || detail.includes('PHASE26_REPLIES_RESTRICTED')) {
-      return apiError(403, 'REPLIES_RESTRICTED', 'You do not have permission to reply to this post.');
+      return apiError(403, 'COMMENTS_RESTRICTED', 'You do not have permission to comment on this post.');
     }
     if (detail.includes('PHASE26_PARENT_UNAVAILABLE')) {
       return apiError(404, 'POST_UNAVAILABLE', 'This post is unavailable.');
     }
     if (detail.includes('PHASE26_THREAD_DEPTH_LIMIT')) {
-      return apiError(409, 'THREAD_DEPTH_LIMIT', 'This reply branch is too deep. Open the conversation and reply higher in the thread.');
+      return apiError(409, 'THREAD_DEPTH_LIMIT', 'This comment branch is too deep. Comment higher in the thread.');
     }
-    return apiError(409, 'REPLY_FAILED', 'This reply could not be shared.');
+    return apiError(409, 'COMMENT_FAILED', 'This comment could not be shared.');
   }
 
   const rows = await response.json().catch(() => []);
   const reply = Array.isArray(rows) ? rows[0] || null : null;
-  if (!reply) return apiError(409, 'REPLY_FAILED', 'This reply could not be shared.');
+  if (!reply) return apiError(409, 'COMMENT_FAILED', 'This comment could not be shared.');
 
-  return json(201, { ok: true, data: { reply, idempotent: false } });
+  return json(201, { ok: true, data: { comment: reply, idempotent: false } });
 }
 
 async function deleteReply(request, env, replyId) {
   const gate = await requireSessionAndLimit(
     request,
     env.SOCIAL_COMMENT_DELETE_LIMITER,
-    'You are deleting replies too quickly. Try again shortly.',
+    'You are deleting comments too quickly. Try again shortly.',
   );
   if (gate.response) return gate.response;
 
@@ -325,13 +373,13 @@ async function deleteReply(request, env, replyId) {
     auth: gate.session.auth,
     prefer: 'return=representation',
   });
-  if (!response.ok) return apiError(409, 'REPLY_DELETE_FAILED', 'This reply could not be deleted.');
+  if (!response.ok) return apiError(409, 'COMMENT_DELETE_FAILED', 'This comment could not be deleted.');
 
   const rows = await response.json().catch(() => []);
   const reply = Array.isArray(rows) ? rows[0] || null : null;
-  if (!reply?.id) return apiError(404, 'REPLY_NOT_FOUND', 'This reply is unavailable.');
+  if (!reply?.id) return apiError(404, 'COMMENT_NOT_FOUND', 'This comment is unavailable.');
 
-  return json(200, { ok: true, data: { reply } });
+  return json(200, { ok: true, data: { comment: reply } });
 }
 
 async function setRepost(request, env, postId, active) {
@@ -389,6 +437,13 @@ export async function handleSocialInteractionRequest(request, env) {
     return setLike(request, env, postId, request.method === 'POST');
   }
 
+  const commentReactionMatch = path.match(/^\/api\/social\/comments\/([^/]+)\/reaction$/);
+  if (commentReactionMatch && request.method === 'POST') {
+    const commentId = uuid(commentReactionMatch[1]);
+    if (!commentId) return apiError(400, 'INVALID_COMMENT', 'This comment is unavailable.');
+    return setCommentReaction(request, env, commentId);
+  }
+
   const replyMatch = path.match(/^\/api\/social\/posts\/([^/]+)\/(?:replies|comments)$/);
   if (replyMatch && request.method === 'POST') {
     const postId = uuid(replyMatch[1]);
@@ -399,7 +454,7 @@ export async function handleSocialInteractionRequest(request, env) {
   const replyDeleteMatch = path.match(/^\/api\/social\/(?:replies|comments)\/([^/]+)$/);
   if (replyDeleteMatch && request.method === 'DELETE') {
     const replyId = uuid(replyDeleteMatch[1]);
-    if (!replyId) return apiError(400, 'INVALID_REPLY', 'This reply is unavailable.');
+    if (!replyId) return apiError(400, 'INVALID_COMMENT', 'This comment is unavailable.');
     return deleteReply(request, env, replyId);
   }
 

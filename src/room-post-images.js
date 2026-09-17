@@ -328,7 +328,7 @@ async function publishRoomPostWithImages(event) {
   if (!navigator.onLine) return roomPostMessage('Connect to the internet before posting images.');
   if (textarea.disabled) return roomPostMessage('You do not have permission to publish in this Room.');
   if (textarea.value.length > 500) return roomPostMessage('Post text must be 500 characters or fewer.');
-  if (!roomPostMentionReady()) return roomPostMessage('Mention at least one @username or change who can reply.');
+  if (!roomPostMentionReady()) return roomPostMessage('Mention at least one @username or change who can comment.');
   if (!roomPostImages.every((item) => item.status === 'ready' && item.id)) {
     return roomPostMessage('Wait for all images to finish uploading before posting.');
   }

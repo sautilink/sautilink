@@ -9,12 +9,12 @@
   <title>SautiLink App — Your voice, connected</title>
   <meta name="description" content="Sign in or create your SautiLink account.">
   <meta name="theme-color" content="#0b0c0f">
-  <meta name="sautilink-release-generation" content="31">
+  <meta name="sautilink-release-generation" content="32">
   <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512">
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <script src="/app/assets/theme-init.js?v=20260904-account2"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260916-captionlayout2">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260917-comments1">
   <script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>
 </head>
 <body>
@@ -271,7 +271,7 @@
             <div class="composer-content">
               <span class="avatar large" id="member-avatar" aria-hidden="true">S</span>
               <div class="composer-body">
-              <div class="composer-settings" aria-label="Post audience and reply controls">
+              <div class="composer-settings" aria-label="Post audience and comment controls">
                 <label class="composer-select">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"></path></svg>
                   <span>Audience</span>
@@ -282,8 +282,8 @@
                 </label>
                 <label class="composer-select">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-6.5A8 8 0 1 1 21 12Z"></path></svg>
-                  <span>Replies</span>
-                  <select id="sauti-reply-access" aria-label="Who can reply">
+                  <span>Comments</span>
+                  <select id="sauti-reply-access" aria-label="Who can comment">
                     <option value="everyone">Everyone</option>
                     <option value="following">People you follow</option>
                     <option value="mentioned">Only people mentioned</option>
@@ -316,7 +316,7 @@
               </section>
 
               <div class="composer-meta">
-                <span class="composer-audience" id="composer-audience-note">Public post · Everyone can reply</span>
+                <span class="composer-audience" id="composer-audience-note">Public post · Everyone can comment</span>
                 <span id="sauti-count" aria-live="polite">0 / 500</span>
               </div>
 
@@ -394,11 +394,11 @@
             <div>
               <p class="section-label">Focused conversation</p>
               <h2>Conversation</h2>
-              <p>Replies are posts too. Open a branch, reply directly, or return to your Home feed.</p>
+              <p>Read comments, join the conversation, or return to your Home feed.</p>
             </div>
             <label class="conversation-sort">
               <span>Order</span>
-              <select id="conversation-sort" aria-label="Conversation reply order">
+              <select id="conversation-sort" aria-label="Comment order">
                 <option value="relevant">Relevant</option>
                 <option value="newest">Newest</option>
               </select>
@@ -420,37 +420,37 @@
           <form class="conversation-reply-form" id="conversation-reply-form" novalidate>
             <div class="conversation-reply-context">
               <div>
-                <span>Replying to</span>
-                <strong id="conversation-reply-target">@member</strong>
+                <span>Commenting on</span>
+                <strong id="conversation-reply-target">SautiLink member</strong>
               </div>
-              <button class="text-action" id="conversation-reply-root" type="button" hidden>Reply to root</button>
+              <button class="text-action" id="conversation-reply-root" type="button" hidden>Comment on original post</button>
             </div>
-            <label class="sr-only" for="conversation-reply-body">Reply text</label>
-            <textarea id="conversation-reply-body" name="body" rows="3" maxlength="500" placeholder="Write a reply…"></textarea>
+            <label class="sr-only" for="conversation-reply-body">Comment text</label>
+            <textarea id="conversation-reply-body" name="body" rows="3" maxlength="500" placeholder="Write a comment…"></textarea>
             <div class="conversation-reply-meta">
-              <span id="conversation-reply-note">Your reply follows this conversation's audience and privacy.</span>
+              <span id="conversation-reply-note">Your comment follows this post's audience and privacy.</span>
               <span><b id="conversation-reply-count">0</b> / 500</span>
             </div>
             <div class="conversation-reply-actions">
-              <span>Text reply</span>
-              <button id="conversation-reply-submit" type="submit" disabled>Reply</button>
+              <span>Text comment</span>
+              <button id="conversation-reply-submit" type="submit" disabled>Comment</button>
             </div>
             <div class="form-message composer-message" id="conversation-reply-message" role="alert" hidden></div>
           </form>
 
           <div class="conversation-thread-heading">
             <div>
-              <p class="section-label">Replies</p>
-              <h3 id="conversation-reply-heading">Conversation replies</h3>
+              <p class="section-label">Comments</p>
+              <h3 id="conversation-reply-heading">Comments</h3>
             </div>
-            <span id="conversation-reply-total">0 replies</span>
+            <span id="conversation-reply-total">0 comments</span>
           </div>
 
           <section class="conversation-thread" id="conversation-thread" aria-live="polite"></section>
           <section class="stream-empty conversation-empty" id="conversation-empty" hidden>
             <span></span><span></span><span></span>
-            <h2>No replies yet.</h2>
-            <p>Start the conversation with a thoughtful reply.</p>
+            <h2>No comments yet.</h2>
+            <p>Start the conversation with a thoughtful comment.</p>
           </section>
         </section>
 
@@ -533,7 +533,7 @@
             <div>
               <p class="section-label">Your review rights</p>
               <h2>Appeals</h2>
-              <p>See moderation decisions that affect your posts or replies and request another review when an action is appealable.</p>
+              <p>See moderation decisions that affect your posts or comments and request another review when an action is appealable.</p>
             </div>
           </header>
           <section class="stream-state" id="appeals-loading" role="status" hidden>
@@ -762,8 +762,8 @@
                   <span>Visible to Sautify members</span>
                   <label>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-6.5A8 8 0 1 1 21 12Z"></path></svg>
-                    <span>Replies</span>
-                    <select id="circle-sauti-reply-access" aria-label="Who can reply in this Sautify">
+                    <span>Comments</span>
+                    <select id="circle-sauti-reply-access" aria-label="Who can comment in this Sautify">
                       <option value="everyone">Everyone</option>
                       <option value="following">People you follow</option>
                       <option value="mentioned">Only people mentioned</option>
@@ -773,7 +773,7 @@
                 <label class="sr-only" for="circle-sauti-body">Sautify Post text</label>
                 <textarea id="circle-sauti-body" name="body" rows="3" maxlength="500" placeholder="Write a post for this Sautify…"></textarea>
                 <div class="circle-sauti-meta">
-                  <span id="circle-sauti-reply-note">Everyone in this Sautify can reply</span>
+                  <span id="circle-sauti-reply-note">Everyone in this Sautify can comment</span>
                   <span><b id="circle-sauti-count">0</b> / 500</span>
                 </div>
                 <div class="circle-sauti-actions">
@@ -987,7 +987,7 @@
           <section class="settings-panel" data-settings-panel="notifications" hidden>
             <div class="settings-panel-heading"><p class="section-label">Only useful signals</p><h3>Notifications</h3><p>Choose which activity appears in your in-app attention surfaces.</p></div>
             <article class="settings-card settings-toggle-list">
-              <label class="settings-toggle-row"><span><strong>Post activity</strong><small>Replies, Likes and Reposts involving your posts.</small></span><input id="settings-notify-post" type="checkbox"><i aria-hidden="true"><b></b></i></label>
+              <label class="settings-toggle-row"><span><strong>Post activity</strong><small>Comments, Likes and Reposts involving your posts.</small></span><input id="settings-notify-post" type="checkbox"><i aria-hidden="true"><b></b></i></label>
               <label class="settings-toggle-row"><span><strong>Messages</strong><small>Show unread message badges.</small></span><input id="settings-notify-messages" type="checkbox"><i aria-hidden="true"><b></b></i></label>
               <label class="settings-toggle-row"><span><strong>New followers</strong><small>When another member follows you.</small></span><input id="settings-notify-followers" type="checkbox"><i aria-hidden="true"><b></b></i></label>
               <label class="settings-toggle-row"><span><strong>Sautify activity</strong><small>Membership and community updates from Sautify.</small></span><input id="settings-notify-sautify" type="checkbox"><i aria-hidden="true"><b></b></i></label>
@@ -1405,6 +1405,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="/app/assets/app.js?v=20260916-captionlayout2"></script>
+  <script type="module" src="/app/assets/app.js?v=20260917-comments1"></script>
 </body>
 </html>

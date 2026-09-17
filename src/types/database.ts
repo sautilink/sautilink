@@ -1066,19 +1066,19 @@ export type Database = {
         Row: {
           created_at: string
           post_id: string
-          reaction_type: string
+          reaction_type: 'like' | 'dislike'
           user_id: string
         }
         Insert: {
           created_at?: string
           post_id: string
-          reaction_type?: string
+          reaction_type?: 'like' | 'dislike'
           user_id: string
         }
         Update: {
           created_at?: string
           post_id?: string
-          reaction_type?: string
+          reaction_type?: 'like' | 'dislike'
           user_id?: string
         }
         Relationships: [
@@ -1108,6 +1108,7 @@ export type Database = {
           comment_count: number
           created_at: string
           deleted_at: string | null
+          dislike_count: number
           id: string
           like_count: number
           media_count: number
@@ -1133,6 +1134,7 @@ export type Database = {
           comment_count?: number
           created_at?: string
           deleted_at?: string | null
+          dislike_count?: number
           id?: string
           like_count?: number
           media_count?: number
@@ -1158,6 +1160,7 @@ export type Database = {
           comment_count?: number
           created_at?: string
           deleted_at?: string | null
+          dislike_count?: number
           id?: string
           like_count?: number
           media_count?: number

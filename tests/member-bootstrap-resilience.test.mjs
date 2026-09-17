@@ -63,6 +63,6 @@ test('normal and production builders apply member bootstrap resilience and produ
   ]);
   assert.match(normal, /transformMemberBootstrapResilienceSource/);
   assert.match(production, /transformMemberBootstrapResilienceSource/);
-  assert.match(production, /20260916-captionlayout2/);
-  assert.match(verifier, /app\.js\?v=20260916-captionlayout2/);
+  assert.match(production, /20260917-comments1/);
+  assert.match(verifier, /app\.js\?v=20260917-comments1/);
 });
