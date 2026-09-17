@@ -80,3 +80,30 @@ jobs:
 
       - name: Dry-run production worker deployment
         run: npx wrangler deploy --config wrangler.production.jsonc --dry-run
+
+      - name: Smoke-test live Lottie release
+        shell: bash
+        run: |
+          set -euo pipefail
+          release="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          app="$(mktemp)"
+          loader="$(mktemp)"
+          css="$(mktemp)"
+          runtime="$(mktemp)"
+          animation="$(mktemp)"
+          health="$(mktemp)"
+
+          curl -fsS -H 'Cache-Control: no-cache' "https://sautilink.com/app/?lottie_release=$release" -o "$app"
+          curl -fsS -H 'Cache-Control: no-cache' "https://sautilink.com/assets/lottie-loader.js?v=20260917-lottie1&release=$release" -o "$loader"
+          curl -fsS -H 'Cache-Control: no-cache' "https://sautilink.com/assets/lottie-loader.css?v=20260917-lottie1&release=$release" -o "$css"
+          curl -fsS -H 'Cache-Control: no-cache' "https://sautilink.com/assets/vendor/lottie-web/lottie_light.min.js?release=$release" -o "$runtime"
+          curl -fsS -H 'Cache-Control: no-cache' "https://sautilink.com/assets/animations/sautilink-loader/animations/12345.json?release=$release" -o "$animation"
+          curl -fsS -H 'Cache-Control: no-cache' "https://sautilink.com/api/health?release=$release" -o "$health"
+
+          grep -Fq '<script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>' "$app"
+          grep -Fq 'SautiLinkLottieLoader' "$loader"
+          grep -Fq '.sautilink-lottie-loader' "$css"
+          test -s "$runtime"
+          grep -Fq '"layers"' "$animation"
+          grep -Fq '"status":"ok"' "$health"
+          grep -Fq '"environment":"production"' "$health"
