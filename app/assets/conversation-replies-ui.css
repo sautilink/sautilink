@@ -1,7 +1,6 @@
-/* SautiLink conversation replies visual refresh.
-   Scoped to thread replies only: root posts, wording, features and behavior stay unchanged. */
+/* SautiLink Comments UI.
+   Scoped to the conversation thread only; Home post actions and the root post remain unchanged. */
 
-/* Keep the stream header as the single visible Conversation title. */
 #conversation-surface .conversation-toolbar .section-label,
 #conversation-surface .conversation-toolbar h2 {
   display: none;
@@ -16,14 +15,14 @@
   margin: 0;
   overflow: visible;
   border: 0;
-  border-bottom: 1px solid var(--app-line);
+  border-bottom: 1px solid color-mix(in srgb, var(--app-line) 72%, transparent);
   border-radius: 0;
   background: var(--app-panel);
   box-shadow: none;
 }
 
 #conversation-thread .thread-sauti:hover {
-  background: color-mix(in srgb, var(--app-panel-soft) 46%, var(--app-panel));
+  background: color-mix(in srgb, var(--app-panel-soft) 30%, var(--app-panel));
 }
 
 #conversation-thread .thread-sauti::before {
@@ -41,45 +40,34 @@
 
 #conversation-thread .thread-sauti .sauti-card-head {
   min-height: 0;
-  flex-wrap: nowrap;
   align-items: flex-start;
-  gap: 7px;
-  padding: 10px 14px 0;
+  gap: 8px;
+  padding: 12px 12px 0;
 }
 
 #conversation-thread .thread-sauti .sauti-card-avatar {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
   border-color: color-mix(in srgb, var(--app-line-strong) 70%, transparent);
 }
 
 #conversation-thread .thread-sauti .sauti-card-identity {
-  display: flex;
+  display: inline-flex;
   min-width: 0;
   flex: 0 1 auto;
-  align-items: baseline;
-  gap: 4px;
+  align-items: center;
+  gap: 3px;
   padding-top: 1px;
 }
 
 #conversation-thread .thread-sauti .sauti-card-head .verified-name,
 #conversation-thread .thread-sauti .sauti-card-head strong {
-  max-width: 190px;
+  max-width: 220px;
   color: var(--app-text);
   font-size: 13px;
-  font-weight: 780;
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-#conversation-thread .thread-sauti .sauti-card-head a {
-  max-width: 170px;
-  color: var(--app-muted);
-  font-size: 12px;
-  line-height: 1.25;
+  font-weight: 760;
+  line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: hidden;
@@ -88,67 +76,71 @@
 #conversation-thread .thread-sauti .sauti-card-head time {
   width: auto;
   flex: 0 0 auto;
-  margin: 2px 0 0;
+  margin-top: 2px;
   color: var(--app-muted);
-  font-size: 11px;
-  line-height: 1.25;
+  font-size: 10.5px;
+  line-height: 1.3;
 }
 
 #conversation-thread .thread-sauti .sauti-card-body {
   margin: 0;
-  padding: 2px 14px 5px 57px;
+  padding: 3px 46px 5px 58px;
   color: var(--app-text);
-  font-size: 14px;
-  line-height: 1.4;
+  font-size: 13.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-#conversation-thread .thread-sauti .sauti-repost-note {
-  margin: 4px 14px 0 57px;
-  color: var(--app-muted);
-}
-
+#conversation-thread .thread-sauti .sauti-repost-note,
 #conversation-thread .thread-sauti .sauti-media-gallery,
 #conversation-thread .thread-sauti .sauti-media-carousel,
-#conversation-thread .thread-sauti .sauti-video-player {
-  width: calc(100% - 71px);
-  margin-right: 14px;
-  margin-left: 57px;
-  overflow: hidden;
-  border-radius: 14px;
+#conversation-thread .thread-sauti .sauti-video-player,
+#conversation-thread .thread-sauti .sauti-quote-card {
+  display: none !important;
 }
 
 #conversation-thread .thread-sauti .sauti-card-footer {
-  min-height: 36px;
+  min-height: 32px;
   margin: 0;
-  padding: 0 10px 6px 50px;
+  padding: 0 12px 9px 51px;
   color: var(--app-muted);
 }
 
 #conversation-thread .thread-sauti .sauti-actions {
-  width: 100%;
-  max-width: 460px;
+  width: auto;
+  max-width: 260px;
   flex-wrap: nowrap;
   justify-content: flex-start;
-  gap: 12px;
+  gap: 4px;
 }
 
 #conversation-thread .thread-sauti .sauti-action {
-  min-width: 30px;
+  width: auto;
+  min-width: 34px;
   min-height: 30px;
   gap: 4px;
   justify-content: center;
-  padding: 0 4px;
+  padding: 0 7px;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--app-muted);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
 }
 
 #conversation-thread .thread-sauti .sauti-action:hover {
   border: 0;
-  background: color-mix(in srgb, var(--app-accent) 10%, transparent);
+  background: color-mix(in srgb, var(--app-text) 7%, transparent);
+  color: var(--app-text);
+}
+
+#conversation-thread .thread-sauti .sauti-action.active {
+  color: var(--app-accent);
+}
+
+#conversation-thread .thread-sauti .comment-dislike-action.active {
   color: var(--app-text);
 }
 
@@ -157,21 +149,100 @@
   height: 18px;
   flex: 0 0 18px;
   stroke-width: 1.75;
+  fill: none;
 }
 
 #conversation-thread .thread-sauti .sauti-action-count {
   min-width: 0;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 560;
 }
 
-#conversation-thread .thread-sauti .sauti-action[data-sauti-action="save"] {
+#conversation-thread .thread-sauti .comment-reply-action {
+  padding-right: 8px;
+  padding-left: 8px;
+}
+
+#conversation-thread [data-sauti-metric="views"] {
+  display: none !important;
+}
+
+.comment-more-shell {
+  position: relative;
+  flex: 0 0 auto;
   margin-left: auto;
 }
 
-/* Replies never surface the post-view metric. The root/original post is outside this scope. */
-#conversation-thread [data-sauti-metric="views"] {
+.comment-more-toggle {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--app-muted);
+}
+
+.comment-more-toggle:hover,
+.comment-more-toggle[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--app-text) 7%, transparent);
+  color: var(--app-text);
+}
+
+.comment-more-toggle svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.8;
+}
+
+.comment-more-menu {
+  position: absolute;
+  z-index: 35;
+  top: 34px;
+  right: 0;
+  width: min(180px, 72vw);
+  overflow: hidden;
+  padding: 5px;
+  border: 1px solid var(--app-line);
+  border-radius: 12px;
+  background: var(--app-panel);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .16);
+}
+
+.comment-more-menu[hidden] {
   display: none !important;
+}
+
+#conversation-thread .comment-more-menu .comment-menu-item {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--app-text);
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+}
+
+#conversation-thread .comment-more-menu .comment-menu-item:hover,
+#conversation-thread .comment-more-menu .comment-menu-item:focus-visible {
+  background: var(--app-panel-soft);
+  outline: none;
+}
+
+#conversation-thread .comment-more-menu .comment-menu-item.danger {
+  color: var(--app-danger, #c62828);
+}
+
+#conversation-thread .comment-more-menu .comment-menu-item .sauti-action-label {
+  display: inline;
 }
 
 .conversation-thread-heading {
@@ -181,7 +252,6 @@
   background: var(--app-panel);
 }
 
-/* Keep the single existing "Replies" label and suppress the duplicate heading. */
 #conversation-reply-heading {
   display: none;
 }
@@ -200,7 +270,7 @@
 
 #conversation-thread .thread-continue,
 .thread-continue {
-  margin: 8px 14px 10px 57px;
+  margin: 7px 14px 9px 58px;
   padding: 6px 8px;
   border: 0;
   border-radius: 999px;
@@ -280,12 +350,12 @@
 
 @media (max-width: 680px) {
   #conversation-thread .thread-sauti {
-    margin-left: calc(min(var(--thread-depth, 0), 4) * 4px);
+    margin-left: calc(min(var(--thread-depth, 0), 4) * 5px);
   }
 
   #conversation-thread .thread-sauti .sauti-card-head {
     gap: 7px;
-    padding: 9px 11px 0;
+    padding: 10px 10px 0;
   }
 
   #conversation-thread .thread-sauti .sauti-card-avatar {
@@ -296,13 +366,8 @@
 
   #conversation-thread .thread-sauti .sauti-card-head .verified-name,
   #conversation-thread .thread-sauti .sauti-card-head strong {
-    max-width: 140px;
-    font-size: 12px;
-  }
-
-  #conversation-thread .thread-sauti .sauti-card-head a {
-    max-width: 112px;
-    font-size: 11px;
+    max-width: 175px;
+    font-size: 12.5px;
   }
 
   #conversation-thread .thread-sauti .sauti-card-head time {
@@ -310,54 +375,40 @@
   }
 
   #conversation-thread .thread-sauti .sauti-card-body {
-    padding: 2px 11px 4px 52px;
-    font-size: 13.5px;
-    line-height: 1.38;
-  }
-
-  #conversation-thread .thread-sauti .sauti-repost-note {
-    margin-right: 11px;
-    margin-left: 52px;
-  }
-
-  #conversation-thread .thread-sauti .sauti-media-gallery,
-  #conversation-thread .thread-sauti .sauti-media-carousel,
-  #conversation-thread .thread-sauti .sauti-video-player {
-    width: calc(100% - 63px);
-    margin-right: 11px;
-    margin-left: 52px;
-    border-radius: 12px;
+    padding: 3px 42px 4px 51px;
+    font-size: 13px;
+    line-height: 1.42;
   }
 
   #conversation-thread .thread-sauti .sauti-card-footer {
-    min-height: 34px;
-    padding: 0 6px 6px 46px;
+    min-height: 32px;
+    padding: 0 8px 8px 44px;
   }
 
   #conversation-thread .thread-sauti .sauti-actions {
-    max-width: none;
-    justify-content: space-between;
-    gap: 0;
+    max-width: 230px;
+    gap: 2px;
   }
 
   #conversation-thread .thread-sauti .sauti-action {
-    min-width: 31px;
+    min-width: 32px;
     min-height: 30px;
-    padding: 0 3px;
-  }
-
-  #conversation-thread .thread-sauti .sauti-action[data-sauti-action="save"] {
-    margin-left: 0;
+    padding: 0 6px;
   }
 
   #conversation-thread .thread-sauti .sauti-action svg {
-    width: 17px;
-    height: 17px;
-    flex-basis: 17px;
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
   }
 
   #conversation-thread .thread-sauti .sauti-action-count {
     font-size: 10px;
+  }
+
+  .comment-more-toggle {
+    width: 28px;
+    height: 28px;
   }
 
   .conversation-thread-heading {
@@ -365,7 +416,7 @@
   }
 
   .thread-continue {
-    margin: 7px 11px 9px 52px;
+    margin: 7px 11px 9px 51px;
   }
 
   .conversation-reply-form {
