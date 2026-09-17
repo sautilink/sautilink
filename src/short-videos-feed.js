@@ -276,6 +276,7 @@ function installShortVideosFeed() {
   let loadingMore = false;
   let endSlide = null;
   let pausedHomeVideos = [];
+  let pendingTabTrigger = null;
 
   function videoSlides() {
     return [...track.querySelectorAll('.sauti-short-video-slide')];
@@ -306,7 +307,18 @@ function installShortVideosFeed() {
 
   function addAvailableSlides() {
     removeEndSlide();
-    document.querySelectorAll(HOME_VIDEO_TILE_SELECTOR).forEach((tile) => {
+    const availableTiles = [...document.querySelectorAll(HOME_VIDEO_TILE_SELECTOR)];
+    const availableKeys = new Set(availableTiles.map((tile) => {
+      const card = tile.closest('.sauti-card');
+      return `${card?.dataset.postId || ''}:${tile.dataset.openMediaId || tile.dataset.mediaObjectUrl || 'video'}`;
+    }));
+    slides.forEach((slide, key) => {
+      if (availableKeys.has(key)) return;
+      observer?.unobserve(slide);
+      slide.remove();
+      slides.delete(key);
+    });
+    availableTiles.forEach((tile) => {
       const card = tile.closest('.sauti-card');
       if (!card) return;
       const key = `${card.dataset.postId || ''}:${tile.dataset.openMediaId || tile.dataset.mediaObjectUrl || 'video'}`;
@@ -396,14 +408,14 @@ function installShortVideosFeed() {
     previous?.video.play().catch(() => {});
   }
 
-  function openShortVideos(tile) {
+  function openShortVideos(tile, { restoreTarget = tile } = {}) {
     addAvailableSlides();
     const card = tile.closest('.sauti-card');
     const key = `${card?.dataset.postId || ''}:${tile.dataset.openMediaId || tile.dataset.mediaObjectUrl || 'video'}`;
     const slide = slides.get(key);
     if (!slide) return;
 
-    restoreFocus = tile;
+    restoreFocus = restoreTarget;
     pauseHomePlayback();
     root.hidden = false;
     document.documentElement.classList.add('sauti-short-videos-open');
@@ -413,6 +425,21 @@ function installShortVideosFeed() {
       activateSlide(slide);
       track.focus({ preventScroll: true });
     });
+  }
+
+  function openFirstShortVideo(trigger = null) {
+    if (trigger?.getAttribute?.('aria-selected') === 'false') {
+      pendingTabTrigger = null;
+      return;
+    }
+    addAvailableSlides();
+    const tile = document.querySelector(HOME_VIDEO_TILE_SELECTOR);
+    if (!tile) {
+      pendingTabTrigger = trigger;
+      return;
+    }
+    pendingTabTrigger = null;
+    openShortVideos(tile, { restoreTarget: trigger || tile });
   }
 
   function closeShortVideos({ restore = true } = {}) {
@@ -441,6 +468,7 @@ function installShortVideosFeed() {
       loadTimer = window.setTimeout(() => {
         loadingMore = false;
         addAvailableSlides();
+        if (pendingTabTrigger) openFirstShortVideo(pendingTabTrigger);
         if (!root.hidden) requestMoreIfNeeded();
       }, 180);
     });
@@ -463,6 +491,10 @@ function installShortVideosFeed() {
     event.stopImmediatePropagation();
     openShortVideos(tile);
   }, true);
+
+  document.addEventListener('sautilink:open-short-videos', (event) => {
+    openFirstShortVideo(event.detail?.trigger || null);
+  });
 
   close.addEventListener('click', () => closeShortVideos());
 

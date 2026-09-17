@@ -142,6 +142,35 @@ let moderationRequestId = 0;
 const profileMediaPresence = { avatar: false, header: false };
 const profileMediaObjectUrls = { avatar: '', header: '' };
 const STREAM_PAGE_SIZE = 20;
+const HOME_FEED_COPY = Object.freeze({
+  'for-you': {
+    rpcMode: 'for_you',
+    ariaLabel: 'For You feed',
+    loading: 'Personalizing posts for you…',
+    error: 'Something went wrong while personalizing your feed.',
+    welcome: 'For You learns from who you follow and the posts you choose to like, save or mark as interesting.',
+    emptyTitle: 'Your For You feed is warming up.',
+    emptyCopy: 'Follow people or explore public posts to help us shape this feed for you.',
+  },
+  following: {
+    rpcMode: 'following',
+    ariaLabel: 'Following feed',
+    loading: 'Loading posts from people you follow…',
+    error: 'Something went wrong while opening posts from people you follow.',
+    welcome: 'Following shows the newest posts from people you follow, in time order.',
+    emptyTitle: 'Your Following feed is quiet.',
+    emptyCopy: 'Follow people in Discover and their newest posts will appear here.',
+  },
+  'short-videos': {
+    rpcMode: 'short_videos',
+    ariaLabel: 'Short Videos feed',
+    loading: 'Finding short videos for you…',
+    error: 'Something went wrong while opening Short Videos.',
+    welcome: 'Short Videos brings together quick videos ranked from your follows and activity.',
+    emptyTitle: 'No short videos yet.',
+    emptyCopy: 'New short videos from across SautiLink will appear here.',
+  },
+});
 const COMPOSER_DRAFT_LIMIT = 5;
 const COMPOSER_DRAFTS_PREFIX = 'sautilink.composer.drafts.v1:';
 const COMPOSER_CURRENT_PREFIX = 'sautilink.composer.current.v1:';
@@ -151,9 +180,11 @@ let composerMedia = [];
 let restoringComposerState = false;
 let composerRestoreFocus = null;
 let streamCursor = null;
+let streamOffset = 0;
 let streamHasMore = false;
 let streamLoading = false;
 let streamRequest = 0;
+let activeHomeFeed = 'for-you';
 let homeVideoObserver = null;
 const homeVideoVisibility = new Map();
 const homeMediaOpenTimers = new Map();
@@ -3036,6 +3067,7 @@ function updateComposerState({ persist = true } = {}) {
 
 function resetStreamState() {
   streamCursor = null;
+  streamOffset = 0;
   streamHasMore = false;
   streamLoading = false;
   streamRequest += 1;
@@ -3045,6 +3077,48 @@ function resetStreamState() {
   byId('stream-error').hidden = true;
   byId('stream-empty').hidden = true;
   byId('stream-more').hidden = true;
+}
+
+function syncHomeFeedModeUi() {
+  const copy = HOME_FEED_COPY[activeHomeFeed] || HOME_FEED_COPY['for-you'];
+  document.querySelectorAll('[data-home-feed-tab]').forEach((tab) => {
+    const active = tab.dataset.homeFeedTab === activeHomeFeed;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+  });
+  byId('stream-feed').setAttribute('aria-label', copy.ariaLabel);
+  byId('stream-feed').setAttribute('aria-labelledby', `home-feed-tab-${activeHomeFeed}`);
+  byId('stream-empty').setAttribute('aria-label', `Empty ${copy.ariaLabel}`);
+  byId('stream-loading-copy').textContent = copy.loading;
+  byId('stream-error-copy').textContent = copy.error;
+  byId('stream-welcome-copy').textContent = copy.welcome;
+  byId('stream-empty-title').textContent = copy.emptyTitle;
+  byId('stream-empty-copy').textContent = copy.emptyCopy;
+}
+
+function requestShortVideosFromTab() {
+  const tab = byId('home-feed-tab-short-videos');
+  document.dispatchEvent(new CustomEvent('sautilink:open-short-videos', {
+    detail: { trigger: tab },
+  }));
+}
+
+async function selectHomeFeed(mode, { focus = false } = {}) {
+  if (!HOME_FEED_COPY[mode] || !currentMember) return;
+  const selectedTab = document.querySelector(`[data-home-feed-tab="${mode}"]`);
+  if (focus) selectedTab?.focus();
+
+  if (mode === activeHomeFeed && mode === 'short-videos' && byId('stream-feed').childElementCount) {
+    requestShortVideosFromTab();
+    return;
+  }
+
+  activeHomeFeed = mode;
+  syncHomeFeedModeUi();
+  resetStreamState();
+  await loadStream({ reset: true });
+  if (mode === 'short-videos' && activeHomeFeed === mode) requestShortVideosFromTab();
 }
 
 function authorFromPost(post) {
@@ -3623,13 +3697,7 @@ function renderStreamRows(rows, { reset = false } = {}) {
   rows.forEach((item) => {
     const card = createSautiCard(item, { home: true });
     if (!card) return;
-    if (item.interested) {
-      const firstRegularCard = feed.querySelector('.sauti-card[data-interested="false"]');
-      if (firstRegularCard) feed.insertBefore(card, firstRegularCard);
-      else feed.append(card);
-    } else {
-      feed.append(card);
-    }
+    feed.append(card);
   });
 
   const hasRows = feed.childElementCount > 0;
@@ -3796,6 +3864,7 @@ async function hydrateDirectPosts(posts) {
 
 async function loadStream({ reset = false } = {}) {
   if (!currentMember || streamLoading) return;
+  syncHomeFeedModeUi();
   streamLoading = true;
   const requestId = ++streamRequest;
   const loading = byId('stream-loading');
@@ -3804,6 +3873,7 @@ async function loadStream({ reset = false } = {}) {
 
   if (reset) {
     streamCursor = null;
+    streamOffset = 0;
     clearHomeFeedMediaState();
     byId('stream-feed').replaceChildren();
     byId('stream-empty').hidden = true;
@@ -3815,31 +3885,24 @@ async function loadStream({ reset = false } = {}) {
   loadMore.disabled = true;
 
   try {
-    let query = supabase
-      .from('social_stream_events')
-      .select('event_type, post_id, actor_id, event_at, event_key')
-      .order('event_at', { ascending: false })
-      .order('event_key', { ascending: false })
-      .limit(STREAM_PAGE_SIZE + 1);
-
-    if (streamCursor) {
-      query = query.or(
-        `event_at.lt.${streamCursor.createdAt},and(event_at.eq.${streamCursor.createdAt},event_key.lt.${streamCursor.id})`
-      );
-    }
-
-    const { data, error: queryError } = await query;
+    const modeAtRequest = activeHomeFeed;
+    const { data, error: queryError } = await supabase.rpc('social_home_feed', {
+      p_mode: HOME_FEED_COPY[modeAtRequest].rpcMode,
+      p_limit: STREAM_PAGE_SIZE + 1,
+      p_offset: streamOffset,
+    });
     if (queryError) throw queryError;
-    if (requestId !== streamRequest) return;
+    if (requestId !== streamRequest || modeAtRequest !== activeHomeFeed) return;
 
     const rows = Array.isArray(data) ? data : [];
     streamHasMore = rows.length > STREAM_PAGE_SIZE;
     const page = rows.slice(0, STREAM_PAGE_SIZE);
     const last = page[page.length - 1];
     if (last) streamCursor = { createdAt: last.event_at, id: last.event_key };
+    streamOffset += page.length;
 
     const hydrated = await hydrateStreamEvents(page);
-    if (requestId !== streamRequest) return;
+    if (requestId !== streamRequest || modeAtRequest !== activeHomeFeed) return;
     renderStreamRows(hydrated, { reset });
   } catch {
     if (requestId !== streamRequest) return;
@@ -5729,6 +5792,7 @@ async function loadSharedSautiTarget(postId) {
   streamLoading = true;
   streamHasMore = false;
   streamCursor = null;
+  streamOffset = 0;
 
   const feed = byId('stream-feed');
   const loading = byId('stream-loading');
@@ -7737,7 +7801,7 @@ function showMemberSurface(name, { syncUrl = true } = {}) {
     closeProfileEditor();
     if (name === 'stream') {
       byId('sauti-composer').hidden = false;
-      byId('stream-error-copy').textContent = 'Something went wrong while opening the latest posts.';
+      syncHomeFeedModeUi();
       if (syncUrl) void loadStream({ reset: true });
     }
     if (name === 'discover') {
@@ -9306,6 +9370,22 @@ byId('stream-retry').addEventListener('click', () => {
   else void loadStream({ reset: true });
 });
 byId('stream-load-more').addEventListener('click', () => loadStream());
+byId('home-feed-tabs').addEventListener('click', (event) => {
+  const tab = event.target.closest('[data-home-feed-tab]');
+  if (tab) void selectHomeFeed(tab.dataset.homeFeedTab);
+});
+byId('home-feed-tabs').addEventListener('keydown', (event) => {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+  const tabs = [...event.currentTarget.querySelectorAll('[data-home-feed-tab]')];
+  const current = Math.max(0, tabs.indexOf(event.target.closest('[data-home-feed-tab]')));
+  const next = event.key === 'Home'
+    ? 0
+    : event.key === 'End'
+      ? tabs.length - 1
+      : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+  event.preventDefault();
+  void selectHomeFeed(tabs[next].dataset.homeFeedTab, { focus: true });
+});
 byId('conversation-back').addEventListener('click', () => {
   if (window.history.length > 1) window.history.back();
   else showMemberSurface('stream');

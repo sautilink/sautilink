@@ -1,5 +1,5 @@
-const CACHE_NAME = "sautilink-shell-v55";
-const APP_RELEASE = "20260917-comments1";
+const CACHE_NAME = "sautilink-shell-v56";
+const APP_RELEASE = "20260917-homefeeds1";
 const APP_FEATURE_RELEASE = "20260915-verification1";
 const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.css",
