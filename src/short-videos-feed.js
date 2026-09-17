@@ -69,10 +69,39 @@ function createActionButton(action, label) {
 function cloneSourceAvatar(card, target) {
   const source = card?.querySelector('.sauti-card-avatar');
   if (!source || !target) return;
-  const clones = [...source.childNodes].map((node) => node.cloneNode(true));
-  if (clones.length) target.replaceChildren(...clones);
-  else target.textContent = String(card.dataset.authorName || card.dataset.authorUsername || 'S').trim().slice(0, 2);
-  target.querySelectorAll('[id]').forEach((node) => node.removeAttribute('id'));
+
+  const fallback = document.createElement('span');
+  fallback.className = 'profile-avatar-fallback';
+  fallback.textContent = String(card.dataset.authorName || card.dataset.authorUsername || 'S')
+    .trim()
+    .charAt(0)
+    .toUpperCase() || 'S';
+  target.replaceChildren(fallback);
+  target.classList.remove('has-profile-photo');
+
+  const sourceImage = source.querySelector('img');
+  const sourceUrl = String(sourceImage?.currentSrc || sourceImage?.src || '').trim();
+  if (!sourceUrl) return;
+
+  const image = document.createElement('img');
+  image.className = 'profile-avatar-photo';
+  image.alt = '';
+  image.decoding = 'async';
+  image.loading = 'eager';
+
+  const revealPhoto = () => {
+    fallback.hidden = true;
+    target.classList.add('has-profile-photo');
+  };
+  image.addEventListener('load', revealPhoto, { once: true });
+  image.addEventListener('error', () => {
+    image.remove();
+    fallback.hidden = false;
+    target.classList.remove('has-profile-photo');
+  }, { once: true });
+  image.src = sourceUrl;
+  target.append(image);
+  if (image.complete && image.naturalWidth > 0) revealPhoto();
 }
 
 function cloneVerificationBadge(card) {
