@@ -100,7 +100,6 @@
 }
 
 .conversation-toolbar,
-.conversation-root-card,
 .conversation-reply-form {
   background: var(--app-panel);
   color: var(--app-text);
@@ -112,7 +111,6 @@
   color: var(--app-text);
 }
 
-.conversation-sort,
 .conversation-reply-context span,
 .conversation-reply-meta,
 .conversation-reply-actions > span,
@@ -120,15 +118,9 @@
   color: var(--app-muted);
 }
 
-.conversation-sort select,
 .conversation-reply-form textarea {
   border-color: var(--app-line-strong);
   background: var(--app-input);
-  color: var(--app-text);
-}
-
-.conversation-sort option {
-  background: var(--app-panel);
   color: var(--app-text);
 }
 

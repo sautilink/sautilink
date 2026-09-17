@@ -59,9 +59,6 @@ jobs:
       - name: Verify production artifact
         run: npm run verify:production-artifact
 
-      - name: Verify post translation artifact
-        run: npm run verify:post-translation-artifact
-
       - name: Run full test suite
         run: npm test
 

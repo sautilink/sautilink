@@ -5,7 +5,10 @@ import test from 'node:test';
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('comments use a compact YouTube-scale thread visual layer', async () => {
-  const css = await read('app/assets/conversation-replies-ui.css');
+  const [html, css] = await Promise.all([
+    read('app/index.html'),
+    read('app/assets/conversation-replies-ui.css'),
+  ]);
 
   assert.match(css, /#conversation-thread \.comment-card \{/);
   assert.match(css, /\.comment-avatar \{/);
@@ -15,21 +18,31 @@ test('comments use a compact YouTube-scale thread visual layer', async () => {
   assert.match(css, /\.comment-action \{[^}]*min-width:\s*36px;[^}]*min-height:\s*36px;/s);
   assert.match(css, /@media \(max-width: 680px\)/);
   assert.match(css, /\.conversation-reply-form textarea \{[^}]*border-radius:\s*22px;/s);
-  assert.match(css, /\.conversation-reply-actions \{[^}]*flex-direction:\s*row;/s);
-  assert.doesNotMatch(css, /#conversation-root\s+\.sauti-card/);
+  assert.match(css, /\.conversation-reply-compose \{[^}]*display:\s*flex;/s);
+  assert.match(css, /\.conversation-reply-form \{[^}]*position:\s*sticky;[^}]*bottom:\s*0;/s);
+  assert.doesNotMatch(html, /id="conversation-root"/);
 });
 
-test('comment visual layer keeps one visible Comments heading', async () => {
-  const css = await read('app/assets/conversation-replies-ui.css');
+test('comments page keeps only an iOS-style back control and Comments header', async () => {
+  const [html, css] = await Promise.all([
+    read('app/index.html'),
+    read('app/assets/conversation-replies-ui.css'),
+  ]);
 
-  assert.match(css, /#conversation-reply-heading \{[^}]*display:\s*none;/s);
+  assert.match(html, /id="conversation-back"[\s\S]*?<svg[\s\S]*?<span>Back<\/span>[\s\S]*?<h2>Comments<\/h2>/);
+  assert.match(css, /#conversation-surface \.conversation-back svg \{[^}]*width:\s*27px;/s);
+  assert.doesNotMatch(html, /Focused conversation|<h2>Conversation<\/h2>|Commenting on|Text comment|conversation-thread-heading|conversation-sort/);
 });
 
-test('conversation page keeps one visible Conversation heading', async () => {
-  const css = await read('app/assets/conversation-replies-ui.css');
+test('comments list appears without the original post and composer stays below the list', async () => {
+  const [html, source] = await Promise.all([
+    read('app/index.html'),
+    read('src/app.js'),
+  ]);
 
-  assert.match(css, /#conversation-surface \.conversation-toolbar \.section-label/);
-  assert.match(css, /#conversation-surface \.conversation-toolbar h2 \{[^}]*display:\s*none;/s);
+  assert.ok(html.indexOf('id="conversation-thread"') < html.indexOf('id="conversation-reply-form"'));
+  assert.doesNotMatch(source, /rootCard\s*=\s*createSautiCard|rootSlot\.append/);
+  assert.match(source, /\(children\.get\(rootId\) \|\| \[\]\)\.forEach/);
 });
 
 test('comments stylesheet is versioned and bundled by both builders', async () => {
@@ -39,7 +52,7 @@ test('comments stylesheet is versioned and bundled by both builders', async () =
     read('scripts/build-production-release.mjs'),
   ]);
 
-  assert.match(runtime, /conversation-replies-ui\.css\?v=20260917-homefeeds1/);
+  assert.match(runtime, /conversation-replies-ui\.css\?v=20260917-feedcomments1/);
   assert.match(runtime, /ensureConversationRepliesUiStyles/);
   assert.match(normal, /src\/conversation-replies-ui\.js/);
   assert.match(production, /conversation-replies-ui\.js/);

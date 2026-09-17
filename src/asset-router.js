@@ -7,7 +7,6 @@ import { handleSocialInteractionRequest } from './social-interactions-api.js';
 import { handleTrustSafetyRequest } from './trust-safety-api.js';
 import { handleModerationRequest } from './moderation-api.js';
 import { handleAccountControlRequest } from './account-controls-api.js';
-import { handlePostTranslationRequest } from './post-translation-api.js';
 import { handleDmMediaRequest } from './dm-media-api.js';
 
 const PROFILE_ROUTE = /^\/app\/u\/[^/]+\/?$/;
@@ -289,12 +288,6 @@ async function routeRequest(request, env, url) {
   if (url.pathname.startsWith('/api/dm-media/')) {
     const dmMediaResponse = await handleDmMediaRequest(request, env);
     if (dmMediaResponse) return dmMediaResponse;
-    return new Response('Not found', { status: 404 });
-  }
-
-  if (url.pathname.startsWith('/api/post-translations/')) {
-    const translationResponse = await handlePostTranslationRequest(request, env);
-    if (translationResponse) return translationResponse;
     return new Response('Not found', { status: 404 });
   }
 

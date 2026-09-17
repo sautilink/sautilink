@@ -1,28 +1,70 @@
 /* SautiLink comments: compact, touch-friendly conversation UI. */
 
-#conversation-surface .conversation-toolbar .section-label,
-#conversation-surface .conversation-toolbar h2 {
+#conversation-surface {
+  display: flex;
+  min-height: calc(100dvh - 72px);
+  flex-direction: column;
+  background: var(--app-panel);
+}
+
+#conversation-surface[hidden] {
   display: none;
+}
+
+#conversation-surface .conversation-toolbar {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) auto minmax(80px, 1fr);
+  min-height: 54px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--app-line);
+  background: var(--app-header-bg);
+  backdrop-filter: blur(18px);
+}
+
+#conversation-surface .conversation-toolbar h2 {
+  grid-column: 2;
+  margin: 0;
+  color: var(--app-text);
+  font-size: 16px;
+  font-weight: 780;
+  letter-spacing: -.02em;
+}
+
+#conversation-surface .conversation-back {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 42px;
+  align-items: center;
+  gap: 1px;
+  justify-self: start;
+  padding: 0 8px 0 0;
+  border: 0;
+  background: transparent;
+  color: var(--app-accent);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+#conversation-surface .conversation-back svg {
+  width: 27px;
+  height: 27px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 #conversation-thread {
+  flex: 1 0 auto;
   background: var(--app-panel);
-}
-
-.conversation-thread-heading {
-  align-items: center;
-  padding: 12px 14px 9px;
-  border-bottom: 1px solid var(--app-line);
-  background: var(--app-panel);
-}
-
-#conversation-reply-heading {
-  display: none;
-}
-
-.conversation-thread-heading > span {
-  color: var(--app-muted);
-  font-size: 11px;
 }
 
 #conversation-thread .comment-card {
@@ -268,22 +310,30 @@
 }
 
 .conversation-reply-form {
+  position: sticky;
+  z-index: 18;
+  bottom: 0;
   gap: 7px;
-  padding: 11px 14px 13px;
-  border-bottom: 1px solid var(--app-line);
-  background: var(--app-panel);
+  padding: 9px 12px max(9px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--app-line);
+  border-bottom: 0;
+  background: var(--app-header-bg);
+  backdrop-filter: blur(18px);
 }
 
-.conversation-reply-context {
-  color: var(--app-muted);
+.conversation-reply-compose {
+  display: flex;
+  align-items: end;
+  gap: 8px;
 }
 
 .conversation-reply-form textarea {
-  width: 100%;
-  min-height: 46px;
-  max-height: 140px;
+  min-width: 0;
+  min-height: 42px;
+  max-height: 112px;
+  flex: 1;
   resize: vertical;
-  padding: 11px 15px;
+  padding: 10px 15px;
   border: 1px solid var(--app-line);
   border-radius: 22px;
   background: var(--app-input);
@@ -298,22 +348,11 @@
   box-shadow: none;
 }
 
-.conversation-reply-meta,
-.conversation-reply-actions {
-  color: var(--app-muted);
-  font-size: 10px;
-}
-
-.conversation-reply-actions {
-  flex-direction: row;
-  align-items: center;
-}
-
-.conversation-reply-actions button {
+.conversation-reply-compose button {
   width: auto;
-  min-width: 82px;
-  min-height: 34px;
-  padding: 0 16px;
+  min-width: 76px;
+  min-height: 42px;
+  padding: 0 15px;
   border: 0;
   border-radius: 999px;
   background: var(--app-accent-strong);
@@ -322,8 +361,13 @@
   font-weight: 760;
 }
 
-.conversation-reply-actions button:disabled {
+.conversation-reply-compose button:disabled {
   opacity: .42;
+}
+
+#conversation-surface .conversation-empty {
+  flex: 1 0 auto;
+  border: 0;
 }
 
 @media (max-width: 680px) {
@@ -356,17 +400,13 @@
     font-size: 13.5px;
   }
 
-  .conversation-thread-heading {
-    padding: 10px 11px 8px;
-  }
-
   .thread-continue {
     margin: 7px 11px 9px 52px;
   }
 
   .conversation-reply-form {
     gap: 6px;
-    padding: 10px 10px 12px;
+    padding: 8px 10px max(8px, env(safe-area-inset-bottom));
   }
 
   .conversation-reply-form textarea {
@@ -377,11 +417,10 @@
     font-size: 13px;
   }
 
-  .conversation-reply-meta,
-  .conversation-reply-actions {
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
+  .conversation-reply-compose button {
+    min-width: 70px;
+    min-height: 40px;
+    padding: 0 13px;
   }
 }
 

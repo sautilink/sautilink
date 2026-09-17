@@ -247,11 +247,8 @@ function renderMember(profile, userId = currentMemberId) {
   try {
     renderProfileAvatar(byId('member-avatar'), currentMember, displayName);
     renderProfileAvatar(byId('rail-avatar'), currentMember, displayName);
-    setInlineVerifiedName(byId('member-display-name'), displayName, currentMember);
-    if (byId('member-username')) byId('member-username').textContent = '@' + username;
     setInlineVerifiedName(byId('rail-name'), displayName, currentMember);
     if (byId('rail-username')) byId('rail-username').textContent = '@' + username;
-    if (byId('member-first-name')) byId('member-first-name').textContent = displayName.split(/\\s+/)[0];
   } catch {
     // Identity decoration is non-critical to opening Home.
   }
@@ -391,8 +388,9 @@ async function completeOnboarding`;
     throw new Error('Could not find the SautiLink Home feed loader.');
   }
 
-  const resilientStreamBlock = `async function loadStream({ reset = false } = {}) {
+const resilientStreamBlock = `async function loadStream({ reset = false } = {}) {
   if (!currentMember || streamLoading) return;
+  syncHomeFeedModeUi();
   streamLoading = true;
   const requestId = ++streamRequest;
   const loading = byId('stream-loading');
@@ -403,11 +401,11 @@ async function completeOnboarding`;
 
   if (reset) {
     streamCursor = null;
+    streamOffset = 0;
     if (!hadRenderedFeed) {
       clearHomeFeedMediaState();
       feed.replaceChildren();
       byId('stream-empty').hidden = true;
-      byId('stream-welcome').hidden = false;
     }
   }
 
@@ -416,37 +414,30 @@ async function completeOnboarding`;
   loadMore.disabled = true;
 
   try {
-    const streamResult = await resilientRead(() => {
-      let query = supabase
-        .from('social_stream_events')
-        .select('event_type, post_id, actor_id, event_at, event_key')
-        .order('event_at', { ascending: false })
-        .order('event_key', { ascending: false })
-        .limit(STREAM_PAGE_SIZE + 1);
+    const modeAtRequest = activeHomeFeed;
+    const streamResult = await resilientRead(
+      () => supabase.rpc('social_home_feed', {
+        p_mode: HOME_FEED_COPY[modeAtRequest].rpcMode,
+        p_limit: STREAM_PAGE_SIZE + 1,
+        p_offset: streamOffset,
+      }),
+      { attempts: READ_RETRY_ATTEMPTS, timeoutMs: READ_RETRY_TIMEOUT_MS },
+    );
 
-      if (streamCursor) {
-        query = query.or(
-          'event_at.lt.' + streamCursor.createdAt
-          + ',and(event_at.eq.' + streamCursor.createdAt
-          + ',event_key.lt.' + streamCursor.id + ')'
-        );
-      }
-      return query;
-    }, { attempts: READ_RETRY_ATTEMPTS, timeoutMs: READ_RETRY_TIMEOUT_MS });
-
-    if (requestId !== streamRequest) return;
+    if (requestId !== streamRequest || modeAtRequest !== activeHomeFeed) return;
 
     const rows = Array.isArray(streamResult?.data) ? streamResult.data : [];
     streamHasMore = rows.length > STREAM_PAGE_SIZE;
     const page = rows.slice(0, STREAM_PAGE_SIZE);
     const last = page[page.length - 1];
     if (last) streamCursor = { createdAt: last.event_at, id: last.event_key };
+    streamOffset += page.length;
 
     const hydrated = await resilientRead(
       () => hydrateStreamEvents(page),
       { attempts: READ_RETRY_ATTEMPTS, timeoutMs: READ_RETRY_TIMEOUT_MS + 2000 },
     );
-    if (requestId !== streamRequest) return;
+    if (requestId !== streamRequest || modeAtRequest !== activeHomeFeed) return;
     renderStreamRows(hydrated, { reset });
   } catch {
     if (requestId !== streamRequest) return;
