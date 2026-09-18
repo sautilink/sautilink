@@ -1,5 +1,9 @@
 # Keep canonical profile URLs while serving the existing app shell.
 /app/u/* /app/ 200
 
+# Keep canonical Professional Dashboard URLs while serving the social app shell.
+/dashboard /app/ 200
+/dashboard/* /app/ 200
+
 # Keep the Android download on the official SautiLink URL.
 /download/android https://github.com/sautilink/sautilink/releases/download/android-beta/SautiLink-Android-Beta.apk 302
