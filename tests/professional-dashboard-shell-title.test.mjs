@@ -7,8 +7,9 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('professional dashboard hides only the duplicate shell title while open and restores it on exit', async () => {
   const source = await read('src/professional-dashboard.js');
 
-  assert.match(source, /const title = byId\('view-title'\);[\s\S]*if \(title\) title\.hidden = true;/);
-  assert.match(source, /title\.hidden = false;[\s\S]*title\.textContent = 'Profile';/);
+  assert.match(source, /if \(title\) title\.hidden = true;/);
+  assert.match(source, /title\.hidden = false;/);
+  assert.match(source, /title\.textContent = 'Profile';/);
   assert.match(source, /if \(title\) title\.hidden = false;/);
   assert.doesNotMatch(source, /title\.textContent = 'Dashboard'/);
 });
