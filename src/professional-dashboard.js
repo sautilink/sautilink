@@ -1,7 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
-const SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
 const ANALYTICS_TABLE = 'social_creator_daily_metrics';
 const DASHBOARD_ID = 'professional-dashboard-surface';
 const OWNER_ACTIONS_ID = 'profile-owner-dashboard-actions';
@@ -10,25 +6,17 @@ const CSS_ID = 'sautilink-professional-dashboard-css';
 const POLL_MS = 15000;
 const VALID_WINDOWS = new Set([7, 28, 90]);
 
-const analyticsClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-    storageKey: 'sautilink.auth.session',
-  },
-});
-
 let installed = false;
+let analyticsClient = null;
+let getCurrentMemberId = () => '';
 let activeWindow = 28;
 let activeMetric = 'content_views';
 let dashboardOpen = false;
 let realtimeChannel = null;
+let realtimeUserId = '';
 let pollTimer = 0;
 let refreshTimer = 0;
-let currentUserId = '';
 let lastSeries = [];
-let lastTopPosts = [];
 const recordedProfiles = new Set();
 
 function byId(id) {
@@ -66,7 +54,7 @@ function button(label, className = '') {
   const node = document.createElement('button');
   node.type = 'button';
   node.className = className;
-  node.append(document.createTextNode(label));
+  node.textContent = label;
   return node;
 }
 
@@ -75,9 +63,14 @@ function number(value) {
 }
 
 function compact(value) {
-  const amount = number(value);
+  const amount = Math.abs(Number(value) || 0);
   if (amount < 1000) return new Intl.NumberFormat().format(amount);
   return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(amount);
+}
+
+function signedCompact(value) {
+  const amount = Number(value) || 0;
+  return `${amount < 0 ? '−' : ''}${compact(amount)}`;
 }
 
 function isoDay(date) {
@@ -109,7 +102,7 @@ function profileUsername() {
 async function recordProfileViewIfNeeded() {
   const surface = byId('profile-surface');
   const edit = byId('profile-edit-button');
-  if (!surface || surface.hidden || !edit || !edit.hidden) return;
+  if (!analyticsClient || !surface || surface.hidden || !edit || !edit.hidden) return;
   const username = profileUsername();
   if (!username || recordedProfiles.has(username)) return;
   recordedProfiles.add(username);
@@ -135,7 +128,9 @@ function ensureOwnerActions() {
     dashboard.prepend(icon(['M4 19V10', 'M10 19V5', 'M16 19v-7', 'M22 19V8']));
     dashboard.addEventListener('click', () => void openDashboard());
 
-    card.insertAdjacentElement('afterend', row);
+    const activity = byId('profile-activity-shell');
+    if (activity?.parentNode === card.parentNode) card.parentNode.insertBefore(row, activity);
+    else card.insertAdjacentElement('afterend', row);
     row.append(edit, dashboard);
   } else if (!row.contains(edit)) {
     row.prepend(edit);
@@ -148,8 +143,17 @@ function ensureOwnerActions() {
   return row;
 }
 
+function keepOwnerActionsBeforeActivity() {
+  const row = byId(OWNER_ACTIONS_ID);
+  const activity = byId('profile-activity-shell');
+  if (row && activity && row.nextElementSibling !== activity && row.parentNode === activity.parentNode) {
+    activity.parentNode.insertBefore(row, activity);
+  }
+}
+
 function syncOwnerActions() {
   ensureOwnerActions();
+  keepOwnerActionsBeforeActivity();
   const edit = byId('profile-edit-button');
   const row = byId(OWNER_ACTIONS_ID);
   const dashboard = byId(DASHBOARD_BUTTON_ID);
@@ -192,6 +196,33 @@ function createMetricCard(key, label, help, iconPaths) {
     renderChart(lastSeries);
   });
   return card;
+}
+
+function createEarningsBlock(className = 'professional-earnings-card') {
+  const block = document.createElement(className === 'professional-zero-earnings' ? 'div' : 'article');
+  block.className = className;
+
+  if (className === 'professional-zero-earnings') {
+    const label = document.createElement('span');
+    label.textContent = 'Estimated earnings';
+    const value = document.createElement('strong');
+    value.textContent = '$0.00';
+    const state = document.createElement('small');
+    state.textContent = 'Monetisation inactive';
+    block.append(label, value, state);
+    return block;
+  }
+
+  const top = document.createElement('div');
+  const label = document.createElement('span');
+  label.textContent = 'Estimated earnings';
+  const value = document.createElement('strong');
+  value.textContent = '$0.00';
+  top.append(label, value);
+  const note = document.createElement('p');
+  note.textContent = 'Monetisation is not yet available. No earnings or payout balance is being accrued.';
+  block.append(top, note);
+  return block;
 }
 
 function createDashboardSurface() {
@@ -248,15 +279,20 @@ function createDashboardSurface() {
   const copy = document.createElement('div');
   const h3 = document.createElement('h3');
   h3.textContent = 'Insights';
-  const p = document.createElement('p');
-  p.textContent = 'See how your profile and content are performing with live SautiLink data.';
-  copy.append(h3, p);
+  const intro = document.createElement('p');
+  intro.textContent = 'See how your profile and content are performing with live SautiLink data.';
+  const trackingNote = document.createElement('small');
+  trackingNote.className = 'professional-tracking-note';
+  trackingNote.textContent = 'Profile visits and follow-change history start from the launch of this analytics dashboard; older values are not estimated.';
+  copy.append(h3, intro, trackingNote);
 
   const controls = document.createElement('div');
   controls.className = 'professional-insights-controls';
   const live = document.createElement('span');
   live.className = 'professional-live-indicator';
-  live.innerHTML = '<span aria-hidden="true"></span>Live';
+  const liveDot = document.createElement('span');
+  liveDot.setAttribute('aria-hidden', 'true');
+  live.append(liveDot, document.createTextNode('Live'));
   const select = document.createElement('select');
   select.id = 'professional-dashboard-window';
   select.setAttribute('aria-label', 'Analytics date range');
@@ -284,18 +320,6 @@ function createDashboardSurface() {
     createMetricCard('profile_views', 'Profile visits', 'Unique signed-in visitors per day.', ['M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z', 'M9.5 12a2.5 2.5 0 1 0 5 0 2.5 2.5 0 0 0-5 0Z']),
   );
 
-  const earnings = document.createElement('article');
-  earnings.className = 'professional-earnings-card';
-  const earningsTop = document.createElement('div');
-  const earningsLabel = document.createElement('span');
-  earningsLabel.textContent = 'Estimated earnings';
-  const earningsValue = document.createElement('strong');
-  earningsValue.textContent = '$0.00';
-  earningsTop.append(earningsLabel, earningsValue);
-  const earningsNote = document.createElement('p');
-  earningsNote.textContent = 'Monetisation is not yet available. No earnings or payout balance is being accrued.';
-  earnings.append(earningsTop, earningsNote);
-
   const chartCard = document.createElement('section');
   chartCard.className = 'professional-chart-card';
   const chartHead = document.createElement('div');
@@ -318,7 +342,7 @@ function createDashboardSurface() {
   const contentTitle = document.createElement('h3');
   contentTitle.textContent = 'Top content';
   const contentHelp = document.createElement('p');
-  contentHelp.textContent = 'Your posts ranked by current views and engagement.';
+  contentHelp.textContent = 'Your posts ranked by genuine view and engagement totals.';
   contentHead.append(contentTitle, contentHelp);
   const contentList = document.createElement('div');
   contentList.id = 'professional-top-content-list';
@@ -330,7 +354,7 @@ function createDashboardSurface() {
   status.className = 'professional-dashboard-status';
   status.hidden = true;
 
-  insights.append(summaryHead, cards, earnings, chartCard, content, status);
+  insights.append(summaryHead, cards, createEarningsBlock(), chartCard, content, status);
 
   const monetisation = document.createElement('div');
   monetisation.className = 'professional-dashboard-panel professional-monetisation-panel';
@@ -343,10 +367,7 @@ function createDashboardSurface() {
   moneyTitle.textContent = 'Monetisation is coming soon';
   const moneyCopy = document.createElement('p');
   moneyCopy.textContent = 'We are preparing creator monetisation for SautiLink. Eligibility, payouts and earning tools are not active yet.';
-  const zero = document.createElement('div');
-  zero.className = 'professional-zero-earnings';
-  zero.innerHTML = '<span>Estimated earnings</span><strong>$0.00</strong><small>Monetisation inactive</small>';
-  monetisation.append(moneyIcon, moneyTitle, moneyCopy, zero);
+  monetisation.append(moneyIcon, moneyTitle, moneyCopy, createEarningsBlock('professional-zero-earnings'));
 
   for (const tab of [insightsTab, moneyTab]) {
     tab.addEventListener('click', () => {
@@ -383,7 +404,7 @@ function aggregate(rows, startIndex, endIndex) {
 }
 
 function trend(current, previous) {
-  if (previous === 0) return current === 0 ? { text: '0%', direction: 'neutral' } : { text: 'New', direction: 'up' };
+  if (previous === 0) return current === 0 ? { text: '0%', direction: 'neutral' } : { text: 'New', direction: current > 0 ? 'up' : 'down' };
   const percentage = Math.round(((current - previous) / Math.abs(previous)) * 100);
   return {
     text: `${percentage > 0 ? '+' : ''}${percentage}%`,
@@ -415,12 +436,10 @@ function updateMetricCards(series) {
   const split = activeWindow;
   const previous = aggregate(series, 0, split);
   const current = aggregate(series, split, split * 2);
-  const keys = ['content_views', 'engagements', 'net_follows', 'profile_views'];
-
-  for (const key of keys) {
+  for (const key of ['content_views', 'engagements', 'net_follows', 'profile_views']) {
     const value = document.querySelector(`[data-metric-value="${key}"]`);
     const delta = document.querySelector(`[data-metric-delta="${key}"]`);
-    if (value) value.textContent = compact(current[key]);
+    if (value) value.textContent = key === 'net_follows' ? signedCompact(current[key]) : compact(current[key]);
     if (delta) {
       const change = trend(current[key], previous[key]);
       delta.textContent = change.text;
@@ -430,8 +449,7 @@ function updateMetricCards(series) {
 }
 
 function chartValues(series) {
-  const current = series.slice(activeWindow);
-  return current.map((row) => ({ date: row.metric_date, value: Number(row[activeMetric]) || 0 }));
+  return series.slice(activeWindow).map((row) => ({ date: row.metric_date, value: Number(row[activeMetric]) || 0 }));
 }
 
 function metricLabel(key) {
@@ -451,7 +469,9 @@ function renderChart(series) {
   const pad = { left: 52, right: 18, top: 20, bottom: 38 };
   const innerW = width - pad.left - pad.right;
   const innerH = height - pad.top - pad.bottom;
-  const max = Math.max(1, ...values.map((item) => item.value));
+  const minValue = Math.min(0, ...values.map((item) => item.value));
+  const maxValue = Math.max(1, ...values.map((item) => item.value));
+  const span = Math.max(1, maxValue - minValue);
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
@@ -473,20 +493,21 @@ function renderChart(series) {
     text.setAttribute('y', String(y + 4));
     text.setAttribute('text-anchor', 'end');
     text.setAttribute('class', 'professional-chart-axis-label');
-    text.textContent = compact(Math.round(max * (1 - index / 4)));
+    const axis = Math.round(maxValue - (span * index / 4));
+    text.textContent = axis < 0 ? `−${compact(axis)}` : compact(axis);
     svg.append(text);
   }
 
   const points = values.map((item, index) => {
     const x = pad.left + (values.length <= 1 ? 0 : innerW * index / (values.length - 1));
-    const y = pad.top + innerH - (innerH * item.value / max);
+    const y = pad.top + innerH - (innerH * (item.value - minValue) / span);
     return { ...item, x, y };
   });
 
   if (points.length) {
+    const zeroY = pad.top + innerH - (innerH * (0 - minValue) / span);
     const area = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    const areaPath = [`M ${points[0].x} ${pad.top + innerH}`, ...points.map((point) => `L ${point.x} ${point.y}`), `L ${points.at(-1).x} ${pad.top + innerH}`, 'Z'].join(' ');
-    area.setAttribute('d', areaPath);
+    area.setAttribute('d', [`M ${points[0].x} ${zeroY}`, ...points.map((point) => `L ${point.x} ${point.y}`), `L ${points.at(-1).x} ${zeroY}`, 'Z'].join(' '));
     area.setAttribute('class', 'professional-chart-area');
     svg.append(area);
 
@@ -513,6 +534,14 @@ function renderChart(series) {
   container.append(svg);
 }
 
+function stat(label, value) {
+  const node = document.createElement('span');
+  const strong = document.createElement('b');
+  strong.textContent = compact(value);
+  node.append(strong, document.createTextNode(` ${label}`));
+  return node;
+}
+
 function renderTopPosts(posts) {
   const list = byId('professional-top-content-list');
   if (!list) return;
@@ -537,11 +566,7 @@ function renderTopPosts(posts) {
 
     const stats = document.createElement('div');
     stats.className = 'professional-top-post-stats';
-    const views = document.createElement('span');
-    views.innerHTML = `<b>${compact(post.views)}</b> views`;
-    const engagement = document.createElement('span');
-    engagement.innerHTML = `<b>${compact(post.engagement)}</b> engagements`;
-    stats.append(views, engagement);
+    stats.append(stat('views', post.views), stat('engagements', post.engagement));
     card.append(text, stats);
     list.append(card);
   }
@@ -582,14 +607,12 @@ async function loadTopPosts(userId) {
 }
 
 async function refreshDashboard() {
-  if (!dashboardOpen) return;
-  const session = await analyticsClient.auth.getSession();
-  const userId = String(session.data?.session?.user?.id || '').trim();
+  if (!dashboardOpen || !analyticsClient) return;
+  const userId = String(getCurrentMemberId() || '').trim();
   if (!userId) {
     setStatus('Your session could not be verified. Sign in again to view analytics.', true);
     return;
   }
-  currentUserId = userId;
   setStatus('');
 
   const start = dayStart(activeWindow * 2 - 1);
@@ -608,8 +631,7 @@ async function refreshDashboard() {
   lastSeries = fillSeries(data || []);
   updateMetricCards(lastSeries);
   renderChart(lastSeries);
-  lastTopPosts = await loadTopPosts(userId);
-  renderTopPosts(lastTopPosts);
+  renderTopPosts(await loadTopPosts(userId));
   const updated = byId('professional-dashboard-updated');
   if (updated) updated.textContent = `Live · updated ${new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date())}`;
   subscribeRealtime(userId);
@@ -621,9 +643,10 @@ function scheduleRefresh(delay = 250) {
 }
 
 function subscribeRealtime(userId) {
-  if (!dashboardOpen || !userId) return;
-  if (realtimeChannel?.topic?.includes(userId)) return;
+  if (!dashboardOpen || !userId || !analyticsClient) return;
+  if (realtimeChannel && realtimeUserId === userId) return;
   if (realtimeChannel) analyticsClient.removeChannel(realtimeChannel);
+  realtimeUserId = userId;
 
   realtimeChannel = analyticsClient
     .channel(`creator-dashboard:${userId}`)
@@ -648,7 +671,8 @@ function stopLiveUpdates() {
   pollTimer = 0;
   window.clearTimeout(refreshTimer);
   refreshTimer = 0;
-  if (realtimeChannel) {
+  realtimeUserId = '';
+  if (realtimeChannel && analyticsClient) {
     analyticsClient.removeChannel(realtimeChannel);
     realtimeChannel = null;
   }
@@ -686,7 +710,8 @@ function observeProfile() {
   const surface = byId('profile-surface');
   const edit = byId('profile-edit-button');
   const username = byId('profile-username');
-  if (!surface || !edit) return;
+  const card = byId('profile-card');
+  if (!surface || !edit || !card) return;
 
   const sync = () => {
     if (dashboardOpen) return;
@@ -697,6 +722,7 @@ function observeProfile() {
   new MutationObserver(sync).observe(surface, { attributes: true, attributeFilter: ['hidden'] });
   new MutationObserver(sync).observe(edit, { attributes: true, attributeFilter: ['hidden'] });
   if (username) new MutationObserver(sync).observe(username, { childList: true, subtree: true, characterData: true });
+  new MutationObserver(sync).observe(card.parentNode, { childList: true });
   sync();
 }
 
@@ -711,9 +737,11 @@ function installNavigationGuard() {
   }, true);
 }
 
-export function installProfessionalDashboard() {
-  if (installed || typeof document === 'undefined') return;
+export function installProfessionalDashboard(options = {}) {
+  if (installed || typeof document === 'undefined' || !options.supabase) return;
   installed = true;
+  analyticsClient = options.supabase;
+  getCurrentMemberId = typeof options.getCurrentMemberId === 'function' ? options.getCurrentMemberId : () => '';
   ensureStylesheet();
 
   const start = () => {
