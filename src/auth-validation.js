@@ -79,9 +79,31 @@ export function passwordError(value, context = {}) {
 export function friendlyAuthError(error) {
   const code = String(error?.code || '').toLowerCase();
   const message = String(error?.message || '').toLowerCase();
+  const name = String(error?.name || '').toLowerCase();
 
-  if (code.includes('over_email_send_rate_limit') || code.includes('rate_limit') || message.includes('rate limit')) {
-    return 'Please wait before requesting another email.';
+  if (
+    code.includes('over_email_send_rate_limit') ||
+    code.includes('over_request_rate_limit') ||
+    code.includes('rate_limit') ||
+    message.includes('rate limit') ||
+    message.includes('too many requests')
+  ) {
+    return 'Please wait a few minutes before trying again.';
+  }
+  if (code.includes('request_timeout') || name === 'aborterror' || message.includes('timed out')) {
+    return 'The request timed out. Please try again.';
+  }
+  if (code.includes('email_address_not_authorized')) {
+    return 'SautiLink email delivery could not send to this address. Please try another email address or contact support.';
+  }
+  if (code.includes('email_address_invalid')) {
+    return 'Use a different valid email address.';
+  }
+  if (code.includes('signup_disabled') || code.includes('email_provider_disabled')) {
+    return 'New email signups are temporarily unavailable. Please try again later.';
+  }
+  if (code.includes('captcha_failed')) {
+    return 'The security check could not be verified. Reload the page and try again.';
   }
   if (
     code.includes('unexpected_failure') &&
@@ -95,6 +117,9 @@ export function friendlyAuthError(error) {
   ) {
     return 'SautiLink email service is temporarily unavailable. Please try again shortly.';
   }
+  if (code.includes('unexpected_failure')) {
+    return 'SautiLink authentication service is temporarily unavailable. Please try again shortly.';
+  }
   if (code.includes('invalid_credentials') || message.includes('invalid login credentials')) {
     return 'Email or password is incorrect.';
   }
@@ -104,11 +129,16 @@ export function friendlyAuthError(error) {
   if (code.includes('otp_expired') || message.includes('expired') || message.includes('invalid token')) {
     return 'That verification code is invalid or has expired.';
   }
-  if (code.includes('user_already_exists') || message.includes('already registered')) {
+  if (code.includes('user_already_exists') || code.includes('email_exists') || message.includes('already registered')) {
     return 'This email already has a SautiLink Account. Sign in or recover the account.';
+  }
+  if (code.includes('weak_password') || message.includes('weak_password')) {
+    return 'Choose a stronger password that meets every requirement.';
+  }
+  if (message.includes('username availability') || message.includes('availability check failed')) {
+    return 'Username availability is temporarily unavailable. Please try again.';
   }
   if (message.includes('username_taken')) return 'That username was just claimed. Choose another one.';
   if (message.includes('account_username_mismatch')) return 'This account already has a different SautiLink username.';
-  if (message.includes('weak_password')) return 'Choose a stronger password that meets every requirement.';
   return 'We could not complete that request. Please try again.';
 }
