@@ -22,10 +22,11 @@ test('Professional Dashboard has canonical browser routes without replacing the 
 });
 
 test('Worker, static rewrites and service worker all recognize Dashboard deep links', async () => {
-  const [router, redirects, serviceWorker] = await Promise.all([
+  const [router, redirects, serviceWorker, productionBuilder] = await Promise.all([
     read('src/asset-router.js'),
     read('_redirects'),
     read('sw.js'),
+    read('scripts/build-production-release.mjs'),
   ]);
 
   assert.match(router, /const CLEAN_DASHBOARD_ROUTE = \/\^\\\/dashboard/);
@@ -35,6 +36,8 @@ test('Worker, static rewrites and service worker all recognize Dashboard deep li
   assert.match(redirects, /\/dashboard\/\* \/app\/ 200/);
   assert.match(serviceWorker, /notifications\|dashboard/);
   assert.match(serviceWorker, /fetch\(event\.request, \{ cache: "no-store" \}\)/);
+  assert.match(productionBuilder, /APP_JS_FEATURE_RELEASE = '20260918-dashboardroute1'/);
+  assert.match(productionBuilder, /app\.js\?v=\$\{APP_JS_RELEASE\}&feature=\$\{APP_JS_FEATURE_RELEASE\}/);
 });
 
 test('analytics view RPCs dedupe with unique constraints while viewer rows stay unreadable', async () => {
