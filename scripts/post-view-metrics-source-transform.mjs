@@ -43,8 +43,14 @@ function openProfessionalDashboardRoute(kind, { canonicalize = true } = {}) {
   showMemberSurface('profile', { syncUrl: false });
   const dashboardButton = document.getElementById('profile-dashboard-button');
   if (!dashboardButton) return false;
-  dashboardButton.click();
-  professionalDashboardSetTab(kind);
+
+  professionalDashboardHistoryInternal = true;
+  try {
+    dashboardButton.click();
+    professionalDashboardSetTab(kind);
+  } finally {
+    professionalDashboardHistoryInternal = false;
+  }
 
   if (canonicalize && kind === 'monetisation') {
     const canonicalPath = professionalDashboardCanonicalPath(kind);
