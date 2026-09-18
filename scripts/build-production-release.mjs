@@ -80,37 +80,23 @@ function wireProductionPwa(input) {
   if (!output.includes(settingsLightThemeStylesheet)) {
     output = output.replace('</head>', `  <link rel="stylesheet" href="${settingsLightThemeStylesheet}">\n</head>`);
   }
-  if (!output.includes('pwa.js?v=')) {
+  if (!output.includes(`/assets/pwa.js?v=${PWA_RELEASE}`)) {
     output = output.replace('</body>', `  <script src="/assets/pwa.js?v=${PWA_RELEASE}" defer></script>\n</body>`);
-  } else {
-    output = output.replace(/pwa\.js\?v=[^"']+/g, `pwa.js?v=${PWA_RELEASE}`);
   }
   return output;
 }
 
 await rm(workerRoot, { recursive: true, force: true });
 await rm(siteRoot, { recursive: true, force: true });
-await mkdir(workerSource, { recursive: true });
+await mkdir(workerRoot, { recursive: true });
 await mkdir(siteRoot, { recursive: true });
 
-for (const source of [
-  'src',
-  'worker',
-  'wrangler.toml',
-  'wrangler.production.toml',
-  'package.json',
-  'package-lock.json',
-]) {
-  await cp(resolve(projectRoot, source), resolve(workerRoot, source), { recursive: true });
-}
+await cp(resolve(projectRoot, 'src'), workerSource, { recursive: true });
+await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: true });
+await cp(resolve(projectRoot, 'verify.html'), resolve(siteRoot, 'verify.html'));
 
-for (const source of ['app', 'assets', '_headers', '_redirects', 'manifest.json', 'sw.js', 'logo.png']) {
-  await cp(resolve(projectRoot, source), resolve(siteRoot, source), { recursive: true });
-}
-
-const productionFiles = await walk(workerSource);
-for (const file of productionFiles) {
-  if (extname(file) !== '.js') continue;
+for (const file of await walk(workerSource)) {
+  if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
   const source = await readFile(file, 'utf8');
   let output = transformAuthSessionStabilitySource(
     file,
@@ -124,21 +110,27 @@ for (const file of productionFiles) {
             file,
             transformMessagesMediaSource(
               file,
-              transformMemberBootstrapResilienceSource(
+              transformProfileTabIconsSource(
                 file,
-                transformBootstrapResilienceSource(
+                transformRoomsStartupIsolationSource(
                   file,
-                  transformLoginBootSource(
+                  transformMemberBootstrapResilienceSource(
                     file,
-                    transformWhatsAppOtpSource(
+                    transformBootstrapResilienceSource(
                       file,
-                      transformVideoPlayerSource(
+                      transformLoginBootSource(
                         file,
-                        transformMentionNotificationSource(
+                        transformWhatsAppOtpSource(
                           file,
-                          transformMediaPerformanceSource(
+                          transformVideoPlayerSource(
                             file,
-                            transformPostMediaSource(file, source),
+                            transformMentionNotificationSource(
+                              file,
+                              transformMediaPerformanceSource(
+                                file,
+                                transformPostMediaSource(file, productionText(source)),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -152,32 +144,35 @@ for (const file of productionFiles) {
       ),
     ),
   );
-  output = transformVerificationCaseFlowSource(file, output);
-  await writeFile(file, productionText(output));
+  if (file === productionAppSource) {
+    output = transformVerificationCaseFlowSource(file, output);
+  }
+  if (file.endsWith('asset-router.js')) {
+    output = output.replace(
+      "environment: isStaging(url) ? 'staging' : 'unknown',",
+      "environment: isStaging(url) ? 'staging' : 'production',",
+    );
+  }
+  await writeFile(file, output);
 }
 
-const profileTabIconsPath = resolve(workerSource, 'profile-activity.js');
-await writeFile(
-  profileTabIconsPath,
-  transformProfileTabIconsSource(profileTabIconsPath, await readFile(profileTabIconsPath, 'utf8')),
-);
-for (const roomPath of ['rooms-platform.js', 'rooms-facebook-ui.js']) {
-  const file = resolve(workerSource, roomPath);
-  await writeFile(file, transformRoomsStartupIsolationSource(file, await readFile(file, 'utf8')));
-}
+const appHtmlPath = resolve(siteRoot, 'app/index.html');
+let appHtml = productionText(await readFile(appHtmlPath, 'utf8'));
+appHtml = appHtml
+  .replace(/\s*<meta name="robots" content="noindex, nofollow">\s*/i, '\n')
+  .replace("img-src 'self' data: blob:; script-src", "img-src 'self' data: blob:; media-src 'self' blob:; script-src")
+  .replace(/app\.js\?v=[^"']+/g, `app.js?v=${APP_JS_RELEASE}&feature=${APP_JS_FEATURE_RELEASE}`);
+appHtml = wireProductionPwa(appHtml);
+await writeFile(appHtmlPath, appHtml);
 
-const appSource = await readFile(productionAppSource, 'utf8');
+const appCssPath = resolve(siteRoot, 'app/assets/app.css');
+await writeFile(appCssPath, productionText(await readFile(appCssPath, 'utf8')));
+
 await build({
-  stdin: {
-    contents: appSource,
-    resolveDir: workerSource,
-    sourcefile: 'src/app.js',
-    loader: 'js',
-  },
+  entryPoints: [productionAppSource],
   inject: [
     resolve(workerSource, 'language-preference.js'),
     resolve(workerSource, 'post-caption-placement.js'),
-    resolve(workerSource, 'member-notices.js'),
     resolve(workerSource, 'caption-entities.js'),
     resolve(workerSource, 'composer-formats.js'),
     resolve(workerSource, 'username-login.js'),
@@ -191,11 +186,6 @@ await build({
     resolve(workerSource, 'messages-whatsapp-ui.js'),
     resolve(workerSource, 'messages-media-ui.js'),
     resolve(workerSource, 'messages-durable-realtime.js'),
-    resolve(workerSource, 'rooms-platform.js'),
-    resolve(workerSource, 'room-post-images.js'),
-    resolve(workerSource, 'rooms-invitations-style.js'),
-    resolve(workerSource, 'rooms-invitations.js'),
-    resolve(workerSource, 'rooms-facebook-ui.js'),
     resolve(workerSource, 'mobile-nav-icon-style.js'),
     resolve(workerSource, 'mobile-more-drawer.js'),
     resolve(workerSource, 'post-media-carousel.js'),
@@ -205,6 +195,11 @@ await build({
     resolve(workerSource, 'social-oauth-auth.js'),
     resolve(workerSource, 'whatsapp-otp-auth.js'),
     resolve(workerSource, 'sautilink-video-player.js'),
+    resolve(workerSource, 'rooms-platform.js'),
+    resolve(workerSource, 'room-post-images.js'),
+    resolve(workerSource, 'rooms-invitations-style.js'),
+    resolve(workerSource, 'rooms-invitations.js'),
+    resolve(workerSource, 'rooms-facebook-ui.js'),
     resolve(workerSource, 'android-push-notifications.js'),
   ],
   outfile: resolve(siteRoot, 'app/assets/app.js'),
@@ -216,23 +211,20 @@ await build({
   logLevel: 'info',
 });
 
-const appHtmlPath = resolve(siteRoot, 'app/index.html');
-let appHtml = productionText(await readFile(appHtmlPath, 'utf8'));
-appHtml = appHtml
-  .replace(/\s*<meta name="robots" content="noindex, nofollow">\s*/i, '\n')
-  .replace("img-src 'self' data: blob:; script-src", "img-src 'self' data: blob:; media-src 'self' blob:; script-src")
-  .replace(/app\.js\?v=[^"']+/g, `app.js?v=${APP_JS_RELEASE}&feature=${APP_JS_FEATURE_RELEASE}`);
-appHtml = wireProductionPwa(appHtml);
-await writeFile(appHtmlPath, appHtml);
+const productionHeaders = `/app/*
+  Cache-Control: no-store, max-age=0
+  Content-Security-Policy: default-src 'self'; connect-src 'self' wss://sautilink.com wss://www.sautilink.com ${PRODUCTION_URL} wss://${PRODUCTION_REF}.supabase.co; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: camera=(), microphone=(self), geolocation=(), payment=(), usb=()
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
 
-const productionSwPath = resolve(siteRoot, 'sw.js');
-let productionSw = await readFile(productionSwPath, 'utf8');
-productionSw = productionSw
-  .replace(/const APP_RELEASE = "[^"]+";/, `const APP_RELEASE = "${APP_JS_RELEASE}";`)
-  .replace(/const APP_FEATURE_RELEASE = "[^"]+";/, `const APP_FEATURE_RELEASE = "${APP_JS_FEATURE_RELEASE}";`);
-await writeFile(productionSwPath, productionSw);
+/api/*
+  Cache-Control: no-store, max-age=0
+  X-Content-Type-Options: nosniff
+`;
+await writeFile(resolve(siteRoot, '_headers'), productionHeaders);
 
-const productionPwaPath = resolve(siteRoot, 'assets/pwa.js');
-let productionPwa = await readFile(productionPwaPath, 'utf8');
-productionPwa = productionPwa.replace(/const PWA_RELEASE = '[^']+';/, `const PWA_RELEASE = '${PWA_RELEASE}';`);
-await writeFile(productionPwaPath, productionPwa);
+console.log('Built production-isolated SautiLink app/Worker artifacts.');
