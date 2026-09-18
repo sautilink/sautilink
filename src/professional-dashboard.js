@@ -688,7 +688,7 @@ async function openDashboard() {
   profile.hidden = true;
   surface.hidden = false;
   const title = byId('view-title');
-  if (title) title.textContent = 'Dashboard';
+  if (title) title.hidden = true;
   window.scrollTo({ top: 0, behavior: 'auto' });
   startPolling();
   await refreshDashboard();
@@ -702,7 +702,10 @@ function closeDashboard() {
   if (surface) surface.hidden = true;
   if (profile) profile.hidden = false;
   const title = byId('view-title');
-  if (title) title.textContent = 'Profile';
+  if (title) {
+    title.hidden = false;
+    title.textContent = 'Profile';
+  }
   syncOwnerActions();
 }
 
@@ -734,6 +737,8 @@ function installNavigationGuard() {
     stopLiveUpdates();
     const surface = byId(DASHBOARD_ID);
     if (surface) surface.hidden = true;
+    const title = byId('view-title');
+    if (title) title.hidden = false;
   }, true);
 }
 
