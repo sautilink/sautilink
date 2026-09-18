@@ -42,7 +42,11 @@
 }
 
 .professional-dashboard-surface {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 100%;
+  overflow-x: hidden;
   color: var(--app-text, #f8fafc);
   background: var(--app-bg, #07111f);
 }
@@ -135,7 +139,7 @@
   letter-spacing: .02em;
 }
 
-.professional-dashboard-panel { padding: 18px; }
+.professional-dashboard-panel { min-width: 0; max-width: 100%; padding: 18px; }
 .professional-dashboard-panel[hidden] { display: none !important; }
 
 .professional-insights-heading {
@@ -258,6 +262,8 @@
 .professional-earnings-card,
 .professional-chart-card,
 .professional-top-content {
+  min-width: 0;
+  max-width: 100%;
   margin-top: 12px;
   border: 1px solid var(--app-border, #263142);
   border-radius: 12px;
@@ -291,19 +297,22 @@
 .professional-chart-heading span { color: var(--app-muted, #94a3b8); font-size: 10px; }
 .professional-dashboard-chart {
   width: 100%;
+  min-width: 0;
   min-height: 250px;
   overflow: hidden;
   padding: 0 8px 8px;
 }
-.professional-dashboard-chart svg { width: 100%; height: auto; display: block; }
+.professional-dashboard-chart svg { width: 100%; max-width: 100%; height: auto; display: block; }
 .professional-chart-grid-line { stroke: color-mix(in srgb, var(--app-muted, #94a3b8) 28%, transparent); stroke-width: 1; }
 .professional-chart-axis-label { fill: var(--app-muted, #94a3b8); font-size: 10px; }
 .professional-chart-line { fill: none; stroke: #218cff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .professional-chart-area { fill: rgba(33, 140, 255, .12); }
 
 .professional-top-content { padding: 16px; }
-.professional-top-content-list { margin-top: 12px; display: grid; gap: 0; }
+.professional-top-content-list { min-width: 0; max-width: 100%; margin-top: 12px; display: grid; gap: 0; }
 .professional-top-post {
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -398,18 +407,26 @@
   .profile-owner-dashboard-actions { gap: 8px; padding: 10px 14px; }
   .profile-owner-dashboard-actions .profile-edit-button,
   .profile-owner-dashboard-actions .profile-dashboard-button { min-height: 42px; border-radius: 9px; font-size: 13px; }
+  .professional-dashboard-surface { width: 100%; max-width: 100%; min-width: 0; overflow-x: hidden; }
   .professional-dashboard-header { min-height: 64px; padding: 11px 14px; }
   .professional-dashboard-header h2 { font-size: 20px; }
-  .professional-dashboard-tabs { padding-inline: 10px; overflow-x: auto; }
-  .professional-dashboard-panel { padding: 14px 10px 28px; }
-  .professional-insights-heading { flex-direction: column; align-items: stretch; }
-  .professional-insights-controls { justify-content: space-between; }
-  .professional-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .professional-dashboard-tabs { max-width: 100%; padding-inline: 10px; overflow-x: auto; }
+  .professional-dashboard-panel { width: 100%; max-width: 100%; min-width: 0; padding: 14px 10px 28px; }
+  .professional-insights-heading { min-width: 0; flex-direction: column; align-items: stretch; }
+  .professional-insights-heading > div:first-child { min-width: 0; }
+  .professional-insights-controls { min-width: 0; justify-content: space-between; }
+  #professional-dashboard-window { max-width: 100%; }
+  .professional-metric-grid { width: 100%; max-width: 100%; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .professional-metric-card { min-height: 132px; padding: 12px; }
   .professional-metric-card > strong { font-size: 22px; }
-  .professional-dashboard-chart { min-height: 210px; padding-inline: 0; overflow-x: auto; }
-  .professional-dashboard-chart svg { min-width: 620px; }
-  .professional-top-post { align-items: flex-start; flex-direction: column; }
+  .professional-chart-card,
+  .professional-top-content { width: 100%; max-width: 100%; min-width: 0; }
+  .professional-dashboard-chart { width: 100%; min-width: 0; min-height: 210px; padding-inline: 0; overflow-x: hidden; }
+  .professional-dashboard-chart svg { width: 100%; min-width: 0; max-width: 100%; height: auto; }
+  .professional-chart-axis-label { font-size: 22px; }
+  .professional-top-content-list { width: 100%; max-width: 100%; min-width: 0; }
+  .professional-top-post { width: 100%; max-width: 100%; min-width: 0; align-items: flex-start; flex-direction: column; }
+  .professional-top-post > div:first-child { width: 100%; max-width: 100%; min-width: 0; }
   .professional-top-post-stats { width: 100%; justify-content: space-between; }
   .professional-top-post strong { max-width: 100%; }
 }
