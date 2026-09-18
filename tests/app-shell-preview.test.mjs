@@ -109,6 +109,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/short-videos-feed.css'));
   assert.ok(files.includes('app/assets/sautilink-video-player.css'));
   assert.ok(files.includes('app/assets/professional-profile-category.css'));
+  assert.ok(files.includes('app/assets/professional-dashboard.css'));
   assert.ok(files.includes('app/assets/profile-activity.css'));
   assert.ok(files.includes('app/assets/profile-route-states.css'));
   assert.ok(files.includes('app/assets/profile-social-stats-order.css'));
@@ -179,6 +180,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/short-videos-feed.css',
     'app/assets/sautilink-video-player.css',
     'app/assets/professional-profile-category.css',
+    'app/assets/professional-dashboard.css',
     'app/assets/profile-activity.css',
     'app/assets/profile-route-states.css',
     'app/assets/profile-social-stats-order.css',
