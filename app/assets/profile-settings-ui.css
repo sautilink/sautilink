@@ -14,6 +14,10 @@ body.profile-editor-open {
 
 /* Visitor profile overflow menu. Kept in the eagerly loaded presentation sheet so
    a transient dynamic stylesheet failure can never expose native <details>/SVG sizing. */
+.profile-surface .profile-card {
+  overflow: visible;
+}
+
 .profile-surface .profile-more-menu {
   position: relative;
   flex: 0 0 auto;
