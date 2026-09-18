@@ -21,6 +21,19 @@ test('Professional Dashboard has canonical browser routes without replacing the 
   assert.match(transformed, /const professionalDashboardRoute = professionalDashboardRouteKind\(window\.location\.pathname\)/);
 });
 
+test('Dashboard deep links wait for persisted auth restoration instead of forcing a signed-out screen', async () => {
+  const source = await read('src/app.js');
+  const transformed = transformPostViewMetricsSource('/repo/src/app.js', source);
+  const routeStart = transformed.indexOf('const professionalDashboardRoute = professionalDashboardRouteKind(window.location.pathname);');
+  assert.notEqual(routeStart, -1);
+  const routeBlock = transformed.slice(routeStart, routeStart + 520);
+
+  assert.match(routeBlock, /if \(currentMember\?\.username\) \{/);
+  assert.match(routeBlock, /if \(openProfessionalDashboardRoute\(professionalDashboardRoute\)\) return;/);
+  assert.match(routeBlock, /if \(!currentMember\) return;/);
+  assert.doesNotMatch(routeBlock, /showSignedOut\('login'\)/);
+});
+
 test('Worker, static rewrites and service worker all recognize Dashboard deep links', async () => {
   const [router, redirects, serviceWorker, productionBuilder] = await Promise.all([
     read('src/asset-router.js'),
