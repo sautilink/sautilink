@@ -27,7 +27,8 @@ const CLEAN_AUTH_ROUTE = /^\/(?:login|signup)\/?$/;
 const CLEAN_POST_ROUTE = /^\/post\/[0-9a-f-]{36}\/?$/;
 const CLEAN_MESSAGE_ROUTE = /^\/messages(?:\/[0-9a-f-]{36})?\/?$/;
 const CLEAN_ROOM_ROUTE = /^\/(?:rooms|sautify)(?:\/[^/]+)?\/?$/;
-const CLEAN_ROUTE_PREFIX = /^\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications|messages|rooms|sautify)/;
+const CLEAN_DASHBOARD_ROUTE = /^\/dashboard(?:\/tools(?:\/moneti[sz]ation)?|\/moneti[sz]ation)?\/?$/i;
+const CLEAN_ROUTE_PREFIX = /^\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications|messages|rooms|sautify|dashboard)/;
 const SAUTI_MEDIA_UPLOAD_ROUTE = /^\/api\/sauti-media\/upload\/([0-9a-f-]{36})$/i;
 const SHORT_VIDEO_DURATION_MS = 30_000;
 
@@ -359,6 +360,7 @@ async function routeRequest(request, env, url) {
       || CLEAN_POST_ROUTE.test(url.pathname)
       || CLEAN_MESSAGE_ROUTE.test(url.pathname)
       || CLEAN_ROOM_ROUTE.test(url.pathname)
+      || CLEAN_DASHBOARD_ROUTE.test(url.pathname)
     )
   ) {
     if (!env.ASSETS) return new Response('Not found', { status: 404 });

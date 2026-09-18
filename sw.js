@@ -1,6 +1,6 @@
 const CACHE_NAME = "sautilink-shell-v60";
 const APP_RELEASE = "20260917-commentmenu1";
-const APP_FEATURE_RELEASE = "20260915-verification1";
+const APP_FEATURE_RELEASE = "20260918-dashboardroute1";
 const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.css",
   "/app/assets/app.js",
@@ -70,7 +70,7 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || url.pathname.startsWith("/api/")) return;
 
   if (event.request.mode === "navigate") {
-    const socialRoute = /^(?:\/app(?:\/|$)|\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications)(?:\/|$)|\/messages(?:\/|$)|\/(?:rooms|sautify)(?:\/|$)|\/u\/|\/post\/)/.test(url.pathname);
+    const socialRoute = /^(?:\/app(?:\/|$)|\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications|dashboard)(?:\/|$)|\/messages(?:\/|$)|\/(?:rooms|sautify)(?:\/|$)|\/u\/|\/post\/)/.test(url.pathname);
     const fallback = socialRoute ? "/app/" : "/";
     event.respondWith(fetch(event.request, { cache: "no-store" }).catch(() => caches.match(fallback)));
     return;
