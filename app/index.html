@@ -15,6 +15,7 @@
   <script src="/app/assets/theme-init.js?v=20260904-account2"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
   <link rel="stylesheet" href="/app/assets/app.css?v=20260917-commentmenu1">
+  <link rel="stylesheet" href="/app/assets/profile-settings-ui.css?v=20260918-profile1">
   <script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>
 </head>
 <body>
@@ -906,11 +907,11 @@
             <div><p class="section-label">Account controls</p><h2>Settings</h2><p>Privacy-first controls for your SautiLink account.</p></div>
           </header>
           <nav class="settings-tabs" aria-label="Settings sections">
-            <button type="button" data-settings-section="account" class="active">Account</button>
-            <button type="button" data-settings-section="privacy">Privacy</button>
-            <button type="button" data-settings-section="notifications">Notifications</button>
-            <button type="button" data-settings-section="safety">Safety</button>
-            <button type="button" data-settings-section="data">Your data</button>
+            <button type="button" data-settings-section="account" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21c.7-4.2 3.2-6.5 7.5-6.5s6.8 2.3 7.5 6.5"></path></svg><span>Account</span><i aria-hidden="true">›</i></button>
+            <button type="button" data-settings-section="privacy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg><span>Privacy</span><i aria-hidden="true">›</i></button>
+            <button type="button" data-settings-section="notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span>Notifications</span><i aria-hidden="true">›</i></button>
+            <button type="button" data-settings-section="safety"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3 7.8 7.5 9.5 4.5-1.7 7.5-4.9 7.5-9.5V6L12 3Z"></path><path d="m8.5 12 2.2 2.2 4.8-5"></path></svg><span>Safety</span><i aria-hidden="true">›</i></button>
+            <button type="button" data-settings-section="data"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 20h14"></path></svg><span>Your data</span><i aria-hidden="true">›</i></button>
           </nav>
           <p class="form-message settings-message" id="settings-message" role="status" aria-live="polite" hidden></p>
 
@@ -1010,6 +1011,8 @@
                   <img class="profile-avatar-image" id="profile-avatar-image" alt="" hidden>
                 </div>
                 <div class="profile-actions">
+                  <button class="profile-follow-button" id="profile-follow-button" type="button" hidden>Follow</button>
+                  <button class="profile-follow-button profile-message-button" id="profile-message-button" type="button" hidden>Message</button>
                   <button class="profile-edit-button" id="profile-edit-button" type="button">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.2-1 10.6-10.6a2 2 0 0 0-2.8-2.8L5.4 16.2 4 20Z"></path><path d="m14.7 6.9 2.8 2.8"></path></svg>
                     Edit profile
@@ -1018,11 +1021,14 @@
                     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19 13.5v-3l-2-.7a7.3 7.3 0 0 0-.7-1.7l.9-1.9-2.1-2.1-1.9.9a7.3 7.3 0 0 0-1.7-.7L10.5 2h-3l-.7 2a7.3 7.3 0 0 0-1.7.7l-1.9-.9-2.1 2.1.9 1.9a7.3 7.3 0 0 0-.7 1.7l-2 .7v3l2 .7a7.3 7.3 0 0 0 .7 1.7l-.9 1.9 2.1 2.1 1.9-.9a7.3 7.3 0 0 0 1.7.7l.7 2h3l.7-2a7.3 7.3 0 0 0 1.7-.7l1.9.9 2.1-2.1-.9-1.9a7.3 7.3 0 0 0 .7-1.7l2-.7Z"></path></svg>
                     Settings
                   </button>
-                  <button class="profile-follow-button" id="profile-follow-button" type="button" hidden>Follow</button>
-                  <button class="profile-follow-button profile-message-button" id="profile-message-button" type="button" hidden>Message</button>
-                  <button class="profile-safety-button" id="profile-report-button" type="button" hidden>Report</button>
-                  <button class="profile-safety-button" id="profile-mute-button" type="button" hidden>Mute</button>
-                  <button class="profile-safety-button danger" id="profile-block-button" type="button" hidden>Block</button>
+                  <details class="profile-more-menu" id="profile-more-menu">
+                    <summary aria-label="More profile actions" title="More"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle></svg></summary>
+                    <div class="profile-more-popover">
+                      <button class="profile-safety-button" id="profile-report-button" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3v18"></path><path d="M5 4h12l-2 4 2 4H5"></path></svg><span>Report profile</span></button>
+                      <button class="profile-safety-button" id="profile-mute-button" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6.5 9H3v6h3.5L11 19V5Z"></path><path d="m17 9 4 4M21 9l-4 4"></path></svg><span>Mute account</span></button>
+                      <button class="profile-safety-button danger" id="profile-block-button" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m5.6 5.6 12.8 12.8"></path></svg><span>Block account</span></button>
+                    </div>
+                  </details>
                 </div>
               </div>
               <div class="profile-heading">
@@ -1034,15 +1040,15 @@
                 </div>
                 <p id="profile-username">@username</p>
               </div>
-              <div class="profile-social-stats" aria-label="Social counts">
-                <span><strong id="profile-followers-count">0</strong> Followers</span>
-                <span><strong id="profile-following-count">0</strong> Following</span>
-              </div>
-              <span class="profile-visibility" id="profile-visibility">Discoverable</span>
               <p class="profile-bio" id="profile-bio">Add a short bio so people understand what your voice is about.</p>
               <div class="profile-meta" aria-label="Profile details">
                 <span id="profile-location" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg><b></b></span>
                 <a id="profile-website" href="#" rel="noopener noreferrer" target="_blank" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"></path></svg><b></b></a>
+                <span class="profile-visibility" id="profile-visibility"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"></path></svg><b>Discoverable</b></span>
+              </div>
+              <div class="profile-social-stats" aria-label="Social counts">
+                <span><strong id="profile-followers-count">0</strong> Followers</span>
+                <span><strong id="profile-following-count">0</strong> Following</span>
               </div>
             </div>
           </article>
@@ -1055,11 +1061,14 @@
             <a class="secondary-action profile-route-home" href="/home">Back to SautiLink</a>
           </section>
 
-          <section class="profile-editor" id="profile-editor" aria-labelledby="profile-editor-title" hidden>
+          <section class="profile-editor" id="profile-editor" role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" hidden>
+            <div class="profile-editor-dialog">
             <div class="profile-editor-heading">
-              <div><p class="section-label">Your public identity</p><h2 id="profile-editor-title">Edit profile basics</h2></div>
+              <div><p class="section-label">Your public identity</p><h2 id="profile-editor-title">Edit profile</h2></div>
               <button class="icon-control" id="profile-edit-cancel" type="button" aria-label="Close profile editor" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
             </div>
+
+            <div class="profile-editor-content">
 
             <section class="profile-identity-panel" id="profile-identity-panel" aria-labelledby="profile-identity-title">
               <div class="profile-identity-heading">
@@ -1188,6 +1197,8 @@
 
               <p class="security-note">SautiLink invitation links are accepted here in the app. Sending invitations remains restricted to authorized admin tools so no privileged service key is exposed to members.</p>
             </section>
+            </div>
+            </div>
           </section>
         </section>
       </section>

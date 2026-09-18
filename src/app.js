@@ -5284,10 +5284,12 @@ function renderProfile(profile, { owner = true } = {}) {
   configureProfileVerificationBadge(profile, { owner });
   byId('profile-followers-count').textContent = String(Number(profile.followers_count || 0));
   byId('profile-following-count').textContent = String(Number(profile.following_count || 0));
-  byId('profile-visibility').textContent = owner
+  const profileVisibility = byId('profile-visibility');
+  const profileVisibilityLabel = profileVisibility.querySelector('b') || profileVisibility;
+  profileVisibilityLabel.textContent = owner
     ? (profile.is_discoverable ? 'Discoverable' : 'Visible only by direct access')
     : 'Public profile';
-  byId('profile-visibility').classList.toggle('private', owner && !profile.is_discoverable);
+  profileVisibility.classList.toggle('private', owner && !profile.is_discoverable);
   byId('profile-bio').textContent = bio || (owner
     ? 'Add a short bio so people understand what your voice is about.'
     : 'This member has not added a bio yet.');
@@ -7559,6 +7561,7 @@ async function decideCircleRequest(requesterId, status, row) {
 
 function closeProfileEditor({ restoreFocus = false } = {}) {
   byId('profile-editor').hidden = true;
+  document.body.classList.remove('profile-editor-open');
   setMessage(byId('profile-form-message'), '', '');
   if (restoreFocus) byId('profile-edit-button').focus();
 }
@@ -7691,6 +7694,7 @@ function openProfileEditor() {
   setMessage(byId('profile-username-message'), '', '');
   updateProfileMediaControls();
   byId('profile-editor').hidden = false;
+  document.body.classList.add('profile-editor-open');
   void loadIdentityControls();
   byId('profile-name-input').focus();
 }
@@ -9236,6 +9240,15 @@ byId('settings-deletion-cancel').addEventListener('click', async (event) => {
 byId('profile-edit-button').addEventListener('click', openProfileEditor);
 byId('profile-edit-cancel').addEventListener('click', () => closeProfileEditor({ restoreFocus: true }));
 byId('profile-cancel-button').addEventListener('click', () => closeProfileEditor({ restoreFocus: true }));
+byId('profile-editor').addEventListener('click', (event) => {
+  if (event.target === event.currentTarget) closeProfileEditor({ restoreFocus: true });
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !byId('profile-editor').hidden) {
+    event.preventDefault();
+    closeProfileEditor({ restoreFocus: true });
+  }
+});
 byId('profile-bio-input').addEventListener('input', (event) => {
   byId('profile-bio-count').textContent = String(event.currentTarget.value.length);
 });

@@ -1,0 +1,516 @@
+/* Profile editor and settings presentation refresh.
+   All selectors are scoped to existing member surfaces so service contracts remain unchanged. */
+
+body.profile-editor-open {
+  overflow: hidden;
+}
+
+.profile-editor[hidden],
+.settings-surface[hidden],
+.settings-panel[hidden] {
+  display: none !important;
+}
+
+/* Edit Profile: modal on larger screens, full-screen sheet on phones. */
+.profile-editor {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  min-height: 0;
+  margin: 0;
+  padding: 20px;
+  place-items: center;
+  background: rgba(3, 8, 18, .72);
+  backdrop-filter: blur(8px);
+}
+
+.profile-editor-dialog {
+  display: flex;
+  width: min(760px, 100%);
+  max-height: min(900px, calc(100dvh - 40px));
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--app-line-strong);
+  border-radius: 22px;
+  background: var(--app-panel);
+  color: var(--app-text);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .46);
+}
+
+.profile-editor .profile-editor-heading {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  min-height: 72px;
+  margin: 0;
+  padding: 14px 18px;
+  align-items: center;
+  border-bottom: 1px solid var(--app-line);
+  background: color-mix(in srgb, var(--app-panel) 94%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.profile-editor .profile-editor-heading .section-label {
+  margin: 0 0 2px;
+}
+
+.profile-editor .profile-editor-heading h2 {
+  color: var(--app-text);
+  font-size: 21px;
+}
+
+.profile-editor .profile-editor-content {
+  display: grid;
+  gap: 16px;
+  min-height: 0;
+  padding: 18px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.profile-editor .profile-identity-panel,
+.profile-editor .profile-media-panel,
+.profile-editor .profile-form,
+.profile-editor .account-security-panel {
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--app-line);
+  border-radius: 16px;
+  background: var(--app-panel-soft);
+}
+
+.profile-editor .account-security-panel {
+  border-top: 1px solid var(--app-line);
+}
+
+.profile-editor .profile-identity-heading,
+.profile-editor .profile-media-heading,
+.profile-editor .account-security-heading {
+  margin-bottom: 16px;
+}
+
+.profile-editor .profile-identity-heading h3,
+.profile-editor .account-security-heading h2 {
+  color: var(--app-text);
+  font-size: 16px;
+}
+
+.profile-editor .profile-identity-state,
+.profile-editor .profile-media-state,
+.profile-editor .account-email-current {
+  border: 1px solid var(--app-line-strong);
+  border-radius: 999px;
+  background: var(--app-panel);
+  color: var(--app-muted);
+}
+
+.profile-editor .profile-media-controls {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.profile-editor .profile-media-control {
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-content: start;
+  border-color: var(--app-line);
+  background: var(--app-panel);
+}
+
+.profile-editor .profile-media-control .profile-media-action,
+.profile-editor .profile-media-control .profile-media-remove {
+  width: 100%;
+}
+
+.profile-editor .profile-media-control .profile-media-action {
+  grid-column: 1 / 2;
+}
+
+.profile-editor .profile-media-control .profile-media-remove {
+  grid-column: 2 / 3;
+  justify-self: start;
+}
+
+.profile-editor .profile-form {
+  gap: 8px;
+}
+
+.profile-editor .profile-form > label:not(.profile-discoverability),
+.profile-editor .security-form label {
+  color: var(--app-text);
+}
+
+.profile-editor .profile-form input[type="text"],
+.profile-editor .profile-form input[type="url"],
+.profile-editor .profile-form textarea,
+.profile-editor .security-form input,
+.profile-editor .identity-username-field {
+  border-color: var(--app-line-strong);
+  background: var(--app-input);
+  color: var(--app-text);
+}
+
+.profile-editor .profile-discoverability {
+  border-color: var(--app-line);
+  background: var(--app-panel);
+}
+
+.profile-editor .profile-discoverability strong,
+.profile-editor .reauth-intro strong,
+.profile-editor .account-deletion-card h3 {
+  color: var(--app-text);
+}
+
+.profile-editor .profile-form-actions {
+  position: sticky;
+  bottom: -18px;
+  z-index: 3;
+  margin: 10px -18px -18px;
+  padding: 13px 18px;
+  border-top: 1px solid var(--app-line);
+  background: color-mix(in srgb, var(--app-panel-soft) 94%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.profile-editor .account-deletion-card {
+  background: var(--app-panel);
+}
+
+/* Settings: two-pane hierarchy on desktop, compact section strip on mobile. */
+.settings-surface {
+  display: grid;
+  min-height: calc(100vh - 72px);
+  grid-template-columns: 216px minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  background: var(--app-panel);
+}
+
+.settings-surface .settings-toolbar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  min-height: 88px;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--app-line);
+  background: var(--app-panel);
+}
+
+.settings-surface .settings-toolbar h2 {
+  color: var(--app-text);
+  font-size: 23px;
+}
+
+.settings-surface .settings-toolbar > div > p:last-child {
+  color: var(--app-muted);
+  font-size: 11px;
+}
+
+.settings-surface .settings-tabs {
+  grid-column: 1;
+  grid-row: 2 / 4;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  overflow: visible;
+  border-right: 1px solid var(--app-line);
+  border-bottom: 0;
+  background: var(--app-panel);
+}
+
+.settings-surface .settings-tabs button {
+  display: grid;
+  width: 100%;
+  min-height: 46px;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--app-muted);
+  font-size: 11px;
+  text-align: left;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.settings-surface .settings-tabs button:hover {
+  background: var(--app-panel-soft);
+  color: var(--app-text);
+}
+
+.settings-surface .settings-tabs button.active {
+  border-color: var(--app-line);
+  background: var(--app-elevated);
+  color: var(--app-text);
+}
+
+.settings-surface .settings-tabs button svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.settings-surface .settings-tabs button i {
+  color: var(--app-muted);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 500;
+}
+
+.settings-surface .settings-message {
+  grid-column: 2;
+  grid-row: 2;
+  margin: 14px 20px 0;
+}
+
+.settings-surface .settings-panel {
+  grid-column: 2;
+  grid-row: 3;
+  gap: 14px;
+  min-width: 0;
+  padding: 20px 22px 30px;
+}
+
+.settings-surface .settings-panel-heading {
+  gap: 5px;
+  padding: 1px 2px 5px;
+}
+
+.settings-surface .settings-panel-heading h3 {
+  color: var(--app-text);
+  font-size: 20px;
+}
+
+.settings-surface .settings-panel-heading > p:last-child {
+  max-width: 520px;
+  color: var(--app-muted);
+  font-size: 11px;
+}
+
+.settings-surface .settings-card {
+  gap: 14px;
+  padding: 17px;
+  border-color: var(--app-line);
+  border-radius: 16px;
+  background: var(--app-panel-soft);
+}
+
+.settings-surface .settings-card-title strong,
+.settings-surface .settings-data-card strong {
+  color: var(--app-text);
+  font-size: 12px;
+}
+
+.settings-surface .settings-card-title small,
+.settings-surface .settings-note,
+.settings-surface .settings-select small,
+.settings-surface .settings-card-copy,
+.settings-surface .settings-data-card p,
+.settings-surface .settings-empty {
+  color: var(--app-muted);
+  font-size: 10px;
+}
+
+.settings-surface .settings-details,
+.settings-surface .settings-account-list {
+  border-color: var(--app-line);
+  border-radius: 12px;
+}
+
+.settings-surface .settings-details div,
+.settings-surface .settings-account-row {
+  background: var(--app-panel);
+}
+
+.settings-surface .settings-details dt,
+.settings-surface .settings-details dd {
+  font-size: 10px;
+}
+
+.settings-surface .settings-toggle-list {
+  padding: 0;
+}
+
+.settings-surface .settings-toggle-row {
+  min-height: 68px;
+  padding: 14px 16px;
+}
+
+.settings-surface .settings-toggle-row strong,
+.settings-surface .settings-select > span {
+  color: var(--app-text);
+  font-size: 11px;
+}
+
+.settings-surface .settings-toggle-row small {
+  max-width: 480px;
+  color: var(--app-muted);
+  font-size: 10px;
+}
+
+.settings-surface .settings-toggle-row i {
+  width: 40px;
+  height: 23px;
+  border-color: var(--app-line-strong);
+  background: var(--app-input);
+}
+
+.settings-surface .settings-toggle-row i b {
+  width: 17px;
+  height: 17px;
+}
+
+.settings-surface .settings-toggle-row input:checked + i {
+  border-color: var(--app-accent);
+  background: var(--app-accent);
+}
+
+.settings-surface .settings-toggle-row input:checked + i b {
+  left: 19px;
+  background: #fff;
+}
+
+.settings-surface .settings-select select {
+  min-height: 42px;
+  border-color: var(--app-line-strong);
+  background: var(--app-input);
+  color: var(--app-text);
+  font-size: 10px;
+}
+
+.settings-surface .settings-data-card.danger {
+  border-color: color-mix(in srgb, #ef476f 38%, var(--app-line));
+  background: color-mix(in srgb, #ef476f 7%, var(--app-panel-soft));
+}
+
+@media (max-width: 680px) {
+  .profile-editor {
+    padding: 0;
+    place-items: stretch;
+    background: var(--app-panel);
+    backdrop-filter: none;
+  }
+
+  .profile-editor-dialog {
+    width: 100%;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .profile-editor .profile-editor-heading {
+    min-height: 62px;
+    padding: 10px 14px;
+  }
+
+  .profile-editor .profile-editor-content {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .profile-editor .profile-identity-panel,
+  .profile-editor .profile-media-panel,
+  .profile-editor .profile-form,
+  .profile-editor .account-security-panel {
+    padding: 15px;
+    border-radius: 14px;
+  }
+
+  .profile-editor .profile-media-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-editor .profile-form-actions {
+    bottom: -12px;
+    margin: 10px -15px -15px;
+    padding: 12px 15px calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .settings-surface {
+    display: block;
+    min-height: auto;
+  }
+
+  .settings-surface .settings-toolbar {
+    min-height: 76px;
+    padding: 15px 14px;
+  }
+
+  .settings-surface .settings-toolbar h2 {
+    font-size: 21px;
+  }
+
+  .settings-surface .settings-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    display: flex;
+    gap: 6px;
+    padding: 9px 12px;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--app-line);
+    background: color-mix(in srgb, var(--app-panel) 94%, transparent);
+    backdrop-filter: blur(14px);
+    scrollbar-width: none;
+  }
+
+  .settings-surface .settings-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-surface .settings-tabs button {
+    display: inline-flex;
+    width: auto;
+    min-height: 38px;
+    flex: 0 0 auto;
+    gap: 7px;
+    padding: 0 11px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .settings-surface .settings-tabs button svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .settings-surface .settings-tabs button i {
+    display: none;
+  }
+
+  .settings-surface .settings-message {
+    margin: 12px 14px 0;
+  }
+
+  .settings-surface .settings-panel {
+    gap: 12px;
+    padding: 15px 14px 24px;
+  }
+
+  .settings-surface .settings-card {
+    padding: 15px;
+  }
+
+  .settings-surface .settings-toggle-list {
+    padding: 0;
+  }
+
+  .settings-surface .settings-toggle-row {
+    min-height: 64px;
+    padding: 13px 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-surface .settings-tabs button,
+  .settings-surface .settings-toggle-row i,
+  .settings-surface .settings-toggle-row i b {
+    transition: none;
+  }
+}
