@@ -5338,6 +5338,8 @@ function renderProfile(profile, { owner = true } = {}) {
     .then(() => loadProfileSafetyState(profile, owner))
     .catch(() => {
       byId('profile-follow-button').hidden = true;
+      byId('profile-message-button').hidden = true;
+      byId('profile-report-button').hidden = true;
       byId('profile-mute-button').hidden = true;
       byId('profile-block-button').hidden = true;
       syncProfileMoreMenuVisibility();
