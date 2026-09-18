@@ -11,7 +11,7 @@ test('profile editor and settings refresh is presentation-only and preserves con
     read('app/assets/profile-settings-ui.css'),
   ]);
 
-  assert.match(shell, /profile-settings-ui\.css\?v=20260918-profile1/);
+  assert.match(shell, /profile-settings-ui\.css\?v=20260918-profile2/);
   assert.match(shell, /id="profile-editor" role="dialog" aria-modal="true"/);
   assert.match(css, /\.profile-editor-dialog/);
   assert.match(css, /grid-template-columns: 216px minmax\(0, 1fr\)/);
