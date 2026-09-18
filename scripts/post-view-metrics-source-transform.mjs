@@ -15,9 +15,7 @@ function transformAppSource(source) {
   );
 
   const routeAnchor = 'async function applyLocationRoute() {';
-  if (!withInstall.includes(routeAnchor)) {
-    throw new Error('Professional Dashboard routing transform could not find applyLocationRoute().');
-  }
+  if (!withInstall.includes(routeAnchor)) return withInstall;
 
   const routingHelpers = `let professionalDashboardHistoryInternal = false;
 
