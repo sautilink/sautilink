@@ -37,18 +37,20 @@ test('Worker, static rewrites and service worker all recognize Dashboard deep li
   assert.match(serviceWorker, /fetch\(event\.request, \{ cache: "no-store" \}\)/);
 });
 
-test('analytics view RPCs can use ON CONFLICT without exposing viewer identity rows', async () => {
-  const [postViews, dashboardViews, permissionFix] = await Promise.all([
+test('analytics view RPCs dedupe with unique constraints while viewer rows stay unreadable', async () => {
+  const [postViews, dashboardViews, hardening] = await Promise.all([
     read('supabase/migrations/20260914041500_enable_post_view_metrics.sql'),
     read('supabase/migrations/20260918122500_enable_profile_performance_dashboard.sql'),
-    read('supabase/migrations/20260918144500_fix_analytics_view_recording_permissions.sql'),
+    read('supabase/migrations/20260918145500_harden_analytics_view_recording_rpc.sql'),
   ]);
 
-  assert.match(postViews, /on conflict \(post_id, viewer_id\) do nothing/);
-  assert.match(dashboardViews, /on conflict \(profile_id, viewer_id, viewed_on\) do nothing/);
-  assert.match(permissionFix, /grant select, insert on table public\.social_post_views to authenticated/);
-  assert.match(permissionFix, /grant select, insert on table public\.social_profile_views to authenticated/);
-  assert.doesNotMatch(permissionFix, /create policy[\s\S]*for select/i);
+  assert.match(postViews, /primary key \(post_id, viewer_id\)/);
+  assert.match(dashboardViews, /primary key \(profile_id, viewer_id, viewed_on\)/);
+  assert.match(hardening, /revoke select on table public\.social_post_views from authenticated/);
+  assert.match(hardening, /revoke select on table public\.social_profile_views from authenticated/);
+  assert.match(hardening, /insert into public\.social_post_views[\s\S]*when unique_violation then[\s\S]*return false/);
+  assert.match(hardening, /insert into public\.social_profile_views[\s\S]*when unique_violation then[\s\S]*return false/);
+  assert.match(hardening, /security invoker/g);
 });
 
 test('post views remain meaningful unique views rather than raw impressions', async () => {
