@@ -13,7 +13,7 @@ test('profile X-style layer is isolated to the profile surface and CSP-safe', as
   assert.match(source, /document\.getElementById\('profile-surface'\)/);
   assert.match(source, /document\.createElement\('link'\)/);
   assert.match(source, /link\.rel = 'stylesheet'/);
-  assert.match(source, /\/app\/assets\/profile-x-ui\.css\?v=20260910-tabs2/);
+  assert.match(source, /\/app\/assets\/profile-x-ui\.css\?v=20260918-profile1/);
   assert.match(source, /surface\.dataset\.profilePresentation = 'x-style'/);
   assert.doesNotMatch(source, /document\.createElement\('style'\)/);
   assert.doesNotMatch(source, /MutationObserver/);
@@ -59,8 +59,8 @@ test('regular and production builds include the profile presentation loader', as
 
 test('profile stylesheet keeps desktop and mobile X-style hierarchy', async () => {
   const css = await read('app/assets/profile-x-ui.css');
-  assert.match(css, /height: 200px/);
-  assert.match(css, /width: 142px/);
+  assert.match(css, /height: 184px/);
+  assert.match(css, /width: 124px/);
   assert.match(css, /border-radius: 999px/);
   assert.match(css, /profile-social-stats > span:first-child \{ order: 2; \}/);
   assert.match(css, /profile-activity-tab\[aria-selected="true"\]::after/);
@@ -69,6 +69,22 @@ test('profile stylesheet keeps desktop and mobile X-style hierarchy', async () =
   assert.match(css, /\.profile-surface \.profile-activity-tab\[hidden\] \{\s*display: none;/s);
   assert.match(css, /\.profile-surface \.profile-activity-privacy-toggle svg,\s*\.profile-surface \.profile-activity-tab svg/s);
   assert.match(css, /@media \(max-width: 680px\)/);
-  assert.match(css, /width: 104px/);
+  assert.match(css, /width: 96px/);
   assert.match(css, /@media \(max-width: 420px\)/);
+});
+
+test('profile visitor actions use an accessible overflow menu without changing action ids', async () => {
+  const [shell, source, css] = await Promise.all([
+    read('app/index.html'),
+    read('src/profile-x-ui.js'),
+    read('app/assets/profile-x-ui.css'),
+  ]);
+
+  assert.match(shell, /id="profile-more-menu"/);
+  assert.match(shell, /aria-label="More profile actions"/);
+  for (const id of ['profile-report-button', 'profile-mute-button', 'profile-block-button']) {
+    assert.match(shell, new RegExp(`id="${id}"`));
+  }
+  assert.match(source, /moreMenu\.open = false/);
+  assert.match(css, /\.profile-surface \.profile-more-popover/);
 });
