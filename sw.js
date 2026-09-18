@@ -1,6 +1,6 @@
 const CACHE_NAME = "sautilink-shell-v60";
 const APP_RELEASE = "20260917-commentmenu1";
-const APP_FEATURE_RELEASE = "20260918-dashboardroute1";
+const APP_FEATURE_RELEASE = "20260918-signup2";
 const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.css",
   "/app/assets/app.js",
