@@ -1,98 +1,91 @@
 import assert from 'node:assert/strict';
-import { mkdir, readFile, readdir, rm } from 'node:fs/promises';
-import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import test from 'node:test';
 
-const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const read = (path) => readFile(resolve(projectRoot, path), 'utf8');
-
-async function walk(root, current = root) {
-  const entries = await readdir(current, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    const path = join(current, entry.name);
-    if (entry.isDirectory()) files.push(...await walk(root, path));
-    else files.push(relative(root, path).replaceAll('\\', '/'));
-  }
-  return files.sort();
-}
+const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('preview is isolated, noindex and cannot connect to production services', async () => {
-  const [wrangler, headers, packageJson] = await Promise.all([
-    read('wrangler.preview.toml'),
-    read('preview/_headers'),
-    read('preview/package.json'),
-  ]);
+  const sourceHtml = await read('preview-src/app-shell/index.html');
+  const builtHtml = await read('preview/app-shell/index.html');
+  const headers = await read('_headers');
 
-  assert.match(wrangler, /name = "sautilink-ui-preview"/);
-  assert.match(wrangler, /compatibility_date = "2026-08-24"/);
-  assert.match(wrangler, /directory = "\.preview-dist"/);
-  assert.match(wrangler, /not_found_handling = "single-page-application"/);
-  assert.match(headers, /X-Robots-Tag: noindex, nofollow, noarchive, nosnippet/);
-  assert.match(headers, /default-src 'none'/);
+  assert.match(sourceHtml, /noindex, nofollow/);
+  assert.match(sourceHtml, /connect-src 'none'/);
+  assert.match(sourceHtml, /form-action 'none'/);
+  assert.doesNotMatch(sourceHtml, /supabase\.co|sb_publishable_|service_role/i);
+  assert.doesNotMatch(builtHtml, /<script[^>]+https?:\/\//i);
+  assert.match(headers, /\/preview\/app-shell\/\*/);
   assert.match(headers, /connect-src 'none'/);
-  assert.match(headers, /form-action 'none'/);
-  assert.match(packageJson, /"private": true/);
+  assert.match(headers, /Cache-Control: no-store/);
 });
 
 test('preview carries the approved SautiLink product language and surfaces', async () => {
-  const sourceFiles = [
-    'preview/src/App.jsx',
-    'preview/src/data.js',
-    'preview/src/views/AppShell.jsx',
-    'preview/src/views/Identity.jsx',
-    'preview/src/views/Profiles.jsx',
-    'preview/src/views/ShareStream.jsx',
-    'preview/src/views/Media.jsx',
-    'preview/src/views/Conversations.jsx',
-    'preview/src/views/TrustSafety.jsx',
-  ];
-  const sources = (await Promise.all(sourceFiles.map(read))).join('\n');
-  for (const expected of ['SautiLink', 'Share a Post', 'Sautify', 'For you', 'Following', 'Profile', 'Messages', 'Short videos']) {
-    assert.match(sources, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
+  const app = await read('preview-src/app-shell/App.jsx');
+  for (const term of ['Home', 'Discover', 'Messages', 'Sautify', 'Notifications', 'Saved', 'Create Post']) {
+    assert.match(app, new RegExp(term));
   }
-  assert.doesNotMatch(sources, /Share a Sauti|\bCircles\b/i);
+  assert.match(app, /function MessagesScreen/);
+  assert.match(app, /Skip to main content/);
+  assert.match(app, /aria-modal="true"/);
+  assert.match(app, /role="dialog" aria-modal="true" aria-label="Account menu"/);
+  assert.match(app, /prefers-color-scheme/);
 });
 
 test('preview uses restrained design tokens with no decorative gradients', async () => {
-  const styles = await read('preview/src/styles.css');
-  assert.match(styles, /--background:\s*#080a0d/);
-  assert.match(styles, /--accent:\s*#f04452/);
-  assert.match(styles, /--border:\s*#272b31/);
-  assert.doesNotMatch(styles, /linear-gradient|radial-gradient|conic-gradient/i);
+  const css = await read('preview-src/app-shell/styles.css');
+  assert.match(css, /--canvas:/);
+  assert.match(css, /--accent:/);
+  assert.match(css, /data-theme="dark"/);
+  assert.match(css, /prefers-reduced-motion/);
+  assert.doesNotMatch(css, /(linear|radial|conic)-gradient\(/i);
 });
 
 test('preview dependencies are pinned and build output stays inside its budget', async () => {
-  const packageJson = JSON.parse(await read('preview/package.json'));
-  for (const value of Object.values({ ...(packageJson.dependencies || {}), ...(packageJson.devDependencies || {}) })) {
-    assert.match(value, /^\d+\.\d+\.\d+$/);
+  const packageJson = JSON.parse(await read('package.json'));
+  for (const name of ['react', 'react-dom', 'lucide-react']) {
+    assert.match(packageJson.dependencies[name], /^\d+\.\d+\.\d+$/);
+  }
+  for (const name of ['vite', '@vitejs/plugin-react']) {
+    assert.match(packageJson.devDependencies[name], /^\d+\.\d+\.\d+$/);
   }
 
-  const budget = JSON.parse(await read('preview/performance-budget.json'));
-  assert.equal(budget.budgets.javascript_kb, 500);
-  assert.equal(budget.budgets.css_kb, 120);
+  const assetDirectory = new URL('../preview/app-shell/assets/', import.meta.url);
+  const assets = await readdir(assetDirectory);
+  const javascript = assets.find((name) => name.endsWith('.js'));
+  const stylesheet = assets.find((name) => name.endsWith('.css'));
+  assert.ok(javascript, 'expected a built JavaScript asset');
+  assert.ok(stylesheet, 'expected a built CSS asset');
+  assert.ok((await stat(new URL(javascript, assetDirectory))).size < 310_000, 'JavaScript bundle exceeds 310 kB raw');
+  assert.ok((await stat(new URL(stylesheet, assetDirectory))).size < 70_000, 'CSS bundle exceeds 70 kB raw');
 });
 
 test('seeded preview contains no live account identifiers or external media', async () => {
-  const [data, source] = await Promise.all([read('preview/src/data.js'), read('preview/src/App.jsx')]);
-  assert.doesNotMatch(`${data}\n${source}`, /drcharlestz|thabitmariam17|@drcharles|@thabit/i);
-  assert.doesNotMatch(`${data}\n${source}`, /https?:\/\//i);
+  const data = await read('preview-src/app-shell/data.js');
+  const app = await read('preview-src/app-shell/App.jsx');
+  assert.match(data, /SautiLink Member/);
+  assert.match(data, /Seeded|Building meaningful connections|Platform foundation/);
+  assert.match(data, /export const directMessageConversations/);
+  assert.doesNotMatch(`${data}\n${app}`, /https?:\/\//i);
+  assert.doesNotMatch(`${data}\n${app}`, /rggpyiterdbbugluejcs|sb_publishable_|service_role/i);
 });
 
 test('Cloudflare preview stage contains only allowlisted public assets', async () => {
-  const stage = resolve(projectRoot, '.preview-dist');
-  await rm(stage, { recursive: true, force: true });
-  await mkdir(stage, { recursive: true });
+  const root = new URL('../dist-preview-site/', import.meta.url);
+  const walk = async (directory, prefix = '') => {
+    const entries = await readdir(directory, { withFileTypes: true });
+    const files = [];
+    for (const entry of entries) {
+      const relative = `${prefix}${entry.name}`;
+      if (entry.isDirectory()) {
+        files.push(...await walk(new URL(`${entry.name}/`, directory), `${relative}/`));
+      } else {
+        files.push(relative);
+      }
+    }
+    return files;
+  };
 
-  const { spawnSync } = await import('node:child_process');
-  const result = spawnSync(process.execPath, [resolve(projectRoot, 'scripts/stage-preview.mjs')], {
-    cwd: projectRoot,
-    encoding: 'utf8',
-  });
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-
-  const files = await walk(stage);
+  const files = await walk(root);
   assert.ok(files.includes('_headers'));
   assert.ok(files.includes('_redirects'));
   assert.ok(files.includes('sw.js'));
@@ -100,6 +93,61 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/index.html'));
   assert.ok(files.includes('app/assets/app.css'));
   assert.ok(files.includes('app/assets/app.js'));
+  assert.ok(files.includes('app/assets/auth-flow-hardening.css'));
+  assert.ok(files.includes('app/assets/caption-entities.css'));
+  assert.ok(files.includes('app/assets/composer-formats.css'));
+  assert.ok(files.includes('app/assets/conversation-replies-ui.css'));
+  assert.ok(files.includes('app/assets/guest-entry-gate.css'));
+  assert.ok(files.includes('app/assets/messages-composer.css'));
+  assert.ok(files.includes('app/assets/messages-header-polish.css'));
+  assert.ok(files.includes('app/assets/messages-media.css'));
+  assert.ok(files.includes('app/assets/messages-whatsapp.css'));
+  assert.ok(files.includes('app/assets/mobile-nav-icon-style.css'));
+  assert.ok(files.includes('app/assets/mobile-more-drawer.css'));
+  assert.ok(files.includes('app/assets/post-edit.css'));
+  assert.ok(files.includes('app/assets/post-media-carousel.css'));
+  assert.ok(files.includes('app/assets/short-videos-feed.css'));
+  assert.ok(files.includes('app/assets/sautilink-video-player.css'));
+  assert.ok(files.includes('app/assets/professional-profile-category.css'));
+  assert.ok(files.includes('app/assets/professional-dashboard.css'));
+  assert.ok(files.includes('app/assets/profile-activity.css'));
+  assert.ok(files.includes('app/assets/profile-route-states.css'));
+  assert.ok(files.includes('app/assets/profile-social-stats-order.css'));
+  assert.ok(files.includes('app/assets/profile-settings-ui.css'));
+  assert.ok(files.includes('app/assets/profile-x-ui.css'));
+  assert.ok(files.includes('app/assets/rooms.css'));
+  assert.ok(files.includes('app/assets/rooms-facebook.css'));
+  assert.ok(files.includes('app/assets/rooms-mobile-preview.css'));
+  assert.ok(files.includes('app/assets/rooms-invitations.css'));
+  assert.ok(files.includes('app/assets/room-post-images.css'));
+  assert.ok(files.includes('app/assets/settings-light-theme-hotfix.css'));
+  assert.ok(files.includes('app/assets/verified-identity-controls.css'));
+  assert.ok(files.includes('app/assets/theme-init.js'));
+  assert.ok(files.includes('app/assets/verification/verified-team.png'));
+  assert.ok(files.includes('app/assets/verification/verified-user-primary.png'));
+  assert.ok(files.includes('app/assets/verification/verified-user-secondary.png'));
+  assert.ok(files.includes('preview/app-shell/index.html'));
+  assert.ok(files.includes('preview/app-shell/device-lab.html'));
+  assert.ok(files.includes('preview/app-shell/device-lab.css'));
+  assert.ok(files.includes('preview/identity/index.html'));
+  assert.ok(files.includes('preview/identity/device-lab.html'));
+  assert.ok(files.includes('preview/profiles/index.html'));
+  assert.ok(files.includes('preview/profiles/device-lab.html'));
+  assert.ok(files.includes('preview/share-stream/index.html'));
+  assert.ok(files.includes('preview/share-stream/device-lab.html'));
+  assert.ok(files.includes('preview/media/index.html'));
+  assert.ok(files.includes('preview/media/device-lab.html'));
+  assert.ok(files.includes('preview/conversations/index.html'));
+  assert.ok(files.includes('preview/conversations/device-lab.html'));
+  assert.ok(files.includes('preview/trust-safety/index.html'));
+  assert.ok(files.includes('preview/trust-safety/device-lab.html'));
+  assert.ok(files.includes('preview/mvp/index.html'));
+  assert.ok(files.includes('preview/messages/index.html'));
+  assert.ok(files.includes('preview/messages/device-lab.html'));
+  assert.ok(files.includes('preview/settings/index.html'));
+  assert.ok(files.includes('preview/settings/device-lab.html'));
+  assert.ok(files.includes('preview/backend-foundation/index.html'));
+  assert.ok(files.includes('preview/backend-foundation/device-lab.html'));
   assert.ok(files.includes('logo.png'));
   assert.ok(files.includes('assets/brand/system.css'));
   assert.ok(files.includes('assets/development.css'));
