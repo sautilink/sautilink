@@ -5037,6 +5037,25 @@ async function removeProfileMedia(slot) {
   }
 }
 
+function setProfileSafetyButtonLabel(button, label) {
+  const labelNode = button?.querySelector('[data-profile-safety-label]');
+  if (labelNode) labelNode.textContent = label;
+  else if (button) button.textContent = label;
+}
+
+function syncProfileMoreMenuVisibility() {
+  const menu = byId('profile-more-menu');
+  const popover = byId('profile-more-popover');
+  const trigger = byId('profile-more-button');
+  if (!menu || !popover || !trigger) return;
+  const hasVisibleAction = [...menu.querySelectorAll('.profile-safety-button')].some((button) => !button.hidden);
+  menu.hidden = !hasVisibleAction;
+  if (!hasVisibleAction) {
+    popover.hidden = true;
+    trigger.setAttribute('aria-expanded', 'false');
+  }
+}
+
 async function loadProfileSafetyState(profile, owner) {
   const reportButton = byId('profile-report-button');
   const muteButton = byId('profile-mute-button');
@@ -5048,6 +5067,7 @@ async function loadProfileSafetyState(profile, owner) {
   muteButton.hidden = hidden;
   blockButton.hidden = hidden;
   messageButton.hidden = hidden;
+  syncProfileMoreMenuVisibility();
   messageButton.disabled = false;
   messageButton.dataset.peerId = profile?.id || '';
   messageButton.dataset.username = profile?.username || '';
@@ -5057,11 +5077,11 @@ async function loadProfileSafetyState(profile, owner) {
   muteButton.classList.remove('muted');
   muteButton.dataset.muted = 'false';
   muteButton.dataset.username = profile?.username || '';
-  muteButton.textContent = 'Mute';
+  setProfileSafetyButtonLabel(muteButton, 'Mute');
   blockButton.classList.remove('blocked');
   blockButton.dataset.blocked = 'false';
   blockButton.dataset.username = profile?.username || '';
-  blockButton.textContent = 'Block';
+  setProfileSafetyButtonLabel(blockButton, 'Block');
 
   if (hidden) return;
 
@@ -5077,7 +5097,7 @@ async function loadProfileSafetyState(profile, owner) {
     const blocked = Boolean(blockResult.value.blocked_by_you);
     blockButton.dataset.blocked = String(blocked);
     blockButton.classList.toggle('blocked', blocked);
-    blockButton.textContent = blocked ? 'Unblock' : 'Block';
+    setProfileSafetyButtonLabel(blockButton, blocked ? 'Unblock' : 'Block');
 
     if (blocked) {
       const followButton = byId('profile-follow-button');
@@ -5096,10 +5116,11 @@ async function loadProfileSafetyState(profile, owner) {
     const muted = Boolean(muteResult.value.muted_by_you);
     muteButton.dataset.muted = String(muted);
     muteButton.classList.toggle('muted', muted);
-    muteButton.textContent = muted ? 'Unmute' : 'Mute';
+    setProfileSafetyButtonLabel(muteButton, muted ? 'Unmute' : 'Mute');
   } else if (muteResult.status === 'rejected') {
     muteButton.hidden = true;
   }
+  syncProfileMoreMenuVisibility();
 }
 
 async function toggleProfileMute() {
@@ -5317,8 +5338,11 @@ function renderProfile(profile, { owner = true } = {}) {
     .then(() => loadProfileSafetyState(profile, owner))
     .catch(() => {
       byId('profile-follow-button').hidden = true;
+      byId('profile-message-button').hidden = true;
+      byId('profile-report-button').hidden = true;
       byId('profile-mute-button').hidden = true;
       byId('profile-block-button').hidden = true;
+      syncProfileMoreMenuVisibility();
     });
 }
 

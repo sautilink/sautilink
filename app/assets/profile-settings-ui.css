@@ -11,6 +11,124 @@ body.profile-editor-open {
   display: none !important;
 }
 
+
+/* Visitor profile overflow menu. Kept in the eagerly loaded presentation sheet so
+   a transient dynamic stylesheet failure can never expose native <details>/SVG sizing. */
+.profile-surface .profile-card {
+  overflow: visible;
+}
+
+.profile-surface .profile-more-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.profile-surface .profile-more-menu[hidden],
+.profile-surface .profile-more-popover[hidden] {
+  display: none !important;
+}
+
+.profile-surface .profile-more-button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--app-line-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--app-text);
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.profile-surface .profile-more-button:hover,
+.profile-surface .profile-more-button[aria-expanded="true"] {
+  background: var(--app-panel-soft);
+}
+
+.profile-surface .profile-more-button svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+  stroke: none;
+}
+
+.profile-surface .profile-more-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  width: min(236px, calc(100vw - 24px));
+  max-height: min(320px, calc(100dvh - 110px));
+  overflow: auto;
+  border: 1px solid var(--app-line-strong);
+  border-radius: 14px;
+  background: var(--app-panel);
+  color: var(--app-text);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .30);
+  overscroll-behavior: contain;
+}
+
+.profile-surface .profile-more-popover .profile-safety-button {
+  display: grid;
+  width: 100%;
+  min-height: 48px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  margin: 0;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-text);
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+  box-shadow: none;
+}
+
+.profile-surface .profile-more-popover .profile-safety-button[hidden] {
+  display: none !important;
+}
+
+.profile-surface .profile-more-popover .profile-safety-button + .profile-safety-button:not([hidden]) {
+  border-top: 1px solid var(--app-line);
+}
+
+.profile-surface .profile-more-popover .profile-safety-button:hover,
+.profile-surface .profile-more-popover .profile-safety-button:focus-visible {
+  background: var(--app-panel-soft);
+  color: var(--app-text);
+}
+
+.profile-surface .profile-more-popover .profile-safety-button.danger {
+  color: #ef476f;
+}
+
+.profile-surface .profile-more-popover .profile-safety-button svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.profile-surface .profile-more-popover .profile-safety-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Edit Profile: modal on larger screens, full-screen sheet on phones. */
 .profile-editor {
   position: fixed;

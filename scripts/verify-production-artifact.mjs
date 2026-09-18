@@ -52,6 +52,7 @@ const appJs = await readFile(resolve(siteRoot, 'app/assets/app.js'), 'utf8');
 const workerApp = await readFile(resolve(workerRoot, 'src/app.js'), 'utf8');
 const mediaApi = await readFile(resolve(workerRoot, 'src/sauti-media-api.js'), 'utf8');
 const profileXCss = await readFile(resolve(siteRoot, 'app/assets/profile-x-ui.css'), 'utf8');
+const profileSettingsCss = await readFile(resolve(siteRoot, 'app/assets/profile-settings-ui.css'), 'utf8');
 const messagesWhatsappCss = await readFile(resolve(siteRoot, 'app/assets/messages-whatsapp.css'), 'utf8');
 const roomsFacebookCss = await readFile(resolve(siteRoot, 'app/assets/rooms-facebook.css'), 'utf8');
 const router = await readFile(resolve(workerRoot, 'src/asset-router.js'), 'utf8');
@@ -66,7 +67,7 @@ for (const [label, value] of [['app html', appHtml], ['app js', appJs]]) {
 }
 if (!appJs.includes(PRODUCTION_KEY)) throw new Error('browser bundle does not contain the production publishable key');
 if (!appJs.includes('sautilink-profile-x-ui')) throw new Error('production browser bundle missing X-style profile UI loader');
-if (!appJs.includes('profile-x-ui.css?v=20260918-profile1')) throw new Error('production browser bundle missing CSP-safe profile stylesheet URL');
+if (!appJs.includes('profile-x-ui.css?v=20260918-profile2')) throw new Error('production browser bundle missing CSP-safe profile stylesheet URL');
 if (!appJs.includes('/api/dm-realtime/')) throw new Error('production browser bundle missing Durable Objects Messages realtime client');
 if (!appJs.includes('register_push_device_token_v1')) throw new Error('production browser bundle missing Android push registration bridge');
 if (!appJs.includes('pushNotificationActionPerformed')) throw new Error('production browser bundle missing Android notification tap routing');
@@ -79,6 +80,15 @@ for (const marker of [
 ]) {
   if (!profileXCss.includes(marker)) throw new Error(`production profile stylesheet missing UI marker: ${marker}`);
 }
+for (const marker of [
+  '.profile-surface .profile-more-button',
+  '.profile-surface .profile-more-popover[hidden]',
+  '.profile-surface .profile-more-popover .profile-safety-button',
+]) {
+  if (!profileSettingsCss.includes(marker)) throw new Error(`production profile settings stylesheet missing overflow-menu marker: ${marker}`);
+}
+if (!appHtml.includes('id="sautilink-profile-x-ui"')) throw new Error('production profile stylesheet is not eagerly linked');
+if (!appHtml.includes('profile-settings-ui.css?v=20260918-profile2')) throw new Error('production profile settings stylesheet cache marker is missing');
 for (const marker of [
   'Technology & AI',
   'rooms-invitations.css',

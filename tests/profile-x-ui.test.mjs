@@ -13,7 +13,7 @@ test('profile X-style layer is isolated to the profile surface and CSP-safe', as
   assert.match(source, /document\.getElementById\('profile-surface'\)/);
   assert.match(source, /document\.createElement\('link'\)/);
   assert.match(source, /link\.rel = 'stylesheet'/);
-  assert.match(source, /\/app\/assets\/profile-x-ui\.css\?v=20260918-profile1/);
+  assert.match(source, /\/app\/assets\/profile-x-ui\.css\?v=20260918-profile2/);
   assert.match(source, /surface\.dataset\.profilePresentation = 'x-style'/);
   assert.doesNotMatch(source, /document\.createElement\('style'\)/);
   assert.doesNotMatch(source, /MutationObserver/);
@@ -73,18 +73,26 @@ test('profile stylesheet keeps desktop and mobile X-style hierarchy', async () =
   assert.match(css, /@media \(max-width: 420px\)/);
 });
 
-test('profile visitor actions use an accessible overflow menu without changing action ids', async () => {
-  const [shell, source, css] = await Promise.all([
+test('profile visitor actions use an accessible resilient overflow menu without changing action ids', async () => {
+  const [shell, source, css, serviceWorker] = await Promise.all([
     read('app/index.html'),
     read('src/profile-x-ui.js'),
-    read('app/assets/profile-x-ui.css'),
+    read('app/assets/profile-settings-ui.css'),
+    read('sw.js'),
   ]);
 
-  assert.match(shell, /id="profile-more-menu"/);
-  assert.match(shell, /aria-label="More profile actions"/);
+  assert.match(shell, /id="sautilink-profile-x-ui"[^>]+profile-x-ui\.css\?v=20260918-profile2/);
+  assert.match(shell, /id="profile-more-menu" hidden/);
+  assert.match(shell, /id="profile-more-button"[^>]+aria-expanded="false"[^>]+aria-controls="profile-more-popover"/);
+  assert.match(shell, /id="profile-more-popover" role="menu" hidden/);
+  assert.doesNotMatch(shell, /<details class="profile-more-menu"|<summary aria-label="More profile actions"/);
   for (const id of ['profile-report-button', 'profile-mute-button', 'profile-block-button']) {
     assert.match(shell, new RegExp(`id="${id}"`));
   }
-  assert.match(source, /moreMenu\.open = false/);
-  assert.match(css, /\.profile-surface \.profile-more-popover/);
+  assert.match(source, /morePopover\.hidden = true/);
+  assert.match(source, /moreButton\.setAttribute\('aria-expanded', 'false'\)/);
+  assert.match(css, /\.profile-surface \.profile-more-popover\[hidden\]/);
+  assert.match(css, /width: min\(236px, calc\(100vw - 24px\)\)/);
+  assert.match(serviceWorker, /profile-x-ui\.css\?v=20260918-profile2/);
+  assert.match(serviceWorker, /profile-settings-ui\.css\?v=20260918-profile2/);
 });

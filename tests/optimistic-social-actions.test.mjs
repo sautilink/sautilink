@@ -65,5 +65,5 @@ test('Optimistic action controls remain accessible and ship with a fresh cache m
   assert.match(source, /setAttribute\('aria-busy', String\(pending\)\)/);
   assert.match(html, /app\.css\?v=20260917-commentmenu1/);
   assert.match(html, /app\.js\?v=20260917-commentmenu1/);
-  assert.match(sw, /sautilink-shell-v59/);
+  assert.match(sw, /sautilink-shell-v60/);
 });
