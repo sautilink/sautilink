@@ -168,7 +168,7 @@
 }
 
 .professional-live-indicator {
-  display: inline-flex;
+  display: none;
   align-items: center;
   gap: 6px;
   color: var(--app-muted, #94a3b8);
