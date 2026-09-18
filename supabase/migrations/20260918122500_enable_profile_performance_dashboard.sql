@@ -149,21 +149,27 @@ security definer
 set search_path = ''
 as $reaction_metric$
 declare
-  row_data public.social_post_reactions%rowtype;
   owner_id uuid;
-  direction bigint;
 begin
-  row_data := case when tg_op = 'DELETE' then old else new end;
-  direction := case when tg_op = 'DELETE' then -1 else 1 end;
+  if tg_op = 'DELETE' then
+    select post.author_id into owner_id
+    from public.social_posts post
+    where post.id = old.post_id;
+
+    if owner_id is not null and owner_id <> old.user_id then
+      perform private.bump_social_creator_metric(owner_id, old.created_at::date, 'engagements', -1);
+    end if;
+    return old;
+  end if;
 
   select post.author_id into owner_id
   from public.social_posts post
-  where post.id = row_data.post_id;
+  where post.id = new.post_id;
 
-  if owner_id is not null and owner_id <> row_data.user_id then
-    perform private.bump_social_creator_metric(owner_id, row_data.created_at::date, 'engagements', direction);
+  if owner_id is not null and owner_id <> new.user_id then
+    perform private.bump_social_creator_metric(owner_id, new.created_at::date, 'engagements', 1);
   end if;
-  return coalesce(new, old);
+  return new;
 end;
 $reaction_metric$;
 
@@ -181,21 +187,27 @@ security definer
 set search_path = ''
 as $repost_metric$
 declare
-  row_data public.social_reposts%rowtype;
   owner_id uuid;
-  direction bigint;
 begin
-  row_data := case when tg_op = 'DELETE' then old else new end;
-  direction := case when tg_op = 'DELETE' then -1 else 1 end;
+  if tg_op = 'DELETE' then
+    select post.author_id into owner_id
+    from public.social_posts post
+    where post.id = old.post_id;
+
+    if owner_id is not null and owner_id <> old.user_id then
+      perform private.bump_social_creator_metric(owner_id, old.created_at::date, 'engagements', -1);
+    end if;
+    return old;
+  end if;
 
   select post.author_id into owner_id
   from public.social_posts post
-  where post.id = row_data.post_id;
+  where post.id = new.post_id;
 
-  if owner_id is not null and owner_id <> row_data.user_id then
-    perform private.bump_social_creator_metric(owner_id, row_data.created_at::date, 'engagements', direction);
+  if owner_id is not null and owner_id <> new.user_id then
+    perform private.bump_social_creator_metric(owner_id, new.created_at::date, 'engagements', 1);
   end if;
-  return coalesce(new, old);
+  return new;
 end;
 $repost_metric$;
 
@@ -233,7 +245,12 @@ begin
   is_visible := new.deleted_at is null and new.post_status = 'published' and new.moderation_state <> 'removed';
 
   if owner_id is not null and owner_id <> new.author_id and was_visible <> is_visible then
-    perform private.bump_social_creator_metric(owner_id, new.created_at::date, 'engagements', case when is_visible then 1 else -1 end);
+    perform private.bump_social_creator_metric(
+      owner_id,
+      new.created_at::date,
+      'engagements',
+      case when is_visible then 1 else -1 end
+    );
   end if;
   return new;
 end;
@@ -306,6 +323,9 @@ $record_profile_view$;
 revoke all on function public.record_social_profile_view(text) from public, anon;
 grant execute on function public.record_social_profile_view(text) to authenticated, service_role;
 
+-- Existing post-view and engagement rows are authoritative enough to backfill.
+-- Profile visits and follow-change history intentionally start at this feature launch;
+-- we do not invent historical events that were never recorded.
 insert into public.social_creator_daily_metrics (user_id, metric_date, content_views)
 select post.author_id, view.viewed_at::date, count(*)::bigint
 from public.social_post_views view
@@ -346,14 +366,6 @@ on conflict (user_id, metric_date) do update
 set engagements = excluded.engagements,
     updated_at = now();
 
-insert into public.social_creator_daily_metrics (user_id, metric_date, follows_gained)
-select followed_id, created_at::date, count(*)::bigint
-from public.social_follows
-group by followed_id, created_at::date
-on conflict (user_id, metric_date) do update
-set follows_gained = excluded.follows_gained,
-    updated_at = now();
-
 do $realtime$
 begin
   if not exists (
@@ -371,7 +383,7 @@ $realtime$;
 comment on table public.social_profile_views is
   'Privacy-preserving daily unique authenticated profile views; viewer identities are never exposed to profile owners.';
 comment on table public.social_creator_daily_metrics is
-  'Owner-only daily creator analytics used by the real-time SautiLink profile performance dashboard.';
+  'Owner-only daily creator analytics. Post-view and engagement history use recorded source rows; profile visits and follow deltas start at analytics launch and are never fabricated.';
 comment on function public.record_social_profile_view(text) is
   'Records at most one authenticated non-owner profile view per viewer, profile and day.';
 
