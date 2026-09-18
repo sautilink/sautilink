@@ -16,10 +16,10 @@ test('Phase 32 production artifact targets production Supabase and removes previ
   assert.match(bundle, /sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca/);
   assert.doesNotMatch(bundle, /sb_publishable_oTYKPMJoxN1b8YBmG-a5eQ_M75Kl6VF/);
   assert.match(bundle, /sautilink-profile-x-ui/);
-  assert.match(bundle, /profile-x-ui\.css\?v=20260918-profile1/);
+  assert.match(bundle, /profile-x-ui\.css\?v=20260918-profile2/);
   assert.doesNotMatch(html, /Private preview|Phase 31/);
   assert.doesNotMatch(html, /name="robots"[^>]+noindex/i);
-  assert.match(html, /app\.css\?v=20260917-commentmenu1/);
+  assert.match(html, /app\.css\?v=20260917-commentmenu1/);\n  assert.match(html, /id="sautilink-profile-x-ui"[^>]+profile-x-ui\\.css\\?v=20260918-profile2/);\n  assert.match(html, /profile-settings-ui\\.css\\?v=20260918-profile2/);
   assert.match(html, /app\.js\?v=20260917-commentmenu1/);
   assert.match(html, /theme-init\.js\?v=20260904-account2/);
   assert.match(html, /\/logo\.png/);
@@ -118,8 +118,8 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   assert.match(buildScript, /messages-durable-realtime\.js/);
   assert.match(verifyScript, /staging Supabase identity leaked into production artifact/);
   assert.match(verifyScript, /production browser bundle missing X-style profile UI loader/);
-  assert.match(verifyScript, /profile-x-ui\.css\?v=20260918-profile1/);
-  assert.match(serviceWorker, /sautilink-shell-v59/);
+  assert.match(verifyScript, /profile-x-ui\.css\?v=20260918-profile2/);
+  assert.match(serviceWorker, /sautilink-shell-v60/);
   assert.match(serviceWorker, /20260917-commentmenu1/);
 });
 
