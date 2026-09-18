@@ -4,9 +4,14 @@ function transformAppSource(source) {
     throw new Error('Post view metrics source transform could not find the current member anchor.');
   }
 
-  return source.replace(
+  const importLine = "import { installProfessionalDashboard } from './professional-dashboard.js';\n";
+  const withImport = source.includes(importLine)
+    ? source
+    : `${importLine}${source}`;
+
+  return withImport.replace(
     anchor,
-    `${anchor}\ninstallPostViewMetrics({\n  supabase,\n  getCurrentMemberId: () => currentMemberId,\n});`,
+    `${anchor}\ninstallPostViewMetrics({\n  supabase,\n  getCurrentMemberId: () => currentMemberId,\n});\ninstallProfessionalDashboard();`,
   );
 }
 
