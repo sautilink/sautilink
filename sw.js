@@ -72,7 +72,7 @@ self.addEventListener("fetch", (event) => {
   if (event.request.mode === "navigate") {
     const socialRoute = /^(?:\/app(?:\/|$)|\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications)(?:\/|$)|\/messages(?:\/|$)|\/(?:rooms|sautify)(?:\/|$)|\/u\/|\/post\/)/.test(url.pathname);
     const fallback = socialRoute ? "/app/" : "/";
-    event.respondWith(fetch(event.request).catch(() => caches.match(fallback)));
+    event.respondWith(fetch(event.request, { cache: "no-store" }).catch(() => caches.match(fallback)));
     return;
   }
 
@@ -83,7 +83,7 @@ self.addEventListener("fetch", (event) => {
     url.pathname.startsWith("/app/assets/verification/")
   )) {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: "no-store" })
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
