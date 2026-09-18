@@ -11,7 +11,7 @@ function transformAppSource(source) {
 
   return withImport.replace(
     anchor,
-    `${anchor}\ninstallPostViewMetrics({\n  supabase,\n  getCurrentMemberId: () => currentMemberId,\n});\ninstallProfessionalDashboard();`,
+    `${anchor}\ninstallPostViewMetrics({\n  supabase,\n  getCurrentMemberId: () => currentMemberId,\n});\ninstallProfessionalDashboard({\n  supabase,\n  getCurrentMemberId: () => currentMemberId,\n});`,
   );
 }
 
