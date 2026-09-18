@@ -22,7 +22,7 @@ test('auth session stability transform is wired into normal and production build
 
   assert.match(normal, /transformAuthSessionStabilitySource/);
   assert.match(production, /transformAuthSessionStabilitySource/);
-  assert.match(production, /APP_JS_FEATURE_RELEASE = '20260918-dashboardroute1'/);
+  assert.match(production, /APP_JS_FEATURE_RELEASE = '20260918-signup2'/);
 });
 
 test('auth session stability transform leaves unrelated source files unchanged', () => {
