@@ -54,5 +54,5 @@ test('production release builder cannot bypass the Phase 2 verification bridge',
 
   assert.match(productionBuild, /import \{ transformVerificationCaseFlowSource \} from '\.\/verification-case-flow-source-transform\.mjs';/);
   assert.match(productionBuild, /if \(file === productionAppSource\) \{\s*output = transformVerificationCaseFlowSource\(file, output\);\s*\}/s);
-  assert.match(productionBuild, /APP_JS_FEATURE_RELEASE = '20260918-dashboardroute1'/);
+  assert.match(productionBuild, /APP_JS_FEATURE_RELEASE = '20260918-signup2'/);
 });
