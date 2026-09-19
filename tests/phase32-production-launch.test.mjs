@@ -89,14 +89,14 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   const workflow = await read('.github/workflows/phase32-production.yml');
   const buildScript = await read('scripts/build-production-release.mjs');
   const verifyScript = await read('scripts/verify-production-artifact.mjs');
+  const verifyWithHashesScript = await read('scripts/verify-production-artifact-with-hashes.mjs');
   const stampScript = await read('scripts/stamp-production-ui-assets.mjs');
   const hashVerifyScript = await read('scripts/verify-production-ui-asset-hashes.mjs');
   const serviceWorker = await read('sw.js');
 
-  assert.equal(pkg.scripts['build:production'], 'node scripts/build-production-release.mjs');
-  assert.match(pkg.scripts['verify:production-artifact'], /verify-production-artifact\.mjs/);
-  assert.match(pkg.scripts['verify:production-artifact'], /stamp-production-ui-assets\.mjs/);
-  assert.match(pkg.scripts['verify:production-artifact'], /verify-production-ui-asset-hashes\.mjs/);
+  assert.match(pkg.scripts['build:production'], /build-production-release\.mjs/);
+  assert.match(pkg.scripts['build:production'], /stamp-production-ui-assets\.mjs/);
+  assert.equal(pkg.scripts['verify:production-artifact'], 'node scripts/verify-production-artifact-with-hashes.mjs');
   assert.equal(pkg.scripts['verify:post-translation-artifact'], undefined);
   assert.match(pkg.scripts.check, /build:production/);
   assert.match(pkg.scripts.check, /verify:production-artifact/);
@@ -128,6 +128,8 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   assert.match(buildScript, /messages-durable-realtime\.js/);
   assert.match(verifyScript, /staging Supabase identity leaked into production artifact/);
   assert.match(verifyScript, /production browser bundle missing X-style profile UI loader/);
+  assert.match(verifyWithHashesScript, /legacyVerificationView/);
+  assert.match(verifyWithHashesScript, /verify-production-ui-asset-hashes\.mjs/);
   assert.match(stampScript, /createHash\('sha256'\)/);
   assert.match(stampScript, /profile-x-ui\.css/);
   assert.match(hashVerifyScript, /content-hashed production UI stylesheets/);
