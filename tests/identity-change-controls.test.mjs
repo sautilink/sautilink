@@ -61,6 +61,25 @@ test('profile editor includes name controls and permanently disables locked user
   assert.match(verifiedControls, /verified-username-locked/);
 });
 
+test('profile editor removes redundant identity labels while preserving account controls', async () => {
+  const html = await read('app/index.html');
+  const verifiedControls = await read('src/verified-identity-controls.js');
+
+  assert.match(verifiedControls, /function removeProfileEditorScaffolding\(\)/);
+  assert.match(verifiedControls, /#profile-editor \.profile-editor-heading \.section-label/);
+  assert.match(verifiedControls, /#profile-editor \.profile-identity-heading \.section-label/);
+  assert.match(verifiedControls, /#profile-identity-state/);
+  assert.match(verifiedControls, /removeProfileEditorScaffolding\(\);/);
+  assert.match(verifiedControls, /document\.querySelector\(selector\)\?\.remove\(\)/);
+
+  for (const marker of [
+    'id="profile-editor-title">Edit profile',
+    'id="profile-identity-title">Name and username',
+    'id="profile-name-form"',
+    'id="profile-username-form"',
+  ]) assert.ok(html.includes(marker), `profile editor control changed unexpectedly: ${marker}`);
+});
+
 test('legacy verified display-name review tooling remains readable for historical moderation records', async () => {
   const api = await read('src/moderation-api.js');
   const source = await read('src/app.js');
