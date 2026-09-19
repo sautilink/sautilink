@@ -69,6 +69,10 @@
   padding-top: 12px;
 }
 
+.profile-surface .profile-actions [hidden] {
+  display: none !important;
+}
+
 .profile-surface .profile-edit-button,
 .profile-surface .profile-follow-button,
 .profile-surface .profile-safety-button {
