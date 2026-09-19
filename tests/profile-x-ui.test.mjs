@@ -49,23 +49,38 @@ test('profile presentation preserves existing data/action contracts', async () =
   assert.doesNotMatch(source, /innerHTML\s*=|remove\(|replaceChildren\(/);
 });
 
-test('profile stats are moved above the bio and public privacy labels stay hidden', async () => {
+test('profile presentation guard keeps the approved layout and privacy state after rerenders', async () => {
   const [source, privacyCss] = await Promise.all([
     read('src/profile-x-ui.js'),
     read('app/assets/profile-privacy-visibility.css'),
   ]);
 
-  assert.match(source, /function placeProfileStatsBeforeBio\(\)/);
-  assert.match(source, /bio\.before\(stats\)/);
-  assert.match(source, /nextLabel = privateAccount \? 'Private Account' : ''/);
-  assert.match(source, /visibility\.hidden = !privateAccount/);
-  assert.match(source, /visibility\.setAttribute\('aria-hidden', String\(!privateAccount\)\)/);
-  assert.match(source, /new MutationObserver\(sync\)/);
-  assert.match(source, /attributeFilter: \['class'\]/);
-  assert.match(source, /profile-privacy-visibility\.css\?v=20260919-profileprivacy1/);
-  assert.match(privacyCss, /profile-visibility:not\(\.private\)/);
-  assert.match(privacyCss, /profile-visibility\[hidden\]/);
-  assert.match(privacyCss, /display: none !important/);
+  for (const marker of [
+    'function placeProfileStatsBeforeBio()',
+    'bio.before(stats);',
+    'function hideProfileSettingsShortcut()',
+    "document.getElementById('profile-settings-button')",
+    'settings.hidden = true;',
+    "const nextLabel = privateAccount ? 'Private Account' : '';",
+    'visibility.hidden = !privateAccount;',
+    "setAttribute('aria-hidden', ariaHidden)",
+    'function enforceProfilePresentation()',
+    'function installProfilePresentationGuard(surface)',
+    'new MutationObserver(scheduleSync)',
+    "attributeFilter: ['class', 'hidden']",
+    'profile-privacy-visibility.css?v=20260919-profileprivacy2',
+  ]) {
+    assert.ok(source.includes(marker), `profile presentation guard missing ${marker}`);
+  }
+
+  for (const marker of [
+    '#profile-settings-button',
+    '.profile-visibility[hidden]',
+    '.profile-visibility:not(.private)',
+    'display: none !important',
+  ]) {
+    assert.ok(privacyCss.includes(marker), `profile privacy CSS missing ${marker}`);
+  }
 });
 
 test('regular and production builds include the profile presentation loader', async () => {
@@ -73,6 +88,13 @@ test('regular and production builds include the profile presentation loader', as
   const production = await read('scripts/build-production-release.mjs');
   assert.match(regular, /src\/profile-x-ui\.js/);
   assert.match(production, /profile-x-ui\.js/);
+});
+
+test('production app bundle gets a new feature cache key for the live profile fix', async () => {
+  const production = await read('scripts/build-production-release.mjs');
+  assert.match(production, /APP_JS_RELEASE = '20260917-commentmenu1'/);
+  assert.match(production, /APP_JS_FEATURE_RELEASE = '20260919-profileui1'/);
+  assert.match(production, /PWA_RELEASE = '20260916-loadingfix1'/);
 });
 
 test('profile stylesheet keeps desktop and mobile X-style hierarchy', async () => {
