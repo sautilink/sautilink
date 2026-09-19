@@ -21,12 +21,50 @@ function ensureProfileSocialStatsOrderStyles() {
   document.head.append(link);
 }
 
+function placeProfileStatsBeforeBio() {
+  const stats = document.querySelector('#profile-surface .profile-social-stats');
+  const bio = document.getElementById('profile-bio');
+  if (!stats || !bio || stats.parentElement !== bio.parentElement) return;
+  if (bio.previousElementSibling !== stats) bio.before(stats);
+}
+
+function installProfileVisibilityPresentation() {
+  const visibility = document.getElementById('profile-visibility');
+  if (!visibility) return;
+
+  const sync = () => {
+    const privateAccount = visibility.classList.contains('private');
+    const label = visibility.querySelector('b');
+    const nextLabel = privateAccount ? 'Private Account' : '';
+
+    if (label && label.textContent !== nextLabel) label.textContent = nextLabel;
+    visibility.hidden = !privateAccount;
+    visibility.setAttribute('aria-hidden', String(!privateAccount));
+  };
+
+  if (visibility.dataset.profilePrivacyPresentationBound !== 'true') {
+    visibility.dataset.profilePrivacyPresentationBound = 'true';
+    const observer = new MutationObserver(sync);
+    observer.observe(visibility, {
+      attributes: true,
+      attributeFilter: ['class'],
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  }
+
+  sync();
+}
+
 function installProfileXUi() {
   const surface = document.getElementById('profile-surface');
   if (!surface) return;
   ensureProfileXUiStyles();
   ensureProfileSocialStatsOrderStyles();
   surface.dataset.profilePresentation = 'x-style';
+  placeProfileStatsBeforeBio();
+  installProfileVisibilityPresentation();
 
   const moreMenu = document.getElementById('profile-more-menu');
   const moreButton = document.getElementById('profile-more-button');
