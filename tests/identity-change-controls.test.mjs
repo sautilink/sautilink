@@ -70,7 +70,7 @@ test('profile editor hides redundant identity labels without deleting the hydrat
   assert.ok(html.includes('id="profile-identity-state"'), 'identity hydration sentinel must remain in the DOM');
   assert.match(
     source,
-    /const stateNode = byId\('profile-identity-state'\);[\s\S]*?stateNode\.textContent = 'Checking';[\s\S]*?fetch\('\/api\/account\/identity'/,
+    /const stateNode = byId\('profile-identity-state'\);[\s\S]*?stateNode\.textContent = 'Checking';[\s\S]*?settingsApiRequest\('\/api\/account\/identity'\)/,
   );
   assert.match(verifiedControls, /function removeProfileEditorScaffolding\(\)/);
   assert.match(verifiedControls, /#profile-editor \.profile-editor-heading \.section-label/);
