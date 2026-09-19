@@ -49,29 +49,38 @@ test('profile presentation preserves existing data/action contracts', async () =
   assert.doesNotMatch(source, /innerHTML\s*=|remove\(|replaceChildren\(/);
 });
 
-test('profile stats stay above bio, profile Settings shortcut stays hidden, and only private visibility is labeled', async () => {
+test('profile presentation guard keeps the approved layout and privacy state after rerenders', async () => {
   const [source, privacyCss] = await Promise.all([
     read('src/profile-x-ui.js'),
     read('app/assets/profile-privacy-visibility.css'),
   ]);
 
-  assert.match(source, /function placeProfileStatsBeforeBio\(\)/);
-  assert.match(source, /bio\.before\(stats\)/);
-  assert.match(source, /function hideProfileSettingsShortcut\(\)/);
-  assert.match(source, /profile-settings-button/);
-  assert.match(source, /settings\.hidden = true/);
-  assert.match(source, /nextLabel = privateAccount \? 'Private Account' : ''/);
-  assert.match(source, /visibility\.hidden = !privateAccount/);
-  assert.match(source, /visibility\.setAttribute\('aria-hidden', ariaHidden\)/);
-  assert.match(source, /function enforceProfilePresentation\(\)/);
-  assert.match(source, /function installProfilePresentationGuard\(surface\)/);
-  assert.match(source, /new MutationObserver\(scheduleSync\)/);
-  assert.match(source, /attributeFilter: \['class', 'hidden'\]/);
-  assert.match(source, /profile-privacy-visibility\.css\?v=20260919-profileprivacy2/);
-  assert.match(privacyCss, /profile-settings-button/);
-  assert.match(privacyCss, /profile-visibility:not\(\.private\)/);
-  assert.match(privacyCss, /profile-visibility\[hidden\]/);
-  assert.match(privacyCss, /display: none !important/);
+  for (const marker of [
+    'function placeProfileStatsBeforeBio()',
+    'bio.before(stats);',
+    'function hideProfileSettingsShortcut()',
+    "document.getElementById('profile-settings-button')",
+    'settings.hidden = true;',
+    "const nextLabel = privateAccount ? 'Private Account' : '';",
+    'visibility.hidden = !privateAccount;',
+    "setAttribute('aria-hidden', ariaHidden)",
+    'function enforceProfilePresentation()',
+    'function installProfilePresentationGuard(surface)',
+    'new MutationObserver(scheduleSync)',
+    "attributeFilter: ['class', 'hidden']",
+    'profile-privacy-visibility.css?v=20260919-profileprivacy2',
+  ]) {
+    assert.ok(source.includes(marker), `profile presentation guard missing ${marker}`);
+  }
+
+  for (const marker of [
+    '#profile-settings-button',
+    '.profile-visibility[hidden]',
+    '.profile-visibility:not(.private)',
+    'display: none !important',
+  ]) {
+    assert.ok(privacyCss.includes(marker), `profile privacy CSS missing ${marker}`);
+  }
 });
 
 test('regular and production builds include the profile presentation loader', async () => {
