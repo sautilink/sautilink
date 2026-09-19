@@ -15,6 +15,16 @@ function ensureStylesheet() {
   document.head.append(link);
 }
 
+function removeProfileEditorScaffolding() {
+  for (const selector of [
+    '#profile-editor .profile-editor-heading .section-label',
+    '#profile-editor .profile-identity-heading .section-label',
+    '#profile-identity-state',
+  ]) {
+    document.querySelector(selector)?.remove();
+  }
+}
+
 function pluralTimes(value) {
   return value === 1 ? 'time' : 'times';
 }
@@ -197,6 +207,7 @@ window.fetch = async (...args) => {
 };
 
 function installVerifiedIdentityControls() {
+  removeProfileEditorScaffolding();
   ensureStylesheet();
   ensureVerificationSinceLine();
 
