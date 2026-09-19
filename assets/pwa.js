@@ -1,7 +1,7 @@
 (() => {
   if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
 
-  const PWA_RELEASE = '20260919-profileui1';
+  const PWA_RELEASE = '20260916-loadingfix1';
   const SERVICE_WORKER_URL = `/sw.js?v=${PWA_RELEASE}`;
   let deferredInstallPrompt = null;
 
