@@ -81,9 +81,10 @@ test('regular and production builds include the profile presentation loader', as
   assert.match(production, /profile-x-ui\.js/);
 });
 
-test('production app bundle gets a new cache key for the live profile fix', async () => {
+test('production app bundle gets a new feature cache key for the live profile fix', async () => {
   const production = await read('scripts/build-production-release.mjs');
-  assert.match(production, /APP_JS_RELEASE = '20260919-profileui1'/);
+  assert.match(production, /APP_JS_RELEASE = '20260917-commentmenu1'/);
+  assert.match(production, /APP_JS_FEATURE_RELEASE = '20260919-profileui1'/);
   assert.match(production, /PWA_RELEASE = '20260916-loadingfix1'/);
 });
 
