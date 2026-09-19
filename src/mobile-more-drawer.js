@@ -1,6 +1,6 @@
 const MOBILE_DRAWER_ID = 'sauti-mobile-more-drawer';
 const MOBILE_DRAWER_TRIGGER_ID = 'sauti-mobile-more-trigger';
-const MOBILE_DRAWER_STYLE_HREF = '/app/assets/mobile-more-drawer.css?v=20260907-drawer2';
+const MOBILE_DRAWER_STYLE_HREF = '/app/assets/mobile-more-drawer.css?v=20260919-settingsaccordion1';
 const MOBILE_BREAKPOINT = 680;
 
 const ICONS = Object.freeze({
@@ -9,10 +9,16 @@ const ICONS = Object.freeze({
   bookmark: '<path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z"></path>',
   appeals: '<path d="M12 3v18M5 7h14M7 7l-3 6h6L7 7ZM17 7l-3 6h6l-3-6ZM7 21h10"></path>',
   settings: '<circle cx="12" cy="12" r="3"></circle><path d="M19 13.5v-3l-2-.7a7.2 7.2 0 0 0-.7-1.7l.9-1.9-2.1-2.1-1.9.9a7.2 7.2 0 0 0-1.7-.7L10.5 2h-3l-.7 2a7.2 7.2 0 0 0-1.7.7l-1.9-.9-2.1 2.1.9 1.9a7.2 7.2 0 0 0-.7 1.7l-2 .7v3l2 .7a7.2 7.2 0 0 0 .7 1.7l-.9 1.9 2.1 2.1 1.9-.9a7.2 7.2 0 0 0 1.7.7l.7 2h3l.7-2a7.2 7.2 0 0 0 1.7-.7l1.9.9 2.1-2.1-.9-1.9a7.2 7.2 0 0 0 .7-1.7l2-.7Z"></path>',
+  account: '<circle cx="12" cy="8" r="4"></circle><path d="M4.5 21c.7-4.2 3.2-6.5 7.5-6.5s6.8 2.3 7.5 6.5"></path>',
+  privacy: '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path>',
+  notifications: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path>',
+  safety: '<path d="M12 3 4.5 6v5.5c0 4.6 3 7.8 7.5 9.5 4.5-1.7 7.5-4.9 7.5-9.5V6L12 3Z"></path><path d="m8.5 12 2.2 2.2 4.8-5"></path>',
+  data: '<path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 20h14"></path>',
   appearance: '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>',
   help: '<circle cx="12" cy="12" r="9"></circle><path d="M9.8 9a2.4 2.4 0 1 1 3.7 2c-1 .7-1.5 1.2-1.5 2.3M12 17h.01"></path>',
   signout: '<path d="M10 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h5M14 8l4 4-4 4M8 12h10"></path>',
   chevron: '<path d="m9 6 6 6-6 6"></path>',
+  chevronDown: '<path d="m6 9 6 6 6-6"></path>',
 });
 
 function icon(name, className = '') {
@@ -30,6 +36,10 @@ function ensureMobileDrawerStylesheet() {
 function canonicalViewButton(view) {
   return document.querySelector(`.app-nav [data-member-view="${view}"]`)
     || document.querySelector(`.mobile-nav [data-member-view="${view}"]`);
+}
+
+function canonicalSettingsSectionButton(section) {
+  return document.querySelector(`#settings-surface [data-settings-section="${section}"]`);
 }
 
 function canonicalThemeButton() {
@@ -112,8 +122,19 @@ function installMobileMoreDrawer() {
     <nav class="sauti-mobile-drawer-nav" aria-label="More navigation">
       <button type="button" data-mobile-drawer-view="saved">${icon('bookmark')}<span><strong>Saved</strong><small>Posts you kept for later</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</button>
       <button type="button" data-mobile-drawer-view="appeals">${icon('appeals')}<span><strong>Appeals</strong><small>Review moderation decisions</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</button>
-      <button type="button" data-mobile-drawer-view="settings">${icon('settings')}<span><strong>Settings &amp; privacy</strong><small>Account, privacy and safety controls</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</button>
-      <button type="button" data-mobile-drawer-appearance>${icon('appearance')}<span><strong>Appearance</strong><small data-mobile-drawer-theme-label>System theme</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</button>
+      <div class="sauti-mobile-drawer-settings-group">
+        <button class="sauti-mobile-drawer-settings-toggle" type="button" data-mobile-drawer-settings-toggle aria-expanded="false" aria-controls="sauti-mobile-drawer-settings-panel">
+          ${icon('settings')}<span><strong>Settings &amp; privacy</strong><small>Account, privacy and safety controls</small></span>${icon('chevronDown', 'sauti-mobile-drawer-settings-chevron')}
+        </button>
+        <div class="sauti-mobile-drawer-settings-panel" id="sauti-mobile-drawer-settings-panel" role="group" aria-label="Settings sections" hidden>
+          <button type="button" data-mobile-drawer-settings-section="account">${icon('account')}<span><strong>Account</strong><small>Profile, email and account security</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</button>
+          <button type="button" data-mobile-drawer-settings-section="privacy">${icon('privacy')}<span><strong>Privacy</strong><small>Audience and messaging controls</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</button>
+          <button type="button" data-mobile-drawer-settings-section="notifications">${icon('notifications')}<span><strong>Notifications</strong><small>Choose the alerts you receive</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</button>
+          <button type="button" data-mobile-drawer-settings-section="safety">${icon('safety')}<span><strong>Safety</strong><small>Blocking, muting and moderation</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</button>
+          <button type="button" data-mobile-drawer-settings-section="data">${icon('data')}<span><strong>Your data</strong><small>Export and account data controls</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</button>
+          <button type="button" data-mobile-drawer-appearance>${icon('appearance')}<span><strong>Appearance</strong><small data-mobile-drawer-theme-label>System theme</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</button>
+        </div>
+      </div>
       <a href="/help">${icon('help')}<span><strong>Help &amp; support</strong><small>Get help with SautiLink</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
     </nav>
     <div class="sauti-mobile-drawer-spacer"></div>
@@ -128,6 +149,8 @@ function installMobileMoreDrawer() {
   const drawerAvatar = drawer.querySelector('.sauti-mobile-drawer-avatar');
   const drawerName = drawer.querySelector('.sauti-mobile-drawer-profile-copy strong');
   const drawerUsername = drawer.querySelector('.sauti-mobile-drawer-profile-copy small');
+  const settingsToggle = drawer.querySelector('[data-mobile-drawer-settings-toggle]');
+  const settingsPanel = drawer.querySelector('#sauti-mobile-drawer-settings-panel');
   const themeLabel = drawer.querySelector('[data-mobile-drawer-theme-label]');
   let restoreFocus = null;
   let hideTimer = 0;
@@ -153,6 +176,12 @@ function installMobileMoreDrawer() {
     themeLabel.textContent = theme === 'light' ? 'Light mode' : theme === 'dark' ? 'Dark mode' : 'System theme';
   }
 
+  function setSettingsExpanded(expanded) {
+    const next = Boolean(expanded);
+    if (settingsToggle) settingsToggle.setAttribute('aria-expanded', String(next));
+    if (settingsPanel) settingsPanel.hidden = !next;
+  }
+
   function syncAvailability() {
     const enabled = memberIsVisible() && window.innerWidth <= MOBILE_BREAKPOINT;
     document.documentElement.classList.toggle('sauti-mobile-drawer-enabled', enabled);
@@ -165,6 +194,7 @@ function installMobileMoreDrawer() {
     window.clearTimeout(hideTimer);
     syncIdentity();
     syncThemeLabel();
+    setSettingsExpanded(false);
     restoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : trigger;
     backdrop.hidden = false;
     drawer.hidden = false;
@@ -179,6 +209,7 @@ function installMobileMoreDrawer() {
 
   function closeDrawer(restore = true) {
     if (drawer.hidden && backdrop.hidden) return;
+    setSettingsExpanded(false);
     backdrop.classList.remove('is-open');
     drawer.classList.remove('is-open');
     document.documentElement.classList.remove('sauti-mobile-drawer-open');
@@ -200,12 +231,31 @@ function installMobileMoreDrawer() {
     button.click();
   }
 
+  function openSettingsSection(section) {
+    const settingsView = canonicalViewButton('settings');
+    if (!(settingsView instanceof HTMLButtonElement) || settingsView.hidden || settingsView.disabled) return;
+    closeDrawer(false);
+    settingsView.click();
+    queueMicrotask(() => {
+      const sectionButton = canonicalSettingsSectionButton(section);
+      if (sectionButton instanceof HTMLButtonElement && !sectionButton.disabled) sectionButton.click();
+    });
+  }
+
   trigger.addEventListener('click', openDrawer);
   closeButton?.addEventListener('click', () => closeDrawer());
   backdrop.addEventListener('click', () => closeDrawer());
 
   drawer.querySelectorAll('[data-mobile-drawer-view]').forEach((button) => {
     button.addEventListener('click', () => openCanonicalView(button.dataset.mobileDrawerView));
+  });
+
+  settingsToggle?.addEventListener('click', () => {
+    setSettingsExpanded(settingsToggle.getAttribute('aria-expanded') !== 'true');
+  });
+
+  drawer.querySelectorAll('[data-mobile-drawer-settings-section]').forEach((button) => {
+    button.addEventListener('click', () => openSettingsSection(button.dataset.mobileDrawerSettingsSection));
   });
 
   drawer.querySelector('[data-mobile-drawer-appearance]')?.addEventListener('click', () => {
@@ -254,6 +304,7 @@ function installMobileMoreDrawer() {
 
   syncIdentity();
   syncThemeLabel();
+  setSettingsExpanded(false);
   syncAvailability();
 }
 
