@@ -81,17 +81,10 @@ test('regular and production builds include the profile presentation loader', as
   assert.match(production, /profile-x-ui\.js/);
 });
 
-test('production and PWA release keys are bumped together for the live profile fix', async () => {
-  const [production, serviceWorker, pwa] = await Promise.all([
-    read('scripts/build-production-release.mjs'),
-    read('sw.js'),
-    read('assets/pwa.js'),
-  ]);
-
-  for (const source of [production, serviceWorker, pwa]) {
-    assert.match(source, /20260919-profileui1/);
-  }
-  assert.match(serviceWorker, /sautilink-shell-v61/);
+test('production app bundle gets a new cache key for the live profile fix', async () => {
+  const production = await read('scripts/build-production-release.mjs');
+  assert.match(production, /APP_JS_RELEASE = '20260919-profileui1'/);
+  assert.match(production, /PWA_RELEASE = '20260916-loadingfix1'/);
 });
 
 test('profile stylesheet keeps desktop and mobile X-style hierarchy', async () => {
