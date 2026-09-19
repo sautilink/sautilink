@@ -16,17 +16,21 @@ test('Phase 32 production artifact targets production Supabase and removes previ
   assert.match(bundle, /sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca/);
   assert.doesNotMatch(bundle, /sb_publishable_oTYKPMJoxN1b8YBmG-a5eQ_M75Kl6VF/);
   assert.match(bundle, /sautilink-profile-x-ui/);
-  assert.match(bundle, /profile-x-ui\.css\?v=20260918-profile2/);
+  assert.match(bundle, /profile-x-ui\.css\?v=[a-f0-9]{12}/);
+  assert.doesNotMatch(bundle, /profile-x-ui\.css\?v=20260918-profile2/);
   assert.doesNotMatch(html, /Private preview|Phase 31/);
   assert.doesNotMatch(html, /name="robots"[^>]+noindex/i);
   assert.match(html, /app\.css\?v=20260917-commentmenu1/);
-  assert.match(html, /id="sautilink-profile-x-ui"[^>]+profile-x-ui\.css\?v=20260918-profile2/);
-  assert.match(html, /profile-settings-ui\.css\?v=20260918-profile2/);
+  assert.match(html, /id="sautilink-profile-x-ui"[^>]+profile-x-ui\.css\?v=[a-f0-9]{12}/);
+  assert.match(html, /profile-settings-ui\.css\?v=[a-f0-9]{12}/);
+  assert.doesNotMatch(html, /profile-(?:x|settings)-ui\.css\?v=20260918-profile2/);
   assert.match(html, /app\.js\?v=20260917-commentmenu1/);
   assert.match(html, /theme-init\.js\?v=20260904-account2/);
   assert.match(html, /\/logo\.png/);
   assert.doesNotMatch(html, /logo-compact\.webp/);
   assert.match(router, /environment: isStaging\(url\) \? 'staging' : 'production'/);
+  assert.match(router, /contentHashedAppAsset/);
+  assert.match(router, /no-cache, max-age=0, must-revalidate/);
 });
 
 test('Phase 32 production Worker is path-scoped and keeps the account-entry root outside its route', async () => {
@@ -85,10 +89,14 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   const workflow = await read('.github/workflows/phase32-production.yml');
   const buildScript = await read('scripts/build-production-release.mjs');
   const verifyScript = await read('scripts/verify-production-artifact.mjs');
+  const stampScript = await read('scripts/stamp-production-ui-assets.mjs');
+  const hashVerifyScript = await read('scripts/verify-production-ui-asset-hashes.mjs');
   const serviceWorker = await read('sw.js');
 
   assert.equal(pkg.scripts['build:production'], 'node scripts/build-production-release.mjs');
-  assert.equal(pkg.scripts['verify:production-artifact'], 'node scripts/verify-production-artifact.mjs');
+  assert.match(pkg.scripts['verify:production-artifact'], /verify-production-artifact\.mjs/);
+  assert.match(pkg.scripts['verify:production-artifact'], /stamp-production-ui-assets\.mjs/);
+  assert.match(pkg.scripts['verify:production-artifact'], /verify-production-ui-asset-hashes\.mjs/);
   assert.equal(pkg.scripts['verify:post-translation-artifact'], undefined);
   assert.match(pkg.scripts.check, /build:production/);
   assert.match(pkg.scripts.check, /verify:production-artifact/);
@@ -120,7 +128,9 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   assert.match(buildScript, /messages-durable-realtime\.js/);
   assert.match(verifyScript, /staging Supabase identity leaked into production artifact/);
   assert.match(verifyScript, /production browser bundle missing X-style profile UI loader/);
-  assert.match(verifyScript, /profile-x-ui\.css\?v=20260918-profile2/);
+  assert.match(stampScript, /createHash\('sha256'\)/);
+  assert.match(stampScript, /profile-x-ui\.css/);
+  assert.match(hashVerifyScript, /content-hashed production UI stylesheets/);
   assert.match(serviceWorker, /sautilink-shell-v60/);
   assert.match(serviceWorker, /20260917-commentmenu1/);
 });
@@ -132,6 +142,7 @@ test('Phase 32 generated production files exist and no source map is emitted', a
     'dist-production-site/app/assets/app.css',
     'dist-production-site/app/assets/profile-x-ui.css',
     'dist-production-site/app/assets/profile-settings-ui.css',
+    'dist-production-site/app/assets/ui-asset-versions.json',
     'dist-production-site/app/assets/theme-init.js',
     'dist-production-site/_headers',
     'dist-production-worker/src/asset-router.js',
