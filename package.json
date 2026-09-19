@@ -17,7 +17,7 @@
     "serve:identity": "vite preview --config vite.identity.config.js",
     "serve:profiles": "vite preview --config vite.profiles.config.js",
     "serve:stream": "vite preview --config vite.share-stream.config.js",
-    "serve:media": "vite preview --config vite.share-stream.config.js",
+    "serve:media": "vite preview --config vite.media.config.js",
     "serve:conversations": "vite preview --config vite.conversations.config.js",
     "serve:trust-safety": "vite preview --config vite.trust-safety.config.js",
     "serve:messages": "vite preview --config vite.messages.config.js",
