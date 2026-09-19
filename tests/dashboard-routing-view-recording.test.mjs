@@ -36,7 +36,7 @@ test('Worker, static rewrites and service worker all recognize Dashboard deep li
   assert.match(redirects, /\/dashboard\/\* \/app\/ 200/);
   assert.match(serviceWorker, /notifications\|dashboard/);
   assert.match(serviceWorker, /fetch\(event\.request, \{ cache: "no-store" \}\)/);
-  assert.match(productionBuilder, /APP_JS_FEATURE_RELEASE = '20260919-profileui1'/);
+  assert.match(productionBuilder, /APP_JS_FEATURE_RELEASE = '20260919-mobilesettings1'/);
   assert.match(productionBuilder, /app\.js\?v=\$\{APP_JS_RELEASE\}&feature=\$\{APP_JS_FEATURE_RELEASE\}/);
 });
 
