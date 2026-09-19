@@ -62,6 +62,7 @@ test('profile stylesheet keeps desktop and mobile X-style hierarchy', async () =
   assert.match(css, /height: 184px/);
   assert.match(css, /width: 124px/);
   assert.match(css, /border-radius: 999px/);
+  assert.match(css, /\.profile-surface \.profile-actions \[hidden\] \{\s*display: none !important;\s*\}/s);
   assert.match(css, /profile-social-stats > span:first-child \{ order: 2; \}/);
   assert.match(css, /profile-activity-tab\[aria-selected="true"\]::after/);
   assert.match(css, /@media \(min-width: 681px\)/);
