@@ -1,4 +1,5 @@
-/* Profile privacy label presentation — public profiles stay unlabeled; private accounts are explicit. */
+/* Profile presentation guard — keep public profiles unlabeled and Settings in the main navigation only. */
+.profile-surface #profile-settings-button,
 .profile-surface .profile-meta .profile-visibility[hidden],
 .profile-surface .profile-meta .profile-visibility:not(.private) {
   display: none !important;
