@@ -1,0 +1,293 @@
+#profile-media-state {
+  display: none !important;
+}
+
+.profile-media-editor-dialog {
+  width: min(620px, calc(100vw - 24px));
+  max-width: 620px;
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: 1px solid var(--app-line-strong);
+  border-radius: 18px;
+  background: var(--app-panel);
+  color: var(--app-text);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .34);
+  overflow: hidden;
+}
+
+.profile-media-editor-dialog::backdrop {
+  background: rgba(0, 0, 0, .68);
+  backdrop-filter: blur(2px);
+}
+
+.profile-media-editor-shell {
+  display: grid;
+  gap: 0;
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  background: var(--app-panel);
+}
+
+.profile-media-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--app-line);
+}
+
+.profile-media-editor-header > div {
+  min-width: 0;
+}
+
+.profile-media-editor-header strong {
+  display: block;
+  color: var(--app-text);
+  font-size: 16px;
+  font-weight: 780;
+  line-height: 1.25;
+}
+
+.profile-media-editor-header small {
+  display: block;
+  margin-top: 4px;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.profile-media-editor-close {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--app-text);
+  font: inherit;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.profile-media-editor-close:hover,
+.profile-media-editor-close:focus-visible {
+  background: var(--app-panel-soft);
+}
+
+.profile-media-editor-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 250px;
+  margin: 18px 18px 0;
+  overflow: hidden;
+  border: 1px solid var(--app-line);
+  border-radius: 14px;
+  background:
+    linear-gradient(45deg, color-mix(in srgb, var(--app-muted) 8%, transparent) 25%, transparent 25%, transparent 75%, color-mix(in srgb, var(--app-muted) 8%, transparent) 75%),
+    linear-gradient(45deg, color-mix(in srgb, var(--app-muted) 8%, transparent) 25%, transparent 25%, transparent 75%, color-mix(in srgb, var(--app-muted) 8%, transparent) 75%);
+  background-position: 0 0, 10px 10px;
+  background-size: 20px 20px;
+}
+
+.profile-media-editor-stage canvas {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: min(58dvh, 520px);
+  object-fit: contain;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.profile-media-editor-stage canvas.dragging {
+  cursor: grabbing;
+}
+
+.profile-media-editor-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--app-panel) 82%, transparent);
+  color: var(--app-muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.profile-media-editor-loading[hidden] {
+  display: none;
+}
+
+.profile-media-editor-help {
+  margin: 10px 18px 0;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.profile-media-editor-controls {
+  display: grid;
+  gap: 12px;
+  padding: 14px 18px 16px;
+}
+
+.profile-media-editor-control-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.profile-media-editor-controls button,
+.profile-media-editor-actions button {
+  min-height: 38px;
+  border: 1px solid var(--app-line-strong);
+  border-radius: 10px;
+  background: var(--app-elevated);
+  color: var(--app-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-media-editor-controls button:hover,
+.profile-media-editor-controls button:focus-visible,
+.profile-media-editor-actions button:hover,
+.profile-media-editor-actions button:focus-visible {
+  background: var(--app-panel-soft);
+}
+
+.profile-media-editor-zoom {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--app-text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.profile-media-editor-zoom input[type="range"] {
+  width: 100%;
+  accent-color: var(--app-accent);
+}
+
+.profile-media-editor-zoom output {
+  min-width: 42px;
+  color: var(--app-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-media-editor-reset {
+  justify-self: start;
+  min-width: 86px;
+}
+
+.profile-media-editor-message {
+  margin: 0 18px 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 68, 68, .35);
+  border-radius: 10px;
+  background: rgba(127, 29, 29, .12);
+  color: #fecaca;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.profile-media-editor-message[hidden] {
+  display: none;
+}
+
+.profile-media-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 14px 18px 16px;
+  border-top: 1px solid var(--app-line);
+}
+
+.profile-media-editor-actions .profile-media-editor-cancel {
+  min-width: 84px;
+  background: transparent;
+}
+
+.profile-media-editor-actions .profile-media-editor-apply {
+  min-width: 104px;
+  border-color: var(--app-accent);
+  background: var(--app-accent);
+  color: #fff;
+}
+
+.profile-media-editor-actions .profile-media-editor-apply:hover,
+.profile-media-editor-actions .profile-media-editor-apply:focus-visible {
+  filter: brightness(.96);
+}
+
+.profile-media-editor-actions button:disabled,
+.profile-media-editor-controls button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+:root[data-theme="light"] .profile-media-editor-message {
+  background: rgba(254, 226, 226, .7);
+  color: #991b1b;
+}
+
+@media (max-width: 680px) {
+  .profile-media-editor-dialog {
+    width: 100vw;
+    max-width: none;
+    max-height: 100dvh;
+    margin: 0;
+    border-width: 0;
+    border-radius: 0;
+  }
+
+  .profile-media-editor-shell {
+    min-height: 100dvh;
+    max-height: 100dvh;
+  }
+
+  .profile-media-editor-header {
+    padding: 14px 15px 12px;
+  }
+
+  .profile-media-editor-stage {
+    min-height: 210px;
+    margin: 14px 14px 0;
+    border-radius: 12px;
+  }
+
+  .profile-media-editor-help {
+    margin-right: 14px;
+    margin-left: 14px;
+  }
+
+  .profile-media-editor-controls {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .profile-media-editor-zoom {
+    grid-template-columns: 1fr auto;
+  }
+
+  .profile-media-editor-zoom > span {
+    grid-column: 1 / -1;
+  }
+
+  .profile-media-editor-actions {
+    position: sticky;
+    bottom: 0;
+    padding: 12px 14px max(12px, env(safe-area-inset-bottom));
+    background: var(--app-panel);
+  }
+}
