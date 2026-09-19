@@ -48,10 +48,12 @@ function transformAssetCaching(source) {
     headers.set('Cache-Control', 'no-store');
   }
 
-  const versionedCoreAsset = /^\\/app\\/assets\\/(?:app\\.js|app\\.css|theme-init\\.js)$/.test(url.pathname)
-    && Boolean(url.searchParams.get('v'));
-  if (versionedCoreAsset) {
+  const appCodeAsset = /^\\/app\\/assets\\/.+\\.(?:css|js)$/i.test(url.pathname);
+  const contentHashedAppAsset = appCodeAsset && /^[a-f0-9]{12}$/i.test(url.searchParams.get('v') || '');
+  if (contentHashedAppAsset) {
     headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  } else if (appCodeAsset) {
+    headers.set('Cache-Control', 'no-cache, max-age=0, must-revalidate');
   } else if (url.pathname.startsWith('/app/assets/')) {
     headers.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
   }`,
