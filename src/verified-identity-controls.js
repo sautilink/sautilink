@@ -21,7 +21,8 @@ function removeProfileEditorScaffolding() {
     '#profile-editor .profile-identity-heading .section-label',
     '#profile-identity-state',
   ]) {
-    document.querySelector(selector)?.remove();
+    const node = document.querySelector(selector);
+    if (node) node.hidden = true;
   }
 }
 
