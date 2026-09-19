@@ -3,7 +3,7 @@ const PROFILE_X_UI_STYLESHEET = '/app/assets/profile-x-ui.css?v=20260918-profile
 const PROFILE_SOCIAL_STATS_ORDER_STYLE_ID = 'sautilink-profile-social-stats-order';
 const PROFILE_SOCIAL_STATS_ORDER_STYLESHEET = '/app/assets/profile-social-stats-order.css?v=20260912-followers1';
 const PROFILE_PRIVACY_VISIBILITY_STYLE_ID = 'sautilink-profile-privacy-visibility';
-const PROFILE_PRIVACY_VISIBILITY_STYLESHEET = '/app/assets/profile-privacy-visibility.css?v=20260919-profileprivacy1';
+const PROFILE_PRIVACY_VISIBILITY_STYLESHEET = '/app/assets/profile-privacy-visibility.css?v=20260919-profileprivacy2';
 
 function ensureProfileXUiStyles() {
   if (document.getElementById(PROFILE_X_UI_STYLE_ID)) return;
@@ -39,33 +39,55 @@ function placeProfileStatsBeforeBio() {
   if (bio.previousElementSibling !== stats) bio.before(stats);
 }
 
-function installProfileVisibilityPresentation() {
+function hideProfileSettingsShortcut() {
+  const settings = document.getElementById('profile-settings-button');
+  if (!settings) return;
+  if (!settings.hidden) settings.hidden = true;
+  if (settings.getAttribute('aria-hidden') !== 'true') settings.setAttribute('aria-hidden', 'true');
+}
+
+function syncProfileVisibilityPresentation() {
   const visibility = document.getElementById('profile-visibility');
   if (!visibility) return;
 
-  const sync = () => {
-    const privateAccount = visibility.classList.contains('private');
-    const label = visibility.querySelector('b');
-    const nextLabel = privateAccount ? 'Private Account' : '';
+  const privateAccount = visibility.classList.contains('private');
+  const label = visibility.querySelector('b');
+  const nextLabel = privateAccount ? 'Private Account' : '';
 
-    if (label && label.textContent !== nextLabel) label.textContent = nextLabel;
-    visibility.hidden = !privateAccount;
-    visibility.setAttribute('aria-hidden', String(!privateAccount));
+  if (label && label.textContent !== nextLabel) label.textContent = nextLabel;
+  if (visibility.hidden === privateAccount) visibility.hidden = !privateAccount;
+  const ariaHidden = String(!privateAccount);
+  if (visibility.getAttribute('aria-hidden') !== ariaHidden) visibility.setAttribute('aria-hidden', ariaHidden);
+}
+
+function enforceProfilePresentation() {
+  placeProfileStatsBeforeBio();
+  hideProfileSettingsShortcut();
+  syncProfileVisibilityPresentation();
+}
+
+function installProfilePresentationGuard(surface) {
+  if (surface.dataset.profilePresentationGuardBound === 'true') return;
+  surface.dataset.profilePresentationGuardBound = 'true';
+
+  let scheduled = false;
+  const scheduleSync = () => {
+    if (scheduled) return;
+    scheduled = true;
+    queueMicrotask(() => {
+      scheduled = false;
+      enforceProfilePresentation();
+    });
   };
 
-  if (visibility.dataset.profilePrivacyPresentationBound !== 'true') {
-    visibility.dataset.profilePrivacyPresentationBound = 'true';
-    const observer = new MutationObserver(sync);
-    observer.observe(visibility, {
-      attributes: true,
-      attributeFilter: ['class'],
-      childList: true,
-      subtree: true,
-      characterData: true,
-    });
-  }
-
-  sync();
+  const observer = new MutationObserver(scheduleSync);
+  observer.observe(surface, {
+    attributes: true,
+    attributeFilter: ['class', 'hidden'],
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
 }
 
 function installProfileXUi() {
@@ -75,8 +97,8 @@ function installProfileXUi() {
   ensureProfileSocialStatsOrderStyles();
   ensureProfilePrivacyVisibilityStyles();
   surface.dataset.profilePresentation = 'x-style';
-  placeProfileStatsBeforeBio();
-  installProfileVisibilityPresentation();
+  enforceProfilePresentation();
+  installProfilePresentationGuard(surface);
 
   const moreMenu = document.getElementById('profile-more-menu');
   const moreButton = document.getElementById('profile-more-button');
