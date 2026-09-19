@@ -20,13 +20,15 @@ test('deferred member services avoid duplicate message badge refresh at startup'
   assert.doesNotMatch(block, /void refreshNotificationBadge\(\);\s*void refreshMessageBadge\(\);\s*void syncModerationAccess\(\);/s);
 });
 
-test('production router gives versioned core assets immutable browser caching', async () => {
+test('production router caches content-hashed app code immutably and revalidates legacy code', async () => {
   const source = await read('src/asset-router.js');
   const mediaOptimized = transformMediaPerformanceSource('/repo/src/asset-router.js', source);
   const transformed = transformRuntimePerformanceSource('/repo/src/asset-router.js', mediaOptimized);
 
-  assert.match(transformed, /versionedCoreAsset/);
+  assert.match(transformed, /contentHashedAppAsset/);
+  assert.match(transformed, /\^\[a-f0-9\]\{12\}\$/);
   assert.match(transformed, /public, max-age=31536000, immutable/);
+  assert.match(transformed, /no-cache, max-age=0, must-revalidate/);
   assert.match(transformed, /public, max-age=86400, stale-while-revalidate=604800/);
   assert.match(transformed, /protectedMediaDelivery/);
 });
