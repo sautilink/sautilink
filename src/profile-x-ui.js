@@ -4,6 +4,8 @@ const PROFILE_SOCIAL_STATS_ORDER_STYLE_ID = 'sautilink-profile-social-stats-orde
 const PROFILE_SOCIAL_STATS_ORDER_STYLESHEET = '/app/assets/profile-social-stats-order.css?v=20260912-followers1';
 const PROFILE_PRIVACY_VISIBILITY_STYLE_ID = 'sautilink-profile-privacy-visibility';
 const PROFILE_PRIVACY_VISIBILITY_STYLESHEET = '/app/assets/profile-privacy-visibility.css?v=20260919-profileprivacy2';
+const PROFILE_ACTIVITY_MOBILE_FIX_STYLE_ID = 'sautilink-profile-activity-mobile-fix';
+const PROFILE_ACTIVITY_MOBILE_FIX_STYLESHEET = '/app/assets/profile-activity-mobile-fix.css?v=20260919-profileactivity1';
 
 function ensureProfileXUiStyles() {
   if (document.getElementById(PROFILE_X_UI_STYLE_ID)) return;
@@ -29,6 +31,15 @@ function ensureProfilePrivacyVisibilityStyles() {
   link.id = PROFILE_PRIVACY_VISIBILITY_STYLE_ID;
   link.rel = 'stylesheet';
   link.href = PROFILE_PRIVACY_VISIBILITY_STYLESHEET;
+  document.head.append(link);
+}
+
+function ensureProfileActivityMobileFixStyles() {
+  if (document.getElementById(PROFILE_ACTIVITY_MOBILE_FIX_STYLE_ID)) return;
+  const link = document.createElement('link');
+  link.id = PROFILE_ACTIVITY_MOBILE_FIX_STYLE_ID;
+  link.rel = 'stylesheet';
+  link.href = PROFILE_ACTIVITY_MOBILE_FIX_STYLESHEET;
   document.head.append(link);
 }
 
@@ -60,10 +71,26 @@ function syncProfileVisibilityPresentation() {
   if (visibility.getAttribute('aria-hidden') !== ariaHidden) visibility.setAttribute('aria-hidden', ariaHidden);
 }
 
+function syncProfileActivityPresentation() {
+  const editButton = document.getElementById('profile-edit-button');
+  if (!editButton) return;
+  const owner = !editButton.hidden;
+
+  const ownerActions = document.getElementById('profile-owner-dashboard-actions');
+  if (ownerActions && !owner && !ownerActions.hidden) ownerActions.hidden = true;
+
+  const tools = document.getElementById('profile-activity-tools');
+  if (tools && !owner && !tools.hidden) tools.hidden = true;
+
+  const privacy = document.getElementById('profile-activity-privacy');
+  if (privacy && !owner && !privacy.hidden) privacy.hidden = true;
+}
+
 function enforceProfilePresentation() {
   placeProfileStatsBeforeBio();
   hideProfileSettingsShortcut();
   syncProfileVisibilityPresentation();
+  syncProfileActivityPresentation();
 }
 
 function installProfilePresentationGuard(surface) {
@@ -96,6 +123,7 @@ function installProfileXUi() {
   ensureProfileXUiStyles();
   ensureProfileSocialStatsOrderStyles();
   ensureProfilePrivacyVisibilityStyles();
+  ensureProfileActivityMobileFixStyles();
   surface.dataset.profilePresentation = 'x-style';
   enforceProfilePresentation();
   installProfilePresentationGuard(surface);
