@@ -254,7 +254,9 @@
   }
 
   .sauti-mobile-drawer-nav > button > svg:first-child,
-  .sauti-mobile-drawer-nav > a > svg:first-child {
+  .sauti-mobile-drawer-nav > a > svg:first-child,
+  .sauti-mobile-drawer-settings-toggle > svg:first-child,
+  .sauti-mobile-drawer-settings-panel > button > svg:first-child {
     width: 23px;
     height: 23px;
     stroke-width: 1.9;
@@ -280,11 +282,61 @@
     white-space: nowrap;
   }
 
-  .sauti-mobile-drawer-chevron {
+  .sauti-mobile-drawer-chevron,
+  .sauti-mobile-drawer-settings-chevron {
     width: 17px !important;
     height: 17px !important;
     color: var(--app-muted);
     stroke-width: 1.8 !important;
+  }
+
+  .sauti-mobile-drawer-settings-group {
+    display: grid;
+    min-width: 0;
+  }
+
+  .sauti-mobile-drawer-settings-toggle {
+    width: 100%;
+  }
+
+  .sauti-mobile-drawer-settings-chevron {
+    transition: transform 160ms ease;
+  }
+
+  .sauti-mobile-drawer-settings-toggle[aria-expanded="true"] .sauti-mobile-drawer-settings-chevron {
+    transform: rotate(180deg);
+  }
+
+  .sauti-mobile-drawer-settings-panel {
+    display: grid;
+    gap: 1px;
+    margin: 0 0 6px 19px;
+    padding: 3px 0 5px 10px;
+    border-left: 1px solid color-mix(in srgb, var(--app-line) 88%, transparent);
+  }
+
+  .sauti-mobile-drawer-settings-panel[hidden] {
+    display: none !important;
+  }
+
+  .sauti-mobile-drawer-settings-panel > button {
+    grid-template-columns: 26px minmax(0, 1fr) 16px;
+    min-height: 52px;
+    padding: 7px 6px 7px 8px;
+    border-radius: 11px;
+  }
+
+  .sauti-mobile-drawer-settings-panel > button > svg:first-child {
+    width: 21px;
+    height: 21px;
+  }
+
+  .sauti-mobile-drawer-settings-panel strong {
+    font-size: 13px;
+  }
+
+  .sauti-mobile-drawer-settings-panel small {
+    font-size: 10.5px;
   }
 
   .sauti-mobile-drawer-spacer {
@@ -355,7 +407,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .sauti-mobile-drawer,
-  .sauti-mobile-drawer-backdrop {
+  .sauti-mobile-drawer-backdrop,
+  .sauti-mobile-drawer-settings-chevron {
     transition: none;
   }
 }
