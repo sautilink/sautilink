@@ -106,8 +106,8 @@ function ensureProfileMediaEditorStylesheet() {
 function hideProfileMediaReadinessPill() {
   const state = document.getElementById('profile-media-state');
   if (!state) return;
-  state.hidden = true;
-  state.setAttribute('aria-hidden', 'true');
+  if (!state.hidden) state.hidden = true;
+  if (state.getAttribute('aria-hidden') !== 'true') state.setAttribute('aria-hidden', 'true');
 }
 
 function profileMediaEditorDialog() {
@@ -451,8 +451,10 @@ async function openProfileMediaEditor(input, file, config) {
   };
 
   const canvas = dialog.querySelector('#profile-media-editor-canvas');
+  const stage = dialog.querySelector('#profile-media-editor-stage');
   canvas.width = config.previewWidth;
   canvas.height = config.previewHeight;
+  stage.dataset.slot = config.slot;
   dialog.querySelector('#profile-media-editor-title').textContent = config.title;
   dialog.querySelector('#profile-media-editor-subtitle').textContent = `${config.cropLabel} · drag to crop, rotate, or resize before updating.`;
   dialog.querySelector('#profile-media-editor-help').textContent = 'Drag the photo to reposition the crop. Use the slider to resize it.';
@@ -506,7 +508,11 @@ function interceptProfileMediaFileSelection(event) {
   input.value = '';
 
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-    editorMessage('Choose a JPEG, PNG or WebP image.');
+    const message = document.getElementById('profile-media-message');
+    if (message) {
+      message.textContent = 'Choose a JPEG, PNG or WebP image.';
+      message.hidden = false;
+    }
     return;
   }
   if (file.size > config.maxBytes) {
@@ -525,16 +531,6 @@ function installProfileMediaEditor() {
   ensureProfileMediaEditorStylesheet();
   hideProfileMediaReadinessPill();
   document.addEventListener('change', interceptProfileMediaFileSelection, true);
-
-  const state = document.getElementById('profile-media-state');
-  if (state) {
-    new MutationObserver(hideProfileMediaReadinessPill).observe(state, {
-      attributes: true,
-      childList: true,
-      characterData: true,
-      subtree: true,
-    });
-  }
 }
 
 function installProfileMediaUploadIcons() {
