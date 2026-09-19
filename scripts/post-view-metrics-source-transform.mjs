@@ -107,7 +107,7 @@ function installProfessionalDashboardRouting() {
 
   return withInstall.replace(
     routeAnchor,
-    `${routingHelpers}\n${routeAnchor}\n  const professionalDashboardRoute = professionalDashboardRouteKind(window.location.pathname);\n  if (professionalDashboardRoute) {\n    profileRouteRequest += 1;\n    if (currentMember?.username && openProfessionalDashboardRoute(professionalDashboardRoute)) return;\n    if (!currentMember) {\n      showSignedOut('login');\n      return;\n    }\n  }`,
+    `${routingHelpers}\n${routeAnchor}\n  const professionalDashboardRoute = professionalDashboardRouteKind(window.location.pathname);\n  if (professionalDashboardRoute) {\n    if (currentMember?.username) {\n      profileRouteRequest += 1;\n      if (openProfessionalDashboardRoute(professionalDashboardRoute)) return;\n    }\n    if (!currentMember) return;\n  }`,
   );
 }
 
