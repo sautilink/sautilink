@@ -49,7 +49,7 @@ test('profile presentation preserves existing data/action contracts', async () =
   assert.doesNotMatch(source, /innerHTML\s*=|remove\(|replaceChildren\(/);
 });
 
-test('profile stats are moved above the bio and public privacy labels stay hidden', async () => {
+test('profile stats stay above bio, profile Settings shortcut stays hidden, and only private visibility is labeled', async () => {
   const [source, privacyCss] = await Promise.all([
     read('src/profile-x-ui.js'),
     read('app/assets/profile-privacy-visibility.css'),
@@ -57,12 +57,18 @@ test('profile stats are moved above the bio and public privacy labels stay hidde
 
   assert.match(source, /function placeProfileStatsBeforeBio\(\)/);
   assert.match(source, /bio\.before\(stats\)/);
+  assert.match(source, /function hideProfileSettingsShortcut\(\)/);
+  assert.match(source, /profile-settings-button/);
+  assert.match(source, /settings\.hidden = true/);
   assert.match(source, /nextLabel = privateAccount \? 'Private Account' : ''/);
   assert.match(source, /visibility\.hidden = !privateAccount/);
-  assert.match(source, /visibility\.setAttribute\('aria-hidden', String\(!privateAccount\)\)/);
-  assert.match(source, /new MutationObserver\(sync\)/);
-  assert.match(source, /attributeFilter: \['class'\]/);
-  assert.match(source, /profile-privacy-visibility\.css\?v=20260919-profileprivacy1/);
+  assert.match(source, /visibility\.setAttribute\('aria-hidden', ariaHidden\)/);
+  assert.match(source, /function enforceProfilePresentation\(\)/);
+  assert.match(source, /function installProfilePresentationGuard\(surface\)/);
+  assert.match(source, /new MutationObserver\(scheduleSync\)/);
+  assert.match(source, /attributeFilter: \['class', 'hidden'\]/);
+  assert.match(source, /profile-privacy-visibility\.css\?v=20260919-profileprivacy2/);
+  assert.match(privacyCss, /profile-settings-button/);
   assert.match(privacyCss, /profile-visibility:not\(\.private\)/);
   assert.match(privacyCss, /profile-visibility\[hidden\]/);
   assert.match(privacyCss, /display: none !important/);
@@ -73,6 +79,19 @@ test('regular and production builds include the profile presentation loader', as
   const production = await read('scripts/build-production-release.mjs');
   assert.match(regular, /src\/profile-x-ui\.js/);
   assert.match(production, /profile-x-ui\.js/);
+});
+
+test('production and PWA release keys are bumped together for the live profile fix', async () => {
+  const [production, serviceWorker, pwa] = await Promise.all([
+    read('scripts/build-production-release.mjs'),
+    read('sw.js'),
+    read('assets/pwa.js'),
+  ]);
+
+  for (const source of [production, serviceWorker, pwa]) {
+    assert.match(source, /20260919-profileui1/);
+  }
+  assert.match(serviceWorker, /sautilink-shell-v61/);
 });
 
 test('profile stylesheet keeps desktop and mobile X-style hierarchy', async () => {
