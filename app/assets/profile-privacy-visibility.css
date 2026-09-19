@@ -1,0 +1,5 @@
+/* Profile privacy label presentation — public profiles stay unlabeled; private accounts are explicit. */
+.profile-surface .profile-meta .profile-visibility[hidden],
+.profile-surface .profile-meta .profile-visibility:not(.private) {
+  display: none !important;
+}

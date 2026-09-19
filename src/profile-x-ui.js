@@ -2,6 +2,8 @@ const PROFILE_X_UI_STYLE_ID = 'sautilink-profile-x-ui';
 const PROFILE_X_UI_STYLESHEET = '/app/assets/profile-x-ui.css?v=20260918-profile2';
 const PROFILE_SOCIAL_STATS_ORDER_STYLE_ID = 'sautilink-profile-social-stats-order';
 const PROFILE_SOCIAL_STATS_ORDER_STYLESHEET = '/app/assets/profile-social-stats-order.css?v=20260912-followers1';
+const PROFILE_PRIVACY_VISIBILITY_STYLE_ID = 'sautilink-profile-privacy-visibility';
+const PROFILE_PRIVACY_VISIBILITY_STYLESHEET = '/app/assets/profile-privacy-visibility.css?v=20260919-profileprivacy1';
 
 function ensureProfileXUiStyles() {
   if (document.getElementById(PROFILE_X_UI_STYLE_ID)) return;
@@ -21,12 +23,60 @@ function ensureProfileSocialStatsOrderStyles() {
   document.head.append(link);
 }
 
+function ensureProfilePrivacyVisibilityStyles() {
+  if (document.getElementById(PROFILE_PRIVACY_VISIBILITY_STYLE_ID)) return;
+  const link = document.createElement('link');
+  link.id = PROFILE_PRIVACY_VISIBILITY_STYLE_ID;
+  link.rel = 'stylesheet';
+  link.href = PROFILE_PRIVACY_VISIBILITY_STYLESHEET;
+  document.head.append(link);
+}
+
+function placeProfileStatsBeforeBio() {
+  const stats = document.querySelector('#profile-surface .profile-social-stats');
+  const bio = document.getElementById('profile-bio');
+  if (!stats || !bio || stats.parentElement !== bio.parentElement) return;
+  if (bio.previousElementSibling !== stats) bio.before(stats);
+}
+
+function installProfileVisibilityPresentation() {
+  const visibility = document.getElementById('profile-visibility');
+  if (!visibility) return;
+
+  const sync = () => {
+    const privateAccount = visibility.classList.contains('private');
+    const label = visibility.querySelector('b');
+    const nextLabel = privateAccount ? 'Private Account' : '';
+
+    if (label && label.textContent !== nextLabel) label.textContent = nextLabel;
+    visibility.hidden = !privateAccount;
+    visibility.setAttribute('aria-hidden', String(!privateAccount));
+  };
+
+  if (visibility.dataset.profilePrivacyPresentationBound !== 'true') {
+    visibility.dataset.profilePrivacyPresentationBound = 'true';
+    const observer = new MutationObserver(sync);
+    observer.observe(visibility, {
+      attributes: true,
+      attributeFilter: ['class'],
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  }
+
+  sync();
+}
+
 function installProfileXUi() {
   const surface = document.getElementById('profile-surface');
   if (!surface) return;
   ensureProfileXUiStyles();
   ensureProfileSocialStatsOrderStyles();
+  ensureProfilePrivacyVisibilityStyles();
   surface.dataset.profilePresentation = 'x-style';
+  placeProfileStatsBeforeBio();
+  installProfileVisibilityPresentation();
 
   const moreMenu = document.getElementById('profile-more-menu');
   const moreButton = document.getElementById('profile-more-button');

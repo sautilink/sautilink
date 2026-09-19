@@ -16,7 +16,6 @@ test('profile X-style layer is isolated to the profile surface and CSP-safe', as
   assert.match(source, /\/app\/assets\/profile-x-ui\.css\?v=20260918-profile2/);
   assert.match(source, /surface\.dataset\.profilePresentation = 'x-style'/);
   assert.doesNotMatch(source, /document\.createElement\('style'\)/);
-  assert.doesNotMatch(source, /MutationObserver/);
   assert.doesNotMatch(source, /supabase|fetch\(|localStorage|sessionStorage/i);
 
   for (const selector of [
@@ -48,6 +47,25 @@ test('profile presentation preserves existing data/action contracts', async () =
     assert.match(shell, new RegExp(`id="${id}"`));
   }
   assert.doesNotMatch(source, /innerHTML\s*=|remove\(|replaceChildren\(/);
+});
+
+test('profile stats are moved above the bio and public privacy labels stay hidden', async () => {
+  const [source, privacyCss] = await Promise.all([
+    read('src/profile-x-ui.js'),
+    read('app/assets/profile-privacy-visibility.css'),
+  ]);
+
+  assert.match(source, /function placeProfileStatsBeforeBio\(\)/);
+  assert.match(source, /bio\.before\(stats\)/);
+  assert.match(source, /nextLabel = privateAccount \? 'Private Account' : ''/);
+  assert.match(source, /visibility\.hidden = !privateAccount/);
+  assert.match(source, /visibility\.setAttribute\('aria-hidden', String\(!privateAccount\)\)/);
+  assert.match(source, /new MutationObserver\(sync\)/);
+  assert.match(source, /attributeFilter: \['class'\]/);
+  assert.match(source, /profile-privacy-visibility\.css\?v=20260919-profileprivacy1/);
+  assert.match(privacyCss, /profile-visibility:not\(\.private\)/);
+  assert.match(privacyCss, /profile-visibility\[hidden\]/);
+  assert.match(privacyCss, /display: none !important/);
 });
 
 test('regular and production builds include the profile presentation loader', async () => {
