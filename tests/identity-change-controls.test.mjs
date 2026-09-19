@@ -49,6 +49,7 @@ test('profile editor includes name controls and permanently disables locked user
     'id="profile-name-input"',
     'id="profile-username-form"',
     'id="profile-username-input"',
+    'id="profile-identity-state"',
     'id="profile-verified-badge"',
     'id="moderation-identity-panel"',
   ]) assert.ok(html.includes(marker), `missing identity UI marker: ${marker}`);
@@ -61,16 +62,23 @@ test('profile editor includes name controls and permanently disables locked user
   assert.match(verifiedControls, /verified-username-locked/);
 });
 
-test('profile editor removes redundant identity labels while preserving account controls', async () => {
+test('profile editor hides redundant identity labels without deleting the hydration sentinel', async () => {
   const html = await read('app/index.html');
+  const source = await read('src/app.js');
   const verifiedControls = await read('src/verified-identity-controls.js');
 
+  assert.ok(html.includes('id="profile-identity-state"'), 'identity hydration sentinel must remain in the DOM');
+  assert.match(
+    source,
+    /const stateNode = byId\('profile-identity-state'\);[\s\S]*?stateNode\.textContent = 'Checking';[\s\S]*?settingsApiRequest\('\/api\/account\/identity'\)/,
+  );
   assert.match(verifiedControls, /function removeProfileEditorScaffolding\(\)/);
   assert.match(verifiedControls, /#profile-editor \.profile-editor-heading \.section-label/);
   assert.match(verifiedControls, /#profile-editor \.profile-identity-heading \.section-label/);
   assert.match(verifiedControls, /#profile-identity-state/);
+  assert.match(verifiedControls, /const node = document\.querySelector\(selector\);[\s\S]*?node\.hidden = true/);
+  assert.doesNotMatch(verifiedControls, /querySelector\(selector\)\?\.remove\(\)/);
   assert.match(verifiedControls, /removeProfileEditorScaffolding\(\);/);
-  assert.match(verifiedControls, /document\.querySelector\(selector\)\?\.remove\(\)/);
 
   for (const marker of [
     'id="profile-editor-title">Edit profile',
