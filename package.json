@@ -10,14 +10,14 @@
     "build": "npm run build:app && npm run build:preview",
     "build:app": "node scripts/build-app.mjs --inject:./src/caption-entities.js --inject:./src/composer-formats.js --inject:./src/username-login.js --inject:./src/verified-identity-controls.js --inject:./src/profile-activity.js --inject:./src/profile-route-states.js --inject:./src/professional-profile-category.js --inject:./src/profile-media-upload-icons.js --inject:./src/home-feed-author-profile-links.js --inject:./src/post-media-carousel.js --inject:./src/sautilink-video-player.js --inject:./src/rooms-platform.js --inject:./src/rooms-invitations-style.js --inject:./src/rooms-invitations.js",
     "build:preview": "vite build --config vite.preview.config.js && vite build --config vite.identity.config.js && vite build --config vite.profiles.config.js && vite build --config vite.share-stream.config.js && vite build --config vite.media.config.js && vite build --config vite.conversations.config.js && vite build --config vite.trust-safety.config.js && vite build --config vite.messages.config.js && vite build --config vite.settings.config.js && node scripts/stage-preview-site.mjs && node scripts/enable-messages-media-preview.mjs",
-    "build:production": "node scripts/build-production-release.mjs",
+    "build:production": "node scripts/build-production-release.mjs && node scripts/stamp-production-ui-assets.mjs",
     "dev:preview": "vite --config vite.preview.config.js",
     "dev:identity": "vite --config vite.identity.config.js",
     "serve:preview": "vite preview --config vite.preview.config.js",
     "serve:identity": "vite preview --config vite.identity.config.js",
     "serve:profiles": "vite preview --config vite.profiles.config.js",
     "serve:stream": "vite preview --config vite.share-stream.config.js",
-    "serve:media": "vite preview --config vite.media.config.js",
+    "serve:media": "vite preview --config vite.share-stream.config.js",
     "serve:conversations": "vite preview --config vite.conversations.config.js",
     "serve:trust-safety": "vite preview --config vite.trust-safety.config.js",
     "serve:messages": "vite preview --config vite.messages.config.js",
@@ -36,7 +36,7 @@
     "deploy:messages:dry": "wrangler deploy --config wrangler.social-staging.jsonc --env messages --dry-run",
     "deploy:settings:dry": "wrangler deploy --config wrangler.social-staging.jsonc --env settings --dry-run",
     "verify:staging-artifact": "node scripts/verify-staging-artifact.mjs",
-    "verify:production-artifact": "node scripts/verify-production-artifact.mjs && node scripts/stamp-production-ui-assets.mjs && node scripts/verify-production-ui-asset-hashes.mjs"
+    "verify:production-artifact": "node scripts/verify-production-artifact.mjs && node scripts/verify-production-ui-asset-hashes.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.3",
