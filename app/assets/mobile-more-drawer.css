@@ -136,33 +136,33 @@
   }
 
   .sauti-mobile-drawer-profile {
-    display: grid;
-    grid-template-columns: 52px minmax(0, 1fr) 20px;
-    align-items: center;
-    gap: 11px;
+    display: flex;
     width: 100%;
     min-width: 0;
-    padding: 12px 8px;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    padding: 12px 8px 17px;
     border: 0;
-    border-radius: 15px;
+    border-radius: 18px;
     background: transparent;
     color: inherit;
-    text-align: left;
+    text-align: center;
     cursor: pointer;
   }
 
   .sauti-mobile-drawer-avatar {
     position: relative;
     display: grid;
-    width: 52px;
-    height: 52px;
+    width: 78px;
+    height: 78px;
     overflow: hidden;
     place-items: center;
-    border: 1px solid color-mix(in srgb, var(--app-line) 88%, transparent);
+    border: 2px solid color-mix(in srgb, var(--app-line) 88%, transparent);
     border-radius: 50%;
     background: color-mix(in srgb, var(--app-text) 8%, var(--app-panel));
     color: var(--app-text);
-    font-size: 16px;
+    font-size: 23px;
     font-weight: 780;
     letter-spacing: -.02em;
     text-transform: uppercase;
@@ -186,47 +186,86 @@
   .sauti-mobile-drawer-profile-copy {
     display: flex;
     min-width: 0;
+    max-width: 100%;
     flex-direction: column;
-    gap: 2px;
+    align-items: center;
+    gap: 3px;
   }
 
-  .sauti-mobile-drawer-profile-copy strong,
-  .sauti-mobile-drawer-profile-copy small,
-  .sauti-mobile-drawer-profile-copy em {
-    min-width: 0;
+  .sauti-mobile-drawer-profile-copy > strong,
+  .sauti-mobile-drawer-profile-copy > small {
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .sauti-mobile-drawer-profile-copy strong {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 15px;
-    font-weight: 760;
+  .sauti-mobile-drawer-profile-copy > strong {
+    font-size: 17px;
+    font-weight: 770;
+    letter-spacing: -.02em;
   }
 
-  .sauti-mobile-drawer-profile-copy strong .verification-badge {
-    flex: 0 0 auto;
-  }
-
-  .sauti-mobile-drawer-profile-copy small {
+  .sauti-mobile-drawer-profile-copy > small {
     color: var(--app-muted);
     font-size: 12px;
   }
 
-  .sauti-mobile-drawer-profile-copy em {
-    margin-top: 2px;
-    color: var(--app-muted);
-    font-size: 11px;
-    font-style: normal;
-    font-weight: 620;
+  .sauti-mobile-drawer-member-status {
+    display: inline-flex;
+    max-width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 5px;
+    padding: 4px 9px 4px 5px;
+    border: 1px solid color-mix(in srgb, var(--app-line) 86%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--app-text) 5%, var(--app-panel));
+    color: var(--app-text);
+    font-size: 10.5px;
+    font-weight: 720;
+    line-height: 1;
+  }
+
+  .sauti-mobile-drawer-member-icon {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    place-items: center;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--app-text) 9%, var(--app-panel));
+  }
+
+  .sauti-mobile-drawer-member-icon > svg {
+    width: 17px;
+    height: 17px;
+    stroke-width: 1.8;
+  }
+
+  .sauti-mobile-drawer-member-status.is-verified .sauti-mobile-drawer-member-icon {
+    background: transparent;
+  }
+
+  .sauti-mobile-drawer-member-status .verification-badge {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    place-items: center;
+  }
+
+  .sauti-mobile-drawer-member-status .verification-badge img,
+  .sauti-mobile-drawer-member-status img[data-verification-badge-image] {
+    display: block;
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
   }
 
   .sauti-mobile-drawer-divider {
     height: 1px;
-    margin: 8px 4px 10px;
+    margin: 2px 4px 10px;
     background: color-mix(in srgb, var(--app-line) 82%, transparent);
   }
 
@@ -337,6 +376,25 @@
 
   .sauti-mobile-drawer-settings-panel small {
     font-size: 10.5px;
+  }
+
+  .sauti-mobile-drawer-nav [data-mobile-drawer-verification] {
+    margin-top: 3px;
+  }
+
+  .sauti-mobile-drawer-verification-message {
+    margin: -1px 8px 6px 47px;
+    padding: 8px 10px;
+    border: 1px solid color-mix(in srgb, var(--app-line) 78%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--app-text) 5%, var(--app-panel));
+    color: var(--app-muted);
+    font-size: 10.5px;
+    line-height: 1.35;
+  }
+
+  .sauti-mobile-drawer-verification-message[hidden] {
+    display: none !important;
   }
 
   .sauti-mobile-drawer-spacer {
