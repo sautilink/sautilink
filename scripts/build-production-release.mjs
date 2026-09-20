@@ -74,7 +74,7 @@ function wireProductionPwa(input) {
     output = output.replace(/(\s*<meta name="theme-color"[^>]*>\s*)/i, `$1\n${pwaHead}\n`);
   }
   const postActionIconStylesheet = `/app/assets/post-media-carousel.css?v=${POST_ACTION_ICON_CSS_RELEASE}`;
-  if (!output.includes(postActionIconStylesheet)) {
+  if (!output.includes('/app/assets/post-media-carousel.css')) {
     output = output.replace('</head>', `  <link rel="stylesheet" href="${postActionIconStylesheet}">\n</head>`);
   }
   const settingsLightThemeStylesheet = `/app/assets/settings-light-theme-hotfix.css?v=${SETTINGS_LIGHT_THEME_CSS_RELEASE}`;
