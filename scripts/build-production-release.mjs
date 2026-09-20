@@ -29,7 +29,8 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
 const APP_JS_RELEASE = '20260917-commentmenu1';
-const APP_JS_FEATURE_RELEASE = '20260920-birthdate1';
+const APP_JS_FEATURE_RELEASE = '20260919-mobilesettings1';
+const APP_JS_BIRTH_DATE_RELEASE = '20260920-birthdate1';
 const PWA_RELEASE = '20260916-loadingfix1';
 const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram2';
 const SETTINGS_LIGHT_THEME_CSS_RELEASE = '20260917-settings1';
@@ -161,7 +162,10 @@ let appHtml = productionText(await readFile(appHtmlPath, 'utf8'));
 appHtml = appHtml
   .replace(/\s*<meta name="robots" content="noindex, nofollow">\s*/i, '\n')
   .replace("img-src 'self' data: blob:; script-src", "img-src 'self' data: blob:; media-src 'self' blob:; script-src")
-  .replace(/app\.js\?v=[^"']+/g, `app.js?v=${APP_JS_RELEASE}&feature=${APP_JS_FEATURE_RELEASE}`);
+  .replace(
+    /app\.js\?v=[^"']+/g,
+    `app.js?v=${APP_JS_RELEASE}&feature=${APP_JS_FEATURE_RELEASE}&birthdate=${APP_JS_BIRTH_DATE_RELEASE}`,
+  );
 appHtml = wireProductionPwa(appHtml);
 await writeFile(appHtmlPath, appHtml);
 
