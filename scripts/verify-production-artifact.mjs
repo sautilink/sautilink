@@ -71,6 +71,9 @@ if (!appJs.includes('profile-x-ui.css?v=20260918-profile2')) throw new Error('pr
 if (!appJs.includes('/api/dm-realtime/')) throw new Error('production browser bundle missing Durable Objects Messages realtime client');
 if (!appJs.includes('register_push_device_token_v1')) throw new Error('production browser bundle missing Android push registration bridge');
 if (!appJs.includes('pushNotificationActionPerformed')) throw new Error('production browser bundle missing Android notification tap routing');
+for (const marker of ['signup-birth-date-fieldset', 'settings-birth-date-card', 'Save date of birth']) {
+  if (!appJs.includes(marker)) throw new Error(`production browser bundle missing birth date control marker: ${marker}`);
+}
 for (const marker of [
   '.profile-surface .profile-card',
   '.profile-surface .profile-banner',
@@ -177,6 +180,7 @@ if (/name="robots"[^>]+noindex/i.test(appHtml)) throw new Error('production app 
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('production theme bootstrap is missing');
 if (!appHtml.includes('app.css?v=20260917-commentmenu1')) throw new Error('production CSS cache marker is missing');
 if (!appHtml.includes('app.js?v=20260917-commentmenu1')) throw new Error('production JS cache marker is missing');
+if (!appHtml.includes('birthdate=20260920-birthdate1')) throw new Error('production birth date cache marker is missing');
 if (!appHtml.includes('pwa.js?v=20260916-loadingfix1')) throw new Error('production PWA cache marker is missing');
 if (!appHtml.includes('/logo.png')) throw new Error('production app must use the main-site logo path');
 if (appHtml.includes('/assets/brand/logo-compact.webp')) throw new Error('production app references a logo asset absent from the main-site repo');
@@ -219,4 +223,4 @@ if (/"pattern"\s*:\s*"(?:www\.)?sautilink\.com\/\*"/.test(config)) {
   throw new Error('production Worker must not intercept the marketing/legal site root');
 }
 
-console.log(`Verified ${files.length} production artifact files: production DB isolated, protected responsive media optimization present, CSP-safe X-style profile stylesheet present, transient read/session resilience present, scoped Messages UI present, Durable Objects presence/typing isolated behind authenticated RLS checks, Android FCM registration/tap routing present, clean social routes present, Rooms runtime present, root site preserved, no secrets/source maps.`);
+console.log(`Verified ${files.length} production artifact files: production DB isolated, birth date controls shipped, protected responsive media optimization present, CSP-safe X-style profile stylesheet present, transient read/session resilience present, scoped Messages UI present, Durable Objects presence/typing isolated behind authenticated RLS checks, Android FCM registration/tap routing present, clean social routes present, Rooms runtime present, root site preserved, no secrets/source maps.`);
