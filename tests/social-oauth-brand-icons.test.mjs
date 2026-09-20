@@ -5,9 +5,10 @@ import test from 'node:test';
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('social OAuth buttons use the approved provider assets and stable username prefix layout', async () => {
-  const [source, prefixCss] = await Promise.all([
+  const [source, prefixCss, html] = await Promise.all([
     read('src/social-oauth-auth.js'),
     read('app/assets/username-prefix-fix.css'),
+    read('app/index.html'),
   ]);
 
   assert.match(source, /social-oauth-brand-icon social-oauth-google-icon/);
@@ -25,6 +26,10 @@ test('social OAuth buttons use the approved provider assets and stable username 
   assert.match(prefixCss, /#onboarding-form \.username-field > span/);
   assert.match(prefixCss, /position: static !important/);
   assert.match(prefixCss, /padding-left: 10px !important/);
+
+  // The verified-email post-signup screen uses the same corrected @ prefix structure.
+  assert.match(html, /<form id="onboarding-form"[^>]*>[\s\S]*?<div class="username-field"><span>@<\/span><input id="onboarding-username"/);
+  assert.match(html, /<form id="signup-form"[^>]*>[\s\S]*?<div class="username-field"><span>@<\/span><input id="signup-username"/);
 
   assert.match(source, /guest-entry-gate\.css\?v=20260920-authui2/);
   assert.match(source, /auth-entry-polish\.css\?v=20260920-authui2/);
