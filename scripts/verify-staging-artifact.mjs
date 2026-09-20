@@ -122,5 +122,17 @@ if (/Private preview|Phase 31|Phase 27|Foundation in progress/i.test(appHtml)) {
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('staged theme bootstrap is missing');
 if (!appHtml.includes('app.js?v=20260917-commentmenu1')) throw new Error('staged app JS cache marker is stale');
 if (!appHtml.includes('app.css?v=20260917-commentmenu1')) throw new Error('staged app CSS cache marker is stale');
+for (const [id, filename] of [
+  ['social-oauth-auth-styles', 'guest-entry-gate.css'],
+  ['auth-entry-polish-styles', 'auth-entry-polish.css'],
+  ['username-prefix-fix-styles', 'username-prefix-fix.css'],
+  ['sautilink-mobile-nav-style', 'mobile-nav-icon-style.css'],
+  ['sautilink-caption-entities-style', 'caption-entities.css'],
+  ['sautilink-post-media-carousel-style', 'post-media-carousel.css'],
+  ['sautilink-video-player-style', 'sautilink-video-player.css'],
+]) {
+  const eagerStyle = new RegExp(`<link[^>]+id=["']${id}["'][^>]+href=["'][^"']*${filename.replaceAll('.', '\\.')}`);
+  if (!eagerStyle.test(appHtml)) throw new Error(`staged first-paint stylesheet is not eagerly linked: ${filename}`);
+}
 
 console.log(`Verified ${files.length} staged files: allowlist intact, no source maps or sensitive markers.`);
