@@ -1,3 +1,5 @@
+@import url('/app/assets/auth-entry-polish.css?v=20260920-authui1');
+
 :root {
   --guest-gate-bg: #07101f;
   --guest-gate-surface: #0b1525;
