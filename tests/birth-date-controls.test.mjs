@@ -46,9 +46,9 @@ test('signup and settings controls use the shared authenticated Supabase client'
   const source = await read('src/birth-date-controls.js');
   assert.match(source, /signup-birth-date-fieldset/);
   assert.match(source, /Date of birth/);
-  assert.match(source, /autocomplete=\\"bday-day\\"/);
-  assert.match(source, /autocomplete=\\"bday-month\\"/);
-  assert.match(source, /autocomplete=\\"bday-year\\"/);
+  assert.match(source, /autocomplete="bday-day"/);
+  assert.match(source, /autocomplete="bday-month"/);
+  assert.match(source, /autocomplete="bday-year"/);
   assert.match(source, /addEventListener\('submit',[\s\S]*?true\)/);
   assert.match(source, /sautilink:auth-client-ready/);
   assert.match(source, /__sautilinkSupabaseAuthClient/);
