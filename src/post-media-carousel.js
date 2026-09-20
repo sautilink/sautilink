@@ -84,6 +84,8 @@ function enhancePostVideoAudioToggle(video) {
     event.stopPropagation();
     video.muted = !video.muted;
     video.defaultMuted = video.muted;
+    video.dataset.sautiAudioPreference = video.muted ? 'muted' : 'audible';
+    delete video.dataset.autoplayMutedFallback;
     syncVideoAudioToggle(video, control);
   });
   control.addEventListener('keydown', (event) => {
@@ -92,6 +94,8 @@ function enhancePostVideoAudioToggle(video) {
     event.stopPropagation();
     video.muted = !video.muted;
     video.defaultMuted = video.muted;
+    video.dataset.sautiAudioPreference = video.muted ? 'muted' : 'audible';
+    delete video.dataset.autoplayMutedFallback;
     syncVideoAudioToggle(video, control);
   });
   video.addEventListener('volumechange', () => syncVideoAudioToggle(video, control));

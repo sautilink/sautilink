@@ -1126,6 +1126,37 @@ function pauseHomeFeedVideos() {
   homeVideoVisibility.forEach((_ratio, video) => video.pause());
 }
 
+async function playHomeFeedVideo(video) {
+  try {
+    await video.play();
+  } catch {
+    if (video.muted || video.dataset.sautiAudioPreference === 'muted') return;
+    video.muted = true;
+    video.defaultMuted = true;
+    video.dataset.autoplayMutedFallback = 'true';
+    await video.play().catch(() => {
+      // Playback can still be declined by browser or device preferences.
+    });
+  }
+}
+
+function restoreHomeFeedAudioAfterInteraction() {
+  let activeVideo = null;
+  let activeRatio = HOME_VIDEO_VISIBILITY_THRESHOLD;
+  homeVideoVisibility.forEach((ratio, video) => {
+    if (ratio >= activeRatio && video.dataset.autoplayMutedFallback === 'true') {
+      activeVideo = video;
+      activeRatio = ratio;
+    }
+  });
+  if (!activeVideo) return;
+  activeVideo.muted = false;
+  activeVideo.defaultMuted = false;
+  activeVideo.dataset.sautiAudioPreference = 'audible';
+  delete activeVideo.dataset.autoplayMutedFallback;
+  activeVideo.play().catch(() => {});
+}
+
 function syncHomeFeedVideoPlayback() {
   if (document.visibilityState === 'hidden' || byId('sauti-media-viewer')?.open) {
     pauseHomeFeedVideos();
@@ -1149,9 +1180,7 @@ function syncHomeFeedVideoPlayback() {
   homeVideoVisibility.forEach((_ratio, video) => {
     if (video !== activeVideo) video.pause();
   });
-  if (activeVideo) activeVideo.play().catch(() => {
-    // Muted autoplay can still be declined by browser or device preferences.
-  });
+  if (activeVideo) void playHomeFeedVideo(activeVideo);
 }
 
 function ensureHomeVideoObserver() {
@@ -1168,15 +1197,16 @@ function ensureHomeVideoObserver() {
 function observeHomeFeedVideo(video, gallery) {
   if (!gallery.closest('#stream-feed')) return;
   video.dataset.homeAutoplayVideo = '';
-  video.muted = true;
-  video.defaultMuted = true;
+  video.muted = false;
+  video.defaultMuted = false;
+  video.volume = 1;
   video.playsInline = true;
   video.autoplay = true;
   video.loop = true;
   homeVideoVisibility.set(video, 0);
   const observer = ensureHomeVideoObserver();
   if (observer) observer.observe(video);
-  else video.play().catch(() => {});
+  else void playHomeFeedVideo(video);
 }
 
 function clearHomeFeedMediaState() {
@@ -1230,7 +1260,9 @@ async function hydrateSautiMediaGallery(postId, gallery) {
       visual = media.media_kind === 'video' ? document.createElement('video') : document.createElement('img');
       visual.src = url;
       if (visual instanceof HTMLVideoElement) {
-        visual.muted = true;
+        visual.muted = false;
+        visual.defaultMuted = false;
+        visual.volume = 1;
         visual.playsInline = true;
         visual.preload = 'metadata';
       } else {
@@ -2772,6 +2804,28 @@ function replyAccessLabel(value) {
   return 'Everyone';
 }
 
+function mentionedUsernames(value) {
+  return [...String(value || '').matchAll(/(^|[^a-z0-9._])@([a-z0-9][a-z0-9._]{2,29})(?=$|[^a-z0-9._])/gi)]
+    .map((match) => String(match[2] || '').toLowerCase());
+}
+
+function canCurrentMemberComment(post, authorFollowsViewer = false) {
+  if (!post || !currentMemberId) return false;
+  if (post.author_id === currentMemberId || post.reply_access === 'everyone') return true;
+  if (post.reply_access === 'following') return Boolean(authorFollowsViewer);
+  if (post.reply_access === 'mentioned') {
+    const username = String(currentMember?.username || '').toLowerCase();
+    return Boolean(username && mentionedUsernames(post.body).includes(username));
+  }
+  return false;
+}
+
+function commentRestrictionNotice(post) {
+  if (post?.reply_access === 'following') return 'Only accounts this author follows can comment.';
+  if (post?.reply_access === 'mentioned') return 'Only people mentioned in this post can comment.';
+  return 'Comments are limited on this post.';
+}
+
 function currentComposerSnapshot() {
   const audience = byId('sauti-audience')?.value || 'public';
   const replyAccess = byId('sauti-reply-access')?.value || 'everyone';
@@ -3461,8 +3515,8 @@ function createCommentCard(item) {
   actions.append(
     commentReactionButton('like', post.like_count, item.liked),
     commentReactionButton('dislike', post.dislike_count, item.disliked),
-    reply,
   );
+  if (canCurrentMemberComment(post, item.authorFollowsViewer)) actions.append(reply);
 
   main.append(head, body, actions);
   article.append(avatar, main);
@@ -3489,6 +3543,8 @@ function createSautiCard(item, { home = false } = {}) {
   article.dataset.authorId = String(post.author_id || '');
   article.dataset.interested = String(Boolean(item.interested));
   article.dataset.eventKey = item.event_key || post.id;
+  const canComment = canCurrentMemberComment(post, item.authorFollowsViewer);
+  article.dataset.canComment = String(canComment);
 
   const avatar = document.createElement('div');
   avatar.className = 'sauti-card-avatar';
@@ -3547,7 +3603,9 @@ function createSautiCard(item, { home = false } = {}) {
     : post.visibility === 'circle'
       ? 'Sautify members'
       : 'Public';
-  context.textContent = `${audienceLabel} · Comments: ${replyAccessLabel(post.reply_access)}`;
+  context.textContent = post.reply_access === 'everyone'
+    ? audienceLabel
+    : `${audienceLabel} · Limited comments`;
 
   let quoteCard = null;
   if (post.quote_post_id) {
@@ -3591,7 +3649,7 @@ function createSautiCard(item, { home = false } = {}) {
   actions.className = 'sauti-actions';
   actions.append(
     interactionButton('like', 'Like', post.like_count, item.liked),
-    interactionButton('comments', 'Comment', post.comment_count, false),
+    interactionButton('comments', canComment ? 'Comment' : 'View comments', post.comment_count, false),
     interactionButton('repost', 'Repost', post.repost_count, item.reposted),
     interactionButton('share', 'Share'),
     interactionButton('save', item.saved ? 'Saved' : 'Save', null, item.saved),
@@ -3667,7 +3725,15 @@ function createSautiCard(item, { home = false } = {}) {
   submit.textContent = 'Comment';
 
   form.append(textarea, submit);
-  comments.append(list, form);
+  comments.append(list);
+  if (canComment) {
+    comments.append(form);
+  } else {
+    const restriction = document.createElement('p');
+    restriction.className = 'sauti-comment-restriction';
+    restriction.textContent = commentRestrictionNotice(post);
+    comments.append(restriction);
+  }
 
   main.append(head);
   if (body.textContent) main.append(body);
@@ -3774,24 +3840,31 @@ async function hydrateStreamEvents(events) {
     .map((post) => post.author_id)
     .filter((authorId) => authorId && authorId !== currentMemberId))];
   let followedAuthors = new Set();
+  let authorsFollowingViewer = new Set();
   let interestedAuthors = new Set();
   if (authorIds.length) {
-    const [followResult, interestResult] = await Promise.all([
+    const [followResult, reverseFollowResult, interestResult] = await Promise.all([
       supabase
         .from('social_follows')
         .select('followed_id')
         .eq('follower_id', currentMemberId)
         .in('followed_id', authorIds),
       supabase
+        .from('social_follows')
+        .select('follower_id')
+        .in('follower_id', authorIds)
+        .eq('followed_id', currentMemberId),
+      supabase
         .from('social_feed_author_interests')
         .select('author_id')
         .eq('user_id', currentMemberId)
         .in('author_id', authorIds),
     ]);
-    if (followResult.error || interestResult.error) {
-      throw followResult.error || interestResult.error;
+    if (followResult.error || reverseFollowResult.error || interestResult.error) {
+      throw followResult.error || reverseFollowResult.error || interestResult.error;
     }
     followedAuthors = new Set((followResult.data || []).map((row) => row.followed_id));
+    authorsFollowingViewer = new Set((reverseFollowResult.data || []).map((row) => row.follower_id));
     interestedAuthors = new Set((interestResult.data || []).map((row) => row.author_id));
   }
 
@@ -3805,6 +3878,7 @@ async function hydrateStreamEvents(events) {
       reposted: reposted.has(event.post_id),
       saved: saved.has(event.post_id),
       following: followedAuthors.has(postMap.get(event.post_id)?.author_id),
+      authorFollowsViewer: authorsFollowingViewer.has(postMap.get(event.post_id)?.author_id),
       interested: interestedAuthors.has(postMap.get(event.post_id)?.author_id),
       quotedPost: quoteMap.get(postMap.get(event.post_id)?.quote_post_id) || null,
     }))
@@ -3816,7 +3890,17 @@ async function hydrateDirectPosts(posts) {
   if (!rows.length) return [];
 
   const postIds = rows.map((post) => post.id).filter(Boolean);
-  const [likeResult, repostResult, savedResult] = await Promise.all([
+  const authorIds = [...new Set(rows
+    .map((post) => post.author_id)
+    .filter((authorId) => authorId && authorId !== currentMemberId))];
+  const authorFollowQuery = authorIds.length
+    ? supabase
+      .from('social_follows')
+      .select('follower_id')
+      .in('follower_id', authorIds)
+      .eq('followed_id', currentMemberId)
+    : Promise.resolve({ data: [], error: null });
+  const [likeResult, repostResult, savedResult, authorFollowResult] = await Promise.all([
     supabase
       .from('social_post_reactions')
       .select('post_id,reaction_type')
@@ -3832,16 +3916,18 @@ async function hydrateDirectPosts(posts) {
       .select('post_id')
       .eq('user_id', currentMemberId)
       .in('post_id', postIds),
+    authorFollowQuery,
   ]);
 
-  if (likeResult.error || repostResult.error || savedResult.error) {
-    throw likeResult.error || repostResult.error || savedResult.error;
+  if (likeResult.error || repostResult.error || savedResult.error || authorFollowResult.error) {
+    throw likeResult.error || repostResult.error || savedResult.error || authorFollowResult.error;
   }
 
   const liked = new Set((likeResult.data || []).filter((row) => row.reaction_type === 'like').map((row) => row.post_id));
   const disliked = new Set((likeResult.data || []).filter((row) => row.reaction_type === 'dislike').map((row) => row.post_id));
   const reposted = new Set((repostResult.data || []).map((row) => row.post_id));
   const saved = new Set((savedResult.data || []).map((row) => row.post_id));
+  const authorsFollowingViewer = new Set((authorFollowResult.data || []).map((row) => row.follower_id));
   const quoteMap = await loadQuotedPostMap(rows);
 
   return rows.map((post) => ({
@@ -3853,6 +3939,7 @@ async function hydrateDirectPosts(posts) {
     disliked: disliked.has(post.id),
     reposted: reposted.has(post.id),
     saved: saved.has(post.id),
+    authorFollowsViewer: authorsFollowingViewer.has(post.author_id),
     quotedPost: quoteMap.get(post.quote_post_id) || null,
   }));
 }
@@ -5909,19 +5996,32 @@ function conversationPostById(postId) {
   return activeSautiConversation?.postMap?.get(postId)?.post || null;
 }
 
+function conversationItemById(postId) {
+  return activeSautiConversation?.postMap?.get(postId) || null;
+}
+
 function conversationAuthorLabel(post) {
   const author = authorFromPost(post) || {};
   return author.display_name || author.username || 'SautiLink member';
 }
 
 function setConversationReplyTarget(post) {
-  if (!activeSautiConversation || !post?.id) return;
+  if (!activeSautiConversation || !post?.id) return false;
   activeSautiConversation.replyTargetId = post.id;
+  const item = conversationItemById(post.id);
+  const canComment = canCurrentMemberComment(post, item?.authorFollowsViewer);
+  activeSautiConversation.canReply = canComment;
+  const compose = byId('conversation-reply-compose');
+  const restriction = byId('conversation-reply-restriction');
+  compose.hidden = !canComment;
+  restriction.hidden = canComment;
+  restriction.textContent = canComment ? '' : commentRestrictionNotice(post);
   byId('conversation-reply-body').placeholder = post.id === activeSautiConversation.rootId
     ? 'Write a comment…'
     : `Reply to ${conversationAuthorLabel(post)}…`;
   updateConversationReplyState();
-  persistThreadReplyDraft();
+  if (canComment) persistThreadReplyDraft();
+  return canComment;
 }
 
 function ensureThreadReplyRequestId() {
@@ -5973,7 +6073,11 @@ function updateConversationReplyState() {
   const length = body.value.length;
   const hasBody = Boolean(body.value.trim());
   submit.textContent = navigator.onLine ? 'Comment' : 'Save draft';
-  submit.disabled = !currentMemberId || !activeSautiConversation?.replyTargetId || !hasBody || length > 500;
+  submit.disabled = !currentMemberId
+    || !activeSautiConversation?.replyTargetId
+    || !activeSautiConversation?.canReply
+    || !hasBody
+    || length > 500;
 }
 
 function threadRelevantScore(post) {
@@ -6066,6 +6170,8 @@ async function loadConversation(postId) {
   errorState.hidden = true;
   byId('conversation-empty').hidden = true;
   thread.replaceChildren();
+  byId('conversation-reply-compose').hidden = true;
+  byId('conversation-reply-restriction').hidden = true;
   setMessage(byId('conversation-reply-message'), '', '');
 
   try {
@@ -6145,7 +6251,7 @@ async function loadConversation(postId) {
 }
 
 async function submitThreadReply() {
-  if (!activeSautiConversation?.replyTargetId || !currentMemberId) return;
+  if (!activeSautiConversation?.replyTargetId || !activeSautiConversation?.canReply || !currentMemberId) return;
   const textarea = byId('conversation-reply-body');
   const submit = byId('conversation-reply-submit');
   const message = byId('conversation-reply-message');
@@ -8543,6 +8649,9 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+document.addEventListener('pointerdown', restoreHomeFeedAudioAfterInteraction, { capture: true });
+document.addEventListener('keydown', restoreHomeFeedAudioAfterInteraction, { capture: true });
+
 byId('show-recovery').addEventListener('click', () => showAuthPanel('recovery'));
 byId('show-passwordless').addEventListener('click', () => showAuthPanel('passwordless'));
 byId('auth-result-close').addEventListener('click', () => {
@@ -9488,8 +9597,7 @@ function handleSautiFeedClick(event) {
   const commentReply = event.target.closest('[data-comment-reply]');
   if (commentReply) {
     const post = conversationPostById(commentReply.dataset.commentReply);
-    if (post) {
-      setConversationReplyTarget(post);
+    if (post && setConversationReplyTarget(post)) {
       byId('conversation-reply-body').focus();
       byId('conversation-reply-form').scrollIntoView({ behavior: motionBehavior(), block: 'center' });
     }
@@ -9599,8 +9707,7 @@ function handleSautiFeedClick(event) {
   if (action.dataset.sautiAction === 'comments') {
     const post = conversationPostById(card.dataset.postId);
     if (!conversationSurface.hidden && activeSautiConversation && post) {
-      setConversationReplyTarget(post);
-      byId('conversation-reply-body').focus();
+      if (setConversationReplyTarget(post)) byId('conversation-reply-body').focus();
       byId('conversation-reply-form').scrollIntoView({ behavior: motionBehavior(), block: 'center' });
     } else {
       openSautiTarget(card.dataset.postId);

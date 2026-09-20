@@ -16,18 +16,14 @@ export function transformVideoPlayerSource(filePath, source) {
     `  homeVideoVisibility.forEach((_ratio, video) => {
     if (video !== activeVideo) video.pause();
   });
-  if (activeVideo) activeVideo.play().catch(() => {
-    // Muted autoplay can still be declined by browser or device preferences.
-  });`,
+  if (activeVideo) void playHomeFeedVideo(activeVideo);`,
     `  homeVideoVisibility.forEach((_ratio, video) => {
     if (video !== activeVideo) {
       delete video.dataset.sautiUserPaused;
       video.pause();
     }
   });
-  if (activeVideo && activeVideo.dataset.sautiUserPaused !== 'true') activeVideo.play().catch(() => {
-    // Muted autoplay can still be declined by browser or device preferences.
-  });`,
+  if (activeVideo && activeVideo.dataset.sautiUserPaused !== 'true') void playHomeFeedVideo(activeVideo);`,
     'Home autoplay user-pause guard',
   );
 

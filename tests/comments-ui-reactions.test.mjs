@@ -14,7 +14,7 @@ test('conversation UI presents comments while preserving the Home comment icon',
   assert.match(source, /menuToggle\.append\(homePostMoreIcon\(\)\)/);
   assert.match(source, /report\.dataset\.reportComment = post\.id/);
   assert.match(source, /text\.className = 'comment-menu-label'/);
-  assert.match(source, /interactionButton\('comments', 'Comment', post\.comment_count/);
+  assert.match(source, /interactionButton\('comments', canComment \? 'Comment' : 'View comments', post\.comment_count/);
   assert.match(html, />Comments<\/span>/);
   assert.match(html, /Write a comment…/);
   assert.doesNotMatch(html, />Replies<\/span>/);
