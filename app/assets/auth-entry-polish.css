@@ -88,22 +88,35 @@ body.auth-entry .auth-entry-logo {
   filter: drop-shadow(0 8px 24px rgba(0, 0, 0, .15));
 }
 
+/* Replace the old long marketing copy visually without changing the auth DOM/logic contract. */
 body.auth-entry .auth-intro h2 {
   max-width: 520px;
   margin: 0;
   color: #ffffff;
-  font-size: clamp(38px, 5vw, 66px);
+  font-size: 0;
   line-height: .98;
   font-weight: 780;
   letter-spacing: -.055em;
+}
+
+body.auth-entry .auth-intro h2::after {
+  display: block;
+  content: 'Share. Connect. Discover.';
+  font-size: clamp(38px, 5vw, 66px);
 }
 
 body.auth-entry .auth-intro p {
   max-width: 430px;
   margin: 20px 0 0;
   color: rgba(255, 255, 255, .7);
-  font-size: clamp(14px, 1.4vw, 17px);
+  font-size: 0;
   line-height: 1.6;
+}
+
+body.auth-entry .auth-intro p::after {
+  display: block;
+  content: 'Posts, messages and Rooms — all in one SautiLink.';
+  font-size: clamp(14px, 1.4vw, 17px);
 }
 
 body.auth-entry .auth-card {
@@ -452,7 +465,7 @@ body.auth-entry .auth-entry-footer a:hover {
     margin: 0 0 24px;
   }
 
-  body.auth-entry .auth-intro h2 {
+  body.auth-entry .auth-intro h2::after {
     max-width: 330px;
     font-size: clamp(31px, 9vw, 43px);
     line-height: 1.02;
@@ -461,6 +474,9 @@ body.auth-entry .auth-entry-footer a:hover {
   body.auth-entry .auth-intro p {
     max-width: 340px;
     margin-top: 11px;
+  }
+
+  body.auth-entry .auth-intro p::after {
     font-size: 12px;
     line-height: 1.5;
   }
@@ -515,7 +531,7 @@ body.auth-entry .auth-entry-footer a:hover {
     margin-bottom: 20px;
   }
 
-  body.auth-entry .auth-intro h2 {
+  body.auth-entry .auth-intro h2::after {
     font-size: 30px;
   }
 
