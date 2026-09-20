@@ -49,6 +49,10 @@ test('signup and settings controls use the shared authenticated Supabase client'
   assert.match(source, /autocomplete="bday-day"/);
   assert.match(source, /autocomplete="bday-month"/);
   assert.match(source, /autocomplete="bday-year"/);
+  assert.equal((source.match(/class="birth-date-separator"/g) || []).length, 2);
+  assert.match(source, /grid-template-columns:\s*minmax\(58px,[^;]+auto[^;]+auto[^;]+;/);
+  assert.match(source, /\.birth-date-fields\s*\{[^}]*border-radius:\s*999px;/s);
+  assert.match(source, /\.birth-date-control > select\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;/s);
   assert.match(source, /addEventListener\('submit',[\s\S]*?true\)/);
   assert.match(source, /sautilink:auth-client-ready/);
   assert.match(source, /__sautilinkSupabaseAuthClient/);

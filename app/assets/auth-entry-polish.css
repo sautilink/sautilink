@@ -245,8 +245,7 @@ body.auth-entry .password-field {
 
 body.auth-entry .auth-form > input,
 body.auth-entry .username-field,
-body.auth-entry .password-field,
-body.auth-entry .birth-date-control > select {
+body.auth-entry .password-field {
   min-height: 52px;
   border: 1px solid var(--auth-entry-line) !important;
   border-radius: 999px !important;
@@ -343,8 +342,7 @@ body.auth-entry #new-password-confirm {
 
 body.auth-entry .auth-form > input:focus,
 body.auth-entry .username-field:focus-within,
-body.auth-entry .password-field:focus-within,
-body.auth-entry .birth-date-control > select:focus {
+body.auth-entry .password-field:focus-within {
   outline: 0 !important;
   border-color: #8bb1ff !important;
   box-shadow: 0 0 0 3px rgba(47, 111, 236, .12) !important;
@@ -363,19 +361,34 @@ body.auth-entry .birth-date-fieldset {
 }
 
 body.auth-entry .birth-date-fields {
-  gap: 8px;
+  grid-template-columns: minmax(58px, .78fr) auto minmax(94px, 1.25fr) auto minmax(76px, 1fr);
+  gap: 0;
+  min-height: 48px;
+  padding: 0 9px;
+  border: 1px solid var(--auth-entry-line) !important;
+  border-radius: 999px;
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(17, 30, 51, .035);
 }
 
-body.auth-entry .birth-date-control > label {
-  color: var(--auth-entry-muted) !important;
-  font-size: 9.5px;
+body.auth-entry .birth-date-fields:focus-within {
+  border-color: #8bb1ff !important;
+  box-shadow: 0 0 0 3px rgba(47, 111, 236, .12);
 }
 
 body.auth-entry .birth-date-control > select {
-  min-height: 48px;
-  padding: 0 11px;
+  min-height: 46px;
+  padding: 0 8px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
   color: var(--auth-entry-ink) !important;
   font-size: 12px;
+  box-shadow: none !important;
+}
+
+body.auth-entry .birth-date-separator {
+  color: var(--auth-entry-muted);
 }
 
 body.auth-entry .form-submit,
@@ -670,8 +683,9 @@ body.auth-entry .auth-entry-footer a:hover {
   }
 
   body.auth-entry .birth-date-fields {
-    grid-template-columns: minmax(0, .75fr) minmax(0, 1.3fr) minmax(0, .95fr);
-    gap: 6px;
+    grid-template-columns: minmax(52px, .72fr) auto minmax(86px, 1.2fr) auto minmax(70px, .95fr);
+    gap: 0;
+    padding-inline: 7px;
   }
 }
 
@@ -686,7 +700,7 @@ body.auth-entry .auth-entry-footer a:hover {
   body.auth-entry .auth-form > input,
   body.auth-entry .username-field,
   body.auth-entry .password-field,
-  body.auth-entry .birth-date-control > select,
+  body.auth-entry .birth-date-fields,
   body.auth-entry .form-submit,
   body.auth-entry .create-account-action,
   body.auth-entry .social-oauth-button {
