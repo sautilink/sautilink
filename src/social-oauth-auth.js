@@ -74,6 +74,14 @@ function ensureStylesheet() {
   document.head.append(link);
 }
 
+function syncAuthEntryPresentationCopy() {
+  const intro = document.querySelector('#auth-view .auth-intro');
+  const title = intro?.querySelector('h2');
+  const copy = intro?.querySelector('p');
+  if (title) title.textContent = 'Share. Connect. Discover.';
+  if (copy) copy.textContent = 'Posts, messages and Rooms — all in one SautiLink.';
+}
+
 function setProviderButtonsBusy(block, busy) {
   block?.querySelectorAll('[data-social-oauth-provider]').forEach((button) => {
     button.disabled = busy;
@@ -160,10 +168,13 @@ async function startSocialOAuth(event) {
 function install() {
   if (installed || !client) return;
   installed = true;
+  syncAuthEntryPresentationCopy();
   ensureStylesheet();
   createBlock('login-panel', 'login-form', 'login');
   createBlock('signup-panel', 'signup-form', 'signup');
 }
+
+syncAuthEntryPresentationCopy();
 
 window.addEventListener('sautilink:auth-client-ready', (event) => {
   client = event.detail || null;
