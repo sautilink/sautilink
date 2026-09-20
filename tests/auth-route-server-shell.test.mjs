@@ -8,9 +8,10 @@ const shell = `<!DOCTYPE html>
 <body>
 <section class="loading-view" id="loading-view" aria-live="polite"><p>Opening SautiLink…</p></section>
 <section class="auth-view" id="auth-view" hidden>
+<div class="auth-intro"><h2>Welcome back to SautiLink</h2><p>Sign in to continue to your account.</p></div>
 <div class="auth-tabs" id="auth-tabs" role="tablist" aria-label="Account access">
-<button type="button" role="tab" aria-selected="true" aria-controls="login-panel" id="login-tab" data-auth-mode="login">Sign in</button>
-<button type="button" role="tab" aria-selected="false" aria-controls="signup-panel" id="signup-tab" data-auth-mode="signup">Create account</button>
+<button type="button" role="tab" aria-selected="true" aria-controls="login-panel" id="login-tab" data-auth-mode="login">Login</button>
+<button type="button" role="tab" aria-selected="false" aria-controls="signup-panel" id="signup-tab" data-auth-mode="signup">Register</button>
 </div>
 <section id="login-panel" role="tabpanel" aria-labelledby="login-tab"><form id="login-form"></form></section>
 <section id="signup-panel" role="tabpanel" aria-labelledby="signup-tab" hidden><form id="signup-form"></form></section>
@@ -53,6 +54,7 @@ test('/login is served with auth UI visible before app bootstrap runs', async ()
   assert.match(html, /<body class="auth-entry" data-auth-mode="login" data-sautilink-auth-entry="login">/);
   assert.match(html, /id="loading-view" aria-live="polite" hidden/);
   assert.match(html, /<section class="auth-view" id="auth-view">/);
+  assert.match(html, /<h2>Welcome back to SautiLink<\/h2><p>Sign in to continue to your account\.<\/p>/);
   assert.match(html, /<section id="login-panel" role="tabpanel" aria-labelledby="login-tab">/);
   assert.match(html, /<section id="signup-panel" role="tabpanel" aria-labelledby="signup-tab" hidden>/);
 });
@@ -65,6 +67,8 @@ test('/signup is served with signup UI selected before app bootstrap runs', asyn
   assert.match(html, /<body class="auth-entry" data-auth-mode="signup" data-sautilink-auth-entry="signup">/);
   assert.match(html, /aria-selected="false" aria-controls="login-panel" id="login-tab"/);
   assert.match(html, /aria-selected="true" aria-controls="signup-panel" id="signup-tab"/);
+  assert.match(html, /<h2>Create your SautiLink account<\/h2><p>Join SautiLink and set up your account\.<\/p>/);
+  assert.doesNotMatch(html, /Welcome back to SautiLink|Sign in to continue to your account/);
   assert.match(html, /<section id="login-panel" role="tabpanel" aria-labelledby="login-tab" hidden>/);
   assert.match(html, /<section id="signup-panel" role="tabpanel" aria-labelledby="signup-tab">/);
 });

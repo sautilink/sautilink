@@ -17,6 +17,11 @@ test('account entry reference layout stays presentation-only and keeps every exi
   assert.match(socialSource, /title\.textContent = signingUp \? 'Create your SautiLink account' : 'Welcome back to SautiLink'/);
   assert.match(socialSource, /loginTab\.textContent = 'Login'/);
   assert.match(socialSource, /signupTab\.textContent = 'Register'/);
+  assert.match(html, /<h2>Welcome back to SautiLink<\/h2>/);
+  assert.match(html, /<p>Sign in to continue to your account\.<\/p>/);
+  assert.match(html, /id="login-tab"[^>]*>Login<\/button>/);
+  assert.match(html, /id="signup-tab"[^>]*>Register<\/button>/);
+  assert.doesNotMatch(html, /Connect with people, communities and conversations/);
 
   for (const marker of [
     'id="login-panel"',
