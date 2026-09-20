@@ -14,7 +14,7 @@
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <script src="/app/assets/theme-init.js?v=20260904-account2"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260920-video-comments1">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260920-rooms-firstpaint1">
   <!-- First-paint UI: keep the final Auth and Home presentation render-blocking so refresh never shows the legacy shell. -->
   <link id="social-oauth-auth-styles" rel="stylesheet" href="/app/assets/guest-entry-gate.css?v=20260920-authui2">
   <link id="auth-entry-polish-styles" rel="stylesheet" href="/app/assets/auth-entry-polish.css?v=20260920-authui2">
@@ -75,8 +75,8 @@
             <span class="notification-badge" data-notification-badge hidden>0</span>
           </button>
           <button class="nav-item" type="button" data-member-view="circles">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><circle cx="17" cy="10" r="2.5"></circle><path d="M3.5 20c.4-4 2.2-6 5.5-6s5.1 2 5.5 6M14 15c3.4-.7 5.5.9 6 4"></path></svg>
-            <span>Sautify</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true" data-room-icon="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><circle cx="9" cy="10" r="2.2"></circle><circle cx="15.5" cy="10.8" r="1.8"></circle><path d="M5.8 17c.4-2.5 1.5-3.7 3.4-3.7s3 1.2 3.4 3.7M13 14.4c2.5-.5 4.1.5 4.5 2.6"></path></svg>
+            <span>Rooms</span>
           </button>
           <button class="nav-item" type="button" data-member-view="saved">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z"></path></svg>
@@ -643,7 +643,7 @@
             <div>
               <p class="section-label">Your activity</p>
               <h2>Notifications</h2>
-              <p>Follow, post interactions and Sautify membership activity in one place.</p>
+              <p>Follow, post interactions and Room membership activity in one place.</p>
             </div>
             <button class="secondary-action" id="notifications-mark-all" type="button" disabled>Mark all read</button>
           </header>
@@ -660,33 +660,33 @@
           <section class="stream-empty notifications-empty" id="notifications-empty" hidden>
             <span></span><span></span><span></span>
             <h2>Nothing new yet.</h2>
-            <p>Follow, post and Sautify activity will appear here when something needs your attention.</p>
+            <p>Follow, post and Room activity will appear here when something needs your attention.</p>
           </section>
         </section>
 
-        <section class="circles-surface" id="circles-surface" aria-label="Sautify" hidden>
+        <section class="circles-surface" id="circles-surface" aria-label="Rooms" hidden>
           <header class="circles-toolbar">
             <div>
-              <p class="section-label">Communities with clear boundaries</p>
-              <h2>Sautify</h2>
-              <p>Find open communities, request access where approval is required, or build your own Sautify.</p>
+              <p class="section-label">Groups built around shared interests</p>
+              <h2>Rooms</h2>
+              <p>Find communities by topic, join public Rooms, request access to private Rooms, or create your own.</p>
             </div>
-            <button class="secondary-action" id="circles-create-toggle" type="button">Create Sautify</button>
+            <button class="secondary-action" id="circles-create-toggle" type="button">Create Room</button>
           </header>
 
           <section class="circle-create-panel" id="circle-create-panel" hidden>
             <form id="circle-create-form" class="circle-create-form" novalidate>
               <div class="circle-create-heading">
-                <div><p class="section-label">New Sautify</p><h3>Create a community</h3></div>
-                <button class="icon-control" id="circle-create-close" type="button" aria-label="Close Sautify creator" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+                <div><p class="section-label">New Room</p><h3>Create a community</h3></div>
+                <button class="icon-control" id="circle-create-close" type="button" aria-label="Close Room creator" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
               </div>
               <label for="circle-name">Name</label>
               <input id="circle-name" name="name" type="text" maxlength="80" required placeholder="Example: East Africa Builders">
-              <label for="circle-slug">Sautify address</label>
-              <div class="circle-slug-field"><span>/sautify/</span><input id="circle-slug" name="slug" type="text" minlength="3" maxlength="50" pattern="[a-z0-9][a-z0-9-]{2,49}" required placeholder="east-africa-builders"></div>
+              <label for="circle-slug">Room username</label>
+              <div class="circle-slug-field"><span>/rooms/</span><input id="circle-slug" name="slug" type="text" minlength="3" maxlength="50" pattern="[a-z0-9][a-z0-9-]{2,49}" required placeholder="east-africa-builders"></div>
               <small class="field-hint">Lowercase letters, numbers and hyphens only.</small>
               <label for="circle-description">Description</label>
-              <textarea id="circle-description" name="description" rows="4" maxlength="1000" placeholder="What is this Sautify about?"></textarea>
+              <textarea id="circle-description" name="description" rows="4" maxlength="1000" placeholder="What is this Room about?"></textarea>
               <label for="circle-policy">Membership</label>
               <select id="circle-policy" name="join_policy">
                 <option value="open">Open — anyone can join</option>
@@ -696,34 +696,34 @@
               <div class="form-message" id="circle-create-message" role="alert" hidden></div>
               <div class="circle-create-actions">
                 <button class="secondary-action" id="circle-create-cancel" type="button">Cancel</button>
-                <button class="form-submit" type="submit"><span>Create Sautify</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+                <button class="form-submit" type="submit"><span>Create Room</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
               </div>
             </form>
           </section>
 
           <section class="stream-state" id="circles-loading" role="status" hidden>
             <span class="loading-mark"></span>
-            <p>Loading Sautify…</p>
+            <p>Loading Rooms…</p>
           </section>
           <section class="stream-state error" id="circles-error" hidden>
-            <h2>Sautify could not load.</h2>
+            <h2>Rooms could not load.</h2>
             <p>Try again without losing your place.</p>
             <button class="secondary-action" id="circles-retry" type="button">Try again</button>
           </section>
           <section class="circles-list" id="circles-list" aria-live="polite"></section>
           <section class="stream-empty circles-empty" id="circles-empty" hidden>
             <span></span><span></span><span></span>
-            <h2>No Sautify to show yet.</h2>
-            <p>Create the first Sautify or return when more communities are available.</p>
+            <h2>No Rooms to show yet.</h2>
+            <p>Create the first Room or return when more communities are available.</p>
           </section>
 
           <section class="circle-detail" id="circle-detail" hidden>
-            <button class="text-action circle-back" id="circle-back" type="button">← All Sautify</button>
+            <button class="text-action circle-back" id="circle-back" type="button">← All Rooms</button>
             <article class="circle-detail-card">
               <div class="circle-detail-top">
                 <div>
-                  <p class="circle-detail-slug" id="circle-detail-slug">/sautify/community</p>
-                  <h2 id="circle-detail-name">Sautify</h2>
+                  <p class="circle-detail-slug" id="circle-detail-slug">/rooms/community</p>
+                  <h2 id="circle-detail-name">Room</h2>
                 </div>
                 <span class="circle-policy-badge" id="circle-detail-policy">Open</span>
               </div>
@@ -733,33 +733,33 @@
                 <span id="circle-detail-membership">Not joined</span>
               </div>
               <div class="circle-detail-actions">
-                <button class="form-submit circle-primary-action" id="circle-primary-action" type="button"><span>Join Sautify</span></button>
+                <button class="form-submit circle-primary-action" id="circle-primary-action" type="button"><span>Join Room</span></button>
               </div>
             </article>
 
-            <section class="circle-stream" id="circle-stream" aria-label="Sautify posts" hidden>
+            <section class="circle-stream" id="circle-stream" aria-label="Room posts" hidden>
               <div class="circle-stream-heading">
-                <div><p class="section-label">Member conversation</p><h3>Sautify posts</h3></div>
+                <div><p class="section-label">Member conversation</p><h3>Room posts</h3></div>
                 <span>Members only</span>
               </div>
 
-              <form class="circle-sauti-composer" id="circle-sauti-composer" aria-label="Create a post in this Sautify" novalidate hidden>
+              <form class="circle-sauti-composer" id="circle-sauti-composer" aria-label="Create a post in this Room" novalidate hidden>
                 <div class="circle-sauti-controls">
-                  <span>Visible to Sautify members</span>
+                  <span>Visible to Room members</span>
                   <label>
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-6.5A8 8 0 1 1 21 12Z"></path></svg>
                     <span>Comments</span>
-                    <select id="circle-sauti-reply-access" aria-label="Who can comment in this Sautify">
+                    <select id="circle-sauti-reply-access" aria-label="Who can comment in this Room">
                       <option value="everyone">Everyone</option>
                       <option value="following">People you follow</option>
                       <option value="mentioned">Only people mentioned</option>
                     </select>
                   </label>
                 </div>
-                <label class="sr-only" for="circle-sauti-body">Sautify Post text</label>
-                <textarea id="circle-sauti-body" name="body" rows="3" maxlength="500" placeholder="Write a post for this Sautify…"></textarea>
+                <label class="sr-only" for="circle-sauti-body">Room post text</label>
+                <textarea id="circle-sauti-body" name="body" rows="3" maxlength="500" placeholder="Write a post for this Room…"></textarea>
                 <div class="circle-sauti-meta">
-                  <span id="circle-sauti-reply-note">Everyone in this Sautify can comment</span>
+                  <span id="circle-sauti-reply-note">Everyone in this Room can comment</span>
                   <span><b id="circle-sauti-count">0</b> / 500</span>
                 </div>
                 <div class="circle-sauti-actions">
@@ -771,23 +771,23 @@
 
               <section class="stream-state circle-stream-state" id="circle-stream-loading" role="status" aria-live="polite" hidden>
                 <span class="loading-mark"></span>
-                <p>Loading Sautify posts…</p>
+                <p>Loading Room posts…</p>
               </section>
               <section class="stream-state error circle-stream-state" id="circle-stream-error" role="alert" hidden>
-                <h2>Sautify posts could not load</h2>
-                <p>Try again without leaving this Sautify.</p>
+                <h2>Room posts could not load</h2>
+                <p>Try again without leaving this Room.</p>
                 <button class="secondary-action" id="circle-stream-retry" type="button">Try again</button>
               </section>
-              <section class="stream-feed circle-stream-feed" id="circle-stream-feed" aria-label="Sautify posts"></section>
+              <section class="stream-feed circle-stream-feed" id="circle-stream-feed" aria-label="Room posts"></section>
               <section class="stream-empty circle-stream-empty-state" id="circle-stream-empty" hidden>
                 <span></span><span></span><span></span>
-                <h2>No Sautify posts yet.</h2>
+                <h2>No Room posts yet.</h2>
                 <p>Members can start the conversation here.</p>
               </section>
               <section class="circle-stream-locked" id="circle-stream-locked" hidden>
                 <p class="section-label">Members only</p>
-                <h3 id="circle-stream-locked-title">Join to view Sautify posts</h3>
-                <p id="circle-stream-locked-message">Members can read and publish posts inside this Sautify.</p>
+                <h3 id="circle-stream-locked-title">Join to view Room posts</h3>
+                <p id="circle-stream-locked-message">Members can read and publish posts inside this Room.</p>
               </section>
             </section>
 
@@ -812,10 +812,10 @@
 
           <section class="profile-route-state circle-route-state" id="circle-route-state" role="status" aria-live="polite" hidden>
             <span class="profile-route-mark" aria-hidden="true"><i></i></span>
-            <p class="section-label">Sautify route</p>
-            <h2 id="circle-route-title">Opening Sautify…</h2>
-            <p id="circle-route-message">Looking up this SautiLink Sautify.</p>
-            <button class="secondary-action" id="circle-route-home" type="button">Back to Sautify</button>
+            <p class="section-label">Room route</p>
+            <h2 id="circle-route-title">Opening Room…</h2>
+            <p id="circle-route-message">Looking up this SautiLink Room.</p>
+            <button class="secondary-action" id="circle-route-home" type="button">Back to Rooms</button>
           </section>
         </section>
 
@@ -976,7 +976,7 @@
               <label class="settings-toggle-row"><span><strong>Post activity</strong><small>Comments, Likes and Reposts involving your posts.</small></span><input id="settings-notify-post" type="checkbox"><i aria-hidden="true"><b></b></i></label>
               <label class="settings-toggle-row"><span><strong>Messages</strong><small>Show unread message badges.</small></span><input id="settings-notify-messages" type="checkbox"><i aria-hidden="true"><b></b></i></label>
               <label class="settings-toggle-row"><span><strong>New followers</strong><small>When another member follows you.</small></span><input id="settings-notify-followers" type="checkbox"><i aria-hidden="true"><b></b></i></label>
-              <label class="settings-toggle-row"><span><strong>Sautify activity</strong><small>Membership and community updates from Sautify.</small></span><input id="settings-notify-sautify" type="checkbox"><i aria-hidden="true"><b></b></i></label>
+              <label class="settings-toggle-row"><span><strong>Room activity</strong><small>Membership and community updates from Rooms.</small></span><input id="settings-notify-sautify" type="checkbox"><i aria-hidden="true"><b></b></i></label>
             </article>
             <article class="settings-card"><label class="settings-select"><span><strong>Email summary</strong><small>Stored now; email delivery is enabled only when the digest processor is available.</small></span><select id="settings-email-digest"><option value="off">Off</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label></article>
           </section>
@@ -1227,7 +1227,7 @@
     <button type="button" data-member-view="discover" aria-label="Discover"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4M11 7.5v7M7.5 11h7"></path></svg></button>
     <button type="button" data-member-view="messages" aria-label="Messages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v11H8l-4 3v-14Z"></path><path d="M8 10h8M8 13h5"></path></svg><span class="mobile-notification-badge" data-message-badge hidden>0</span></button>
     <button type="button" data-member-view="notifications" aria-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span class="mobile-notification-badge" data-notification-badge hidden>0</span></button>
-    <button type="button" data-member-view="circles" aria-label="Sautify"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"></circle><circle cx="17" cy="10" r="2.5"></circle><path d="M3.5 20c.4-4 2.2-6 5.5-6s5.1 2 5.5 6M14 15c3.4-.7 5.5.9 6 4"></path></svg></button>
+    <button type="button" data-member-view="circles" aria-label="Rooms"><svg viewBox="0 0 24 24" aria-hidden="true" data-room-icon="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><circle cx="9" cy="10" r="2.2"></circle><circle cx="15.5" cy="10.8" r="1.8"></circle><path d="M5.8 17c.4-2.5 1.5-3.7 3.4-3.7s3 1.2 3.4 3.7M13 14.4c2.5-.5 4.1.5 4.5 2.6"></path></svg></button>
     <button type="button" data-member-view="profile" aria-label="Profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21c.7-4.2 3.2-6.5 7.5-6.5s6.8 2.3 7.5 6.5"></path></svg></button>
   </nav>
 
@@ -1403,6 +1403,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="/app/assets/app.js?v=20260920-video-comments1"></script>
+  <script type="module" src="/app/assets/app.js?v=20260920-rooms-firstpaint1"></script>
 </body>
 </html>

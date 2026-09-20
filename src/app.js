@@ -2884,7 +2884,7 @@ function renderComposerDrafts() {
     text.textContent = String(draft.body || '').trim() || (draft.quote ? 'Quote Post' : draft.media?.length ? 'Media post' : 'Draft post');
     const meta = document.createElement('span');
     const audience = String(draft.audience || 'public').startsWith('circle:')
-      ? 'Sautify'
+      ? 'Room'
       : draft.audience === 'followers'
         ? 'Followers'
         : 'Public';
@@ -3034,7 +3034,7 @@ async function loadComposerAudiences() {
 
   if (!circleError && circles?.length) {
     const group = document.createElement('optgroup');
-    group.label = 'Sautify';
+    group.label = 'Room';
     group.dataset.circleAudiences = 'true';
     circles.forEach((circle) => {
       const option = document.createElement('option');
@@ -3601,7 +3601,7 @@ function createSautiCard(item, { home = false } = {}) {
   const audienceLabel = post.visibility === 'followers'
     ? 'Followers'
     : post.visibility === 'circle'
-      ? 'Sautify members'
+      ? 'Room members'
       : 'Public';
   context.textContent = post.reply_access === 'everyone'
     ? audienceLabel
@@ -5457,16 +5457,16 @@ async function refreshNotificationBadge() {
 
 function notificationCopy(notification, actorName, circleName = '') {
   const actor = actorName || 'Someone';
-  const circleLabel = circleName ? ` in ${circleName}` : ' in a Sautify';
+  const circleLabel = circleName ? ` in ${circleName}` : ' in a Room';
 
   if (notification.notification_type === 'circle') {
     const circleCopy = {
-      join_request: [actor, circleName ? ` requested to join ${circleName}.` : ' requested to join your Sautify.'],
-      request_approved: [actor, circleName ? ` approved your request to join ${circleName}.` : ' approved your Sautify join request.'],
-      request_declined: [actor, circleName ? ` declined your request to join ${circleName}.` : ' declined your Sautify join request.'],
-      member_removed: [actor, circleName ? ` removed you from ${circleName}.` : ' removed you from a Sautify.'],
+      join_request: [actor, circleName ? ` requested to join ${circleName}.` : ' requested to join your Room.'],
+      request_approved: [actor, circleName ? ` approved your request to join ${circleName}.` : ' approved your Room join request.'],
+      request_declined: [actor, circleName ? ` declined your request to join ${circleName}.` : ' declined your Room join request.'],
+      member_removed: [actor, circleName ? ` removed you from ${circleName}.` : ' removed you from a Room.'],
     };
-    return circleCopy[notification.circle_event] || [actorName ? actor : 'SautiLink', ' sent you a Sautify update.'];
+    return circleCopy[notification.circle_event] || [actorName ? actor : 'SautiLink', ' sent you a Room update.'];
   }
 
   const copy = {
@@ -6962,7 +6962,7 @@ function normalizeCircleSlug(value) {
 
 function circleSlugError(value) {
   const slug = normalizeCircleSlug(value);
-  if (slug.length < 3) return 'Use at least 3 characters for the Sautify address.';
+  if (slug.length < 3) return 'Use at least 3 characters for the Room username.';
   if (!/^[a-z0-9][a-z0-9-]{2,49}$/.test(slug)) return 'Use lowercase letters, numbers and hyphens only.';
   return '';
 }
@@ -6972,11 +6972,11 @@ function circlePolicyLabel(policy) {
 }
 
 function circlePath(slug = '') {
-  return slug ? `/sautify/${encodeURIComponent(slug)}` : '/sautify';
+  return slug ? `/rooms/${encodeURIComponent(slug)}` : '/rooms';
 }
 
 function readCircleRoute(pathname = window.location.pathname) {
-  const match = pathname.match(/^(?:\/sautify|\/app\/(?:sautify|circles))(?:\/([^/]+))?\/?$/);
+  const match = pathname.match(/^(?:\/(?:rooms|sautify)|\/app\/(?:rooms|sautify|circles))(?:\/([^/]+))?\/?$/);
   if (!match) return null;
   if (!match[1]) return { invalid: false, slug: '' };
 
@@ -7014,11 +7014,11 @@ function showCircleRouteState(type, slug = '') {
   const state = byId('circle-route-state');
   state.hidden = false;
   state.dataset.state = type;
-  const safeSlug = slug ? `/app/sautify/${slug}` : 'This Sautify';
+  const safeSlug = slug ? `/rooms/${slug}` : 'This Room';
   const copy = {
-    loading: ['Opening Sautify…', `Looking up ${safeSlug}.`],
-    unavailable: ['Sautify unavailable', `${safeSlug} does not exist, is private, or is unavailable to your account.`],
-    error: ['Sautify could not be opened', 'Something went wrong while loading this Sautify. Try again.'],
+    loading: ['Opening Room…', `Looking up ${safeSlug}.`],
+    unavailable: ['Room unavailable', `${safeSlug} does not exist, is private, or is unavailable to your account.`],
+    error: ['Room could not be opened', 'Something went wrong while loading this Room. Try again.'],
   };
   const [title, message] = copy[type] || copy.error;
   byId('circle-route-title').textContent = title;
@@ -7040,7 +7040,7 @@ function renderCircleCard(circle, membershipMap, requestMap) {
   name.textContent = circle.name;
   const slug = document.createElement('span');
   slug.className = 'circle-card-slug';
-  slug.textContent = `/sautify/${circle.slug}`;
+  slug.textContent = `/rooms/${circle.slug}`;
   const policy = document.createElement('span');
   policy.className = `circle-policy-badge ${circle.join_policy}`;
   policy.textContent = circlePolicyLabel(circle.join_policy);
@@ -7053,7 +7053,7 @@ function renderCircleCard(circle, membershipMap, requestMap) {
   const meta = document.createElement('span');
   meta.className = 'circle-card-meta';
   const owner = document.createElement('span');
-  owner.textContent = circle.owner_id === currentMemberId ? 'You own this Sautify' : 'SautiLink Sautify';
+  owner.textContent = circle.owner_id === currentMemberId ? 'You own this Room' : 'SautiLink Room';
   const created = document.createElement('span');
   created.textContent = circle.created_at ? `Created ${formatSautiTime(circle.created_at)} ago` : '';
   meta.append(owner, created);
@@ -7067,7 +7067,7 @@ function renderCircleCard(circle, membershipMap, requestMap) {
   else if (membership) state.textContent = 'Joined';
   else if (request?.status === 'pending') state.textContent = 'Requested';
   else if (request?.status === 'declined') state.textContent = 'Request again';
-  else state.textContent = circle.join_policy === 'open' ? 'Open to join' : 'View Sautify';
+  else state.textContent = circle.join_policy === 'open' ? 'Open to join' : 'View Room';
 
   button.append(main, state);
   return button;
@@ -7129,20 +7129,20 @@ function syncCirclePrimaryAction(circle, membership, request) {
   if (circle.owner_id === currentMemberId) {
     button.classList.add('owner');
     button.disabled = true;
-    label.textContent = 'You own this Sautify';
+    label.textContent = 'You own this Room';
     return;
   }
 
   if (membership) {
     button.classList.add('leave');
     button.dataset.action = 'leave';
-    label.textContent = 'Leave Sautify';
+    label.textContent = 'Leave Room';
     return;
   }
 
   if (circle.join_policy === 'open') {
     button.dataset.action = 'join';
-    label.textContent = 'Join Sautify';
+    label.textContent = 'Join Room';
     return;
   }
 
@@ -7158,7 +7158,7 @@ function syncCirclePrimaryAction(circle, membership, request) {
   }
 
   button.disabled = true;
-  label.textContent = 'Private Sautify';
+  label.textContent = 'Private Room';
 }
 
 async function loadCircleOwnerProfile(ownerId) {
@@ -7309,7 +7309,7 @@ async function loadCircleMembers(circleId) {
     const small = document.createElement('small');
     small.textContent = profile?.username
       ? `@${profile.username}`
-      : membership.member_role === 'owner' ? 'Sautify owner' : 'Sautify member';
+      : membership.member_role === 'owner' ? 'Room owner' : 'Room member';
     person.append(strong, small);
 
     const role = document.createElement('span');
@@ -7333,7 +7333,7 @@ async function loadCircleMembers(circleId) {
 
 async function removeCircleMember(memberId, row) {
   if (!activeCircle?.circle || activeCircle.circle.owner_id !== currentMemberId || !memberId) return;
-  if (!window.confirm('Remove this member from the Sautify?')) return;
+  if (!window.confirm('Remove this member from the Room?')) return;
 
   const button = row.querySelector('[data-circle-member-remove]');
   if (button) {
@@ -7357,7 +7357,7 @@ async function removeCircleMember(memberId, row) {
     return;
   }
 
-  showToast('Member removed from the Sautify.');
+  showToast('Member removed from the Room.');
   await loadCircleMembers(activeCircle.circle.id);
 }
 
@@ -7394,8 +7394,8 @@ function updateCircleComposerState() {
   const mentionedReady = replies.value !== 'mentioned' || composerHasMention(textarea.value);
   count.textContent = String(length);
   note.textContent = !navigator.onLine
-    ? 'Connect to post. Sautify drafts can be saved from the Home composer.'
-    : `${replyAccessLabel(replies.value)} can comment in this Sautify`;
+    ? 'Connect to post. Room drafts can be saved from the Home composer.'
+    : `${replyAccessLabel(replies.value)} can comment in this Room`;
   submit.disabled = !allowed || !navigator.onLine || !textarea.value.trim() || length > 500 || !mentionedReady || circleStreamLoading;
 }
 
@@ -7417,10 +7417,10 @@ function syncCircleStreamAccess(circle, membership) {
   if (!allowed) {
     circleStreamRequest += 1;
     byId('circle-stream-loading').hidden = true;
-    lockedTitle.textContent = circle.join_policy === 'approval' ? 'Membership approval required' : 'Join to view Sautify posts';
+    lockedTitle.textContent = circle.join_policy === 'approval' ? 'Membership approval required' : 'Join to view Room posts';
     lockedMessage.textContent = circle.join_policy === 'approval'
-      ? 'Approved members can read and post inside this Sautify.'
-      : 'Members can read and post inside this Sautify.';
+      ? 'Approved members can read and post inside this Room.'
+      : 'Members can read and post inside this Room.';
     updateCircleComposerState();
     return;
   }
@@ -7498,7 +7498,7 @@ async function shareCircleSauti() {
     return setMessage(message, 'Mention at least one SautiLink username or change who can comment.');
   }
   if (!navigator.onLine) {
-    return setMessage(message, 'You are offline. Use the Home composer to save this Sautify post as a device draft.');
+    return setMessage(message, 'You are offline. Use the Home composer to save this Room post as a device draft.');
   }
 
   submit.disabled = true;
@@ -7508,7 +7508,7 @@ async function shareCircleSauti() {
 
   try {
     const headers = await currentAuthorizationHeader();
-    if (!headers.Authorization) throw new Error('Sign in again before posting in this Sautify.');
+    if (!headers.Authorization) throw new Error('Sign in again before posting in this Room.');
 
     const response = await fetch('/api/sauti', {
       method: 'POST',
@@ -7517,16 +7517,16 @@ async function shareCircleSauti() {
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok || payload?.ok === false) {
-      throw new Error(payload?.error?.message || 'This Sautify post could not be published.');
+      throw new Error(payload?.error?.message || 'This Room post could not be published.');
     }
 
     textarea.value = '';
     updateCircleComposerState();
-    setMessage(message, 'Post published in this Sautify.', 'success');
+    setMessage(message, 'Post published in this Room.', 'success');
     await loadCircleStream(circle.id);
-    showToast('Posted in Sautify.');
+    showToast('Posted in Room.');
   } catch (error) {
-    setMessage(message, error?.message || 'This Sautify post could not be published.');
+    setMessage(message, error?.message || 'This Room post could not be published.');
   } finally {
     submit.textContent = previous;
     submit.removeAttribute('aria-busy');
@@ -7577,7 +7577,7 @@ async function loadCircleDetail(slug) {
   resetCircleRouteViews();
   byId('circle-detail').hidden = false;
   byId('circle-detail-name').textContent = circle.name;
-  byId('circle-detail-slug').textContent = `/sautify/${circle.slug}`;
+  byId('circle-detail-slug').textContent = `/rooms/${circle.slug}`;
   byId('circle-detail-description').textContent = circle.description || 'No description yet.';
   const policy = byId('circle-detail-policy');
   policy.textContent = circlePolicyLabel(circle.join_policy);
@@ -7630,7 +7630,7 @@ async function handleCirclePrimaryAction() {
         .from('social_circle_members')
         .insert({ circle_id: circle.id, member_id: currentMemberId, member_role: 'member' });
       if (error) throw error;
-      showToast('You joined the Sautify.');
+      showToast('You joined the Room.');
     } else if (action === 'leave' && membership) {
       const { error } = await supabase
         .from('social_circle_members')
@@ -7638,7 +7638,7 @@ async function handleCirclePrimaryAction() {
         .eq('circle_id', circle.id)
         .eq('member_id', currentMemberId);
       if (error) throw error;
-      showToast('You left the Sautify.');
+      showToast('You left the Room.');
     } else if (action === 'request') {
       if (request) {
         const { error: deleteError } = await supabase
@@ -7659,7 +7659,7 @@ async function handleCirclePrimaryAction() {
   } catch {
     button.disabled = false;
     label.textContent = oldLabel;
-    showToast('That Sautify action could not be completed.');
+    showToast('That Room action could not be completed.');
   }
 }
 
@@ -7861,7 +7861,7 @@ function setMemberNavigation(name) {
                 : name === 'conversation'
               ? 'Conversation'
               : name === 'circles'
-                ? 'Sautify'
+                ? 'Room'
                 : 'Home';
   document.querySelectorAll('[data-member-view]').forEach((button) => {
     const active = button.dataset.memberView === name;
@@ -8500,10 +8500,10 @@ byId('circle-create-form').addEventListener('submit', async (event) => {
   const joinPolicy = form.join_policy.value;
   setMessage(message, '', '');
 
-  if (!name || name.length > 80) return setMessage(message, 'Use a Sautify name between 1 and 80 characters.');
+  if (!name || name.length > 80) return setMessage(message, 'Use a Room name between 1 and 80 characters.');
   const invalidSlug = circleSlugError(slug);
   if (invalidSlug) return setMessage(message, invalidSlug);
-  if (description.length > 1000) return setMessage(message, 'Keep the Sautify description within 1000 characters.');
+  if (description.length > 1000) return setMessage(message, 'Keep the Room description within 1000 characters.');
   if (!['open', 'approval', 'private'].includes(joinPolicy)) return setMessage(message, 'Choose a valid membership type.');
 
   setBusy(submit, true, 'Creating…');
@@ -8521,13 +8521,13 @@ byId('circle-create-form').addEventListener('submit', async (event) => {
       .single();
     if (error) throw error;
     setCircleCreateOpen(false);
-    showToast('Sautify created.');
+    showToast('Room created.');
     await loadComposerAudiences();
     window.history.pushState({}, '', circlePath(data.slug));
     await loadCircleDetail(data.slug);
   } catch (error) {
     const duplicate = error?.code === '23505';
-    setMessage(message, duplicate ? 'That Sautify address is already in use.' : 'The Sautify could not be created. Check the fields and try again.');
+    setMessage(message, duplicate ? 'That Room username is already in use.' : 'The Room could not be created. Check the fields and try again.');
   } finally {
     setBusy(submit, false, '');
   }

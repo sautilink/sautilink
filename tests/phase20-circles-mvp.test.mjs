@@ -66,14 +66,15 @@ test('Phase 20 browser source supports Circle list, detail and membership action
     "from('social_circles')",
     "from('social_circle_members')",
     "from('social_circle_join_requests')",
-    '/app/sautify',
+    '/rooms',
   ]) {
     assert.ok(source.includes(marker), `source missing Phase 20 marker: ${marker}`);
   }
 
   assert.doesNotMatch(source, /service_role|sb_secret_/i);
+  assert.ok(source.includes('\\/app\\/(?:rooms|sautify|circles)'), 'legacy Room routes remain readable');
   assert.match(router, /ROOM_ROUTE|CIRCLE_ROUTE/);
-  assert.match(router, /sautify\|circles/);
+  assert.match(router, /rooms\|sautify\|circles/);
 });
 
 test('Phase 20 generated browser bundle and service worker move forward together', async () => {
@@ -81,7 +82,7 @@ test('Phase 20 generated browser bundle and service worker move forward together
   const sw = await read('sw.js');
 
   assert.ok(bundle.includes('social_circles'), 'generated app bundle is missing Circles data source');
-  assert.ok(bundle.includes('/app/sautify'), 'generated app bundle is missing Sautify route');
+  assert.ok(bundle.includes('/rooms'), 'generated app bundle is missing the canonical Rooms route');
   const version = Number(sw.match(/sautilink-shell-v([0-9]+)/)?.[1] || 0);
   assert.ok(version >= 10, `service worker cache regressed below Phase 20: ${version}`);
 });

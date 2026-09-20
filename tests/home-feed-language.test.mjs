@@ -12,7 +12,7 @@ test('member-facing timeline language uses Home and Feed instead of Stream', asy
   assert.match(html, /id="view-title">Home<\/h1>/);
   assert.doesNotMatch(html, /Welcome to SautiLink|id="stream-welcome"/);
   assert.match(html, /aria-label="Home feed"/);
-  assert.match(html, /<h3>Sautify posts<\/h3>/);
+  assert.match(html, /<h3>Room posts<\/h3>/);
 
   assert.doesNotMatch(html, />[^<]*\bStream\b[^<]*</);
   assert.doesNotMatch(html, /(?:aria-label|title|placeholder)="[^"]*\bStream\b[^"]*"/);

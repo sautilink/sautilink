@@ -146,11 +146,11 @@ test('Phase 30 uses an independent account-control limiter and rotates shell cac
   assert.ok(cacheVersion >= 21);
 });
 
-test('Phase 30 keeps Sautify wording in Settings', async () => {
+test('Phase 30 keeps current Room wording in the production Settings shell', async () => {
   const html = await read('app/index.html');
   const preview = await read('preview-src/settings/SettingsPreview.jsx');
 
-  assert.match(html, /Sautify activity/);
+  assert.match(html, /Room activity/);
   assert.match(preview, /Sautify activity/);
   assert.doesNotMatch(html, />Circle activity</);
   assert.doesNotMatch(preview, /title="Circle activity"/);
