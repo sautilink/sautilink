@@ -1,0 +1,25 @@
+/* Targeted account-entry detail fixes. Keep this after auth-entry-polish.css. */
+body.auth-entry img.social-oauth-brand-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  object-fit: contain;
+}
+
+/* app.css positions the @ prefix absolutely. Reset it here so it sits before the username placeholder. */
+body.auth-entry .username-field > span {
+  position: static !important;
+  inset: auto !important;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin: 0 0 0 17px !important;
+  transform: none !important;
+  line-height: 1;
+}
+
+body.auth-entry .username-field input {
+  min-width: 0;
+  padding-left: 9px !important;
+}
