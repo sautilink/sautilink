@@ -28,8 +28,8 @@ test('social OAuth buttons use the approved provider assets and stable username 
   assert.match(prefixCss, /padding-left: 10px !important/);
 
   // The verified-email post-signup screen uses the same corrected @ prefix structure.
-  assert.match(html, /<form id="onboarding-form"[^>]*>[\s\S]*?<div class="username-field"><span>@<\/span><input id="onboarding-username"/);
-  assert.match(html, /<form id="signup-form"[^>]*>[\s\S]*?<div class="username-field"><span>@<\/span><input id="signup-username"/);
+  assert.match(html, /<form id="onboarding-form"[^>]*>[\s\S]*?<div class="username-field"><span[^>]*>@<\/span><input id="onboarding-username"/);
+  assert.match(html, /<form id="signup-form"[^>]*>[\s\S]*?<div class="username-field"><span[^>]*>@<\/span><input id="signup-username"/);
 
   assert.match(source, /guest-entry-gate\.css\?v=20260920-authui2/);
   assert.match(source, /auth-entry-polish\.css\?v=20260920-authui2/);
