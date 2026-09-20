@@ -100,7 +100,7 @@ async function hydrateStreamEvents(events) {`,
 
   output = replaceExactOnce(
     output,
-    `  const [likeResult, repostResult, savedResult] = await Promise.all([
+    `  const [likeResult, repostResult, savedResult, authorFollowResult] = await Promise.all([
     supabase
       .from('social_post_reactions')
       .select('post_id,reaction_type')
@@ -116,8 +116,9 @@ async function hydrateStreamEvents(events) {`,
       .select('post_id')
       .eq('user_id', currentMemberId)
       .in('post_id', postIds),
+    authorFollowQuery,
   ]);`,
-    `  const [likeResult, repostResult, savedResult, mediaMap] = await Promise.all([
+    `  const [likeResult, repostResult, savedResult, authorFollowResult, mediaMap] = await Promise.all([
     supabase
       .from('social_post_reactions')
       .select('post_id,reaction_type')
@@ -133,6 +134,7 @@ async function hydrateStreamEvents(events) {`,
       .select('post_id')
       .eq('user_id', currentMemberId)
       .in('post_id', postIds),
+    authorFollowQuery,
     loadSautiMediaRowsMap(postIds),
   ]);`,
     'the direct post metadata Promise.all block',
@@ -142,9 +144,11 @@ async function hydrateStreamEvents(events) {`,
     output,
     `    reposted: reposted.has(post.id),
     saved: saved.has(post.id),
+    authorFollowsViewer: authorsFollowingViewer.has(post.author_id),
     quotedPost: quoteMap.get(post.quote_post_id) || null,`,
     `    reposted: reposted.has(post.id),
     saved: saved.has(post.id),
+    authorFollowsViewer: authorsFollowingViewer.has(post.author_id),
     mediaRows: mediaMap?.get(post.id) ?? (mediaMap ? [] : null),
     quotedPost: quoteMap.get(post.quote_post_id) || null,`,
     'the direct post media metadata field',
@@ -181,7 +185,9 @@ async function hydrateStreamEvents(events) {`,
       visual = media.media_kind === 'video' ? document.createElement('video') : document.createElement('img');
       visual.src = url;
       if (visual instanceof HTMLVideoElement) {
-        visual.muted = true;
+        visual.muted = false;
+        visual.defaultMuted = false;
+        visual.volume = 1;
         visual.playsInline = true;
         visual.preload = 'metadata';
       } else {
@@ -227,7 +233,9 @@ async function hydrateStreamEvents(events) {`,
       visual = media.media_kind === 'video' ? document.createElement('video') : document.createElement('img');
       visual.src = url;
       if (visual instanceof HTMLVideoElement) {
-        visual.muted = true;
+        visual.muted = false;
+        visual.defaultMuted = false;
+        visual.volume = 1;
         visual.playsInline = true;
         visual.preload = 'metadata';
       } else {

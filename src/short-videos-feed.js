@@ -158,8 +158,9 @@ function createShortVideoSlide(tile) {
   video.playsInline = true;
   video.preload = 'metadata';
   video.loop = true;
-  video.muted = sourceVideo?.muted ?? true;
-  video.defaultMuted = video.muted;
+  video.muted = false;
+  video.defaultMuted = false;
+  video.volume = sourceVideo?.volume > 0 ? sourceVideo.volume : 1;
   if (sourceVideo?.poster) video.poster = sourceVideo.poster;
   video.setAttribute('aria-label', tile.dataset.mediaAlt ? `Video: ${tile.dataset.mediaAlt}` : `Video by @${username}`);
   frame.append(video);

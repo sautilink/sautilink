@@ -120,8 +120,8 @@ if (/Private preview|Phase 31|Phase 27|Foundation in progress/i.test(appHtml)) {
   throw new Error('development presentation copy leaked into staged app shell');
 }
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('staged theme bootstrap is missing');
-if (!appHtml.includes('app.js?v=20260917-commentmenu1')) throw new Error('staged app JS cache marker is stale');
-if (!appHtml.includes('app.css?v=20260917-commentmenu1')) throw new Error('staged app CSS cache marker is stale');
+if (!appHtml.includes('app.js?v=20260920-video-comments1')) throw new Error('staged app JS cache marker is stale');
+if (!appHtml.includes('app.css?v=20260920-video-comments1')) throw new Error('staged app CSS cache marker is stale');
 for (const [id, filename] of [
   ['social-oauth-auth-styles', 'guest-entry-gate.css'],
   ['auth-entry-polish-styles', 'auth-entry-polish.css'],

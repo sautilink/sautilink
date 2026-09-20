@@ -4091,6 +4091,16 @@ body:not(.auth-entry) {
   padding-top: 13px;
 }
 
+.sauti-comment-restriction {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--app-panel-soft);
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .sauti-comment-main,
 .sauti-comment-form textarea {
   border-color: var(--app-line);

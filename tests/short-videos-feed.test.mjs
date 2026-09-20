@@ -75,6 +75,15 @@ test('Short Videos pauses Home playback while open and restores it on close', as
   assert.match(source, /pauseShortVideos\(\)/);
 });
 
+test('Short Videos starts with audio on by default', async () => {
+  const source = await read('src/short-videos-feed.js');
+
+  assert.match(source, /video\.muted = false/);
+  assert.match(source, /video\.defaultMuted = false/);
+  assert.match(source, /video\.volume = sourceVideo\?\.volume > 0 \? sourceVideo\.volume : 1/);
+  assert.doesNotMatch(source, /sourceVideo\?\.muted \?\? true/);
+});
+
 test('normal and production builds both inject Short Videos after existing media behavior', async () => {
   const normalBuild = await read('scripts/build-app.mjs');
   const productionBuild = await read('scripts/build-production-release.mjs');

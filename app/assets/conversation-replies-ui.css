@@ -361,6 +361,17 @@
   backdrop-filter: blur(18px);
 }
 
+.conversation-reply-restriction {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--app-panel-soft);
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .conversation-reply-compose {
   display: flex;
   align-items: end;

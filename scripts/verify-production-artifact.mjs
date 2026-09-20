@@ -193,8 +193,8 @@ if (!roomsFacebookCss.includes('room-fb-detail-aside')) throw new Error('product
 if (appHtml.includes('Private preview') || appHtml.includes('Phase 31')) throw new Error('production app still contains staging/phase UI copy');
 if (/name="robots"[^>]+noindex/i.test(appHtml)) throw new Error('production app must not carry staging noindex meta');
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('production theme bootstrap is missing');
-if (!appHtml.includes('app.css?v=20260917-commentmenu1')) throw new Error('production CSS cache marker is missing');
-if (!appHtml.includes('app.js?v=20260917-commentmenu1')) throw new Error('production JS cache marker is missing');
+if (!appHtml.includes('app.css?v=20260920-video-comments1')) throw new Error('production CSS cache marker is missing');
+if (!appHtml.includes('app.js?v=20260920-video-comments1')) throw new Error('production JS cache marker is missing');
 if (!appHtml.includes('birthdate=20260920-birthdate1')) throw new Error('production birth date cache marker is missing');
 if (!appHtml.includes('pwa.js?v=20260916-loadingfix1')) throw new Error('production PWA cache marker is missing');
 if (!appHtml.includes('/logo.png')) throw new Error('production app must use the main-site logo path');
