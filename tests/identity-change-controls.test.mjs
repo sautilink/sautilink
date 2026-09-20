@@ -109,7 +109,8 @@ test('clean social routes are canonical while legacy app paths remain readable',
 
   assert.match(source, /return `\/u\/\$\{encodeURIComponent\(username\)\}`/);
   assert.match(source, /'\/messages'/);
-  assert.match(source, /'\/sautify'/);
+  assert.match(source, /'\/rooms'/);
+  assert.match(source, /rooms\|sautify/);
   assert.match(source, /'\/home'/);
   assert.ok(source.includes("pathname.match(/^(?:\\/app)?\\/u\\/"));
   assert.ok(source.includes("pathname.match(/^(?:\\/post|\\/app\\/sauti)"));

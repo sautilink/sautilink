@@ -5,19 +5,34 @@ import test from 'node:test';
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('Rooms is the canonical user-facing community brand', async () => {
-  const [rooms, router, packageJson, production] = await Promise.all([
+  const [html, source, rooms, router, packageJson, production, serviceWorker] = await Promise.all([
+    read('app/index.html'),
+    read('src/app.js'),
     read('src/rooms-platform.js'),
     read('src/asset-router.js'),
     read('package.json'),
     read('wrangler.production.jsonc'),
+    read('sw.js'),
   ]);
 
+  const userFacingShell = html.replace('settings-notify-sautify', 'settings-notify-community');
+  assert.match(html, /data-member-view="circles"[\s\S]*?<span>Rooms<\/span>/);
+  assert.match(html, /data-member-view="circles" aria-label="Rooms"/);
+  assert.match(html, /data-room-icon="true"/);
+  assert.match(html, /<section class="circles-surface"[^>]+aria-label="Rooms"/);
+  assert.match(html, /<h3>Room posts<\/h3>/);
+  assert.doesNotMatch(userFacingShell, /\bSautify\b|\/sautify\//);
+
+  assert.match(source, /return slug \? `\/rooms\/\$\{encodeURIComponent\(slug\)\}` : '\/rooms'/);
+  assert.match(source, /rooms\|sautify/);
   assert.match(rooms, /textContent = 'Rooms'/);
   assert.match(rooms, /textContent = 'Create Room'/);
   assert.match(rooms, /Room username/);
   assert.match(rooms, /\/rooms\//);
   assert.match(rooms, /roomIconMarkup/);
   assert.match(rooms, /Sautify\\b\/g, 'Room'/);
+  assert.doesNotMatch(rooms, /roomInitialCanonicalPath|roomLegacyPath/);
+  assert.match(serviceWorker, /sautilink-shell-v62/);
 
   assert.match(router, /rooms\|sautify\|circles/);
   assert.match(router, /CLEAN_ROOM_ROUTE/);

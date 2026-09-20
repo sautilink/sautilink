@@ -30,7 +30,6 @@ let roomCurrentUserPromise = null;
 let pendingRoomCreate = null;
 let roomUiTimer = 0;
 let roomDetailKey = '';
-let roomInitialCanonicalPath = '';
 
 function roomById(id) {
   return document.getElementById(id);
@@ -138,19 +137,9 @@ function roomCanonicalPath(value) {
     .replace(/^\/sautify(?=\/|$)/, '/rooms');
 }
 
-function roomLegacyPath(value) {
-  if (typeof value !== 'string') return value;
-  return value.replace(/^\/rooms(?=\/|$)/, '/sautify');
-}
-
 function installRoomRouteBridge() {
   const nativePush = history.pushState.bind(history);
   const nativeReplace = history.replaceState.bind(history);
-
-  if (/^\/rooms(?:\/|$)/.test(location.pathname)) {
-    roomInitialCanonicalPath = `${location.pathname}${location.search}${location.hash}`;
-    nativeReplace(history.state, '', `${roomLegacyPath(location.pathname)}${location.search}${location.hash}`);
-  }
 
   history.pushState = (state, title, url) => nativePush(state, title, typeof url === 'string' ? roomCanonicalPath(url) : url);
   history.replaceState = (state, title, url) => nativeReplace(state, title, typeof url === 'string' ? roomCanonicalPath(url) : url);
@@ -164,9 +153,6 @@ function canonicalizeRoomUrl() {
   if (!nativeReplace) return;
   if (/^\/sautify(?:\/|$)/.test(location.pathname)) {
     nativeReplace(history.state, '', `${roomCanonicalPath(location.pathname)}${location.search}${location.hash}`);
-  } else if (roomInitialCanonicalPath) {
-    nativeReplace(history.state, '', roomInitialCanonicalPath);
-    roomInitialCanonicalPath = '';
   }
 }
 
