@@ -57,11 +57,12 @@ test('signup and settings controls use the shared authenticated Supabase client'
   assert.doesNotMatch(source, /\.from\('social_profiles'\)[\s\S]*?birth_date/);
 });
 
-test('legacy users are not blocked and settings exposes a private save path', async () => {
-  const [source, migration, build] = await Promise.all([
+test('legacy users are not blocked and every deploy bundle includes the private birth date controls', async () => {
+  const [source, migration, stagingBuild, productionBuild] = await Promise.all([
     read('src/birth-date-controls.js'),
     read('supabase/migrations/20260920015000_add_private_account_birth_date.sql'),
     read('scripts/build-app.mjs'),
+    read('scripts/build-production-release.mjs'),
   ]);
 
   assert.match(source, /settings-birth-date-card/);
@@ -72,5 +73,7 @@ test('legacy users are not blocked and settings exposes a private save path', as
   assert.doesNotMatch(migration, /birth_date\s+date\s+not\s+null/i);
   assert.match(migration, /grant update \(birth_date\)[\s\S]*to authenticated/i);
   assert.match(migration, /birth_date <= current_date/i);
-  assert.match(build, /src\/birth-date-controls\.js/);
+  assert.match(stagingBuild, /src\/birth-date-controls\.js/);
+  assert.match(productionBuild, /resolve\(workerSource, 'birth-date-controls\.js'\)/);
+  assert.match(productionBuild, /APP_JS_FEATURE_RELEASE = '20260920-birthdate1'/);
 });
