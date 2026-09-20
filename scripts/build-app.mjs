@@ -93,6 +93,7 @@ await build({
     resolve(projectRoot, 'src/language-preference.js'),
     resolve(projectRoot, 'src/post-caption-placement.js'),
     resolve(projectRoot, 'src/member-notices.js'),
+    resolve(projectRoot, 'src/birth-date-controls.js'),
     resolve(projectRoot, 'src/caption-entities.js'),
     resolve(projectRoot, 'src/composer-formats.js'),
     resolve(projectRoot, 'src/username-login.js'),
