@@ -104,19 +104,21 @@ function injectStyles() {
   const style = document.createElement('style');
   style.id = 'sautilink-birth-date-styles';
   style.textContent = `
-    .birth-date-fieldset { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; gap: 8px; }
+    .birth-date-fieldset { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; gap: 7px; }
     .birth-date-fieldset legend { margin: 0 0 2px; padding: 0; color: var(--app-text); font: inherit; font-weight: 650; }
-    .birth-date-fields { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.35fr) minmax(0, 1fr); gap: 8px; }
-    .birth-date-control { min-width: 0; display: grid; gap: 5px; }
-    .birth-date-control > label { color: var(--app-muted); font-size: 10px; }
-    .birth-date-control > select { width: 100%; min-width: 0; min-height: 43px; padding: 0 10px; border: 1px solid var(--app-line); border-radius: 10px; background: var(--app-panel); color: var(--app-text); font: inherit; }
-    .birth-date-control > select:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+    .birth-date-fields { display: grid; grid-template-columns: minmax(58px, .78fr) auto minmax(94px, 1.25fr) auto minmax(76px, 1fr); align-items: center; gap: 0; min-width: 0; min-height: 46px; padding: 0 9px; overflow: hidden; border: 1px solid var(--app-line); border-radius: 999px; background: var(--app-panel); box-shadow: 0 1px 3px rgba(17, 30, 51, .035); }
+    .birth-date-fields:focus-within { border-color: #8bb1ff; box-shadow: 0 0 0 3px rgba(47, 111, 236, .12); }
+    .birth-date-control { min-width: 0; }
+    .birth-date-control > label { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
+    .birth-date-control > select { width: 100%; min-width: 0; min-height: 44px; padding: 0 8px; border: 0; border-radius: 0; background: transparent; color: var(--app-text); font: inherit; font-size: 12px; box-shadow: none; }
+    .birth-date-control > select:focus-visible { outline: 0; }
+    .birth-date-separator { color: var(--app-muted); font-size: 14px; line-height: 1; user-select: none; }
     .birth-date-settings-copy { margin: 0; color: var(--app-muted); font-size: 10px; line-height: 1.55; }
     .birth-date-settings-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .birth-date-settings-actions .form-message { flex: 1 1 180px; margin: 0; }
     @media (max-width: 420px) {
-      .birth-date-fields { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr) minmax(0, 1fr); gap: 6px; }
-      .birth-date-control > select { padding-inline: 7px; }
+      .birth-date-fields { grid-template-columns: minmax(52px, .72fr) auto minmax(86px, 1.2fr) auto minmax(70px, .95fr); padding-inline: 7px; }
+      .birth-date-control > select { padding-inline: 6px; font-size: 11px; }
     }
   `;
   document.head.append(style);
@@ -133,10 +135,12 @@ function createBirthDateFieldset(prefix, { required = false } = {}) {
         <label for="${prefix}-birth-day">Day</label>
         <select id="${prefix}-birth-day" name="birthDay" autocomplete="bday-day"${required ? ' required' : ''}></select>
       </div>
+      <span class="birth-date-separator" aria-hidden="true">/</span>
       <div class="birth-date-control">
         <label for="${prefix}-birth-month">Month</label>
         <select id="${prefix}-birth-month" name="birthMonth" autocomplete="bday-month"${required ? ' required' : ''}></select>
       </div>
+      <span class="birth-date-separator" aria-hidden="true">/</span>
       <div class="birth-date-control">
         <label for="${prefix}-birth-year">Year</label>
         <select id="${prefix}-birth-year" name="birthYear" autocomplete="bday-year"${required ? ' required' : ''}></select>
