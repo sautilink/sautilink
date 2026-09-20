@@ -7,8 +7,8 @@ body.auth-entry img.social-oauth-brand-icon {
   object-fit: contain;
 }
 
-/* app.css positions the @ prefix absolutely. Reset it here so it sits before the username placeholder. */
-body.auth-entry .username-field > span {
+/* app.css positions the @ prefix absolutely. Keep it in normal flow across both signup and post-verification onboarding. */
+#auth-view .username-field > span {
   position: static !important;
   inset: auto !important;
   display: flex;
@@ -17,9 +17,10 @@ body.auth-entry .username-field > span {
   margin: 0 0 0 17px !important;
   transform: none !important;
   line-height: 1;
+  pointer-events: none;
 }
 
-body.auth-entry .username-field input {
+#auth-view .username-field input {
   min-width: 0;
-  padding-left: 9px !important;
+  padding-left: 8px !important;
 }
