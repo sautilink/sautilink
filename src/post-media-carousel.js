@@ -1,10 +1,12 @@
 const POST_MEDIA_CAROUSEL_STYLESHEET = '/app/assets/post-media-carousel.css';
+const POST_MEDIA_CAROUSEL_STYLESHEET_ID = 'sautilink-post-media-carousel-style';
 const HOME_VIDEO_SELECTOR = '.sauti-media-tile video[data-home-autoplay-video]';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function ensurePostMediaCarouselStylesheet() {
-  if (document.querySelector(`link[href="${POST_MEDIA_CAROUSEL_STYLESHEET}"]`)) return;
+  if (document.getElementById(POST_MEDIA_CAROUSEL_STYLESHEET_ID)) return;
   const link = document.createElement('link');
+  link.id = POST_MEDIA_CAROUSEL_STYLESHEET_ID;
   link.rel = 'stylesheet';
   link.href = POST_MEDIA_CAROUSEL_STYLESHEET;
   link.dataset.sautilinkPostMediaCarousel = 'true';
