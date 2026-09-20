@@ -63,12 +63,11 @@ test('Google, Facebook and Microsoft use dedicated provider marks', async () => 
   assert.match(source, /#FBBC05/);
   assert.match(source, /#EA4335/);
   assert.match(source, /social-oauth-facebook-icon/);
-  assert.match(source, /#1877F2/);
+  assert.match(source, /\/assets\/facebook\.webp\?v=ebfaae33/);
   assert.match(source, /social-oauth-microsoft-icon/);
-  assert.match(source, /#F25022/);
-  assert.match(source, /#7FBA00/);
-  assert.match(source, /#00A4EF/);
-  assert.match(source, /#FFB900/);
+  assert.match(source, /\/assets\/microsoft\.svg\?v=82f26260/);
+  assert.doesNotMatch(source, /<circle style="stroke:none"[^>]+fill="#1877F2"/);
+  assert.doesNotMatch(source, /<rect style="stroke:none"[^>]+fill="#F25022"/);
   assert.doesNotMatch(source, /social-oauth-mark/);
 });
 
