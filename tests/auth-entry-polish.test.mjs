@@ -22,6 +22,10 @@ test('account entry reference layout stays presentation-only and keeps every exi
   assert.match(html, /id="login-tab"[^>]*>Login<\/button>/);
   assert.match(html, /id="signup-tab"[^>]*>Register<\/button>/);
   assert.doesNotMatch(html, /Connect with people, communities and conversations/);
+  assert.ok(
+    html.indexOf('id="show-recovery"') < html.indexOf('class="form-submit auth-login-submit"'),
+    'Forgot password must appear above the Login button',
+  );
 
   for (const marker of [
     'id="login-panel"',
@@ -41,6 +45,7 @@ test('account entry reference layout stays presentation-only and keeps every exi
   assert.match(css, /body\.auth-entry \.auth-tabs[\s\S]*border-radius:\s*999px/);
   assert.match(css, /body\.auth-entry \.auth-form > input[\s\S]*border-radius:\s*999px !important/);
   assert.match(css, /body\.auth-entry \.form-submit[\s\S]*background:\s*var\(--auth-entry-accent\) !important/);
+  assert.match(css, /body\.auth-entry \.auth-forgot-action\s*\{[^}]*width:\s*auto;[^}]*justify-self:\s*end;[^}]*text-align:\s*right;/s);
   assert.match(css, /body\.auth-entry \.social-oauth-block[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(css, /body\.auth-entry \.birth-date-control > select/);
   assert.match(css, /@media \(max-width: 820px\)/);
