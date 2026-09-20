@@ -1,0 +1,27 @@
+/* Keep the @ prefix inside the username field on both signup and onboarding. */
+#signup-form .username-field,
+#onboarding-form .username-field {
+  display: flex;
+  align-items: center;
+}
+
+#signup-form .username-field > span,
+#onboarding-form .username-field > span {
+  position: static !important;
+  inset: auto !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin-left: 16px;
+  line-height: 1;
+  transform: none !important;
+  pointer-events: none;
+}
+
+#signup-form .username-field input,
+#onboarding-form .username-field input {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding-left: 10px !important;
+}
