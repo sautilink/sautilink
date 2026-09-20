@@ -14,11 +14,31 @@ test('mobile More drawer delegates to existing SautiLink actions', async () => {
   assert.match(source, /data-mobile-drawer-view="saved"/);
   assert.match(source, /data-mobile-drawer-view="appeals"/);
   assert.match(source, /data-mobile-drawer-settings-toggle/);
+  assert.match(source, /data-mobile-drawer-verification/);
   assert.match(source, /href="\/help"/);
   assert.match(source, /href="\/privacy"/);
   assert.match(source, /href="\/terms"/);
   assert.doesNotMatch(source, /data-mobile-drawer-view="(?:stream|discover|messages|notifications|circles)"/);
   assert.doesNotMatch(source, /supabase|fetch\(|XMLHttpRequest|WebSocket/i);
+});
+
+test('mobile profile header uses the existing identity and real verification badge without inventing account features', async () => {
+  const source = await read('src/mobile-more-drawer.js');
+  const css = await read('app/assets/mobile-more-drawer.css');
+
+  assert.match(source, /getElementById\('rail-avatar'\)/);
+  assert.match(source, /getElementById\('rail-name'\)/);
+  assert.match(source, /getElementById\('rail-username'\)/);
+  assert.match(source, /#rail-name \.verification-badge/);
+  assert.match(source, /Verified SautiLinker/);
+  assert.match(source, />SautiLinker</);
+  assert.match(source, /icon\('memberShield'\)/);
+  assert.match(source, /sourceBadge\.cloneNode\(true\)/);
+  assert.match(css, /\.sauti-mobile-drawer-avatar[\s\S]*width: 78px/);
+  assert.match(css, /\.sauti-mobile-drawer-profile[\s\S]*flex-direction: column/);
+  assert.match(css, /\.sauti-mobile-drawer-member-status/);
+  assert.match(css, /\.sauti-mobile-drawer-member-icon/);
+  assert.doesNotMatch(source, /Invoices|Fatwa|Face Id|Face ID/i);
 });
 
 test('mobile Settings group is collapsed by default and keeps icons on every nested destination', async () => {
@@ -58,6 +78,22 @@ test('nested Settings destinations open the real Settings surface rather than du
   }
 });
 
+test('standalone Verification item reuses the existing Verification settings and handles verified members locally', async () => {
+  const source = await read('src/mobile-more-drawer.js');
+  const html = await read('app/index.html');
+
+  assert.match(source, /data-mobile-drawer-verification/);
+  assert.match(source, /function openVerificationSettings\(\)/);
+  assert.match(source, /memberIsVerified\(\)/);
+  assert.match(source, /You're already a verified SautiLinker\./);
+  assert.match(source, /canonicalSettingsSectionButton\('account'\)/);
+  assert.match(source, /#settings-surface \.settings-verification-card/);
+  assert.match(source, /settings-verification-request/);
+  assert.match(html, /class="settings-card settings-verification-card"/);
+  assert.match(html, /id="settings-verification-request"/);
+  assert.doesNotMatch(source, /submit_verification_case|get_my_verification_case/);
+});
+
 test('mobile More drawer avoids gesture conflicts and traps keyboard focus', async () => {
   const source = await read('src/mobile-more-drawer.js');
 
@@ -77,7 +113,7 @@ test('mobile drawer styles are isolated from the six-item bottom navigation', as
   assert.match(navCss, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
   assert.doesNotMatch(navCss, /sauti-mobile-drawer/);
 
-  assert.match(source, /mobile-more-drawer\.css\?v=20260919-settingsaccordion1/);
+  assert.match(source, /mobile-more-drawer\.css\?v=20260920-profileverification1/);
   assert.match(source, /sauti-mobile-drawer-enabled/);
   assert.match(source, /replaceWithSafeClones/);
   assert.match(drawerCss, /:root\.sauti-mobile-drawer-enabled \.mobile-header \[data-theme-toggle\]/);
