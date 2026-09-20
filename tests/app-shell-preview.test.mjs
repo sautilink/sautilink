@@ -117,6 +117,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/profile-settings-ui.css'));
   assert.ok(files.includes('app/assets/profile-privacy-visibility.css'));
   assert.ok(files.includes('app/assets/profile-x-ui.css'));
+  assert.ok(files.includes('app/assets/profile-media-editor.css'));
   assert.ok(files.includes('app/assets/rooms.css'));
   assert.ok(files.includes('app/assets/rooms-facebook.css'));
   assert.ok(files.includes('app/assets/rooms-mobile-preview.css'));
@@ -190,6 +191,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/profile-settings-ui.css',
     'app/assets/profile-privacy-visibility.css',
     'app/assets/profile-x-ui.css',
+    'app/assets/profile-media-editor.css',
     'app/assets/rooms.css',
     'app/assets/rooms-facebook.css',
     'app/assets/rooms-mobile-preview.css',
