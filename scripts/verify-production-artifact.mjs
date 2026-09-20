@@ -92,6 +92,21 @@ for (const marker of [
 }
 if (!appHtml.includes('id="sautilink-profile-x-ui"')) throw new Error('production profile stylesheet is not eagerly linked');
 if (!appHtml.includes('profile-settings-ui.css?v=20260918-profile2')) throw new Error('production profile settings stylesheet cache marker is missing');
+for (const [id, filename] of [
+  ['social-oauth-auth-styles', 'guest-entry-gate.css'],
+  ['auth-entry-polish-styles', 'auth-entry-polish.css'],
+  ['username-prefix-fix-styles', 'username-prefix-fix.css'],
+  ['sautilink-mobile-nav-style', 'mobile-nav-icon-style.css'],
+  ['sautilink-caption-entities-style', 'caption-entities.css'],
+  ['sautilink-post-media-carousel-style', 'post-media-carousel.css'],
+  ['sautilink-video-player-style', 'sautilink-video-player.css'],
+]) {
+  const eagerStyle = new RegExp(`<link[^>]+id=["']${id}["'][^>]+href=["'][^"']*${filename.replaceAll('.', '\\.')}`);
+  if (!eagerStyle.test(appHtml)) throw new Error(`production first-paint stylesheet is not eagerly linked: ${filename}`);
+}
+if ((appHtml.match(/post-media-carousel\.css/g) || []).length !== 1) {
+  throw new Error('production app shell must load the post media carousel stylesheet exactly once');
+}
 for (const marker of [
   'Technology & AI',
   'rooms-invitations.css',
