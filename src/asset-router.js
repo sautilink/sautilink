@@ -211,6 +211,14 @@ async function cleanAuthShellResponse(request, env, url) {
   if (mode === 'signup') {
     html = html
       .replace(
+        '<h2>Welcome back to SautiLink</h2>',
+        '<h2>Create your SautiLink account</h2>',
+      )
+      .replace(
+        '<p>Sign in to continue to your account.</p>',
+        '<p>Join SautiLink and set up your account.</p>',
+      )
+      .replace(
         'aria-selected="true" aria-controls="login-panel" id="login-tab"',
         'aria-selected="false" aria-controls="login-panel" id="login-tab"',
       )
