@@ -421,8 +421,12 @@ body.auth-entry .back-action {
 }
 
 body.auth-entry .auth-forgot-action {
+  width: auto;
   justify-self: end;
-  margin-top: -1px;
+  margin: 0;
+  padding: 2px 0 1px;
+  text-align: right;
+  line-height: 1.25;
 }
 
 body.auth-entry .auth-code-action,
