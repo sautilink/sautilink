@@ -1,5 +1,6 @@
 const SOCIAL_OAUTH_REDIRECT = 'https://sautilink.com/home';
-const SOCIAL_OAUTH_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20260920-authui1';
+const SOCIAL_OAUTH_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20260920-authui2';
+const AUTH_ENTRY_POLISH_STYLESHEET = '/app/assets/auth-entry-polish.css?v=20260920-authui2';
 
 let client = null;
 let installed = false;
@@ -65,21 +66,49 @@ function socialOAuthError(providerId, error) {
   return `We could not start ${providerName} sign-in. Please try again.`;
 }
 
+function ensureStylesheetLink(linkId, href) {
+  let link = id(linkId);
+  if (!link) {
+    link = document.createElement('link');
+    link.id = linkId;
+    link.rel = 'stylesheet';
+    document.head.append(link);
+  }
+  if (link.href !== new URL(href, window.location.href).href) link.href = href;
+  return link;
+}
+
 function ensureStylesheet() {
-  if (id('social-oauth-auth-styles')) return;
-  const link = document.createElement('link');
-  link.id = 'social-oauth-auth-styles';
-  link.rel = 'stylesheet';
-  link.href = SOCIAL_OAUTH_STYLESHEET;
-  document.head.append(link);
+  ensureStylesheetLink('social-oauth-auth-styles', SOCIAL_OAUTH_STYLESHEET);
+  // Keep the reference-layout stylesheet after the shared guest stylesheet so older auth rules cannot override it.
+  ensureStylesheetLink('auth-entry-polish-styles', AUTH_ENTRY_POLISH_STYLESHEET);
 }
 
 function syncAuthEntryPresentationCopy() {
   const intro = document.querySelector('#auth-view .auth-intro');
   const title = intro?.querySelector('h2');
   const copy = intro?.querySelector('p');
-  if (title) title.textContent = 'Share. Connect. Discover.';
-  if (copy) copy.textContent = 'Posts, messages and Rooms — all in one SautiLink.';
+  const tabs = id('auth-tabs');
+  const loginTab = id('login-tab');
+  const signupTab = id('signup-tab');
+  if (!intro || !title || !copy) return;
+
+  const sync = () => {
+    const signingUp = signupTab?.getAttribute('aria-selected') === 'true';
+    title.textContent = signingUp ? 'Create your SautiLink account' : 'Welcome back to SautiLink';
+    copy.textContent = signingUp
+      ? 'Join SautiLink and set up your account.'
+      : 'Sign in to continue to your account.';
+    if (loginTab) loginTab.textContent = 'Login';
+    if (signupTab) signupTab.textContent = 'Register';
+  };
+
+  sync();
+  if (!tabs || tabs.dataset.authPresentationBound === 'true') return;
+  tabs.dataset.authPresentationBound = 'true';
+  const observer = new MutationObserver(sync);
+  if (loginTab) observer.observe(loginTab, { attributes: true, attributeFilter: ['aria-selected'] });
+  if (signupTab) observer.observe(signupTab, { attributes: true, attributeFilter: ['aria-selected'] });
 }
 
 function setProviderButtonsBusy(block, busy) {
@@ -95,7 +124,8 @@ function createProviderButton(provider, context) {
   button.type = 'button';
   button.dataset.socialOauthProvider = provider.id;
   button.dataset.socialOauthContext = context;
-  button.innerHTML = `${provider.icon()}<span class="social-oauth-label">${provider.label}</span>`;
+  button.setAttribute('aria-label', provider.label);
+  button.innerHTML = `${provider.icon()}<span class="social-oauth-label">${provider.name}</span>`;
   button.addEventListener('click', startSocialOAuth);
   return button;
 }
@@ -108,6 +138,12 @@ function createBlock(panelId, formId, context) {
   const block = document.createElement('div');
   block.className = 'social-oauth-block';
   block.dataset.socialOauthBlock = context;
+
+  const separator = document.createElement('div');
+  separator.className = 'social-oauth-separator';
+  separator.setAttribute('aria-hidden', 'true');
+  separator.textContent = context === 'login' ? 'Or login with' : 'Or register with';
+  block.append(separator);
 
   SOCIAL_OAUTH_PROVIDERS.forEach((provider) => {
     block.append(createProviderButton(provider, context));
@@ -127,13 +163,7 @@ function createBlock(panelId, formId, context) {
     block.append(legal);
   }
 
-  const separator = document.createElement('div');
-  separator.className = 'social-oauth-separator';
-  separator.setAttribute('aria-hidden', 'true');
-  separator.textContent = 'or';
-  block.append(separator);
-
-  form.insertAdjacentElement('beforebegin', block);
+  form.insertAdjacentElement('afterend', block);
 }
 
 async function startSocialOAuth(event) {
@@ -168,8 +198,8 @@ async function startSocialOAuth(event) {
 function install() {
   if (installed || !client) return;
   installed = true;
-  syncAuthEntryPresentationCopy();
   ensureStylesheet();
+  syncAuthEntryPresentationCopy();
   createBlock('login-panel', 'login-form', 'login');
   createBlock('signup-panel', 'signup-form', 'signup');
 }
