@@ -54,7 +54,7 @@ test('social OAuth styling is external and compatible with the production CSP', 
   assert.match(css, /:focus-visible/);
 });
 
-test('Google, Facebook and Microsoft use dedicated provider marks', async () => {
+test('Google keeps its vector mark while Facebook and Microsoft use repository assets', async () => {
   const source = await read('src/social-oauth-auth.js');
 
   assert.match(source, /social-oauth-google-icon/);
@@ -62,14 +62,22 @@ test('Google, Facebook and Microsoft use dedicated provider marks', async () => 
   assert.match(source, /#34A853/);
   assert.match(source, /#FBBC05/);
   assert.match(source, /#EA4335/);
-  assert.match(source, /social-oauth-facebook-icon/);
-  assert.match(source, /#1877F2/);
-  assert.match(source, /social-oauth-microsoft-icon/);
-  assert.match(source, /#F25022/);
-  assert.match(source, /#7FBA00/);
-  assert.match(source, /#00A4EF/);
-  assert.match(source, /#FFB900/);
+  assert.match(source, /FACEBOOK_ICON_ASSET = '\/assets\/facebook\.webp'/);
+  assert.match(source, /MICROSOFT_ICON_ASSET = '\/assets\/microsoft\.svg'/);
+  assert.match(source, /repositoryImageIconMarkup\('social-oauth-facebook-icon', FACEBOOK_ICON_ASSET\)/);
+  assert.match(source, /repositoryImageIconMarkup\('social-oauth-microsoft-icon', MICROSOFT_ICON_ASSET\)/);
   assert.doesNotMatch(source, /social-oauth-mark/);
+});
+
+test('signup and post-verification onboarding keep the username prefix before the username text', async () => {
+  const source = await read('src/social-oauth-auth.js');
+
+  assert.match(source, /function alignUsernamePrefixes\(\)/);
+  assert.match(source, /#signup-panel \.username-field, #onboarding-panel \.username-field/);
+  assert.match(source, /prefix\.style\.position = 'static'/);
+  assert.match(source, /prefix\.style\.margin = '0 0 0 17px'/);
+  assert.match(source, /input\.style\.paddingLeft = '8px'/);
+  assert.match(source, /alignUsernamePrefixes\(\);/);
 });
 
 test('social OAuth frontend contains no provider client secrets', async () => {
