@@ -1,6 +1,6 @@
 const MOBILE_DRAWER_ID = 'sauti-mobile-more-drawer';
 const MOBILE_DRAWER_TRIGGER_ID = 'sauti-mobile-more-trigger';
-const MOBILE_DRAWER_STYLE_HREF = '/app/assets/mobile-more-drawer.css?v=20260919-settingsaccordion1';
+const MOBILE_DRAWER_STYLE_HREF = '/app/assets/mobile-more-drawer.css?v=20260920-profileverification1';
 const MOBILE_BREAKPOINT = 680;
 
 const ICONS = Object.freeze({
@@ -13,6 +13,8 @@ const ICONS = Object.freeze({
   privacy: '<rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path>',
   notifications: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path>',
   safety: '<path d="M12 3 4.5 6v5.5c0 4.6 3 7.8 7.5 9.5 4.5-1.7 7.5-4.9 7.5-9.5V6L12 3Z"></path><path d="m8.5 12 2.2 2.2 4.8-5"></path>',
+  verification: '<path d="M12 3 4.5 6v5.5c0 4.6 3 7.8 7.5 9.5 4.5-1.7 7.5-4.9 7.5-9.5V6L12 3Z"></path><path d="m8.7 12.2 2.1 2.1 4.6-4.8"></path>',
+  memberShield: '<path d="M12 3 5.5 5.7v5.5c0 4.2 2.7 7.2 6.5 8.8 3.8-1.6 6.5-4.6 6.5-8.8V5.7L12 3Z"></path><circle cx="12" cy="10" r="2"></circle><path d="M8.8 15.5c.9-1.5 2-2.2 3.2-2.2s2.3.7 3.2 2.2"></path>',
   data: '<path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 20h14"></path>',
   appearance: '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>',
   help: '<circle cx="12" cy="12" r="9"></circle><path d="M9.8 9a2.4 2.4 0 1 1 3.7 2c-1 .7-1.5 1.2-1.5 2.3M12 17h.01"></path>',
@@ -67,6 +69,14 @@ function replaceWithSafeClones(target, source) {
   return true;
 }
 
+function memberVerificationBadge() {
+  return document.querySelector('#rail-name .verification-badge');
+}
+
+function memberIsVerified() {
+  return memberVerificationBadge() instanceof Element;
+}
+
 function installMobileMoreDrawer() {
   if (document.getElementById(MOBILE_DRAWER_ID)) return;
 
@@ -109,14 +119,16 @@ function installMobileMoreDrawer() {
       <strong>More</strong>
       <button class="sauti-mobile-drawer-close" type="button" aria-label="Close more menu">${icon('close')}</button>
     </div>
-    <button class="sauti-mobile-drawer-profile" type="button" data-mobile-drawer-view="profile">
+    <button class="sauti-mobile-drawer-profile" type="button" data-mobile-drawer-view="profile" aria-label="View profile">
       <span class="sauti-mobile-drawer-avatar" aria-hidden="true">S</span>
       <span class="sauti-mobile-drawer-profile-copy">
         <strong>SautiLink member</strong>
         <small>@username</small>
-        <em>View profile</em>
+        <span class="sauti-mobile-drawer-member-status" data-mobile-drawer-member-status>
+          <span class="sauti-mobile-drawer-member-icon" data-mobile-drawer-member-icon>${icon('memberShield')}</span>
+          <span data-mobile-drawer-member-label>SautiLinker</span>
+        </span>
       </span>
-      ${icon('chevron', 'sauti-mobile-drawer-chevron')}
     </button>
     <div class="sauti-mobile-drawer-divider" aria-hidden="true"></div>
     <nav class="sauti-mobile-drawer-nav" aria-label="More navigation">
@@ -135,6 +147,8 @@ function installMobileMoreDrawer() {
           <button type="button" data-mobile-drawer-appearance>${icon('appearance')}<span><strong>Appearance</strong><small data-mobile-drawer-theme-label>System theme</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</button>
         </div>
       </div>
+      <button type="button" data-mobile-drawer-verification>${icon('verification')}<span><strong>Verification</strong><small data-mobile-drawer-verification-copy>Request or check verification status</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</button>
+      <p class="sauti-mobile-drawer-verification-message" data-mobile-drawer-verification-message role="status" aria-live="polite" hidden></p>
       <a href="/help">${icon('help')}<span><strong>Help &amp; support</strong><small>Get help with SautiLink</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
     </nav>
     <div class="sauti-mobile-drawer-spacer"></div>
@@ -147,28 +161,51 @@ function installMobileMoreDrawer() {
 
   const closeButton = drawer.querySelector('.sauti-mobile-drawer-close');
   const drawerAvatar = drawer.querySelector('.sauti-mobile-drawer-avatar');
-  const drawerName = drawer.querySelector('.sauti-mobile-drawer-profile-copy strong');
-  const drawerUsername = drawer.querySelector('.sauti-mobile-drawer-profile-copy small');
+  const drawerName = drawer.querySelector('.sauti-mobile-drawer-profile-copy > strong');
+  const drawerUsername = drawer.querySelector('.sauti-mobile-drawer-profile-copy > small');
+  const memberStatus = drawer.querySelector('[data-mobile-drawer-member-status]');
+  const memberStatusIcon = drawer.querySelector('[data-mobile-drawer-member-icon]');
+  const memberStatusLabel = drawer.querySelector('[data-mobile-drawer-member-label]');
+  const verificationButton = drawer.querySelector('[data-mobile-drawer-verification]');
+  const verificationCopy = drawer.querySelector('[data-mobile-drawer-verification-copy]');
+  const verificationMessage = drawer.querySelector('[data-mobile-drawer-verification-message]');
   const settingsToggle = drawer.querySelector('[data-mobile-drawer-settings-toggle]');
   const settingsPanel = drawer.querySelector('#sauti-mobile-drawer-settings-panel');
   const themeLabel = drawer.querySelector('[data-mobile-drawer-theme-label]');
   let restoreFocus = null;
   let hideTimer = 0;
+  let verificationMessageTimer = 0;
 
   function syncIdentity() {
     const sourceAvatar = document.getElementById('rail-avatar');
     const sourceName = document.getElementById('rail-name');
     const sourceUsername = document.getElementById('rail-username');
+    const sourceBadge = memberVerificationBadge();
+    const verified = sourceBadge instanceof Element;
 
     if (!replaceWithSafeClones(drawerAvatar, sourceAvatar)) {
       drawerAvatar.textContent = (sourceName?.textContent || 'S').trim().slice(0, 2) || 'S';
     }
     drawerAvatar.classList.toggle('has-profile-photo', Boolean(sourceAvatar?.classList.contains('has-profile-photo')));
 
-    if (!replaceWithSafeClones(drawerName, sourceName)) {
-      drawerName.textContent = sourceName?.textContent?.trim() || 'SautiLink member';
-    }
+    drawerName.textContent = sourceName?.textContent?.trim() || 'SautiLink member';
     drawerUsername.textContent = sourceUsername?.textContent?.trim() || '@username';
+
+    memberStatus?.classList.toggle('is-verified', verified);
+    if (memberStatusLabel) memberStatusLabel.textContent = verified ? 'Verified SautiLinker' : 'SautiLinker';
+    if (memberStatusIcon) {
+      if (verified) {
+        memberStatusIcon.replaceChildren(sourceBadge.cloneNode(true));
+        memberStatusIcon.querySelectorAll('[id]').forEach((node) => node.removeAttribute('id'));
+      } else {
+        memberStatusIcon.innerHTML = icon('memberShield');
+      }
+    }
+    if (verificationCopy) {
+      verificationCopy.textContent = verified
+        ? 'Your account is verified'
+        : 'Request or check verification status';
+    }
   }
 
   function syncThemeLabel() {
@@ -192,6 +229,8 @@ function installMobileMoreDrawer() {
   function openDrawer() {
     if (!memberIsVisible() || window.innerWidth > MOBILE_BREAKPOINT) return;
     window.clearTimeout(hideTimer);
+    window.clearTimeout(verificationMessageTimer);
+    if (verificationMessage) verificationMessage.hidden = true;
     syncIdentity();
     syncThemeLabel();
     setSettingsExpanded(false);
@@ -242,6 +281,42 @@ function installMobileMoreDrawer() {
     });
   }
 
+  function showVerifiedMessage() {
+    if (!verificationMessage) return;
+    window.clearTimeout(verificationMessageTimer);
+    verificationMessage.textContent = "You're already a verified SautiLinker.";
+    verificationMessage.hidden = false;
+    verificationMessageTimer = window.setTimeout(() => {
+      verificationMessage.hidden = true;
+    }, 4200);
+  }
+
+  function openVerificationSettings() {
+    if (memberIsVerified()) {
+      showVerifiedMessage();
+      return;
+    }
+
+    const settingsView = canonicalViewButton('settings');
+    if (!(settingsView instanceof HTMLButtonElement) || settingsView.hidden || settingsView.disabled) return;
+    closeDrawer(false);
+    settingsView.click();
+    queueMicrotask(() => {
+      const accountButton = canonicalSettingsSectionButton('account');
+      if (accountButton instanceof HTMLButtonElement && !accountButton.disabled) accountButton.click();
+      queueMicrotask(() => {
+        const card = document.querySelector('#settings-surface .settings-verification-card');
+        if (!(card instanceof HTMLElement)) return;
+        const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        card.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'auto' : 'smooth' });
+        const request = document.getElementById('settings-verification-request');
+        if (request instanceof HTMLButtonElement && !request.hidden && !request.disabled) {
+          request.focus({ preventScroll: true });
+        }
+      });
+    });
+  }
+
   trigger.addEventListener('click', openDrawer);
   closeButton?.addEventListener('click', () => closeDrawer());
   backdrop.addEventListener('click', () => closeDrawer());
@@ -257,6 +332,8 @@ function installMobileMoreDrawer() {
   drawer.querySelectorAll('[data-mobile-drawer-settings-section]').forEach((button) => {
     button.addEventListener('click', () => openSettingsSection(button.dataset.mobileDrawerSettingsSection));
   });
+
+  verificationButton?.addEventListener('click', openVerificationSettings);
 
   drawer.querySelector('[data-mobile-drawer-appearance]')?.addEventListener('click', () => {
     canonicalThemeButton()?.click();
@@ -299,7 +376,10 @@ function installMobileMoreDrawer() {
   }).observe(railAccount, { attributes: true, childList: true, subtree: true, characterData: true });
 
   new MutationObserver(syncAvailability).observe(memberView, { attributes: true, attributeFilter: ['hidden'] });
-  new MutationObserver(syncThemeLabel).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  new MutationObserver(() => {
+    syncThemeLabel();
+    syncIdentity();
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   window.addEventListener('resize', syncAvailability, { passive: true });
 
   syncIdentity();
