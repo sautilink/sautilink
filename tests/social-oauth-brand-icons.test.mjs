@@ -20,5 +20,6 @@ test('social OAuth buttons use clean provider brand marks without inherited stro
   assert.match(source, /<circle style="stroke:none"[^>]+fill="#1877F2"/);
   assert.match(source, /<rect style="stroke:none" x="0" y="0" width="10" height="10" fill="#F25022"/);
   assert.match(source, /<rect style="stroke:none" x="11" y="11" width="10" height="10" fill="#FFB900"/);
-  assert.match(source, /guest-entry-gate\.css\?v=20260920-authui1/);
+  assert.match(source, /guest-entry-gate\.css\?v=20260920-authui2/);
+  assert.match(source, /auth-entry-polish\.css\?v=20260920-authui2/);
 });
