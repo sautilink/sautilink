@@ -75,5 +75,7 @@ test('legacy users are not blocked and every deploy bundle includes the private 
   assert.match(migration, /birth_date <= current_date/i);
   assert.match(stagingBuild, /src\/birth-date-controls\.js/);
   assert.match(productionBuild, /resolve\(workerSource, 'birth-date-controls\.js'\)/);
-  assert.match(productionBuild, /APP_JS_FEATURE_RELEASE = '20260920-birthdate1'/);
+  assert.match(productionBuild, /APP_JS_FEATURE_RELEASE = '20260919-mobilesettings1'/);
+  assert.match(productionBuild, /APP_JS_BIRTH_DATE_RELEASE = '20260920-birthdate1'/);
+  assert.match(productionBuild, /&birthdate=\$\{APP_JS_BIRTH_DATE_RELEASE\}/);
 });
