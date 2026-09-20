@@ -361,6 +361,7 @@ body.auth-entry .birth-date-fieldset {
 }
 
 body.auth-entry .birth-date-fields {
+  display: grid !important;
   grid-template-columns: minmax(58px, .78fr) auto minmax(94px, 1.25fr) auto minmax(76px, 1fr);
   gap: 0;
   min-height: 48px;
