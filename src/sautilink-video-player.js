@@ -1,4 +1,5 @@
 const SAUTILINK_VIDEO_PLAYER_STYLESHEET = '/app/assets/sautilink-video-player.css';
+const SAUTILINK_VIDEO_PLAYER_STYLESHEET_ID = 'sautilink-video-player-style';
 const SAUTILINK_VIDEO_SELECTOR = '.sauti-media-tile video, #sauti-media-viewer-content > video';
 const VIDEO_CONTROLS_IDLE_MS = 4000;
 const VIDEO_DOUBLE_TAP_WINDOW_MS = 320;
@@ -7,8 +8,9 @@ const VIDEO_RATES = Object.freeze([0.5, 1, 1.5, 2]);
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function ensureSautiLinkVideoPlayerStylesheet() {
-  if (document.querySelector(`link[href="${SAUTILINK_VIDEO_PLAYER_STYLESHEET}"]`)) return;
+  if (document.getElementById(SAUTILINK_VIDEO_PLAYER_STYLESHEET_ID)) return;
   const link = document.createElement('link');
+  link.id = SAUTILINK_VIDEO_PLAYER_STYLESHEET_ID;
   link.rel = 'stylesheet';
   link.href = SAUTILINK_VIDEO_PLAYER_STYLESHEET;
   link.dataset.sautilinkVideoPlayer = 'true';

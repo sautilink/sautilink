@@ -3,6 +3,7 @@ import './email-change-ui-polish.js';
 import './mobile-drawer-profile-photo.js';
 
 const MOBILE_NAV_SELECTOR = '.mobile-nav';
+const MOBILE_NAV_STYLE_ID = 'sautilink-mobile-nav-style';
 const MOBILE_NAV_STYLE_HREF = '/app/assets/mobile-nav-icon-style.css?v=20260907-nav1';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -33,8 +34,9 @@ const MOBILE_NAV_ICONS = Object.freeze({
 });
 
 function ensureMobileNavStylesheet() {
-  if (document.querySelector(`link[href="${MOBILE_NAV_STYLE_HREF}"]`)) return;
+  if (document.getElementById(MOBILE_NAV_STYLE_ID)) return;
   const link = document.createElement('link');
+  link.id = MOBILE_NAV_STYLE_ID;
   link.rel = 'stylesheet';
   link.href = MOBILE_NAV_STYLE_HREF;
   document.head.append(link);
