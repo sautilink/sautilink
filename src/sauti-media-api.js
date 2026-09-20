@@ -4,7 +4,7 @@ const SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
 const IMAGE_LIMIT = 8 * 1024 * 1024;
 const VIDEO_LIMIT = 25 * 1024 * 1024;
-const MAX_VIDEO_DURATION_MS = 90_000;
+const MAX_VIDEO_DURATION_MS = 120_000;
 const MAX_DIMENSION = 8192;
 const UPLOAD_TTL_MS = 60 * 60 * 1000;
 const IMAGE_VARIANT_VERSION = 'v1';
@@ -145,6 +145,39 @@ function findBoxes(bytes, start, end, wanted) {
   return found;
 }
 
+function fullBoxDurationMs(bytes, view, box) {
+  if (!box) return 0;
+  const base = box.offset + box.header;
+  const end = box.offset + box.size;
+  const version = bytes[base];
+  const timing = base + 4;
+  let timescale = 0;
+  let duration = 0;
+
+  if (version === 0 && timing + 16 <= end) {
+    timescale = view.getUint32(timing + 8, false);
+    duration = view.getUint32(timing + 12, false);
+    if (duration === 0xffffffff) return 0;
+  } else if (version === 1 && timing + 28 <= end) {
+    timescale = view.getUint32(timing + 16, false);
+    const high = view.getUint32(timing + 20, false);
+    const low = view.getUint32(timing + 24, false);
+    if (high === 0xffffffff && low === 0xffffffff) return 0;
+    duration = high * 2 ** 32 + low;
+  }
+
+  if (!timescale || !duration || !Number.isSafeInteger(duration)) return 0;
+  const durationMs = Math.round((duration / timescale) * 1000);
+  return Number.isSafeInteger(durationMs) && durationMs > 0 ? durationMs : 0;
+}
+
+function handlerType(bytes, box) {
+  if (!box) return '';
+  const offset = box.offset + box.header + 8;
+  if (offset + 4 > box.offset + box.size) return '';
+  return String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+}
+
 export function inspectMp4Bytes(bytes) {
   if (!(bytes instanceof Uint8Array) || bytes.length < 32) return null;
   const top = findBoxes(bytes, 0, bytes.length, new Set(['ftyp', 'moov']));
@@ -155,30 +188,14 @@ export function inspectMp4Bytes(bytes) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const children = findBoxes(bytes, moov.offset + moov.header, moov.offset + moov.size, new Set(['mvhd', 'trak']));
   const mvhd = children.find((box) => box.type === 'mvhd');
-  if (!mvhd) return null;
-
-  const mvhdBase = mvhd.offset + mvhd.header;
-  const version = bytes[mvhdBase];
-  const timing = mvhdBase + 4;
-  let timescale = 0;
-  let duration = 0;
-  if (version === 0 && timing + 16 <= bytes.length) {
-    timescale = view.getUint32(timing + 8, false);
-    duration = view.getUint32(timing + 12, false);
-  } else if (version === 1 && timing + 28 <= bytes.length) {
-    timescale = view.getUint32(timing + 16, false);
-    const high = view.getUint32(timing + 20, false);
-    const low = view.getUint32(timing + 24, false);
-    duration = high * 2 ** 32 + low;
-  }
-  if (!timescale || !duration || !Number.isSafeInteger(duration)) return null;
-  const durationMs = Math.round((duration / timescale) * 1000);
+  const movieDurationMs = fullBoxDurationMs(bytes, view, mvhd);
 
   let width = 0;
   let height = 0;
+  let videoDurationMs = 0;
   for (const trak of children.filter((box) => box.type === 'trak')) {
-    const trackBoxes = findBoxes(bytes, trak.offset + trak.header, trak.offset + trak.size, new Set(['tkhd']));
-    const tkhd = trackBoxes[0];
+    const trackBoxes = findBoxes(bytes, trak.offset + trak.header, trak.offset + trak.size, new Set(['tkhd', 'mdia']));
+    const tkhd = trackBoxes.find((box) => box.type === 'tkhd');
     if (!tkhd) continue;
     const base = tkhd.offset + tkhd.header;
     const tkVersion = bytes[base];
@@ -187,12 +204,23 @@ export function inspectMp4Bytes(bytes) {
     if (dimensionOffset + 8 > bytes.length) continue;
     const w = fixed16(view.getUint32(dimensionOffset, false));
     const h = fixed16(view.getUint32(dimensionOffset + 4, false));
-    if (w * h > width * height) {
+    const mdia = trackBoxes.find((box) => box.type === 'mdia');
+    const mediaBoxes = mdia
+      ? findBoxes(bytes, mdia.offset + mdia.header, mdia.offset + mdia.size, new Set(['mdhd', 'hdlr']))
+      : [];
+    const mediaDurationMs = fullBoxDurationMs(bytes, view, mediaBoxes.find((box) => box.type === 'mdhd'));
+    const mediaHandler = handlerType(bytes, mediaBoxes.find((box) => box.type === 'hdlr'));
+    const isVideoTrack = mediaHandler === 'vide' || (w > 0 && h > 0);
+
+    if (isVideoTrack && w * h > width * height) {
       width = w;
       height = h;
+      videoDurationMs = mediaDurationMs;
     }
   }
+  const durationMs = videoDurationMs || movieDurationMs;
   if (!width || !height) return null;
+  if (!durationMs) return null;
   if (width > MAX_DIMENSION || height > MAX_DIMENSION || durationMs > MAX_VIDEO_DURATION_MS) return null;
   return { contentType: 'video/mp4', width, height, durationMs };
 }
@@ -362,7 +390,7 @@ async function uploadMedia(request, env, id) {
     inspected.durationMs = null;
   } else {
     inspected = inspectMp4Bytes(bytes);
-    if (!inspected) return apiError(415, 'INVALID_VIDEO', 'Use a valid MP4 video up to 90 seconds.');
+    if (!inspected) return apiError(415, 'INVALID_VIDEO', 'Use a valid MP4 video no longer than 2 minutes.');
   }
 
   try {

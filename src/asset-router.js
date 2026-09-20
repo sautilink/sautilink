@@ -95,11 +95,20 @@ async function handleBoundedMediaUpload(request, env, url) {
       method: 'DELETE',
       headers: authOnlyHeaders(request),
     }), env).catch(() => null);
+    if (!inspected) {
+      return json(415, {
+        ok: false,
+        error: {
+          code: 'INVALID_VIDEO',
+          message: 'Choose a valid MP4 video no longer than 2 minutes.',
+        },
+      });
+    }
     return json(422, {
       ok: false,
       error: {
         code: 'VIDEO_TOO_LONG',
-        message: 'Short videos are currently limited to 30 seconds. Choose a valid MP4 video that is 30 seconds or shorter.',
+        message: 'This video is longer than 30 seconds. Trim it in the composer before uploading.',
       },
     });
   }

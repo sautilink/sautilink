@@ -3,6 +3,132 @@
   stroke-linejoin: round;
 }
 
+.composer-trim-dialog {
+  width: min(560px, calc(100vw - 28px));
+  max-width: none;
+  max-height: calc(100dvh - 28px);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--app-line, rgba(127, 127, 127, .3));
+  border-radius: 18px;
+  background: var(--app-panel, #0f1115);
+  color: var(--app-text, #f3f5f7);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .42);
+}
+
+.composer-trim-dialog::backdrop {
+  background: rgba(0, 0, 0, .7);
+  backdrop-filter: blur(2px);
+}
+
+.composer-trim-card {
+  display: grid;
+  gap: 16px;
+  max-height: calc(100dvh - 28px);
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.composer-trim-card header,
+.composer-trim-card footer,
+.composer-trim-range label {
+  display: flex;
+  align-items: center;
+}
+
+.composer-trim-card header,
+.composer-trim-card footer {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.composer-trim-card header p,
+.composer-trim-card header h2,
+.composer-trim-summary,
+.composer-trim-status {
+  margin: 0;
+}
+
+.composer-trim-card header p {
+  color: var(--app-accent, #ff6678);
+  font-size: .76rem;
+  font-weight: 750;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.composer-trim-card header h2 {
+  margin-top: 2px;
+  font-size: 1.15rem;
+}
+
+.composer-trim-close {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--app-panel-soft, rgba(127, 127, 127, .12));
+  color: inherit;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.composer-trim-card video {
+  width: 100%;
+  max-height: 300px;
+  border-radius: 12px;
+  background: #000;
+}
+
+.composer-trim-range {
+  display: grid;
+  gap: 12px;
+}
+
+.composer-trim-range label {
+  display: grid;
+  grid-template-columns: 44px 1fr 42px;
+  gap: 10px;
+  color: var(--app-muted, #9199a3);
+  font-size: .82rem;
+}
+
+.composer-trim-range input {
+  width: 100%;
+  accent-color: var(--app-accent, #ff6678);
+}
+
+.composer-trim-range output {
+  order: 3;
+  color: var(--app-text, #f3f5f7);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.composer-trim-summary,
+.composer-trim-status {
+  color: var(--app-muted, #9199a3);
+  font-size: .82rem;
+  line-height: 1.45;
+}
+
+.composer-trim-status:not(:empty) {
+  min-height: 20px;
+  color: var(--app-text, #f3f5f7);
+}
+
+.composer-trim-card footer {
+  justify-content: flex-end;
+}
+
+.composer-trim-card footer button {
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-weight: 750;
+}
+
 .composer-poll-editor {
   display: grid;
   gap: 10px;

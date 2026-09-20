@@ -34,11 +34,11 @@ function box(type, payload) {
   return concat(u32(payload.length + 8), ascii(type), payload);
 }
 
-function validMp4({ seconds = 30, width = 1280, height = 720 } = {}) {
+function validMp4({ seconds = 30, width = 1280, height = 720, movieDuration = seconds, trackSeconds = 0 } = {}) {
   const mvhdData = new Uint8Array(96);
   const mvhdView = new DataView(mvhdData.buffer);
   mvhdView.setUint32(8, 1000, false);
-  mvhdView.setUint32(12, seconds * 1000, false);
+  mvhdView.setUint32(12, movieDuration === 'unknown' ? 0xffffffff : movieDuration * 1000, false);
   const mvhd = box('mvhd', concat(new Uint8Array(4), mvhdData));
 
   const tkhdData = new Uint8Array(80);
@@ -46,7 +46,19 @@ function validMp4({ seconds = 30, width = 1280, height = 720 } = {}) {
   tkhdView.setUint32(72, width * 65536, false);
   tkhdView.setUint32(76, height * 65536, false);
   const tkhd = box('tkhd', concat(new Uint8Array(4), tkhdData));
-  const trak = box('trak', tkhd);
+  let mdia = new Uint8Array();
+  if (trackSeconds) {
+    const mdhdData = new Uint8Array(20);
+    const mdhdView = new DataView(mdhdData.buffer);
+    mdhdView.setUint32(8, 1000, false);
+    mdhdView.setUint32(12, trackSeconds * 1000, false);
+    const mdhd = box('mdhd', concat(new Uint8Array(4), mdhdData));
+    const hdlrData = new Uint8Array(20);
+    hdlrData.set(ascii('vide'), 4);
+    const hdlr = box('hdlr', concat(new Uint8Array(4), hdlrData));
+    mdia = box('mdia', concat(mdhd, hdlr));
+  }
+  const trak = box('trak', concat(tkhd, mdia));
 
   const ftyp = box('ftyp', concat(ascii('isom'), new Uint8Array(8)));
   const moov = box('moov', concat(mvhd, trak));
@@ -60,7 +72,14 @@ test('Phase 27 MP4 inspector validates duration and dimensions', () => {
     height: 720,
     durationMs: 30000,
   });
-  assert.equal(inspectMp4Bytes(validMp4({ seconds: 91 })), null);
+  assert.deepEqual(inspectMp4Bytes(validMp4({ seconds: 5, movieDuration: 'unknown', trackSeconds: 5 })), {
+    contentType: 'video/mp4',
+    width: 1280,
+    height: 720,
+    durationMs: 5000,
+  });
+  assert.equal(inspectMp4Bytes(validMp4({ seconds: 120 }))?.durationMs, 120000);
+  assert.equal(inspectMp4Bytes(validMp4({ seconds: 121 })), null);
   assert.equal(inspectMp4Bytes(new Uint8Array(64)), null);
 });
 
