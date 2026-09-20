@@ -1,7 +1,6 @@
 const SOCIAL_OAUTH_REDIRECT = 'https://sautilink.com/home';
 const SOCIAL_OAUTH_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20260920-authui2';
 const AUTH_ENTRY_POLISH_STYLESHEET = '/app/assets/auth-entry-polish.css?v=20260920-authui2';
-const AUTH_ENTRY_DETAIL_STYLESHEET = '/app/assets/auth-entry-detail-fixes.css?v=20260920-authui3';
 const FACEBOOK_ICON_ASSET = '/assets/facebook.webp';
 const MICROSOFT_ICON_ASSET = '/assets/microsoft.svg';
 
@@ -79,8 +78,28 @@ function ensureStylesheet() {
   ensureStylesheetLink('social-oauth-auth-styles', SOCIAL_OAUTH_STYLESHEET);
   // Keep the reference-layout stylesheet after the shared guest stylesheet so older auth rules cannot override it.
   ensureStylesheetLink('auth-entry-polish-styles', AUTH_ENTRY_POLISH_STYLESHEET);
-  // Small targeted corrections must load last so the rest of the approved auth layout stays untouched.
-  ensureStylesheetLink('auth-entry-detail-fixes-styles', AUTH_ENTRY_DETAIL_STYLESHEET);
+}
+
+function alignUsernamePrefixes() {
+  document.querySelectorAll('#signup-panel .username-field, #onboarding-panel .username-field').forEach((field) => {
+    const prefix = field.querySelector(':scope > span');
+    const input = field.querySelector('input');
+    if (prefix) {
+      prefix.style.position = 'static';
+      prefix.style.inset = 'auto';
+      prefix.style.display = 'flex';
+      prefix.style.alignItems = 'center';
+      prefix.style.flex = '0 0 auto';
+      prefix.style.margin = '0 0 0 17px';
+      prefix.style.transform = 'none';
+      prefix.style.lineHeight = '1';
+      prefix.style.pointerEvents = 'none';
+    }
+    if (input) {
+      input.style.minWidth = '0';
+      input.style.paddingLeft = '8px';
+    }
+  });
 }
 
 function syncAuthEntryPresentationCopy() {
@@ -199,6 +218,7 @@ function install() {
   installed = true;
   ensureStylesheet();
   syncAuthEntryPresentationCopy();
+  alignUsernamePrefixes();
   createBlock('login-panel', 'login-form', 'login');
   createBlock('signup-panel', 'signup-form', 'signup');
 }
