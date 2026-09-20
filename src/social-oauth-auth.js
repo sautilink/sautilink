@@ -1,6 +1,9 @@
 const SOCIAL_OAUTH_REDIRECT = 'https://sautilink.com/home';
 const SOCIAL_OAUTH_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20260920-authui2';
 const AUTH_ENTRY_POLISH_STYLESHEET = '/app/assets/auth-entry-polish.css?v=20260920-authui2';
+const AUTH_ENTRY_DETAIL_STYLESHEET = '/app/assets/auth-entry-detail-fixes.css?v=20260920-authui3';
+const FACEBOOK_ICON_ASSET = '/assets/facebook.webp';
+const MICROSOFT_ICON_ASSET = '/assets/microsoft.svg';
 
 let client = null;
 let installed = false;
@@ -24,22 +27,16 @@ function googleIconMarkup() {
     </svg>`;
 }
 
+function repositoryImageIconMarkup(className, src) {
+  return `<img class="social-oauth-brand-icon ${className}" src="${src}" width="19" height="19" alt="" aria-hidden="true" decoding="async">`;
+}
+
 function facebookIconMarkup() {
-  return `
-    <svg class="social-oauth-brand-icon social-oauth-facebook-icon" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false" style="stroke:none">
-      <circle style="stroke:none" cx="12" cy="12" r="12" fill="#1877F2"></circle>
-      <path style="stroke:none" fill="#ffffff" d="M13.64 20.5v-7.74h2.6l.39-3.02h-2.99V7.82c0-.88.25-1.47 1.5-1.47h1.6V3.64c-.28-.04-1.23-.12-2.34-.12-2.31 0-3.9 1.41-3.9 4.01v2.21H7.88v3.02h2.62v7.74h3.14Z"></path>
-    </svg>`;
+  return repositoryImageIconMarkup('social-oauth-facebook-icon', FACEBOOK_ICON_ASSET);
 }
 
 function microsoftIconMarkup() {
-  return `
-    <svg class="social-oauth-brand-icon social-oauth-microsoft-icon" viewBox="0 0 21 21" width="19" height="19" aria-hidden="true" focusable="false" style="stroke:none">
-      <rect style="stroke:none" x="0" y="0" width="10" height="10" fill="#F25022"></rect>
-      <rect style="stroke:none" x="11" y="0" width="10" height="10" fill="#7FBA00"></rect>
-      <rect style="stroke:none" x="0" y="11" width="10" height="10" fill="#00A4EF"></rect>
-      <rect style="stroke:none" x="11" y="11" width="10" height="10" fill="#FFB900"></rect>
-    </svg>`;
+  return repositoryImageIconMarkup('social-oauth-microsoft-icon', MICROSOFT_ICON_ASSET);
 }
 
 const SOCIAL_OAUTH_PROVIDERS = Object.freeze([
@@ -82,6 +79,8 @@ function ensureStylesheet() {
   ensureStylesheetLink('social-oauth-auth-styles', SOCIAL_OAUTH_STYLESHEET);
   // Keep the reference-layout stylesheet after the shared guest stylesheet so older auth rules cannot override it.
   ensureStylesheetLink('auth-entry-polish-styles', AUTH_ENTRY_POLISH_STYLESHEET);
+  // Small targeted corrections must load last so the rest of the approved auth layout stays untouched.
+  ensureStylesheetLink('auth-entry-detail-fixes-styles', AUTH_ENTRY_DETAIL_STYLESHEET);
 }
 
 function syncAuthEntryPresentationCopy() {
