@@ -47,7 +47,8 @@ test('account entry reference layout stays presentation-only and keeps every exi
   assert.match(css, /body\.auth-entry \.form-submit[\s\S]*background:\s*var\(--auth-entry-accent\) !important/);
   assert.match(css, /body\.auth-entry \.auth-forgot-action\s*\{[^}]*width:\s*auto;[^}]*justify-self:\s*end;[^}]*text-align:\s*right;/s);
   assert.match(css, /body\.auth-entry \.social-oauth-block[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
-  assert.match(css, /body\.auth-entry \.birth-date-control > select/);
+  assert.match(css, /body\.auth-entry \.birth-date-fields\s*\{[^}]*grid-template-columns:[^;]+auto[^;]+auto[^;]+;[^}]*border-radius:\s*999px;/s);
+  assert.match(css, /body\.auth-entry \.birth-date-control > select\s*\{[^}]*border:\s*0 !important;[^}]*background:\s*transparent !important;/s);
   assert.match(css, /@media \(max-width: 820px\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.doesNotMatch(css, /url\(https?:\/\//i);
