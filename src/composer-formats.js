@@ -1,4 +1,6 @@
 const SHORT_VIDEO_LIMIT_SECONDS = 30;
+const MAX_TRIMMABLE_VIDEO_SECONDS = 120;
+const MIN_TRIM_SECONDS = 1;
 const POLL_MIN_OPTIONS = 2;
 const POLL_MAX_OPTIONS = 4;
 const POLL_OPTION_MAX_LENGTH = 80;
@@ -185,6 +187,241 @@ function videoDuration(file) {
   });
 }
 
+function formatTrimTime(value) {
+  const seconds = Math.max(0, Number(value) || 0);
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+}
+
+function supportedMp4RecorderType() {
+  if (typeof MediaRecorder !== 'function' || typeof MediaRecorder.isTypeSupported !== 'function') return '';
+  return [
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+    'video/mp4;codecs=avc1.42E01E',
+    'video/mp4',
+  ].find((type) => MediaRecorder.isTypeSupported(type)) || '';
+}
+
+function waitForMediaEvent(media, name, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('The video could not be prepared for trimming.'));
+    }, timeoutMs);
+    const cleanup = () => {
+      window.clearTimeout(timer);
+      media.removeEventListener(name, done);
+      media.removeEventListener('error', failed);
+    };
+    const done = () => {
+      cleanup();
+      resolve();
+    };
+    const failed = () => {
+      cleanup();
+      reject(new Error('The video could not be prepared for trimming.'));
+    };
+    media.addEventListener(name, done, { once: true });
+    media.addEventListener('error', failed, { once: true });
+  });
+}
+
+async function trimVideoFile(file, startSeconds, endSeconds, onProgress) {
+  const mimeType = supportedMp4RecorderType();
+  const capture = HTMLMediaElement.prototype.captureStream || HTMLMediaElement.prototype.mozCaptureStream;
+  if (!mimeType || typeof capture !== 'function') {
+    throw new Error('This browser cannot trim MP4 video yet. Choose a video that is 30 seconds or shorter.');
+  }
+
+  const sourceUrl = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.preload = 'auto';
+  video.playsInline = true;
+  video.muted = true;
+  video.src = sourceUrl;
+
+  let stream = null;
+  let recorder = null;
+  let timer = 0;
+  let frame = 0;
+  try {
+    await waitForMediaEvent(video, 'loadeddata');
+    video.currentTime = Math.max(0, startSeconds);
+    await waitForMediaEvent(video, 'seeked');
+
+    stream = capture.call(video);
+    if (!stream?.getVideoTracks?.().length) throw new Error('This browser could not read the selected video track.');
+    recorder = new MediaRecorder(stream, {
+      mimeType,
+      videoBitsPerSecond: 4_500_000,
+      audioBitsPerSecond: 128_000,
+    });
+
+    const chunks = [];
+    const result = new Promise((resolve, reject) => {
+      recorder.addEventListener('dataavailable', (event) => {
+        if (event.data?.size) chunks.push(event.data);
+      });
+      recorder.addEventListener('error', () => reject(new Error('The video could not be trimmed. Try another file.')), { once: true });
+      recorder.addEventListener('stop', () => {
+        if (!chunks.length) {
+          reject(new Error('The browser did not produce a trimmed video. Try another file.'));
+          return;
+        }
+        resolve(new Blob(chunks, { type: 'video/mp4' }));
+      }, { once: true });
+    });
+
+    const clipDuration = Math.min(SHORT_VIDEO_LIMIT_SECONDS, Math.max(MIN_TRIM_SECONDS, endSeconds - startSeconds));
+    const stopAt = Math.min(Number(video.duration) || endSeconds, startSeconds + clipDuration);
+    const stopRecording = () => {
+      if (recorder?.state !== 'inactive') recorder.stop();
+    };
+    const update = () => {
+      const elapsed = Math.max(0, video.currentTime - startSeconds);
+      onProgress?.(Math.min(100, (elapsed / clipDuration) * 100));
+      if (video.ended || video.currentTime >= stopAt - 0.04) {
+        video.pause();
+        stopRecording();
+        return;
+      }
+      frame = window.requestAnimationFrame(update);
+    };
+
+    recorder.start(250);
+    await video.play();
+    frame = window.requestAnimationFrame(update);
+    timer = window.setTimeout(stopRecording, Math.ceil(clipDuration * 1000) + 3000);
+    const blob = await result;
+    if (!blob.size) throw new Error('The trimmed video is empty. Try another file.');
+    if (blob.size > 25 * 1024 * 1024) throw new Error('The trimmed video is larger than 25 MB. Choose a shorter section or another file.');
+
+    const baseName = String(file.name || 'video').replace(/\.[^.]+$/, '').slice(0, 80) || 'video';
+    return new File([blob], `${baseName}-trimmed.mp4`, { type: 'video/mp4', lastModified: Date.now() });
+  } finally {
+    window.clearTimeout(timer);
+    window.cancelAnimationFrame(frame);
+    video.pause();
+    if (recorder?.state !== 'inactive') recorder.stop();
+    stream?.getTracks?.().forEach((track) => track.stop());
+    video.removeAttribute('src');
+    URL.revokeObjectURL(sourceUrl);
+  }
+}
+
+function trimDialog() {
+  let dialog = document.getElementById('sauti-video-trimmer');
+  if (dialog) return dialog;
+
+  dialog = document.createElement('dialog');
+  dialog.id = 'sauti-video-trimmer';
+  dialog.className = 'composer-trim-dialog';
+  dialog.setAttribute('aria-labelledby', 'sauti-video-trimmer-title');
+  dialog.innerHTML = `
+    <form method="dialog" class="composer-trim-card">
+      <header>
+        <div><p>Short video</p><h2 id="sauti-video-trimmer-title">Trim video</h2></div>
+        <button type="button" class="composer-trim-close" data-trim-cancel aria-label="Cancel trimming">×</button>
+      </header>
+      <video data-trim-preview controls playsinline preload="metadata"></video>
+      <div class="composer-trim-range">
+        <label><span>Start</span><output data-trim-start-output>0:00</output><input data-trim-start type="range" min="0" step="0.1" value="0"></label>
+        <label><span>End</span><output data-trim-end-output>0:30</output><input data-trim-end type="range" min="1" step="0.1" value="30"></label>
+      </div>
+      <p class="composer-trim-summary" data-trim-summary>Select a clip up to 30 seconds.</p>
+      <p class="composer-trim-status" data-trim-status role="status" aria-live="polite"></p>
+      <footer><button type="button" class="secondary-action" data-trim-cancel>Cancel</button><button type="button" data-trim-use>Use clip</button></footer>
+    </form>`;
+  document.body.append(dialog);
+  return dialog;
+}
+
+function promptVideoTrim(file, duration) {
+  return new Promise((resolve) => {
+    const dialog = trimDialog();
+    const preview = dialog.querySelector('[data-trim-preview]');
+    const start = dialog.querySelector('[data-trim-start]');
+    const end = dialog.querySelector('[data-trim-end]');
+    const startOutput = dialog.querySelector('[data-trim-start-output]');
+    const endOutput = dialog.querySelector('[data-trim-end-output]');
+    const summary = dialog.querySelector('[data-trim-summary]');
+    const status = dialog.querySelector('[data-trim-status]');
+    const use = dialog.querySelector('[data-trim-use]');
+    const cancels = [...dialog.querySelectorAll('[data-trim-cancel]')];
+    const objectUrl = URL.createObjectURL(file);
+    let busy = false;
+    let settled = false;
+
+    start.max = String(Math.max(0, duration - MIN_TRIM_SECONDS));
+    start.value = '0';
+    end.max = String(duration);
+    end.value = String(Math.min(SHORT_VIDEO_LIMIT_SECONDS, duration));
+    preview.src = objectUrl;
+    status.textContent = '';
+
+    const sync = (changed) => {
+      let from = Number(start.value);
+      let to = Number(end.value);
+      if (changed === start) {
+        to = Math.max(to, from + MIN_TRIM_SECONDS);
+        to = Math.min(duration, from + SHORT_VIDEO_LIMIT_SECONDS, to);
+      } else {
+        from = Math.min(from, to - MIN_TRIM_SECONDS);
+        from = Math.max(0, to - SHORT_VIDEO_LIMIT_SECONDS, from);
+      }
+      start.value = String(from);
+      end.value = String(to);
+      startOutput.textContent = formatTrimTime(from);
+      endOutput.textContent = formatTrimTime(to);
+      summary.textContent = `${formatTrimTime(to - from)} clip · maximum 0:30`;
+      preview.currentTime = changed === end ? Math.max(from, to - 0.1) : from;
+    };
+
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      preview.pause();
+      preview.removeAttribute('src');
+      URL.revokeObjectURL(objectUrl);
+      if (dialog.open) dialog.close();
+      resolve(value);
+    };
+
+    const cancel = () => {
+      if (!busy) finish(null);
+    };
+    start.oninput = () => sync(start);
+    end.oninput = () => sync(end);
+    cancels.forEach((button) => { button.onclick = cancel; });
+    dialog.oncancel = (event) => {
+      event.preventDefault();
+      cancel();
+    };
+    use.onclick = async () => {
+      if (busy) return;
+      busy = true;
+      use.disabled = true;
+      cancels.forEach((button) => { button.disabled = true; });
+      status.textContent = 'Trimming… 0%';
+      try {
+        const trimmed = await trimVideoFile(file, Number(start.value), Number(end.value), (progress) => {
+          status.textContent = `Trimming… ${Math.round(progress)}%`;
+        });
+        finish(trimmed);
+      } catch (error) {
+        busy = false;
+        use.disabled = false;
+        cancels.forEach((button) => { button.disabled = false; });
+        status.textContent = error?.message || 'The video could not be trimmed.';
+      }
+    };
+
+    sync(start);
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+  });
+}
+
 async function validateSelectedShortVideo(event) {
   const input = event.currentTarget;
   if (input.dataset.shortVideoValidated === 'true') {
@@ -202,10 +439,18 @@ async function validateSelectedShortVideo(event) {
 
   for (const file of videos) {
     const duration = await videoDuration(file);
+    if (duration != null && duration > MAX_TRIMMABLE_VIDEO_SECONDS + 0.05) {
+      input.value = '';
+      composerMessage('Videos longer than 2 minutes cannot be trimmed here. Choose another file.');
+      return;
+    }
     if (duration != null && duration > SHORT_VIDEO_LIMIT_SECONDS + 0.05) {
       input.value = '';
-      composerMessage(`Short videos are currently limited to ${SHORT_VIDEO_LIMIT_SECONDS} seconds. Choose a video that is ${SHORT_VIDEO_LIMIT_SECONDS} seconds or shorter.`);
-      return;
+      const trimmed = await promptVideoTrim(file, duration);
+      if (!trimmed) return;
+      const transfer = new DataTransfer();
+      files.forEach((selected) => transfer.items.add(selected === file ? trimmed : selected));
+      input.files = transfer.files;
     }
   }
 
@@ -217,7 +462,7 @@ function updateMediaCopy() {
   const heading = document.querySelector('#sauti-media-queue .composer-media-heading strong');
   if (heading) heading.textContent = 'Photos & videos';
   const note = document.querySelector('#sauti-media-queue .composer-media-note');
-  if (note) note.textContent = 'Photos: JPEG, PNG or WebP up to 8 MB. Short videos: MP4 up to 25 MB and 30 seconds. Add alternative text for accessibility.';
+  if (note) note.textContent = 'Photos: JPEG, PNG or WebP up to 8 MB. Videos: MP4 up to 25 MB; trim videos up to 2 minutes into a 30-second clip. Add alternative text for accessibility.';
 }
 
 function buildVideoTool(photoButton, fileInput) {

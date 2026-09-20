@@ -15,7 +15,11 @@ test('composer presents Photo, reels-style Video and a live Poll control', async
   assert.match(source, /document\.createTextNode\('Poll'\)/);
   assert.match(source, /Add 2 to 4 options/);
   assert.match(source, /SHORT_VIDEO_LIMIT_SECONDS = 30/);
-  assert.match(source, /currently limited to \$\{SHORT_VIDEO_LIMIT_SECONDS\} seconds/);
+  assert.match(source, /MAX_TRIMMABLE_VIDEO_SECONDS = 120/);
+  assert.match(source, /promptVideoTrim/);
+  assert.match(source, /supportedMp4RecorderType/);
+  assert.match(source, /Use clip/);
+  assert.match(source, /Videos longer than 2 minutes cannot be trimmed here/);
   assert.match(build.scripts['build:app'], /composer-formats\.js/);
 });
 
@@ -24,7 +28,8 @@ test('server rejects and cleans short-video uploads beyond 30 seconds before sto
   assert.match(router, /SHORT_VIDEO_DURATION_MS = 30_000/);
   assert.match(router, /inspectMp4Bytes\(bytes\)/);
   assert.match(router, /VIDEO_TOO_LONG/);
-  assert.match(router, /currently limited to 30 seconds/);
+  assert.match(router, /Trim it in the composer before uploading/);
+  assert.match(router, /code: 'INVALID_VIDEO'/);
   assert.match(router, /method: 'DELETE'/);
   assert.match(router, /handleSautiMediaRequest\(new Request\(cleanupUrl/);
 });
