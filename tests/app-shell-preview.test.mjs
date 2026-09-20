@@ -93,6 +93,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/index.html'));
   assert.ok(files.includes('app/assets/app.css'));
   assert.ok(files.includes('app/assets/app.js'));
+  assert.ok(files.includes('app/assets/auth-entry-polish.css'));
   assert.ok(files.includes('app/assets/auth-flow-hardening.css'));
   assert.ok(files.includes('app/assets/caption-entities.css'));
   assert.ok(files.includes('app/assets/composer-formats.css'));
@@ -167,6 +168,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/index.html',
     'app/assets/app.css',
     'app/assets/app.js',
+    'app/assets/auth-entry-polish.css',
     'app/assets/auth-flow-hardening.css',
     'app/assets/caption-entities.css',
     'app/assets/composer-formats.css',

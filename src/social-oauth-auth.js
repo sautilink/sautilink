@@ -1,5 +1,5 @@
 const SOCIAL_OAUTH_REDIRECT = 'https://sautilink.com/home';
-const SOCIAL_OAUTH_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20260909-social4';
+const SOCIAL_OAUTH_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20260920-authui1';
 
 let client = null;
 let installed = false;
@@ -72,6 +72,14 @@ function ensureStylesheet() {
   link.rel = 'stylesheet';
   link.href = SOCIAL_OAUTH_STYLESHEET;
   document.head.append(link);
+}
+
+function syncAuthEntryPresentationCopy() {
+  const intro = document.querySelector('#auth-view .auth-intro');
+  const title = intro?.querySelector('h2');
+  const copy = intro?.querySelector('p');
+  if (title) title.textContent = 'Share. Connect. Discover.';
+  if (copy) copy.textContent = 'Posts, messages and Rooms — all in one SautiLink.';
 }
 
 function setProviderButtonsBusy(block, busy) {
@@ -160,10 +168,13 @@ async function startSocialOAuth(event) {
 function install() {
   if (installed || !client) return;
   installed = true;
+  syncAuthEntryPresentationCopy();
   ensureStylesheet();
   createBlock('login-panel', 'login-form', 'login');
   createBlock('signup-panel', 'signup-form', 'signup');
 }
+
+syncAuthEntryPresentationCopy();
 
 window.addEventListener('sautilink:auth-client-ready', (event) => {
   client = event.detail || null;
