@@ -5,14 +5,15 @@ import test from 'node:test';
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('account entry refresh is presentation-only and keeps every existing auth panel', async () => {
-  const [html, css] = await Promise.all([
+  const [html, css, guestCss] = await Promise.all([
     read('app/index.html'),
     read('app/assets/auth-entry-polish.css'),
+    read('app/assets/guest-entry-gate.css'),
   ]);
 
-  assert.match(html, /auth-entry-polish\.css\?v=20260920-authui1/);
-  assert.match(html, /Share\. Connect\. Discover\./);
-  assert.match(html, /Posts, messages and Rooms — all in one SautiLink\./);
+  assert.match(guestCss, /@import url\('\/app\/assets\/auth-entry-polish\.css\?v=20260920-authui1'\)/);
+  assert.match(css, /content: 'Share\. Connect\. Discover\.'/);
+  assert.match(css, /content: 'Posts, messages and Rooms — all in one SautiLink\.'/);
 
   for (const marker of [
     'id="login-panel"',
