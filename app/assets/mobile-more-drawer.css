@@ -321,6 +321,18 @@
     white-space: nowrap;
   }
 
+  .sauti-mobile-drawer-section-title {
+    margin: 13px 8px 5px;
+    padding-top: 14px;
+    border-top: 1px solid color-mix(in srgb, var(--app-line) 82%, transparent);
+    color: var(--app-muted);
+    font-size: 10px;
+    font-weight: 780;
+    letter-spacing: .08em;
+    line-height: 1.4;
+    text-transform: uppercase;
+  }
+
   .sauti-mobile-drawer-chevron,
   .sauti-mobile-drawer-settings-chevron {
     width: 17px !important;
