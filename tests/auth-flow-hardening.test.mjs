@@ -16,8 +16,19 @@ test('recovery return is locked to the new-password panel until password update 
   assert.match(source, /form\.id !== 'password-form'/);
   assert.match(source, /authClient\(\)\.auth\.updateUser\(\{ password \}\)/);
   assert.match(source, /MutationObserver/);
+  assert.match(source, /function recoveryPanelNeedsEnforcement\(\)/);
+  assert.match(source, /function scheduleRecoveryPanelEnforcement\(\)/);
+  assert.match(source, /document\.body\.dataset\.authMode !== 'password'/);
+  assert.match(source, /if \(recoveryEnforcementQueued \|\| !recoveryPanelNeedsEnforcement\(\)\) return/);
+  assert.doesNotMatch(source, /queueMicrotask\(enforceRecoveryPanel\)/);
   assert.match(source, /passwordPanel\.hidden = false/);
   assert.match(source, /setRecoveryLock\(false\)/);
+});
+
+test('recovery panel observer only repairs drift and cannot schedule itself forever', () => {
+  assert.match(source, /if \(document\.body\.dataset\.authMode !== 'password'\) document\.body\.dataset\.authMode = 'password'/);
+  assert.match(source, /if \(recoveryPanelNeedsEnforcement\(\)\) enforceRecoveryPanel\(\)/);
+  assert.match(source, /recoveryEnforcementQueued = false/);
 });
 
 test('email change presents an eight-box OTP flow and verifies email_change codes', () => {

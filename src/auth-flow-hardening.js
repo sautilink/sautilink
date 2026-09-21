@@ -21,6 +21,7 @@ const STYLE_HREF = '/app/assets/auth-flow-hardening.css?v=20260915-authflow1';
 
 let hardenedAuthClient = null;
 let recoveryObserver = null;
+let recoveryEnforcementQueued = false;
 
 function safeSessionGet(key) {
   try {
@@ -109,8 +110,8 @@ function enforceRecoveryPanel() {
   const passwordPanel = document.getElementById('password-panel');
   if (!authView || !passwordPanel) return;
 
-  document.body.classList.add('auth-entry');
-  document.body.dataset.authMode = 'password';
+  if (!document.body.classList.contains('auth-entry')) document.body.classList.add('auth-entry');
+  if (document.body.dataset.authMode !== 'password') document.body.dataset.authMode = 'password';
   if (loading && !loading.hidden) loading.hidden = true;
   if (member && !member.hidden) member.hidden = true;
   if (authView.hidden) authView.hidden = false;
@@ -130,6 +131,45 @@ function enforceRecoveryPanel() {
   if (passwordPanel.hidden) passwordPanel.hidden = false;
 }
 
+function recoveryPanelNeedsEnforcement() {
+  if (!recoveryLocked()) return false;
+  const loading = document.getElementById('loading-view');
+  const member = document.getElementById('member-view');
+  const authView = document.getElementById('auth-view');
+  const authTabs = document.getElementById('auth-tabs');
+  const passwordPanel = document.getElementById('password-panel');
+  if (!authView || !passwordPanel) return false;
+
+  if (!document.body.classList.contains('auth-entry')) return true;
+  if (document.body.dataset.authMode !== 'password') return true;
+  if (loading && !loading.hidden) return true;
+  if (member && !member.hidden) return true;
+  if (authView.hidden) return true;
+  if (authTabs && !authTabs.hidden) return true;
+  if (passwordPanel.hidden) return true;
+
+  return [
+    'login-panel',
+    'signup-panel',
+    'verify-panel',
+    'passwordless-panel',
+    'recovery-panel',
+    'onboarding-panel',
+  ].some((id) => {
+    const panel = document.getElementById(id);
+    return panel && !panel.hidden;
+  });
+}
+
+function scheduleRecoveryPanelEnforcement() {
+  if (recoveryEnforcementQueued || !recoveryPanelNeedsEnforcement()) return;
+  recoveryEnforcementQueued = true;
+  queueMicrotask(() => {
+    recoveryEnforcementQueued = false;
+    if (recoveryPanelNeedsEnforcement()) enforceRecoveryPanel();
+  });
+}
+
 function installRecoveryGuard() {
   if (!recoveryLocked()) return;
   ensureStylesheet();
@@ -137,8 +177,13 @@ function installRecoveryGuard() {
   if (recoveryObserver) return;
 
   recoveryObserver = new MutationObserver(() => {
-    if (!recoveryLocked()) return;
-    queueMicrotask(enforceRecoveryPanel);
+    if (!recoveryLocked()) {
+      recoveryObserver?.disconnect();
+      recoveryObserver = null;
+      recoveryEnforcementQueued = false;
+      return;
+    }
+    scheduleRecoveryPanelEnforcement();
   });
   recoveryObserver.observe(document.documentElement, {
     subtree: true,
