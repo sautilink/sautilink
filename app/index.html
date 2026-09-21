@@ -14,7 +14,7 @@
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <script src="/app/assets/theme-init.js?v=20260904-account2"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260921-room-icon1">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260921-sidebar-links1">
   <!-- First-paint UI: keep the final Auth and Home presentation render-blocking so refresh never shows the legacy shell. -->
   <link id="social-oauth-auth-styles" rel="stylesheet" href="/app/assets/guest-entry-gate.css?v=20260920-authui2">
   <link id="auth-entry-polish-styles" rel="stylesheet" href="/app/assets/auth-entry-polish.css?v=20260920-authui2">
@@ -59,7 +59,8 @@
           <span>SautiLink</span>
         </a>
 
-        <nav class="app-nav" aria-label="Social navigation">
+        <div class="primary-rail-scroll">
+          <nav class="app-nav" aria-label="Social navigation">
           <button class="nav-item active" type="button" data-member-view="stream" aria-current="page">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-9.5Z"></path></svg>
             <span>Home</span>
@@ -102,12 +103,38 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21c.7-4.2 3.2-6.5 7.5-6.5s6.8 2.3 7.5 6.5"></path></svg>
             <span>Profile</span>
           </button>
-        </nav>
+          </nav>
 
-        <button class="share-sauti-button" id="open-sauti-composer" type="button" data-open-sauti-composer disabled>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19h4l10-10-4-4L5 15v4Z"></path><path d="m13.5 6.5 4 4"></path></svg>
-          <span>Create Post</span>
-        </button>
+          <button class="share-sauti-button" id="open-sauti-composer" type="button" data-open-sauti-composer disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19h4l10-10-4-4L5 15v4Z"></path><path d="m13.5 6.5 4 4"></path></svg>
+            <span>Create Post</span>
+          </button>
+
+          <nav class="app-nav primary-rail-secondary" aria-label="SautiLink information">
+            <a class="nav-item" href="/terms">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h8l4 4v13H6Z"></path><path d="M14 3.5v4h4M9 12h6M9 15.5h6"></path></svg>
+              <span>Terms of Service</span>
+            </a>
+            <a class="nav-item" href="/contact">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v13H4Z"></path><path d="m4 7 8 6 8-6"></path></svg>
+              <span>Contact</span>
+            </a>
+          </nav>
+
+          <section class="primary-rail-systems" aria-labelledby="primary-rail-systems-title">
+            <p class="primary-rail-section-title" id="primary-rail-systems-title">Other SautiLink Systems</p>
+            <nav class="app-nav" aria-label="Other SautiLink Systems">
+              <a class="nav-item" href="https://cloudengine.sautilink.com" target="_blank" rel="noopener noreferrer">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 18.5h9.9a4 4 0 0 0 .6-8A6 6 0 0 0 6.3 9.2a4.7 4.7 0 0 0 .9 9.3Z"></path></svg>
+                <span>Cloud Engine</span>
+              </a>
+              <a class="nav-item" href="https://router.sautilink.com" target="_blank" rel="noopener noreferrer">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="11" width="17" height="8" rx="2"></rect><path d="M7 15h.01M11 15h.01M8 8.2a6 6 0 0 1 8 0M10.4 9.8a2.5 2.5 0 0 1 3.2 0"></path></svg>
+                <span>Router Setup Gateway</span>
+              </a>
+            </nav>
+          </section>
+        </div>
 
         <div class="rail-account" id="rail-account" hidden>
           <span class="avatar" id="rail-avatar" aria-hidden="true">S</span>
@@ -1403,6 +1430,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="/app/assets/app.js?v=20260921-room-icon1"></script>
+  <script type="module" src="/app/assets/app.js?v=20260921-sidebar-links1"></script>
 </body>
 </html>

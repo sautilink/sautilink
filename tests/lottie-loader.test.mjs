@@ -58,7 +58,7 @@ test('PWA cache and third-party notices include the local loader dependencies', 
   const sw = await read('sw.js');
   const notices = await read('THIRD_PARTY_NOTICES.md');
 
-  assert.match(sw, /sautilink-shell-v69/);
+  assert.match(sw, /sautilink-shell-v70/);
   for (const asset of [
     '/assets/lottie-loader.js?v=20260917-lottie1',
     '/assets/lottie-loader.css?v=20260917-lottie1',
