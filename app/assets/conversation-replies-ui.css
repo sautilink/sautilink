@@ -30,9 +30,12 @@ body:has(#conversation-surface:not([hidden])) .stream-header {
 }
 
 #conversation-surface .conversation-toolbar-title {
-  display: inline-flex;
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 42px;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
 }
 
 #conversation-surface .conversation-toolbar h2 {
@@ -44,6 +47,9 @@ body:has(#conversation-surface:not([hidden])) .stream-header {
 }
 
 #conversation-surface .conversation-back {
+  position: absolute;
+  top: 50%;
+  left: 0;
   display: inline-flex;
   width: 42px;
   height: 42px;
@@ -57,16 +63,17 @@ body:has(#conversation-surface:not([hidden])) .stream-header {
   font-size: 14px;
   font-weight: 650;
   cursor: pointer;
+  transform: translateY(-50%);
 }
 
 #conversation-surface .conversation-back svg {
-  width: 27px;
-  height: 27px;
+  width: 28px;
+  height: 28px;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2;
+  stroke-width: 2.2;
 }
 
 #conversation-thread {
