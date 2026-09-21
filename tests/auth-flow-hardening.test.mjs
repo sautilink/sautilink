@@ -14,7 +14,10 @@ test('recovery return is locked to the new-password panel until password update 
   assert.match(source, /auth_action'\) === 'recovery'/);
   assert.match(source, /document\.addEventListener\('submit', handleRecoveryPasswordSubmit, true\)/);
   assert.match(source, /form\.id !== 'password-form'/);
-  assert.match(source, /authClient\(\)\.auth\.updateUser\(\{ password \}\)/);
+  assert.match(source, /client\.auth\.updateUser\(\{ password \}\)/);
+  assert.match(source, /passwordUpdateCommittedAfterEmailError/);
+  assert.match(source, /afterUpdatedAt > beforeUpdatedAt/);
+  assert.match(source, /isAuthEmailDeliveryError\(error\)/);
   assert.match(source, /MutationObserver/);
   assert.match(source, /function recoveryPanelNeedsEnforcement\(\)/);
   assert.match(source, /function scheduleRecoveryPanelEnforcement\(\)/);

@@ -76,6 +76,18 @@ export function passwordError(value, context = {}) {
   return '';
 }
 
+export function isAuthEmailDeliveryError(error) {
+  const message = String(error?.message || '').toLowerCase();
+
+  return message.includes('smtp') ||
+    message.includes('authentication failed') ||
+    message.includes('error sending') ||
+    message.includes('confirmation email') ||
+    message.includes('recovery email') ||
+    message.includes('notification email') ||
+    message.includes('email service');
+}
+
 export function friendlyAuthError(error) {
   const code = String(error?.code || '').toLowerCase();
   const message = String(error?.message || '').toLowerCase();
@@ -114,14 +126,7 @@ export function friendlyAuthError(error) {
   if (code.includes('captcha_failed')) {
     return 'The security check could not be verified. Reload the page and try again.';
   }
-  if (
-    message.includes('smtp') ||
-    message.includes('authentication failed') ||
-    message.includes('error sending') ||
-    message.includes('confirmation email') ||
-    message.includes('recovery email') ||
-    message.includes('email service')
-  ) {
+  if (isAuthEmailDeliveryError(error)) {
     return 'SautiLink email service is temporarily unavailable. Please try again shortly.';
   }
   if (message.includes('database error saving new user') || message.includes('error saving new user')) {
