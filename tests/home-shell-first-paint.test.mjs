@@ -4,21 +4,19 @@ import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Home chrome remains hidden until session bootstrap resolves', async () => {
-  const [html, css, app] = await Promise.all([
+test('Home chrome follows loader visibility without a persistent boot class', async () => {
+  const [html, css] = await Promise.all([
     read('app/index.html'),
     read('app/assets/app.css'),
-    read('src/app.js'),
   ]);
 
-  assert.match(html, /<body class="app-booting">/);
+  assert.match(html, /<body>/);
+  assert.doesNotMatch(html, /app-booting/);
   for (const selector of ['mobile-header', 'primary-rail', 'context-rail', 'stream-header', 'mobile-nav']) {
-    assert.match(css, new RegExp(`\\.app-booting \\.${selector}`));
+    assert.ok(css.includes(`body:has(#loading-view:not([hidden])) .${selector}`));
   }
-  assert.match(css, /\.app-booting \.loading-view\s*\{[^}]*min-height:\s*100vh/s);
-  assert.match(app, /function showAuthPanel[\s\S]*classList\.remove\('app-booting'\)/);
-  assert.match(app, /function renderMember[\s\S]*classList\.remove\('app-booting'\)/);
-  assert.match(app, /function showProfileRouteState[\s\S]*classList\.remove\('app-booting'\)/);
+  assert.match(css, /body:has\(#loading-view:not\(\[hidden\]\)\) \.loading-view\s*\{[^}]*min-height:\s*100vh/s);
+  assert.doesNotMatch(css, /\.app-booting/);
 });
 
 test('first-paint mobile shell already matches the enhanced Home shell', async () => {

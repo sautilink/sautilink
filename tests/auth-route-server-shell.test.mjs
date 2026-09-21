@@ -5,7 +5,7 @@ import assetRouter from '../src/asset-router.js';
 
 const shell = `<!DOCTYPE html>
 <html lang="en">
-<body class="app-booting">
+<body>
 <section class="loading-view" id="loading-view" aria-live="polite"><p>Opening SautiLink…</p></section>
 <section class="auth-view" id="auth-view" hidden>
 <div class="auth-intro"><h2>Welcome back to SautiLink</h2><p>Sign in to continue to your account.</p></div>
@@ -79,7 +79,7 @@ test('/home keeps the normal member shell unchanged', async () => {
 
   assert.equal(response.status, 200);
   assert.doesNotMatch(html, /data-sautilink-auth-entry/);
-  assert.match(html, /<body class="app-booting">/);
+  assert.match(html, /<body>/);
   assert.match(html, /<section class="loading-view" id="loading-view" aria-live="polite">/);
   assert.match(html, /<section class="auth-view" id="auth-view" hidden>/);
 });

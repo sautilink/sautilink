@@ -32,7 +32,7 @@ test('Rooms is the canonical user-facing community brand', async () => {
   assert.match(rooms, /roomIconMarkup/);
   assert.match(rooms, /Sautify\\b\/g, 'Room'/);
   assert.doesNotMatch(rooms, /roomInitialCanonicalPath|roomLegacyPath/);
-  assert.match(serviceWorker, /sautilink-shell-v63/);
+  assert.match(serviceWorker, /sautilink-shell-v64/);
 
   assert.match(router, /rooms\|sautify\|circles/);
   assert.match(router, /CLEAN_ROOM_ROUTE/);

@@ -139,7 +139,7 @@ jobs:
               "https://sautilink.com/app/?release=$GITHUB_RUN_ID-$attempt")"
             app_js_code="$(curl -sS -o "$app_js_body" -w '%{http_code}' \
               -H 'Cache-Control: no-cache' \
-              "https://sautilink.com/app/assets/app.js?v=20260921-home-shell1&release=$GITHUB_RUN_ID-$attempt")"
+              "https://sautilink.com/app/assets/app.js?v=20260921-home-tabs1&release=$GITHUB_RUN_ID-$attempt")"
             www_app_code="$(curl -sS -L -o "$www_app_body" -w '%{http_code}' \
               -H 'Cache-Control: no-cache' \
               "https://www.sautilink.com/app/?release=$GITHUB_RUN_ID-$attempt")"
@@ -178,8 +178,8 @@ jobs:
               && ! grep -Fqi 'x-robots-tag: noindex' "$app_headers" \
               && grep -Fq 'id="settings-surface"' "$app_body" \
               && grep -Fq 'theme-init.js?v=20260904-account2' "$app_body" \
-              && grep -Fq 'app.css?v=20260921-home-shell1' "$app_body" \
-              && grep -Fq 'app.js?v=20260921-home-shell1' "$app_body" \
+              && grep -Fq 'app.css?v=20260921-home-tabs1' "$app_body" \
+              && grep -Fq 'app.js?v=20260921-home-tabs1' "$app_body" \
               && grep -Fq 'pwa.js?v=20260916-loadingfix1' "$app_body" \
               && grep -Fq 'sautilink-profile-x-ui' "$app_js_body" \
               && ! grep -Fq 'Private preview' "$app_body" \
