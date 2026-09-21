@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import {
   emailError,
   friendlyAuthError,
+  isAuthEmailDeliveryError,
   normalizeEmail,
   passwordError,
 } from './auth-validation.js';
@@ -203,6 +204,22 @@ async function waitForRecoverySession(timeoutMs = 5000) {
   return null;
 }
 
+async function passwordUpdateCommittedAfterEmailError(client, session, error) {
+  if (!isAuthEmailDeliveryError(error)) return false;
+
+  const beforeUpdatedAt = Date.parse(session?.user?.updated_at || '');
+  if (!Number.isFinite(beforeUpdatedAt)) return false;
+
+  const { data, error: userError } = await client.auth.getUser();
+  const user = data?.user;
+  const afterUpdatedAt = Date.parse(user?.updated_at || '');
+
+  return !userError &&
+    user?.id === session.user.id &&
+    Number.isFinite(afterUpdatedAt) &&
+    afterUpdatedAt > beforeUpdatedAt;
+}
+
 async function handleRecoveryPasswordSubmit(event) {
   const form = event.target;
   if (!(form instanceof HTMLFormElement) || form.id !== 'password-form' || !recoveryLocked()) return;
@@ -227,8 +244,9 @@ async function handleRecoveryPasswordSubmit(event) {
       throw new Error('Your recovery session is still being established. Open the recovery email again or try this page once more.');
     }
 
-    const { error } = await authClient().auth.updateUser({ password });
-    if (error) throw error;
+    const client = authClient();
+    const { error } = await client.auth.updateUser({ password });
+    if (error && !(await passwordUpdateCommittedAfterEmailError(client, session, error))) throw error;
 
     setRecoveryLock(false);
     recoveryObserver?.disconnect();

@@ -5,6 +5,7 @@ import {
   displayNameError,
   emailError,
   friendlyAuthError,
+  isAuthEmailDeliveryError,
   normalizeEmail,
   normalizeUsername,
   passwordError,
@@ -73,4 +74,9 @@ test('maps provider errors without leaking provider details', () => {
     /email service is temporarily unavailable/i,
   );
   assert.match(friendlyAuthError({ message: 'USERNAME_TAKEN' }), /claimed/);
+});
+
+test('identifies post-update security notification delivery failures', () => {
+  assert.equal(isAuthEmailDeliveryError({ message: 'Error sending password changed notification email' }), true);
+  assert.equal(isAuthEmailDeliveryError({ message: 'New password should be different from the old password' }), false);
 });
