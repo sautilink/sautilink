@@ -6,6 +6,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('mobile navigation icon restyle preserves every existing destination', async () => {
   const source = await read('src/mobile-nav-icon-style.js');
+  const html = await read('app/index.html');
 
   for (const view of ['stream', 'discover', 'messages', 'notifications', 'circles', 'profile']) {
     assert.match(source, new RegExp(`\\b${view}: \\[`));
@@ -13,6 +14,9 @@ test('mobile navigation icon restyle preserves every existing destination', asyn
 
   assert.match(source, /button\[data-member-view\]/);
   assert.match(source, /existingIcon\.replaceWith\(icon\)/);
+  assert.match(source, /existingIcon\.classList\.contains\('mobile-nav-icon'\)/);
+  assert.match(html, /class="mobile-nav"[^>]+data-icon-style="bold-outline"/);
+  assert.equal((html.match(/class="mobile-nav-icon"/g) || []).length, 6);
   assert.doesNotMatch(source, /button\.remove\(|nav\.replaceChildren\(|append\(button/);
 });
 

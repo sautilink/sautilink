@@ -129,10 +129,21 @@ test('authenticated mobile header keeps only Create and More as visible actions'
   const drawerCss = await read('app/assets/mobile-more-drawer.css');
 
   assert.match(html, /class="mobile-compose-button"/);
+  assert.match(html, /id="sauti-mobile-more-trigger"/);
   assert.match(html, /class="theme-toggle"[^>]*data-theme-toggle/);
   assert.match(html, /id="mobile-signout-button"/);
   assert.match(drawerCss, /sauti-mobile-drawer-enabled[\s\S]*data-theme-toggle/);
   assert.match(drawerCss, /sauti-mobile-drawer-enabled[\s\S]*mobile-signout-button/);
+});
+
+test('mobile More trigger and stylesheet exist before runtime enhancement', async () => {
+  const html = await read('app/index.html');
+  const source = await read('src/mobile-more-drawer.js');
+
+  assert.match(html, /id="sautilink-mobile-more-drawer-style"[^>]+mobile-more-drawer\.css/);
+  assert.match(html, /id="sauti-mobile-more-trigger"[^>]+hidden/);
+  assert.match(source, /getElementById\(MOBILE_DRAWER_TRIGGER_ID\)/);
+  assert.match(source, /if \(!\(trigger instanceof HTMLButtonElement\)\)/);
 });
 
 test('normal and production app builds both inject the drawer module', async () => {
