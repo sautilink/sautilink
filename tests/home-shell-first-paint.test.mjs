@@ -26,5 +26,6 @@ test('first-paint mobile shell already matches the enhanced Home shell', async (
   assert.match(html, /id="sautilink-mobile-more-drawer-style"/);
   assert.match(html, /class="mobile-nav"[^>]+data-icon-style="bold-outline"/);
   assert.equal((html.match(/class="mobile-nav-icon"/g) || []).length, 6);
-  assert.doesNotMatch(html, /aria-label="Rooms"[^>]*>\s*<svg[^>]*>\s*<rect x="3\.5"/s);
+  assert.match(html, /aria-label="Rooms"[^>]*>\s*<svg[^>]+data-room-icon="true"[^>]*>\s*<rect x="3\.5"/s);
+  assert.doesNotMatch(html, /aria-label="Rooms"[^>]*>[\s\S]*?M16\.1 7\.9/);
 });
