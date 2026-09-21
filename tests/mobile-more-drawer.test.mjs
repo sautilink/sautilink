@@ -18,6 +18,11 @@ test('mobile More drawer delegates to existing SautiLink actions', async () => {
   assert.match(source, /href="\/help"/);
   assert.match(source, /href="\/privacy"/);
   assert.match(source, /href="\/terms"/);
+  assert.match(source, /href="\/contact"/);
+  assert.match(source, />Other SautiLink Systems<\/p>/);
+  assert.match(source, /href="https:\/\/cloudengine\.sautilink\.com" target="_blank" rel="noopener noreferrer"/);
+  assert.match(source, /href="https:\/\/router\.sautilink\.com" target="_blank" rel="noopener noreferrer"/);
+  assert.match(source, />Router Setup Gateway<\/strong>/);
   assert.doesNotMatch(source, /data-mobile-drawer-view="(?:stream|discover|messages|notifications|circles)"/);
   assert.doesNotMatch(source, /supabase|fetch\(|XMLHttpRequest|WebSocket/i);
 });
@@ -113,7 +118,7 @@ test('mobile drawer styles are isolated from the six-item bottom navigation', as
   assert.match(navCss, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
   assert.doesNotMatch(navCss, /sauti-mobile-drawer/);
 
-  assert.match(source, /mobile-more-drawer\.css\?v=20260920-profileverification1/);
+  assert.match(source, /mobile-more-drawer\.css\?v=20260921-sidebar-systems1/);
   assert.match(source, /sauti-mobile-drawer-enabled/);
   assert.match(source, /replaceWithSafeClones/);
   assert.match(drawerCss, /:root\.sauti-mobile-drawer-enabled \.mobile-header \[data-theme-toggle\]/);

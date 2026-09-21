@@ -1,7 +1,7 @@
 const MOBILE_DRAWER_ID = 'sauti-mobile-more-drawer';
 const MOBILE_DRAWER_TRIGGER_ID = 'sauti-mobile-more-trigger';
 const MOBILE_DRAWER_STYLE_ID = 'sautilink-mobile-more-drawer-style';
-const MOBILE_DRAWER_STYLE_HREF = '/app/assets/mobile-more-drawer.css?v=20260920-profileverification1';
+const MOBILE_DRAWER_STYLE_HREF = '/app/assets/mobile-more-drawer.css?v=20260921-sidebar-systems1';
 const MOBILE_BREAKPOINT = 680;
 
 const ICONS = Object.freeze({
@@ -19,6 +19,10 @@ const ICONS = Object.freeze({
   data: '<path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 20h14"></path>',
   appearance: '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>',
   help: '<circle cx="12" cy="12" r="9"></circle><path d="M9.8 9a2.4 2.4 0 1 1 3.7 2c-1 .7-1.5 1.2-1.5 2.3M12 17h.01"></path>',
+  terms: '<path d="M6 3.5h8l4 4v13H6Z"></path><path d="M14 3.5v4h4M9 12h6M9 15.5h6"></path>',
+  contact: '<path d="M4 5.5h16v13H4Z"></path><path d="m4 7 8 6 8-6"></path>',
+  cloud: '<path d="M7.2 18.5h9.9a4 4 0 0 0 .6-8A6 6 0 0 0 6.3 9.2a4.7 4.7 0 0 0 .9 9.3Z"></path>',
+  router: '<rect x="3.5" y="11" width="17" height="8" rx="2"></rect><path d="M7 15h.01M11 15h.01M8 8.2a6 6 0 0 1 8 0M10.4 9.8a2.5 2.5 0 0 1 3.2 0"></path>',
   signout: '<path d="M10 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h5M14 8l4 4-4 4M8 12h10"></path>',
   chevron: '<path d="m9 6 6 6-6 6"></path>',
   chevronDown: '<path d="m6 9 6 6 6-6"></path>',
@@ -154,11 +158,16 @@ function installMobileMoreDrawer() {
       <button type="button" data-mobile-drawer-verification>${icon('verification')}<span><strong>Verification</strong><small data-mobile-drawer-verification-copy>Request or check verification status</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</button>
       <p class="sauti-mobile-drawer-verification-message" data-mobile-drawer-verification-message role="status" aria-live="polite" hidden></p>
       <a href="/help">${icon('help')}<span><strong>Help &amp; support</strong><small>Get help with SautiLink</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
+      <a href="/terms">${icon('terms')}<span><strong>Terms of Service</strong><small>Rules for using SautiLink</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
+      <a href="/contact">${icon('contact')}<span><strong>Contact</strong><small>Reach the SautiLink team</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
+      <p class="sauti-mobile-drawer-section-title">Other SautiLink Systems</p>
+      <a href="https://cloudengine.sautilink.com" target="_blank" rel="noopener noreferrer">${icon('cloud')}<span><strong>Cloud Engine</strong><small>Open SautiLink Cloud Engine</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
+      <a href="https://router.sautilink.com" target="_blank" rel="noopener noreferrer">${icon('router')}<span><strong>Router Setup Gateway</strong><small>Open the router setup system</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
     </nav>
     <div class="sauti-mobile-drawer-spacer"></div>
     <button class="sauti-mobile-drawer-signout" type="button" data-mobile-drawer-signout>${icon('signout')}<span>Log out</span></button>
     <footer class="sauti-mobile-drawer-footer">
-      <a href="/privacy">Privacy</a><span aria-hidden="true">·</span><a href="/terms">Terms</a><span aria-hidden="true">·</span><a href="/about">About</a>
+      <a href="/privacy">Privacy</a><span aria-hidden="true">·</span><a href="/about">About</a>
     </footer>`;
 
   document.body.append(backdrop, drawer);
