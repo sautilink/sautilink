@@ -15,6 +15,8 @@ test('mobile navigation icon restyle preserves every existing destination', asyn
   assert.match(source, /button\[data-member-view\]/);
   assert.match(source, /existingIcon\.replaceWith\(icon\)/);
   assert.match(source, /existingIcon\.classList\.contains\('mobile-nav-icon'\)/);
+  assert.match(source, /circles: \[[\s\S]*?\['rect', \{ x: '3\.5', y: '3\.5', width: '17', height: '17', rx: '4' \}\]/);
+  assert.doesNotMatch(source, /M16\.1 7\.9/);
   assert.match(html, /class="mobile-nav"[^>]+data-icon-style="bold-outline"/);
   assert.equal((html.match(/class="mobile-nav-icon"/g) || []).length, 6);
   assert.doesNotMatch(source, /button\.remove\(|nav\.replaceChildren\(|append\(button/);
