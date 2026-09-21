@@ -37,7 +37,8 @@ test('Notifications keeps one title and places Mark all read in the top header',
   assert.doesNotMatch(notificationsSurface, /class="notifications-toolbar"/);
   assert.equal((html.match(/id="notifications-mark-all"/g) || []).length, 1);
   assert.match(css, /\.notifications-mark-all\s*\{[^}]*display:\s*none;/s);
-  assert.match(css, /body:has\(#notifications-surface:not\(\[hidden\]\)\) \.notifications-mark-all\s*\{[^}]*display:\s*inline-flex;/s);
+  assert.match(css, /body:has\(#notifications-surface:not\(\[hidden\]\)\) \.notifications-mark-all\s*\{[^}]*display:\s*inline-flex;[^}]*min-height:\s*32px;[^}]*padding:\s*0 2px;[^}]*border:\s*0;[^}]*background:\s*transparent;/s);
+  assert.match(css, /@media \(max-width: 680px\)[\s\S]*body:has\(#notifications-surface:not\(\[hidden\]\)\) \.notifications-mark-all\s*\{[^}]*min-height:\s*30px;[^}]*padding:\s*0;/s);
 });
 
 test('Phase 19 notification migration keeps recipient privacy and immutable identity fields', async () => {

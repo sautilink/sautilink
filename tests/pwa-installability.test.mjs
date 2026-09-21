@@ -47,7 +47,7 @@ test('SautiLink exposes an installable PWA shell without changing app behavior',
   assert.match(installStyles, /var\(--brand-primary, #2563eb\)/);
   assert.match(installStyles, /\.sautilink-pwa-app-shell \.sautilink-pwa-install/);
 
-  assert.match(serviceWorker, /sautilink-shell-v67/);
+  assert.match(serviceWorker, /sautilink-shell-v68/);
   assert.match(serviceWorker, /key\.startsWith\("sautilink-shell-"\)/);
   assert.doesNotMatch(serviceWorker, /client\.navigate/);
   assert.match(serviceWorker, /isAppCodeAsset/);
