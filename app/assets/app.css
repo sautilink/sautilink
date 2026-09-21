@@ -617,8 +617,30 @@ body:has(#loading-view:not([hidden])) .loading-view { min-height: 100vh; }
 
 .notifications-surface { min-height: calc(100vh - 72px); }
 .stream-header-actions { display: flex; align-items: center; gap: 8px; }
-.notifications-mark-all { display: none; flex: 0 0 auto; white-space: nowrap; }
-body:has(#notifications-surface:not([hidden])) .notifications-mark-all { display: inline-flex; }
+.notifications-mark-all {
+  display: none;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+body:has(#notifications-surface:not([hidden])) .notifications-mark-all {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-accent-strong);
+  font-size: 11px;
+  font-weight: 760;
+}
+body:has(#notifications-surface:not([hidden])) .notifications-mark-all:hover,
+body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-visible {
+  background: transparent;
+  color: var(--app-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .notifications-list { border-top: 0; }
 .notification-item { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; width: 100%; padding: 17px 20px; border: 0; border-bottom: 1px solid var(--app-line); background: #07101f; color: inherit; text-align: left; cursor: pointer; }
 .notification-item:hover { background: #091526; }
@@ -4382,10 +4404,10 @@ body:not(.auth-entry) select {
     display: none;
   }
 
-  .notifications-mark-all {
-    min-height: 38px;
-    padding: 0 14px;
-    border-radius: 999px;
+  body:has(#notifications-surface:not([hidden])) .notifications-mark-all {
+    min-height: 30px;
+    padding: 0;
+    font-size: 11px;
   }
 
   .composer-card {
