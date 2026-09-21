@@ -9,6 +9,7 @@ const criticalStyles = [
   ['auth-entry-polish-styles', 'auth-entry-polish.css'],
   ['username-prefix-fix-styles', 'username-prefix-fix.css'],
   ['sautilink-mobile-nav-style', 'mobile-nav-icon-style.css'],
+  ['sautilink-mobile-more-drawer-style', 'mobile-more-drawer.css'],
   ['sautilink-caption-entities-style', 'caption-entities.css'],
   ['sautilink-post-media-carousel-style', 'post-media-carousel.css'],
   ['sautilink-video-player-style', 'sautilink-video-player.css'],
@@ -31,8 +32,9 @@ test('Auth and Home final presentation styles block the first paint', async () =
 });
 
 test('runtime enhancers reuse content-hashed first-paint Home stylesheets by stable id', async () => {
-  const [mobileNav, carousel, video, caption] = await Promise.all([
+  const [mobileNav, mobileDrawer, carousel, video, caption] = await Promise.all([
     read('src/mobile-nav-icon-style.js'),
+    read('src/mobile-more-drawer.js'),
     read('src/post-media-carousel.js'),
     read('src/sautilink-video-player.js'),
     read('src/caption-entities.js'),
@@ -40,6 +42,7 @@ test('runtime enhancers reuse content-hashed first-paint Home stylesheets by sta
 
   for (const [source, constant, id] of [
     [mobileNav, 'MOBILE_NAV_STYLE_ID', 'sautilink-mobile-nav-style'],
+    [mobileDrawer, 'MOBILE_DRAWER_STYLE_ID', 'sautilink-mobile-more-drawer-style'],
     [carousel, 'POST_MEDIA_CAROUSEL_STYLESHEET_ID', 'sautilink-post-media-carousel-style'],
     [video, 'SAUTILINK_VIDEO_PLAYER_STYLESHEET_ID', 'sautilink-video-player-style'],
     [caption, 'ENTITY_STYLESHEET_ID', 'sautilink-caption-entities-style'],

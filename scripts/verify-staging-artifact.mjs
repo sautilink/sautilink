@@ -120,13 +120,14 @@ if (/Private preview|Phase 31|Phase 27|Foundation in progress/i.test(appHtml)) {
   throw new Error('development presentation copy leaked into staged app shell');
 }
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('staged theme bootstrap is missing');
-if (!appHtml.includes('app.js?v=20260920-rooms-firstpaint1')) throw new Error('staged app JS cache marker is stale');
-if (!appHtml.includes('app.css?v=20260920-rooms-firstpaint1')) throw new Error('staged app CSS cache marker is stale');
+if (!appHtml.includes('app.js?v=20260921-home-shell1')) throw new Error('staged app JS cache marker is stale');
+if (!appHtml.includes('app.css?v=20260921-home-shell1')) throw new Error('staged app CSS cache marker is stale');
 for (const [id, filename] of [
   ['social-oauth-auth-styles', 'guest-entry-gate.css'],
   ['auth-entry-polish-styles', 'auth-entry-polish.css'],
   ['username-prefix-fix-styles', 'username-prefix-fix.css'],
   ['sautilink-mobile-nav-style', 'mobile-nav-icon-style.css'],
+  ['sautilink-mobile-more-drawer-style', 'mobile-more-drawer.css'],
   ['sautilink-caption-entities-style', 'caption-entities.css'],
   ['sautilink-post-media-carousel-style', 'post-media-carousel.css'],
   ['sautilink-video-player-style', 'sautilink-video-player.css'],

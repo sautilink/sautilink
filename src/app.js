@@ -568,6 +568,7 @@ function showAuthPanel(name) {
     if (button.getAttribute('role') !== 'tab') return;
     button.setAttribute('aria-selected', String(button.dataset.authMode === name));
   });
+  document.body.classList.remove('app-booting');
 }
 
 function showSignedOut(mode = 'login') {
@@ -7966,6 +7967,7 @@ function showProfileRouteState(type, username = '') {
   const [title, message] = copy[type] || copy.error;
   byId('profile-route-title').textContent = title;
   byId('profile-route-message').textContent = message;
+  document.body.classList.remove('app-booting');
 }
 
 function showDiscoverableProfile(profile) {
@@ -7982,6 +7984,7 @@ function showDiscoverableProfile(profile) {
     railAccount.hidden = true;
     mobileSignoutButton.hidden = true;
   }
+  document.body.classList.remove('app-booting');
 }
 
 async function loadDiscoverableProfile(username) {
@@ -8226,6 +8229,7 @@ function renderMember(profile, userId = currentMemberId) {
   void prepareComposer();
   syncComposerOnlineState();
   showMemberSurface('stream', { syncUrl: false });
+  document.body.classList.remove('app-booting');
   void loadStream({ reset: true });
   void ensureDmInboxRealtime();
   void ensureSettingsPreferences()

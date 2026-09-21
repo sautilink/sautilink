@@ -196,7 +196,7 @@ async function cleanAuthShellResponse(request, env, url) {
   let html = await response.text();
   html = html
     .replace(
-      '<body>',
+      /<body(?:\s+class="[^"]*")?\s*>/,
       `<body class="auth-entry" data-auth-mode="${mode}" data-sautilink-auth-entry="${mode}">`,
     )
     .replace(

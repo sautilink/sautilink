@@ -97,6 +97,7 @@ for (const [id, filename] of [
   ['auth-entry-polish-styles', 'auth-entry-polish.css'],
   ['username-prefix-fix-styles', 'username-prefix-fix.css'],
   ['sautilink-mobile-nav-style', 'mobile-nav-icon-style.css'],
+  ['sautilink-mobile-more-drawer-style', 'mobile-more-drawer.css'],
   ['sautilink-caption-entities-style', 'caption-entities.css'],
   ['sautilink-post-media-carousel-style', 'post-media-carousel.css'],
   ['sautilink-video-player-style', 'sautilink-video-player.css'],
@@ -193,8 +194,8 @@ if (!roomsFacebookCss.includes('room-fb-detail-aside')) throw new Error('product
 if (appHtml.includes('Private preview') || appHtml.includes('Phase 31')) throw new Error('production app still contains staging/phase UI copy');
 if (/name="robots"[^>]+noindex/i.test(appHtml)) throw new Error('production app must not carry staging noindex meta');
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('production theme bootstrap is missing');
-if (!appHtml.includes('app.css?v=20260920-rooms-firstpaint1')) throw new Error('production CSS cache marker is missing');
-if (!appHtml.includes('app.js?v=20260920-rooms-firstpaint1')) throw new Error('production JS cache marker is missing');
+if (!appHtml.includes('app.css?v=20260921-home-shell1')) throw new Error('production CSS cache marker is missing');
+if (!appHtml.includes('app.js?v=20260921-home-shell1')) throw new Error('production JS cache marker is missing');
 if (!appHtml.includes('birthdate=20260920-birthdate1')) throw new Error('production birth date cache marker is missing');
 if (!appHtml.includes('pwa.js?v=20260916-loadingfix1')) throw new Error('production PWA cache marker is missing');
 if (!appHtml.includes('/logo.png')) throw new Error('production app must use the main-site logo path');

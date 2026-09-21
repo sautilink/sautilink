@@ -14,12 +14,13 @@
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <script src="/app/assets/theme-init.js?v=20260904-account2"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260920-rooms-firstpaint1">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260921-home-shell1">
   <!-- First-paint UI: keep the final Auth and Home presentation render-blocking so refresh never shows the legacy shell. -->
   <link id="social-oauth-auth-styles" rel="stylesheet" href="/app/assets/guest-entry-gate.css?v=20260920-authui2">
   <link id="auth-entry-polish-styles" rel="stylesheet" href="/app/assets/auth-entry-polish.css?v=20260920-authui2">
   <link id="username-prefix-fix-styles" rel="stylesheet" href="/app/assets/username-prefix-fix.css?v=20260920-authui3">
   <link id="sautilink-mobile-nav-style" rel="stylesheet" href="/app/assets/mobile-nav-icon-style.css?v=20260907-nav1">
+  <link id="sautilink-mobile-more-drawer-style" rel="stylesheet" href="/app/assets/mobile-more-drawer.css?v=20260920-profileverification1">
   <link id="sautilink-caption-entities-style" rel="stylesheet" href="/app/assets/caption-entities.css?v=20260909-theme1">
   <link id="sautilink-post-media-carousel-style" rel="stylesheet" href="/app/assets/post-media-carousel.css?v=20260914-instagram2">
   <link id="sautilink-video-player-style" rel="stylesheet" href="/app/assets/sautilink-video-player.css">
@@ -27,7 +28,7 @@
   <link rel="stylesheet" href="/app/assets/profile-settings-ui.css?v=20260918-profile2">
   <script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>
 </head>
-<body>
+<body class="app-booting">
   <a class="skip-link" href="#stream">Skip to main content</a>
 
   <header class="mobile-header">
@@ -38,6 +39,9 @@
     <div class="mobile-header-actions">
       <button class="mobile-compose-button" type="button" data-open-sauti-composer aria-label="Create Post" title="Create Post" disabled>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19h4l10-10-4-4L5 15v4Z"></path><path d="m13.5 6.5 4 4"></path></svg>
+      </button>
+      <button class="sauti-mobile-more-trigger" id="sauti-mobile-more-trigger" type="button" hidden aria-label="Open more menu" aria-controls="sauti-mobile-more-drawer" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h12M4 17h16"></path></svg>
       </button>
       <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" title="Switch to light theme">
         <svg class="theme-toggle-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>
@@ -1222,13 +1226,13 @@
     </aside>
   </div>
 
-  <nav class="mobile-nav" aria-label="Mobile social navigation">
-    <button class="active" type="button" data-member-view="stream" aria-label="Home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-9.5Z"></path></svg></button>
-    <button type="button" data-member-view="discover" aria-label="Discover"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4M11 7.5v7M7.5 11h7"></path></svg></button>
-    <button type="button" data-member-view="messages" aria-label="Messages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v11H8l-4 3v-14Z"></path><path d="M8 10h8M8 13h5"></path></svg><span class="mobile-notification-badge" data-message-badge hidden>0</span></button>
-    <button type="button" data-member-view="notifications" aria-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span class="mobile-notification-badge" data-notification-badge hidden>0</span></button>
-    <button type="button" data-member-view="circles" aria-label="Rooms"><svg viewBox="0 0 24 24" aria-hidden="true" data-room-icon="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><circle cx="9" cy="10" r="2.2"></circle><circle cx="15.5" cy="10.8" r="1.8"></circle><path d="M5.8 17c.4-2.5 1.5-3.7 3.4-3.7s3 1.2 3.4 3.7M13 14.4c2.5-.5 4.1.5 4.5 2.6"></path></svg></button>
-    <button type="button" data-member-view="profile" aria-label="Profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21c.7-4.2 3.2-6.5 7.5-6.5s6.8 2.3 7.5 6.5"></path></svg></button>
+  <nav class="mobile-nav" aria-label="Mobile social navigation" data-icon-style="bold-outline">
+    <button class="active" type="button" data-member-view="stream" aria-label="Home" aria-current="page"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.8 10.7 12 4l8.2 6.7v8.4c0 1-.8 1.8-1.8 1.8h-4.6v-6.2h-3.6v6.2H5.6c-1 0-1.8-.8-1.8-1.8v-8.4Z"></path></svg></button>
+    <button type="button" data-member-view="discover" aria-label="Discover"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.7" cy="10.7" r="6.5"></circle><path d="m15.6 15.6 4.5 4.5"></path></svg></button>
+    <button type="button" data-member-view="messages" aria-label="Messages"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.2 4.7h13.6c1 0 1.8.8 1.8 1.8v8.7c0 1-.8 1.8-1.8 1.8H9.3L4 20.4v-4.7a1.8 1.8 0 0 1-.6-1.4V6.5c0-1 .8-1.8 1.8-1.8Z"></path></svg><span class="mobile-notification-badge" data-message-badge hidden>0</span></button>
+    <button type="button" data-member-view="notifications" aria-label="Notifications"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 9.2c0-3.6-2.4-5.9-6.3-5.9S5.7 5.6 5.7 9.2c0 4.9-1.8 5.7-2.6 7.2-.3.6.1 1.2.8 1.2h16.2c.7 0 1.1-.6.8-1.2-.8-1.5-2.6-2.3-2.6-7.2Z"></path><path d="M9.4 20.3h5.2"></path></svg><span class="mobile-notification-badge" data-notification-badge hidden>0</span></button>
+    <button type="button" data-member-view="circles" aria-label="Rooms"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true" data-room-icon="true"><circle cx="12" cy="12" r="7.3"></circle><path d="M16.1 7.9c-4.6.4-7.8 3.5-8.2 8.2 4.7-.4 7.8-3.6 8.2-8.2Z"></path><path d="m8.9 15.1 6.2-6.2"></path></svg></button>
+    <button type="button" data-member-view="profile" aria-label="Profile"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.2" r="3.5"></circle><path d="M5.1 20.2c.8-4.2 3.1-6.3 6.9-6.3s6.1 2.1 6.9 6.3"></path></svg></button>
   </nav>
 
   <dialog class="verification-request-dialog" id="verification-request-dialog" aria-labelledby="verification-request-title">
@@ -1403,6 +1407,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="/app/assets/app.js?v=20260920-rooms-firstpaint1"></script>
+  <script type="module" src="/app/assets/app.js?v=20260921-home-shell1"></script>
 </body>
 </html>

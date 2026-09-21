@@ -436,6 +436,14 @@ svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: 
 .mobile-signout { padding: 7px 9px; border: 1px solid var(--app-line); border-radius: 9px; background: #0d1a2d; color: #b7c6d8; font-size: 9px; font-weight: 720; }
 
 .mobile-header { display: none; }
+.app-booting .mobile-header,
+.app-booting .primary-rail,
+.app-booting .context-rail,
+.app-booting .stream-header,
+.app-booting .mobile-nav { visibility: hidden; }
+.app-booting .app-layout { grid-template-columns: minmax(0, 1fr); width: 100%; }
+.app-booting .stream-column { grid-column: 1; border-right: 0; }
+.app-booting .loading-view { min-height: 100vh; }
 .app-layout { display: grid; grid-template-columns: var(--rail-width) minmax(0, var(--stream-width)) var(--context-width); width: min(100%, calc(var(--rail-width) + var(--stream-width) + var(--context-width))); min-height: 100vh; margin: 0 auto; }
 .primary-rail { border-right: 1px solid var(--app-line); }
 .primary-rail-inner { position: sticky; top: 0; display: flex; min-height: 100vh; max-height: 100vh; flex-direction: column; padding: 24px 18px 18px; }

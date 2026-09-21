@@ -1,5 +1,6 @@
 const MOBILE_DRAWER_ID = 'sauti-mobile-more-drawer';
 const MOBILE_DRAWER_TRIGGER_ID = 'sauti-mobile-more-trigger';
+const MOBILE_DRAWER_STYLE_ID = 'sautilink-mobile-more-drawer-style';
 const MOBILE_DRAWER_STYLE_HREF = '/app/assets/mobile-more-drawer.css?v=20260920-profileverification1';
 const MOBILE_BREAKPOINT = 680;
 
@@ -28,8 +29,9 @@ function icon(name, className = '') {
 }
 
 function ensureMobileDrawerStylesheet() {
-  if (document.querySelector(`link[href="${MOBILE_DRAWER_STYLE_HREF}"]`)) return;
+  if (document.getElementById(MOBILE_DRAWER_STYLE_ID)) return;
   const link = document.createElement('link');
+  link.id = MOBILE_DRAWER_STYLE_ID;
   link.rel = 'stylesheet';
   link.href = MOBILE_DRAWER_STYLE_HREF;
   document.head.append(link);
@@ -87,18 +89,20 @@ function installMobileMoreDrawer() {
 
   ensureMobileDrawerStylesheet();
 
-  const trigger = document.createElement('button');
-  trigger.id = MOBILE_DRAWER_TRIGGER_ID;
-  trigger.className = 'sauti-mobile-more-trigger';
-  trigger.type = 'button';
-  trigger.hidden = true;
-  trigger.setAttribute('aria-label', 'Open more menu');
-  trigger.setAttribute('aria-controls', MOBILE_DRAWER_ID);
-  trigger.setAttribute('aria-expanded', 'false');
-  trigger.innerHTML = icon('menu');
-
-  const themeButton = headerActions.querySelector('[data-theme-toggle]');
-  headerActions.insertBefore(trigger, themeButton || null);
+  let trigger = document.getElementById(MOBILE_DRAWER_TRIGGER_ID);
+  if (!(trigger instanceof HTMLButtonElement)) {
+    trigger = document.createElement('button');
+    trigger.id = MOBILE_DRAWER_TRIGGER_ID;
+    trigger.className = 'sauti-mobile-more-trigger';
+    trigger.type = 'button';
+    trigger.hidden = true;
+    trigger.setAttribute('aria-label', 'Open more menu');
+    trigger.setAttribute('aria-controls', MOBILE_DRAWER_ID);
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.innerHTML = icon('menu');
+    const themeButton = headerActions.querySelector('[data-theme-toggle]');
+    headerActions.insertBefore(trigger, themeButton || null);
+  }
 
   const backdrop = document.createElement('button');
   backdrop.className = 'sauti-mobile-drawer-backdrop';

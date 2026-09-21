@@ -70,6 +70,7 @@ export function styleMobileNavigation(nav = document.querySelector(MOBILE_NAV_SE
     const icon = createMobileNavIcon(button.dataset.memberView);
     const existingIcon = button.querySelector('svg');
     if (!icon || !existingIcon) return;
+    if (existingIcon.classList.contains('mobile-nav-icon')) return;
     existingIcon.replaceWith(icon);
   });
 }
