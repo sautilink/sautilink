@@ -6200,7 +6200,7 @@ async function loadConversation(postId) {
         .maybeSingle();
       if (rootError) throw rootError;
       if (!rootRow) {
-        errorCopy.textContent = 'The root post for this conversation is unavailable.';
+        errorCopy.textContent = 'The original post for these comments is unavailable.';
         errorState.hidden = false;
         return;
       }
@@ -6244,7 +6244,7 @@ async function loadConversation(postId) {
   } catch {
     if (requestId !== sautiConversationRequest) return;
     activeSautiConversation = null;
-    errorCopy.textContent = 'This conversation could not be opened.';
+    errorCopy.textContent = 'Comments could not be opened.';
     errorState.hidden = false;
   } finally {
     if (requestId === sautiConversationRequest) loading.hidden = true;
@@ -7860,7 +7860,7 @@ function setMemberNavigation(name) {
               : name === 'moderation'
                 ? 'Moderation'
                 : name === 'conversation'
-              ? 'Conversation'
+              ? 'Comments'
               : name === 'circles'
                 ? 'Room'
                 : 'Home';
