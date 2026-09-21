@@ -23,7 +23,7 @@ test('comments use a compact YouTube-scale thread visual layer', async () => {
   assert.doesNotMatch(html, /id="conversation-root"/);
 });
 
-test('comments page places an icon-only back control directly before Comments', async () => {
+test('comments page keeps Comments centered with an iOS back control at the far left', async () => {
   const [html, css, source] = await Promise.all([
     read('app/index.html'),
     read('app/assets/conversation-replies-ui.css'),
@@ -33,8 +33,9 @@ test('comments page places an icon-only back control directly before Comments', 
   assert.match(html, /class="conversation-toolbar-title">[\s\S]*?id="conversation-back"[\s\S]*?<svg[\s\S]*?<\/button>[\s\S]*?<h2>Comments<\/h2>/);
   assert.doesNotMatch(html, /id="conversation-back"[\s\S]*?<span>Back<\/span>/);
   assert.match(css, /body:has\(#conversation-surface:not\(\[hidden\]\)\) \.stream-header\s*\{[^}]*display:\s*none;/s);
-  assert.match(css, /#conversation-surface \.conversation-toolbar-title\s*\{[^}]*display:\s*inline-flex;/s);
-  assert.match(css, /#conversation-surface \.conversation-back svg \{[^}]*width:\s*27px;/s);
+  assert.match(css, /#conversation-surface \.conversation-toolbar-title\s*\{[^}]*position:\s*relative;[^}]*width:\s*100%;[^}]*justify-content:\s*center;/s);
+  assert.match(css, /#conversation-surface \.conversation-back\s*\{[^}]*position:\s*absolute;[^}]*left:\s*0;/s);
+  assert.match(css, /#conversation-surface \.conversation-back svg \{[^}]*width:\s*28px;[^}]*stroke-width:\s*2\.2;/s);
   assert.doesNotMatch(source, /name === 'conversation'\s*\? 'Conversation'/);
   assert.doesNotMatch(html, /Focused conversation|<h2>Conversation<\/h2>|Commenting on|Text comment|conversation-thread-heading|conversation-sort/);
 });
@@ -57,7 +58,7 @@ test('comments stylesheet is versioned and bundled by both builders', async () =
     read('scripts/build-production-release.mjs'),
   ]);
 
-  assert.match(runtime, /conversation-replies-ui\.css\?v=20260921-comments-header1/);
+  assert.match(runtime, /conversation-replies-ui\.css\?v=20260921-comments-back2/);
   assert.match(runtime, /ensureConversationRepliesUiStyles/);
   assert.match(normal, /src\/conversation-replies-ui\.js/);
   assert.match(production, /conversation-replies-ui\.js/);
