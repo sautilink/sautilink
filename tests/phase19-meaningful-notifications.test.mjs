@@ -24,6 +24,22 @@ test('Phase 19 activates notifications without redesigning the app shell', async
   assert.match(css, /\.notification-badge/);
 });
 
+test('Notifications keeps one title and places Mark all read in the top header', async () => {
+  const html = await read('app/index.html');
+  const css = await read('app/assets/app.css');
+  const streamHeader = html.match(/<header class="stream-header">([\s\S]*?)<\/header>/)?.[1] || '';
+  const notificationsSurface = html.match(/<section class="notifications-surface"[\s\S]*?<\/section>\s*<\/section>/)?.[0] || '';
+
+  assert.match(streamHeader, /id="view-title"/);
+  assert.match(streamHeader, /id="notifications-mark-all"/);
+  assert.doesNotMatch(notificationsSurface, /Your activity/i);
+  assert.doesNotMatch(notificationsSurface, /Follow, post interactions and Room membership activity/i);
+  assert.doesNotMatch(notificationsSurface, /class="notifications-toolbar"/);
+  assert.equal((html.match(/id="notifications-mark-all"/g) || []).length, 1);
+  assert.match(css, /\.notifications-mark-all\s*\{[^}]*display:\s*none;/s);
+  assert.match(css, /body:has\(#notifications-surface:not\(\[hidden\]\)\) \.notifications-mark-all\s*\{[^}]*display:\s*inline-flex;/s);
+});
+
 test('Phase 19 notification migration keeps recipient privacy and immutable identity fields', async () => {
   const sql = await read('supabase/migrations/20260901154500_enable_phase19_meaningful_notifications.sql');
 
