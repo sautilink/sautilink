@@ -14,7 +14,7 @@
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <script src="/app/assets/theme-init.js?v=20260904-account2"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260921-comments-back2">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260921-messages-notifications1">
   <!-- First-paint UI: keep the final Auth and Home presentation render-blocking so refresh never shows the legacy shell. -->
   <link id="social-oauth-auth-styles" rel="stylesheet" href="/app/assets/guest-entry-gate.css?v=20260920-authui2">
   <link id="auth-entry-polish-styles" rel="stylesheet" href="/app/assets/auth-entry-polish.css?v=20260920-authui2">
@@ -122,10 +122,13 @@
     <main class="stream-column" id="stream">
       <header class="stream-header">
         <h1 id="view-title">Home</h1>
-        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" title="Switch to light theme">
-          <svg class="theme-toggle-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>
-          <svg class="theme-toggle-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.2A8.4 8.4 0 0 1 8.8 3.8 8.5 8.5 0 1 0 20.2 15.2Z"></path></svg>
-        </button>
+        <div class="stream-header-actions">
+          <button class="secondary-action notifications-mark-all" id="notifications-mark-all" type="button" disabled>Mark all read</button>
+          <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" title="Switch to light theme">
+            <svg class="theme-toggle-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>
+            <svg class="theme-toggle-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.2A8.4 8.4 0 0 1 8.8 3.8 8.5 8.5 0 1 0 20.2 15.2Z"></path></svg>
+          </button>
+        </div>
       </header>
 
       <section class="auth-result" id="auth-result" role="status" aria-live="polite" hidden>
@@ -644,14 +647,6 @@
         </dialog>
 
         <section class="notifications-surface" id="notifications-surface" aria-label="Notifications" hidden>
-          <header class="notifications-toolbar">
-            <div>
-              <p class="section-label">Your activity</p>
-              <h2>Notifications</h2>
-              <p>Follow, post interactions and Room membership activity in one place.</p>
-            </div>
-            <button class="secondary-action" id="notifications-mark-all" type="button" disabled>Mark all read</button>
-          </header>
           <section class="stream-state" id="notifications-loading" role="status" hidden>
             <span class="loading-mark"></span>
             <p>Loading notifications…</p>
@@ -1408,6 +1403,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="/app/assets/app.js?v=20260921-comments-back2"></script>
+  <script type="module" src="/app/assets/app.js?v=20260921-messages-notifications1"></script>
 </body>
 </html>

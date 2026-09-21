@@ -6536,7 +6536,9 @@ async function renderPeerReadReceipt(conversationId, messages = []) {
     if (!meta || meta.querySelector('.dm-read-receipt')) return;
     const seen = document.createElement('span');
     seen.className = 'dm-read-receipt';
-    seen.textContent = 'Seen';
+    seen.textContent = '✓✓';
+    seen.setAttribute('aria-label', 'Read');
+    seen.title = 'Read';
     meta.append(seen);
   } catch {
     // Read receipts are privacy-gated and non-critical.

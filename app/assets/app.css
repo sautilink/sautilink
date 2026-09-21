@@ -616,10 +616,9 @@ body:has(#loading-view:not([hidden])) .loading-view { min-height: 100vh; }
 .stream-more .secondary-action { min-width: 130px; }
 
 .notifications-surface { min-height: calc(100vh - 72px); }
-.notifications-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 22px 20px; border-bottom: 1px solid var(--app-line); background: #081426; }
-.notifications-toolbar h2 { margin: 3px 0 0; color: #eef5ff; font-size: 20px; letter-spacing: -.035em; }
-.notifications-toolbar > div > p:last-child { max-width: 390px; margin: 8px 0 0; color: var(--app-muted); font-size: 10px; line-height: 1.55; }
-.notifications-toolbar .secondary-action { flex: 0 0 auto; }
+.stream-header-actions { display: flex; align-items: center; gap: 8px; }
+.notifications-mark-all { display: none; flex: 0 0 auto; white-space: nowrap; }
+body:has(#notifications-surface:not([hidden])) .notifications-mark-all { display: inline-flex; }
 .notifications-list { border-top: 0; }
 .notification-item { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; width: 100%; padding: 17px 20px; border: 0; border-bottom: 1px solid var(--app-line); background: #07101f; color: inherit; text-align: left; cursor: pointer; }
 .notification-item:hover { background: #091526; }
@@ -4126,7 +4125,6 @@ body:not(.auth-entry) {
 }
 
 .surface-toolbar,
-.notifications-toolbar,
 .circles-toolbar,
 .messages-toolbar,
 .settings-toolbar,
@@ -4137,7 +4135,6 @@ body:not(.auth-entry) {
 }
 
 .surface-toolbar h2,
-.notifications-toolbar h2,
 .stream-state.error h2 {
   color: var(--app-text);
 }
@@ -4383,6 +4380,12 @@ body:not(.auth-entry) select {
 
   .stream-header .theme-toggle {
     display: none;
+  }
+
+  .notifications-mark-all {
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 999px;
   }
 
   .composer-card {

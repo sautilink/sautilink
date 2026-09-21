@@ -80,7 +80,7 @@ test('Phase 35 enables microphone only for the SautiLink app and leaves camera b
   assert.match(androidRelease, /android\.permission\.RECORD_AUDIO/);
   assert.match(androidRelease, /android\.permission\.MODIFY_AUDIO_SETTINGS/);
   assert.doesNotMatch(androidRelease, /android\.permission\.CAMERA/);
-  assert.match(serviceWorker, /sautilink-shell-v66/);
+  assert.match(serviceWorker, /sautilink-shell-v67/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
 });
 
