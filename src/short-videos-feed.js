@@ -1,5 +1,5 @@
 const SHORT_VIDEOS_STYLESHEET = '/app/assets/short-videos-feed.css?v=20260907-short1';
-const HOME_VIDEO_TILE_SELECTOR = '#stream-feed .sauti-media-tile[data-media-kind="video"][data-media-object-url]';
+const HOME_VIDEO_TILE_SELECTOR = '#stream-feed .sauti-media-tile[data-media-kind="video"][data-open-media-id]';
 const SHORT_VIDEOS_ROOT_ID = 'sauti-short-videos';
 const SHORT_VIDEO_PREFETCH_DISTANCE = 2;
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -36,6 +36,18 @@ function profileHrefFor(card) {
 function sourceCardForPost(postId) {
   return [...document.querySelectorAll('#stream-feed .sauti-card')]
     .find((card) => card.dataset.postId === postId) || null;
+}
+
+function mediaUrlForTile(tile) {
+  return String(tile?.dataset.mediaObjectUrl || '').trim();
+}
+
+function sourceTileForSlide(slide) {
+  const card = sourceCardForPost(slide?.dataset.postId);
+  const mediaId = String(slide?.dataset.mediaId || '');
+  if (!card || !mediaId) return null;
+  return [...card.querySelectorAll('.sauti-media-tile[data-media-kind="video"][data-open-media-id]')]
+    .find((tile) => tile.dataset.openMediaId === mediaId) || null;
 }
 
 function actionSourceFor(card, action) {
@@ -130,7 +142,7 @@ function createShortVideoSlide(tile) {
   const card = tile.closest('.sauti-card');
   if (!card) return null;
   const postId = String(card.dataset.postId || '');
-  const mediaId = String(tile.dataset.openMediaId || tile.dataset.mediaObjectUrl || 'video');
+  const mediaId = String(tile.dataset.openMediaId || 'video');
   const key = `${postId}:${mediaId}`;
   const username = String(card.dataset.authorUsername || 'member');
   const displayName = String(card.dataset.authorName || username || 'SautiLink member');
@@ -143,6 +155,7 @@ function createShortVideoSlide(tile) {
   slide.className = 'sauti-short-video-slide';
   slide.dataset.shortVideoKey = key;
   slide.dataset.postId = postId;
+  slide.dataset.mediaId = mediaId;
   slide.dataset.authorId = String(card.dataset.authorId || '');
   slide.setAttribute('aria-label', `Short video by @${username}`);
 
@@ -154,7 +167,8 @@ function createShortVideoSlide(tile) {
   frame.dataset.mediaKind = 'video';
 
   const video = document.createElement('video');
-  video.src = tile.dataset.mediaObjectUrl;
+  const mediaUrl = mediaUrlForTile(tile);
+  if (mediaUrl) video.src = mediaUrl;
   video.playsInline = true;
   video.preload = 'metadata';
   video.loop = true;
@@ -163,6 +177,7 @@ function createShortVideoSlide(tile) {
   video.volume = sourceVideo?.volume > 0 ? sourceVideo.volume : 1;
   if (sourceVideo?.poster) video.poster = sourceVideo.poster;
   video.setAttribute('aria-label', tile.dataset.mediaAlt ? `Video: ${tile.dataset.mediaAlt}` : `Video by @${username}`);
+  frame.setAttribute('aria-busy', String(!mediaUrl));
   frame.append(video);
   stage.append(frame);
 
@@ -247,6 +262,18 @@ function createShortVideoSlide(tile) {
 function syncSlideFromSource(slide) {
   const card = sourceCardForPost(slide?.dataset.postId);
   if (!card) return;
+
+  const sourceTile = sourceTileForSlide(slide);
+  const mediaUrl = mediaUrlForTile(sourceTile);
+  const frame = slide.querySelector('.sauti-short-video-frame');
+  const video = frame?.querySelector('video');
+  if (frame) frame.setAttribute('aria-busy', String(!mediaUrl));
+  if (video && mediaUrl && video.src !== mediaUrl) {
+    video.src = mediaUrl;
+    if (slide.classList.contains('active') && video.dataset.sautiUserPaused !== 'true') {
+      video.play().catch(() => {});
+    }
+  }
 
   const follow = slide.querySelector('[data-short-follow]');
   const sourceFollow = card.querySelector('[data-home-follow]');
@@ -389,6 +416,18 @@ function installShortVideosFeed() {
     return closest;
   }
 
+  function requestMediaAround(index = activeSlideIndex()) {
+    const list = videoSlides();
+    if (index < 0 || !list.length) return;
+    const last = Math.min(list.length - 1, index + SHORT_VIDEO_PREFETCH_DISTANCE);
+    for (let position = index; position <= last; position += 1) {
+      const slide = list[position];
+      const sourceTile = sourceTileForSlide(slide);
+      if (!sourceTile || mediaUrlForTile(sourceTile)) continue;
+      sourceTile.dispatchEvent(new CustomEvent('sautilink:request-media-load'));
+    }
+  }
+
   function requestMoreIfNeeded(index = activeSlideIndex()) {
     const list = videoSlides();
     if (index < 0 || index < list.length - 1 - SHORT_VIDEO_PREFETCH_DISTANCE || endIsKnown() || loadingMore) return;
@@ -410,10 +449,12 @@ function installShortVideosFeed() {
   function activateSlide(slide) {
     if (!slide || root.hidden) return;
     videoSlides().forEach((item) => item.classList.toggle('active', item === slide));
+    const index = videoSlides().indexOf(slide);
+    requestMediaAround(index);
+    syncSlideFromSource(slide);
     const video = slide.querySelector('.sauti-short-video-frame video');
     pauseShortVideos(video);
-    if (video && video.dataset.sautiUserPaused !== 'true') video.play().catch(() => {});
-    const index = videoSlides().indexOf(slide);
+    if (video?.src && video.dataset.sautiUserPaused !== 'true') video.play().catch(() => {});
     requestMoreIfNeeded(index);
   }
 
@@ -502,7 +543,12 @@ function installShortVideosFeed() {
         if (!root.hidden) requestMoreIfNeeded();
       }, 180);
     });
-    sourceObserver.observe(streamFeed, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-active', 'data-following'] });
+    sourceObserver.observe(streamFeed, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['data-active', 'data-following', 'data-media-object-url'],
+    });
   }
 
   const streamMore = document.getElementById('stream-more');

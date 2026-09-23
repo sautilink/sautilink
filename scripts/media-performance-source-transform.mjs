@@ -351,11 +351,20 @@ function waitForSautiMediaNearViewport(tile) {
   if (!tile || !('IntersectionObserver' in window)) return Promise.resolve();
   const preloadMargin = Math.min(Math.max(Number(window.innerHeight || 720), 480), 1200);
   return new Promise((resolve) => {
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) return;
-      observer.disconnect();
+    let settled = false;
+    let observer = null;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      observer?.disconnect();
+      tile.removeEventListener('sautilink:request-media-load', finish);
       resolve();
+    };
+    observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      finish();
     }, { rootMargin: \`\${preloadMargin}px 0px\` });
+    tile.addEventListener('sautilink:request-media-load', finish, { once: true });
     observer.observe(tile);
   });
 }

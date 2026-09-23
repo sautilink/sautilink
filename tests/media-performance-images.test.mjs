@@ -41,6 +41,8 @@ test('Home feed waits for viewport proximity, requests sized protected blobs, an
   for (const marker of [
     'SAUTI_MEDIA_VARIANT_WIDTHS = Object.freeze([480, 960, 1440])',
     'waitForSautiMediaNearViewport(button)',
+    "tile.addEventListener('sautilink:request-media-load', finish, { once: true })",
+    "tile.removeEventListener('sautilink:request-media-load', finish)",
     "url.searchParams.set('w', String(variantWidth))",
     'new IntersectionObserver',
     'selectSautiMediaVariantWidth(media, button)',

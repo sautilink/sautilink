@@ -1,5 +1,5 @@
-const CACHE_NAME = "sautilink-shell-v72";
-const APP_RELEASE = "20260922-password-recovery-save1";
+const CACHE_NAME = "sautilink-shell-v73";
+const APP_RELEASE = "20260923-short-videos-load-all1";
 const APP_FEATURE_RELEASE = "20260918-signup2";
 const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.css",
