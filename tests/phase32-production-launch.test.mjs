@@ -20,11 +20,11 @@ test('Phase 32 production artifact targets production Supabase and removes previ
   assert.doesNotMatch(bundle, /profile-x-ui\.css\?v=20260918-profile2/);
   assert.doesNotMatch(html, /Private preview|Phase 31/);
   assert.doesNotMatch(html, /name="robots"[^>]+noindex/i);
-  assert.match(html, /app\.css\?v=20260922-password-recovery-save1/);
+  assert.match(html, /app\.css\?v=20260923-short-videos-load-all1/);
   assert.match(html, /id="sautilink-profile-x-ui"[^>]+profile-x-ui\.css\?v=[a-f0-9]{12}/);
   assert.match(html, /profile-settings-ui\.css\?v=[a-f0-9]{12}/);
   assert.doesNotMatch(html, /profile-(?:x|settings)-ui\.css\?v=20260918-profile2/);
-  assert.match(html, /app\.js\?v=20260922-password-recovery-save1/);
+  assert.match(html, /app\.js\?v=20260923-short-videos-load-all1/);
   assert.match(html, /theme-init\.js\?v=20260904-account2/);
   assert.match(html, /\/logo\.png/);
   assert.doesNotMatch(html, /logo-compact\.webp/);
@@ -116,7 +116,7 @@ test('Phase 32 production build and verifier are permanent repository gates', as
     'https://sautilink.com/login',
     'https://sautilink.com/signup',
     'https://sautilink.com/home',
-    'app.js?v=20260922-password-recovery-save1',
+    'app.js?v=20260923-short-videos-load-all1',
     'pwa.js?v=20260916-loadingfix1',
     'sautilink-profile-x-ui',
   ]) assert.ok(workflow.includes(marker), `production workflow missing ${marker}`);
@@ -124,7 +124,7 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   assert.match(buildScript, /dist-production-worker/);
   assert.match(buildScript, /dist-production-site/);
   assert.match(buildScript, /PRODUCTION_URL/);
-  assert.match(buildScript, /APP_JS_RELEASE = '20260922-password-recovery-save1'/);
+  assert.match(buildScript, /APP_JS_RELEASE = '20260923-short-videos-load-all1'/);
   assert.match(buildScript, /messages-durable-realtime\.js/);
   assert.match(verifyScript, /staging Supabase identity leaked into production artifact/);
   assert.match(verifyScript, /production browser bundle missing X-style profile UI loader/);
@@ -133,8 +133,8 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   assert.match(stampScript, /createHash\('sha256'\)/);
   assert.match(stampScript, /profile-x-ui\.css/);
   assert.match(hashVerifyScript, /content-hashed production UI stylesheets/);
-  assert.match(serviceWorker, /sautilink-shell-v72/);
-  assert.match(serviceWorker, /20260922-password-recovery-save1/);
+  assert.match(serviceWorker, /sautilink-shell-v73/);
+  assert.match(serviceWorker, /20260923-short-videos-load-all1/);
 });
 
 test('Phase 32 generated production files exist and no source map is emitted', async () => {

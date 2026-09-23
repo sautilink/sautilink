@@ -7,7 +7,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('Short Videos reuses the canonical Home feed and social actions', async () => {
   const source = await read('src/short-videos-feed.js');
 
-  assert.match(source, /#stream-feed \.sauti-media-tile\[data-media-kind="video"\]/);
+  assert.match(source, /#stream-feed \.sauti-media-tile\[data-media-kind="video"\]\[data-open-media-id\]/);
   assert.match(source, /stream-more/);
   assert.match(source, /stream-load-more/);
   assert.match(source, /\[data-home-follow\]/);
@@ -15,6 +15,25 @@ test('Short Videos reuses the canonical Home feed and social actions', async () 
   assert.match(source, /\[data-repost-toggle\]/);
   assert.match(source, /actionName === 'comments'/);
   assert.doesNotMatch(source, /createClient|supabase|fetch\(|XMLHttpRequest|WebSocket/i);
+});
+
+test('Short Videos exposes every video tile while loading protected media on demand', async () => {
+  const [source, performanceTransform] = await Promise.all([
+    read('src/short-videos-feed.js'),
+    read('scripts/media-performance-source-transform.mjs'),
+  ]);
+
+  assert.doesNotMatch(
+    source.split('\n')[1],
+    /data-media-object-url/,
+    'the source selector must not hide offscreen video tiles before their protected bytes load',
+  );
+  assert.match(source, /function requestMediaAround/);
+  assert.match(source, /sautilink:request-media-load/);
+  assert.match(source, /index \+ SHORT_VIDEO_PREFETCH_DISTANCE/);
+  assert.match(source, /attributeFilter: \['data-active', 'data-following', 'data-media-object-url'\]/);
+  assert.match(performanceTransform, /tile\.addEventListener\('sautilink:request-media-load', finish, \{ once: true \}\)/);
+  assert.match(performanceTransform, /tile\.removeEventListener\('sautilink:request-media-load', finish\)/);
 });
 
 test('Short Videos carries profile identity and verification without inventing a second badge state', async () => {

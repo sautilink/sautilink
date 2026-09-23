@@ -63,6 +63,6 @@ test('normal and production builders apply member bootstrap resilience and produ
   ]);
   assert.match(normal, /transformMemberBootstrapResilienceSource/);
   assert.match(production, /transformMemberBootstrapResilienceSource/);
-  assert.match(production, /20260922-password-recovery-save1/);
-  assert.match(verifier, /app\.js\?v=20260922-password-recovery-save1/);
+  assert.match(production, /20260923-short-videos-load-all1/);
+  assert.match(verifier, /app\.js\?v=20260923-short-videos-load-all1/);
 });
