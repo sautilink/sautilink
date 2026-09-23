@@ -49,7 +49,7 @@ test('app and launch splash use Lottie without changing launch failsafes', async
   assert.match(launchJs, /loader\.mount\(stage, \{ mode: "launch" \}\)/);
   assert.match(launchJs, /const minimum = reducedMotion \? 320 : 1900/);
   assert.match(launchJs, /const maximum = reducedMotion \? 900 : 4200/);
-  assert.match(launchJs, /\/sw\.js\?v=20260916-loadingfix1/);
+  assert.match(launchJs, /\/sw\.js\?v=20260923-install-home1/);
   assert.match(launchCss, /\.sl-launch-logo-stage\.sl-lottie-ready \.sl-launch-orbit/);
   assert.match(launchCss, /\.sl-launch-logo-stage\.sl-lottie-ready \.sl-launch-logo/);
 });

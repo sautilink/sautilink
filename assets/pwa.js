@@ -1,14 +1,18 @@
 (() => {
   if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
 
-  const PWA_RELEASE = '20260916-loadingfix1';
+  const PWA_RELEASE = '20260923-install-home1';
   const SERVICE_WORKER_URL = `/sw.js?v=${PWA_RELEASE}`;
+  const HOME_PATH_PATTERN = /^\/home\/?$/;
+  const ROUTE_CHANGE_EVENT = 'sautilink:routechange';
   let deferredInstallPrompt = null;
 
   const isStandalone = () => (
     window.matchMedia('(display-mode: standalone)').matches ||
     window.navigator.standalone === true
   );
+
+  const isHomeRoute = () => HOME_PATH_PATTERN.test(window.location.pathname);
 
   const installButton = document.createElement('button');
   installButton.type = 'button';
@@ -34,9 +38,21 @@
   };
 
   const showInstallButton = () => {
-    if (isStandalone() || !deferredInstallPrompt) return hideInstallButton();
+    if (!isHomeRoute() || isStandalone() || !deferredInstallPrompt) return hideInstallButton();
     installButton.hidden = false;
   };
+
+  for (const methodName of ['pushState', 'replaceState']) {
+    const nativeMethod = window.history[methodName].bind(window.history);
+    window.history[methodName] = (...args) => {
+      const result = nativeMethod(...args);
+      window.dispatchEvent(new Event(ROUTE_CHANGE_EVENT));
+      return result;
+    };
+  }
+
+  window.addEventListener('popstate', showInstallButton);
+  window.addEventListener(ROUTE_CHANGE_EVENT, showInstallButton);
 
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
