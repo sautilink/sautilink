@@ -180,7 +180,7 @@ jobs:
               && grep -Fq 'theme-init.js?v=20260904-account2' "$app_body" \
               && grep -Fq 'app.css?v=20260923-short-videos-load-all1' "$app_body" \
               && grep -Fq 'app.js?v=20260923-short-videos-load-all1' "$app_body" \
-              && grep -Fq 'pwa.js?v=20260923-install-home1' "$app_body" \
+              && grep -Fq 'pwa.js?v=20260923-web-push1' "$app_body" \
               && grep -Fq 'sautilink-profile-x-ui' "$app_js_body" \
               && ! grep -Fq 'Private preview' "$app_body" \
               && ! grep -Fq 'Phase 31' "$app_body" \

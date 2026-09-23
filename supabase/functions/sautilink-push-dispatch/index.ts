@@ -1,10 +1,20 @@
+import { buildPushPayload } from "@block65/webcrypto-web-push";
+
 const MAX_BODY_BYTES = 2048;
 const REQUEST_TIMEOUT_MS = 10_000;
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
+const WEB_PUSH_PUBLIC_KEY = "BDt6BePKFcUKr9rFR33MSDJh2uXMsO2k-Bje0-ryABGqC4k7pj0W7QBsk4njhMAu7Bb2nkWfLKI1_bN6UCOFrnU";
+const WEB_PUSH_SUBJECT = "mailto:support@sautilink.com";
+const WEB_PUSH_ENDPOINT_HOSTS = new Set([
+  "fcm.googleapis.com",
+  "updates.push.services.mozilla.com",
+  "web.push.apple.com",
+]);
 const TERMINAL_QUEUE_STATES = new Set(["delivered", "no_tokens", "skipped"]);
 
 let cachedGoogleToken = { value: "", expiresAt: 0 };
+let cachedVapidPrivateKey = { value: "", expiresAt: 0 };
 
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -23,6 +33,15 @@ function clean(value: unknown) {
 
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function isSafeWebPushEndpoint(value: string) {
+  try {
+    const endpoint = new URL(value);
+    return endpoint.protocol === "https:" && WEB_PUSH_ENDPOINT_HOSTS.has(endpoint.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
 }
 
 function decodeFirebaseServiceAccount() {
@@ -173,6 +192,23 @@ async function patchQueue(queueId: string, values: Record<string, unknown>) {
     headers: { Prefer: "return=minimal" },
     body: JSON.stringify(values),
   });
+}
+
+async function vapidPrivateKey() {
+  const now = Date.now();
+  if (cachedVapidPrivateKey.value && cachedVapidPrivateKey.expiresAt > now) {
+    return cachedVapidPrivateKey.value;
+  }
+  const result = await adminRest("rpc/get_web_push_vapid_private_key_server_v1", {
+    method: "POST",
+    body: "{}",
+  });
+  const value = typeof result.body === "string" ? clean(result.body) : "";
+  if (!result.ok || !/^[A-Za-z0-9_-]{43}$/.test(value)) {
+    throw new Error("vapid_private_key_unavailable");
+  }
+  cachedVapidPrivateKey = { value, expiresAt: now + 10 * 60_000 };
+  return value;
 }
 
 async function getActor(actorId: string | null) {
@@ -330,6 +366,51 @@ async function sendFcm(token: string, payload: Record<string, string>) {
   }
 }
 
+async function sendWebPush(subscription: Record<string, unknown>, payload: Record<string, string>) {
+  const endpoint = clean(subscription.endpoint);
+  const p256dh = clean(subscription.p256dh);
+  const auth = clean(subscription.auth);
+  if (!isSafeWebPushEndpoint(endpoint) || !p256dh || !auth) {
+    return { ok: false, status: 410, body: { error: "invalid_subscription" } };
+  }
+
+  try {
+    const request = await buildPushPayload(
+      {
+        data: JSON.stringify({
+          title: payload.title,
+          body: payload.body,
+          route: payload.route,
+          type: payload.type,
+          event: payload.event || "",
+          source_id: payload.sourceId,
+        }),
+        options: { ttl: 300, urgency: "high" },
+      },
+      { endpoint, keys: { p256dh, auth } },
+      {
+        subject: WEB_PUSH_SUBJECT,
+        publicKey: WEB_PUSH_PUBLIC_KEY,
+        privateKey: await vapidPrivateKey(),
+      },
+    );
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(endpoint, { ...request, signal: controller.signal });
+      return { ok: response.ok, status: response.status, body: await response.text().catch(() => "") };
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      body: { error: error instanceof DOMException && error.name === "AbortError" ? "timeout" : clean(error) || "network" },
+    };
+  }
+}
+
 function isPermanentTokenFailure(result: { status: number; body: unknown }) {
   const text = JSON.stringify(result.body || {}).toUpperCase();
   return text.includes("UNREGISTERED") || text.includes("REGISTRATION_TOKEN_NOT_REGISTERED");
@@ -399,25 +480,31 @@ Deno.serve(async (req) => {
     return json(200, { ok: true, status: "skipped" });
   }
 
-  const tokensResult = await adminRest(
-    `push_device_tokens?user_id=eq.${encodeURIComponent(recipientId)}&enabled=is.true&select=id,token&order=last_seen_at.desc&limit=10`,
-    { method: "GET" },
-  );
-  if (!tokensResult.ok) {
-    const retryAt = new Date(Date.now() + Math.min(30, Math.max(1, attempts)) * 60_000).toISOString();
-    await patchQueue(queueId, { status: "failed", next_attempt_at: retryAt, last_error: "token_lookup_failed" });
-    return json(503, { ok: false, error: "token_lookup_failed" });
-  }
-
+  const [tokensResult, subscriptionsResult] = await Promise.all([
+    adminRest(
+      `push_device_tokens?user_id=eq.${encodeURIComponent(recipientId)}&enabled=is.true&select=id,token&order=last_seen_at.desc&limit=10`,
+      { method: "GET" },
+    ),
+    adminRest(
+      `web_push_subscriptions?user_id=eq.${encodeURIComponent(recipientId)}&enabled=is.true&select=id,endpoint,p256dh,auth&order=last_seen_at.desc&limit=10`,
+      { method: "GET" },
+    ),
+  ]);
   const tokens = Array.isArray(tokensResult.body) ? tokensResult.body as Array<Record<string, unknown>> : [];
-  if (!tokens.length) {
+  const subscriptions = Array.isArray(subscriptionsResult.body)
+    ? subscriptionsResult.body as Array<Record<string, unknown>>
+    : [];
+  const lookupFailures = Number(!tokensResult.ok) + Number(!subscriptionsResult.ok);
+  if (!tokens.length && !subscriptions.length && lookupFailures === 0) {
     await patchQueue(queueId, { status: "no_tokens", processed_at: new Date().toISOString(), last_error: null });
     return json(200, { ok: true, status: "no_tokens" });
   }
 
   let sent = 0;
-  let transientFailures = 0;
+  let transientFailures = lookupFailures;
   const failureCodes: string[] = [];
+  if (!tokensResult.ok) failureCodes.push("fcm_lookup");
+  if (!subscriptionsResult.ok) failureCodes.push("web_lookup");
   for (const entry of tokens) {
     const token = clean(entry.token);
     const tokenId = clean(entry.id);
@@ -437,7 +524,23 @@ Deno.serve(async (req) => {
       continue;
     }
     transientFailures += 1;
-    failureCodes.push(String(result.status || "network"));
+    failureCodes.push(`fcm:${String(result.status || "network")}`);
+  }
+
+  for (const subscription of subscriptions) {
+    const subscriptionId = clean(subscription.id);
+    if (!subscriptionId) continue;
+    const result = await sendWebPush(subscription, payload);
+    if (result.ok) {
+      sent += 1;
+      continue;
+    }
+    if (result.status === 404 || result.status === 410) {
+      await adminRest(`web_push_subscriptions?id=eq.${encodeURIComponent(subscriptionId)}`, { method: "DELETE" });
+      continue;
+    }
+    transientFailures += 1;
+    failureCodes.push(`web:${String(result.status || "network")}`);
   }
 
   if (sent > 0) {
@@ -459,7 +562,7 @@ Deno.serve(async (req) => {
     status: attempts >= 5 ? "skipped" : "failed",
     processed_at: attempts >= 5 ? new Date().toISOString() : null,
     next_attempt_at: retryAt,
-    last_error: `fcm_failed:${failureCodes.slice(0, 5).join(",")}`,
+    last_error: `push_failed:${failureCodes.slice(0, 5).join(",")}`,
   });
-  return json(503, { ok: false, error: "fcm_delivery_failed", attempts });
+  return json(503, { ok: false, error: "push_delivery_failed", attempts });
 });

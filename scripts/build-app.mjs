@@ -122,6 +122,7 @@ await build({
     resolve(projectRoot, 'src/whatsapp-otp-auth.js'),
     resolve(projectRoot, 'src/sautilink-video-player.js'),
     resolve(projectRoot, 'src/android-push-notifications.js'),
+    resolve(projectRoot, 'src/web-push-notifications.js'),
   ],
   plugins: [profileTabIconsPlugin, roomsStartupIsolationPlugin],
   outfile: resolve(projectRoot, 'app/assets/app.js'),

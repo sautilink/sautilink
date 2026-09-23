@@ -2689,6 +2689,8 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
 .settings-card-title strong, .settings-data-card strong { color: #eef5ff; font-size: 11px; }
 .settings-card-title small, .settings-note, .settings-select small { color: var(--app-muted); font-size: 9px; line-height: 1.5; }
 .settings-card-copy, .settings-data-card p, .settings-empty { margin: 0; color: var(--app-muted); font-size: 10px; line-height: 1.55; }
+.settings-web-push-control { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 14px; }
+.settings-web-push-control .secondary-action { min-height: 38px; }
 .settings-details { display: grid; gap: 1px; margin: 0; overflow: hidden; border: 1px solid var(--app-line); border-radius: 10px; }
 .settings-details div { display: grid; grid-template-columns: 110px minmax(0,1fr); gap: 12px; padding: 10px 11px; background: #091525; }
 .settings-details div + div { border-top: 1px solid var(--app-line); }
@@ -2731,6 +2733,7 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
 .settings-data-actions { display: grid; justify-items: end; gap: 5px; }
 .settings-danger { min-height: 36px; padding: 0 12px; border: 1px solid #70404a; border-radius: 9px; background: #27131a; color: #f4c9d0; font: inherit; font-size: 9px; font-weight: 800; }
 .settings-danger:disabled { opacity: .46; }
+@media (max-width: 560px) { .settings-web-push-control { grid-template-columns: 1fr; } .settings-web-push-control .secondary-action { width: 100%; } }
 .settings-delete-dialog { width: min(92vw, 520px); padding: 0; border: 1px solid var(--app-line-strong); border-radius: 16px; background: #081426; color: #e8f0fb; box-shadow: 0 22px 70px rgba(0,0,0,.38); }
 .settings-delete-dialog::backdrop { background: rgba(0,0,0,.68); }
 .settings-delete-form { display: grid; gap: 14px; padding: 18px; }

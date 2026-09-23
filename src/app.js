@@ -5440,6 +5440,7 @@ function syncNotificationBadges(count = 0) {
     badge.textContent = notificationUnreadCount > 99 ? '99+' : String(notificationUnreadCount);
     badge.hidden = notificationUnreadCount < 1;
   });
+  globalThis.__sautilinkSetAppBadge?.(notificationUnreadCount);
 }
 
 async function refreshNotificationBadge() {

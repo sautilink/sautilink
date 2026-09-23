@@ -47,6 +47,6 @@ async function signOut() {
   const output = transformAndroidPushSource('/repo/src/app.js', input);
   assert.match(output, /__sautilinkPushBridge/);
   assert.match(output, /supabase\.rpc\(name, args\)/);
-  assert.match(output, /__sautilinkPushBeforeSignOut/);
-  assert.ok(output.indexOf('__sautilinkPushBeforeSignOut') < output.indexOf('supabase.auth.signOut'));
+  assert.match(output, /__sautilinkPushCleanupHooks/);
+  assert.ok(output.indexOf('__sautilinkPushCleanupHooks') < output.indexOf('supabase.auth.signOut'));
 });
