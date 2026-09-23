@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "@block65/webcrypto-web-push": "npm:@block65/webcrypto-web-push@2.0.0"
+  }
+}

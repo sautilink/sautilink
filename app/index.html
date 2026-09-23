@@ -999,6 +999,14 @@
 
           <section class="settings-panel" data-settings-panel="notifications" hidden>
             <div class="settings-panel-heading"><p class="section-label">Only useful signals</p><h3>Notifications</h3><p>Choose which activity appears in your in-app attention surfaces.</p></div>
+            <article class="settings-card settings-web-push-card" id="settings-web-push-card">
+              <div class="settings-card-title"><strong>Device notifications</strong><small>Receive messages and important activity even when SautiLink is closed.</small></div>
+              <div class="settings-web-push-control">
+                <p class="settings-card-copy" id="settings-web-push-status" role="status">Checking this device…</p>
+                <button class="secondary-action" id="settings-web-push-action" type="button" disabled>Please wait…</button>
+              </div>
+              <small class="settings-note">Permission is requested only after you choose Enable. You can turn it off for this device at any time.</small>
+            </article>
             <article class="settings-card settings-toggle-list">
               <label class="settings-toggle-row"><span><strong>Post activity</strong><small>Comments, Likes and Reposts involving your posts.</small></span><input id="settings-notify-post" type="checkbox"><i aria-hidden="true"><b></b></i></label>
               <label class="settings-toggle-row"><span><strong>Messages</strong><small>Show unread message badges.</small></span><input id="settings-notify-messages" type="checkbox"><i aria-hidden="true"><b></b></i></label>

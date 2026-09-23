@@ -24,7 +24,7 @@ export function transformAndroidPushSource(filePath, source) {
 
     output = output.replace(
       signOutAnchor,
-      `  ${SIGNOUT_MARKER}\n  await globalThis.__sautilinkPushBeforeSignOut?.();\n${signOutAnchor}`,
+      `  ${SIGNOUT_MARKER}\n  await Promise.allSettled(Array.from(globalThis.__sautilinkPushCleanupHooks || [], (cleanup) => cleanup()));\n${signOutAnchor}`,
     );
   }
 

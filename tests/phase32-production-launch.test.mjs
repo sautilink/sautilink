@@ -117,7 +117,7 @@ test('Phase 32 production build and verifier are permanent repository gates', as
     'https://sautilink.com/signup',
     'https://sautilink.com/home',
     'app.js?v=20260923-short-videos-load-all1',
-    'pwa.js?v=20260923-install-home1',
+    'pwa.js?v=20260923-web-push1',
     'sautilink-profile-x-ui',
   ]) assert.ok(workflow.includes(marker), `production workflow missing ${marker}`);
 
@@ -133,7 +133,7 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   assert.match(stampScript, /createHash\('sha256'\)/);
   assert.match(stampScript, /profile-x-ui\.css/);
   assert.match(hashVerifyScript, /content-hashed production UI stylesheets/);
-  assert.match(serviceWorker, /sautilink-shell-v73/);
+  assert.match(serviceWorker, /sautilink-shell-v74/);
   assert.match(serviceWorker, /20260923-short-videos-load-all1/);
 });
 

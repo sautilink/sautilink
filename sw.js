@@ -1,6 +1,7 @@
-const CACHE_NAME = "sautilink-shell-v73";
+const CACHE_NAME = "sautilink-shell-v74";
 const APP_RELEASE = "20260923-short-videos-load-all1";
 const APP_FEATURE_RELEASE = "20260918-signup2";
+const PWA_RELEASE = "20260923-web-push1";
 const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.css",
   "/app/assets/app.js",
@@ -20,7 +21,7 @@ const APP_SHELL = [
   "/assets/icon-192.png",
   "/assets/icon-maskable-512.png",
   "/assets/brand/system.css",
-  `/assets/pwa.js?v=${APP_RELEASE}`,
+  `/assets/pwa.js?v=${PWA_RELEASE}`,
   "/assets/launch-splash.css",
   "/assets/launch-splash.js",
   "/assets/lottie-loader.js?v=20260917-lottie1",
@@ -62,6 +63,52 @@ self.addEventListener("activate", (event) => {
       .filter((key) => key.startsWith("sautilink-shell-") && key !== CACHE_NAME)
       .map((key) => caches.delete(key)));
     await self.clients.claim();
+  })());
+});
+
+function safeNotificationRoute(value) {
+  const route = String(value || "").trim();
+  if (!route.startsWith("/") || route.startsWith("//")) return "/notifications";
+  if (/^\/(?:notifications|home|settings)\/?(?:[?#].*)?$/.test(route)) return route;
+  if (/^\/appeals\/?(?:\?action=\d+)?$/.test(route)) return route;
+  if (/^\/u\/[a-z0-9][a-z0-9._]{2,29}\/?(?:[?#].*)?$/i.test(route)) return route;
+  if (/^\/post\/[0-9a-f-]{36}\/?(?:[?#].*)?$/i.test(route)) return route;
+  if (/^\/messages(?:\/[0-9a-f-]{36})?\/?(?:[?#].*)?$/i.test(route)) return route;
+  return "/notifications";
+}
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try { payload = event.data?.json() || {}; } catch { payload = {}; }
+  const title = String(payload.title || "SautiLink").slice(0, 80);
+  const body = String(payload.body || "You have a new notification.").slice(0, 240);
+  const route = safeNotificationRoute(payload.route);
+  event.waitUntil(Promise.all([
+    self.registration.showNotification(title, {
+      body,
+      icon: "/assets/icon-192.png",
+      badge: "/assets/icon-192.png",
+      tag: `sautilink-${String(payload.type || "update")}-${String(payload.source_id || "new")}`,
+      data: { route },
+    }),
+    typeof self.navigator?.setAppBadge === "function"
+      ? self.navigator.setAppBadge().catch(() => {})
+      : Promise.resolve(),
+  ]));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const route = safeNotificationRoute(event.notification.data?.route);
+  const destination = new URL(route, self.location.origin);
+  event.waitUntil((async () => {
+    const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of clients) {
+      if (new URL(client.url).origin !== destination.origin) continue;
+      if ("navigate" in client) await client.navigate(destination.href).catch(() => null);
+      return client.focus();
+    }
+    return self.clients.openWindow(destination.href);
   })());
 });
 

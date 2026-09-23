@@ -22,7 +22,7 @@ test('SautiLink exposes an installable PWA shell without changing app behavior',
   const manifest = JSON.parse(manifestText);
 
   assert.match(rootHtml, /<link rel="manifest" href="\/manifest\.json">/);
-  assert.match(rootHtml, /<script src="\/assets\/pwa\.js\?v=20260923-install-home1" defer><\/script>/);
+  assert.match(rootHtml, /<script src="\/assets\/pwa\.js\?v=20260923-web-push1" defer><\/script>/);
   assert.equal(manifest.name, 'SautiLink');
   assert.equal(manifest.start_url, '/home');
   assert.equal(manifest.scope, '/');
@@ -52,9 +52,9 @@ test('SautiLink exposes an installable PWA shell without changing app behavior',
   assert.match(installStyles, /var\(--brand-primary, #2563eb\)/);
   assert.match(installStyles, /\.sautilink-pwa-app-shell \.sautilink-pwa-install/);
 
-  assert.match(serviceWorker, /sautilink-shell-v73/);
+  assert.match(serviceWorker, /sautilink-shell-v74/);
   assert.match(serviceWorker, /key\.startsWith\("sautilink-shell-"\)/);
-  assert.doesNotMatch(serviceWorker, /client\.navigate/);
+  assert.match(serviceWorker, /addEventListener\("notificationclick"/);
   assert.match(serviceWorker, /isAppCodeAsset/);
   assert.match(serviceWorker, /\(\?:rooms\|sautify\)/);
   assert.match(serviceWorker, /url\.pathname\.startsWith\("\/api\/"\)/);
@@ -62,5 +62,5 @@ test('SautiLink exposes an installable PWA shell without changing app behavior',
   assert.match(productionBuild, /wireProductionPwa/);
   assert.match(productionBuild, /<link rel=\\?"manifest\\?" href=\\?"\/manifest\.json\\?">/);
   assert.match(productionBuild, /\/assets\/pwa\.js\?v=\$\{PWA_RELEASE\}/);
-  assert.match(productionBuild, /PWA_RELEASE = '20260923-install-home1'/);
+  assert.match(productionBuild, /PWA_RELEASE = '20260923-web-push1'/);
 });

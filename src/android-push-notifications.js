@@ -113,7 +113,8 @@ async function removeRegistration() {
   rememberToken('');
 }
 
-globalThis.__sautilinkPushBeforeSignOut = removeRegistration;
+globalThis.__sautilinkPushCleanupHooks ||= new Set();
+globalThis.__sautilinkPushCleanupHooks.add(removeRegistration);
 
 async function ensurePushListeners(plugin) {
   if (pushListenersReady) return;
