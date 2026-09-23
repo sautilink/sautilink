@@ -117,7 +117,7 @@ test('Phase 32 production build and verifier are permanent repository gates', as
     'https://sautilink.com/signup',
     'https://sautilink.com/home',
     'app.js?v=20260923-short-videos-load-all1',
-    'pwa.js?v=20260916-loadingfix1',
+    'pwa.js?v=20260923-install-home1',
     'sautilink-profile-x-ui',
   ]) assert.ok(workflow.includes(marker), `production workflow missing ${marker}`);
 
