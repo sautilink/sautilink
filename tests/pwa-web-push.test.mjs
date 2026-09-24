@@ -19,7 +19,7 @@ test('service worker receives push and safely opens supported links', async () =
   assert.match(worker, /clients\.matchAll/);
   assert.match(worker, /clients\.openWindow/);
   assert.match(worker, /safeNotificationRoute/);
-  assert.match(worker, /sautilink-shell-v74/);
+  assert.match(worker, /sautilink-shell-v75/);
 });
 
 test('device notification permission is user initiated and persists through narrow RPCs', async () => {
@@ -33,6 +33,25 @@ test('device notification permission is user initiated and persists through narr
   assert.match(source, /unregister_web_push_subscription_v1/);
   assert.match(source, /__sautilinkPushCleanupHooks/);
   assert.match(source, /__sautilinkSetAppBadge/);
+});
+
+test('installed PWA offers a respectful notification opt-in after sign-in', async () => {
+  const source = await read('src/web-push-notifications.js');
+  const css = await read('app/assets/app.css');
+  assert.match(source, /matchMedia\?\.\('\(display-mode: standalone\)'\)/);
+  assert.match(source, /navigator\?\.standalone === true/);
+  assert.match(source, /session\?\.user\?\.id/);
+  assert.match(source, /WEB_PUSH_PROMPT_COOLDOWN_MS = 7 \* 24 \* 60 \* 60 \* 1000/);
+  assert.match(source, /data-web-push-prompt-later/);
+  assert.match(source, /Turn on notifications/);
+  assert.match(source, /addEventListener\('click', async \(event\) =>/);
+  assert.match(css, /\.sautilink-web-push-prompt/);
+});
+
+test('already granted permission repairs a missing subscription without reopening permission UI', async () => {
+  const source = await read('src/web-push-notifications.js');
+  assert.match(source, /Notification\.permission === 'granted'\) return enableWebPush\(\{ allowPermissionPrompt: false \}\)/);
+  assert.match(source, /if \(Notification\.permission !== 'granted' && !allowPermissionPrompt\)/);
 });
 
 test('web push subscriptions are private and VAPID secret access is server only', async () => {
