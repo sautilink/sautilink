@@ -75,7 +75,7 @@ test('production variants privately revalidate while protected originals stay no
   assert.match(router, /protectedMediaDelivery/);
   assert.match(router, /isApiPath\(url\.pathname\) && !protectedMediaDelivery/);
   assert.match(mediaApi, /private, max-age=0, must-revalidate/);
-  assert.match(mediaApi, /headers\.set\('Cache-Control', 'private, no-store, max-age=0'\);/);
+  assert.match(mediaApi, /video \? 'private, max-age=300, must-revalidate' : 'private, no-store, max-age=0'/);
 });
 
 test('production protected media reports access, cache, R2, transform, and total Server-Timing', async () => {
@@ -97,7 +97,7 @@ test('production protected media reports access, cache, R2, transform, and total
   ]) assert.ok(mediaApi.includes(marker), `missing media timing marker: ${marker}`);
 
   const accessStart = mediaApi.indexOf('const accessStartedAt = mediaTimingNow()');
-  const accessQuery = mediaApi.indexOf('const row = await selectMedia(id, authorization(request))', accessStart);
+  const accessQuery = mediaApi.indexOf('const row = await selectMedia(id, mediaDeliveryAuthorization(request))', accessStart);
   const accessDone = mediaApi.indexOf('timings.accessMs = mediaTimingDuration(accessStartedAt)', accessQuery);
   assert.ok(accessStart >= 0 && accessQuery > accessStart && accessDone > accessQuery, 'access timing must wrap the existing RLS media lookup');
   assert.doesNotMatch(mediaApi, /Server-Timing[^\n]*(?:owner_id|object_key|Authorization|Bearer)/i);

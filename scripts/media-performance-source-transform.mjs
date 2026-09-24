@@ -65,61 +65,35 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
 
   output = replaceExactOnce(
     output,
-    `async function serveOriginalMedia(request, env, row, id) {
-  const etag = mediaVariantEtag(id);
-  const headers = mediaResponseHeaders(row.content_type, etag);
-  if (requestHasEtag(request, etag)) return new Response(null, { status: 304, headers });
+    `async function serveOriginalMedia(request, env, row, id) {`,
+    `async function serveOriginalMedia(request, env, row, id, timings = {}) {`,
+    'the protected original media delivery timing signature',
+  );
 
-  if (request.method === 'HEAD') {
-    const object = await env.SAUTI_MEDIA.head(row.object_key);
-    if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
-    object.writeHttpMetadata(headers);
-    headers.set('Cache-Control', 'private, no-store, max-age=0');
-    headers.set('ETag', etag);
-    return new Response(null, { status: 200, headers });
-  }
-
-  const object = await env.SAUTI_MEDIA.get(row.object_key);
-  if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
-  object.writeHttpMetadata(headers);
-  headers.set('Cache-Control', 'private, no-store, max-age=0');
-  headers.set('Content-Security-Policy', "default-src 'none'");
-  headers.set('X-Content-Type-Options', 'nosniff');
-  headers.set('Content-Disposition', 'inline');
-  headers.set('ETag', etag);
-  headers.set('X-Sauti-Media-Variant', 'original');
-  return new Response(object.body, { status: 200, headers });
-}`,
-    `async function serveOriginalMedia(request, env, row, id, timings = {}) {
-  const etag = mediaVariantEtag(id);
-  const headers = mediaResponseHeaders(row.content_type, etag);
-  if (requestHasEtag(request, etag)) return new Response(null, { status: 304, headers });
-
-  if (request.method === 'HEAD') {
+  output = replaceExactOnce(
+    output,
+    `  if (request.method === 'HEAD') {
+    const object = await env.SAUTI_MEDIA.head(row.object_key);`,
+    `  if (request.method === 'HEAD') {
     const r2StartedAt = mediaTimingNow();
     const object = await env.SAUTI_MEDIA.head(row.object_key);
-    addMediaTiming(timings, 'r2Ms', mediaTimingDuration(r2StartedAt));
-    if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
-    object.writeHttpMetadata(headers);
-    headers.set('Cache-Control', 'private, no-store, max-age=0');
-    headers.set('ETag', etag);
-    return new Response(null, { status: 200, headers });
-  }
+    addMediaTiming(timings, 'r2Ms', mediaTimingDuration(r2StartedAt));`,
+    'the protected original media HEAD timing',
+  );
 
-  const r2StartedAt = mediaTimingNow();
-  const object = await env.SAUTI_MEDIA.get(row.object_key);
-  addMediaTiming(timings, 'r2Ms', mediaTimingDuration(r2StartedAt));
-  if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
-  object.writeHttpMetadata(headers);
-  headers.set('Cache-Control', 'private, no-store, max-age=0');
-  headers.set('Content-Security-Policy', "default-src 'none'");
-  headers.set('X-Content-Type-Options', 'nosniff');
-  headers.set('Content-Disposition', 'inline');
-  headers.set('ETag', etag);
-  headers.set('X-Sauti-Media-Variant', 'original');
-  return new Response(object.body, { status: 200, headers });
-}`,
-    'the protected original media delivery timing',
+  output = replaceExactOnce(
+    output,
+    `  const object = await env.SAUTI_MEDIA.get(
+    row.object_key,
+    rangeHeader ? { range: request.headers } : undefined,
+  );`,
+    `  const r2StartedAt = mediaTimingNow();
+  const object = await env.SAUTI_MEDIA.get(
+    row.object_key,
+    rangeHeader ? { range: request.headers } : undefined,
+  );
+  addMediaTiming(timings, 'r2Ms', mediaTimingDuration(r2StartedAt));`,
+    'the protected original media ranged read timing',
   );
 
   output = replaceExactOnce(
@@ -257,7 +231,7 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
     output,
     `async function serveMedia(request, env, id) {
   if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
-  const row = await selectMedia(id, authorization(request));
+  const row = await selectMedia(id, mediaDeliveryAuthorization(request));
   if (!row || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
 
   const url = new URL(request.url);
@@ -273,7 +247,7 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
   }
 
   const accessStartedAt = mediaTimingNow();
-  const row = await selectMedia(id, authorization(request));
+  const row = await selectMedia(id, mediaDeliveryAuthorization(request));
   timings.accessMs = mediaTimingDuration(accessStartedAt);
   if (!row || !['ready', 'attached'].includes(row.upload_status)) {
     return withMediaServerTiming(apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.'), timings, totalStartedAt);
@@ -332,6 +306,47 @@ export function transformMediaPerformanceSource(filePath, source) {
   return URL.createObjectURL(await response.blob());
 }`,
     `const SAUTI_MEDIA_VARIANT_WIDTHS = Object.freeze([480, 960, 1440]);
+const SAUTI_VIDEO_SESSION_REFRESH_MS = 4 * 60 * 1000;
+let sautiVideoSessionReadyUntil = 0;
+let sautiVideoSessionPromise = null;
+
+async function ensureSautiVideoSession() {
+  if (Date.now() < sautiVideoSessionReadyUntil) return;
+  if (sautiVideoSessionPromise) return sautiVideoSessionPromise;
+
+  sautiVideoSessionPromise = (async () => {
+    const headers = await currentAuthorizationHeader();
+    if (!headers.Authorization) throw new Error('MEDIA_AUTH_REQUIRED');
+    const response = await fetch('/api/sauti-media/session', {
+      method: 'POST',
+      headers,
+      credentials: 'same-origin',
+    });
+    if (!response.ok) throw new Error('MEDIA_SESSION_FAILED');
+    sautiVideoSessionReadyUntil = Date.now() + SAUTI_VIDEO_SESSION_REFRESH_MS;
+  })();
+
+  try {
+    await sautiVideoSessionPromise;
+  } finally {
+    sautiVideoSessionPromise = null;
+  }
+}
+
+async function fetchSautiVideoStreamUrl(id) {
+  await ensureSautiVideoSession();
+  return \`/api/sauti-media/\${encodeURIComponent(id)}\`;
+}
+
+function clearSautiVideoSession() {
+  sautiVideoSessionReadyUntil = 0;
+  sautiVideoSessionPromise = null;
+  return fetch('/api/sauti-media/session', {
+    method: 'DELETE',
+    credentials: 'same-origin',
+    keepalive: true,
+  }).catch(() => null);
+}
 
 function selectSautiMediaVariantWidth(media, tile) {
   if (media?.media_kind !== 'image') return 0;
@@ -391,7 +406,7 @@ async function fetchSautiMediaBlobUrl(id, variantWidth = 0) {
   if (!root) return;
   root.querySelectorAll('[data-media-object-url]').forEach((button) => {
     const url = button.dataset.mediaObjectUrl || '';
-    if (url) URL.revokeObjectURL(url);
+    if (url.startsWith('blob:')) URL.revokeObjectURL(url);
     delete button.dataset.mediaObjectUrl;
   });
 }
@@ -428,10 +443,27 @@ function clearHomeFeedMediaState() {
       await waitForSautiMediaNearViewport(button);
       if (!button.parentNode) return;
       const variantWidth = selectSautiMediaVariantWidth(media, button);
-      const url = await fetchSautiMediaBlobUrl(media.id, variantWidth);
+      const streamingVideo = media.media_kind === 'video';
+      const url = streamingVideo
+        ? await fetchSautiVideoStreamUrl(media.id)
+        : await fetchSautiMediaBlobUrl(media.id, variantWidth);
       if (variantWidth) button.dataset.mediaVariantWidth = String(variantWidth);
+      if (streamingVideo) button.dataset.mediaStreaming = 'range';
       if (!button.parentNode) {`,
     'the Home feed media request start',
+  );
+
+  output = replaceExactOnce(
+    output,
+    `  try {
+    const url = await fetchSautiMediaBlobUrl(item.id);
+    if (!composerMedia.some((current) => current.localId === item.localId)) {`,
+    `  try {
+    const url = item.mediaKind === 'video'
+      ? await fetchSautiVideoStreamUrl(item.id)
+      : await fetchSautiMediaBlobUrl(item.id);
+    if (!composerMedia.some((current) => current.localId === item.localId)) {`,
+    'the composer video streaming preview',
   );
 
   output = replaceExactOnce(
@@ -470,6 +502,16 @@ function clearHomeFeedMediaState() {
   if (content) delete content.dataset.mediaViewerObjectUrl;
   content?.replaceChildren();`,
     'the fullscreen media cleanup',
+  );
+
+  output = replaceExactOnce(
+    output,
+    `  if (event === 'SIGNED_OUT') {
+    if (pendingSignup) {`,
+    `  if (event === 'SIGNED_OUT') {
+    void clearSautiVideoSession();
+    if (pendingSignup) {`,
+    'the signed-out video media session cleanup',
   );
 
   return output;

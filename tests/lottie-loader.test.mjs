@@ -49,7 +49,7 @@ test('app and launch splash use Lottie without changing launch failsafes', async
   assert.match(launchJs, /loader\.mount\(stage, \{ mode: "launch" \}\)/);
   assert.match(launchJs, /const minimum = reducedMotion \? 320 : 1900/);
   assert.match(launchJs, /const maximum = reducedMotion \? 900 : 4200/);
-  assert.match(launchJs, /\/sw\.js\?v=20260924-short-video-routes1/);
+  assert.match(launchJs, /\/sw\.js\?v=20260924-video-stream1/);
   assert.match(launchCss, /\.sl-launch-logo-stage\.sl-lottie-ready \.sl-launch-orbit/);
   assert.match(launchCss, /\.sl-launch-logo-stage\.sl-lottie-ready \.sl-launch-logo/);
 });
@@ -58,7 +58,7 @@ test('PWA cache and third-party notices include the local loader dependencies', 
   const sw = await read('sw.js');
   const notices = await read('THIRD_PARTY_NOTICES.md');
 
-  assert.match(sw, /sautilink-shell-v76/);
+  assert.match(sw, /sautilink-shell-v77/);
   for (const asset of [
     '/assets/lottie-loader.js?v=20260917-lottie1',
     '/assets/lottie-loader.css?v=20260917-lottie1',
