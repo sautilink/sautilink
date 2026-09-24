@@ -10,6 +10,8 @@ const UPLOAD_TTL_MS = 60 * 60 * 1000;
 const IMAGE_VARIANT_VERSION = 'v1';
 const IMAGE_VARIANT_WIDTHS = Object.freeze([480, 960, 1440]);
 const IMAGE_VARIANT_EDGE_TTL_SECONDS = 30 * 24 * 60 * 60;
+const VIDEO_MEDIA_SESSION_COOKIE = '__Secure-sautilink-media-session';
+const VIDEO_MEDIA_SESSION_TTL_SECONDS = 5 * 60;
 
 const TYPES = {
   'image/jpeg': { kind: 'image', extension: 'jpg', limit: IMAGE_LIMIT },
@@ -38,6 +40,26 @@ function authorization(request) {
   return /^Bearer\s+[^\s]+$/i.test(value) ? value : '';
 }
 
+function mediaSessionToken(request) {
+  const cookies = String(request.headers.get('Cookie') || '').split(';');
+  const prefix = `${VIDEO_MEDIA_SESSION_COOKIE}=`;
+  const encoded = cookies.map((value) => value.trim()).find((value) => value.startsWith(prefix))?.slice(prefix.length) || '';
+  if (!encoded || encoded.length > 4096) return '';
+  try {
+    const token = decodeURIComponent(encoded);
+    return /^[^\s]+\.[^\s]+\.[^\s]+$/.test(token) ? token : '';
+  } catch {
+    return '';
+  }
+}
+
+function mediaDeliveryAuthorization(request) {
+  const header = authorization(request);
+  if (header) return header;
+  const token = mediaSessionToken(request);
+  return token ? `Bearer ${token}` : '';
+}
+
 function supabaseHeaders(auth = '') {
   const headers = { apikey: SUPABASE_PUBLISHABLE_KEY, Accept: 'application/json' };
   if (auth) headers.Authorization = auth;
@@ -51,6 +73,33 @@ async function authenticate(request) {
   if (!response.ok) return null;
   const user = await response.json().catch(() => null);
   return user?.id ? { auth, user } : null;
+}
+
+async function createVideoMediaSession(request) {
+  const session = await authenticate(request);
+  if (!session) return apiError(401, 'AUTH_REQUIRED', 'Sign in before streaming video.');
+  const token = session.auth.replace(/^Bearer\s+/i, '');
+  const headers = new Headers({
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  headers.append(
+    'Set-Cookie',
+    `${VIDEO_MEDIA_SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/api/sauti-media; Max-Age=${VIDEO_MEDIA_SESSION_TTL_SECONDS}; Secure; HttpOnly; SameSite=Strict`,
+  );
+  return new Response(null, { status: 204, headers });
+}
+
+function clearVideoMediaSession() {
+  const headers = new Headers({
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  headers.append(
+    'Set-Cookie',
+    `${VIDEO_MEDIA_SESSION_COOKIE}=; Path=/api/sauti-media; Max-Age=0; Secure; HttpOnly; SameSite=Strict`,
+  );
+  return new Response(null, { status: 204, headers });
 }
 
 async function consumeLimit(binding, key) {
@@ -480,26 +529,49 @@ async function removeUpload(request, env, id) {
 async function serveOriginalMedia(request, env, row, id) {
   const etag = mediaVariantEtag(id);
   const headers = mediaResponseHeaders(row.content_type, etag);
-  if (requestHasEtag(request, etag)) return new Response(null, { status: 304, headers });
+  const video = row.media_kind === 'video';
+  const rangeHeader = video ? String(request.headers.get('Range') || '') : '';
+  if (video) headers.set('Accept-Ranges', 'bytes');
+  if (!rangeHeader && requestHasEtag(request, etag)) return new Response(null, { status: 304, headers });
 
   if (request.method === 'HEAD') {
     const object = await env.SAUTI_MEDIA.head(row.object_key);
     if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
     object.writeHttpMetadata(headers);
-    headers.set('Cache-Control', 'private, no-store, max-age=0');
+    headers.set('Cache-Control', video ? 'private, max-age=300, must-revalidate' : 'private, no-store, max-age=0');
+    headers.set('Content-Length', String(object.size));
+    if (video) headers.set('Accept-Ranges', 'bytes');
     headers.set('ETag', etag);
     return new Response(null, { status: 200, headers });
   }
 
-  const object = await env.SAUTI_MEDIA.get(row.object_key);
+  const object = await env.SAUTI_MEDIA.get(
+    row.object_key,
+    rangeHeader ? { range: request.headers } : undefined,
+  );
   if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
   object.writeHttpMetadata(headers);
-  headers.set('Cache-Control', 'private, no-store, max-age=0');
+  headers.set('Cache-Control', video ? 'private, max-age=300, must-revalidate' : 'private, no-store, max-age=0');
   headers.set('Content-Security-Policy', "default-src 'none'");
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('Content-Disposition', 'inline');
   headers.set('ETag', etag);
   headers.set('X-Sauti-Media-Variant', 'original');
+  if (video) headers.set('Accept-Ranges', 'bytes');
+
+  if (video && object.range) {
+    const length = Number(object.range.length || object.range.suffix || 0);
+    const offset = Number.isFinite(object.range.offset)
+      ? Number(object.range.offset)
+      : Math.max(0, Number(object.size || 0) - length);
+    if (length > 0) {
+      headers.set('Content-Range', `bytes ${offset}-${offset + length - 1}/${object.size}`);
+      headers.set('Content-Length', String(length));
+      return new Response(object.body, { status: 206, headers });
+    }
+  }
+
+  headers.set('Content-Length', String(object.size));
   return new Response(object.body, { status: 200, headers });
 }
 
@@ -557,7 +629,7 @@ async function serveImageVariant(request, env, row, id, width) {
 
 async function serveMedia(request, env, id) {
   if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
-  const row = await selectMedia(id, authorization(request));
+  const row = await selectMedia(id, mediaDeliveryAuthorization(request));
   if (!row || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
 
   const url = new URL(request.url);
@@ -578,6 +650,12 @@ export async function handleSautiMediaRequest(request, env) {
         image_variant_widths: IMAGE_VARIANT_WIDTHS,
       },
     });
+  }
+  if (url.pathname === '/api/sauti-media/session' && request.method === 'POST') {
+    return createVideoMediaSession(request);
+  }
+  if (url.pathname === '/api/sauti-media/session' && request.method === 'DELETE') {
+    return clearVideoMediaSession();
   }
   if (url.pathname === '/api/sauti-media/begin' && request.method === 'POST') return beginUpload(request, env);
 
