@@ -22,7 +22,7 @@ export function safeAuthReturnTarget(value) {
   if (!candidate.startsWith('/') || candidate.startsWith('//')) return '';
   if (/^[a-z][a-z0-9+.-]*:/i.test(candidate)) return '';
   const pathname = candidate.split(/[?#]/, 1)[0];
-  if (!/^(?:\/u\/[a-z0-9][a-z0-9._]{2,29}|\/post\/[a-z0-9-]+|\/home|\/discover|\/saved|\/messages|\/sautify|\/settings)(?:\/|$)/i.test(pathname)) {
+  if (!/^(?:\/u\/[a-z0-9][a-z0-9._]{2,29}|\/post\/[a-z0-9-]+|\/videos(?:\/[a-z0-9-]+)?|\/home|\/discover|\/saved|\/messages|\/sautify|\/settings)(?:\/|$)/i.test(pathname)) {
     return '';
   }
   return candidate.slice(0, 300);
