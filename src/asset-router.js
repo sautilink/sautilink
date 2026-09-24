@@ -19,6 +19,7 @@ const MODERATION_ROUTE = /^\/app\/moderation\/?$/;
 const SETTINGS_ROUTE = /^\/app\/settings\/?$/;
 const SAUTI_ROUTE = /^\/app\/sauti\/[0-9a-f-]{36}\/?$/;
 const MESSAGE_ROUTE = /^\/app\/messages(?:\/[0-9a-f-]{36})?\/?$/;
+const VIDEO_ROUTE = /^\/app\/videos(?:\/[0-9a-f-]{36})?\/?$/;
 // Rooms is canonical; historic Sautify/Circles links remain readable so old shared links do not break.
 const ROOM_ROUTE = /^\/app\/(?:rooms|sautify|circles)(?:\/[^/]+)?\/?$/;
 const CLEAN_PROFILE_ROUTE = /^\/u\/[^/]+\/?$/;
@@ -26,9 +27,10 @@ const CLEAN_MEMBER_ROUTE = /^\/(?:home|discover|saved|appeals|moderation|setting
 const CLEAN_AUTH_ROUTE = /^\/(?:login|signup)\/?$/;
 const CLEAN_POST_ROUTE = /^\/post\/[0-9a-f-]{36}\/?$/;
 const CLEAN_MESSAGE_ROUTE = /^\/messages(?:\/[0-9a-f-]{36})?\/?$/;
+const CLEAN_VIDEO_ROUTE = /^\/videos(?:\/[0-9a-f-]{36})?\/?$/;
 const CLEAN_ROOM_ROUTE = /^\/(?:rooms|sautify)(?:\/[^/]+)?\/?$/;
 const CLEAN_DASHBOARD_ROUTE = /^\/dashboard(?:\/tools(?:\/moneti[sz]ation)?|\/moneti[sz]ation)?\/?$/i;
-const CLEAN_ROUTE_PREFIX = /^\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications|messages|rooms|sautify|dashboard)/;
+const CLEAN_ROUTE_PREFIX = /^\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications|messages|videos|rooms|sautify|dashboard)/;
 const SAUTI_MEDIA_UPLOAD_ROUTE = /^\/api\/sauti-media\/upload\/([0-9a-f-]{36})$/i;
 const SHORT_VIDEO_DURATION_MS = 30_000;
 
@@ -371,11 +373,13 @@ async function routeRequest(request, env, url) {
       || SETTINGS_ROUTE.test(url.pathname)
       || SAUTI_ROUTE.test(url.pathname)
       || MESSAGE_ROUTE.test(url.pathname)
+      || VIDEO_ROUTE.test(url.pathname)
       || ROOM_ROUTE.test(url.pathname)
       || CLEAN_PROFILE_ROUTE.test(url.pathname)
       || CLEAN_MEMBER_ROUTE.test(url.pathname)
       || CLEAN_POST_ROUTE.test(url.pathname)
       || CLEAN_MESSAGE_ROUTE.test(url.pathname)
+      || CLEAN_VIDEO_ROUTE.test(url.pathname)
       || CLEAN_ROOM_ROUTE.test(url.pathname)
       || CLEAN_DASHBOARD_ROUTE.test(url.pathname)
     )

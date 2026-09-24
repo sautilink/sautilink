@@ -1,7 +1,7 @@
 (() => {
   if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
 
-  const PWA_RELEASE = '20260924-pwa-notification-optin1';
+  const PWA_RELEASE = '20260924-short-video-routes1';
   const SERVICE_WORKER_URL = `/sw.js?v=${PWA_RELEASE}`;
   const HOME_PATH_PATTERN = /^\/home\/?$/;
   const ROUTE_CHANGE_EVENT = 'sautilink:routechange';

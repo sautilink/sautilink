@@ -1128,9 +1128,15 @@ function pauseHomeFeedVideos() {
 }
 
 async function playHomeFeedVideo(video) {
+  if (document.documentElement.classList.contains('sauti-short-videos-open')) {
+    video.pause();
+    return;
+  }
   try {
     await video.play();
+    if (document.documentElement.classList.contains('sauti-short-videos-open')) video.pause();
   } catch {
+    if (document.documentElement.classList.contains('sauti-short-videos-open')) return;
     if (video.muted || video.dataset.sautiAudioPreference === 'muted') return;
     video.muted = true;
     video.defaultMuted = true;
@@ -1159,7 +1165,11 @@ function restoreHomeFeedAudioAfterInteraction() {
 }
 
 function syncHomeFeedVideoPlayback() {
-  if (document.visibilityState === 'hidden' || byId('sauti-media-viewer')?.open) {
+  if (
+    document.visibilityState === 'hidden'
+    || byId('sauti-media-viewer')?.open
+    || document.documentElement.classList.contains('sauti-short-videos-open')
+  ) {
     pauseHomeFeedVideos();
     return;
   }
@@ -3148,15 +3158,16 @@ function syncHomeFeedModeUi() {
   byId('stream-empty-copy').textContent = copy.emptyCopy;
 }
 
-function requestShortVideosFromTab() {
+function requestShortVideosFromTab(postId = '', returnHomeFeed = 'for-you') {
   const tab = byId('home-feed-tab-short-videos');
   document.dispatchEvent(new CustomEvent('sautilink:open-short-videos', {
-    detail: { trigger: tab },
+    detail: { trigger: tab, postId, returnHomeFeed },
   }));
 }
 
 async function selectHomeFeed(mode, { focus = false } = {}) {
   if (!HOME_FEED_COPY[mode] || !currentMember) return;
+  const previousMode = activeHomeFeed;
   const selectedTab = document.querySelector(`[data-home-feed-tab="${mode}"]`);
   if (focus) selectedTab?.focus();
 
@@ -3169,7 +3180,9 @@ async function selectHomeFeed(mode, { focus = false } = {}) {
   syncHomeFeedModeUi();
   resetStreamState();
   await loadStream({ reset: true });
-  if (mode === 'short-videos' && activeHomeFeed === mode) requestShortVideosFromTab();
+  if (mode === 'short-videos' && activeHomeFeed === mode) {
+    requestShortVideosFromTab('', previousMode === 'short-videos' ? 'for-you' : previousMode);
+  }
 }
 
 function authorFromPost(post) {
@@ -4376,6 +4389,26 @@ function conversationPath(postId) {
     : '/home';
 }
 
+function shortVideoPath(postId = '') {
+  return postId
+    ? `/videos/${encodeURIComponent(postId)}`
+    : '/videos';
+}
+
+function readShortVideoRoute(pathname = window.location.pathname) {
+  const match = pathname.match(/^(?:\/app)?\/videos(?:\/([^/]+))?\/?$/);
+  if (!match) return null;
+  if (!match[1]) return { invalid: false, postId: '' };
+  try {
+    const postId = decodeURIComponent(match[1]).toLowerCase();
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(postId)
+      ? { invalid: false, postId }
+      : { invalid: true, postId: '' };
+  } catch {
+    return { invalid: true, postId: '' };
+  }
+}
+
 function sautiShareUrl(postId) {
   return new URL(conversationPath(postId), window.location.origin).href;
 }
@@ -4426,6 +4459,36 @@ async function shareSautiLink(card, button) {
     button.disabled = false;
   }
 }
+
+async function shareShortVideoLink(postId, button) {
+  if (!postId || button?.disabled) return;
+  const url = new URL(shortVideoPath(postId), window.location.origin).href;
+  if (button) button.disabled = true;
+  try {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'SautiLink Short Video',
+          text: 'Watch this short video on SautiLink',
+          url,
+        });
+        return;
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+      }
+    }
+    await copyShareText(url);
+    showToast('Video link copied.');
+  } catch {
+    showToast('This video link could not be shared.');
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+document.addEventListener('sautilink:share-short-video', (event) => {
+  void shareShortVideoLink(event.detail?.postId || '', event.detail?.button || null);
+});
 
 function closeRepostMenus(except = null) {
   document.querySelectorAll('.sauti-repost-menu').forEach((menu) => {
@@ -8020,6 +8083,27 @@ async function applyLocationRoute() {
     return;
   }
 
+  const shortVideoRoute = readShortVideoRoute();
+  if (shortVideoRoute) {
+    profileRouteRequest += 1;
+    if (!currentMember) {
+      showSignedOut('login');
+      return;
+    }
+    if (shortVideoRoute.invalid) {
+      window.history.replaceState({}, '', shortVideoPath());
+      showToast('That Short Video address is invalid. Opening the latest videos instead.');
+    }
+    activeHomeFeed = 'short-videos';
+    showMemberSurface('stream', { syncUrl: false });
+    closeProfileEditor();
+    byId('sauti-composer').hidden = true;
+    resetStreamState();
+    await loadStream({ reset: true });
+    requestShortVideosFromTab(shortVideoRoute.postId, 'for-you');
+    return;
+  }
+
   const conversationRoute = readConversationRoute();
   if (conversationRoute) {
     profileRouteRequest += 1;
@@ -9499,6 +9583,15 @@ byId('home-feed-tabs').addEventListener('keydown', (event) => {
       : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
   event.preventDefault();
   void selectHomeFeed(tabs[next].dataset.homeFeedTab, { focus: true });
+});
+document.addEventListener('sautilink:short-videos-closing', (event) => {
+  const requestedMode = String(event.detail?.returnHomeFeed || 'for-you');
+  activeHomeFeed = HOME_FEED_COPY[requestedMode] && requestedMode !== 'short-videos'
+    ? requestedMode
+    : 'for-you';
+  byId('sauti-composer').hidden = false;
+  syncHomeFeedModeUi();
+  void loadStream({ reset: true });
 });
 byId('conversation-back').addEventListener('click', () => {
   if (window.history.length > 1) window.history.back();

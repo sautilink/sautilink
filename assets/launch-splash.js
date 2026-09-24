@@ -21,7 +21,7 @@
 
   function registerServiceWorker() {
     if (script?.dataset.registerSw !== "true" || !("serviceWorker" in navigator) || location.protocol !== "https:") return;
-    window.addEventListener("load", () => navigator.serviceWorker.register(script.dataset.sw || "/sw.js?v=20260924-pwa-notification-optin1", { updateViaCache: "none" }).then((registration) => registration.update()).catch(() => {}), { once: true });
+    window.addEventListener("load", () => navigator.serviceWorker.register(script.dataset.sw || "/sw.js?v=20260924-short-video-routes1", { updateViaCache: "none" }).then((registration) => registration.update()).catch(() => {}), { once: true });
   }
 
   function ensureLottieHelper() {

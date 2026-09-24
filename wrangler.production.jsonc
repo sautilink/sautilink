@@ -29,6 +29,10 @@
       "zone_name": "sautilink.com"
     },
     {
+      "pattern": "sautilink.com/videos*",
+      "zone_name": "sautilink.com"
+    },
+    {
       "pattern": "sautilink.com/discover*",
       "zone_name": "sautilink.com"
     },
@@ -102,6 +106,10 @@
     },
     {
       "pattern": "www.sautilink.com/home*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.sautilink.com/videos*",
       "zone_name": "sautilink.com"
     },
     {

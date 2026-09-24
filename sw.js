@@ -1,7 +1,7 @@
-const CACHE_NAME = "sautilink-shell-v75";
-const APP_RELEASE = "20260924-pwa-notification-optin1";
+const CACHE_NAME = "sautilink-shell-v76";
+const APP_RELEASE = "20260924-short-video-routes1";
 const APP_FEATURE_RELEASE = "20260918-signup2";
-const PWA_RELEASE = "20260924-pwa-notification-optin1";
+const PWA_RELEASE = "20260924-short-video-routes1";
 const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.css",
   "/app/assets/app.js",
@@ -70,6 +70,7 @@ function safeNotificationRoute(value) {
   const route = String(value || "").trim();
   if (!route.startsWith("/") || route.startsWith("//")) return "/notifications";
   if (/^\/(?:notifications|home|settings)\/?(?:[?#].*)?$/.test(route)) return route;
+  if (/^\/videos(?:\/[0-9a-f-]{36})?\/?(?:[?#].*)?$/i.test(route)) return route;
   if (/^\/appeals\/?(?:\?action=\d+)?$/.test(route)) return route;
   if (/^\/u\/[a-z0-9][a-z0-9._]{2,29}\/?(?:[?#].*)?$/i.test(route)) return route;
   if (/^\/post\/[0-9a-f-]{36}\/?(?:[?#].*)?$/i.test(route)) return route;
@@ -117,7 +118,7 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || url.pathname.startsWith("/api/")) return;
 
   if (event.request.mode === "navigate") {
-    const socialRoute = /^(?:\/app(?:\/|$)|\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications|dashboard)(?:\/|$)|\/messages(?:\/|$)|\/(?:rooms|sautify)(?:\/|$)|\/u\/|\/post\/)/.test(url.pathname);
+    const socialRoute = /^(?:\/app(?:\/|$)|\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications|dashboard)(?:\/|$)|\/(?:messages|videos)(?:\/|$)|\/(?:rooms|sautify)(?:\/|$)|\/u\/|\/post\/)/.test(url.pathname);
     const fallback = socialRoute ? "/app/" : "/";
     event.respondWith(fetch(event.request, { cache: "no-store" }).catch(() => caches.match(fallback)));
     return;

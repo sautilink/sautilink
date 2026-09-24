@@ -84,14 +84,46 @@ test('Short Videos is a vertical snap feed with a professional end state', async
   assert.doesNotMatch(css, /\.mobile-nav|\.mobile-header/);
 });
 
-test('Short Videos pauses Home playback while open and restores it on close', async () => {
-  const source = await read('src/short-videos-feed.js');
+test('Short Videos owns audible playback while open and leaves Home paused on close', async () => {
+  const [source, app] = await Promise.all([
+    read('src/short-videos-feed.js'),
+    read('src/app.js'),
+  ]);
 
   assert.match(source, /sautiShortVideosPaused/);
   assert.match(source, /sautiUserPaused/);
   assert.match(source, /pauseHomePlayback\(\)/);
   assert.match(source, /restoreHomePlayback\(\)/);
   assert.match(source, /pauseShortVideos\(\)/);
+  assert.match(source, /pausePlaybackOutsideShortVideos/);
+  assert.match(source, /document\.addEventListener\('play',[\s\S]*event\.target\.pause\(\)/);
+  assert.doesNotMatch(source, /previous\?\.video\.play/);
+  assert.match(app, /document\.documentElement\.classList\.contains\('sauti-short-videos-open'\)/);
+});
+
+test('Short Videos has canonical deep links without adding one history entry per swipe', async () => {
+  const [source, app, router, worker, config, redirects] = await Promise.all([
+    read('src/short-videos-feed.js'),
+    read('src/app.js'),
+    read('src/asset-router.js'),
+    read('sw.js'),
+    read('wrangler.production.jsonc'),
+    read('_redirects'),
+  ]);
+
+  assert.match(source, /return postId \? `\/videos\/\$\{encodeURIComponent\(postId\)\}` : '\/videos'/);
+  assert.match(source, /window\.history\.pushState\(state, '', nextPath\)/);
+  assert.match(source, /window\.history\.replaceState\(state, '', nextPath\)/);
+  assert.match(source, /pendingOpenRequest/);
+  assert.match(source, /continuePendingOpen/);
+  assert.match(source, /sautilink:share-short-video/);
+  assert.match(app, /function readShortVideoRoute/);
+  assert.match(app, /requestShortVideosFromTab\(shortVideoRoute\.postId/);
+  assert.match(router, /CLEAN_VIDEO_ROUTE/);
+  assert.match(worker, /\|videos/);
+  assert.match(config, /sautilink\.com\/videos\*/);
+  assert.match(config, /www\.sautilink\.com\/videos\*/);
+  assert.match(redirects, /\/videos\/\* \/app\/ 200/);
 });
 
 test('Short Videos starts with audio on by default', async () => {
