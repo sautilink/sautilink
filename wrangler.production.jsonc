@@ -194,6 +194,9 @@
   "images": {
     "binding": "IMAGES"
   },
+  "media": {
+    "binding": "MEDIA"
+  },
   "r2_buckets": [
     {
       "binding": "PROFILE_MEDIA",

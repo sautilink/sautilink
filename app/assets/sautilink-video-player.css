@@ -100,13 +100,16 @@
 
 .sauti-video-center-control:hover,
 .sauti-video-control:hover,
-.sauti-video-rate:hover {
+.sauti-video-rate:hover,
+.sauti-video-quality:hover {
   background: rgba(255, 255, 255, .16);
 }
 
 .sauti-video-center-control:focus-visible,
 .sauti-video-control:focus-visible,
 .sauti-video-rate:focus-visible,
+.sauti-video-quality:focus-visible,
+.sauti-video-quality-option:focus-visible,
 .sauti-video-timeline:focus-visible,
 .sauti-video-volume:focus-visible {
   outline: 2px solid #fff;
@@ -135,7 +138,8 @@
 }
 
 .sauti-video-control,
-.sauti-video-rate {
+.sauti-video-rate,
+.sauti-video-quality {
   display: grid;
   flex: 0 0 auto;
   width: 34px;
@@ -168,6 +172,60 @@
   font-size: 11px;
   font-weight: 760;
   line-height: 1;
+}
+
+.sauti-video-quality {
+  position: relative;
+  width: auto;
+  min-width: 54px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 760;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.sauti-video-quality-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  display: grid;
+  width: 132px;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 12px;
+  background: rgba(12, 12, 14, .94);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .36);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.sauti-video-quality-menu[hidden] {
+  display: none;
+}
+
+.sauti-video-quality-option {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  padding: 0 9px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, .9);
+  cursor: pointer;
+}
+
+.sauti-video-quality-option:hover,
+.sauti-video-quality-option[aria-checked="true"] {
+  background: rgba(255, 255, 255, .13);
+  color: #fff;
+}
+
+.sauti-video-quality-option[aria-checked="true"]::after {
+  content: '✓';
+  margin-left: auto;
+  font-weight: 800;
 }
 
 .sauti-video-time {
@@ -444,6 +502,13 @@
     min-width: 35px;
     height: 32px;
     font-size: 10px;
+  }
+
+  .sauti-video-quality {
+    min-width: 48px;
+    height: 32px;
+    padding: 0 6px;
+    font-size: 9px;
   }
 
   .sauti-video-seek-feedback.left { left: 14%; }

@@ -52,6 +52,13 @@ function mediaUrlForTile(tile) {
   return String(tile?.dataset.mediaObjectUrl || '').trim();
 }
 
+function shortVideoUrlForTile(tile) {
+  if (!mediaUrlForTile(tile)) return '';
+  const mediaId = String(tile?.dataset.openMediaId || '').trim();
+  const quality = window.SautiLinkVideoQuality?.qualityFor?.({ context: 'short' }) || '720';
+  return window.SautiLinkVideoQuality?.sourceUrl?.(mediaId, quality) || mediaUrlForTile(tile);
+}
+
 function sourceTileForSlide(slide) {
   const card = sourceCardForPost(slide?.dataset.postId);
   const mediaId = String(slide?.dataset.mediaId || '');
@@ -175,10 +182,13 @@ function createShortVideoSlide(tile) {
   const frame = document.createElement('div');
   frame.className = 'sauti-media-tile sauti-short-video-frame';
   frame.dataset.mediaKind = 'video';
+  frame.dataset.openMediaId = mediaId;
 
   const video = document.createElement('video');
-  const mediaUrl = mediaUrlForTile(tile);
+  const mediaUrl = shortVideoUrlForTile(tile);
   if (mediaUrl) video.src = mediaUrl;
+  video.dataset.sautiMediaId = mediaId;
+  video.dataset.sautiQualityContext = 'short';
   video.playsInline = true;
   video.preload = 'metadata';
   video.loop = true;
@@ -274,11 +284,11 @@ function syncSlideFromSource(slide) {
   if (!card) return;
 
   const sourceTile = sourceTileForSlide(slide);
-  const mediaUrl = mediaUrlForTile(sourceTile);
+  const mediaUrl = shortVideoUrlForTile(sourceTile);
   const frame = slide.querySelector('.sauti-short-video-frame');
   const video = frame?.querySelector('video');
   if (frame) frame.setAttribute('aria-busy', String(!mediaUrl));
-  if (video && mediaUrl && video.src !== mediaUrl) {
+  if (video && mediaUrl && video.dataset.sautiQualityManaged !== 'true' && video.src !== mediaUrl) {
     video.src = mediaUrl;
     if (slide.classList.contains('active') && video.dataset.sautiUserPaused !== 'true') {
       video.play().catch(() => {});

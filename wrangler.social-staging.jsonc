@@ -75,6 +75,9 @@
         "directory": "./dist-preview-site",
         "binding": "ASSETS"
       },
+      "media": {
+        "binding": "MEDIA"
+      },
       "vars": {
         "DM_MEDIA_SUPABASE_URL": "https://bbrydwzlhweuqxpgbahu.supabase.co",
         "DM_MEDIA_SUPABASE_KEY": "sb_publishable_oTYKPMJoxN1b8YBmG-a5eQ_M75Kl6VF",
