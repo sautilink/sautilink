@@ -229,17 +229,19 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
 
   output = replaceExactOnce(
     output,
-    `async function serveMedia(request, env, id) {
+    `async function serveMedia(request, env, id, ctx = null) {
   if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
   const row = await selectMedia(id, mediaDeliveryAuthorization(request));
   if (!row || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
 
   const url = new URL(request.url);
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
+  const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
   if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
+  if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality);
   return serveOriginalMedia(request, env, row, id);
 }`,
-    `async function serveMedia(request, env, id) {
+    `async function serveMedia(request, env, id, ctx = null) {
   const totalStartedAt = mediaTimingNow();
   const timings = {};
   if (!env.SAUTI_MEDIA) {
@@ -255,9 +257,12 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
 
   const url = new URL(request.url);
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
+  const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
   const response = width && row.media_kind === 'image'
     ? await serveImageVariant(request, env, row, id, width, timings)
-    : await serveOriginalMedia(request, env, row, id, timings);
+    : quality && row.media_kind === 'video'
+      ? await serveVideoVariant(request, env, row, id, quality)
+      : await serveOriginalMedia(request, env, row, id, timings);
   return withMediaServerTiming(response, timings, totalStartedAt);
 }`,
     'the protected media total and access timing',
@@ -333,9 +338,13 @@ async function ensureSautiVideoSession() {
   }
 }
 
-async function fetchSautiVideoStreamUrl(id) {
+window.SautiLinkVideoMediaSession = Object.freeze({ ensure: ensureSautiVideoSession });
+
+async function fetchSautiVideoStreamUrl(id, quality = 'original') {
   await ensureSautiVideoSession();
-  return \`/api/sauti-media/\${encodeURIComponent(id)}\`;
+  const url = new URL(\`/api/sauti-media/\${encodeURIComponent(id)}\`, window.location.origin);
+  if (quality === '360' || quality === '720') url.searchParams.set('quality', quality);
+  return \`\${url.pathname}\${url.search}\`;
 }
 
 function clearSautiVideoSession() {
@@ -444,11 +453,17 @@ function clearHomeFeedMediaState() {
       if (!button.parentNode) return;
       const variantWidth = selectSautiMediaVariantWidth(media, button);
       const streamingVideo = media.media_kind === 'video';
+      const videoQuality = streamingVideo
+        ? (window.SautiLinkVideoQuality?.qualityFor?.({ context: 'home' }) || '720')
+        : 'original';
       const url = streamingVideo
-        ? await fetchSautiVideoStreamUrl(media.id)
+        ? await fetchSautiVideoStreamUrl(media.id, videoQuality)
         : await fetchSautiMediaBlobUrl(media.id, variantWidth);
       if (variantWidth) button.dataset.mediaVariantWidth = String(variantWidth);
-      if (streamingVideo) button.dataset.mediaStreaming = 'range';
+      if (streamingVideo) {
+        button.dataset.mediaStreaming = 'range';
+        button.dataset.mediaQuality = videoQuality;
+      }
       if (!button.parentNode) {`,
     'the Home feed media request start',
   );
@@ -460,7 +475,7 @@ function clearHomeFeedMediaState() {
     if (!composerMedia.some((current) => current.localId === item.localId)) {`,
     `  try {
     const url = item.mediaKind === 'video'
-      ? await fetchSautiVideoStreamUrl(item.id)
+      ? await fetchSautiVideoStreamUrl(item.id, 'original')
       : await fetchSautiMediaBlobUrl(item.id);
     if (!composerMedia.some((current) => current.localId === item.localId)) {`,
     'the composer video streaming preview',
@@ -485,7 +500,9 @@ function clearHomeFeedMediaState() {
       visual.src = originalUrl;
     }).catch(() => {});
   }
-  if (visual instanceof HTMLVideoElement) {`,
+  if (visual instanceof HTMLVideoElement) {
+    visual.dataset.sautiMediaId = button.dataset.openMediaId || '';
+    visual.dataset.sautiQuality = button.dataset.mediaQuality || 'original';`,
     'the fullscreen media visual',
   );
 

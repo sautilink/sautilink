@@ -36,11 +36,15 @@ test('SautiLink owns video controls while preserving viewer and carousel layers'
   assert.match(source, /Playback speed/);
   assert.match(source, /is-buffering/);
   assert.match(source, /sauti-video-audio-toggle/);
+  assert.match(source, /SautiLinkVideoQuality\?\.enhance/);
+  assert.match(source, /Data Saver/);
+  assert.match(source, /sautilink:video-quality-applied/);
 
   assert.match(css, /\.sauti-video-center-control/);
   assert.match(css, /\.sauti-video-timeline/);
   assert.match(css, /\.sauti-video-volume/);
   assert.match(css, /\.sauti-video-seek-feedback/);
+  assert.match(css, /\.sauti-video-quality-menu/);
   assert.match(css, /\.sauti-media-viewer \.sauti-media-viewer-close\s*\{\s*z-index: 20/);
   assert.match(css, /\.sauti-media-carousel-shell \.sauti-media-carousel-nav,[\s\S]*z-index: 12/);
 });

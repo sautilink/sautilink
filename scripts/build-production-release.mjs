@@ -28,10 +28,10 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
-const APP_JS_RELEASE = '20260924-video-stream1';
+const APP_JS_RELEASE = '20260925-video-quality1';
 const APP_JS_FEATURE_RELEASE = '20260919-mobilesettings1';
 const APP_JS_BIRTH_DATE_RELEASE = '20260920-birthdate1';
-const PWA_RELEASE = '20260924-video-stream1';
+const PWA_RELEASE = '20260925-video-quality1';
 const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram2';
 const SETTINGS_LIGHT_THEME_CSS_RELEASE = '20260917-settings1';
 
@@ -196,6 +196,7 @@ await build({
     resolve(workerSource, 'post-media-carousel.js'),
     resolve(workerSource, 'post-view-metrics.js'),
     resolve(workerSource, 'conversation-replies-ui.js'),
+    resolve(workerSource, 'video-quality-preference.js'),
     resolve(workerSource, 'short-videos-feed.js'),
     resolve(workerSource, 'social-oauth-auth.js'),
     resolve(workerSource, 'whatsapp-otp-auth.js'),

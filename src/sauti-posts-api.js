@@ -1,3 +1,5 @@
+import { sautiMediaObjectKeys } from './sauti-media-api.js';
+
 const SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
 
@@ -220,7 +222,8 @@ async function createSauti(request, env) {
       method: 'DELETE',
       headers: supabaseHeaders(session.auth),
     }).catch(() => {});
-    await Promise.all(media.map((item) => env.SAUTI_MEDIA.delete(item.object_key).catch(() => {})));
+    const mediaObjects = media.flatMap((item) => sautiMediaObjectKeys(item));
+    await Promise.all(mediaObjects.map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
     return apiError(409, 'MEDIA_ATTACH_FAILED', 'The post was not published because its media could not be attached safely.');
   }
 
@@ -303,14 +306,14 @@ async function deleteSauti(request, env, postId) {
     const mediaParams = new URLSearchParams({
       post_id: `eq.${postId}`,
       owner_id: `eq.${session.user.id}`,
-      select: 'object_key',
+      select: 'object_key,media_kind',
     });
     const mediaResponse = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${mediaParams}`, {
       headers: supabaseHeaders(session.auth),
     });
     if (mediaResponse.ok) {
       const mediaRows = await mediaResponse.json().catch(() => []);
-      mediaObjects = Array.isArray(mediaRows) ? mediaRows.map((row) => row.object_key).filter(Boolean) : [];
+      mediaObjects = Array.isArray(mediaRows) ? mediaRows.flatMap((row) => sautiMediaObjectKeys(row)) : [];
     }
   }
 

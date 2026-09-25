@@ -10,8 +10,11 @@ const UPLOAD_TTL_MS = 60 * 60 * 1000;
 const IMAGE_VARIANT_VERSION = 'v1';
 const IMAGE_VARIANT_WIDTHS = Object.freeze([480, 960, 1440]);
 const IMAGE_VARIANT_EDGE_TTL_SECONDS = 30 * 24 * 60 * 60;
+const VIDEO_VARIANT_VERSION = 'v1';
+const VIDEO_VARIANT_QUALITIES = Object.freeze([360, 720]);
 const VIDEO_MEDIA_SESSION_COOKIE = '__Secure-sautilink-media-session';
 const VIDEO_MEDIA_SESSION_TTL_SECONDS = 5 * 60;
+const videoVariantJobs = new Map();
 
 const TYPES = {
   'image/jpeg': { kind: 'image', extension: 'jpg', limit: IMAGE_LIMIT },
@@ -120,6 +123,23 @@ export function normalizeSautiMediaVariantWidth(value) {
   return IMAGE_VARIANT_WIDTHS.includes(width) ? width : 0;
 }
 
+export function normalizeSautiVideoQuality(value) {
+  const quality = Number(value || 0);
+  return VIDEO_VARIANT_QUALITIES.includes(quality) ? quality : 0;
+}
+
+export function sautiVideoVariantObjectKey(objectKey, quality) {
+  const normalized = normalizeSautiVideoQuality(quality);
+  return normalized ? `${String(objectKey || '')}.video-${VIDEO_VARIANT_VERSION}-q${normalized}.mp4` : '';
+}
+
+export function sautiMediaObjectKeys(row) {
+  const original = String(row?.object_key || '');
+  if (!original) return [];
+  if (row?.media_kind !== 'video') return [original];
+  return [original, ...VIDEO_VARIANT_QUALITIES.map((quality) => sautiVideoVariantObjectKey(original, quality))];
+}
+
 function responsiveImagesEnabled(env) {
   return String(env?.SAUTI_MEDIA_VARIANTS_ENABLED || '').toLowerCase() === 'true' && Boolean(env?.IMAGES);
 }
@@ -127,6 +147,10 @@ function responsiveImagesEnabled(env) {
 function mediaVariantEtag(id, width = 0) {
   const suffix = width ? `${IMAGE_VARIANT_VERSION}-w${width}` : 'original';
   return `W/"sauti-${id}-${suffix}"`;
+}
+
+function videoVariantEtag(id, quality) {
+  return `W/"sauti-${id}-video-${VIDEO_VARIANT_VERSION}-q${quality}"`;
 }
 
 function mediaResponseHeaders(contentType, etag, variantWidth = 0) {
@@ -335,7 +359,7 @@ async function cleanupExpiredOwnerUploads(session, env) {
     owner_id: `eq.${session.user.id}`,
     post_id: 'is.null',
     expires_at: `lt.${new Date().toISOString()}`,
-    select: 'id,object_key',
+    select: 'id,object_key,media_kind',
     limit: '12',
   });
   const response = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${params}`, {
@@ -347,7 +371,7 @@ async function cleanupExpiredOwnerUploads(session, env) {
   if (!Array.isArray(rows) || !rows.length) return;
 
   await Promise.all(rows.map(async (row) => {
-    if (row?.object_key) await env.SAUTI_MEDIA.delete(row.object_key).catch(() => {});
+    await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
     if (!row?.id) return;
     const deleteParams = new URLSearchParams({
       id: `eq.${row.id}`,
@@ -466,14 +490,66 @@ async function uploadMedia(request, env, id) {
     upload_status: 'uploaded',
   });
   if (!patched) {
-    await env.SAUTI_MEDIA.delete(row.object_key).catch(() => {});
+    await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
     return apiError(409, 'UPLOAD_METADATA_FAILED', 'The upload could not be recorded.');
   }
 
   return json(200, { ok: true, data: { id, width: inspected.width, height: inspected.height, duration_ms: inspected.durationMs } });
 }
 
-async function finalizeUpload(request, env, id) {
+function videoVariantDimensions(row, quality) {
+  const portrait = Number(row?.height || 0) > Number(row?.width || 0);
+  if (quality === 360) return portrait ? { width: 360, height: 640 } : { width: 640, height: 360 };
+  if (quality === 720) return portrait ? { width: 720, height: 1280 } : { width: 1280, height: 720 };
+  return null;
+}
+
+async function createSautiVideoVariant(env, row, id, quality) {
+  const dimensions = videoVariantDimensions(row, quality);
+  const objectKey = sautiVideoVariantObjectKey(row?.object_key, quality);
+  if (!dimensions || !objectKey || !env?.MEDIA || !env?.SAUTI_MEDIA) return '';
+
+  const existing = await env.SAUTI_MEDIA.head(objectKey).catch(() => null);
+  if (existing) return objectKey;
+
+  const jobKey = `${id}:${quality}`;
+  if (videoVariantJobs.has(jobKey)) return videoVariantJobs.get(jobKey);
+
+  const job = (async () => {
+    const original = await env.SAUTI_MEDIA.get(row.object_key);
+    if (!original?.body) return '';
+
+    const result = env.MEDIA
+      .input(original.body)
+      .transform({ ...dimensions, fit: 'scale-down' })
+      .output({ mode: 'video', audio: true });
+    const body = await result.media();
+    await env.SAUTI_MEDIA.put(objectKey, body, {
+      httpMetadata: { contentType: 'video/mp4' },
+      customMetadata: {
+        ownerId: String(row.owner_id || ''),
+        mediaId: id,
+        mediaKind: 'video',
+        quality: String(quality),
+        variantVersion: VIDEO_VARIANT_VERSION,
+        sourceEtag: String(original.etag || ''),
+      },
+    });
+    return objectKey;
+  })().catch(() => '').finally(() => videoVariantJobs.delete(jobKey));
+
+  videoVariantJobs.set(jobKey, job);
+  return job;
+}
+
+function prewarmSautiVideoVariants(env, row, id, ctx) {
+  if (row?.media_kind !== 'video' || !ctx?.waitUntil || !env?.MEDIA) return;
+  ctx.waitUntil(Promise.allSettled(
+    VIDEO_VARIANT_QUALITIES.map((quality) => createSautiVideoVariant(env, row, id, quality)),
+  ));
+}
+
+async function finalizeUpload(request, env, id, ctx = null) {
   if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
   const session = await authenticate(request);
   if (!session) return apiError(401, 'AUTH_REQUIRED', 'Sign in before finalizing media.');
@@ -499,6 +575,8 @@ async function finalizeUpload(request, env, id) {
   const patched = await patchMedia(session, id, { upload_status: 'ready', finalized_at: finalizedAt });
   if (!patched) return apiError(409, 'FINALIZE_FAILED', 'The media could not be finalized.');
 
+  prewarmSautiVideoVariants(env, row, id, ctx);
+
   return json(200, {
     ok: true,
     data: {
@@ -522,7 +600,7 @@ async function removeUpload(request, env, id) {
   if (!row || row.owner_id !== session.user.id || row.post_id) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
   const deleted = await deleteMediaRow(session, id);
   if (!deleted) return apiError(409, 'MEDIA_REMOVE_FAILED', 'The media could not be removed.');
-  await env.SAUTI_MEDIA.delete(row.object_key).catch(() => {});
+  await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
   return json(200, { ok: true, data: { id, removed: true } });
 }
 
@@ -560,6 +638,58 @@ async function serveOriginalMedia(request, env, row, id) {
   if (video) headers.set('Accept-Ranges', 'bytes');
 
   if (video && object.range) {
+    const length = Number(object.range.length || object.range.suffix || 0);
+    const offset = Number.isFinite(object.range.offset)
+      ? Number(object.range.offset)
+      : Math.max(0, Number(object.size || 0) - length);
+    if (length > 0) {
+      headers.set('Content-Range', `bytes ${offset}-${offset + length - 1}/${object.size}`);
+      headers.set('Content-Length', String(length));
+      return new Response(object.body, { status: 206, headers });
+    }
+  }
+
+  headers.set('Content-Length', String(object.size));
+  return new Response(object.body, { status: 200, headers });
+}
+
+async function serveVideoVariant(request, env, row, id, quality) {
+  const objectKey = sautiVideoVariantObjectKey(row.object_key, quality);
+  if (!objectKey || row.media_kind !== 'video') return serveOriginalMedia(request, env, row, id);
+
+  let available = await env.SAUTI_MEDIA.head(objectKey).catch(() => null);
+  if (!available && request.method !== 'HEAD') {
+    const generatedKey = await createSautiVideoVariant(env, row, id, quality);
+    if (generatedKey) available = await env.SAUTI_MEDIA.head(generatedKey).catch(() => null);
+  }
+  if (!available) return serveOriginalMedia(request, env, row, id);
+
+  const etag = videoVariantEtag(id, quality);
+  const headers = mediaResponseHeaders('video/mp4', etag);
+  headers.set('Accept-Ranges', 'bytes');
+  headers.set('Cache-Control', 'private, max-age=300, must-revalidate');
+  headers.set('X-Sauti-Media-Variant', `video-${VIDEO_VARIANT_VERSION};q=${quality}`);
+  headers.set('X-Sauti-Video-Quality', `${quality}p`);
+  const rangeHeader = String(request.headers.get('Range') || '');
+  if (!rangeHeader && requestHasEtag(request, etag)) return new Response(null, { status: 304, headers });
+
+  if (request.method === 'HEAD') {
+    available.writeHttpMetadata(headers);
+    headers.set('Content-Length', String(available.size));
+    return new Response(null, { status: 200, headers });
+  }
+
+  const object = await env.SAUTI_MEDIA.get(
+    objectKey,
+    rangeHeader ? { range: request.headers } : undefined,
+  );
+  if (!object) return serveOriginalMedia(request, env, row, id);
+  object.writeHttpMetadata(headers);
+  headers.set('Content-Security-Policy', "default-src 'none'");
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('Content-Disposition', 'inline');
+
+  if (object.range) {
     const length = Number(object.range.length || object.range.suffix || 0);
     const offset = Number.isFinite(object.range.offset)
       ? Number(object.range.offset)
@@ -627,18 +757,20 @@ async function serveImageVariant(request, env, row, id, width) {
   }
 }
 
-async function serveMedia(request, env, id) {
+async function serveMedia(request, env, id, ctx = null) {
   if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
   const row = await selectMedia(id, mediaDeliveryAuthorization(request));
   if (!row || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
 
   const url = new URL(request.url);
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
+  const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
   if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
+  if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality);
   return serveOriginalMedia(request, env, row, id);
 }
 
-export async function handleSautiMediaRequest(request, env) {
+export async function handleSautiMediaRequest(request, env, ctx = null) {
   const url = new URL(request.url);
 
   if (url.pathname === '/api/sauti-media/status' && request.method === 'GET') {
@@ -648,6 +780,8 @@ export async function handleSautiMediaRequest(request, env) {
         ready: Boolean(env.SAUTI_MEDIA),
         responsive_images: responsiveImagesEnabled(env),
         image_variant_widths: IMAGE_VARIANT_WIDTHS,
+        adaptive_video: Boolean(env.SAUTI_MEDIA && env.MEDIA),
+        video_variant_qualities: VIDEO_VARIANT_QUALITIES,
       },
     });
   }
@@ -663,10 +797,10 @@ export async function handleSautiMediaRequest(request, env) {
   if (match && request.method === 'PUT') return uploadMedia(request, env, uuid(match[1]));
 
   match = url.pathname.match(/^\/api\/sauti-media\/finalize\/([0-9a-f-]{36})$/i);
-  if (match && request.method === 'POST') return finalizeUpload(request, env, uuid(match[1]));
+  if (match && request.method === 'POST') return finalizeUpload(request, env, uuid(match[1]), ctx);
 
   match = url.pathname.match(/^\/api\/sauti-media\/([0-9a-f-]{36})$/i);
-  if (match && (request.method === 'GET' || request.method === 'HEAD')) return serveMedia(request, env, uuid(match[1]));
+  if (match && (request.method === 'GET' || request.method === 'HEAD')) return serveMedia(request, env, uuid(match[1]), ctx);
   if (match && request.method === 'DELETE') return removeUpload(request, env, uuid(match[1]));
 
   return null;

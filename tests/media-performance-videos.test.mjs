@@ -101,6 +101,70 @@ test('authenticated video delivery forwards byte ranges to R2 and returns HTTP 2
   }
 });
 
+test('requested video quality is transformed once, stored in R2, and served as MP4', async () => {
+  const previousFetch = globalThis.fetch;
+  const row = videoRow();
+  const objects = new Map([[row.object_key, new Uint8Array([1, 2, 3, 4])]]);
+  let transformOptions = null;
+  let variantKey = '';
+  globalThis.fetch = async () => new Response(JSON.stringify([row]), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const objectFor = (key) => {
+    const body = objects.get(key);
+    if (!body) return null;
+    return {
+      body,
+      size: body.byteLength,
+      etag: 'source-etag',
+      writeHttpMetadata(headers) {
+        headers.set('Content-Type', 'video/mp4');
+      },
+    };
+  };
+  const env = {
+    SAUTI_MEDIA: {
+      async head(key) { return objectFor(key); },
+      async get(key) { return objectFor(key); },
+      async put(key, body) {
+        variantKey = key;
+        objects.set(key, body instanceof Uint8Array ? body : new Uint8Array(await new Response(body).arrayBuffer()));
+      },
+    },
+    MEDIA: {
+      input() {
+        return {
+          transform(options) {
+            transformOptions = options;
+            return {
+              output(options) {
+                assert.deepEqual(options, { mode: 'video', audio: true });
+                return { async media() { return new Uint8Array([9, 8, 7]); } };
+              },
+            };
+          },
+        };
+      },
+    },
+  };
+
+  try {
+    const response = await handleSautiMediaRequest(new Request(
+      `https://sautilink.com/api/sauti-media/${MEDIA_ID}?quality=360`,
+      { headers: { Cookie: '__Secure-sautilink-media-session=cookie.token.value' } },
+    ), env);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('X-Sauti-Video-Quality'), '360p');
+    assert.match(response.headers.get('X-Sauti-Media-Variant') || '', /q=360/);
+    assert.deepEqual(transformOptions, { width: 360, height: 640, fit: 'scale-down' });
+    assert.equal(variantKey, `${row.object_key}.video-v1-q360.mp4`);
+    assert.equal((await response.arrayBuffer()).byteLength, 3);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test('feed videos use protected range URLs while images keep responsive blobs', async () => {
   const appPath = new URL('../src/app.js', import.meta.url).pathname;
   const source = await read('src/app.js');
@@ -110,13 +174,14 @@ test('feed videos use protected range URLs while images keep responsive blobs', 
     "fetch('/api/sauti-media/session'",
     "method: 'POST'",
     "credentials: 'same-origin'",
-    'fetchSautiVideoStreamUrl(media.id)',
+    'fetchSautiVideoStreamUrl(media.id, videoQuality)',
+    "qualityFor?.({ context: 'home' })",
     "button.dataset.mediaStreaming = 'range'",
     "url.startsWith('blob:')",
     "item.mediaKind === 'video'",
-    'await fetchSautiVideoStreamUrl(item.id)',
+    "await fetchSautiVideoStreamUrl(item.id, 'original')",
     'void clearSautiVideoSession()',
   ]) assert.ok(transformed.includes(marker), `missing transformed marker: ${marker}`);
 
-  assert.match(transformed, /const url = streamingVideo[\s\S]*fetchSautiVideoStreamUrl\(media\.id\)[\s\S]*fetchSautiMediaBlobUrl\(media\.id, variantWidth\)/);
+  assert.match(transformed, /const url = streamingVideo[\s\S]*fetchSautiVideoStreamUrl\(media\.id, videoQuality\)[\s\S]*fetchSautiMediaBlobUrl\(media\.id, variantWidth\)/);
 });

@@ -84,7 +84,7 @@ function authOnlyHeaders(request) {
   return headers;
 }
 
-async function handleBoundedMediaUpload(request, env, url) {
+async function handleBoundedMediaUpload(request, env, url, ctx = null) {
   const match = url.pathname.match(SAUTI_MEDIA_UPLOAD_ROUTE);
   const contentType = String(request.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
   if (!match || request.method !== 'PUT' || contentType !== 'video/mp4') return null;
@@ -96,7 +96,7 @@ async function handleBoundedMediaUpload(request, env, url) {
     await handleSautiMediaRequest(new Request(cleanupUrl, {
       method: 'DELETE',
       headers: authOnlyHeaders(request),
-    }), env).catch(() => null);
+    }), env, ctx).catch(() => null);
     if (!inspected) {
       return json(415, {
         ok: false,
@@ -120,7 +120,7 @@ async function handleBoundedMediaUpload(request, env, url) {
     headers: request.headers,
     body: bytes,
   });
-  return handleSautiMediaRequest(replay, env);
+  return handleSautiMediaRequest(replay, env, ctx);
 }
 
 async function handleSautiWithOptionalPoll(request, env, url) {
@@ -270,7 +270,7 @@ function finalizeResponse(response, id, url) {
   });
 }
 
-async function routeRequest(request, env, url) {
+async function routeRequest(request, env, url, ctx = null) {
   if (url.pathname === '/api/health') {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return json(405, { ok: false, error: { code: 'METHOD_NOT_ALLOWED', message: 'Use GET or HEAD for health checks.' } });
@@ -298,9 +298,9 @@ async function routeRequest(request, env, url) {
   }
 
   if (url.pathname.startsWith('/api/sauti-media/')) {
-    const boundedVideoResponse = await handleBoundedMediaUpload(request, env, url);
+    const boundedVideoResponse = await handleBoundedMediaUpload(request, env, url, ctx);
     if (boundedVideoResponse) return boundedVideoResponse;
-    const mediaResponse = await handleSautiMediaRequest(request, env);
+    const mediaResponse = await handleSautiMediaRequest(request, env, ctx);
     if (mediaResponse) return mediaResponse;
     return new Response('Not found', { status: 404 });
   }
@@ -401,12 +401,12 @@ async function routeRequest(request, env, url) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const id = requestId(request);
 
     try {
-      const response = await routeRequest(request, env, url);
+      const response = await routeRequest(request, env, url, ctx);
       return finalizeResponse(response, id, url);
     } catch {
       console.error('Unhandled SautiLink request', {

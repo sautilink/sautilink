@@ -1,4 +1,4 @@
-const SAUTILINK_VIDEO_PLAYER_STYLESHEET = '/app/assets/sautilink-video-player.css';
+const SAUTILINK_VIDEO_PLAYER_STYLESHEET = '/app/assets/sautilink-video-player.css?v=20260925-video-quality1';
 const SAUTILINK_VIDEO_PLAYER_STYLESHEET_ID = 'sautilink-video-player-style';
 const SAUTILINK_VIDEO_SELECTOR = '.sauti-media-tile video, #sauti-media-viewer-content > video';
 const VIDEO_CONTROLS_IDLE_MS = 4000;
@@ -114,10 +114,12 @@ function enhanceSautiLinkVideo(video) {
 
   const { host, mode } = context;
   const canOpenViewer = mode === 'feed' && Boolean(host.closest('#stream-feed'));
+  const qualityContext = host.closest('#sauti-short-videos') ? 'short' : 'home';
   video.dataset.sautiVideoPlayerReady = 'true';
   video.controls = false;
   video.removeAttribute('controls');
   host.classList.add('has-sauti-video-player');
+  window.SautiLinkVideoQuality?.enhance?.(video, { context: qualityContext });
 
   if (mode === 'feed') {
     host.querySelectorAll(':scope > .sauti-video-audio-toggle').forEach((node) => node.remove());
@@ -203,6 +205,36 @@ function enhanceSautiLinkVideo(video) {
   rate.setAttribute('title', 'Playback speed');
   rate.textContent = '1×';
 
+  const quality = qualityContext === 'home' ? document.createElement('span') : null;
+  const qualityMenu = qualityContext === 'home' ? document.createElement('span') : null;
+  if (quality && qualityMenu) {
+    quality.className = 'sauti-video-quality';
+    quality.setAttribute('role', 'button');
+    quality.setAttribute('tabindex', '0');
+    quality.setAttribute('aria-label', 'Change video quality');
+    quality.setAttribute('aria-haspopup', 'menu');
+    quality.setAttribute('aria-expanded', 'false');
+    qualityMenu.className = 'sauti-video-quality-menu';
+    qualityMenu.setAttribute('role', 'menu');
+    qualityMenu.hidden = true;
+    [
+      ['auto', 'Auto'],
+      ['data-saver', 'Data Saver'],
+      ['360', '360p'],
+      ['720', '720p'],
+      ['original', 'Original'],
+    ].forEach(([value, label]) => {
+      const option = document.createElement('span');
+      option.className = 'sauti-video-quality-option';
+      option.dataset.videoQualityOption = value;
+      option.setAttribute('role', 'menuitemradio');
+      option.setAttribute('tabindex', '0');
+      option.textContent = label;
+      qualityMenu.append(option);
+    });
+    quality.append(qualityMenu);
+  }
+
   const pip = makeVideoControl('sauti-video-control pip', 'Picture in Picture', 'pip');
   const expand = makeVideoControl(
     'sauti-video-control expand',
@@ -214,6 +246,7 @@ function enhanceSautiLinkVideo(video) {
     : null;
 
   row.append(playPause, audio, volume, time, rate);
+  if (quality) row.append(quality);
   if ('pictureInPictureEnabled' in document && document.pictureInPictureEnabled && typeof video.requestPictureInPicture === 'function') {
     row.append(pip);
   } else {
@@ -274,6 +307,29 @@ function enhanceSautiLinkVideo(video) {
     const value = Number(video.playbackRate) || 1;
     rate.textContent = `${Number.isInteger(value) ? value : value.toFixed(1)}×`;
     rate.setAttribute('aria-label', `Playback speed ${rate.textContent}. Activate to change.`);
+  };
+
+  const syncQuality = () => {
+    if (!quality || !qualityMenu) return;
+    const preference = window.SautiLinkVideoQuality?.getPreference?.() || 'auto';
+    const applied = video.dataset.sautiQuality || 'original';
+    const appliedLabel = applied === 'original' ? 'Original' : `${applied}p`;
+    const label = preference === 'auto'
+      ? `Auto · ${appliedLabel}`
+      : preference === 'data-saver'
+        ? `Saver · ${appliedLabel}`
+        : preference === 'original' ? 'Original' : `${preference}p`;
+    let labelNode = quality.querySelector(':scope > .sauti-video-quality-label');
+    if (!labelNode) {
+      labelNode = document.createElement('span');
+      labelNode.className = 'sauti-video-quality-label';
+      quality.prepend(labelNode);
+    }
+    labelNode.textContent = label;
+    quality.setAttribute('title', `Video quality: ${label}`);
+    qualityMenu.querySelectorAll('[data-video-quality-option]').forEach((option) => {
+      option.setAttribute('aria-checked', String(option.dataset.videoQualityOption === preference));
+    });
   };
 
   const syncTimeline = () => {
@@ -362,6 +418,24 @@ function enhanceSautiLinkVideo(video) {
     syncRate();
     showControls();
   });
+  if (quality && qualityMenu) {
+    runControlAction(quality, () => {
+      const open = qualityMenu.hidden;
+      qualityMenu.hidden = !open;
+      quality.setAttribute('aria-expanded', String(open));
+      if (open) qualityMenu.querySelector('[aria-checked="true"]')?.focus();
+      showControls({ hold: open });
+    });
+    qualityMenu.querySelectorAll('[data-video-quality-option]').forEach((option) => {
+      runControlAction(option, () => {
+        window.SautiLinkVideoQuality?.setPreference?.(option.dataset.videoQualityOption);
+        qualityMenu.hidden = true;
+        quality.setAttribute('aria-expanded', 'false');
+        syncQuality();
+        showControls();
+      });
+    });
+  }
   runControlAction(pip, async () => {
     try {
       if (document.pictureInPictureElement === video) await document.exitPictureInPicture();
@@ -468,6 +542,10 @@ function enhanceSautiLinkVideo(video) {
     event.preventDefault();
     event.stopPropagation();
     showControls();
+    if (qualityMenu && !qualityMenu.hidden) {
+      qualityMenu.hidden = true;
+      quality?.setAttribute('aria-expanded', 'false');
+    }
 
     const rect = gesture.getBoundingClientRect();
     const ratio = rect.width ? (event.clientX - rect.left) / rect.width : 0.5;
@@ -544,10 +622,13 @@ function enhanceSautiLinkVideo(video) {
   video.addEventListener('stalled', () => player.classList.add('is-buffering'));
   video.addEventListener('playing', () => player.classList.remove('is-buffering'));
   video.addEventListener('canplay', () => player.classList.remove('is-buffering'));
+  video.addEventListener('sautilink:video-quality-applied', syncQuality);
+  document.addEventListener('sautilink:video-quality-preference', syncQuality);
 
   syncPlayState();
   syncAudio();
   syncRate();
+  syncQuality();
   syncTimeline();
   syncBuffered();
   showControls({ hold: video.paused });
