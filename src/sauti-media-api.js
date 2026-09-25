@@ -795,3 +795,13 @@ export async function handleSautiMediaRequest(request, env, ctx = null) {
 
   let match = url.pathname.match(/^\/api\/sauti-media\/upload\/([0-9a-f-]{36})$/i);
   if (match && request.method === 'PUT') return uploadMedia(request, env, uuid(match[1]));
+
+  match = url.pathname.match(/^\/api\/sauti-media\/finalize\/([0-9a-f-]{36})$/i);
+  if (match && request.method === 'POST') return finalizeUpload(request, env, uuid(match[1]), ctx);
+
+  match = url.pathname.match(/^\/api\/sauti-media\/([0-9a-f-]{36})$/i);
+  if (match && (request.method === 'GET' || request.method === 'HEAD')) return serveMedia(request, env, uuid(match[1]), ctx);
+  if (match && request.method === 'DELETE') return removeUpload(request, env, uuid(match[1]));
+
+  return null;
+}
