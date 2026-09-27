@@ -1,4 +1,4 @@
-const CONVERSATION_REPLIES_UI_CSS = '/app/assets/conversation-replies-ui.css?v=20260921-comments-back2';
+const CONVERSATION_REPLIES_UI_CSS = '/app/assets/conversation-replies-ui.css?v=20260927-nested-replies';
 
 export function ensureConversationRepliesUiStyles() {
   if (typeof document === 'undefined') return;

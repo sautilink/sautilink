@@ -88,7 +88,7 @@ body:has(#conversation-surface:not([hidden])) .stream-header {
   grid-template-columns: 38px minmax(0, 1fr);
   gap: 10px;
   width: auto;
-  margin: 0 0 0 var(--thread-indent, 0);
+  margin: 0;
   padding: 13px 14px 10px;
   overflow: visible;
   border: 0;
@@ -110,17 +110,46 @@ body:has(#conversation-surface:not([hidden])) .stream-header {
   display: none;
 }
 
-#conversation-thread .comment-card[style*="--thread-depth: 1"]::after,
-#conversation-thread .comment-card[style*="--thread-depth: 2"]::after,
-#conversation-thread .comment-card[style*="--thread-depth: 3"]::after,
-#conversation-thread .comment-card[style*="--thread-depth: 4"]::after {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -7px;
-  width: 1px;
-  background: var(--app-line);
-  content: '';
+#conversation-thread .comment-replies {
+  margin-left: 48px;
+  border-left: 1px solid var(--app-line);
+}
+
+#conversation-thread .comment-replies[hidden] {
+  display: none;
+}
+
+#conversation-thread .comment-replies .comment-replies {
+  margin-left: 16px;
+}
+
+#conversation-thread .comment-replies.comment-replies-deep {
+  margin-left: 0;
+}
+
+#conversation-thread .comment-replies-toggle {
+  display: block;
+  min-height: 36px;
+  margin: 0 0 5px 48px;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--app-accent);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+#conversation-thread .comment-replies .comment-replies-toggle {
+  margin-left: 12px;
+}
+
+#conversation-thread .comment-replies-toggle:hover,
+#conversation-thread .comment-replies-toggle:focus-visible {
+  background: color-mix(in srgb, var(--app-accent) 10%, transparent);
 }
 
 .comment-avatar {
@@ -443,8 +472,20 @@ body:has(#conversation-surface:not([hidden])) .stream-header {
   #conversation-thread .comment-card {
     grid-template-columns: 34px minmax(0, 1fr);
     gap: 8px;
-    margin-left: var(--thread-indent, 0);
+    margin-left: 0;
     padding: 11px 10px 8px;
+  }
+
+  #conversation-thread .comment-replies {
+    margin-left: 42px;
+  }
+
+  #conversation-thread .comment-replies .comment-replies {
+    margin-left: 12px;
+  }
+
+  #conversation-thread .comment-replies-toggle {
+    margin-left: 42px;
   }
 
   .comment-avatar {
