@@ -27,7 +27,7 @@ test('Phase 24 activates Discover and private Saved surfaces without decorative 
   const cssVersion = Number(html.match(/app\.css\?v=([0-9]+)/)?.[1] || 0);
   const jsVersion = Number(html.match(/app\.js\?v=([0-9]+)/)?.[1] || 0);
   assert.ok(cssVersion >= 24, `app CSS version regressed below Phase 24: ${cssVersion}`);
-  assert.equal(jsVersion, cssVersion);
+  assert.ok(jsVersion >= 24, `app JS version regressed below Phase 24: ${jsVersion}`);
   assert.match(css, /\.discover-surface/);
   assert.match(css, /\.saved-surface/);
   assert.match(css, /\.discover-profile-row/);

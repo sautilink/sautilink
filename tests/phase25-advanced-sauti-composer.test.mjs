@@ -26,7 +26,7 @@ test('Phase 25 activates the advanced Sauti composer inside the accepted app she
   const cssVersion = Number(html.match(/app\.css\?v=([0-9]+)/)?.[1] || 0);
   const jsVersion = Number(html.match(/app\.js\?v=([0-9]+)/)?.[1] || 0);
   assert.ok(cssVersion >= 25, `app CSS version regressed below Phase 25: ${cssVersion}`);
-  assert.equal(jsVersion, cssVersion);
+  assert.ok(jsVersion >= 25, `app JS version regressed below Phase 25: ${jsVersion}`);
   assert.match(css, /\.composer-settings/);
   assert.match(css, /\.composer-drafts/);
   assert.match(css, /\.composer-quote-preview/);

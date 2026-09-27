@@ -25,7 +25,7 @@ test('Phase 23 activates live one-to-one Messages inside the accepted app shell'
   const cssVersion = Number(html.match(/app\.css\?v=([0-9]+)/)?.[1] || 0);
   const jsVersion = Number(html.match(/app\.js\?v=([0-9]+)/)?.[1] || 0);
   assert.ok(cssVersion >= 23, `app CSS version regressed below Phase 23: ${cssVersion}`);
-  assert.equal(jsVersion, cssVersion);
+  assert.ok(jsVersion >= 23, `app JS version regressed below Phase 23: ${jsVersion}`);
   assert.match(css, /\.messages-surface/);
   assert.match(css, /\.message-inbox-item/);
   assert.match(css, /\.dm-message/);

@@ -135,5 +135,5 @@ test('profile visitor actions use an accessible resilient overflow menu without 
   assert.match(css, /\.profile-surface \.profile-more-popover\[hidden\]/);
   assert.match(css, /width: min\(236px, calc\(100vw - 24px\)\)/);
   assert.match(serviceWorker, /profile-x-ui\.css\?v=20260918-profile2/);
-  assert.match(serviceWorker, /profile-settings-ui\.css\?v=20260918-profile2/);
+  assert.match(serviceWorker, /profile-settings-ui\.css\?v=20260927-page-headers1/);
 });

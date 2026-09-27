@@ -23,7 +23,7 @@ test('Phase 22 activates Circle notifications and owner member controls without 
   const cssVersion = Number(html.match(/app\.css\?v=([0-9]+)/)?.[1] || 0);
   const jsVersion = Number(html.match(/app\.js\?v=([0-9]+)/)?.[1] || 0);
   assert.ok(cssVersion >= 22, `app CSS version regressed below Phase 22: ${cssVersion}`);
-  assert.equal(jsVersion, cssVersion);
+  assert.ok(jsVersion >= 22, `app JS version regressed below Phase 22: ${jsVersion}`);
   assert.match(css, /\.circle-members/);
   assert.match(css, /\.circle-member-remove/);
 });

@@ -20,7 +20,7 @@ test('Phase 32 production artifact targets production Supabase and removes previ
   assert.doesNotMatch(bundle, /profile-x-ui\.css\?v=20260918-profile2/);
   assert.doesNotMatch(html, /Private preview|Phase 31/);
   assert.doesNotMatch(html, /name="robots"[^>]+noindex/i);
-  assert.match(html, /app\.css\?v=20260925-video-quality1/);
+  assert.match(html, /app\.css\?v=20260927-page-headers1/);
   assert.match(html, /id="sautilink-profile-x-ui"[^>]+profile-x-ui\.css\?v=[a-f0-9]{12}/);
   assert.match(html, /profile-settings-ui\.css\?v=[a-f0-9]{12}/);
   assert.doesNotMatch(html, /profile-(?:x|settings)-ui\.css\?v=20260918-profile2/);
@@ -135,7 +135,7 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   assert.match(stampScript, /createHash\('sha256'\)/);
   assert.match(stampScript, /profile-x-ui\.css/);
   assert.match(hashVerifyScript, /content-hashed production UI stylesheets/);
-  assert.match(serviceWorker, /sautilink-shell-v78/);
+  assert.match(serviceWorker, /sautilink-shell-v79/);
   assert.match(serviceWorker, /20260925-video-quality1/);
 });
 
