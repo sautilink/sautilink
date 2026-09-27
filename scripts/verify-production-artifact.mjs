@@ -91,7 +91,7 @@ for (const marker of [
   if (!profileSettingsCss.includes(marker)) throw new Error(`production profile settings stylesheet missing overflow-menu marker: ${marker}`);
 }
 if (!appHtml.includes('id="sautilink-profile-x-ui"')) throw new Error('production profile stylesheet is not eagerly linked');
-if (!appHtml.includes('profile-settings-ui.css?v=20260918-profile2')) throw new Error('production profile settings stylesheet cache marker is missing');
+if (!appHtml.includes('profile-settings-ui.css?v=20260927-page-headers1')) throw new Error('production profile settings stylesheet cache marker is missing');
 for (const [id, filename] of [
   ['social-oauth-auth-styles', 'guest-entry-gate.css'],
   ['auth-entry-polish-styles', 'auth-entry-polish.css'],
@@ -195,7 +195,7 @@ if (!roomsFacebookCss.includes('room-fb-detail-aside')) throw new Error('product
 if (appHtml.includes('Private preview') || appHtml.includes('Phase 31')) throw new Error('production app still contains staging/phase UI copy');
 if (/name="robots"[^>]+noindex/i.test(appHtml)) throw new Error('production app must not carry staging noindex meta');
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('production theme bootstrap is missing');
-if (!appHtml.includes('app.css?v=20260925-video-quality1')) throw new Error('production CSS cache marker is missing');
+if (!appHtml.includes('app.css?v=20260927-page-headers1')) throw new Error('production CSS cache marker is missing');
 if (!appHtml.includes('app.js?v=20260925-video-quality1')) throw new Error('production JS cache marker is missing');
 if (!appHtml.includes('birthdate=20260920-birthdate1')) throw new Error('production birth date cache marker is missing');
 if (!appHtml.includes('pwa.js?v=20260925-video-quality1')) throw new Error('production PWA cache marker is missing');

@@ -305,10 +305,17 @@ body.profile-editor-open {
 .settings-surface .settings-toolbar {
   grid-column: 1 / -1;
   grid-row: 1;
-  min-height: 88px;
-  padding: 20px 22px;
+  min-height: 0;
+  padding: 12px 22px;
   border-bottom: 1px solid var(--app-line);
   background: var(--app-panel);
+}
+
+.settings-surface .settings-toolbar > p {
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .settings-surface .settings-toolbar h2 {
@@ -555,8 +562,8 @@ body.profile-editor-open {
   }
 
   .settings-surface .settings-toolbar {
-    min-height: 76px;
-    padding: 15px 14px;
+    min-height: 0;
+    padding: 10px 14px;
   }
 
   .settings-surface .settings-toolbar h2 {

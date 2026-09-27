@@ -1,5 +1,6 @@
-const CACHE_NAME = "sautilink-shell-v78";
+const CACHE_NAME = "sautilink-shell-v79";
 const APP_RELEASE = "20260925-video-quality1";
+const APP_CSS_RELEASE = "20260927-page-headers1";
 const APP_FEATURE_RELEASE = "20260918-signup2";
 const PWA_RELEASE = "20260925-video-quality1";
 const CORE_ASSET_PATHS = new Set([
@@ -10,10 +11,10 @@ const CORE_ASSET_PATHS = new Set([
 const APP_SHELL = [
   "/",
   "/app/",
-  `/app/assets/app.css?v=${APP_RELEASE}`,
+  `/app/assets/app.css?v=${APP_CSS_RELEASE}`,
   `/app/assets/app.js?v=${APP_RELEASE}&feature=${APP_FEATURE_RELEASE}`,
   "/app/assets/profile-x-ui.css?v=20260918-profile2",
-  "/app/assets/profile-settings-ui.css?v=20260918-profile2",
+  "/app/assets/profile-settings-ui.css?v=20260927-page-headers1",
   "/app/assets/theme-init.js?v=20260904-account2",
   "/manifest.json",
   "/logo.png",

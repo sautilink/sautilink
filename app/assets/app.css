@@ -1606,6 +1606,22 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
   font-size: 10px;
   line-height: 1.55;
 }
+.surface-toolbar:has(> .surface-intro-copy) {
+  align-items: center;
+  padding: 12px 20px;
+}
+.surface-toolbar > .surface-intro-copy {
+  max-width: 720px;
+  margin: 0;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.compact-action-toolbar {
+  align-items: center;
+  justify-content: flex-end;
+  padding: 10px 20px;
+}
 .surface-icon-action {
   display: inline-flex;
   align-items: center;
@@ -1738,6 +1754,9 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
     padding: 16px 14px;
   }
   .surface-toolbar .secondary-action { width: 100%; justify-content: center; }
+  .surface-toolbar:has(> .surface-intro-copy),
+  .compact-action-toolbar { padding: 10px 14px; }
+  .compact-action-toolbar .secondary-action { width: auto; }
   .discover-search {
     grid-template-columns: auto minmax(0, 1fr);
     padding: 12px 14px;

@@ -13,7 +13,7 @@ const originalJs = await readFile(appJsPath, 'utf8');
 function legacyVerificationView(input) {
   return input
     .replace(/profile-x-ui\.css\?v=[a-f0-9]{12}/gi, 'profile-x-ui.css?v=20260918-profile2')
-    .replace(/profile-settings-ui\.css\?v=[a-f0-9]{12}/gi, 'profile-settings-ui.css?v=20260918-profile2')
+    .replace(/profile-settings-ui\.css\?v=[a-f0-9]{12}/gi, 'profile-settings-ui.css?v=20260927-page-headers1')
     .replace(/messages-whatsapp\.css\?v=[a-f0-9]{12}/gi, 'messages-whatsapp.css?v=20260914-messagesui1')
     .replace(/messages-composer\.css\?v=[a-f0-9]{12}/gi, 'messages-composer.css?v=20260914-messagesui1');
 }

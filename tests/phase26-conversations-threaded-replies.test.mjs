@@ -23,7 +23,7 @@ test('Phase 26 activates focused Sauti conversations inside the accepted shell',
   const cssVersion = Number(html.match(/app\.css\?v=([0-9]+)/)?.[1] || 0);
   const jsVersion = Number(html.match(/app\.js\?v=([0-9]+)/)?.[1] || 0);
   assert.ok(cssVersion >= 26, `app stylesheet milestone regressed below Phase 26: ${cssVersion}`);
-  assert.equal(jsVersion, cssVersion);
+  assert.ok(jsVersion >= 26, `app JS version regressed below Phase 26: ${jsVersion}`);
   assert.match(css, /\.conversation-surface/);
   assert.match(css, /\.thread-sauti/);
   assert.match(css, /\.thread-continue/);

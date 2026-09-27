@@ -27,7 +27,7 @@ test('Phase 21 adds Circle Stream inside the accepted Circles surface', async ()
   const cssVersion = Number(html.match(/app\.css\?v=(\d+)/)?.[1] || 0);
   const jsVersion = Number(html.match(/app\.js\?v=(\d+)/)?.[1] || 0);
   assert.ok(cssVersion >= 21, `app CSS version regressed below Phase 21: ${cssVersion}`);
-  assert.equal(jsVersion, cssVersion);
+  assert.ok(jsVersion >= 21, `app JS version regressed below Phase 21: ${jsVersion}`);
 
   assert.match(css, /\.circle-stream/);
   assert.match(css, /\.circle-sauti-composer/);

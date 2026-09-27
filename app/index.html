@@ -14,7 +14,7 @@
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <script src="/app/assets/theme-init.js?v=20260904-account2"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260925-video-quality1">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260927-page-headers1">
   <!-- First-paint UI: keep the final Auth and Home presentation render-blocking so refresh never shows the legacy shell. -->
   <link id="social-oauth-auth-styles" rel="stylesheet" href="/app/assets/guest-entry-gate.css?v=20260920-authui2">
   <link id="auth-entry-polish-styles" rel="stylesheet" href="/app/assets/auth-entry-polish.css?v=20260920-authui2">
@@ -25,7 +25,7 @@
   <link id="sautilink-post-media-carousel-style" rel="stylesheet" href="/app/assets/post-media-carousel.css?v=20260914-instagram2">
   <link id="sautilink-video-player-style" rel="stylesheet" href="/app/assets/sautilink-video-player.css">
   <link id="sautilink-profile-x-ui" rel="stylesheet" href="/app/assets/profile-x-ui.css?v=20260918-profile2">
-  <link rel="stylesheet" href="/app/assets/profile-settings-ui.css?v=20260918-profile2">
+  <link rel="stylesheet" href="/app/assets/profile-settings-ui.css?v=20260927-page-headers1">
   <script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>
 </head>
 <body>
@@ -476,12 +476,7 @@
         </section>
 
         <section class="discover-surface" id="discover-surface" aria-label="Discover" hidden>
-          <header class="surface-toolbar discover-toolbar">
-            <div>
-              <p class="section-label">Find people and public posts</p>
-              <h2>Discover</h2>
-              <p>Search the public network or browse recent voices without personalized ranking.</p>
-            </div>
+          <header class="surface-toolbar discover-toolbar compact-action-toolbar">
             <button class="secondary-action surface-icon-action" type="button" data-member-view="saved">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z"></path></svg>
               Saved
@@ -526,11 +521,7 @@
 
         <section class="saved-surface" id="saved-surface" aria-label="Saved Posts" hidden>
           <header class="surface-toolbar saved-toolbar">
-            <div>
-              <p class="section-label">Private to your account</p>
-              <h2>Saved</h2>
-              <p>Keep useful posts here and return to them later. Other members cannot see what you save.</p>
-            </div>
+            <p class="surface-intro-copy">Keep useful posts here and return to them later. Other members cannot see what you save.</p>
           </header>
           <section class="stream-state" id="saved-loading" role="status" hidden>
             <span class="loading-mark"></span>
@@ -551,11 +542,7 @@
 
         <section class="appeals-surface" id="appeals-surface" aria-label="Moderation appeals" hidden>
           <header class="surface-toolbar appeals-toolbar">
-            <div>
-              <p class="section-label">Your review rights</p>
-              <h2>Appeals</h2>
-              <p>See moderation decisions that affect your posts or comments and request another review when an action is appealable.</p>
-            </div>
+            <p class="surface-intro-copy">See moderation decisions that affect your posts or comments and request another review when an action is appealable.</p>
           </header>
           <section class="stream-state" id="appeals-loading" role="status" hidden>
             <span class="loading-mark"></span>
@@ -576,11 +563,7 @@
 
         <section class="moderation-surface" id="moderation-surface" aria-label="Moderation workspace" hidden>
           <header class="surface-toolbar moderation-toolbar">
-            <div>
-              <p class="section-label">Trust &amp; Safety operations</p>
-              <h2>Moderation</h2>
-              <p>Review member reports with context, proportionate action and an auditable appeal path.</p>
-            </div>
+            <p class="surface-intro-copy">Review member reports with context, proportionate action and an auditable appeal path.</p>
             <span class="moderation-role" id="moderation-role">Checking access…</span>
           </header>
 
@@ -941,7 +924,7 @@
 
         <section class="settings-surface" id="settings-surface" aria-label="Settings" hidden>
           <header class="settings-toolbar">
-            <div><p class="section-label">Account controls</p><h2>Settings</h2><p>Privacy-first controls for your SautiLink account.</p></div>
+            <p>Privacy-first controls for your SautiLink account.</p>
           </header>
           <nav class="settings-tabs" aria-label="Settings sections">
             <button type="button" data-settings-section="account" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21c.7-4.2 3.2-6.5 7.5-6.5s6.8 2.3 7.5 6.5"></path></svg><span>Account</span><i aria-hidden="true">›</i></button>
