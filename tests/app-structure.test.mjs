@@ -139,7 +139,7 @@ test('app uses a compact valid WebP brand asset for small rendered logos', async
 test('service worker keeps the social app fallback inside the app', async () => {
   const worker = await read('sw.js');
   assert.match(worker, /const socialRoute =/);
-  assert.match(worker, /login\|signup\|home\|discover/);
+  assert.match(worker, /login\|signup\|home\|compose\|discover/);
   assert.match(worker, /const fallback = socialRoute \? "\/app\/" : "\/"/);
 });
 

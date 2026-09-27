@@ -12,6 +12,7 @@ import { handleDmMediaRequest } from './dm-media-api.js';
 const PROFILE_ROUTE = /^\/app\/u\/[^/]+\/?$/;
 const AUTH_CONFIRM_ROUTE = /^\/app\/auth\/confirm\/?$/;
 const MEMBER_ROUTE = /^\/app\/notifications\/?$/;
+const COMPOSE_ROUTE = /^\/app\/compose\/?$/;
 const DISCOVER_ROUTE = /^\/app\/discover\/?$/;
 const SAVED_ROUTE = /^\/app\/saved\/?$/;
 const APPEALS_ROUTE = /^\/app\/appeals\/?$/;
@@ -24,13 +25,14 @@ const VIDEO_ROUTE = /^\/app\/videos(?:\/[0-9a-f-]{36})?\/?$/;
 const ROOM_ROUTE = /^\/app\/(?:rooms|sautify|circles)(?:\/[^/]+)?\/?$/;
 const CLEAN_PROFILE_ROUTE = /^\/u\/[^/]+\/?$/;
 const CLEAN_MEMBER_ROUTE = /^\/(?:home|discover|saved|appeals|moderation|settings|notifications)\/?$/;
+const CLEAN_COMPOSE_ROUTE = /^\/compose\/?$/;
 const CLEAN_AUTH_ROUTE = /^\/(?:login|signup)\/?$/;
 const CLEAN_POST_ROUTE = /^\/post\/[0-9a-f-]{36}\/?$/;
 const CLEAN_MESSAGE_ROUTE = /^\/messages(?:\/[0-9a-f-]{36})?\/?$/;
 const CLEAN_VIDEO_ROUTE = /^\/videos(?:\/[0-9a-f-]{36})?\/?$/;
 const CLEAN_ROOM_ROUTE = /^\/(?:rooms|sautify)(?:\/[^/]+)?\/?$/;
 const CLEAN_DASHBOARD_ROUTE = /^\/dashboard(?:\/tools(?:\/moneti[sz]ation)?|\/moneti[sz]ation)?\/?$/i;
-const CLEAN_ROUTE_PREFIX = /^\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications|messages|videos|rooms|sautify|dashboard)/;
+const CLEAN_ROUTE_PREFIX = /^\/(?:login|signup|home|compose|discover|saved|appeals|moderation|settings|notifications|messages|videos|rooms|sautify|dashboard)/;
 const SAUTI_MEDIA_UPLOAD_ROUTE = /^\/api\/sauti-media\/upload\/([0-9a-f-]{36})$/i;
 const SHORT_VIDEO_DURATION_MS = 30_000;
 
@@ -366,6 +368,7 @@ async function routeRequest(request, env, url, ctx = null) {
       PROFILE_ROUTE.test(url.pathname)
       || AUTH_CONFIRM_ROUTE.test(url.pathname)
       || MEMBER_ROUTE.test(url.pathname)
+      || COMPOSE_ROUTE.test(url.pathname)
       || DISCOVER_ROUTE.test(url.pathname)
       || SAVED_ROUTE.test(url.pathname)
       || APPEALS_ROUTE.test(url.pathname)
@@ -377,6 +380,7 @@ async function routeRequest(request, env, url, ctx = null) {
       || ROOM_ROUTE.test(url.pathname)
       || CLEAN_PROFILE_ROUTE.test(url.pathname)
       || CLEAN_MEMBER_ROUTE.test(url.pathname)
+      || CLEAN_COMPOSE_ROUTE.test(url.pathname)
       || CLEAN_POST_ROUTE.test(url.pathname)
       || CLEAN_MESSAGE_ROUTE.test(url.pathname)
       || CLEAN_VIDEO_ROUTE.test(url.pathname)

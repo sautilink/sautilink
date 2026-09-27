@@ -19,7 +19,7 @@ test('service worker receives push and safely opens supported links', async () =
   assert.match(worker, /clients\.matchAll/);
   assert.match(worker, /clients\.openWindow/);
   assert.match(worker, /safeNotificationRoute/);
-  assert.match(worker, /sautilink-shell-v79/);
+  assert.match(worker, /sautilink-shell-v80/);
 });
 
 test('device notification permission is user initiated and persists through narrow RPCs', async () => {
