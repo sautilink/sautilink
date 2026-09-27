@@ -1127,16 +1127,26 @@ function pauseHomeFeedVideos() {
   homeVideoVisibility.forEach((_ratio, video) => video.pause());
 }
 
+function canPlayHomeFeedVideos() {
+  return document.visibilityState !== 'hidden'
+    && !memberView.hidden
+    && !streamSurface.hidden
+    && /^\/(?:home|app)\/?$/.test(window.location.pathname)
+    && !document.body.classList.contains('profile-editor-open')
+    && !document.querySelector('dialog[open]')
+    && !document.documentElement.classList.contains('sauti-short-videos-open');
+}
+
 async function playHomeFeedVideo(video) {
-  if (document.documentElement.classList.contains('sauti-short-videos-open')) {
+  if (!canPlayHomeFeedVideos()) {
     video.pause();
     return;
   }
   try {
     await video.play();
-    if (document.documentElement.classList.contains('sauti-short-videos-open')) video.pause();
+    if (!canPlayHomeFeedVideos()) video.pause();
   } catch {
-    if (document.documentElement.classList.contains('sauti-short-videos-open')) return;
+    if (!canPlayHomeFeedVideos()) return;
     if (video.muted || video.dataset.sautiAudioPreference === 'muted') return;
     video.muted = true;
     video.defaultMuted = true;
@@ -1144,10 +1154,12 @@ async function playHomeFeedVideo(video) {
     await video.play().catch(() => {
       // Playback can still be declined by browser or device preferences.
     });
+    if (!canPlayHomeFeedVideos()) video.pause();
   }
 }
 
 function restoreHomeFeedAudioAfterInteraction() {
+  if (!canPlayHomeFeedVideos()) return;
   let activeVideo = null;
   let activeRatio = HOME_VIDEO_VISIBILITY_THRESHOLD;
   homeVideoVisibility.forEach((ratio, video) => {
@@ -1165,11 +1177,7 @@ function restoreHomeFeedAudioAfterInteraction() {
 }
 
 function syncHomeFeedVideoPlayback() {
-  if (
-    document.visibilityState === 'hidden'
-    || byId('sauti-media-viewer')?.open
-    || document.documentElement.classList.contains('sauti-short-videos-open')
-  ) {
+  if (!canPlayHomeFeedVideos()) {
     pauseHomeFeedVideos();
     return;
   }
@@ -1212,8 +1220,10 @@ function observeHomeFeedVideo(video, gallery) {
   video.defaultMuted = false;
   video.volume = 1;
   video.playsInline = true;
-  video.autoplay = true;
   video.loop = true;
+  video.addEventListener('play', () => {
+    if (!canPlayHomeFeedVideos()) video.pause();
+  });
   homeVideoVisibility.set(video, 0);
   const observer = ensureHomeVideoObserver();
   if (observer) observer.observe(video);
@@ -3075,13 +3085,19 @@ function openSautiComposer({ focus = true } = {}) {
   composer.hidden = false;
   if (!dialog.open) {
     composerRestoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    pauseHomeFeedVideos();
+    if (!/^\/(?:app\/)?compose\/?$/.test(window.location.pathname)) {
+      window.history.pushState({ sautilinkComposer: { pushed: true } }, '', '/compose');
+    } else if (window.location.pathname !== '/compose') {
+      window.history.replaceState(window.history.state, '', '/compose');
+    }
     dialog.showModal();
   }
   document.body.classList.add('composer-open');
   if (focus) window.setTimeout(() => byId('sauti-body').focus(), 100);
 }
 
-function closeSautiComposer({ restoreFocus = true } = {}) {
+function closeSautiComposer({ restoreFocus = true, syncUrl = true } = {}) {
   const dialog = byId('sauti-composer-dialog');
   if (!dialog) return;
   if (dialog.open) dialog.close();
@@ -3092,6 +3108,11 @@ function closeSautiComposer({ restoreFocus = true } = {}) {
   const target = composerRestoreFocus;
   composerRestoreFocus = null;
   if (restoreFocus && target?.isConnected && !target.disabled) target.focus();
+  if (syncUrl && window.location.pathname === '/compose') {
+    if (window.history.state?.sautilinkComposer?.pushed) window.history.back();
+    else window.history.replaceState({}, '', '/home');
+  }
+  syncHomeFeedVideoPlayback();
 }
 
 function syncComposerOnlineState() {
@@ -7927,6 +7948,7 @@ function openProfileEditor() {
 
 function setMemberNavigation(name) {
   if (name !== 'messages' && dmConversationRealtimeChannel) void stopDmConversationRealtime();
+  if (name !== 'stream') pauseHomeFeedVideos();
   streamSurface.hidden = name !== 'stream';
   notificationsSurface.hidden = name !== 'notifications';
   circlesSurface.hidden = name !== 'circles';
@@ -7965,6 +7987,7 @@ function setMemberNavigation(name) {
     if (active) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
   });
+  syncHomeFeedVideoPlayback();
 }
 
 function memberProfilePath(username) {
@@ -8037,6 +8060,7 @@ function showMemberSurface(name, { syncUrl = true } = {}) {
   if (window.location.pathname !== nextPath || window.location.search) {
     window.history.pushState({}, '', nextPath);
   }
+  if (name === 'stream') syncHomeFeedVideoPlayback();
 }
 
 function showProfileRouteState(type, username = '') {
@@ -8100,6 +8124,9 @@ async function loadDiscoverableProfile(username) {
 }
 
 async function applyLocationRoute() {
+  if (!/^\/(?:app\/)?compose\/?$/.test(window.location.pathname) && byId('sauti-composer-dialog')?.open) {
+    closeSautiComposer({ restoreFocus: false, syncUrl: false });
+  }
   const authRoute = window.location.pathname.match(/^\/(login|signup)\/?$/);
   if (authRoute) {
     profileRouteRequest += 1;
@@ -8109,6 +8136,18 @@ async function applyLocationRoute() {
       return;
     }
     showSignedOut(authRoute[1]);
+    return;
+  }
+
+  if (/^\/(?:app\/)?compose\/?$/.test(window.location.pathname)) {
+    profileRouteRequest += 1;
+    if (!currentMember) {
+      showSignedOut('login');
+      return;
+    }
+    setMemberNavigation('stream');
+    closeProfileEditor();
+    openSautiComposer({ focus: false });
     return;
   }
 
@@ -8768,6 +8807,14 @@ document.addEventListener('visibilitychange', () => {
     if (activeConversation?.id) void syncActiveMessageThreadRealtime({ markRead: true });
   }
 });
+
+const homePlaybackSurfaceObserver = new MutationObserver(syncHomeFeedVideoPlayback);
+document.querySelectorAll('dialog').forEach((dialog) => {
+  homePlaybackSurfaceObserver.observe(dialog, { attributes: true, attributeFilter: ['open'] });
+});
+homePlaybackSurfaceObserver.observe(streamSurface, { attributes: true, attributeFilter: ['hidden'] });
+homePlaybackSurfaceObserver.observe(memberView, { attributes: true, attributeFilter: ['hidden'] });
+homePlaybackSurfaceObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
 document.addEventListener('pointerdown', restoreHomeFeedAudioAfterInteraction, { capture: true });
 document.addEventListener('keydown', restoreHomeFeedAudioAfterInteraction, { capture: true });
@@ -9565,7 +9612,9 @@ byId('sauti-composer').addEventListener('submit', async (event) => {
 });
 document.querySelectorAll('[data-open-sauti-composer]').forEach((button) => {
   button.addEventListener('click', () => {
-    showMemberSurface('stream');
+    if (streamSurface.hidden || !/^\/(?:home|app)\/?$/.test(window.location.pathname)) {
+      showMemberSurface('stream');
+    }
     openSautiComposer();
   });
 });

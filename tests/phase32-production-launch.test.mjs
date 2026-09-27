@@ -137,7 +137,7 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   assert.match(stampScript, /createHash\('sha256'\)/);
   assert.match(stampScript, /profile-x-ui\.css/);
   assert.match(hashVerifyScript, /content-hashed production UI stylesheets/);
-  assert.match(serviceWorker, /sautilink-shell-v79/);
+  assert.match(serviceWorker, /sautilink-shell-v80/);
   assert.match(serviceWorker, /20260925-video-quality1/);
 });
 

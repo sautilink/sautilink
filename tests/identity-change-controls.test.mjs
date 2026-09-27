@@ -141,7 +141,7 @@ test('service worker recognizes clean social routes and rotates its cache', asyn
   const sw = await read('sw.js');
   const cacheVersion = Number(sw.match(/sautilink-shell-v([0-9]+)/)?.[1] || 0);
   assert.ok(cacheVersion >= 29, `expected unified backend cache v29+, got v${cacheVersion}`);
-  assert.match(sw, /login\|signup\|home\|discover/);
+  assert.match(sw, /login\|signup\|home\|compose\|discover/);
   assert.match(sw, /\/messages/);
   assert.match(sw, /rooms\|sautify/);
   assert.match(sw, /\/post/);

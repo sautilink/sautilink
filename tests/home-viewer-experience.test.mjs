@@ -72,7 +72,7 @@ test('Home redesign preserves the approved verification badge contract and offli
 
   assert.match(css, /\.sauti-card-head\s*\{\s*--verification-badge-size: clamp\(14px, 1\.25em, 16px\);\s*\}/);
   assert.match(css, /\.sauti-card-head \.verified-name \{ font-size: 12px; \}/);
-  assert.match(sw, /sautilink-shell-v79/);
+  assert.match(sw, /sautilink-shell-v80/);
   assert.match(sw, /"\/app\/assets\/theme-init\.js"/);
 });
 
@@ -86,9 +86,10 @@ test('Home videos autoplay audibly when allowed and pause when the viewer or pag
   assert.match(source, /async function playHomeFeedVideo\(video\)/);
   assert.match(source, /video\.dataset\.autoplayMutedFallback = 'true'/);
   assert.match(source, /function restoreHomeFeedAudioAfterInteraction\(\)/);
-  assert.match(source, /video\.autoplay = true/);
+  assert.doesNotMatch(source, /video\.autoplay = true/, 'Home playback must be controlled by the foreground surface');
+  assert.match(source, /if \(!canPlayHomeFeedVideos\(\)\) video\.pause\(\)/);
   assert.match(source, /video\.loop = true/);
-  assert.match(source, /document\.visibilityState === 'hidden'/);
+  assert.match(source, /document\.visibilityState !== 'hidden'/);
   assert.match(source, /if \(video !== activeVideo\) video\.pause\(\)/);
   assert.match(source, /visual\.controls = true;[\s\S]*visual\.autoplay = false/);
 });

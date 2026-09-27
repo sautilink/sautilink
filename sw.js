@@ -1,4 +1,4 @@
-const CACHE_NAME = "sautilink-shell-v79";
+const CACHE_NAME = "sautilink-shell-v80";
 const APP_RELEASE = "20260925-video-quality1";
 const APP_CSS_RELEASE = "20260927-page-headers1";
 const APP_FEATURE_RELEASE = "20260918-signup2";
@@ -119,7 +119,7 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || url.pathname.startsWith("/api/")) return;
 
   if (event.request.mode === "navigate") {
-    const socialRoute = /^(?:\/app(?:\/|$)|\/(?:login|signup|home|discover|saved|appeals|moderation|settings|notifications|dashboard)(?:\/|$)|\/(?:messages|videos)(?:\/|$)|\/(?:rooms|sautify)(?:\/|$)|\/u\/|\/post\/)/.test(url.pathname);
+    const socialRoute = /^(?:\/app(?:\/|$)|\/(?:login|signup|home|compose|discover|saved|appeals|moderation|settings|notifications|dashboard)(?:\/|$)|\/(?:messages|videos)(?:\/|$)|\/(?:rooms|sautify)(?:\/|$)|\/u\/|\/post\/)/.test(url.pathname);
     const fallback = socialRoute ? "/app/" : "/";
     event.respondWith(fetch(event.request, { cache: "no-store" }).catch(() => caches.match(fallback)));
     return;
