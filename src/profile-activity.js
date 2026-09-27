@@ -182,15 +182,17 @@ function ensureProfileActivityShell() {
 }
 
 function setProfileActivityStatus(message = '', type = '') {
-  const node = profileActivityNodes().status;
+  const { status: node, tools } = profileActivityNodes();
   if (!node) return;
   window.clearTimeout(profileActivityStatusTimer);
+  tools.hidden = !profileActivityState?.owner && !message;
   node.textContent = message;
   node.className = `profile-activity-status${type ? ` ${type}` : ''}`;
   if (message) {
     profileActivityStatusTimer = window.setTimeout(() => {
       node.textContent = '';
       node.className = 'profile-activity-status';
+      if (!profileActivityState?.owner) tools.hidden = true;
     }, 4200);
   }
 }
@@ -257,8 +259,16 @@ function profileActivityPostPath(postId) {
 }
 
 function createProfileActivityMetric(kind, count, active = false) {
-  const metric = document.createElement('span');
+  const metric = document.createElement(kind === 'save' ? 'span' : 'button');
   metric.className = `profile-activity-metric${active ? ' active' : ''}${kind === 'save' ? ' saved' : ''}`;
+  if (kind !== 'save') {
+    metric.type = 'button';
+    metric.dataset.profileActivityAction = kind;
+    metric.dataset.active = String(active);
+    metric.setAttribute('aria-label', kind === 'reply' ? 'Comment' : active ? (kind === 'like' ? 'Unlike' : 'Undo repost') : (kind === 'like' ? 'Like' : 'Repost'));
+    if (kind === 'reply') metric.setAttribute('aria-expanded', 'false');
+    else metric.setAttribute('aria-pressed', String(active));
+  }
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
@@ -270,6 +280,7 @@ function createProfileActivityMetric(kind, count, active = false) {
   };
   svg.innerHTML = paths[kind] || '';
   const value = document.createElement('span');
+  value.className = 'profile-activity-metric-count';
   value.textContent = kind === 'save' ? (active ? 'Saved' : '') : String(Number(count) || 0);
   metric.append(svg, value);
   if (kind === 'save' && !active) metric.hidden = true;
@@ -468,8 +479,145 @@ function createProfileActivityCard(item, { pinned = false, allowPin = false, req
     createProfileActivityMetric('save', 0, Boolean(item.viewer_saved)),
   );
   main.append(metrics);
+  const comments = document.createElement('section');
+  comments.className = 'profile-activity-comments';
+  comments.hidden = true;
+  comments.setAttribute('aria-label', 'Comments');
+  comments.innerHTML = '<div class="profile-activity-comments-list" role="status"></div><form class="profile-activity-comment-form"><label>Write a comment<textarea name="body" maxlength="500" rows="2" required></textarea></label><button type="submit">Comment</button></form>';
+  main.append(comments);
   card.append(avatar, main);
   return card;
+}
+
+async function profileActivitySocialMutation(postId, action, { method = 'POST', body } = {}) {
+  const token = profileActivityAccessToken();
+  if (!token) throw new Error('Sign in again before using social interactions.');
+  const response = await fetch(`/api/social/posts/${encodeURIComponent(postId)}/${action}`, {
+    method,
+    headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || payload?.ok === false) throw new Error(payload?.error?.message || 'This action could not be completed.');
+  return payload?.data;
+}
+
+function updateProfileActivityMetric(postId, kind, active, delta = 0, pending = false) {
+  document.querySelectorAll('.profile-activity-card').forEach((card) => {
+    if (card.dataset.postId !== postId) return;
+    const button = card.querySelector(`[data-profile-activity-action="${kind}"]`);
+    if (!button) return;
+    button.dataset.active = String(active);
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+    button.setAttribute('aria-busy', String(pending));
+    button.setAttribute('aria-label', kind === 'like' ? (active ? 'Unlike' : 'Like') : (active ? 'Undo repost' : 'Repost'));
+    const count = button.querySelector('.profile-activity-metric-count');
+    if (count && delta) count.textContent = String(Math.max(0, Number(count.textContent) + delta));
+  });
+}
+
+async function toggleProfileActivityMetric(button, card, kind) {
+  const postId = card.dataset.postId;
+  if (!postId || button.getAttribute('aria-busy') === 'true') return;
+  const active = button.dataset.active === 'true';
+  const delta = active ? -1 : 1;
+  updateProfileActivityMetric(postId, kind, !active, delta, true);
+  try {
+    await profileActivitySocialMutation(postId, kind, { method: active ? 'DELETE' : 'POST' });
+    updateProfileActivityMetric(postId, kind, !active);
+    if (kind === 'repost') setProfileActivityStatus(active ? 'Repost removed.' : 'Post reposted.', 'success');
+  } catch (error) {
+    updateProfileActivityMetric(postId, kind, active, -delta);
+    setProfileActivityStatus(error?.message || 'This action could not be completed.', 'error');
+  }
+}
+
+async function loadProfileActivityComments(card) {
+  const panel = card.querySelector('.profile-activity-comments');
+  const list = panel?.querySelector('.profile-activity-comments-list');
+  if (!list) return;
+  const requestId = String(Number(panel.dataset.requestId || 0) + 1);
+  panel.dataset.requestId = requestId;
+  list.textContent = 'Loading comments…';
+  const postId = card.dataset.postId;
+  const token = profileActivityAccessToken();
+  if (!token) {
+    list.textContent = 'Sign in again to see comments.';
+    return;
+  }
+  const params = new URLSearchParams({
+    parent_post_id: `eq.${postId}`,
+    select: 'id,body,created_at,author:social_profiles!social_posts_author_id_fkey(username,display_name)',
+    order: 'created_at.asc',
+    limit: '50',
+  });
+  try {
+    const response = await fetch(`${PROFILE_ACTIVITY_SUPABASE_URL}/rest/v1/social_posts?${params}`, {
+      headers: { apikey: PROFILE_ACTIVITY_PUBLISHABLE_KEY, Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('COMMENTS_UNAVAILABLE');
+    const rows = await response.json();
+    if (panel.hidden || !list.isConnected || panel.dataset.requestId !== requestId) return;
+    list.replaceChildren();
+    if (!Array.isArray(rows) || !rows.length) {
+      list.textContent = 'No comments yet.';
+      return;
+    }
+    rows.forEach((row) => {
+      const comment = document.createElement('div');
+      comment.className = 'profile-activity-comment';
+      const name = document.createElement('strong');
+      name.textContent = row.author?.display_name || row.author?.username || 'Member';
+      const body = document.createElement('span');
+      body.textContent = row.body || '';
+      comment.append(name, body);
+      list.append(comment);
+    });
+  } catch {
+    if (!panel.hidden && list.isConnected && panel.dataset.requestId === requestId) list.textContent = 'Comments could not load. Try again.';
+  }
+}
+
+function toggleProfileActivityComments(card, button) {
+  const panel = card.querySelector('.profile-activity-comments');
+  if (!panel) return;
+  panel.hidden = !panel.hidden;
+  button.setAttribute('aria-expanded', String(!panel.hidden));
+  if (!panel.hidden) {
+    void loadProfileActivityComments(card);
+    panel.querySelector('textarea')?.focus();
+  }
+}
+
+async function submitProfileActivityComment(form) {
+  const card = form.closest('.profile-activity-card');
+  const postId = card?.dataset.postId;
+  const textarea = form.elements.body;
+  const body = textarea.value.trim();
+  if (!postId || !body || form.dataset.pending === 'true') return;
+  const submit = form.querySelector('[type="submit"]');
+  form.dataset.pending = 'true';
+  submit.disabled = true;
+  try {
+    await profileActivitySocialMutation(postId, 'comments', {
+      body: { body, client_request_id: form.dataset.requestId ||= crypto.randomUUID() },
+    });
+    textarea.value = '';
+    delete form.dataset.requestId;
+    document.querySelectorAll('.profile-activity-card').forEach((item) => {
+      if (item.dataset.postId !== postId) return;
+      const count = item.querySelector('[data-profile-activity-action="reply"] .profile-activity-metric-count');
+      if (count) count.textContent = String(Number(count.textContent) + 1);
+    });
+    await loadProfileActivityComments(card);
+    setProfileActivityStatus('Comment shared.', 'success');
+  } catch (error) {
+    setProfileActivityStatus(error?.message || 'Comment could not be shared.', 'error');
+  } finally {
+    form.dataset.pending = 'false';
+    submit.disabled = false;
+  }
 }
 
 function profileActivityEmptyCopy(tab, owner) {
@@ -535,6 +683,7 @@ function syncProfileActivityPrivacyControls() {
   const nodes = profileActivityNodes();
   const owner = Boolean(profileActivityState?.owner);
   nodes.tools.hidden = !owner;
+  nodes.privacyToggle.hidden = !owner;
   if (!owner) {
     nodes.privacyPanel.hidden = true;
     nodes.privacyToggle.setAttribute('aria-expanded', 'false');
@@ -817,6 +966,17 @@ function installProfileActivity() {
   document.getElementById('profile-activity-retry')?.addEventListener('click', () => void syncProfileActivity(true));
 
   shell.addEventListener('click', (event) => {
+    const action = event.target.closest('[data-profile-activity-action]');
+    if (action) {
+      event.preventDefault();
+      event.stopPropagation();
+      const card = action.closest('.profile-activity-card');
+      if (!card) return;
+      const kind = action.dataset.profileActivityAction;
+      if (kind === 'reply') toggleProfileActivityComments(card, action);
+      if (kind === 'like' || kind === 'repost') void toggleProfileActivityMetric(action, card, kind);
+      return;
+    }
     const pin = event.target.closest('[data-profile-pin]');
     if (pin) {
       event.preventDefault();
@@ -825,15 +985,27 @@ function installProfileActivity() {
       return;
     }
     const card = event.target.closest('.profile-activity-card');
-    if (!card || event.target.closest('a, button, video')) return;
+    if (!card || event.target.closest('a, button, video, .profile-activity-comments')) return;
     const postId = card.dataset.postId;
     if (postId) window.location.assign(profileActivityPostPath(postId));
+  });
+
+  shell.addEventListener('submit', (event) => {
+    const form = event.target.closest('.profile-activity-comment-form');
+    if (!form) return;
+    event.preventDefault();
+    void submitProfileActivityComment(form);
+  });
+
+  shell.addEventListener('input', (event) => {
+    const form = event.target.closest('.profile-activity-comment-form');
+    if (form) delete form.dataset.requestId;
   });
 
   shell.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     const card = event.target.closest('.profile-activity-card');
-    if (!card || event.target.closest('a, button, video')) return;
+    if (!card || event.target.closest('a, button, video, .profile-activity-comments')) return;
     event.preventDefault();
     const postId = card.dataset.postId;
     if (postId) window.location.assign(profileActivityPostPath(postId));
