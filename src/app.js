@@ -6159,15 +6159,6 @@ function threadSiblingSort(a, b) {
   return Date.parse(b.post.created_at || 0) - Date.parse(a.post.created_at || 0);
 }
 
-function renderThreadContinuation(parentItem, childCount) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'thread-continue';
-  button.dataset.openThreadBranch = parentItem.post.id;
-  button.textContent = `${childCount} more ${childCount === 1 ? 'comment' : 'comments'} · Continue thread`;
-  return button;
-}
-
 function renderConversationThread() {
   const feed = byId('conversation-thread');
   const empty = byId('conversation-empty');
@@ -6178,7 +6169,7 @@ function renderConversationThread() {
     return;
   }
 
-  const { rootId, focusId, replyItems } = activeSautiConversation;
+  const { rootId, focusId, replyItems, expandedReplies } = activeSautiConversation;
 
   if (!replyItems.length) {
     empty.hidden = false;
@@ -6194,33 +6185,56 @@ function renderConversationThread() {
   });
   children.forEach((items) => items.sort(threadSiblingSort));
 
-  const appendItem = (item, visualDepth = 0, { orphan = false } = {}) => {
+  const appendItem = (item, container, visualDepth = 0, { orphan = false } = {}) => {
     const card = createCommentCard(item);
     if (!card) return;
-    card.classList.add('thread-sauti');
+    const group = document.createElement('div');
+    group.className = 'comment-thread-group';
     if (orphan) card.classList.add('thread-orphan');
     if (item.post.id === focusId) card.classList.add('thread-focused');
-    card.style.setProperty('--thread-depth', String(Math.min(visualDepth, THREAD_RENDER_DEPTH)));
-    card.style.setProperty('--thread-indent', `${Math.min(visualDepth, THREAD_RENDER_DEPTH) * 8}px`);
     card.dataset.threadDepth = String(item.post.thread_depth || 0);
-    feed.append(card);
+    group.append(card);
+    container.append(group);
 
     const childItems = children.get(item.post.id) || [];
     if (!childItems.length) return;
-    if (visualDepth >= THREAD_RENDER_DEPTH) {
-      feed.append(renderThreadContinuation(item, childItems.length));
-      return;
-    }
-    childItems.forEach((child) => appendItem(child, visualDepth + 1));
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'comment-replies-toggle';
+    toggle.dataset.toggleCommentReplies = item.post.id;
+    toggle.setAttribute('aria-controls', `comment-replies-${item.post.id}`);
+    const isExpanded = expandedReplies.has(item.post.id);
+    toggle.setAttribute('aria-expanded', String(isExpanded));
+    toggle.textContent = `${isExpanded ? 'Hide' : 'View'} ${childItems.length} ${childItems.length === 1 ? 'reply' : 'replies'}`;
+    const replies = document.createElement('div');
+    replies.className = 'comment-replies';
+    replies.classList.toggle('comment-replies-deep', visualDepth >= THREAD_RENDER_DEPTH);
+    replies.id = `comment-replies-${item.post.id}`;
+    replies.hidden = !isExpanded;
+    childItems.forEach((child) => appendItem(child, replies, visualDepth + 1));
+    group.append(toggle, replies);
   };
 
-  (children.get(rootId) || []).forEach((item) => appendItem(item, 0));
+  (children.get(rootId) || []).forEach((item) => appendItem(item, feed, 0));
 
   const visibleIds = new Set(replyItems.map((item) => item.post.id));
   replyItems
     .filter((item) => item.post.parent_post_id !== rootId && !visibleIds.has(item.post.parent_post_id))
     .sort(threadSiblingSort)
-    .forEach((item) => appendItem(item, 0, { orphan: true }));
+    .forEach((item) => appendItem(item, feed, 0, { orphan: true }));
+}
+
+function toggleCommentReplies(button) {
+  const parentId = button?.dataset.toggleCommentReplies;
+  const group = button?.closest('.comment-thread-group');
+  const replies = group?.querySelector(':scope > .comment-replies');
+  if (!parentId || !replies || !activeSautiConversation) return;
+  const opening = replies.hidden;
+  replies.hidden = !opening;
+  button.setAttribute('aria-expanded', String(opening));
+  button.textContent = button.textContent.replace(opening ? 'View' : 'Hide', opening ? 'Hide' : 'View');
+  if (opening) activeSautiConversation.expandedReplies.add(parentId);
+  else activeSautiConversation.expandedReplies.delete(parentId);
 }
 
 async function loadConversation(postId) {
@@ -6287,6 +6301,18 @@ async function loadConversation(postId) {
     const replyItems = hydrated.filter((item) => item.post.id !== rootId);
     const postMap = new Map(hydrated.map((item) => [item.post.id, item]));
 
+    const expandedReplies = activeSautiConversation?.rootId === rootId
+      ? new Set(activeSautiConversation.expandedReplies)
+      : new Set();
+    // A direct link to a reply must reveal the chain that contains it.
+    let ancestor = target;
+    const visited = new Set();
+    while (ancestor?.parent_post_id && ancestor.parent_post_id !== rootId && !visited.has(ancestor.parent_post_id)) {
+      visited.add(ancestor.parent_post_id);
+      expandedReplies.add(ancestor.parent_post_id);
+      ancestor = postMap.get(ancestor.parent_post_id)?.post;
+    }
+
     activeSautiConversation = {
       rootId,
       focusId: target.id,
@@ -6294,6 +6320,7 @@ async function loadConversation(postId) {
       rootItem,
       replyItems,
       postMap,
+      expandedReplies,
     };
 
     renderConversationThread();
@@ -6341,6 +6368,7 @@ async function submitThreadReply() {
   submit.textContent = 'Commenting…';
 
   try {
+    const replyTargetId = activeSautiConversation.replyTargetId;
     await socialMutation(
       `/api/social/posts/${activeSautiConversation.replyTargetId}/comments`,
       {
@@ -6356,6 +6384,7 @@ async function submitThreadReply() {
     writeThreadDraft(null);
     threadReplyRequestId = '';
     const rootId = activeSautiConversation.rootId;
+    if (replyTargetId !== rootId) activeSautiConversation.expandedReplies.add(replyTargetId);
     window.history.replaceState({}, '', conversationPath(rootId));
     await loadConversation(rootId);
     showToast('Comment shared.');
@@ -9682,6 +9711,11 @@ function openHomeMediaAfterTap(event, media) {
 }
 
 function handleSautiFeedClick(event) {
+  const repliesToggle = event.target.closest('[data-toggle-comment-replies]');
+  if (repliesToggle) {
+    toggleCommentReplies(repliesToggle);
+    return;
+  }
   const commentMenuToggle = event.target.closest('[data-comment-menu-toggle]');
   if (commentMenuToggle) {
     toggleCommentMenu(commentMenuToggle.closest('.comment-card'));
