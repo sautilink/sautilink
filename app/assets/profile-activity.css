@@ -17,6 +17,9 @@
   border-bottom: 1px solid var(--app-line);
 }
 
+.profile-activity-tools[hidden],
+.profile-activity-privacy-toggle[hidden] { display: none; }
+
 .profile-activity-privacy-toggle {
   min-height: 34px;
   padding: 0 13px;
@@ -405,8 +408,19 @@
   align-items: center;
   gap: 5px;
   min-width: 42px;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
   font-size: 10px;
 }
+
+button.profile-activity-metric { cursor: pointer; }
+button.profile-activity-metric:hover { background: var(--app-panel-soft); color: var(--app-text); }
+button.profile-activity-metric:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+button.profile-activity-metric[aria-busy="true"] { opacity: .65; cursor: wait; }
 
 .profile-activity-metric svg {
   width: 16px;
@@ -416,6 +430,45 @@
 
 .profile-activity-metric.active { color: var(--app-accent); }
 .profile-activity-metric.saved { margin-left: auto; }
+
+.profile-activity-comments {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--app-line);
+  border-radius: 12px;
+  background: var(--app-panel-soft);
+  cursor: default;
+}
+
+.profile-activity-comments[hidden] { display: none; }
+.profile-activity-comments-list { display: grid; gap: 10px; color: var(--app-muted); font-size: 11px; }
+.profile-activity-comment { display: grid; gap: 3px; color: var(--app-text); overflow-wrap: anywhere; }
+.profile-activity-comment strong { font-size: 11px; }
+.profile-activity-comment-form { display: grid; gap: 9px; margin-top: 12px; }
+.profile-activity-comment-form label { display: grid; gap: 6px; color: var(--app-muted); font-size: 11px; }
+.profile-activity-comment-form textarea {
+  width: 100%;
+  min-height: 64px;
+  padding: 9px;
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  background: var(--app-panel);
+  color: var(--app-text);
+  font: inherit;
+  resize: vertical;
+}
+.profile-activity-comment-form button {
+  justify-self: end;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-accent);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.profile-activity-comment-form button:disabled { opacity: .55; cursor: wait; }
 
 .profile-activity-hashtags {
   display: grid;
