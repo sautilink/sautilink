@@ -21,13 +21,16 @@ test('Android production bundle uses PKCE while browser OAuth remains unchanged'
   assert.match(loginBootTransform, /detectSessionInUrl: true/);
 });
 
-test('Android manifest patch declares verified SautiLink home App Links for apex and www', () => {
-  assert.match(configure, /android:autoVerify=\"true\"/);
-  assert.match(configure, /android:scheme=\"https\"/);
-  assert.match(configure, /android:host=\"sautilink\.com\"/);
-  assert.match(configure, /android:host=\"www\.sautilink\.com\"/);
-  assert.match(configure, /android:pathPrefix=\"\/home\"/);
-  assert.match(configure, /android\.intent\.category\.BROWSABLE/);
+test('Android manifest includes every requested host in separate HTTPS App Link filters', () => {
+  assert.match(configure, /android:autoVerify=/);
+  assert.match(configure, /appLinkHosts\.map\(\(host\) =>/);
+  assert.match(configure, /SAUTILINK_EXTERNAL_LINK_BROWSERS/);
+  for (const host of [
+    'sautilink.com', 'www.sautilink.com', 'router.sautilink.com',
+    'cloudengine.sautilink.com', 'www.router.sautilink.com',
+    'wifi.sautilink.com', 'business.sautilink.com',
+    'tz.sautilink.com', 'mobile.sautilink.com',
+  ]) assert.ok(configure.includes(`"${host}"`), `missing ${host}`);
 });
 
 test('native callback accepts trusted OAuth results on warm and cold app starts', () => {
@@ -37,8 +40,11 @@ test('native callback accepts trusted OAuth results on warm and cold app starts'
   assert.match(configure, /OAUTH_CALLBACK_PATH = \"\/home\"/);
   assert.match(configure, /\!\"\/home\/\"\.equals\(callbackPath\)/);
   assert.match(configure, /Intent\.ACTION_VIEW/);
-  assert.match(configure, /handleOAuthAppLink\(getIntent\(\)\)/);
-  assert.match(configure, /handleOAuthAppLink\(intent\)/);
+  assert.match(configure, /handleAppLink\(getIntent\(\)\)/);
+  assert.match(configure, /handleAppLink\(intent\)/);
+  assert.match(configure, /isTrustedOAuthAppLink\(uri\)/);
+  assert.match(configure, /isSupportedSautiAppPath\(uri\)/);
+  assert.match(configure, /openExternalAppLink\(uri\)/);
   assert.match(configure, /getQueryParameter\(\"code\"\)/);
   assert.match(configure, /hasFragmentParameter\(uri, \"access_token\"\)/);
   assert.match(configure, /getBridge\(\)\.getWebView\(\)\.loadUrl\(target\)/);

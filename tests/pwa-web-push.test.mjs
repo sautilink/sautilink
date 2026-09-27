@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import vm from 'node:vm';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -19,7 +20,83 @@ test('service worker receives push and safely opens supported links', async () =
   assert.match(worker, /clients\.matchAll/);
   assert.match(worker, /clients\.openWindow/);
   assert.match(worker, /safeNotificationRoute/);
-  assert.match(worker, /sautilink-shell-v80/);
+  assert.match(worker, /sautilink-shell-v81/);
+});
+
+test('notification tap opens the exact post even when an installed PWA window cannot navigate', async () => {
+  const handlers = new Map();
+  const calls = [];
+  const postId = 'c0e90bc0-ff49-48ae-8cf9-ea70db2f36be';
+  const oldWindow = {
+    url: 'https://sautilink.com/home',
+    navigate: async () => null,
+    focus: async () => { calls.push('focus-old'); },
+    postMessage: (message) => { calls.push(message); },
+  };
+  const worker = await read('sw.js');
+  vm.runInNewContext(worker, {
+    URL,
+    self: {
+      location: { origin: 'https://sautilink.com' },
+      addEventListener: (name, listener) => handlers.set(name, listener),
+      clients: {
+        matchAll: async () => [oldWindow],
+        openWindow: async (url) => {
+          calls.push(url);
+          return oldWindow; // launch_handler may return the existing window.
+        },
+      },
+    },
+  });
+  let pending;
+  handlers.get('notificationclick')({
+    notification: { data: { route: `/post/${postId}` }, close: () => {} },
+    waitUntil: (promise) => { pending = promise; },
+  });
+  await pending;
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
+    `https://sautilink.com/post/${postId}`,
+    { type: 'sautilink:notification-open', route: `/post/${postId}` },
+    'focus-old',
+  ]);
+});
+
+test('notification tap navigates an open app to the post and rejects off-site routes', async () => {
+  const handlers = new Map();
+  const navigations = [];
+  const opened = [];
+  const postId = 'c0e90bc0-ff49-48ae-8cf9-ea70db2f36be';
+  const oldWindow = {
+    url: 'https://sautilink.com/notifications',
+    focus: async () => {},
+    navigate: async (url) => {
+      navigations.push(url);
+      return { url, focus: async () => {} };
+    },
+  };
+  vm.runInNewContext(await read('sw.js'), {
+    URL,
+    self: {
+      location: { origin: 'https://sautilink.com' },
+      addEventListener: (name, listener) => handlers.set(name, listener),
+      clients: {
+        matchAll: async () => [oldWindow],
+        openWindow: async (url) => { opened.push(url); return null; },
+      },
+    },
+  });
+  async function click(route) {
+    let pending;
+    handlers.get('notificationclick')({
+      notification: { data: { route }, close: () => {} },
+      waitUntil: (promise) => { pending = promise; },
+    });
+    await pending;
+  }
+  await click(`/post/${postId}`);
+  await click('//attacker.example/path');
+  assert.deepEqual(navigations, [`https://sautilink.com/post/${postId}`]);
+  assert.deepEqual(opened, []);
 });
 
 test('device notification permission is user initiated and persists through narrow RPCs', async () => {

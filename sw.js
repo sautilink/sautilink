@@ -1,8 +1,8 @@
-const CACHE_NAME = "sautilink-shell-v80";
+const CACHE_NAME = "sautilink-shell-v81";
 const APP_RELEASE = "20260925-video-quality1";
 const APP_CSS_RELEASE = "20260927-page-headers1";
 const APP_FEATURE_RELEASE = "20260918-signup2";
-const PWA_RELEASE = "20260925-video-quality1";
+const PWA_RELEASE = "20260927-push-deeplinks1";
 const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.css",
   "/app/assets/app.js",
@@ -105,12 +105,24 @@ self.addEventListener("notificationclick", (event) => {
   const destination = new URL(route, self.location.origin);
   event.waitUntil((async () => {
     const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    let fallbackClient = null;
     for (const client of clients) {
       if (new URL(client.url).origin !== destination.origin) continue;
-      if ("navigate" in client) await client.navigate(destination.href).catch(() => null);
-      return client.focus();
+      if (client.url === destination.href) return client.focus();
+      fallbackClient ||= client;
+      if (typeof client.navigate !== "function") continue;
+      const navigated = await client.navigate(destination.href).catch(() => null);
+      if (navigated && navigated.url === destination.href) return navigated.focus();
     }
-    return self.clients.openWindow(destination.href);
+    const opened = await self.clients.openWindow(destination.href).catch(() => null);
+    if (opened && opened.url === destination.href) return opened.focus();
+    // Some installed browsers reuse the PWA window without navigating it.
+    const target = opened || fallbackClient;
+    if (target && new URL(target.url).origin === destination.origin) {
+      target.postMessage({ type: "sautilink:notification-open", route });
+      return target.focus();
+    }
+    return null;
   })());
 });
 

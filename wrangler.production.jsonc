@@ -5,6 +5,42 @@
   "main": "./dist-production-worker/src/worker-entry.js",
   "routes": [
     {
+      "pattern": "sautilink.com/.well-known/assetlinks.json*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.sautilink.com/.well-known/assetlinks.json*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "router.sautilink.com/.well-known/assetlinks.json*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "cloudengine.sautilink.com/.well-known/assetlinks.json*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.router.sautilink.com/.well-known/assetlinks.json*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "wifi.sautilink.com/.well-known/assetlinks.json*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "business.sautilink.com/.well-known/assetlinks.json*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "tz.sautilink.com/.well-known/assetlinks.json*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "mobile.sautilink.com/.well-known/assetlinks.json*",
+      "zone_name": "sautilink.com"
+    },
+    {
       "pattern": "sautilink.com/app",
       "zone_name": "sautilink.com"
     },
