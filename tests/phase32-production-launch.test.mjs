@@ -96,6 +96,8 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   const hashVerifyScript = await read('scripts/verify-production-ui-asset-hashes.mjs');
   const serviceWorker = await read('sw.js');
 
+  assert.match(workflow, /app\.css\?v=20260927-page-headers1/);
+
   assert.match(pkg.scripts['build:production'], /build-production-release\.mjs/);
   assert.match(pkg.scripts['build:production'], /stamp-production-ui-assets\.mjs/);
   assert.equal(pkg.scripts['verify:production-artifact'], 'node scripts/verify-production-artifact-with-hashes.mjs');
