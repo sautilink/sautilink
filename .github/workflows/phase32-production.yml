@@ -180,7 +180,7 @@ jobs:
               && grep -Fq 'theme-init.js?v=20260904-account2' "$app_body" \
               && grep -Fq 'app.css?v=20260927-page-headers1' "$app_body" \
               && grep -Fq 'app.js?v=20260925-video-quality1' "$app_body" \
-              && grep -Fq 'pwa.js?v=20260925-video-quality1' "$app_body" \
+              && grep -Fq 'pwa.js?v=20260927-push-deeplinks1' "$app_body" \
               && grep -Fq 'sautilink-profile-x-ui' "$app_js_body" \
               && ! grep -Fq 'Private preview' "$app_body" \
               && ! grep -Fq 'Phase 31' "$app_body" \
@@ -308,3 +308,28 @@ jobs:
             echo "--- root sitemap ---"; cat "$root_sitemap_body" || true
             exit 1
           fi
+      - name: Verify Android App Links on every supported domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          for host in \
+            sautilink.com www.sautilink.com router.sautilink.com \
+            cloudengine.sautilink.com www.router.sautilink.com \
+            wifi.sautilink.com business.sautilink.com tz.sautilink.com mobile.sautilink.com; do
+            echo "Checking Android association for $host"
+            body="$(mktemp)"
+            headers="$(mktemp)"
+            code="$(curl --silent --show-error --retry 3 --retry-delay 3 --max-time 12 \
+              -D "$headers" -o "$body" -w '%{http_code}' \
+              "https://$host/.well-known/assetlinks.json?release=$GITHUB_RUN_ID")"
+            test "$code" = "200"
+            grep -Fqi 'content-type: application/json' "$headers"
+            node - "$body" <<'NODE'
+          const fs = require('fs');
+          const actual = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const expected = JSON.parse(fs.readFileSync('.well-known/assetlinks.json', 'utf8'));
+          if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+            throw new Error('Android association does not match the release signing certificate');
+          }
+          NODE
+          done
