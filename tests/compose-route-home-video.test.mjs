@@ -6,6 +6,7 @@ import router from '../src/asset-router.js';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const app = await read('src/app.js');
+const shorts = await read('src/short-videos-feed.js');
 
 function playbackHarness() {
   const source = app.slice(
@@ -92,7 +93,8 @@ test('composer URL follows open, close, direct loading and browser Back', () => 
     'sauti-drafts-toggle': { setAttribute() {} },
   };
   const context = {
-    window: { location, history, setTimeout() {} },
+    window: { location, history, setTimeout() {}, dispatchEvent() { calls.push(['routechange']); } },
+    Event: class {},
     document: { activeElement: null, body: { classList: {
       add: (name) => bodyClasses.add(name), remove: (name) => bodyClasses.delete(name),
     } } },
@@ -126,6 +128,32 @@ test('composer URL follows open, close, direct loading and browser Back', () => 
   location.pathname = '/home';
   context.composer.closeSautiComposer({ restoreFocus: false, syncUrl: false });
   assert.equal(calls.filter(([kind]) => kind === 'back').length, backsBefore);
+});
+
+test('Short Videos pauses when covered by a feature or when its route is left', () => {
+  const policy = shorts.slice(
+    shorts.indexOf('function shortVideoPlaybackAllowed('),
+    shorts.indexOf('function currentShortVideoReturnPath()'),
+  );
+  const location = { pathname: '/videos/video-id' };
+  let dialogOpen = false;
+  const context = {
+    window: { location },
+    document: { visibilityState: 'visible', querySelector: () => dialogOpen ? {} : null },
+    SHORT_VIDEO_ROUTE: /^\/videos(?:\/[^/]+)?$/,
+  };
+  runInNewContext(`${policy}\nthis.allowed = shortVideoPlaybackAllowed;`, context);
+  const root = { hidden: false };
+  assert.equal(context.allowed(root), true);
+  dialogOpen = true;
+  assert.equal(context.allowed(root), false);
+  dialogOpen = false;
+  location.pathname = '/compose';
+  assert.equal(context.allowed(root), false);
+  location.pathname = '/videos/video-id';
+  context.document.visibilityState = 'hidden';
+  assert.equal(context.allowed(root), false);
+  assert.match(shorts, /window\.addEventListener\('sautilink:routechange', syncShortVideoForeground\)/);
 });
 
 test('direct /compose request serves the app shell and the route survives a reload', async () => {

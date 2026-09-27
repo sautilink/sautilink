@@ -3088,6 +3088,7 @@ function openSautiComposer({ focus = true } = {}) {
     pauseHomeFeedVideos();
     if (!/^\/(?:app\/)?compose\/?$/.test(window.location.pathname)) {
       window.history.pushState({ sautilinkComposer: { pushed: true } }, '', '/compose');
+      window.dispatchEvent(new Event('sautilink:routechange'));
     } else if (window.location.pathname !== '/compose') {
       window.history.replaceState(window.history.state, '', '/compose');
     }
@@ -8059,6 +8060,7 @@ function showMemberSurface(name, { syncUrl = true } = {}) {
               : '/home';
   if (window.location.pathname !== nextPath || window.location.search) {
     window.history.pushState({}, '', nextPath);
+    window.dispatchEvent(new Event('sautilink:routechange'));
   }
   if (name === 'stream') syncHomeFeedVideoPlayback();
 }
@@ -9667,6 +9669,7 @@ document.addEventListener('sautilink:short-videos-closing', (event) => {
   activeHomeFeed = HOME_FEED_COPY[requestedMode] && requestedMode !== 'short-videos'
     ? requestedMode
     : 'for-you';
+  if (!/^\/(?:home|app)\/?$/.test(window.location.pathname)) return;
   byId('sauti-composer').hidden = false;
   syncHomeFeedModeUi();
   void loadStream({ reset: true });

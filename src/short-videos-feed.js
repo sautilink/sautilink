@@ -31,6 +31,13 @@ function shortVideoPath(postId = '') {
   return postId ? `/videos/${encodeURIComponent(postId)}` : '/videos';
 }
 
+function shortVideoPlaybackAllowed(root) {
+  return root?.hidden === false
+    && SHORT_VIDEO_ROUTE.test(window.location.pathname)
+    && document.visibilityState !== 'hidden'
+    && !document.querySelector('dialog[open]');
+}
+
 function currentShortVideoReturnPath() {
   const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
   return SHORT_VIDEO_ROUTE.test(window.location.pathname) ? '/home' : current;
@@ -290,8 +297,11 @@ function syncSlideFromSource(slide) {
   if (frame) frame.setAttribute('aria-busy', String(!mediaUrl));
   if (video && mediaUrl && video.dataset.sautiQualityManaged !== 'true' && video.src !== mediaUrl) {
     video.src = mediaUrl;
-    if (slide.classList.contains('active') && video.dataset.sautiUserPaused !== 'true') {
-      video.play().catch(() => {});
+    if (slide.classList.contains('active') && video.dataset.sautiUserPaused !== 'true'
+      && shortVideoPlaybackAllowed(slide.closest(`#${SHORT_VIDEOS_ROOT_ID}`))) {
+      video.play().then(() => {
+        if (!shortVideoPlaybackAllowed(slide.closest(`#${SHORT_VIDEOS_ROOT_ID}`))) video.pause();
+      }).catch(() => {});
     }
   }
 
@@ -518,8 +528,12 @@ function installShortVideosFeed() {
     const video = slide.querySelector('.sauti-short-video-frame video');
     pausePlaybackOutsideShortVideos(video);
     pauseShortVideos(video);
-    if (video?.src && video.dataset.sautiUserPaused !== 'true') video.play().catch(() => {});
     syncActiveShortVideoRoute(slide);
+    if (video?.src && video.dataset.sautiUserPaused !== 'true' && shortVideoPlaybackAllowed(root)) {
+      video.play().then(() => {
+        if (!shortVideoPlaybackAllowed(root)) video.pause();
+      }).catch(() => {});
+    }
     requestMoreIfNeeded(index);
   }
 
@@ -709,9 +723,37 @@ function installShortVideosFeed() {
   close.addEventListener('click', () => leaveShortVideos());
 
   document.addEventListener('play', (event) => {
-    if (root.hidden || root.contains(event.target)) return;
+    if (root.contains(event.target)) {
+      if (!shortVideoPlaybackAllowed(root)) event.target.pause();
+      return;
+    }
+    if (root.hidden) return;
     if (event.target instanceof HTMLMediaElement) event.target.pause();
   }, true);
+
+  const syncShortVideoForeground = () => {
+    if (root.hidden) return;
+    if (!SHORT_VIDEO_ROUTE.test(window.location.pathname)) {
+      const previousFeed = returnHomeFeed || 'for-you';
+      closeShortVideos({ restore: false });
+      document.dispatchEvent(new CustomEvent('sautilink:short-videos-closing', {
+        detail: { returnHomeFeed: previousFeed },
+      }));
+      return;
+    }
+    if (!shortVideoPlaybackAllowed(root)) {
+      pauseShortVideos();
+      return;
+    }
+    const video = track.querySelector('.sauti-short-video-slide.active .sauti-short-video-frame video');
+    if (video?.src && video.paused && video.dataset.sautiUserPaused !== 'true') video.play().catch(() => {});
+  };
+  const shortVideoDialogObserver = new MutationObserver(syncShortVideoForeground);
+  document.querySelectorAll('dialog').forEach((dialog) => {
+    shortVideoDialogObserver.observe(dialog, { attributes: true, attributeFilter: ['open'] });
+  });
+  document.addEventListener('visibilitychange', syncShortVideoForeground);
+  window.addEventListener('sautilink:routechange', syncShortVideoForeground);
 
   track.addEventListener('click', (event) => {
     const profileLink = event.target.closest('.sauti-short-profile a');
@@ -793,14 +835,7 @@ function installShortVideosFeed() {
     }
   });
 
-  window.addEventListener('popstate', () => {
-    if (root.hidden || SHORT_VIDEO_ROUTE.test(window.location.pathname)) return;
-    const previousFeed = returnHomeFeed || 'for-you';
-    closeShortVideos({ restore: false });
-    document.dispatchEvent(new CustomEvent('sautilink:short-videos-closing', {
-      detail: { returnHomeFeed: previousFeed },
-    }));
-  });
+  window.addEventListener('popstate', syncShortVideoForeground);
   addAvailableSlides();
 }
 
