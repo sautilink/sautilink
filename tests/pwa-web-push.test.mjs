@@ -9,7 +9,7 @@ test('PWA manifest supports routed launches and app shortcuts', async () => {
   const manifest = JSON.parse(await read('manifest.json'));
   assert.equal(manifest.scope, '/');
   assert.equal(manifest.launch_handler.client_mode, 'navigate-existing');
-  assert.deepEqual(manifest.shortcuts.map(({ url }) => url), ['/home', '/messages', '/notifications']);
+  assert.deepEqual(manifest.shortcuts.map(({ url }) => url), ['/home', '/messages', '/notifications', '/compose']);
 });
 
 test('service worker receives push and safely opens supported links', async () => {
@@ -20,7 +20,7 @@ test('service worker receives push and safely opens supported links', async () =
   assert.match(worker, /clients\.matchAll/);
   assert.match(worker, /clients\.openWindow/);
   assert.match(worker, /safeNotificationRoute/);
-  assert.match(worker, /sautilink-shell-v82/);
+  assert.match(worker, /sautilink-shell-v83/);
 });
 
 test('notification tap opens the exact post even when an installed PWA window cannot navigate', async () => {

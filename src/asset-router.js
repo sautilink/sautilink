@@ -412,6 +412,15 @@ export default {
     const id = requestId(request);
 
     try {
+      if (url.pathname === '/share-target') {
+        const response = request.method === 'POST'
+          ? new Response('Open the installed SautiLink app once, then try sharing again.', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+          })
+          : Response.redirect(new URL('/compose', url), 303);
+        return finalizeResponse(response, id, url);
+      }
       const assetLinks = androidAssetLinksResponse(request, url);
       if (assetLinks) return finalizeResponse(assetLinks, id, url);
       const pwaAssociation = pwaOriginAssociationResponse(request, url);
