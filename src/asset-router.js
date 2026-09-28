@@ -9,6 +9,7 @@ import { handleModerationRequest } from './moderation-api.js';
 import { handleAccountControlRequest } from './account-controls-api.js';
 import { handleDmMediaRequest } from './dm-media-api.js';
 import { androidAssetLinksResponse } from './android-app-links.js';
+import { pwaOriginAssociationResponse } from './pwa-origin-association.js';
 
 const PROFILE_ROUTE = /^\/app\/u\/[^/]+\/?$/;
 const AUTH_CONFIRM_ROUTE = /^\/app\/auth\/confirm\/?$/;
@@ -413,6 +414,8 @@ export default {
     try {
       const assetLinks = androidAssetLinksResponse(request, url);
       if (assetLinks) return finalizeResponse(assetLinks, id, url);
+      const pwaAssociation = pwaOriginAssociationResponse(request, url);
+      if (pwaAssociation) return finalizeResponse(pwaAssociation, id, url);
       const response = await routeRequest(request, env, url, ctx);
       return finalizeResponse(response, id, url);
     } catch {

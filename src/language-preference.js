@@ -1,5 +1,6 @@
 const LANGUAGE_STORAGE_KEY = 'sautilink.language';
 const DEFAULT_LANGUAGE = 'en';
+const DEVICE_LANGUAGE = 'auto';
 
 export const LANGUAGE_OPTIONS = Object.freeze([
   Object.freeze({ code: 'en', label: 'English' }),
@@ -15,6 +16,7 @@ export const FEATURE_LABELS = Object.freeze(new Set([
 
 const SW = Object.freeze({
   'Skip to main content': 'Ruka hadi kwenye maudhui makuu',
+  'Use device language': 'Tumia lugha ya kifaa',
   'Create Post': 'Tengeneza Posti',
   'Sign out': 'Toka',
   'Switch to light theme': 'Badili kwenda mandhari meupe',
@@ -241,6 +243,7 @@ const SW = Object.freeze({
 
 const FR = Object.freeze({
   'Skip to main content': 'Aller au contenu principal',
+  'Use device language': 'Utiliser la langue de l’appareil',
   'Create Post': 'Créer une publication',
   'Sign out': 'Se déconnecter',
   'Switch to light theme': 'Passer au thème clair',
@@ -470,6 +473,7 @@ const SUPPORTED = new Set(LANGUAGE_OPTIONS.map(({ code }) => code));
 const textOrigins = new WeakMap();
 const attributeOrigins = new WeakMap();
 let activeLanguage = DEFAULT_LANGUAGE;
+let activePreference = DEVICE_LANGUAGE;
 let applying = false;
 let observer = null;
 
@@ -491,6 +495,21 @@ export function normalizeLanguage(value) {
   return SUPPORTED.has(code) ? code : DEFAULT_LANGUAGE;
 }
 
+export function browserLanguage(languages = []) {
+  for (const value of languages) {
+    const code = String(value || '').trim().toLowerCase().split(/[-_]/, 1)[0];
+    if (SUPPORTED.has(code)) return code;
+  }
+  return DEFAULT_LANGUAGE;
+}
+
+function deviceLanguage() {
+  const languages = window.navigator?.languages?.length
+    ? window.navigator.languages
+    : [window.navigator?.language];
+  return browserLanguage(languages);
+}
+
 export function translateSystemText(value, language = activeLanguage) {
   const source = String(value ?? '');
   const trimmed = source.trim();
@@ -505,9 +524,10 @@ export function translateSystemText(value, language = activeLanguage) {
 
 function readStoredLanguage() {
   try {
-    return normalizeLanguage(window.localStorage.getItem(LANGUAGE_STORAGE_KEY));
+    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return stored ? (stored === DEVICE_LANGUAGE ? DEVICE_LANGUAGE : normalizeLanguage(stored)) : DEVICE_LANGUAGE;
   } catch {
-    return DEFAULT_LANGUAGE;
+    return DEVICE_LANGUAGE;
   }
 }
 
@@ -604,6 +624,7 @@ function languagePanelMarkup() {
           <small>Changes apply immediately on this browser. English is used whenever a translation is unavailable.</small>
         </span>
         <select id="settings-language-preference" aria-label="Language preference">
+          <option value="auto">Use device language</option>
           <option value="en">English</option>
           <option value="sw">Kiswahili</option>
           <option value="fr">Français</option>
@@ -650,7 +671,7 @@ function installLanguageSettings() {
 
   const select = panel.querySelector('#settings-language-preference');
   if (select) {
-    select.value = activeLanguage;
+    select.value = activePreference;
     select.addEventListener('change', () => {
       setLanguage(select.value);
       const status = document.getElementById('settings-message');
@@ -706,13 +727,14 @@ export function getLanguage() {
 }
 
 export function setLanguage(value, { persist = true } = {}) {
-  const next = normalizeLanguage(value);
+  activePreference = value === DEVICE_LANGUAGE ? DEVICE_LANGUAGE : normalizeLanguage(value);
+  const next = activePreference === DEVICE_LANGUAGE ? deviceLanguage() : activePreference;
   activeLanguage = next;
   document.documentElement.lang = next;
   document.documentElement.dataset.language = next;
   if (persist) {
     try {
-      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
+      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, activePreference);
     } catch {
       // Language still applies in-memory if browser storage is unavailable.
     }
@@ -722,7 +744,7 @@ export function setLanguage(value, { persist = true } = {}) {
   try {
     applyTree(document.body, next);
     const select = document.getElementById('settings-language-preference');
-    if (select && select.value !== next) select.value = next;
+    if (select && select.value !== activePreference) select.value = activePreference;
   } finally {
     applying = false;
   }
@@ -732,10 +754,13 @@ export function setLanguage(value, { persist = true } = {}) {
 }
 
 function initializeLanguagePreference() {
-  activeLanguage = readStoredLanguage();
+  activePreference = readStoredLanguage();
   installLanguageSettings();
-  setLanguage(activeLanguage, { persist: false });
+  setLanguage(activePreference, { persist: false });
   installObserver();
+  window.addEventListener('languagechange', () => {
+    if (activePreference === DEVICE_LANGUAGE) setLanguage(DEVICE_LANGUAGE, { persist: false });
+  });
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {

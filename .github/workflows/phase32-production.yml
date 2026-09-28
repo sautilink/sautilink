@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "index.html"
+      - "manifest.json"
       - "app/**"
       - "src/**"
       - "sw.js"
@@ -22,6 +23,7 @@ on:
     branches: [main]
     paths:
       - "index.html"
+      - "manifest.json"
       - "app/**"
       - "src/**"
       - "sw.js"
@@ -180,7 +182,7 @@ jobs:
               && grep -Fq 'theme-init.js?v=20260904-account2' "$app_body" \
               && grep -Fq 'app.css?v=20260927-page-headers1' "$app_body" \
               && grep -Fq 'app.js?v=20260925-video-quality1' "$app_body" \
-              && grep -Fq 'pwa.js?v=20260927-push-deeplinks1' "$app_body" \
+              && grep -Fq 'pwa.js?v=20260928-pwa-domains-languages1' "$app_body" \
               && grep -Fq 'sautilink-profile-x-ui' "$app_js_body" \
               && ! grep -Fq 'Private preview' "$app_body" \
               && ! grep -Fq 'Phase 31' "$app_body" \
@@ -203,7 +205,6 @@ jobs:
 
             sleep 3
           done
-
           if [ "$ready" != "1" ]; then
             echo "Production release did not converge safely."
             echo "--- health headers ---"; cat "$health_headers" || true
@@ -330,6 +331,51 @@ jobs:
           const expected = JSON.parse(fs.readFileSync('.well-known/assetlinks.json', 'utf8'));
           if (JSON.stringify(actual) !== JSON.stringify(expected)) {
             throw new Error('Android association does not match the release signing certificate');
+          }
+          NODE
+          done
+      - name: Verify installed PWA manifest and associated origins
+        shell: bash
+        run: |
+          set -euo pipefail
+          for manifest_host in sautilink.com www.sautilink.com; do
+            manifest_body="$(mktemp)"
+            manifest_code="$(curl --silent --show-error --max-time 12 \
+              -o "$manifest_body" -w '%{http_code}' \
+              "https://$manifest_host/manifest.json?release=$GITHUB_RUN_ID")"
+            test "$manifest_code" = "200"
+            node - "$manifest_body" <<'NODE'
+          const fs = require('fs');
+          const expected = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+          const actual = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('Production PWA manifest is stale');
+          NODE
+            for asset in /sw.js /assets/pwa.js; do
+              asset_body="$(mktemp)"
+              asset_code="$(curl --silent --show-error --max-time 12 \
+                -o "$asset_body" -w '%{http_code}' \
+                "https://$manifest_host$asset?release=$GITHUB_RUN_ID")"
+              test "$asset_code" = "200"
+              grep -Fq '20260928-pwa-domains-languages1' "$asset_body"
+            done
+          done
+          for host in \
+            sautilink.com www.sautilink.com router.sautilink.com \
+            cloudengine.sautilink.com www.router.sautilink.com \
+            wifi.sautilink.com business.sautilink.com tz.sautilink.com mobile.sautilink.com; do
+            body="$(mktemp)"
+            code="$(curl --silent --show-error --retry 3 --retry-delay 3 --max-time 12 \
+              -o "$body" -w '%{http_code}' \
+              "https://$host/.well-known/web-app-origin-association?release=$GITHUB_RUN_ID")"
+            test "$code" = "200"
+            node - "$body" <<'NODE'
+          const fs = require('fs');
+          const association = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (JSON.stringify(association) !== JSON.stringify({
+            'https://sautilink.com/': { scope: '/' },
+            'https://www.sautilink.com/': { scope: '/' },
+          })) {
+            throw new Error('PWA origin association is missing or invalid');
           }
           NODE
           done

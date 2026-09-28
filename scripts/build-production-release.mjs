@@ -31,7 +31,7 @@ const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
 const APP_JS_RELEASE = '20260925-video-quality1';
 const APP_JS_FEATURE_RELEASE = '20260919-mobilesettings1';
 const APP_JS_BIRTH_DATE_RELEASE = '20260920-birthdate1';
-const PWA_RELEASE = '20260927-push-deeplinks1';
+const PWA_RELEASE = '20260928-pwa-domains-languages1';
 const POST_ACTION_ICON_CSS_RELEASE = '20260914-instagram2';
 const SETTINGS_LIGHT_THEME_CSS_RELEASE = '20260917-settings1';
 
@@ -95,6 +95,10 @@ await mkdir(siteRoot, { recursive: true });
 await cp(resolve(projectRoot, 'src'), workerSource, { recursive: true });
 await cp(resolve(projectRoot, 'app'), resolve(siteRoot, 'app'), { recursive: true });
 await cp(resolve(projectRoot, 'verify.html'), resolve(siteRoot, 'verify.html'));
+await cp(resolve(projectRoot, 'manifest.json'), resolve(siteRoot, 'manifest.json'));
+await cp(resolve(projectRoot, 'sw.js'), resolve(siteRoot, 'sw.js'));
+await mkdir(resolve(siteRoot, 'assets'), { recursive: true });
+await cp(resolve(projectRoot, 'assets/pwa.js'), resolve(siteRoot, 'assets/pwa.js'));
 
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;

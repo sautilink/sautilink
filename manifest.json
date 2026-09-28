@@ -1,15 +1,31 @@
 {
   "name": "SautiLink",
   "short_name": "SautiLink",
+  "lang": "en",
   "id": "/",
   "start_url": "/home",
   "scope": "/",
+  "scope_extensions": [
+    { "type": "origin", "origin": "https://sautilink.com" },
+    { "type": "origin", "origin": "https://www.sautilink.com" },
+    { "type": "origin", "origin": "https://router.sautilink.com" },
+    { "type": "origin", "origin": "https://cloudengine.sautilink.com" },
+    { "type": "origin", "origin": "https://www.router.sautilink.com" },
+    { "type": "origin", "origin": "https://wifi.sautilink.com" },
+    { "type": "origin", "origin": "https://business.sautilink.com" },
+    { "type": "origin", "origin": "https://tz.sautilink.com" },
+    { "type": "origin", "origin": "https://mobile.sautilink.com" }
+  ],
   "display": "standalone",
   "launch_handler": { "client_mode": "navigate-existing" },
   "orientation": "any",
   "background_color": "#0b0c0f",
   "theme_color": "#0b0c0f",
   "description": "A privacy-first social network built in Tanzania for the world.",
+  "description_localized": {
+    "sw": "Mtandao wa kijamii unaotanguliza faragha, uliobuniwa Tanzania kwa ajili ya dunia.",
+    "fr": "Un réseau social qui privilégie la confidentialité, créé en Tanzanie pour le monde."
+  },
   "categories": ["social", "communication"],
   "shortcuts": [
     { "name": "Home", "short_name": "Home", "url": "/home", "icons": [{ "src": "/assets/icon-192.png", "sizes": "192x192" }] },

@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   FEATURE_LABELS,
   LANGUAGE_OPTIONS,
+  browserLanguage,
   normalizeLanguage,
   translateSystemText,
 } from '../src/language-preference.js';
@@ -18,6 +19,15 @@ test('language preference supports English, Kiswahili and French with English fa
   assert.equal(normalizeLanguage('fr-FR'), 'fr');
   assert.equal(normalizeLanguage('unknown'), 'en');
   assert.equal(normalizeLanguage(''), 'en');
+});
+
+test('device default follows the first supported browser language and keeps an explicit choice', () => {
+  assert.equal(browserLanguage(['de-DE', 'sw-TZ', 'en-US']), 'sw');
+  assert.equal(browserLanguage(['fr-FR', 'sw-TZ']), 'fr');
+  assert.equal(browserLanguage(['de-DE']), 'en');
+  assert.match(languageSource, /<option value="auto">Use device language<\/option>/);
+  assert.match(languageSource, /window\.addEventListener\('languagechange'/);
+  assert.match(languageSource, /localStorage\.setItem\(LANGUAGE_STORAGE_KEY, activePreference\)/);
 });
 
 test('representative system UI copy translates while unknown copy falls back unchanged', () => {
