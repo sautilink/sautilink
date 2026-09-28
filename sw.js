@@ -1,8 +1,8 @@
-const CACHE_NAME = "sautilink-shell-v81";
+const CACHE_NAME = "sautilink-shell-v82";
 const APP_RELEASE = "20260925-video-quality1";
 const APP_CSS_RELEASE = "20260927-page-headers1";
 const APP_FEATURE_RELEASE = "20260918-signup2";
-const PWA_RELEASE = "20260927-push-deeplinks1";
+const PWA_RELEASE = "20260928-pwa-domains-languages1";
 const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.css",
   "/app/assets/app.js",

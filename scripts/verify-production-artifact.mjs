@@ -61,6 +61,18 @@ const realtimeApi = await readFile(resolve(workerRoot, 'src/dm-realtime-api.js')
 const realtimeHub = await readFile(resolve(workerRoot, 'src/dm-realtime-hub.js'), 'utf8');
 const headers = await readFile(resolve(siteRoot, '_headers'), 'utf8');
 const config = await readFile(resolve(projectRoot, 'wrangler.production.jsonc'), 'utf8');
+const sourceManifest = await readFile(resolve(projectRoot, 'manifest.json'), 'utf8');
+const installedManifest = await readFile(resolve(siteRoot, 'manifest.json'), 'utf8');
+if (installedManifest !== sourceManifest) throw new Error('production PWA manifest does not match source');
+for (const path of ['sw.js', 'assets/pwa.js']) {
+  if (await readFile(resolve(siteRoot, path), 'utf8') !== await readFile(resolve(projectRoot, path), 'utf8')) {
+    throw new Error(`production PWA ${path} does not match source`);
+  }
+}
+const pwaManifest = JSON.parse(installedManifest);
+if (pwaManifest.lang !== 'en' || !pwaManifest.description_localized?.sw || pwaManifest.scope_extensions?.length !== 9) {
+  throw new Error('production PWA manifest is missing its languages or associated origins');
+}
 
 for (const [label, value] of [['app html', appHtml], ['app js', appJs]]) {
   if (!value.includes(PRODUCTION_REF)) throw new Error(`${label} does not target production Supabase`);
@@ -198,7 +210,7 @@ if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('pro
 if (!appHtml.includes('app.css?v=20260927-page-headers1')) throw new Error('production CSS cache marker is missing');
 if (!appHtml.includes('app.js?v=20260925-video-quality1')) throw new Error('production JS cache marker is missing');
 if (!appHtml.includes('birthdate=20260920-birthdate1')) throw new Error('production birth date cache marker is missing');
-if (!appHtml.includes('pwa.js?v=20260927-push-deeplinks1')) throw new Error('production PWA cache marker is missing');
+if (!appHtml.includes('pwa.js?v=20260928-pwa-domains-languages1')) throw new Error('production PWA cache marker is missing');
 if (!appHtml.includes('/logo.png')) throw new Error('production app must use the main-site logo path');
 if (appHtml.includes('/assets/brand/logo-compact.webp')) throw new Error('production app references a logo asset absent from the main-site repo');
 if (!headers.includes(`https://${PRODUCTION_REF}.supabase.co`)) throw new Error('production CSP does not target production Supabase');

@@ -94,7 +94,7 @@ test('production app bundle keeps a fresh feature cache key after profile presen
   const production = await read('scripts/build-production-release.mjs');
   assert.match(production, /APP_JS_RELEASE = '20260925-video-quality1'/);
   assert.match(production, /APP_JS_FEATURE_RELEASE = '20260919-mobilesettings1'/);
-  assert.match(production, /PWA_RELEASE = '20260927-push-deeplinks1'/);
+  assert.match(production, /PWA_RELEASE = '20260928-pwa-domains-languages1'/);
 });
 
 test('profile stylesheet keeps desktop and mobile X-style hierarchy', async () => {

@@ -5,6 +5,66 @@
   "main": "./dist-production-worker/src/worker-entry.js",
   "routes": [
     {
+      "pattern": "sautilink.com/sw.js*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.sautilink.com/sw.js*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "sautilink.com/assets/pwa.js*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.sautilink.com/assets/pwa.js*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "sautilink.com/manifest.json*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.sautilink.com/manifest.json*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "sautilink.com/.well-known/web-app-origin-association*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.sautilink.com/.well-known/web-app-origin-association*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "router.sautilink.com/.well-known/web-app-origin-association*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "cloudengine.sautilink.com/.well-known/web-app-origin-association*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.router.sautilink.com/.well-known/web-app-origin-association*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "wifi.sautilink.com/.well-known/web-app-origin-association*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "business.sautilink.com/.well-known/web-app-origin-association*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "tz.sautilink.com/.well-known/web-app-origin-association*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "mobile.sautilink.com/.well-known/web-app-origin-association*",
+      "zone_name": "sautilink.com"
+    },
+    {
       "pattern": "sautilink.com/.well-known/assetlinks.json*",
       "zone_name": "sautilink.com"
     },
