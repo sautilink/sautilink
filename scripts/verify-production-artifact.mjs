@@ -73,6 +73,14 @@ const pwaManifest = JSON.parse(installedManifest);
 if (pwaManifest.lang !== 'en' || !pwaManifest.description_localized?.sw || pwaManifest.scope_extensions?.length !== 9) {
   throw new Error('production PWA manifest is missing its languages or associated origins');
 }
+if (pwaManifest.share_target?.action !== '/share-target'
+  || pwaManifest.share_target?.method !== 'POST'
+  || pwaManifest.share_target?.params?.files?.[0]?.name !== 'media') {
+  throw new Error('production PWA cannot receive shared links and media');
+}
+if (!appHtml.includes('id="sauti-camera-add"') || !appHtml.includes('capture="environment"')) {
+  throw new Error('production composer cannot open the device camera');
+}
 
 for (const [label, value] of [['app html', appHtml], ['app js', appJs]]) {
   if (!value.includes(PRODUCTION_REF)) throw new Error(`${label} does not target production Supabase`);
@@ -208,9 +216,9 @@ if (appHtml.includes('Private preview') || appHtml.includes('Phase 31')) throw n
 if (/name="robots"[^>]+noindex/i.test(appHtml)) throw new Error('production app must not carry staging noindex meta');
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('production theme bootstrap is missing');
 if (!appHtml.includes('app.css?v=20260927-page-headers1')) throw new Error('production CSS cache marker is missing');
-if (!appHtml.includes('app.js?v=20260925-video-quality1')) throw new Error('production JS cache marker is missing');
+if (!appHtml.includes('app.js?v=20260928-share-camera1')) throw new Error('production JS cache marker is missing');
 if (!appHtml.includes('birthdate=20260920-birthdate1')) throw new Error('production birth date cache marker is missing');
-if (!appHtml.includes('pwa.js?v=20260928-pwa-domains-languages1')) throw new Error('production PWA cache marker is missing');
+if (!appHtml.includes('pwa.js?v=20260928-pwa-share-camera1')) throw new Error('production PWA cache marker is missing');
 if (!appHtml.includes('/logo.png')) throw new Error('production app must use the main-site logo path');
 if (appHtml.includes('/assets/brand/logo-compact.webp')) throw new Error('production app references a logo asset absent from the main-site repo');
 if (!headers.includes(`https://${PRODUCTION_REF}.supabase.co`)) throw new Error('production CSP does not target production Supabase');

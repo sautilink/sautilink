@@ -9,6 +9,14 @@
       "zone_name": "sautilink.com"
     },
     {
+      "pattern": "sautilink.com/share-target*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.sautilink.com/share-target*",
+      "zone_name": "sautilink.com"
+    },
+    {
       "pattern": "www.sautilink.com/sw.js*",
       "zone_name": "sautilink.com"
     },

@@ -588,6 +588,7 @@ function showSignedOut(mode = 'login') {
   mobileSignoutButton.hidden = true;
   document.querySelector('.share-sauti-button').disabled = true;
   byId('sauti-body').disabled = true;
+  byId('sauti-camera-add').disabled = true;
   byId('sauti-body').value = '';
   activeComposerQuote = null;
   composerMedia.forEach((item) => { if (item.localUrl) URL.revokeObjectURL(item.localUrl); });
@@ -3077,6 +3078,96 @@ async function prepareComposer() {
   else updateComposerState({ persist: false });
 }
 
+const PWA_SHARE_PENDING_KEY = 'sautilink.share.pending.v1';
+let acceptingPwaShare = false;
+
+function pendingPwaShareId() {
+  const fromUrl = new URLSearchParams(window.location.search).get('shared');
+  const id = fromUrl || (() => {
+    try { return sessionStorage.getItem(PWA_SHARE_PENDING_KEY); } catch { return ''; }
+  })();
+  if (!/^[0-9a-f-]{36}$/i.test(id || '')) return '';
+  if (fromUrl) {
+    try { sessionStorage.setItem(PWA_SHARE_PENDING_KEY, id); } catch { /* The URL remains available. */ }
+  }
+  return id;
+}
+pendingPwaShareId();
+
+async function readPwaShare(id) {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open('sautilink-share-inbox', 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('shares');
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  try {
+    return await new Promise((resolve, reject) => {
+      const request = db.transaction('shares', 'readonly').objectStore('shares').get(id);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function finishPwaShare(id) {
+  const db = await new Promise((resolve, reject) => {
+    const request = indexedDB.open('sautilink-share-inbox', 1);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  try {
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction('shares', 'readwrite');
+      transaction.objectStore('shares').delete(id);
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+    });
+  } finally {
+    db.close();
+  }
+  try { sessionStorage.removeItem(PWA_SHARE_PENDING_KEY); } catch { /* The URL can still be cleared. */ }
+  const url = new URL(window.location.href);
+  if (url.searchParams.get('shared') === id) {
+    url.searchParams.delete('shared');
+    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+  }
+}
+
+async function receivePendingPwaShare() {
+  const id = pendingPwaShareId();
+  if (!id || !currentMember || acceptingPwaShare) return;
+  acceptingPwaShare = true;
+  try {
+    const share = await readPwaShare(id);
+    if (!share || Date.now() - share.createdAt > 24 * 60 * 60 * 1000) {
+      await finishPwaShare(id);
+      showToast('This shared item is no longer available. Share it again.');
+      return;
+    }
+    openSautiComposer({ focus: false });
+    const textarea = byId('sauti-body');
+    const previous = textarea.value.trim();
+    const body = [previous, String(share.body || '').trim()].filter(Boolean).join('\n');
+    const files = Array.isArray(share.files) ? share.files : [];
+    if (body.length > 500 || composerMedia.length + files.length > 4) {
+      showToast('Finish the current draft before importing this shared item.');
+      return;
+    }
+    textarea.value = body;
+    if (files.length) addComposerFiles(files);
+    updateComposerState();
+    await finishPwaShare(id);
+    showToast('Shared content added to your draft. Review it before posting.');
+  } catch {
+    showToast('Could not import this share. Please try again.');
+  } finally {
+    acceptingPwaShare = false;
+  }
+}
+
 function openSautiComposer({ focus = true } = {}) {
   const dialog = byId('sauti-composer-dialog');
   const composer = byId('sauti-composer');
@@ -3141,6 +3232,7 @@ function updateComposerState({ persist = true } = {}) {
   submit.disabled = textarea.disabled || !hasContent || textarea.value.length > 500 || !mentionedReady || (hasMedia && !mediaReady);
   saveDraft.disabled = textarea.disabled || !hasContent || (hasMedia && !mediaDraftReady);
   if (byId('sauti-media-add')) byId('sauti-media-add').disabled = textarea.disabled || composerMedia.length >= 4;
+  if (byId('sauti-camera-add')) byId('sauti-camera-add').disabled = textarea.disabled || composerMedia.length >= 4;
 
   const audienceLabel = audience.selectedOptions[0]?.textContent || 'Public';
   byId('composer-audience-note').textContent =
@@ -8383,7 +8475,8 @@ function renderMember(profile, userId = currentMemberId) {
   document.querySelectorAll('[data-open-sauti-composer]').forEach((button) => { button.disabled = false; });
   byId('sauti-body').disabled = false;
   byId('sauti-media-add').disabled = false;
-  void prepareComposer();
+  byId('sauti-camera-add').disabled = false;
+  void prepareComposer().then(receivePendingPwaShare);
   syncComposerOnlineState();
   showMemberSurface('stream', { syncUrl: false });
   document.body.classList.remove('app-booting');
@@ -9560,6 +9653,13 @@ byId('sauti-media-add').addEventListener('click', () => {
   if (composerMedia.length < 4) byId('sauti-media-file').click();
 });
 byId('sauti-media-file').addEventListener('change', (event) => {
+  addComposerFiles(event.currentTarget.files);
+  event.currentTarget.value = '';
+});
+byId('sauti-camera-add').addEventListener('click', () => {
+  if (composerMedia.length < 4) byId('sauti-camera-file').click();
+});
+byId('sauti-camera-file').addEventListener('change', (event) => {
   addComposerFiles(event.currentTarget.files);
   event.currentTarget.value = '';
 });

@@ -1,8 +1,8 @@
-const CACHE_NAME = "sautilink-shell-v82";
-const APP_RELEASE = "20260925-video-quality1";
+const CACHE_NAME = "sautilink-shell-v83";
+const APP_RELEASE = "20260928-share-camera1";
 const APP_CSS_RELEASE = "20260927-page-headers1";
 const APP_FEATURE_RELEASE = "20260918-signup2";
-const PWA_RELEASE = "20260928-pwa-domains-languages1";
+const PWA_RELEASE = "20260928-pwa-share-camera1";
 const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.css",
   "/app/assets/app.js",
@@ -126,8 +126,57 @@ self.addEventListener("notificationclick", (event) => {
   })());
 });
 
+// A share must stay on this device until the member reviews it in the composer.
+function openShareInbox() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("sautilink-share-inbox", 1);
+    request.onupgradeneeded = () => request.result.createObjectStore("shares");
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function receiveShare(request) {
+  const tooLarge = Number(request.headers.get("content-length"));
+  if (tooLarge > 110 * 1024 * 1024) return new Response("Shared media is too large.", { status: 413 });
+  const form = await request.formData();
+  const title = String(form.get("title") || "").trim();
+  const text = String(form.get("text") || "").trim();
+  const rawUrl = String(form.get("url") || "").trim();
+  const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : "";
+  const parts = [title, text, url].filter((part, index, values) => part && values.indexOf(part) === index);
+  const body = parts.join("\n");
+  const files = form.getAll("media").filter((file) => file && typeof file !== "string" && file.size > 0);
+  const allowed = new Set(["image/jpeg", "image/png", "image/webp", "video/mp4"]);
+  if (body.length > 500 || files.length > 4 || files.some((file) =>
+    !allowed.has(file.type) || file.size > (file.type.startsWith("image/") ? 8 : 25) * 1024 * 1024)) {
+    return new Response("This share exceeds SautiLink's post limits. Share a shorter text or a supported media file.", { status: 413 });
+  }
+  if (!body && !files.length) return new Response("Nothing to share.", { status: 400 });
+
+  const id = crypto.randomUUID();
+  const db = await openShareInbox();
+  try {
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction("shares", "readwrite");
+      transaction.objectStore("shares").put({ body, files, createdAt: Date.now() }, id);
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  } finally {
+    db.close();
+  }
+  return Response.redirect(new URL(`/compose?shared=${id}`, self.location.origin), 303);
+}
+
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
+  if (url.origin === self.location.origin && url.pathname === "/share-target" && event.request.method === "POST") {
+    event.respondWith(receiveShare(event.request).catch(() =>
+      new Response("SautiLink could not save this share on your device. Please try again.", { status: 503 })));
+    return;
+  }
   if (event.request.method !== "GET" || url.pathname.startsWith("/api/")) return;
 
   if (event.request.mode === "navigate") {
