@@ -34,7 +34,7 @@ test('Rooms uses the dedicated Groups-style layout without changing other app su
   assert.doesNotMatch(css, /^\.app-layout\s*\{/m);
 });
 
-test('mobile Rooms landing uses a preview-card layer while preserving the existing Room detail view', async () => {
+test('mobile Rooms landing follows the five-part preview anatomy while preserving Room behavior', async () => {
   const [runtime, previewCss] = await Promise.all([
     read('src/rooms-facebook-ui.js'),
     read('app/assets/rooms-mobile-preview.css'),
@@ -44,9 +44,17 @@ test('mobile Rooms landing uses a preview-card layer while preserving the existi
   assert.match(previewCss, /@media \(max-width:\s*680px\)/);
   assert.match(previewCss, /#circles-surface:not\(\.room-fb-detail-open\)/);
   assert.match(previewCss, /#circles-list \.circle-card/);
-  assert.match(previewCss, /grid-template-columns:\s*minmax\(0, 1\.42fr\) minmax\(122px, \.88fr\)/);
+  assert.match(previewCss, /grid-template-columns:\s*minmax\(0, 1\.62fr\) minmax\(128px, \.98fr\)/);
   assert.match(previewCss, /\.room-card-cover/);
-  assert.match(previewCss, /\.room-cover-image/);
+  assert.match(previewCss, /width:\s*118%/);
+  assert.match(previewCss, /border-radius:\s*52% 24px 24px 52%/);
+  assert.match(previewCss, /\.circle-card-top \{\s*display: contents;/);
+  assert.match(previewCss, /\.circle-card h3 \{[\s\S]*?grid-row:\s*1;/);
+  assert.match(previewCss, /\.room-category-badge \{[\s\S]*?grid-column:\s*1;[\s\S]*?grid-row:\s*2;/);
+  assert.match(previewCss, /\.circle-card-meta \{[\s\S]*?grid-column:\s*2;[\s\S]*?grid-row:\s*2;/);
+  assert.match(previewCss, /\.room-member-count \{/);
+  assert.match(previewCss, /\.circle-card-state::after \{\s*content:\s*"View Room";/);
+  assert.match(previewCss, /\.circle-card-description \{\s*display: none !important;/);
   assert.match(previewCss, /data-room-category/);
   assert.doesNotMatch(previewCss, /\.room-fb-detail-tabs/);
   assert.doesNotMatch(previewCss, /\.circle-detail\.room-fb-detail/);
