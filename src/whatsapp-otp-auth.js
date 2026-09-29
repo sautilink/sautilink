@@ -5,6 +5,7 @@ const PHONE_CHANGE_KEY = 'sautilink.auth.whatsapp_phone_change';
 let client = null;
 let enabled = false;
 let installed = false;
+let channels = { sms: false, whatsapp: false };
 let loginPhone = sessionStorage.getItem(LOGIN_PHONE_KEY) || '';
 let phoneChange = sessionStorage.getItem(PHONE_CHANGE_KEY) || '';
 
@@ -58,13 +59,13 @@ function whatsappLoginRequestError(error) {
     return 'Security verification could not be completed. Refresh the page and try again.';
   }
   if (code === 'phone_provider_disabled') {
-    return 'WhatsApp sign-in is temporarily unavailable.';
+    return 'Phone code sign-in is temporarily unavailable.';
   }
   if (code === 'otp_disabled') {
-    return 'We could not find a SautiLink account for this WhatsApp number.';
+    return 'We could not find a SautiLink account for this phone number.';
   }
   if (code === 'sms_send_failed' || code === 'hook_timeout') {
-    return 'We could not deliver a WhatsApp code right now. Try again shortly.';
+    return 'We could not deliver a phone code right now. Try again shortly.';
   }
 
   const reference = /^[a-z0-9_:-]{1,64}$/.test(code)
@@ -72,7 +73,7 @@ function whatsappLoginRequestError(error) {
     : status
       ? `http_${status}`
       : 'auth_request_failed';
-  return `We could not send a WhatsApp code right now. Reference: ${reference}.`;
+  return `We could not send a phone code right now. Reference: ${reference}.`;
 }
 
 function setLoginPhone(value) {
@@ -120,7 +121,7 @@ function createWhatsAppLoginPanel() {
   entry.className = 'text-action auth-code-action';
   entry.id = 'show-whatsapp-passwordless';
   entry.type = 'button';
-  entry.textContent = 'Log in with WhatsApp code';
+  entry.textContent = 'Log in with phone code';
   entry.hidden = true;
   emailCodeButton.insertAdjacentElement('afterend', entry);
 
@@ -139,9 +140,9 @@ function createWhatsAppLoginPanel() {
   label.className = 'section-label';
   label.textContent = 'Passwordless access';
   const title = document.createElement('h2');
-  title.textContent = 'Sign in by WhatsApp';
+  title.textContent = 'Sign in by phone';
   const copy = document.createElement('p');
-  copy.textContent = 'Enter a WhatsApp number already linked to your SautiLink account.';
+  copy.textContent = 'Enter a verified phone number linked to your SautiLink account.';
   heading.append(label, title, copy);
 
   const requestForm = document.createElement('form');
@@ -149,7 +150,7 @@ function createWhatsAppLoginPanel() {
   requestForm.id = 'whatsapp-login-request-form';
   requestForm.noValidate = true;
   requestForm.innerHTML = `
-    <label for="whatsapp-login-phone">WhatsApp number</label>
+    <label for="whatsapp-login-phone">Phone number</label>
     <input id="whatsapp-login-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+2557XXXXXXXX" required>
     <small class="field-hint">Use international format, including the + country code.</small>
     <div class="form-message" id="whatsapp-login-request-message" role="alert" hidden></div>
@@ -164,7 +165,7 @@ function createWhatsAppLoginPanel() {
   verifyForm.innerHTML = `
     <label for="whatsapp-login-code">Verification code</label>
     <input class="otp-input" id="whatsapp-login-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" minlength="6" maxlength="10" required placeholder="••••••">
-    <small class="field-hint">Enter the code sent by the official SautiLink WhatsApp number.</small>
+    <small class="field-hint">Check the SMS or WhatsApp channel saved on your account.</small>
     <div class="form-message" id="whatsapp-login-verify-message" role="alert" hidden></div>
     <button class="form-submit" type="submit">Verify and sign in</button>
   `;
@@ -186,7 +187,7 @@ async function requestWhatsAppLoginCode(event) {
   const message = id('whatsapp-login-request-message');
   const submit = form.querySelector('[type="submit"]');
   setFormMessage(message, '');
-  if (!phone) return setFormMessage(message, 'Enter a valid international WhatsApp number, for example +2557XXXXXXXX.');
+  if (!phone) return setFormMessage(message, 'Enter a valid international phone number, for example +2557XXXXXXXX.');
 
   setSubmitBusy(submit, true, 'Sending code…');
   try {
@@ -197,7 +198,7 @@ async function requestWhatsAppLoginCode(event) {
     if (error) throw error;
     setLoginPhone(phone);
     id('whatsapp-login-verify-form').hidden = false;
-    setFormMessage(message, 'A sign-in code was sent to your linked WhatsApp number.', 'success');
+    setFormMessage(message, 'A sign-in code was requested for your linked number. Check SMS or WhatsApp.', 'success');
     id('whatsapp-login-code')?.focus();
   } catch (error) {
     setFormMessage(message, whatsappLoginRequestError(error));
@@ -223,7 +224,7 @@ async function verifyWhatsAppLoginCode(event) {
     if (error) throw error;
     setLoginPhone('');
     form.reset();
-    setFormMessage(message, 'WhatsApp number verified. Signing you in…', 'success');
+    setFormMessage(message, 'Phone number verified. Signing you in…', 'success');
   } catch {
     setFormMessage(message, 'That verification code is invalid or has expired. Request a new code and try again.');
   } finally {
@@ -241,20 +242,27 @@ function createSettingsCard() {
   card.id = 'settings-whatsapp-card';
   card.hidden = true;
   card.innerHTML = `
-    <div class="settings-card-title"><strong>WhatsApp sign-in</strong><small>Link one verified number to this account</small></div>
-    <p class="settings-card-copy" id="settings-whatsapp-status" aria-live="polite">No WhatsApp number linked yet.</p>
+    <div class="settings-card-title"><strong>Phone code sign-in</strong><small>Link one verified number to this account</small></div>
+    <p class="settings-card-copy" id="settings-whatsapp-status" aria-live="polite">No phone number linked yet.</p>
+    <label class="settings-select" for="settings-phone-otp-channel">
+      <span>Send codes by</span>
+      <select id="settings-phone-otp-channel" aria-label="Phone code delivery channel">
+        <option value="sms">SMS</option>
+        <option value="whatsapp">WhatsApp</option>
+      </select>
+    </label>
     <form class="auth-form" id="settings-whatsapp-link-form" novalidate>
-      <label for="settings-whatsapp-phone">WhatsApp number</label>
+      <label for="settings-whatsapp-phone">Phone number</label>
       <input id="settings-whatsapp-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+2557XXXXXXXX" required>
-      <small class="field-hint">Use international format. We will send a verification code through WhatsApp.</small>
+      <small class="field-hint">Use international format. We will send a code through your selected channel.</small>
       <div class="form-message" id="settings-whatsapp-link-message" role="alert" hidden></div>
-      <button class="secondary-action" type="submit">Link WhatsApp number</button>
+      <button class="secondary-action" type="submit">Link phone number</button>
     </form>
     <form class="auth-form auth-secondary-form" id="settings-whatsapp-verify-form" novalidate hidden>
       <label for="settings-whatsapp-code">Verification code</label>
       <input class="otp-input" id="settings-whatsapp-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" minlength="6" maxlength="10" required placeholder="••••••">
       <div class="form-message" id="settings-whatsapp-verify-message" role="alert" hidden></div>
-      <button class="secondary-action" type="submit">Verify WhatsApp number</button>
+      <button class="secondary-action" type="submit">Verify phone number</button>
     </form>
   `;
 
@@ -264,6 +272,25 @@ function createSettingsCard() {
 
   id('settings-whatsapp-link-form').addEventListener('submit', requestPhoneLinkCode);
   id('settings-whatsapp-verify-form').addEventListener('submit', verifyPhoneLinkCode);
+  id('settings-phone-otp-channel').addEventListener('change', savePhoneChannelPreference);
+}
+
+function selectedPhoneChannel() {
+  const channel = id('settings-phone-otp-channel')?.value;
+  return channel === 'whatsapp' ? 'whatsapp' : 'sms';
+}
+
+async function savePhoneChannelPreference() {
+  if (!client || !enabled) return;
+  const channel = selectedPhoneChannel();
+  if (!channels[channel]) return;
+  const { data, error: userError } = await client.auth.getUser();
+  if (userError || !data?.user) return;
+  const { error } = await client.auth.updateUser({
+    data: { ...data.user.user_metadata, sautilink_phone_otp_channel: channel },
+  });
+  if (error) setFormMessage(id('settings-whatsapp-link-message'), 'Your phone code choice could not be saved.');
+  else setFormMessage(id('settings-whatsapp-link-message'), `Phone codes will be sent by ${channel === 'sms' ? 'SMS' : 'WhatsApp'}.`, 'success');
 }
 
 async function syncSettingsPhone() {
@@ -273,12 +300,18 @@ async function syncSettingsPhone() {
   const storedPhone = normalizeStoredPhone(user?.phone);
   const displayPhone = formatStoredPhone(storedPhone);
   const confirmed = Boolean(storedPhone && user?.phone_confirmed_at);
+  const selector = id('settings-phone-otp-channel');
+  selector.querySelector('[value="sms"]').disabled = !channels.sms;
+  selector.querySelector('[value="whatsapp"]').disabled = !channels.whatsapp;
+  const preference = user?.user_metadata?.sautilink_phone_otp_channel;
+  selector.value = (preference === 'sms' || preference === 'whatsapp') && channels[preference]
+    ? preference : confirmed && channels.whatsapp ? 'whatsapp' : channels.sms ? 'sms' : 'whatsapp';
   const status = id('settings-whatsapp-status');
   status.textContent = confirmed
-    ? `Verified WhatsApp number: ${displayPhone}`
+    ? `Verified phone number: ${displayPhone}`
     : phoneChange
       ? `Verification pending for ${phoneChange}`
-      : 'No verified WhatsApp number is linked to this account yet.';
+      : 'No verified phone number is linked to this account yet.';
   status.dataset.state = confirmed ? 'verified' : phoneChange ? 'pending' : 'unlinked';
 
   const phoneInput = id('settings-whatsapp-phone');
@@ -286,7 +319,7 @@ async function syncSettingsPhone() {
 
   const linkSubmit = id('settings-whatsapp-link-form')?.querySelector('[type="submit"]');
   if (linkSubmit && linkSubmit.getAttribute('aria-busy') !== 'true') {
-    const label = confirmed ? 'Change WhatsApp number' : 'Link WhatsApp number';
+    const label = confirmed ? 'Change phone number' : 'Link phone number';
     linkSubmit.textContent = label;
     linkSubmit.dataset.defaultLabel = label;
   }
@@ -302,19 +335,25 @@ async function requestPhoneLinkCode(event) {
   const message = id('settings-whatsapp-link-message');
   const submit = form.querySelector('[type="submit"]');
   setFormMessage(message, '');
-  if (!phone) return setFormMessage(message, 'Enter a valid international WhatsApp number.');
+  if (!phone) return setFormMessage(message, 'Enter a valid international phone number.');
 
   setSubmitBusy(submit, true, 'Sending code…');
   try {
+    const { data, error: userError } = await client.auth.getUser();
+    if (userError || !data?.user || !channels[selectedPhoneChannel()]) throw new Error('Phone code channel unavailable.');
+    const { error: choiceError } = await client.auth.updateUser({
+      data: { ...data.user.user_metadata, sautilink_phone_otp_channel: selectedPhoneChannel() },
+    });
+    if (choiceError) throw choiceError;
     const { error } = await client.auth.updateUser({ phone });
     if (error) throw error;
     setPhoneChange(phone);
     id('settings-whatsapp-verify-form').hidden = false;
-    setFormMessage(message, 'A verification code was sent to this WhatsApp number.', 'success');
+    setFormMessage(message, `A verification code was requested through ${selectedPhoneChannel() === 'sms' ? 'SMS' : 'WhatsApp'}.`, 'success');
     id('settings-whatsapp-code')?.focus();
     await syncSettingsPhone();
   } catch {
-    setFormMessage(message, 'We could not send a verification code to this WhatsApp number.');
+    setFormMessage(message, 'We could not send a verification code to this phone number.');
   } finally {
     setSubmitBusy(submit, false, 'Sending code…');
   }
@@ -328,8 +367,8 @@ async function verifyPhoneLinkCode(event) {
   const message = id('settings-whatsapp-verify-message');
   const submit = form.querySelector('[type="submit"]');
   setFormMessage(message, '');
-  if (!phoneChange) return setFormMessage(message, 'Request a fresh WhatsApp verification code first.');
-  if (!code) return setFormMessage(message, 'Enter the complete WhatsApp verification code.');
+  if (!phoneChange) return setFormMessage(message, 'Request a fresh phone verification code first.');
+  if (!code) return setFormMessage(message, 'Enter the complete phone verification code.');
 
   setSubmitBusy(submit, true, 'Verifying…');
   try {
@@ -338,7 +377,7 @@ async function verifyPhoneLinkCode(event) {
     setPhoneChange('');
     form.reset();
     form.hidden = true;
-    setFormMessage(message, 'WhatsApp sign-in is now enabled for this account.', 'success');
+    setFormMessage(message, 'Phone code sign-in is now enabled for this account.', 'success');
     await syncSettingsPhone();
   } catch {
     setFormMessage(message, 'That verification code is invalid or has expired.');
@@ -348,18 +387,18 @@ async function verifyPhoneLinkCode(event) {
 }
 
 async function capabilityReady() {
-  if (!client?.supabaseUrl) return false;
+  if (!client?.supabaseUrl) return null;
   try {
     const response = await fetch(`${client.supabaseUrl}/functions/v1/${WHATSAPP_FUNCTION}`, {
       method: 'GET',
       headers: { Accept: 'application/json' },
       cache: 'no-store',
     });
-    if (!response.ok) return false;
+    if (!response.ok) return null;
     const payload = await response.json().catch(() => null);
-    return payload?.ok === true && payload?.data?.enabled === true;
+    return payload?.ok === true && payload?.data?.enabled === true ? payload.data.channels : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -368,8 +407,10 @@ async function install() {
   installed = true;
   createWhatsAppLoginPanel();
   createSettingsCard();
-  enabled = await capabilityReady();
+  const available = await capabilityReady();
+  enabled = Boolean(available?.sms || available?.whatsapp);
   if (!enabled) return;
+  channels = available;
 
   id('show-whatsapp-passwordless').hidden = false;
   id('settings-whatsapp-card').hidden = false;

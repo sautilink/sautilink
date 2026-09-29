@@ -43,6 +43,17 @@ function whatsappReady() {
     && Boolean(env('SEND_SMS_HOOK_SECRET'));
 }
 
+function smsReady() {
+  return env('SWALA_SMS_ENABLED') === 'true'
+    && Boolean(env('SWALA_SMS_API_KEY'))
+    && env('SWALA_SMS_SENDER_ID') === 'SautiLink'
+    && Boolean(env('SEND_SMS_HOOK_SECRET'));
+}
+
+function phoneOtpReady() {
+  return smsReady() || whatsappReady();
+}
+
 function hookSecrets() {
   return env('SEND_SMS_HOOK_SECRET')
     .split('|')
@@ -56,7 +67,7 @@ function verifyHook(payload: string, headers: Record<string, string>) {
   for (const secret of hookSecrets()) {
     try {
       return new Webhook(secret).verify(payload, headers) as {
-        user?: { phone?: string; new_phone?: string };
+        user?: { phone?: string; new_phone?: string; user_metadata?: Record<string, unknown> };
         sms?: { otp?: string; phone?: string };
       };
     } catch (error) {
@@ -83,6 +94,8 @@ function sanitizeMetaText(value: unknown) {
     .replace(/Bearer\s+\S+/gi, 'Bearer [redacted]')
     .slice(0, 240);
 }
+
+class DeliveryRejected extends Error {}
 
 async function readMetaError(response: Response) {
   let payload: Record<string, unknown> = {};
@@ -163,8 +176,73 @@ async function sendWhatsAppOtp(phone: string, otp: string) {
       metaMessage: metaError.message,
       metaDetails: metaError.details,
     });
-    throw new Error('WhatsApp delivery failed.');
+    if (response.status >= 400 && response.status < 500) {
+      throw new DeliveryRejected('WhatsApp delivery rejected.');
+    }
+    throw new Error('WhatsApp delivery status uncertain.');
   }
+}
+
+async function sendSwalaSmsOtp(phone: string, otp: string, webhookId: string) {
+  const body = `Your SautiLink verification code is ${otp}. Do not share this code.`;
+  const idempotencyBytes = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(`${webhookId}:${phone}:${otp}`),
+  );
+  const idempotencyKey = `sautilink-otp-${Array.from(new Uint8Array(idempotencyBytes), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
+  try {
+    const response = await fetch('https://swalasms.com/api/v1/sms/messages', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${env('SWALA_SMS_API_KEY')}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'Idempotency-Key': idempotencyKey,
+      },
+      body: JSON.stringify({
+        recipient: `+${phone}`,
+        sender_id: env('SWALA_SMS_SENDER_ID'),
+        body,
+      }),
+    });
+    const result = await response.json().catch(() => null);
+    if (![200, 202].includes(response.status) || result?.success === false) {
+      console.error('SMS OTP was not queued', { status: response.status });
+      if (response.status >= 500) throw new Error('SMS delivery status uncertain.');
+      if (response.status >= 400 && response.status < 500 || result?.success === false) {
+        throw new DeliveryRejected('SMS delivery rejected.');
+      }
+      throw new Error('SMS delivery status uncertain.');
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function deliverPhoneOtp(phone: string, otp: string, preference: unknown, webhookId: string) {
+  // A user's delivery preference is never used for authorization. Supabase still
+  // owns OTP generation, expiry and verification for both transports.
+  const selected = preference === 'sms' || preference === 'whatsapp'
+    ? preference
+    : whatsappReady() ? 'whatsapp' : 'sms';
+  const channels = selected === 'whatsapp' ? ['whatsapp', 'sms'] : ['sms', 'whatsapp'];
+  for (const channel of channels) {
+    if (channel === 'sms' && !smsReady()) continue;
+    if (channel === 'whatsapp' && !whatsappReady()) continue;
+    try {
+      if (channel === 'sms') await sendSwalaSmsOtp(phone, otp, webhookId);
+      else await sendWhatsAppOtp(phone, otp);
+      return;
+    } catch (error) {
+      // A network timeout or server error may occur after the provider queued
+      // the message. Fall back only when the provider explicitly rejects it.
+      if (!(error instanceof DeliveryRejected)) throw error;
+    }
+  }
+  throw new Error('Phone code delivery failed.');
 }
 
 Deno.serve(async (request: Request) => {
@@ -178,21 +256,30 @@ Deno.serve(async (request: Request) => {
   }
 
   if (request.method === 'GET') {
-    return json(request, 200, { ok: true, data: { enabled: whatsappReady() } });
+    return json(request, 200, { ok: true, data: {
+      enabled: phoneOtpReady(),
+      channels: { sms: smsReady(), whatsapp: whatsappReady() },
+    } });
   }
 
   if (request.method !== 'POST') {
     return json(request, 405, { ok: false, error: { code: 'METHOD_NOT_ALLOWED' } });
   }
 
-  if (!whatsappReady()) {
-    return json(request, 503, { ok: false, error: { code: 'WHATSAPP_OTP_NOT_READY' } });
+  if (!phoneOtpReady()) {
+    return json(request, 503, { ok: false, error: { code: 'PHONE_OTP_NOT_READY' } });
   }
 
+  if (Number(request.headers.get('content-length') || 0) > 8192) {
+    return json(request, 413, { ok: false, error: { code: 'HOOK_PAYLOAD_TOO_LARGE' } });
+  }
   const payload = await request.text();
+  if (new TextEncoder().encode(payload).byteLength > 8192) {
+    return json(request, 413, { ok: false, error: { code: 'HOOK_PAYLOAD_TOO_LARGE' } });
+  }
   const headers = Object.fromEntries(request.headers.entries());
   let event: {
-    user?: { phone?: string; new_phone?: string };
+    user?: { phone?: string; new_phone?: string; user_metadata?: Record<string, unknown> };
     sms?: { otp?: string; phone?: string };
   };
   try {
@@ -210,9 +297,9 @@ Deno.serve(async (request: Request) => {
   }
 
   try {
-    await sendWhatsAppOtp(phone, otp);
+    await deliverPhoneOtp(phone, otp, event?.user?.user_metadata?.sautilink_phone_otp_channel, request.headers.get('webhook-id') || '');
     return json(request, 200, {});
   } catch {
-    return json(request, 502, { ok: false, error: { code: 'WHATSAPP_DELIVERY_FAILED' } });
+    return json(request, 502, { ok: false, error: { code: 'PHONE_DELIVERY_FAILED' } });
   }
 });

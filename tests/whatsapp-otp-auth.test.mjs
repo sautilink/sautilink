@@ -79,9 +79,10 @@ test('WhatsApp OTP hook logs sanitized Meta diagnostics without exposing recipie
 test('WhatsApp OTP hook is delivery-only and does not create a second OTP database', async () => {
   const source = await read('supabase/functions/sautilink-whatsapp-otp/index.ts');
 
-  assert.doesNotMatch(source, /createClient|service_role|SERVICE_ROLE|\.from\(|insert\(|update\(/);
+  assert.doesNotMatch(source, /createClient|service_role|SERVICE_ROLE|\.from\(['"]|\.insert\(|\.update\(/);
   assert.match(source, /Cache-Control': 'no-store, max-age=0'/);
-  assert.match(source, /data: \{ enabled: whatsappReady\(\) \}/);
+  assert.match(source, /enabled: phoneOtpReady\(\)/);
+  assert.match(source, /channels: \{ sms: smsReady\(\), whatsapp: whatsappReady\(\) \}/);
 });
 
 test('WhatsApp settings accepts Supabase digit-only stored phones and formats them for display', async () => {
@@ -97,9 +98,9 @@ test('WhatsApp settings accepts Supabase digit-only stored phones and formats th
 test('WhatsApp settings persists verified state after refresh and offers change instead of relink', async () => {
   const source = await read('src/whatsapp-otp-auth.js');
 
-  assert.match(source, /Verified WhatsApp number: \$\{displayPhone\}/);
+  assert.match(source, /Verified phone number: \$\{displayPhone\}/);
   assert.match(source, /status\.dataset\.state = confirmed \? 'verified'/);
-  assert.match(source, /confirmed \? 'Change WhatsApp number' : 'Link WhatsApp number'/);
+  assert.match(source, /confirmed \? 'Change phone number' : 'Link phone number'/);
   assert.match(source, /if \(displayPhone && !phoneInput\.value\) phoneInput\.value = displayPhone/);
 });
 

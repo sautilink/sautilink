@@ -1,8 +1,8 @@
-const CACHE_NAME = "sautilink-shell-v88";
-const APP_RELEASE = "20260929-notification-routing1";
+const CACHE_NAME = "sautilink-shell-v89";
+const APP_RELEASE = "20260930-swala-otp1";
 const APP_CSS_RELEASE = "20260927-page-headers1";
 const APP_FEATURE_RELEASE = "20260918-signup2";
-const PWA_RELEASE = "20260929-notification-routing1";
+const PWA_RELEASE = "20260930-swala-otp1";
 const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.css",
   "/app/assets/app.js",

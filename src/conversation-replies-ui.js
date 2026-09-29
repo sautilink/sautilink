@@ -1,4 +1,4 @@
-const CONVERSATION_REPLIES_UI_CSS = '/app/assets/conversation-replies-ui.css?v=20260929-notification-routing1';
+const CONVERSATION_REPLIES_UI_CSS = '/app/assets/conversation-replies-ui.css?v=20260930-swala-otp1';
 
 export function ensureConversationRepliesUiStyles() {
   if (typeof document === 'undefined') return;
