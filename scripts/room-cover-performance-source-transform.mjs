@@ -136,27 +136,59 @@ async function attachRoomCover(container, slug, { coverKey = '', width = 960, pr
     'the opened Room cover call',
   );
 
-  output = replaceExactOnce(
-    output,
-    `  const slug = payload?.data?.slug;
+  const uploadWithRuntimeCache = `  const slug = payload?.data?.slug;
+  invalidateRoomRuntimeCaches({ slug, roomId, discovery: true });
+  if (slug && roomCoverCache.has(slug)) {
+    URL.revokeObjectURL(roomCoverCache.get(slug));
+    roomCoverCache.delete(slug);
+  }`;
+  if (output.includes(uploadWithRuntimeCache)) {
+    output = replaceExactOnce(
+      output,
+      uploadWithRuntimeCache,
+      `  const slug = payload?.data?.slug;
+  invalidateRoomRuntimeCaches({ slug, roomId, discovery: true });
+  if (slug) clearRoomCoverCache(slug);`,
+      'the Room cover upload cache invalidation with Room runtime cache',
+    );
+  } else {
+    output = replaceExactOnce(
+      output,
+      `  const slug = payload?.data?.slug;
   if (slug && roomCoverCache.has(slug)) {
     URL.revokeObjectURL(roomCoverCache.get(slug));
     roomCoverCache.delete(slug);
   }`,
-    `  const slug = payload?.data?.slug;
+      `  const slug = payload?.data?.slug;
   if (slug) clearRoomCoverCache(slug);`,
-    'the Room cover upload cache invalidation',
-  );
+      'the Room cover upload cache invalidation',
+    );
+  }
 
-  output = replaceExactOnce(
-    output,
-    `  if (roomCoverCache.has(slug)) {
+  const removalWithRuntimeCache = `  invalidateRoomRuntimeCaches({ slug, roomId, discovery: true });
+  if (roomCoverCache.has(slug)) {
+    URL.revokeObjectURL(roomCoverCache.get(slug));
+    roomCoverCache.delete(slug);
+  }`;
+  if (output.includes(removalWithRuntimeCache)) {
+    output = replaceExactOnce(
+      output,
+      removalWithRuntimeCache,
+      `  invalidateRoomRuntimeCaches({ slug, roomId, discovery: true });
+  clearRoomCoverCache(slug);`,
+      'the Room cover removal cache invalidation with Room runtime cache',
+    );
+  } else {
+    output = replaceExactOnce(
+      output,
+      `  if (roomCoverCache.has(slug)) {
     URL.revokeObjectURL(roomCoverCache.get(slug));
     roomCoverCache.delete(slug);
   }`,
-    `  clearRoomCoverCache(slug);`,
-    'the Room cover removal cache invalidation',
-  );
+      `  clearRoomCoverCache(slug);`,
+      'the Room cover removal cache invalidation',
+    );
+  }
 
   return output;
 }
