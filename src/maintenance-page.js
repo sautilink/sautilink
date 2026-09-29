@@ -1,4 +1,5 @@
-import artworkPart1 from './maintenance-artwork-1.js';
+import artworkPart1a from './maintenance-artwork-1a.js';
+import artworkPart1b from './maintenance-artwork-1b.js';
 import artworkPart2 from './maintenance-artwork-2.js';
 import artworkPart3 from './maintenance-artwork-3.js';
 import artworkPart4 from './maintenance-artwork-4.js';
@@ -7,7 +8,7 @@ import artworkPart5 from './maintenance-artwork-5.js';
 // Leave blank until a maintenance window is announced.
 // When enabled, use an absolute ISO-8601 timestamp so refreshes never restart the countdown.
 export const MAINTENANCE_END_ISO = '';
-export const MAINTENANCE_ARTWORK_DATA_URL = `data:image/webp;base64,${artworkPart1}${artworkPart2}${artworkPart3}${artworkPart4}${artworkPart5}`;
+export const MAINTENANCE_ARTWORK_DATA_URL = `data:image/webp;base64,${artworkPart1a}${artworkPart1b}${artworkPart2}${artworkPart3}${artworkPart4}${artworkPart5}`;
 
 const MAINTENANCE_PATHS = new Set(['/maintenance', '/maintenance/']);
 
