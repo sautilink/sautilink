@@ -16,6 +16,7 @@ import { transformPostViewMetricsSource } from './post-view-metrics-source-trans
 import { transformProfileTabIconsSource } from './profile-tab-icons-source-transform.mjs';
 import { transformRoomCoverPerformanceSource } from './room-cover-performance-source-transform.mjs';
 import { transformRoomOpenPerformanceSource } from './room-open-performance-source-transform.mjs';
+import { transformRoomPreviewCoverStabilitySource } from './room-preview-cover-stability-source-transform.mjs';
 import { transformRoomsStartupIsolationSource } from './rooms-startup-isolation-source-transform.mjs';
 import { transformRuntimePerformanceSource } from './runtime-performance-source-transform.mjs';
 import { transformVerificationCaseFlowSource } from './verification-case-flow-source-transform.mjs';
@@ -153,6 +154,7 @@ for (const file of await walk(workerSource)) {
   );
   output = transformRoomOpenPerformanceSource(file, output);
   output = transformRoomCoverPerformanceSource(file, output);
+  output = transformRoomPreviewCoverStabilitySource(file, output);
   if (file === productionAppSource) {
     output = transformVerificationCaseFlowSource(file, output);
   }
