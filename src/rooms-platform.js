@@ -406,8 +406,9 @@ async function roomCoverUrl(slug) {
 
 async function attachRoomCover(container, slug) {
   if (!container || !slug || container.dataset.roomCover === slug) return;
+  container.dataset.pendingRoomCover = slug;
   const url = await roomCoverUrl(slug);
-  if (!url || !container.isConnected) return;
+  if (!url || !container.isConnected || container.dataset.pendingRoomCover !== slug) return;
   let image = container.querySelector('img.room-cover-image');
   if (!image) {
     image = document.createElement('img');
@@ -955,7 +956,7 @@ function renderRoomMembers(room, viewerRole, root, members, profiles) {
 
 async function enhanceActiveRoom() {
   const detail = roomById('circle-detail');
-  if (!detail || detail.hidden) return;
+  if (!detail || detail.hidden || detail.dataset.loading === 'true') return;
   const room = await activeRoom();
   if (!room) return;
   const role = await ownRoomRole(room.id);

@@ -92,7 +92,7 @@ test('regular and production builds include the profile presentation loader', as
 
 test('production app bundle keeps a fresh feature cache key after profile presentation fixes', async () => {
   const production = await read('scripts/build-production-release.mjs');
-  assert.match(production, /APP_JS_RELEASE = '20260929-room-detail1'/);
+  assert.match(production, /APP_JS_RELEASE = '20260929-room-detail2'/);
   assert.match(production, /APP_JS_FEATURE_RELEASE = '20260919-mobilesettings1'/);
   assert.match(production, /PWA_RELEASE = '20260928-pwa-share-camera1'/);
 });

@@ -24,7 +24,7 @@ test('Phase 32 production artifact targets production Supabase and removes previ
   assert.match(html, /id="sautilink-profile-x-ui"[^>]+profile-x-ui\.css\?v=[a-f0-9]{12}/);
   assert.match(html, /profile-settings-ui\.css\?v=[a-f0-9]{12}/);
   assert.doesNotMatch(html, /profile-(?:x|settings)-ui\.css\?v=20260918-profile2/);
-  assert.match(html, /app\.js\?v=20260929-room-detail1/);
+  assert.match(html, /app\.js\?v=20260929-room-detail2/);
   assert.match(html, /theme-init\.js\?v=20260904-account2/);
   assert.match(html, /\/logo\.png/);
   assert.doesNotMatch(html, /logo-compact\.webp/);
@@ -120,7 +120,7 @@ test('Phase 32 production build and verifier are permanent repository gates', as
     'https://sautilink.com/login',
     'https://sautilink.com/signup',
     'https://sautilink.com/home',
-    'app.js?v=20260929-room-detail1',
+    'app.js?v=20260929-room-detail2',
     'pwa.js?v=20260928-pwa-share-camera1',
     'sautilink-profile-x-ui',
   ]) assert.ok(workflow.includes(marker), `production workflow missing ${marker}`);
@@ -128,7 +128,7 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   assert.match(buildScript, /dist-production-worker/);
   assert.match(buildScript, /dist-production-site/);
   assert.match(buildScript, /PRODUCTION_URL/);
-  assert.match(buildScript, /APP_JS_RELEASE = '20260929-room-detail1'/);
+  assert.match(buildScript, /APP_JS_RELEASE = '20260929-room-detail2'/);
   assert.match(buildScript, /messages-durable-realtime\.js/);
   assert.match(verifyScript, /staging Supabase identity leaked into production artifact/);
   assert.match(verifyScript, /production browser bundle missing X-style profile UI loader/);
@@ -137,8 +137,8 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   assert.match(stampScript, /createHash\('sha256'\)/);
   assert.match(stampScript, /profile-x-ui\.css/);
   assert.match(hashVerifyScript, /content-hashed production UI stylesheets/);
-  assert.match(serviceWorker, /sautilink-shell-v84/);
-  assert.match(serviceWorker, /20260929-room-detail1/);
+  assert.match(serviceWorker, /sautilink-shell-v85/);
+  assert.match(serviceWorker, /20260929-room-detail2/);
 });
 
 test('Phase 32 generated production files exist and no source map is emitted', async () => {

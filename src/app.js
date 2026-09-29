@@ -7216,6 +7216,8 @@ function resetCircleRouteViews() {
   byId('circles-list').hidden = true;
   byId('circles-empty').hidden = true;
   byId('circle-detail').hidden = true;
+  byId('circle-detail').removeAttribute('data-loading');
+  byId('room-detail-loading-status').hidden = true;
   byId('circle-route-state').hidden = true;
 }
 
@@ -7224,6 +7226,23 @@ function showCircleRouteState(type, slug = '') {
   const state = byId('circle-route-state');
   state.hidden = false;
   state.dataset.state = type;
+  if (type === 'loading') {
+    const detail = byId('circle-detail');
+    const cover = detail.querySelector('.room-detail-cover');
+    if (cover) {
+      cover.replaceChildren(document.createElement('span'));
+      cover.querySelector('span').textContent = 'Room';
+      cover.classList.remove('has-image');
+      delete cover.dataset.roomCover;
+      delete cover.dataset.pendingRoomCover;
+    }
+    detail.querySelector('.room-detail-badges')?.replaceChildren();
+    detail.querySelector('.room-permissions-summary')?.replaceChildren();
+    byId('circle-detail-slug').textContent = `/rooms/${slug}`;
+    detail.dataset.loading = 'true';
+    detail.hidden = false;
+    byId('room-detail-loading-status').hidden = false;
+  }
   const safeSlug = slug ? `/rooms/${slug}` : 'This Room';
   const copy = {
     loading: ['Opening Room…', `Looking up ${safeSlug}.`],

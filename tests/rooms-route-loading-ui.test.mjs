@@ -16,10 +16,10 @@ test('Room deep-route feedback uses the normal loading state instead of the lega
   assert.match(source, /data.*roomRouteAction|dataset\.roomRouteAction/);
 });
 
-test('legacy Room route card remains hidden while route loading and errors reuse stream-state UI', async () => {
+test('Room loading uses the reserved detail layout while errors reuse stream-state UI', async () => {
   const source = await read('src/rooms-facebook-ui.js');
 
-  assert.match(source, /loading\.hidden = false/);
+  assert.match(source, /loading\.hidden = Boolean\(roomFbById\('circle-detail'\)\?\.dataset\.loading\)/);
   assert.match(source, /error\.hidden = false/);
   assert.match(source, /retry\.textContent = 'Back to Rooms'/);
   assert.match(source, /retry\.textContent = 'Try again'/);

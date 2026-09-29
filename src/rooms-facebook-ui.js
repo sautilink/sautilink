@@ -1,4 +1,4 @@
-const ROOMS_FACEBOOK_UI_CSS = '/app/assets/rooms-facebook.css?v=20260929-room-detail1';
+const ROOMS_FACEBOOK_UI_CSS = '/app/assets/rooms-facebook.css?v=20260929-room-detail2';
 const ROOMS_MOBILE_PREVIEW_CSS = '/app/assets/rooms-mobile-preview.css?v=20260914-mobile1';
 let roomsFacebookTimer = 0;
 let roomsFacebookFilter = 'discover';
@@ -80,7 +80,7 @@ function syncRoomRouteFeedback() {
 
   if (state === 'loading') {
     error.hidden = true;
-    loading.hidden = false;
+    loading.hidden = Boolean(roomFbById('circle-detail')?.dataset.loading);
     return;
   }
 

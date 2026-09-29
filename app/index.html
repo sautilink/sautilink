@@ -733,8 +733,15 @@
           </section>
 
           <section class="circle-detail" id="circle-detail" hidden>
+            <p class="sr-only" id="room-detail-loading-status" role="status" hidden>Opening Room…</p>
             <button class="text-action circle-back" id="circle-back" type="button">← All Rooms</button>
             <article class="circle-detail-card">
+              <div class="room-detail-cover" aria-hidden="true"><span>Room</span></div>
+              <div class="room-detail-loading-copy" aria-hidden="true">
+                <span class="room-detail-loading-title"></span>
+                <span class="room-detail-loading-meta"></span>
+                <span class="room-detail-loading-action"></span>
+              </div>
               <div class="circle-detail-top">
                 <div>
                   <p class="circle-detail-slug" id="circle-detail-slug">/rooms/community</p>
@@ -751,6 +758,8 @@
                 <button class="form-submit circle-primary-action" id="circle-primary-action" type="button"><span>Join Room</span></button>
               </div>
             </article>
+            <div class="room-detail-loading-sections" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="room-detail-loading-feed" aria-hidden="true"><span></span><span></span><span></span></div>
 
             <section class="circle-stream" id="circle-stream" aria-label="Room posts" hidden>
               <div class="circle-stream-heading">
@@ -1426,6 +1435,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="/app/assets/app.js?v=20260929-room-detail1"></script>
+  <script type="module" src="/app/assets/app.js?v=20260929-room-detail2"></script>
 </body>
 </html>
