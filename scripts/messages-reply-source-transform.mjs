@@ -6,7 +6,7 @@ function replaceRequired(source, search, replacement, label) {
 }
 
 const THREAD_SELECT = "id, conversation_id, sender_id, body, sent_at, deleted_at";
-const THREAD_REPLY_SELECT = "id, conversation_id, sender_id, body, message_kind, sent_at, deleted_at, reply_to_message_id, reply:dm_messages!dm_messages_reply_to_message_id_fkey(id, sender_id, body, message_kind, deleted_at)";
+const THREAD_REPLY_SELECT = "id, conversation_id, sender_id, body, message_kind, sent_at, deleted_at, reply_to_message_id";
 
 export function transformMessagesReplySource(filePath, source) {
   if (!String(filePath || '').endsWith('app.js')) return source;
@@ -54,7 +54,25 @@ export function transformMessagesReplySource(filePath, source) {
   return row;
 }`;
 
-  const renderReplacement = `function dmReplyPreview(message) {
+  const renderReplacement = `async function hydrateDmReplyTargets(conversationId, messages) {
+  const byMessageId = new Map(messages.map((message) => [String(message.id), message]));
+  const missingIds = [...new Set(messages
+    .map((message) => String(message.reply_to_message_id || ''))
+    .filter((id) => id && !byMessageId.has(id)))];
+  if (missingIds.length) {
+    const { data } = await supabase
+      .from('dm_messages')
+      .select('id, conversation_id, sender_id, body, message_kind, deleted_at')
+      .eq('conversation_id', conversationId)
+      .in('id', missingIds);
+    for (const original of data || []) byMessageId.set(String(original.id), original);
+  }
+  return messages.map((message) => message.reply_to_message_id
+    ? { ...message, reply: byMessageId.get(String(message.reply_to_message_id)) || null }
+    : message);
+}
+
+function dmReplyPreview(message) {
   if (!message) return 'Message';
   if (message.deleted_at) return 'Message deleted.';
   const text = String(message.body || '').trim().replace(/\\s+/g, ' ');
@@ -134,6 +152,27 @@ function renderDirectMessage(message) {
 }`;
 
   output = replaceRequired(output, renderSource, renderReplacement, 'direct message renderer');
+
+  output = replaceRequired(output,
+    `  if (error) throw error;
+  return data || [];
+}
+
+async function syncActiveMessageThreadRealtime`,
+    `  if (error) throw error;
+  return hydrateDmReplyTargets(conversationId, data || []);
+}
+
+async function syncActiveMessageThreadRealtime`,
+    'realtime thread reply hydration');
+
+  output = replaceRequired(output,
+    `  const messages = messageResult.data || [];
+  messages.forEach((message) => feed.append(renderDirectMessage(message)));`,
+    `  const messages = await hydrateDmReplyTargets(conversation.id, messageResult.data || []);
+  if (requestId !== messagesRequest) return;
+  messages.forEach((message) => feed.append(renderDirectMessage(message)));`,
+    'initial thread reply hydration');
 
   const threadResetSource = `  empty.hidden = true;
   feed.replaceChildren();
