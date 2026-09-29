@@ -14,6 +14,7 @@ import { transformMessagesMediaSource } from './messages-media-source-transform.
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
 import { transformPostViewMetricsSource } from './post-view-metrics-source-transform.mjs';
 import { transformProfileTabIconsSource } from './profile-tab-icons-source-transform.mjs';
+import { transformRoomCoverPerformanceSource } from './room-cover-performance-source-transform.mjs';
 import { transformRoomsStartupIsolationSource } from './rooms-startup-isolation-source-transform.mjs';
 import { transformRuntimePerformanceSource } from './runtime-performance-source-transform.mjs';
 import { transformVerificationCaseFlowSource } from './verification-case-flow-source-transform.mjs';
@@ -28,7 +29,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
-const APP_JS_RELEASE = '20260929-room-detail2';
+const APP_JS_RELEASE = '20260929-room-cover-perf1';
 const APP_JS_FEATURE_RELEASE = '20260919-mobilesettings1';
 const APP_JS_BIRTH_DATE_RELEASE = '20260920-birthdate1';
 const PWA_RELEASE = '20260928-pwa-share-camera1';
@@ -149,6 +150,7 @@ for (const file of await walk(workerSource)) {
       ),
     ),
   );
+  output = transformRoomCoverPerformanceSource(file, output);
   if (file === productionAppSource) {
     output = transformVerificationCaseFlowSource(file, output);
   }
