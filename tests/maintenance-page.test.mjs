@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { handleMaintenanceRequest, MAINTENANCE_END_ISO } from '../src/maintenance-page.js';
+import {
+  handleMaintenanceRequest,
+  MAINTENANCE_ARTWORK_DATA_URL,
+  MAINTENANCE_END_ISO,
+} from '../src/maintenance-page.js';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('maintenance route is standalone, private to search engines and dependency-free', async () => {
+test('maintenance route uses official branding, embedded artwork and requested content order', async () => {
   assert.equal(MAINTENANCE_END_ISO, '');
+  assert.match(MAINTENANCE_ARTWORK_DATA_URL, /^data:image\/webp;base64,UklG/);
+  assert.ok(MAINTENANCE_ARTWORK_DATA_URL.length > 45_000, 'attached maintenance artwork should be embedded in the Worker source');
 
   for (const pathname of ['/maintenance', '/maintenance/']) {
     const url = new URL(`https://sautilink.com${pathname}`);
@@ -17,15 +23,36 @@ test('maintenance route is standalone, private to search engines and dependency-
     assert.match(response.headers.get('cache-control') || '', /no-store/);
     assert.match(response.headers.get('x-robots-tag') || '', /noindex/);
     assert.match(response.headers.get('content-security-policy') || '', /default-src 'none'/);
+    assert.match(response.headers.get('content-security-policy') || '', /font-src 'self'/);
+    assert.match(response.headers.get('content-security-policy') || '', /img-src 'self' data:/);
 
     const html = await response.text();
     assert.match(html, /Major system upgrade/);
     assert.match(html, /servers, security, platform infrastructure, performance, reliability/i);
+    assert.match(html, /font-family: "Inter"/);
+    assert.match(html, /\/assets\/fonts\/inter\/InterVariable\.woff2/);
+    assert.match(html, /class="brand-logo" src="\/logo\.png"/);
+    assert.match(html, /class="maintenance-artwork" src="data:image\/webp;base64,UklG/);
     assert.match(html, /id="hours">--<\/span>/);
     assert.match(html, /id="minutes">--<\/span>/);
     assert.match(html, /id="seconds">--<\/span>/);
     assert.match(html, /Date\.parse\(rawEnd\)/);
     assert.match(html, /setInterval\(render, 1000\)/);
+
+    const countdownIndex = html.indexOf('class="countdown-wrap"');
+    const scopeIndex = html.indexOf('class="scope"');
+    assert.ok(countdownIndex >= 0 && countdownIndex < scopeIndex, 'countdown must appear above What is being improved');
+
+    for (const href of [
+      'https://facebook.com/sautilink',
+      'https://twitter.com/@sautilink',
+      'https://linkedin.com/company/sautilink',
+      'https://instagram.com/sautilink',
+      'https://youtube.com/@sautilink',
+      'https://t.me/sautilink',
+      'https://tiktok.com/@sautilink',
+    ]) assert.ok(html.includes(`href="${href}"`), `missing social link ${href}`);
+
     assert.doesNotMatch(html, /supabase|app\.js|\/api\//i);
     assert.doesNotMatch(html, /location\.(?:href|assign|replace)|window\.location/i);
   }
