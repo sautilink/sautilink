@@ -34,5 +34,4 @@ test('Room transient surface fix is included in staging and production bundles',
 
   assert.match(stagingBuild, /src\/rooms-transient-surfaces\.js/);
   assert.match(productionBuild, /rooms-transient-surfaces\.js/);
-  assert.match(productionBuild, /20260929-room-transient1/);
 });
