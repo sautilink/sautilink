@@ -10,7 +10,6 @@ import { transformMemberBootstrapResilienceSource } from './member-bootstrap-res
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformMessagesDurableRealtimeSource } from './messages-durable-realtime-source-transform.mjs';
 import { transformMessagesMediaSource } from './messages-media-source-transform.mjs';
-import { transformMessagesReplySource } from './messages-reply-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
 import { transformPostViewMetricsSource } from './post-view-metrics-source-transform.mjs';
 import { transformProfileTabIconsSource } from './profile-tab-icons-source-transform.mjs';
@@ -25,38 +24,35 @@ import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const appSourcePath = resolve(projectRoot, 'src/app.js');
-const appSource = transformMessagesReplySource(
+const appSource = transformRoomOpenPerformanceSource(
   appSourcePath,
-  transformRoomOpenPerformanceSource(
+  transformVerificationCaseFlowSource(
     appSourcePath,
-    transformVerificationCaseFlowSource(
+    transformAuthSessionStabilitySource(
       appSourcePath,
-      transformAuthSessionStabilitySource(
+      transformPostViewMetricsSource(
         appSourcePath,
-        transformPostViewMetricsSource(
+        transformRuntimePerformanceSource(
           appSourcePath,
-          transformRuntimePerformanceSource(
+          transformAndroidPushSource(
             appSourcePath,
-            transformAndroidPushSource(
+            transformMessagesDurableRealtimeSource(
               appSourcePath,
-              transformMessagesDurableRealtimeSource(
+              transformMessagesMediaSource(
                 appSourcePath,
-                transformMessagesMediaSource(
+                transformMemberBootstrapResilienceSource(
                   appSourcePath,
-                  transformMemberBootstrapResilienceSource(
+                  transformBootstrapResilienceSource(
                     appSourcePath,
-                    transformBootstrapResilienceSource(
+                    transformWhatsAppOtpSource(
                       appSourcePath,
-                      transformWhatsAppOtpSource(
+                      transformVideoPlayerSource(
                         appSourcePath,
-                        transformVideoPlayerSource(
+                        transformMentionNotificationSource(
                           appSourcePath,
-                          transformMentionNotificationSource(
+                          transformMediaPerformanceSource(
                             appSourcePath,
-                            transformMediaPerformanceSource(
-                              appSourcePath,
-                              transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
-                            ),
+                            transformPostMediaSource(appSourcePath, await readFile(appSourcePath, 'utf8')),
                           ),
                         ),
                       ),
@@ -126,7 +122,6 @@ await build({
     resolve(projectRoot, 'src/messages-whatsapp-ui.js'),
     resolve(projectRoot, 'src/messages-media-ui.js'),
     resolve(projectRoot, 'src/messages-durable-realtime.js'),
-    resolve(projectRoot, 'src/messages-reply-ui.js'),
     resolve(projectRoot, 'src/rooms-platform.js'),
     resolve(projectRoot, 'src/room-post-images.js'),
     resolve(projectRoot, 'src/rooms-invitations-style.js'),
