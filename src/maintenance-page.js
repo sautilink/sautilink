@@ -76,6 +76,7 @@ const MAINTENANCE_HTML = `<!doctype html>
     }
 
     a { color: inherit; }
+    button { font: inherit; }
     .maintenance-shell { width: min(100%, 760px); }
 
     .brand-row {
@@ -99,6 +100,14 @@ const MAINTENANCE_HTML = `<!doctype html>
       width: 118px;
       height: auto;
       object-fit: contain;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      min-width: 0;
     }
 
     .status-chip {
@@ -125,6 +134,43 @@ const MAINTENANCE_HTML = `<!doctype html>
       background: currentColor;
       box-shadow: 0 0 0 5px color-mix(in srgb, currentColor 12%, transparent);
       animation: pulse 1.8s ease-in-out infinite;
+    }
+
+    .language-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface);
+      white-space: nowrap;
+    }
+
+    .language-button {
+      min-width: 38px;
+      min-height: 28px;
+      padding: 5px 8px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .04em;
+      line-height: 1;
+    }
+
+    .language-button[aria-pressed="true"] {
+      background: var(--panel);
+      color: var(--text);
+      box-shadow: 0 0 0 1px var(--line);
+    }
+
+    .language-button:focus-visible {
+      outline: 2px solid var(--brand);
+      outline-offset: 2px;
     }
 
     .card {
@@ -317,9 +363,11 @@ const MAINTENANCE_HTML = `<!doctype html>
 
     @media (max-width: 560px) {
       body { padding: 16px 12px 24px; }
-      .brand-row { align-items: center; }
+      .brand-row { align-items: center; gap: 10px; }
       .brand-logo { width: 106px; }
+      .header-actions { gap: 6px; }
       .status-chip { font-size: 10px; padding: 6px 9px; }
+      .language-button { min-width: 34px; min-height: 27px; padding-inline: 7px; }
       .card { border-radius: 22px; }
       .content { padding: 24px 18px 24px; }
       .maintenance-artwork { width: min(100%, 460px); max-height: 280px; }
@@ -341,12 +389,18 @@ const MAINTENANCE_HTML = `<!doctype html>
 <body>
   <main class="maintenance-shell">
     <div class="brand-row">
-      <a class="brand-link" href="/" aria-label="SautiLink home">
+      <a class="brand-link" href="/" aria-label="SautiLink home" data-i18n-aria="homeAria">
         <img class="brand-logo" src="/logo.png" alt="SautiLink" width="118" height="57">
       </a>
-      <div class="status-chip" aria-label="Maintenance in progress">
-        <span class="status-dot" aria-hidden="true"></span>
-        <span>Maintenance in progress</span>
+      <div class="header-actions">
+        <div class="status-chip" aria-label="Maintenance in progress" data-i18n-aria="statusAria">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span data-i18n="status">Maintenance in progress</span>
+        </div>
+        <div class="language-switch" role="group" aria-label="Language" data-i18n-aria="languageLabel">
+          <button class="language-button" type="button" data-language="en" aria-pressed="true">ENG</button>
+          <button class="language-button" type="button" data-language="sw" aria-pressed="false">SW</button>
+        </div>
       </div>
     </div>
 
@@ -354,45 +408,45 @@ const MAINTENANCE_HTML = `<!doctype html>
       <div class="accent" aria-hidden="true"></div>
       <div class="content">
         <div class="artwork-wrap">
-          <img class="maintenance-artwork" src="${MAINTENANCE_ARTWORK_DATA_URL}" alt="SautiLink system maintenance in progress" width="480" height="309">
+          <img class="maintenance-artwork" src="${MAINTENANCE_ARTWORK_DATA_URL}" alt="SautiLink system maintenance in progress" data-i18n-alt="artworkAlt" width="480" height="309">
         </div>
 
-        <p class="eyebrow">Major system upgrade</p>
-        <h1 id="maintenance-title">We are upgrading SautiLink.</h1>
-        <p class="lead">
+        <p class="eyebrow" data-i18n="eyebrow">Major system upgrade</p>
+        <h1 id="maintenance-title" data-i18n="title">We are upgrading SautiLink.</h1>
+        <p class="lead" data-i18n="lead">
           SautiLink is temporarily unavailable while we carry out major improvements across the entire platform. We are upgrading core infrastructure to make the service faster, safer and more reliable.
         </p>
 
         <div class="countdown-wrap">
-          <p class="countdown-label">Estimated maintenance time remaining</p>
-          <div class="countdown" id="maintenance-countdown" aria-label="Maintenance countdown">
+          <p class="countdown-label" data-i18n="countdownLabel">Estimated maintenance time remaining</p>
+          <div class="countdown" id="maintenance-countdown" aria-label="Maintenance countdown" data-i18n-aria="countdownAria">
             <div class="time-box">
               <span class="time-value" id="hours">--</span>
-              <span class="time-unit">Hours</span>
+              <span class="time-unit" data-i18n="hours">Hours</span>
             </div>
             <div class="time-box">
               <span class="time-value" id="minutes">--</span>
-              <span class="time-unit">Minutes</span>
+              <span class="time-unit" data-i18n="minutes">Minutes</span>
             </div>
             <div class="time-box">
               <span class="time-value" id="seconds">--</span>
-              <span class="time-unit">Seconds</span>
+              <span class="time-unit" data-i18n="seconds">Seconds</span>
             </div>
           </div>
-          <p class="footnote" id="maintenance-note">
+          <p class="footnote" id="maintenance-note" data-i18n="placeholderNote">
             A completion time has not been published yet. Please check back shortly.
           </p>
         </div>
 
         <div class="scope">
-          <strong>What is being improved?</strong><br>
-          This maintenance covers servers, security, platform infrastructure, performance, reliability and other core SautiLink systems.
+          <strong data-i18n="scopeTitle">What is being improved?</strong><br>
+          <span data-i18n="scopeBody">This maintenance covers servers, security, platform infrastructure, performance, reliability and other core SautiLink systems.</span>
         </div>
       </div>
     </section>
 
     <footer>
-      <nav class="socials" aria-label="Official SautiLink social media channels">
+      <nav class="socials" aria-label="Official SautiLink social media channels" data-i18n-aria="socialsAria">
         <a class="social-link" href="https://facebook.com/sautilink" target="_blank" rel="noopener noreferrer" aria-label="Facebook" title="Facebook">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.8 22v-8.5h2.9l.43-3.35H13.8V8.01c0-.97.27-1.63 1.67-1.63h1.79V3.39c-.31-.04-1.37-.13-2.6-.13-2.57 0-4.33 1.57-4.33 4.45v2.44H7.42v3.35h2.91V22h3.47Z"/></svg>
         </a>
@@ -415,27 +469,80 @@ const MAINTENANCE_HTML = `<!doctype html>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.3 3c.35 2 1.5 3.2 3.7 3.33v2.72a7.52 7.52 0 0 1-3.67-.92v5.4c0 4.64-5.03 6.57-8.03 4.3-1.93-1.46-2.37-4.08-1.18-6.13 1.19-2.05 3.55-2.9 5.73-2.18v2.8c-.5-.16-1.04-.18-1.56-.05-1.19.3-1.92 1.49-1.62 2.68.3 1.19 1.5 1.91 2.69 1.61.98-.25 1.66-1.13 1.66-2.14V3h2.28Z"/></svg>
         </a>
       </nav>
-      <p class="copyright">© 2026 SautiLink. All rights reserved.</p>
+      <p class="copyright" data-i18n="copyright">© 2026 SautiLink. All rights reserved.</p>
     </footer>
   </main>
 
   <script>
     (() => {
+      const translations = {
+        en: {
+          documentTitle: 'SautiLink — System Maintenance',
+          statusAria: 'Maintenance in progress',
+          status: 'Maintenance in progress',
+          languageLabel: 'Language',
+          homeAria: 'SautiLink home',
+          artworkAlt: 'SautiLink system maintenance in progress',
+          eyebrow: 'Major system upgrade',
+          title: 'We are upgrading SautiLink.',
+          lead: 'SautiLink is temporarily unavailable while we carry out major improvements across the entire platform. We are upgrading core infrastructure to make the service faster, safer and more reliable.',
+          countdownLabel: 'Estimated maintenance time remaining',
+          countdownAria: 'Maintenance countdown',
+          hours: 'Hours',
+          minutes: 'Minutes',
+          seconds: 'Seconds',
+          placeholderNote: 'A completion time has not been published yet. Please check back shortly.',
+          activeNote: 'We are working to restore full access within this maintenance window.',
+          completeNote: 'The maintenance window has reached its estimated completion time. Full access will return when maintenance mode is switched off.',
+          scopeTitle: 'What is being improved?',
+          scopeBody: 'This maintenance covers servers, security, platform infrastructure, performance, reliability and other core SautiLink systems.',
+          socialsAria: 'Official SautiLink social media channels',
+          copyright: '© 2026 SautiLink. All rights reserved.',
+        },
+        sw: {
+          documentTitle: 'SautiLink — Maboresho ya Mfumo',
+          statusAria: 'Maboresho ya mfumo yanaendelea',
+          status: 'Maboresho yanaendelea',
+          languageLabel: 'Lugha',
+          homeAria: 'Ukurasa wa mwanzo wa SautiLink',
+          artworkAlt: 'Maboresho ya mfumo wa SautiLink yanaendelea',
+          eyebrow: 'Maboresho makubwa ya mfumo',
+          title: 'Tunaboresha SautiLink.',
+          lead: 'SautiLink haipatikani kwa muda tunapofanya maboresho makubwa katika mfumo mzima. Tunaboresha miundombinu ya msingi ili huduma iwe ya haraka zaidi, salama zaidi na yenye kuaminika zaidi.',
+          countdownLabel: 'Muda unaokadiriwa kubaki',
+          countdownAria: 'Muda uliobaki wa maboresho',
+          hours: 'Saa',
+          minutes: 'Dakika',
+          seconds: 'Sekunde',
+          placeholderNote: 'Muda wa kukamilika bado haujatangazwa. Tafadhali rudi tena baada ya muda mfupi.',
+          activeNote: 'Tunafanya kazi kurejesha huduma kamili ndani ya muda huu wa maboresho.',
+          completeNote: 'Muda uliokadiriwa wa maboresho umefika mwisho. Huduma kamili itarejea baada ya hali ya maboresho kuzimwa.',
+          scopeTitle: 'Nini kinaboreshwa?',
+          scopeBody: 'Maboresho haya yanahusisha seva, usalama, miundombinu ya jukwaa, utendaji, uthabiti na mifumo mingine ya msingi ya SautiLink.',
+          socialsAria: 'Mitandao rasmi ya kijamii ya SautiLink',
+          copyright: '© 2026 SautiLink. Haki zote zimehifadhiwa.',
+        },
+      };
+
       const rawEnd = document.documentElement.dataset.maintenanceEnd.trim();
       const hours = document.getElementById('hours');
       const minutes = document.getElementById('minutes');
       const seconds = document.getElementById('seconds');
       const note = document.getElementById('maintenance-note');
-
-      if (!rawEnd) return;
-
-      const endAt = Date.parse(rawEnd);
-      if (!Number.isFinite(endAt)) return;
-
+      const languageButtons = Array.from(document.querySelectorAll('[data-language]'));
+      const endAt = rawEnd ? Date.parse(rawEnd) : Number.NaN;
+      const hasCountdown = Boolean(rawEnd) && Number.isFinite(endAt);
       const pad = (value) => String(Math.max(0, value)).padStart(2, '0');
+      let currentLanguage = 'en';
       let timerId = 0;
 
-      const render = () => {
+      const renderCountdown = () => {
+        const copy = translations[currentLanguage];
+        if (!hasCountdown) {
+          note.textContent = copy.placeholderNote;
+          return;
+        }
+
         const remainingMs = Math.max(0, endAt - Date.now());
         const remainingSeconds = Math.floor(remainingMs / 1000);
         const h = Math.floor(remainingSeconds / 3600);
@@ -445,9 +552,7 @@ const MAINTENANCE_HTML = `<!doctype html>
         hours.textContent = pad(h);
         minutes.textContent = pad(m);
         seconds.textContent = pad(s);
-        note.textContent = remainingMs > 0
-          ? 'We are working to restore full access within this maintenance window.'
-          : 'The maintenance window has reached its estimated completion time. Full access will return when maintenance mode is switched off.';
+        note.textContent = remainingMs > 0 ? copy.activeNote : copy.completeNote;
 
         if (remainingMs <= 0 && timerId) {
           clearInterval(timerId);
@@ -455,8 +560,38 @@ const MAINTENANCE_HTML = `<!doctype html>
         }
       };
 
-      render();
-      if (endAt > Date.now()) timerId = window.setInterval(render, 1000);
+      const applyLanguage = (language) => {
+        currentLanguage = language === 'sw' ? 'sw' : 'en';
+        const copy = translations[currentLanguage];
+        document.documentElement.lang = currentLanguage;
+        document.title = copy.documentTitle;
+
+        document.querySelectorAll('[data-i18n]').forEach((element) => {
+          const key = element.dataset.i18n;
+          if (Object.prototype.hasOwnProperty.call(copy, key)) element.textContent = copy[key];
+        });
+        document.querySelectorAll('[data-i18n-aria]').forEach((element) => {
+          const key = element.dataset.i18nAria;
+          if (Object.prototype.hasOwnProperty.call(copy, key)) element.setAttribute('aria-label', copy[key]);
+        });
+        document.querySelectorAll('[data-i18n-alt]').forEach((element) => {
+          const key = element.dataset.i18nAlt;
+          if (Object.prototype.hasOwnProperty.call(copy, key)) element.setAttribute('alt', copy[key]);
+        });
+
+        languageButtons.forEach((button) => {
+          button.setAttribute('aria-pressed', button.dataset.language === currentLanguage ? 'true' : 'false');
+        });
+        renderCountdown();
+      };
+
+      languageButtons.forEach((button) => {
+        button.addEventListener('click', () => applyLanguage(button.dataset.language));
+      });
+
+      // English is deliberately the default on every page load.
+      applyLanguage('en');
+      if (hasCountdown && endAt > Date.now()) timerId = window.setInterval(renderCountdown, 1000);
     })();
   </script>
 </body>
