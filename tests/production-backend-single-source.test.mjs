@@ -57,7 +57,7 @@ test('auth links return to the official SautiLink domain from every frontend', a
 test('unified backend rollout rotates browser caches', async () => {
   const [html, sw] = await Promise.all([read('app/index.html'), read('sw.js')]);
   assert.match(html, /app\.css\?v=20260927-page-headers1/);
-  assert.match(html, /app\.js\?v=20260930-swala-otp1/);
+  assert.match(html, /app\.js\?v=20260930-swala-otp2/);
   const version = Number(sw.match(/sautilink-shell-v([0-9]+)/)?.[1] || 0);
   assert.ok(version >= 34, `service worker cache version must be at least 34, got ${version}`);
 });

@@ -49,3 +49,10 @@ test('WhatsApp phone and OTP inputs enforce bounded formats', async () => {
   assert.match(source, /\^\\d\{6,10\}\$/);
   assert.match(source, /international format/);
 });
+
+test('phone login labels describe both configured delivery channels', async () => {
+  const source = await read('src/whatsapp-otp-auth.js');
+  assert.match(source, /Send phone code<\/button>/);
+  assert.match(source, /Check the SMS or WhatsApp channel saved on your account/);
+  assert.doesNotMatch(source, /Send WhatsApp code|fresh WhatsApp sign-in code|complete WhatsApp verification code/);
+});

@@ -154,7 +154,7 @@ function createWhatsAppLoginPanel() {
     <input id="whatsapp-login-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+2557XXXXXXXX" required>
     <small class="field-hint">Use international format, including the + country code.</small>
     <div class="form-message" id="whatsapp-login-request-message" role="alert" hidden></div>
-    <button class="form-submit" type="submit">Send WhatsApp code</button>
+    <button class="form-submit" type="submit">Send phone code</button>
   `;
 
   const verifyForm = document.createElement('form');
@@ -215,8 +215,8 @@ async function verifyWhatsAppLoginCode(event) {
   const message = id('whatsapp-login-verify-message');
   const submit = form.querySelector('[type="submit"]');
   setFormMessage(message, '');
-  if (!loginPhone) return setFormMessage(message, 'Request a fresh WhatsApp sign-in code first.');
-  if (!code) return setFormMessage(message, 'Enter the complete WhatsApp verification code.');
+  if (!loginPhone) return setFormMessage(message, 'Request a fresh phone sign-in code first.');
+  if (!code) return setFormMessage(message, 'Enter the complete phone verification code.');
 
   setSubmitBusy(submit, true, 'Verifying…');
   try {
