@@ -107,7 +107,7 @@ test('Phase 26 browser supports direct Sauti routes, bounded branches, reply dra
     'THREAD_RENDER_DEPTH',
     'THREAD_DRAFT_PREFIX',
     'submitThreadReply',
-    'item.dataset.sautiId',
+    'item.dataset.notificationRoute',
     'conversation-reply-body',
   ]) {
     assert.ok(source.includes(marker), `browser source missing Phase 26 marker: ${marker}`);
@@ -120,7 +120,7 @@ test('Phase 26 browser supports direct Sauti routes, bounded branches, reply dra
   assert.match(source, /client_request_id: threadReplyRequestId/);
   assert.match(source, /window\.localStorage/);
   assert.match(source, /navigator\.onLine/);
-  assert.match(source, /item\.dataset\.sautiId/);
+  assert.match(source, /item\.dataset\.notificationRoute/);
   assert.match(router, /SAUTI_ROUTE/);
   assert.match(router, /CLEAN_POST_ROUTE/);
   assert.doesNotMatch(source, /innerHTML\s*=/);

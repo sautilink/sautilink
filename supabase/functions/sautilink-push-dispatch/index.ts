@@ -255,6 +255,14 @@ async function buildSocialPayload(sourceId: string, recipientId: string) {
   const name = actorName(actor);
   const username = clean(actor?.username);
   const postId = clean(notification.post_id);
+  let relatedPost: Record<string, unknown> | null = null;
+  if (postId && isUuid(postId) && ["mention", "like", "reshare", "quote"].includes(type)) {
+    const postResult = await adminRest(
+      `social_posts?id=eq.${encodeURIComponent(postId)}&select=id,parent_post_id,root_post_id&limit=1`,
+      { method: "GET" },
+    );
+    if (postResult.ok && Array.isArray(postResult.body)) relatedPost = postResult.body[0] || null;
+  }
 
   let body = memberNoticeCopy(event) || "You have a new SautiLink notification.";
   if (!event && type === "follow") body = `${name} followed you.`;
@@ -269,7 +277,15 @@ async function buildSocialPayload(sourceId: string, recipientId: string) {
   } else if (event.startsWith("verification_")) {
     route = "/settings";
   } else if (postId && isUuid(postId)) {
-    route = `/post/${postId}`;
+    const isComment = Boolean(clean(relatedPost?.parent_post_id));
+    if (type === "reply" || (isComment && type === "mention")) {
+      route = `/post/${postId}?from=notification`;
+    } else if (["like", "reshare", "quote", "mention"].includes(type)) {
+      const rootId = clean(relatedPost?.root_post_id);
+      route = `/post/${isUuid(rootId) && ["like", "reshare", "quote"].includes(type) ? rootId : postId}?view=post`;
+    } else {
+      route = `/post/${postId}`;
+    }
   } else if (username && /^[a-z0-9][a-z0-9._]{2,29}$/i.test(username)) {
     route = `/u/${username}`;
   }

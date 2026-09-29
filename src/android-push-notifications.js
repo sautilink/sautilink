@@ -66,7 +66,7 @@ function safeRoute(value) {
   if (!route.startsWith('/')) return '';
   if (/^\/(?:notifications|home)\/?(?:[?#].*)?$/.test(route)) return route;
   if (/^\/u\/[a-z0-9][a-z0-9._]{2,29}\/?(?:[?#].*)?$/i.test(route)) return route;
-  if (/^\/post\/[0-9a-f-]{36}\/?(?:[?#].*)?$/i.test(route)) return route;
+  if (/^\/post\/[0-9a-f-]{36}\/?(?:\?(?:view=post|from=notification))?$/i.test(route)) return route;
   if (/^\/messages(?:\/[0-9a-f-]{36})?\/?(?:[?#].*)?$/i.test(route)) return route;
   return '';
 }

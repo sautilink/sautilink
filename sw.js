@@ -1,8 +1,8 @@
-const CACHE_NAME = "sautilink-shell-v87";
-const APP_RELEASE = "20260929-messages-reply-safe2";
+const CACHE_NAME = "sautilink-shell-v88";
+const APP_RELEASE = "20260929-notification-routing1";
 const APP_CSS_RELEASE = "20260927-page-headers1";
 const APP_FEATURE_RELEASE = "20260918-signup2";
-const PWA_RELEASE = "20260928-pwa-share-camera1";
+const PWA_RELEASE = "20260929-notification-routing1";
 const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.css",
   "/app/assets/app.js",
@@ -74,7 +74,7 @@ function safeNotificationRoute(value) {
   if (/^\/videos(?:\/[0-9a-f-]{36})?\/?(?:[?#].*)?$/i.test(route)) return route;
   if (/^\/appeals\/?(?:\?action=\d+)?$/.test(route)) return route;
   if (/^\/u\/[a-z0-9][a-z0-9._]{2,29}\/?(?:[?#].*)?$/i.test(route)) return route;
-  if (/^\/post\/[0-9a-f-]{36}\/?(?:[?#].*)?$/i.test(route)) return route;
+  if (/^\/post\/[0-9a-f-]{36}\/?(?:\?(?:view=post|from=notification))?$/i.test(route)) return route;
   if (/^\/messages(?:\/[0-9a-f-]{36})?\/?(?:[?#].*)?$/i.test(route)) return route;
   return "/notifications";
 }

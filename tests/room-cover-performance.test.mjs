@@ -53,5 +53,5 @@ test('normal and production builders apply Room cover performance transforms', a
 
   assert.match(normalBuilder, /transformRoomCoverPerformanceSource/);
   assert.match(productionBuilder, /transformRoomCoverPerformanceSource\(file, output\)/);
-  assert.match(productionBuilder, /20260929-messages-reply-safe2/);
+  assert.match(productionBuilder, /20260929-notification-routing1/);
 });

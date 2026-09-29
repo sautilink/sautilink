@@ -38,6 +38,35 @@ body:has(#conversation-surface:not([hidden])) .stream-header {
   justify-content: center;
 }
 
+#conversation-surface .conversation-toolbar-title.has-view-post {
+  justify-content: flex-start;
+  gap: 5px;
+}
+
+#conversation-surface .conversation-toolbar-title.has-view-post .conversation-back {
+  position: static;
+  flex: none;
+  transform: none;
+}
+
+#conversation-surface .conversation-view-post {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  padding: 0 4px;
+  color: var(--app-accent);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+#conversation-surface .conversation-view-post[hidden] { display: none; }
+
+#conversation-surface .conversation-toolbar-title.has-view-post h2 {
+  margin-left: auto;
+}
+
 #conversation-surface .conversation-toolbar h2 {
   margin: 0;
   color: var(--app-text);
@@ -373,7 +402,9 @@ body:has(#conversation-surface:not([hidden])) .stream-header {
 }
 
 #conversation-thread .thread-focused {
-  background: color-mix(in srgb, var(--app-accent) 6%, var(--app-panel));
+  background: color-mix(in srgb, var(--app-accent) 14%, var(--app-panel));
+  box-shadow: inset 3px 0 0 var(--app-accent);
+  scroll-margin-block: 78px 110px;
 }
 
 #conversation-thread .thread-continue,
