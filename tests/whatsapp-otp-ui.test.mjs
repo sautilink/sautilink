@@ -29,7 +29,7 @@ test('existing members link and verify WhatsApp on the same Supabase user', asyn
 
   assert.match(source, /client\.auth\.updateUser\(\{ phone \}\)/);
   assert.match(source, /verifyOtp\(\{ phone: phoneChange, token: code, type: 'phone_change' \}\)/);
-  assert.match(source, /WhatsApp sign-in is now enabled for this account/);
+  assert.match(source, /Phone code sign-in is now enabled for this account/);
 });
 
 test('WhatsApp UI stays dormant until the server capability is explicitly enabled', async () => {
