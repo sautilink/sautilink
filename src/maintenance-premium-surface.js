@@ -80,6 +80,18 @@ export const TANZANIA_PREMIUM_BACKGROUND_CSS = `
     }
 
     .card {
+      color-scheme: light;
+      --bg: #f5f6f8;
+      --panel: #ffffff;
+      --surface: #f8fafc;
+      --text: #15171a;
+      --muted: #62666d;
+      --line: #e2e5e9;
+      --brand: #2563eb;
+      --brand-soft: #eff6ff;
+      --shadow: 0 22px 60px rgba(17, 24, 39, .08);
+      background: #ffffff;
+      color: var(--text);
       box-shadow:
         0 32px 90px rgba(0, 0, 0, .20),
         0 0 64px rgba(0, 163, 221, .13),
