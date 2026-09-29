@@ -37,7 +37,7 @@ test('maintenance route uses official branding, embedded artwork and requested c
     assert.match(html, /id="minutes">--<\/span>/);
     assert.match(html, /id="seconds">--<\/span>/);
     assert.match(html, /Date\.parse\(rawEnd\)/);
-    assert.match(html, /setInterval\(render, 1000\)/);
+    assert.match(html, /setInterval\(renderCountdown, 1000\)/);
 
     const countdownIndex = html.indexOf('class="countdown-wrap"');
     const scopeIndex = html.indexOf('class="scope"');
@@ -56,6 +56,30 @@ test('maintenance route uses official branding, embedded artwork and requested c
     assert.doesNotMatch(html, /supabase|app\.js|\/api\//i);
     assert.doesNotMatch(html, /location\.(?:href|assign|replace)|window\.location/i);
   }
+});
+
+test('maintenance language control defaults to English and switches all maintenance copy to Swahili', async () => {
+  const url = new URL('https://sautilink.com/maintenance');
+  const response = handleMaintenanceRequest(new Request(url), url);
+  const html = await response.text();
+
+  assert.match(html, /<html lang="en"/);
+  assert.match(html, /data-language="en" aria-pressed="true">ENG<\/button>/);
+  assert.match(html, /data-language="sw" aria-pressed="false">SW<\/button>/);
+  assert.match(html, /English is deliberately the default on every page load/);
+  assert.match(html, /applyLanguage\('en'\)/);
+  assert.doesNotMatch(html, /navigator\.language|navigator\.languages|localStorage|sessionStorage/);
+
+  assert.match(html, /Tunaboresha SautiLink\./);
+  assert.match(html, /Maboresho makubwa ya mfumo/);
+  assert.match(html, /Muda unaokadiriwa kubaki/);
+  assert.match(html, /Muda wa kukamilika bado haujatangazwa/);
+  assert.match(html, /Nini kinaboreshwa\?/);
+  assert.match(html, /Saa/);
+  assert.match(html, /Dakika/);
+  assert.match(html, /Sekunde/);
+  assert.match(html, /document\.documentElement\.lang = currentLanguage/);
+  assert.match(html, /button\.dataset\.language === currentLanguage/);
 });
 
 test('maintenance endpoint rejects non-navigation methods and does not catch other paths', () => {
