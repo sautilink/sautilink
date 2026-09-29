@@ -52,3 +52,10 @@ test('Worker checks the maintenance route before Messages, indexing and the app 
   assert.ok(maintenanceIndex < indexingIndex);
   assert.ok(maintenanceIndex < routerIndex);
 });
+
+test('production Cloudflare routes send maintenance traffic to the Worker on apex and www', async () => {
+  const config = await read('wrangler.production.jsonc');
+  assert.match(config, /"pattern": "sautilink\.com\/maintenance\*"/);
+  assert.match(config, /"pattern": "www\.sautilink\.com\/maintenance\*"/);
+  assert.doesNotMatch(config, /"pattern"\s*:\s*"(?:www\.)?sautilink\.com\/\*"/);
+});
