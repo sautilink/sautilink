@@ -14,97 +14,6 @@ function transformAppSource(source) {
 
   output = replaceRequired(
     output,
-    `async function loadSautiMediaRows(postId) {
-  const { data, error } = await supabase
-    .from('social_post_media')
-    .select('id,media_kind,content_type,width,height,duration_ms,alt_text,position')
-    .eq('post_id', postId)
-    .eq('upload_status', 'attached')
-    .order('position', { ascending: true });
-  if (error) return [];
-  return Array.isArray(data) ? data.slice(0, 4) : [];
-}`,
-    `const ROOM_MEDIA_ROWS_CACHE_TTL_MS = 60 * 1000;
-const ROOM_MEDIA_ROWS_CACHE_LIMIT = 300;
-const roomMediaRowsCache = new Map();
-
-function cachedRoomMediaRows(postId) {
-  const entry = roomMediaRowsCache.get(postId);
-  if (!entry) return null;
-  if (entry.expiresAt <= Date.now()) {
-    roomMediaRowsCache.delete(postId);
-    return null;
-  }
-  return entry.rows;
-}
-
-function rememberRoomMediaRows(postId, rows) {
-  if (!postId) return;
-  roomMediaRowsCache.delete(postId);
-  roomMediaRowsCache.set(postId, {
-    rows: Array.isArray(rows) ? rows.slice(0, 4) : [],
-    expiresAt: Date.now() + ROOM_MEDIA_ROWS_CACHE_TTL_MS,
-  });
-  while (roomMediaRowsCache.size > ROOM_MEDIA_ROWS_CACHE_LIMIT) {
-    const oldest = roomMediaRowsCache.keys().next().value;
-    if (!oldest) break;
-    roomMediaRowsCache.delete(oldest);
-  }
-}
-
-async function primeRoomStreamMediaRows(postIds) {
-  const ids = [...new Set((postIds || []).filter(Boolean))];
-  const missing = ids.filter((postId) => cachedRoomMediaRows(postId) === null);
-  if (!missing.length) return;
-
-  const { data, error } = await supabase
-    .from('social_post_media')
-    .select('post_id,id,media_kind,content_type,width,height,duration_ms,alt_text,position')
-    .in('post_id', missing)
-    .eq('upload_status', 'attached')
-    .order('position', { ascending: true });
-  if (error) return;
-
-  const grouped = new Map(missing.map((postId) => [postId, []]));
-  (data || []).forEach((row) => {
-    const rows = grouped.get(row.post_id);
-    if (rows && rows.length < 4) rows.push(row);
-  });
-  grouped.forEach((rows, postId) => rememberRoomMediaRows(postId, rows));
-}
-
-async function loadSautiMediaRows(postId) {
-  const cached = cachedRoomMediaRows(postId);
-  if (cached !== null) return cached;
-
-  const { data, error } = await supabase
-    .from('social_post_media')
-    .select('id,media_kind,content_type,width,height,duration_ms,alt_text,position')
-    .eq('post_id', postId)
-    .eq('upload_status', 'attached')
-    .order('position', { ascending: true });
-  if (error) return [];
-  const rows = Array.isArray(data) ? data.slice(0, 4) : [];
-  rememberRoomMediaRows(postId, rows);
-  return rows;
-}`,
-    'post media metadata loader',
-  );
-
-  output = replaceRequired(
-    output,
-    `    const rows = posts || [];
-    const hydrated = await hydrateDirectPosts(rows);`,
-    `    const rows = posts || [];
-    const [hydrated] = await Promise.all([
-      hydrateDirectPosts(rows),
-      primeRoomStreamMediaRows(rows.map((post) => post.id)),
-    ]);`,
-    'Room stream hydration',
-  );
-
-  output = replaceRequired(
-    output,
     `async function loadCircleDetail(slug) {
   if (!currentMemberId) return;
   const requestId = ++circlesRequest;
@@ -188,8 +97,8 @@ function transformRoomsPlatformSource(source) {
     `let roomDetailKey = '';
 const ROOM_DISCOVERY_CACHE_TTL_MS = 30 * 1000;
 const ROOM_DETAIL_CACHE_TTL_MS = 15 * 1000;
-const ROOM_ROLE_CACHE_TTL_MS = 15 * 1000;
-const roomDiscoveryRuntimeCache = { rows: null, expiresAt: 0, promise: null };
+const ROOM_ROLE_CACHE_TTL_MS = 5 * 1000;
+const roomDiscoveryRuntimeCache = { rows: null, expiresAt: 0, promise: null, revision: 0 };
 const roomDetailRuntimeCache = new Map();
 const roomRoleRuntimeCache = new Map();`,
     'Room runtime cache state',
@@ -212,13 +121,16 @@ const roomRoleRuntimeCache = new Map();`,
   }
   if (roomDiscoveryRuntimeCache.promise) return roomDiscoveryRuntimeCache.promise;
 
+  const revision = roomDiscoveryRuntimeCache.revision;
   const promise = roomSelect('social_circles', {
     select: 'id,slug,name,category,privacy,cover_key,member_count,join_policy',
     order: 'created_at.desc',
     limit: 100,
   }).then((rows) => {
-    roomDiscoveryRuntimeCache.rows = rows;
-    roomDiscoveryRuntimeCache.expiresAt = Date.now() + ROOM_DISCOVERY_CACHE_TTL_MS;
+    if (revision === roomDiscoveryRuntimeCache.revision) {
+      roomDiscoveryRuntimeCache.rows = rows;
+      roomDiscoveryRuntimeCache.expiresAt = Date.now() + ROOM_DISCOVERY_CACHE_TTL_MS;
+    }
     return rows;
   }).finally(() => {
     if (roomDiscoveryRuntimeCache.promise === promise) roomDiscoveryRuntimeCache.promise = null;
@@ -275,14 +187,20 @@ async function ownRoomRole(roomId) {
 
 function invalidateRoomRuntimeCaches({ slug = '', roomId = '', discovery = false, role = false } = {}) {
   if (discovery) {
+    roomDiscoveryRuntimeCache.revision += 1;
     roomDiscoveryRuntimeCache.rows = null;
     roomDiscoveryRuntimeCache.expiresAt = 0;
+    roomDiscoveryRuntimeCache.promise = null;
   }
   if (slug) roomDetailRuntimeCache.delete(slug);
   if (roomId) {
     [...roomDetailRuntimeCache.entries()].forEach(([key, entry]) => {
       if (entry?.room?.id === roomId) roomDetailRuntimeCache.delete(key);
     });
+  }
+  const snapshotRoom = window.__sautiRoomDetailSnapshot?.room;
+  if (snapshotRoom && ((slug && snapshotRoom.slug === slug) || (roomId && snapshotRoom.id === roomId))) {
+    window.__sautiRoomDetailSnapshot = null;
   }
   if (role) roomRoleRuntimeCache.clear();
 }
@@ -294,6 +212,7 @@ async function activeRoom() {
   const snapshot = window.__sautiRoomDetailSnapshot;
   if (snapshot?.room?.slug === slug
       && Number(snapshot.capturedAt || 0) + ROOM_DETAIL_CACHE_TTL_MS > Date.now()) {
+    window.__sautiRoomDetailSnapshot = null;
     return rememberRoomDetail(slug, snapshot.room);
   }
 
@@ -383,6 +302,18 @@ function buildRoomAdminPanel(room, role) {`,
 
   output = replaceRequired(
     output,
+    `    if (setup.cover) await uploadRoomCover(room.id, setup.cover);
+    roomToast('Room created.');
+    scheduleRoomsUi();`,
+    `    if (setup.cover) await uploadRoomCover(room.id, setup.cover);
+    invalidateRoomRuntimeCaches({ discovery: true });
+    roomToast('Room created.');
+    scheduleRoomsUi();`,
+    'Room create cache invalidation',
+  );
+
+  output = replaceRequired(
+    output,
     `      roomStatus(message, 'Room settings saved.', true);
       roomToast('Room settings saved.');
       roomDetailKey = '';`,
@@ -414,6 +345,67 @@ function buildRoomAdminPanel(room, role) {`,
   invalidateRoomRuntimeCaches({ slug, roomId, discovery: true });
   if (roomCoverCache.has(slug)) {`,
     'Room cover removal cache invalidation',
+  );
+
+  output = replaceRequired(
+    output,
+    `        row.remove();
+        roomToast(status === 'approved' ? 'Member approved.' : 'Request declined.');
+        roomDetailKey = '';
+        scheduleRoomsUi();`,
+    `        row.remove();
+        roomToast(status === 'approved' ? 'Member approved.' : 'Request declined.');
+        invalidateRoomRuntimeCaches({ slug: room.slug, roomId: room.id, discovery: true });
+        roomDetailKey = '';
+        scheduleRoomsUi();`,
+    'Room request decision cache invalidation',
+  );
+
+  output = replaceRequired(
+    output,
+    `          row.remove();
+          roomToast('Member removed from the Room.');
+          roomDetailKey = '';
+          scheduleRoomsUi();`,
+    `          row.remove();
+          roomToast('Member removed from the Room.');
+          invalidateRoomRuntimeCaches({ slug: room.slug, roomId: room.id, discovery: true });
+          roomDetailKey = '';
+          scheduleRoomsUi();`,
+    'Room member removal cache invalidation',
+  );
+
+  output = replaceRequired(
+    output,
+    `async function enhanceActiveRoom() {
+  const detail = roomById('circle-detail');
+  if (!detail || detail.hidden || detail.dataset.loading === 'true') return;
+  const room = await activeRoom();
+  if (!room) return;
+  const role = await ownRoomRole(room.id);
+  enhanceRoomDetail(room, role);
+  const key = \`\${room.id}:\${room.updated_at}:\${room.member_count}:\${room.cover_key}:\${role}\`;
+  if (key !== roomDetailKey || !roomById('room-admin-panel')) {
+    roomDetailKey = key;
+    buildRoomAdminPanel(room, role);
+  }
+}`,
+    `async function enhanceActiveRoom() {
+  const detail = roomById('circle-detail');
+  if (!detail || detail.hidden || detail.dataset.loading === 'true') return;
+  const slug = activeRoomSlug();
+  const room = await activeRoom();
+  if (!room || detail.hidden || activeRoomSlug() !== slug) return;
+  const role = await ownRoomRole(room.id);
+  if (detail.hidden || activeRoomSlug() !== slug) return;
+  enhanceRoomDetail(room, role);
+  const key = \`\${room.id}:\${room.updated_at}:\${room.member_count}:\${room.cover_key}:\${role}\`;
+  if (key !== roomDetailKey || !roomById('room-admin-panel')) {
+    roomDetailKey = key;
+    buildRoomAdminPanel(room, role);
+  }
+}`,
+    'active Room stale-request guard',
   );
 
   output = replaceRequired(
