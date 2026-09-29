@@ -1,59 +1,40 @@
 import { handleMaintenanceRequest as handleBaseMaintenanceRequest } from './maintenance-page.js';
 
-export const TANZANIA_PREMIUM_BACKGROUND_CSS = `
-    :root {
-      --tz-green: #1eb53a;
-      --tz-blue: #00a3dd;
-      --tz-yellow: #fcd116;
-      --tz-black: #000000;
-    }
-
+export const MAINTENANCE_BLACK_SPECKLE_CSS = `
     body {
       position: relative;
       isolation: isolate;
       overflow-x: hidden;
       background:
-        radial-gradient(circle at 12% 10%, color-mix(in srgb, var(--tz-green) 20%, transparent), transparent 34%),
-        radial-gradient(circle at 88% 16%, color-mix(in srgb, var(--tz-blue) 22%, transparent), transparent 38%),
-        radial-gradient(circle at 50% 96%, color-mix(in srgb, var(--tz-yellow) 13%, transparent), transparent 34%),
-        var(--bg);
+        radial-gradient(circle at 50% -8%, rgba(255, 255, 255, .055), transparent 31%),
+        radial-gradient(circle at 50% 118%, rgba(255, 255, 255, .028), transparent 30%),
+        #050505;
     }
 
     body::before,
     body::after {
       content: "";
       position: fixed;
+      inset: 0;
       pointer-events: none;
       z-index: 0;
     }
 
     body::before {
-      inset: -32vmax;
-      background:
-        radial-gradient(circle at 19% 24%, rgba(30, 181, 58, .92) 0 8%, rgba(30, 181, 58, .48) 18%, transparent 36%),
-        radial-gradient(circle at 80% 22%, rgba(0, 163, 221, .95) 0 8%, rgba(0, 163, 221, .50) 20%, transparent 39%),
-        radial-gradient(circle at 72% 77%, rgba(252, 209, 22, .78) 0 7%, rgba(252, 209, 22, .34) 17%, transparent 34%),
-        radial-gradient(circle at 28% 78%, rgba(0, 0, 0, .88) 0 8%, rgba(0, 0, 0, .34) 19%, transparent 36%);
-      filter: blur(58px) saturate(138%);
-      opacity: .82;
-      transform: translate3d(0, 0, 0) scale(1.07) rotate(-1deg);
+      background-image:
+        radial-gradient(circle, rgba(255, 255, 255, .34) 0 1px, transparent 1.35px),
+        radial-gradient(circle, rgba(255, 255, 255, .17) 0 .8px, transparent 1.2px),
+        radial-gradient(circle, rgba(148, 163, 184, .18) 0 1px, transparent 1.4px);
+      background-position: 8px 13px, 27px 31px, 51px 7px;
+      background-size: 43px 43px, 61px 61px, 79px 79px;
+      opacity: .58;
     }
 
     body::after {
-      inset: -24%;
       background:
-        conic-gradient(
-          from 118deg at 50% 50%,
-          rgba(30, 181, 58, .34),
-          rgba(252, 209, 22, .24),
-          rgba(0, 0, 0, .26),
-          rgba(0, 163, 221, .38),
-          rgba(30, 181, 58, .34)
-        );
-      filter: blur(46px) saturate(150%);
-      mix-blend-mode: soft-light;
-      opacity: .68;
-      transform: scale(1.22) rotate(8deg);
+        radial-gradient(circle at 50% 40%, transparent 0 38%, rgba(0, 0, 0, .22) 72%, rgba(0, 0, 0, .68) 100%),
+        repeating-radial-gradient(circle at 17% 29%, rgba(255, 255, 255, .04) 0 .7px, transparent .8px 8px);
+      opacity: .72;
     }
 
     .maintenance-shell {
@@ -64,15 +45,17 @@ export const TANZANIA_PREMIUM_BACKGROUND_CSS = `
     .maintenance-shell::before {
       content: "";
       position: absolute;
-      inset: 74px -82px 66px;
+      inset: 72px -34px 48px;
       z-index: -1;
       pointer-events: none;
-      border-radius: 42%;
-      background:
-        linear-gradient(126deg, rgba(30, 181, 58, .42), rgba(252, 209, 22, .22) 34%, rgba(0, 0, 0, .22) 52%, rgba(0, 163, 221, .46) 78%, rgba(30, 181, 58, .36));
-      filter: blur(64px) saturate(140%);
-      opacity: .82;
-      transform: translate3d(0, 0, 0) scale(1);
+      border-radius: 34px;
+      background: rgba(255, 255, 255, .025);
+      filter: blur(34px);
+    }
+
+    .brand-logo {
+      width: 82px;
+      height: auto;
     }
 
     .card {
@@ -89,36 +72,56 @@ export const TANZANIA_PREMIUM_BACKGROUND_CSS = `
       background: #ffffff;
       color: var(--text);
       box-shadow:
-        0 32px 90px rgba(0, 0, 0, .20),
-        0 0 64px rgba(0, 163, 221, .13),
-        0 0 92px rgba(30, 181, 58, .10),
+        0 28px 78px rgba(0, 0, 0, .48),
+        0 0 0 1px rgba(255, 255, 255, .035),
         var(--shadow);
     }
 
-    @media (prefers-color-scheme: dark) {
-      body::before { opacity: .92; filter: blur(62px) saturate(152%); }
-      body::after { opacity: .78; }
-      .maintenance-shell::before { opacity: .94; }
-      .card {
-        box-shadow:
-          0 34px 96px rgba(0, 0, 0, .58),
-          0 0 70px rgba(0, 163, 221, .18),
-          0 0 100px rgba(30, 181, 58, .14),
-          var(--shadow);
-      }
+    h1 {
+      font-size: clamp(28px, 5vw, 40px);
+      line-height: 1.08;
+      letter-spacing: -.042em;
+    }
+
+    .lead {
+      margin-top: 17px;
+      font-size: clamp(15px, 2.3vw, 17px);
+      line-height: 1.6;
+    }
+
+    .eyebrow {
+      font-size: 11px;
+      letter-spacing: .1em;
+    }
+
+    .countdown-label,
+    .footnote,
+    .scope,
+    .scope strong {
+      font-size: 13px;
+    }
+
+    .time-value {
+      font-size: clamp(26px, 5.5vw, 34px);
+    }
+
+    .time-unit {
+      font-size: 10px;
     }
 
     @media (max-width: 560px) {
-      body::before { inset: -44vmax; filter: blur(48px) saturate(136%); }
-      body::after { inset: -42%; opacity: .60; }
-      .maintenance-shell::before { inset: 72px -34px 54px; filter: blur(48px) saturate(132%); }
+      .brand-logo { width: 74px; }
+      h1 { font-size: clamp(27px, 8.4vw, 34px); }
+      .lead { font-size: 15px; }
+      .time-value { font-size: clamp(25px, 8vw, 32px); }
+      .maintenance-shell::before { inset: 68px -18px 40px; filter: blur(28px); }
     }
 `;
 
 function injectPremiumBackground(html) {
   const styleClose = '</style>';
   if (!html.includes(styleClose)) return html;
-  return html.replace(styleClose, `${TANZANIA_PREMIUM_BACKGROUND_CSS}\n  ${styleClose}`);
+  return html.replace(styleClose, `${MAINTENANCE_BLACK_SPECKLE_CSS}\n  ${styleClose}`);
 }
 
 export async function handleMaintenanceRequest(request, url) {
