@@ -3,22 +3,18 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   handleMaintenanceRequest,
-  TANZANIA_PREMIUM_BACKGROUND_CSS,
+  MAINTENANCE_BLACK_SPECKLE_CSS,
 } from '../src/maintenance-premium-surface.js';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('maintenance premium surface keeps Tanzania flag colors outside the card without motion', async () => {
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /--tz-green: #1eb53a/);
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /--tz-blue: #00a3dd/);
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /--tz-yellow: #fcd116/);
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /--tz-black: #000000/);
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /body::before/);
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /body::after/);
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /\.maintenance-shell::before/);
-  assert.doesNotMatch(TANZANIA_PREMIUM_BACKGROUND_CSS, /animation\s*:/);
-  assert.doesNotMatch(TANZANIA_PREMIUM_BACKGROUND_CSS, /@keyframes/);
-  assert.doesNotMatch(TANZANIA_PREMIUM_BACKGROUND_CSS, /tzPremiumDrift|tzPremiumOrbit|tzCardAura/);
+test('maintenance premium surface uses a static black speckled background with no Tanzania color treatment', async () => {
+  assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /#050505/);
+  assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /background-size:\s*43px 43px, 61px 61px, 79px 79px/);
+  assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /repeating-radial-gradient/);
+  assert.doesNotMatch(MAINTENANCE_BLACK_SPECKLE_CSS, /#1eb53a|#00a3dd|#fcd116|--tz-green|--tz-blue|--tz-yellow/);
+  assert.doesNotMatch(MAINTENANCE_BLACK_SPECKLE_CSS, /animation\s*:/);
+  assert.doesNotMatch(MAINTENANCE_BLACK_SPECKLE_CSS, /@keyframes/);
 
   const url = new URL('https://sautilink.com/maintenance');
   const response = await handleMaintenanceRequest(new Request(url), url);
@@ -26,27 +22,26 @@ test('maintenance premium surface keeps Tanzania flag colors outside the card wi
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-security-policy') || '', /style-src 'unsafe-inline'/);
   const html = await response.text();
-  assert.match(html, /--tz-green: #1eb53a/);
-  assert.match(html, /--tz-blue: #00a3dd/);
-  assert.match(html, /--tz-yellow: #fcd116/);
-  assert.match(html, /--tz-black: #000000/);
+  assert.match(html, /#050505/);
+  assert.match(html, /repeating-radial-gradient/);
   assert.match(html, /class="card" aria-labelledby="maintenance-title"/);
-  assert.match(html, /body::before/);
-  assert.match(html, /\.maintenance-shell::before/);
+  assert.doesNotMatch(html, /--tz-green|--tz-blue|--tz-yellow/);
 });
 
-test('maintenance premium card stays on a white light surface by default', async () => {
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /\.card\s*\{[\s\S]*?color-scheme:\s*light;/);
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /--panel:\s*#ffffff/);
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /--surface:\s*#f8fafc/);
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /--text:\s*#15171a/);
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /background:\s*#ffffff/);
+test('maintenance card remains white with medium typography and a smaller logo', async () => {
+  assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /\.card\s*\{[\s\S]*?color-scheme:\s*light;/);
+  assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /background:\s*#ffffff/);
+  assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /\.brand-logo\s*\{[\s\S]*?width:\s*82px/);
+  assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /h1\s*\{[\s\S]*?font-size:\s*clamp\(28px, 5vw, 40px\)/);
+  assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /\.lead\s*\{[\s\S]*?font-size:\s*clamp\(15px, 2\.3vw, 17px\)/);
+  assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /\.time-value\s*\{[\s\S]*?font-size:\s*clamp\(26px, 5\.5vw, 34px\)/);
+  assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /\.brand-logo \{ width: 74px; \}/);
 
   const url = new URL('https://sautilink.com/maintenance');
   const response = await handleMaintenanceRequest(new Request(url), url);
   const html = await response.text();
-  assert.match(html, /\.card\s*\{[\s\S]*?color-scheme:\s*light;/);
-  assert.match(html, /background:\s*#ffffff/);
+  assert.match(html, /width:\s*82px/);
+  assert.match(html, /font-size:\s*clamp\(28px, 5vw, 40px\)/);
 });
 
 test('premium wrapper preserves maintenance method handling and ignores non-maintenance routes', async () => {
