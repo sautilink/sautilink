@@ -25,7 +25,6 @@ export const TANZANIA_PREMIUM_BACKGROUND_CSS = `
       position: fixed;
       pointer-events: none;
       z-index: 0;
-      will-change: transform, opacity;
     }
 
     body::before {
@@ -36,9 +35,8 @@ export const TANZANIA_PREMIUM_BACKGROUND_CSS = `
         radial-gradient(circle at 72% 77%, rgba(252, 209, 22, .78) 0 7%, rgba(252, 209, 22, .34) 17%, transparent 34%),
         radial-gradient(circle at 28% 78%, rgba(0, 0, 0, .88) 0 8%, rgba(0, 0, 0, .34) 19%, transparent 36%);
       filter: blur(58px) saturate(138%);
-      opacity: .78;
-      transform: translate3d(-2%, -1%, 0) scale(1.02) rotate(-3deg);
-      animation: tzPremiumDrift 20s cubic-bezier(.45, 0, .25, 1) infinite alternate;
+      opacity: .82;
+      transform: translate3d(0, 0, 0) scale(1.07) rotate(-1deg);
     }
 
     body::after {
@@ -55,8 +53,7 @@ export const TANZANIA_PREMIUM_BACKGROUND_CSS = `
       filter: blur(46px) saturate(150%);
       mix-blend-mode: soft-light;
       opacity: .68;
-      transform: scale(1.18) rotate(0deg);
-      animation: tzPremiumOrbit 31s linear infinite;
+      transform: scale(1.22) rotate(8deg);
     }
 
     .maintenance-shell {
@@ -75,8 +72,7 @@ export const TANZANIA_PREMIUM_BACKGROUND_CSS = `
         linear-gradient(126deg, rgba(30, 181, 58, .42), rgba(252, 209, 22, .22) 34%, rgba(0, 0, 0, .22) 52%, rgba(0, 163, 221, .46) 78%, rgba(30, 181, 58, .36));
       filter: blur(64px) saturate(140%);
       opacity: .82;
-      transform: translate3d(0, 0, 0) scale(.98);
-      animation: tzCardAura 14s ease-in-out infinite alternate;
+      transform: translate3d(0, 0, 0) scale(1);
     }
 
     .card {
@@ -99,46 +95,6 @@ export const TANZANIA_PREMIUM_BACKGROUND_CSS = `
         var(--shadow);
     }
 
-    @keyframes tzPremiumDrift {
-      0% {
-        transform: translate3d(-3%, -2%, 0) scale(1.02) rotate(-4deg);
-        opacity: .74;
-      }
-      28% {
-        transform: translate3d(3%, 1%, 0) scale(1.08) rotate(1deg);
-        opacity: .88;
-      }
-      58% {
-        transform: translate3d(4%, -3%, 0) scale(1.12) rotate(4deg);
-        opacity: .80;
-      }
-      100% {
-        transform: translate3d(-2%, 4%, 0) scale(1.07) rotate(-1deg);
-        opacity: .90;
-      }
-    }
-
-    @keyframes tzPremiumOrbit {
-      0% { transform: scale(1.18) rotate(0deg) translate3d(0, 0, 0); }
-      50% { transform: scale(1.28) rotate(180deg) translate3d(2%, -1%, 0); }
-      100% { transform: scale(1.18) rotate(360deg) translate3d(0, 0, 0); }
-    }
-
-    @keyframes tzCardAura {
-      0% {
-        transform: translate3d(-2%, -1%, 0) scale(.96);
-        opacity: .62;
-      }
-      50% {
-        transform: translate3d(2%, 1%, 0) scale(1.04);
-        opacity: .92;
-      }
-      100% {
-        transform: translate3d(-1%, 2%, 0) scale(1);
-        opacity: .76;
-      }
-    }
-
     @media (prefers-color-scheme: dark) {
       body::before { opacity: .92; filter: blur(62px) saturate(152%); }
       body::after { opacity: .78; }
@@ -156,15 +112,6 @@ export const TANZANIA_PREMIUM_BACKGROUND_CSS = `
       body::before { inset: -44vmax; filter: blur(48px) saturate(136%); }
       body::after { inset: -42%; opacity: .60; }
       .maintenance-shell::before { inset: 72px -34px 54px; filter: blur(48px) saturate(132%); }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      body::before,
-      body::after,
-      .maintenance-shell::before {
-        animation: none;
-        transform: none;
-      }
     }
 `;
 
