@@ -109,6 +109,14 @@
       "zone_name": "sautilink.com"
     },
     {
+      "pattern": "sautilink.com/maintenance*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.sautilink.com/maintenance*",
+      "zone_name": "sautilink.com"
+    },
+    {
       "pattern": "sautilink.com/app",
       "zone_name": "sautilink.com"
     },
