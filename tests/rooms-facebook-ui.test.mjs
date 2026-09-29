@@ -13,9 +13,9 @@ test('Rooms uses the dedicated Groups-style layout without changing other app su
   assert.match(runtime, /Rooms/);
   assert.match(runtime, /Your Rooms/);
   assert.match(runtime, /Create new Room/);
-  assert.match(runtime, /Discussion/);
+  assert.match(runtime, /Posts/);
   assert.match(runtime, /About/);
-  assert.match(runtime, /People/);
+  assert.match(runtime, /Members/);
   assert.match(runtime, /rooms-facebook-view/);
   assert.match(runtime, /room-fb-detail-tabs/);
   assert.match(runtime, /room-fb-detail-aside/);
@@ -51,6 +51,31 @@ test('mobile Rooms landing uses a preview-card layer while preserving the existi
   assert.doesNotMatch(previewCss, /\.room-fb-detail-tabs/);
   assert.doesNotMatch(previewCss, /\.circle-detail\.room-fb-detail/);
   assert.doesNotMatch(previewCss, /^body\s*\{/m);
+});
+
+test('opened Room has real post filters, controls, and SautiLink styling without changing the landing preview', async () => {
+  const [runtime, css, previewCss, worker] = await Promise.all([
+    read('src/rooms-facebook-ui.js'),
+    read('app/assets/rooms-facebook.css'),
+    read('app/assets/rooms-mobile-preview.css'),
+    read('sw.js'),
+  ]);
+
+  assert.match(runtime, /\['photos', 'Photos'\]/);
+  assert.match(runtime, /\['videos', 'Videos'\]/);
+  assert.match(runtime, /\.sauti-media-gallery \$\{media\}/);
+  assert.match(runtime, /room-detail-search-input/);
+  assert.match(runtime, /Search recent Room posts/);
+  assert.match(runtime, /room-detail-menu/);
+  assert.match(runtime, /data-room-fb-\$\{key\}/);
+  assert.match(runtime, /circle-stream-locked/);
+  assert.match(css, /#circles-surface\.room-fb-detail-open/);
+  assert.match(css, /--room-fb-blue:\s*var\(--app-accent-strong\)/);
+  assert.match(css, /\.circle-detail-actions \.circle-primary-action/);
+  assert.match(css, /\.room-fb-detail-tabs button\.active/);
+  assert.match(css, /\.circle-sauti-composer textarea/);
+  assert.doesNotMatch(previewCss, /room-detail-toolbar|room-detail-filter-empty/);
+  assert.match(worker, /sautilink-shell-v84/);
 });
 
 test('Rooms Groups-style runtime is injected into normal and production bundles', async () => {

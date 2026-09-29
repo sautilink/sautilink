@@ -1,7 +1,9 @@
-const ROOMS_FACEBOOK_UI_CSS = '/app/assets/rooms-facebook.css?v=20260909-fbgroups1';
+const ROOMS_FACEBOOK_UI_CSS = '/app/assets/rooms-facebook.css?v=20260929-room-detail1';
 const ROOMS_MOBILE_PREVIEW_CSS = '/app/assets/rooms-mobile-preview.css?v=20260914-mobile1';
 let roomsFacebookTimer = 0;
 let roomsFacebookFilter = 'discover';
+let roomDetailMediaMode = 'discussion';
+let roomDetailSlug = '';
 
 function roomFbById(id) {
   return document.getElementById(id);
@@ -206,9 +208,11 @@ function createRoomDetailTabs() {
   tabs.setAttribute('aria-label', 'Room sections');
 
   const items = [
-    ['discussion', 'Discussion'],
+    ['discussion', 'Posts'],
+    ['photos', 'Photos'],
+    ['videos', 'Videos'],
     ['about', 'About'],
-    ['people', 'People'],
+    ['people', 'Members'],
   ];
   items.forEach(([key, label], index) => {
     const button = document.createElement('button');
@@ -224,17 +228,131 @@ function createRoomDetailTabs() {
     if (!button) return;
     const key = button.dataset.roomFbTab;
     let target = null;
-    if (key === 'discussion') target = roomFbById('circle-stream');
+    if (['discussion', 'photos', 'videos'].includes(key)) {
+      roomDetailMediaMode = key;
+      syncRoomDetailFeedFilter();
+      target = roomFbById('circle-stream');
+    }
     if (key === 'about') target = roomFbById('room-fb-about-card');
     if (key === 'people') {
-      target = roomFbById('circle-members')
-        || document.querySelector('[data-room-member-list]')
-        || roomFbById('room-admin-panel');
+      const memberList = roomFbById('circle-members');
+      target = memberList && !memberList.hidden ? memberList
+        : roomFbById('room-fb-about-card')?.querySelector('[data-room-fb-members]');
     }
     tabs.querySelectorAll('[data-room-fb-tab]').forEach((tab) => tab.classList.toggle('active', tab === button));
     target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
   return tabs;
+}
+
+function syncRoomDetailFeedFilter() {
+  const feed = roomFbById('circle-stream-feed');
+  const stream = roomFbById('circle-stream');
+  const status = roomFbById('room-detail-filter-empty');
+  if (!feed || !stream || !status) return;
+  const search = String(roomFbById('room-detail-search-input')?.value || '').trim().toLocaleLowerCase();
+  const cards = [...feed.children];
+  let matched = 0;
+  cards.forEach((card) => {
+    const media = roomDetailMediaMode === 'photos' ? 'img' : 'video';
+    const hasMedia = roomDetailMediaMode === 'discussion' || Boolean(card.querySelector(`.sauti-media-gallery ${media}`));
+    const matches = hasMedia && (!search || String(card.textContent || '').toLocaleLowerCase().includes(search));
+    if (card.hidden === matches) card.hidden = !matches;
+    if (matches) matched += 1;
+  });
+  const filtering = roomDetailMediaMode !== 'discussion' || Boolean(search);
+  const ready = !stream.hidden && Boolean(roomFbById('circle-stream-loading')?.hidden);
+  const unavailable = !roomFbById('circle-stream-locked')?.hidden || !roomFbById('circle-stream-error')?.hidden;
+  const mediaPending = roomDetailMediaMode !== 'discussion'
+    && cards.some((card) => card.querySelector('.sauti-media-gallery.loading'));
+  const showEmpty = filtering && ready && !unavailable && !mediaPending && matched === 0;
+  if (status.hidden === showEmpty) status.hidden = !showEmpty;
+  if (showEmpty) status.textContent = search
+    ? 'No matching posts among the recent Room posts loaded here.'
+    : `No ${roomDetailMediaMode === 'photos' ? 'photos' : 'videos'} among the recent Room posts loaded here.`;
+  const originalEmpty = roomFbById('circle-stream-empty');
+  if (originalEmpty && filtering && !originalEmpty.hidden) originalEmpty.hidden = true;
+  if (originalEmpty && !filtering && originalEmpty.hidden && ready && !unavailable && cards.length === 0) originalEmpty.hidden = false;
+}
+
+function ensureRoomDetailToolbar(detail, card) {
+  let toolbar = roomFbById('room-detail-toolbar');
+  if (toolbar) return;
+  toolbar = document.createElement('div');
+  toolbar.id = 'room-detail-toolbar';
+  toolbar.className = 'room-detail-toolbar';
+  toolbar.setAttribute('aria-label', 'Room controls');
+  const back = roomFbById('circle-back');
+  back.textContent = 'Back to Rooms';
+  toolbar.append(back);
+
+  const searchButton = document.createElement('button');
+  searchButton.type = 'button';
+  searchButton.className = 'room-detail-icon-button';
+  searchButton.setAttribute('aria-label', 'Search recent Room posts');
+  searchButton.setAttribute('aria-controls', 'room-detail-search');
+  searchButton.setAttribute('aria-expanded', 'false');
+  searchButton.append(roomFbIcon('<circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path>'));
+
+  const menuButton = document.createElement('button');
+  menuButton.type = 'button';
+  menuButton.className = 'room-detail-icon-button';
+  menuButton.setAttribute('aria-label', 'Room options');
+  menuButton.setAttribute('aria-controls', 'room-detail-menu');
+  menuButton.setAttribute('aria-expanded', 'false');
+  menuButton.append(roomFbIcon('<circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle>'));
+  toolbar.append(searchButton, menuButton);
+
+  const search = document.createElement('div');
+  search.id = 'room-detail-search';
+  search.className = 'room-detail-search';
+  search.hidden = true;
+  const input = document.createElement('input');
+  input.id = 'room-detail-search-input';
+  input.type = 'search';
+  input.placeholder = 'Search recent Room posts';
+  input.setAttribute('aria-label', 'Search recent Room posts');
+  input.addEventListener('input', syncRoomDetailFeedFilter);
+  search.append(input);
+
+  const menu = document.createElement('div');
+  menu.id = 'room-detail-menu';
+  menu.className = 'room-detail-menu';
+  menu.hidden = true;
+  [['share', 'Share Room'], ['invite', 'Invite members']].forEach(([key, label]) => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.dataset.roomDetailOption = key;
+    option.textContent = label;
+    option.addEventListener('click', () => {
+      menu.hidden = true;
+      menuButton.setAttribute('aria-expanded', 'false');
+      roomFbById('circle-detail')?.querySelector(`[data-room-fb-${key}]`)?.click();
+    });
+    menu.append(option);
+  });
+  searchButton.addEventListener('click', () => {
+    search.hidden = !search.hidden;
+    searchButton.setAttribute('aria-expanded', String(!search.hidden));
+    if (!search.hidden) input.focus();
+    else { input.value = ''; syncRoomDetailFeedFilter(); }
+    menu.hidden = true;
+    menuButton.setAttribute('aria-expanded', 'false');
+  });
+  menuButton.addEventListener('click', () => {
+    menu.hidden = !menu.hidden;
+    menuButton.setAttribute('aria-expanded', String(!menu.hidden));
+  });
+  detail.insertBefore(toolbar, card);
+  detail.insertBefore(search, card);
+  detail.insertBefore(menu, card);
+
+  const empty = document.createElement('p');
+  empty.id = 'room-detail-filter-empty';
+  empty.className = 'room-detail-filter-empty';
+  empty.setAttribute('role', 'status');
+  empty.hidden = true;
+  roomFbById('circle-stream-feed')?.insertAdjacentElement('afterend', empty);
 }
 
 function roomFbPrivacyCopy() {
@@ -285,7 +403,8 @@ function ensureRoomAboutCard() {
 
   const members = card.querySelector('[data-room-fb-members]');
   if (members) {
-    const count = String(roomFbById('circle-detail-membership')?.textContent || '').trim();
+    const count = String(document.querySelector('#circle-detail .room-detail-badges span:last-child')?.textContent || '').trim();
+    const membership = String(roomFbById('circle-detail-membership')?.textContent || '').trim();
     members.replaceChildren(
       roomFbIcon('<circle cx="9" cy="9" r="3"></circle><circle cx="17" cy="10" r="2.5"></circle><path d="M3.5 20c.5-4 2.3-6 5.5-6s5 2 5.5 6M14 15c3.4-.7 5.5.9 6 4"></path>'),
     );
@@ -293,7 +412,7 @@ function ensureRoomAboutCard() {
     const strong = document.createElement('strong');
     strong.textContent = 'Members';
     const small = document.createElement('small');
-    small.textContent = count || 'Room membership';
+    small.textContent = [count, membership].filter(Boolean).join(' · ') || 'Room membership';
     copyNode.append(strong, small);
     members.append(copyNode);
   }
@@ -376,6 +495,23 @@ function ensureRoomDetailLayout() {
   const card = detail?.querySelector('.circle-detail-card');
   if (!detail || !card) return;
   detail.classList.add('room-fb-detail');
+  ensureRoomDetailToolbar(detail, card);
+
+  const slug = String(roomFbById('circle-detail-slug')?.textContent || '');
+  if (roomDetailSlug !== slug) {
+    roomDetailSlug = slug;
+    roomDetailMediaMode = 'discussion';
+    const input = roomFbById('room-detail-search-input');
+    if (input) input.value = '';
+    const search = roomFbById('room-detail-search');
+    if (search) search.hidden = true;
+    const menu = roomFbById('room-detail-menu');
+    if (menu) menu.hidden = true;
+    roomFbById('room-detail-toolbar')?.querySelectorAll('[aria-expanded]')
+      .forEach((button) => button.setAttribute('aria-expanded', 'false'));
+    roomFbById('room-fb-detail-tabs')?.querySelectorAll('[data-room-fb-tab]')
+      .forEach((tab) => tab.classList.toggle('active', tab.dataset.roomFbTab === 'discussion'));
+  }
 
   let tabs = roomFbById('room-fb-detail-tabs');
   if (!tabs) {
@@ -384,6 +520,9 @@ function ensureRoomDetailLayout() {
   }
   ensureRoomDetailActions();
   ensureRoomFacebookAside();
+  const inviteOption = detail.querySelector('[data-room-detail-option="invite"]');
+  if (inviteOption) inviteOption.hidden = !detail.querySelector('[data-room-fb-invite]:not([hidden])');
+  syncRoomDetailFeedFilter();
 
   const primary = roomFbById('circle-primary-action');
   if (primary) {

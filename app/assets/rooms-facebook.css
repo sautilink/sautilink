@@ -999,3 +999,373 @@ body.rooms-facebook-view .room-settings-grid > label {
     margin-right: 4px;
   }
 }
+
+/* The opened Room uses SautiLink's palette and a compact group detail hierarchy.
+   Landing and discovery cards keep their separate preview treatment. */
+body.rooms-facebook-view #circles-surface.room-fb-detail-open {
+  --room-fb-bg: var(--app-bg);
+  --room-fb-card: var(--app-panel);
+  --room-fb-card-soft: var(--app-elevated);
+  --room-fb-line: var(--app-line);
+  --room-fb-text: var(--app-text);
+  --room-fb-muted: var(--app-muted);
+  --room-fb-blue: var(--app-accent-strong);
+  --room-fb-blue-strong: var(--app-accent);
+  --room-fb-hover: var(--app-panel-soft);
+}
+
+body.rooms-facebook-view .circle-detail.room-fb-detail {
+  position: relative;
+  grid-template-rows: auto auto auto auto;
+}
+
+body.rooms-facebook-view .circle-detail.room-fb-detail > .room-detail-toolbar {
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  min-height: 54px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--room-fb-card);
+}
+
+body.rooms-facebook-view .room-detail-toolbar .circle-back {
+  display: flex;
+  min-width: 0;
+  min-height: 42px;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+  padding: 0 10px 0 34px;
+  background: transparent;
+  color: var(--room-fb-text);
+  font-size: 13px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+body.rooms-facebook-view .room-detail-toolbar .circle-back::before {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin-left: -30px;
+  border-bottom: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+  content: "";
+  transform: rotate(45deg) scale(.7);
+}
+
+body.rooms-facebook-view .room-detail-icon-button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--room-fb-text);
+  cursor: pointer;
+}
+
+body.rooms-facebook-view .room-detail-icon-button:hover,
+body.rooms-facebook-view .room-detail-icon-button[aria-expanded="true"] {
+  background: var(--room-fb-card-soft);
+}
+
+body.rooms-facebook-view .room-detail-icon-button svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+body.rooms-facebook-view .room-detail-search,
+body.rooms-facebook-view .room-detail-menu {
+  position: absolute;
+  z-index: 7;
+  top: 54px;
+  right: 18px;
+  left: 18px;
+  padding: 12px;
+  border: 1px solid var(--room-fb-line);
+  border-radius: 12px;
+  background: var(--room-fb-card);
+  box-shadow: var(--app-shadow);
+}
+
+body.rooms-facebook-view .room-detail-search input {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--room-fb-line);
+  border-radius: 10px;
+  outline-color: var(--app-accent);
+  background: var(--app-input);
+  color: var(--room-fb-text);
+}
+
+body.rooms-facebook-view .room-detail-menu {
+  right: 18px;
+  left: auto;
+  width: min(240px, calc(100vw - 36px));
+}
+
+body.rooms-facebook-view .room-detail-menu button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--room-fb-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+body.rooms-facebook-view .room-detail-menu button:hover { background: var(--room-fb-hover); }
+
+body.rooms-facebook-view .circle-detail.room-fb-detail > .circle-detail-card { grid-row: 2; }
+body.rooms-facebook-view .circle-detail.room-fb-detail > .room-fb-detail-tabs { grid-row: 3; }
+body.rooms-facebook-view .circle-detail.room-fb-detail > #circle-stream,
+body.rooms-facebook-view .circle-detail.room-fb-detail > .room-fb-detail-aside { grid-row: 4; }
+
+body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-cover {
+  background: linear-gradient(135deg, #361c32, #9a3d55 55%, #202735);
+}
+
+body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail-actions .circle-primary-action:not(.room-fb-secondary-primary) {
+  background: var(--app-accent-strong);
+  color: #fff;
+  box-shadow: none;
+}
+
+body.rooms-facebook-view .room-detail-filter-empty {
+  margin: 0;
+  padding: 20px;
+  border-radius: 10px;
+  background: var(--room-fb-card);
+  color: var(--room-fb-muted);
+  text-align: center;
+}
+
+@media (max-width: 680px) {
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail.room-fb-detail {
+    display: block;
+    padding: 0 0 30px;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-toolbar {
+    position: sticky;
+    z-index: 8;
+    top: 0;
+    min-height: 56px;
+    margin: 0;
+    padding: 4px 12px;
+    border-bottom: 1px solid var(--room-fb-line);
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-toolbar .circle-back {
+    overflow: hidden;
+    width: 46px;
+    height: 46px;
+    flex: 0 0 46px;
+    padding: 0 0 0 46px;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-toolbar .circle-back::before {
+    left: 31px;
+    margin: 0;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail-card {
+    padding: 0 0 18px;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-cover {
+    height: clamp(210px, 53vw, 310px);
+    margin: 0 0 20px;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail-top,
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-badges,
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail-actions {
+    margin-right: 18px;
+    margin-left: 18px;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail-top {
+    display: block;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail-card h2 {
+    font-size: clamp(26px, 7vw, 34px);
+    line-height: 1.15;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail-slug,
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail-top > .circle-policy-badge,
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail-description,
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail-meta {
+    display: none;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-badges {
+    display: flex;
+    gap: 0;
+    align-items: center;
+    margin-top: 10px;
+    margin-bottom: 0;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-badges span {
+    min-height: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--room-fb-muted);
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-badges span:first-child { display: none; }
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-badges span:last-child::before { content: " · "; white-space: pre; }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail-actions {
+    display: block;
+    margin-top: 18px;
+    padding: 0;
+    border: 0;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail-actions .circle-primary-action {
+    width: 100%;
+    min-height: 48px;
+    border-radius: 12px;
+    font-size: 15px;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail-actions .secondary-action { display: none; }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-fb-detail-tabs {
+    position: static;
+    display: flex;
+    gap: 9px;
+    min-height: 0;
+    margin: 0;
+    padding: 0 18px 16px;
+    border: 0;
+    border-radius: 0;
+    background: var(--room-fb-card);
+    box-shadow: none;
+    white-space: nowrap;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-fb-detail-tabs button {
+    min-width: 0;
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 999px;
+    background: var(--room-fb-card-soft);
+    color: var(--room-fb-text);
+    font-size: 13px;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-fb-detail-tabs button.active {
+    background: color-mix(in srgb, var(--app-accent) 18%, var(--room-fb-card-soft));
+    color: var(--app-accent);
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-fb-detail-tabs button.active::after { display: none; }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open #circle-stream,
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-fb-detail-aside {
+    margin: 0;
+    padding: 0;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-sauti-composer {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    gap: 6px 10px;
+    align-items: center;
+    margin: 0 0 8px;
+    padding: 16px 18px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-sauti-composer::before {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    grid-column: 1;
+    grid-row: 1;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--app-accent-strong);
+    color: #fff;
+    content: "S";
+    font-weight: 800;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-sauti-composer textarea {
+    width: 100%;
+    min-height: 42px;
+    height: 42px;
+    grid-column: 2;
+    grid-row: 1;
+    padding: 11px 14px;
+    line-height: 20px;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-sauti-controls {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-sauti-meta {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-sauti-actions {
+    grid-column: 3;
+    grid-row: 1;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-sauti-actions > span { display: none; }
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-sauti-composer .composer-message { grid-column: 1 / -1; }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-stream-heading {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 16px 18px;
+    background: var(--room-fb-card);
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-stream-heading .section-label,
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-stream-heading > span { display: none; }
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-stream-heading h3 { margin: 0; font-size: 18px; }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-stream-feed { gap: 8px; }
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-stream-feed > article {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-fb-about-card,
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-members,
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-invite-panel {
+    margin: 8px 0 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
