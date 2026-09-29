@@ -80,6 +80,29 @@ startRoomsPlatformWhenMemberReady();`;
 }
 
 function transformRoomsFacebookSource(source) {
+  let output = source;
+
+  const iconSource = `function roomFbIcon(path) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = path;
+  return svg;
+}`;
+
+  const iconReplacement = `function roomFbIcon(path) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '24');
+  svg.setAttribute('height', '24');
+  svg.setAttribute('focusable', 'false');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = path;
+  return svg;
+}`;
+
+  output = replaceRequired(output, iconSource, iconReplacement, 'Rooms icon intrinsic sizing');
+
   const observerSource = `ensureRoomsFacebookStyles();
 syncRoomRouteFeedback();
 document.addEventListener('click', handleRoomRouteFeedbackAction, true);
@@ -140,6 +163,10 @@ function initRoomsFacebookUi() {
 }
 
 function startRoomsFacebookWhenMemberReady() {
+  // Start fetching the scoped Room styles before member boot reveals the Rooms surface.
+  // This removes the refresh-time unstyled icon/layout flash while keeping the CSS
+  // isolated behind body.rooms-facebook-view.
+  ensureRoomsFacebookStyles();
   const memberView = roomFbById('member-view');
   if (!memberView) return;
   if (!memberView.hidden) {
@@ -156,7 +183,7 @@ function startRoomsFacebookWhenMemberReady() {
 
 startRoomsFacebookWhenMemberReady();`;
 
-  return replaceRequired(source, observerSource, observerReplacement, 'Rooms Facebook startup');
+  return replaceRequired(output, observerSource, observerReplacement, 'Rooms Facebook startup');
 }
 
 export function transformRoomsStartupIsolationSource(filePath, source) {
