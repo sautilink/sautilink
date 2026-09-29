@@ -10,7 +10,8 @@ import {
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('maintenance route uses official branding, embedded artwork and requested content order', async () => {
-  assert.equal(MAINTENANCE_END_ISO, '');
+  assert.equal(MAINTENANCE_END_ISO, '2026-09-30T01:02:33+03:00');
+  assert.equal(Date.parse(MAINTENANCE_END_ISO), Date.parse('2026-09-30T01:02:33+03:00'));
   assert.match(MAINTENANCE_ARTWORK_DATA_URL, /^data:image\/webp;base64,UklG/);
   assert.ok(MAINTENANCE_ARTWORK_DATA_URL.length > 45_000, 'attached maintenance artwork should be embedded in the Worker source');
 
@@ -36,6 +37,7 @@ test('maintenance route uses official branding, embedded artwork and requested c
     assert.match(html, /id="hours">--<\/span>/);
     assert.match(html, /id="minutes">--<\/span>/);
     assert.match(html, /id="seconds">--<\/span>/);
+    assert.match(html, /data-maintenance-end="2026-09-30T01:02:33\+03:00"/);
     assert.match(html, /Date\.parse\(rawEnd\)/);
     assert.match(html, /setInterval\(renderCountdown, 1000\)/);
 
