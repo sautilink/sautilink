@@ -1,5 +1,6 @@
 import router from './asset-router.js';
 import { handleDmRealtimeRequest } from './dm-realtime-api.js';
+import { handleMaintenanceRequest } from './maintenance-page.js';
 import { handlePublicIndexingRoutes } from './public-indexing-routes.js';
 
 export { DmRealtimeHub } from './dm-realtime-hub.js';
@@ -7,6 +8,10 @@ export { DmRealtimeHub } from './dm-realtime-hub.js';
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    const maintenanceResponse = handleMaintenanceRequest(request, url);
+    if (maintenanceResponse) return maintenanceResponse;
+
     if (url.pathname.startsWith('/api/dm-realtime/')) {
       const response = await handleDmRealtimeRequest(request, env);
       if (response) return response;
