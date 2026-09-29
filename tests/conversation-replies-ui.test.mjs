@@ -30,7 +30,7 @@ test('comments page keeps Comments centered with an iOS back control at the far 
     read('src/app.js'),
   ]);
 
-  assert.match(html, /class="conversation-toolbar-title">[\s\S]*?id="conversation-back"[\s\S]*?<svg[\s\S]*?<\/button>[\s\S]*?<h2>Comments<\/h2>/);
+  assert.match(html, /class="conversation-toolbar-title" id="conversation-toolbar-title">[\s\S]*?id="conversation-back"[\s\S]*?<svg[\s\S]*?<\/button>[\s\S]*?<h2>Comments<\/h2>/);
   assert.doesNotMatch(html, /id="conversation-back"[\s\S]*?<span>Back<\/span>/);
   assert.match(css, /body:has\(#conversation-surface:not\(\[hidden\]\)\) \.stream-header\s*\{[^}]*display:\s*none;/s);
   assert.match(css, /#conversation-surface \.conversation-toolbar-title\s*\{[^}]*position:\s*relative;[^}]*width:\s*100%;[^}]*justify-content:\s*center;/s);
@@ -58,7 +58,7 @@ test('comments stylesheet is versioned and bundled by both builders', async () =
     read('scripts/build-production-release.mjs'),
   ]);
 
-  assert.match(runtime, /conversation-replies-ui\.css\?v=20260927-nested-replies/);
+  assert.match(runtime, /conversation-replies-ui\.css\?v=20260929-notification-routing1/);
   assert.match(runtime, /ensureConversationRepliesUiStyles/);
   assert.match(normal, /src\/conversation-replies-ui\.js/);
   assert.match(production, /conversation-replies-ui\.js/);

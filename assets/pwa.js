@@ -1,7 +1,7 @@
 (() => {
   if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
 
-  const PWA_RELEASE = '20260928-pwa-share-camera1';
+  const PWA_RELEASE = '20260929-notification-routing1';
   const SERVICE_WORKER_URL = `/sw.js?v=${PWA_RELEASE}`;
   const HOME_PATH_PATTERN = /^\/home\/?$/;
   const ROUTE_CHANGE_EVENT = 'sautilink:routechange';
@@ -10,7 +10,7 @@
     const workerUrl = event.source?.scriptURL;
     if (!workerUrl || new URL(workerUrl).origin !== location.origin || new URL(workerUrl).pathname !== '/sw.js') return;
     const route = String(event.data.route || '');
-    if (!/^\/(?:post\/[0-9a-f-]{36}|messages(?:\/[0-9a-f-]{36})?|u\/[a-z0-9][a-z0-9._]{2,29}|videos(?:\/[0-9a-f-]{36})?|notifications|home|settings|appeals)(?:\/?(?:[?#].*)?)?$/i.test(route)) return;
+    if (!/^\/(?:post\/[0-9a-f-]{36}\/?(?:\?(?:view=post|from=notification))?|messages(?:\/[0-9a-f-]{36})?|u\/[a-z0-9][a-z0-9._]{2,29}|videos(?:\/[0-9a-f-]{36})?|notifications|home|settings|appeals)(?:\/?(?:[?#].*)?)?$/i.test(route)) return;
     location.assign(new URL(route, location.origin).href);
   });
   let deferredInstallPrompt = null;

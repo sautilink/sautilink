@@ -83,7 +83,7 @@ test('opened Room has real post filters, controls, and SautiLink styling without
   assert.match(css, /\.room-fb-detail-tabs button\.active/);
   assert.match(css, /\.circle-sauti-composer textarea/);
   assert.doesNotMatch(previewCss, /room-detail-toolbar|room-detail-filter-empty/);
-  assert.match(worker, /sautilink-shell-v87/);
+  assert.match(worker, /sautilink-shell-v88/);
 });
 
 test('mobile Room reserves cover and content positions during loading and contains its shortcuts', async () => {

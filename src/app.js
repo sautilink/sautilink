@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { notificationPostDestination } from './notification-destinations.js';
 import {
   displayNameError,
   emailError,
@@ -4503,6 +4504,10 @@ function conversationPath(postId) {
     : '/home';
 }
 
+function fullPostPath(postId) {
+  return `${conversationPath(postId)}?view=post`;
+}
+
 function shortVideoPath(postId = '') {
   return postId
     ? `/videos/${encodeURIComponent(postId)}`
@@ -5663,7 +5668,7 @@ function renderNotificationItem(notification, actor, circle, post) {
   item.type = 'button';
   item.className = `notification-item${notification.read_at ? '' : ' unread'}`;
   item.dataset.notificationId = String(notification.id);
-  if (post?.id) item.dataset.sautiId = post.id;
+  if (post?.id) item.dataset.notificationRoute = notificationPostDestination(notification, post);
   if (circle?.slug) item.dataset.circleSlug = circle.slug;
 
   const avatar = document.createElement('span');
@@ -6136,7 +6141,12 @@ function readConversationRoute(pathname = window.location.pathname) {
   try {
     const postId = decodeURIComponent(match[1]).toLowerCase();
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(postId)
-      ? { invalid: false, postId }
+      ? {
+        invalid: false,
+        postId,
+        viewPost: new URL(window.location.href).searchParams.get('view') === 'post',
+        fromNotification: new URL(window.location.href).searchParams.get('from') === 'notification',
+      }
       : { invalid: true, postId: '' };
   } catch {
     return { invalid: true, postId: '' };
@@ -6359,6 +6369,9 @@ async function loadConversation(postId) {
   const errorCopy = byId('conversation-error-copy');
   const thread = byId('conversation-thread');
 
+  byId('conversation-view-post').hidden = true;
+  byId('conversation-toolbar-title').classList.remove('has-view-post');
+
   loading.hidden = false;
   errorState.hidden = true;
   byId('conversation-empty').hidden = true;
@@ -6408,7 +6421,10 @@ async function loadConversation(postId) {
       .limit(120);
     if (repliesError) throw repliesError;
 
-    const hydrated = await hydrateDirectPosts([root, ...(replies || [])]);
+    // The first page is bounded; keep the requested reply visible even if it is older.
+    const threadPosts = [root, ...(replies || [])];
+    if (!threadPosts.some((post) => post.id === target.id)) threadPosts.push(target);
+    const hydrated = await hydrateDirectPosts(threadPosts);
     if (requestId !== sautiConversationRequest) return;
 
     const rootItem = hydrated.find((item) => item.post.id === rootId);
@@ -6436,6 +6452,13 @@ async function loadConversation(postId) {
       postMap,
       expandedReplies,
     };
+
+    const viewPost = byId('conversation-view-post');
+    if (target.parent_post_id && readConversationRoute()?.fromNotification) {
+      viewPost.href = fullPostPath(rootId);
+      viewPost.hidden = false;
+      byId('conversation-toolbar-title').classList.add('has-view-post');
+    }
 
     renderConversationThread();
     const defaultTarget = postMap.get(target.id)?.post || rootItem.post;
@@ -8292,7 +8315,7 @@ async function applyLocationRoute() {
       showSignedOut('login');
       return;
     }
-    setMemberNavigation('conversation');
+    setMemberNavigation(conversationRoute.viewPost && !conversationRoute.invalid ? 'stream' : 'conversation');
     closeProfileEditor();
     if (conversationRoute.invalid) {
       byId('conversation-loading').hidden = true;
@@ -8300,7 +8323,11 @@ async function applyLocationRoute() {
       byId('conversation-error-copy').textContent = 'That post conversation address is invalid.';
       return;
     }
-    await loadConversation(conversationRoute.postId);
+    if (conversationRoute.viewPost) {
+      await loadSharedSautiTarget(conversationRoute.postId);
+    } else {
+      await loadConversation(conversationRoute.postId);
+    }
     return;
   }
 
@@ -8847,8 +8874,8 @@ byId('notifications-list').addEventListener('click', (event) => {
   if (!item) return;
   void (async () => {
     await markNotificationRead(item.dataset.notificationId, item);
-    if (item.dataset.sautiId) {
-      window.location.assign(conversationPath(item.dataset.sautiId));
+    if (item.dataset.notificationRoute) {
+      window.location.assign(item.dataset.notificationRoute);
       return;
     }
     if (item.dataset.circleSlug) window.location.assign(circlePath(item.dataset.circleSlug));

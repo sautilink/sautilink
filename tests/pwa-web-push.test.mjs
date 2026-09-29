@@ -20,7 +20,7 @@ test('service worker receives push and safely opens supported links', async () =
   assert.match(worker, /clients\.matchAll/);
   assert.match(worker, /clients\.openWindow/);
   assert.match(worker, /safeNotificationRoute/);
-  assert.match(worker, /sautilink-shell-v87/);
+  assert.match(worker, /sautilink-shell-v88/);
 });
 
 test('notification tap opens the exact post even when an installed PWA window cannot navigate', async () => {
@@ -97,6 +97,39 @@ test('notification tap navigates an open app to the post and rejects off-site ro
   await click('//attacker.example/path');
   assert.deepEqual(navigations, [`https://sautilink.com/post/${postId}`]);
   assert.deepEqual(opened, []);
+});
+
+test('installed PWA preserves the post/comment destination and rejects forged route parameters', async () => {
+  const handlers = new Map();
+  const opened = [];
+  const postId = 'c0e90bc0-ff49-48ae-8cf9-ea70db2f36be';
+  vm.runInNewContext(await read('sw.js'), {
+    URL,
+    self: {
+      location: { origin: 'https://sautilink.com' },
+      addEventListener: (name, listener) => handlers.set(name, listener),
+      clients: {
+        matchAll: async () => [],
+        openWindow: async (url) => { opened.push(url); return { url, focus: async () => {} }; },
+      },
+    },
+  });
+  async function tap(route) {
+    let pending;
+    handlers.get('notificationclick')({
+      notification: { data: { route }, close: () => {} },
+      waitUntil: (promise) => { pending = promise; },
+    });
+    await pending;
+  }
+  await tap(`/post/${postId}?view=post`);
+  await tap(`/post/${postId}?from=notification`);
+  await tap(`/post/${postId}?view=post&redirect=https://attacker.example`);
+  assert.deepEqual(opened, [
+    `https://sautilink.com/post/${postId}?view=post`,
+    `https://sautilink.com/post/${postId}?from=notification`,
+    'https://sautilink.com/notifications',
+  ]);
 });
 
 test('device notification permission is user initiated and persists through narrow RPCs', async () => {
