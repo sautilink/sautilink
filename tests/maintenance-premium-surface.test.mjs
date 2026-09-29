@@ -36,6 +36,20 @@ test('maintenance premium surface uses Tanzania flag colors outside the card wit
   assert.match(html, /\.maintenance-shell::before/);
 });
 
+test('maintenance premium card stays on a white light surface by default', async () => {
+  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /\.card\s*\{[\s\S]*?color-scheme:\s*light;/);
+  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /--panel:\s*#ffffff/);
+  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /--surface:\s*#f8fafc/);
+  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /--text:\s*#15171a/);
+  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /background:\s*#ffffff/);
+
+  const url = new URL('https://sautilink.com/maintenance');
+  const response = await handleMaintenanceRequest(new Request(url), url);
+  const html = await response.text();
+  assert.match(html, /\.card\s*\{[\s\S]*?color-scheme:\s*light;/);
+  assert.match(html, /background:\s*#ffffff/);
+});
+
 test('premium wrapper preserves maintenance method handling and ignores non-maintenance routes', async () => {
   const headUrl = new URL('https://sautilink.com/maintenance');
   const head = await handleMaintenanceRequest(new Request(headUrl, { method: 'HEAD' }), headUrl);
