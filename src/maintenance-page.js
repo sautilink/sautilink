@@ -7,7 +7,7 @@ import artworkPart5 from './maintenance-artwork-5.js';
 
 // Leave blank until a maintenance window is announced.
 // When enabled, use an absolute ISO-8601 timestamp so refreshes never restart the countdown.
-export const MAINTENANCE_END_ISO = '';
+export const MAINTENANCE_END_ISO = '2026-09-30T01:02:33+03:00';
 export const MAINTENANCE_ARTWORK_DATA_URL = `data:image/webp;base64,${artworkPart1a}${artworkPart1b}${artworkPart2}${artworkPart3}${artworkPart4}${artworkPart5}`;
 
 const MAINTENANCE_PATHS = new Set(['/maintenance', '/maintenance/']);
