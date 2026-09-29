@@ -32,7 +32,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
-const APP_JS_RELEASE = '20260929-messages-reply-safe1';
+const APP_JS_RELEASE = '20260929-messages-reply-safe2';
 const APP_JS_FEATURE_RELEASE = '20260919-mobilesettings1';
 const APP_JS_BIRTH_DATE_RELEASE = '20260920-birthdate1';
 const PWA_RELEASE = '20260928-pwa-share-camera1';

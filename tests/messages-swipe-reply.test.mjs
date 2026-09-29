@@ -15,9 +15,13 @@ test('reply targets are constrained to an existing message in the same conversat
   assert.match(migration, /revoke all on function private\.validate_dm_message_reply_phase36/i);
 });
 
-test('thread reads replies and send retains the paper-plane button contents', async () => {
+test('thread hydrates replies without a schema-cache-dependent embedded join and send retains its icon', async () => {
   const transformed = transformMessagesReplySource('/repo/src/app.js', await read('src/app.js'));
-  assert.match(transformed, /dm_messages_reply_to_message_id_fkey/);
+  assert.match(transformed, /async function hydrateDmReplyTargets/);
+  assert.match(transformed, /return hydrateDmReplyTargets\(conversationId, data \|\| \[\]\)/);
+  assert.match(transformed, /await hydrateDmReplyTargets\(conversation\.id, messageResult\.data \|\| \[\]\)/);
+  assert.match(transformed, /\.eq\('conversation_id', conversationId\)\s*\.in\('id', missingIds\)/);
+  assert.doesNotMatch(transformed, /reply:dm_messages!dm_messages_reply_to_message_id_fkey/);
   assert.match(transformed, /dataset\.replyDmMessage/);
   assert.match(transformed, /insertPayload\.reply_to_message_id = replyToMessageId/);
   assert.match(transformed, /window\.__sautilinkClearMessageReply\?\.\(\)/);
@@ -25,6 +29,36 @@ test('thread reads replies and send retains the paper-plane button contents', as
   assert.ok(send);
   assert.doesNotMatch(send, /submit\.textContent\s*=/);
   assert.match(send, /delete submit\.dataset\.sending/);
+});
+
+test('reply context resolves from the thread and fetches older originals only within its conversation', async () => {
+  const transformed = transformMessagesReplySource('/repo/src/app.js', await read('src/app.js'));
+  const helper = transformed.match(/async function hydrateDmReplyTargets\([\s\S]*?\n}\n\nfunction dmReplyPreview/)?.[0]
+    .replace(/\n\nfunction dmReplyPreview$/, '');
+  assert.ok(helper);
+  const requests = [];
+  const supabase = { from(table) {
+    assert.equal(table, 'dm_messages');
+    const request = { select() { return this; }, eq(key, value) {
+      assert.equal(key, 'conversation_id');
+      requests.push(value);
+      return this;
+    }, async in(key, ids) {
+      assert.equal(key, 'id');
+      assert.deepEqual(Array.from(ids), ['7']);
+      return { data: [{ id: 7, body: 'Older message', sender_id: 'peer' }] };
+    } };
+    return request;
+  } };
+  const hydrate = runInNewContext(`${helper}\nhydrateDmReplyTargets`, { supabase });
+  const messages = [
+    { id: 8, body: 'Recent message', reply_to_message_id: 7 },
+    { id: 9, body: 'Reply to recent', reply_to_message_id: 8 },
+  ];
+  const resolved = await hydrate('conversation-123', messages);
+  assert.equal(resolved[0].reply.body, 'Older message');
+  assert.equal(resolved[1].reply.body, 'Recent message');
+  assert.deepEqual(requests, ['conversation-123']);
 });
 
 test('swipe-left reply can be cancelled, and visibility observation cannot recurse through its own preview', async () => {

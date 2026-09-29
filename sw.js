@@ -1,5 +1,5 @@
-const CACHE_NAME = "sautilink-shell-v86";
-const APP_RELEASE = "20260929-messages-reply-safe1";
+const CACHE_NAME = "sautilink-shell-v87";
+const APP_RELEASE = "20260929-messages-reply-safe2";
 const APP_CSS_RELEASE = "20260927-page-headers1";
 const APP_FEATURE_RELEASE = "20260918-signup2";
 const PWA_RELEASE = "20260928-pwa-share-camera1";
