@@ -58,7 +58,7 @@ test('comments stylesheet is versioned and bundled by both builders', async () =
     read('scripts/build-production-release.mjs'),
   ]);
 
-  assert.match(runtime, /conversation-replies-ui\.css\?v=20260930-swala-otp1/);
+  assert.match(runtime, /conversation-replies-ui\.css\?v=20260930-swala-otp2/);
   assert.match(runtime, /ensureConversationRepliesUiStyles/);
   assert.match(normal, /src\/conversation-replies-ui\.js/);
   assert.match(production, /conversation-replies-ui\.js/);

@@ -20,7 +20,7 @@ test('service worker receives push and safely opens supported links', async () =
   assert.match(worker, /clients\.matchAll/);
   assert.match(worker, /clients\.openWindow/);
   assert.match(worker, /safeNotificationRoute/);
-  assert.match(worker, /sautilink-shell-v89/);
+  assert.match(worker, /sautilink-shell-v90/);
 });
 
 test('notification tap opens the exact post even when an installed PWA window cannot navigate', async () => {

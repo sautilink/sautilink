@@ -1,7 +1,7 @@
 (() => {
   if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
 
-  const PWA_RELEASE = '20260930-swala-otp1';
+  const PWA_RELEASE = '20260930-swala-otp2';
   const SERVICE_WORKER_URL = `/sw.js?v=${PWA_RELEASE}`;
   const HOME_PATH_PATTERN = /^\/home\/?$/;
   const ROUTE_CHANGE_EVENT = 'sautilink:routechange';
