@@ -75,7 +75,32 @@ test('opened Room has real post filters, controls, and SautiLink styling without
   assert.match(css, /\.room-fb-detail-tabs button\.active/);
   assert.match(css, /\.circle-sauti-composer textarea/);
   assert.doesNotMatch(previewCss, /room-detail-toolbar|room-detail-filter-empty/);
-  assert.match(worker, /sautilink-shell-v84/);
+  assert.match(worker, /sautilink-shell-v85/);
+});
+
+test('mobile Room reserves cover and content positions during loading and contains its shortcuts', async () => {
+  const [html, app, platform, runtime, css, previewCss] = await Promise.all([
+    read('app/index.html'), read('src/app.js'), read('src/rooms-platform.js'),
+    read('src/rooms-facebook-ui.js'), read('app/assets/rooms-facebook.css'),
+    read('app/assets/rooms-mobile-preview.css'),
+  ]);
+  assert.match(html, /class="room-detail-cover"/);
+  assert.match(html, /id="room-detail-loading-status" role="status" hidden/);
+  assert.match(html, /class="room-detail-loading-copy"/);
+  assert.match(html, /class="room-detail-loading-sections"/);
+  assert.match(html, /class="room-detail-loading-feed"/);
+  assert.match(app, /detail\.dataset\.loading = 'true'/);
+  assert.match(app, /byId\('room-detail-loading-status'\)\.hidden = false/);
+  assert.match(app, /cover\.replaceChildren/);
+  assert.match(app, /detail\.querySelector\('\.room-detail-badges'\)\?\.replaceChildren\(\)/);
+  assert.match(platform, /detail\.dataset\.loading === 'true'/);
+  assert.match(platform, /container\.dataset\.pendingRoomCover !== slug/);
+  assert.match(runtime, /loading\.hidden = Boolean\(roomFbById\('circle-detail'\)\?\.dataset\.loading\)/);
+  assert.match(css, /\.circle-detail-card \{\s*margin-bottom: 0;/);
+  assert.match(css, /\.room-fb-detail-tabs \{[\s\S]*?max-width: 100%;[\s\S]*?overflow-x: auto;/);
+  assert.match(css, /\.room-fb-detail-tabs button \{\s*flex: 0 0 auto;/);
+  assert.match(css, /\.circle-detail\.room-fb-detail\[data-loading\]/);
+  assert.doesNotMatch(previewCss, /room-detail-loading/);
 });
 
 test('Rooms Groups-style runtime is injected into normal and production bundles', async () => {

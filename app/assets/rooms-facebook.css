@@ -1183,6 +1183,7 @@ body.rooms-facebook-view .room-detail-filter-empty {
   }
 
   body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail-card {
+    margin-bottom: 0;
     padding: 0 0 18px;
   }
 
@@ -1253,25 +1254,32 @@ body.rooms-facebook-view .room-detail-filter-empty {
   body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-fb-detail-tabs {
     position: static;
     display: flex;
-    gap: 9px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    gap: 6px;
     min-height: 0;
     margin: 0;
-    padding: 0 18px 16px;
+    padding: 0 12px 16px;
     border: 0;
     border-radius: 0;
     background: var(--room-fb-card);
     box-shadow: none;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
     white-space: nowrap;
   }
 
   body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-fb-detail-tabs button {
+    flex: 0 0 auto;
     min-width: 0;
-    min-height: 40px;
-    padding: 0 16px;
+    min-height: 38px;
+    padding: 0 10px;
     border-radius: 999px;
     background: var(--room-fb-card-soft);
     color: var(--room-fb-text);
-    font-size: 13px;
+    font-size: 12px;
   }
 
   body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-fb-detail-tabs button.active {
@@ -1368,4 +1376,115 @@ body.rooms-facebook-view .room-detail-filter-empty {
     border-radius: 0;
     box-shadow: none;
   }
+}
+
+/* Reserve the opened Room layout before metadata and its cover image arrive. */
+body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-cover .room-cover-image {
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-cover.has-image .room-cover-image {
+  opacity: 1;
+}
+
+body.rooms-facebook-view .room-detail-loading-copy,
+body.rooms-facebook-view .room-detail-loading-sections,
+body.rooms-facebook-view .room-detail-loading-feed {
+  display: none;
+}
+
+body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .circle-detail-top,
+body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .circle-detail-description,
+body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .circle-detail-meta,
+body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .room-detail-badges,
+body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .room-permissions-summary,
+body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .circle-detail-actions,
+body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] > .room-fb-detail-tabs,
+body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] > .room-fb-detail-aside {
+  display: none;
+}
+
+body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .room-detail-loading-copy {
+  display: grid;
+  gap: 12px;
+  margin: 14px 20px 8px;
+  padding-bottom: 12px;
+}
+
+body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .room-detail-loading-copy span,
+body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .room-detail-loading-sections span,
+body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .room-detail-loading-feed span {
+  display: block;
+  border-radius: 10px;
+  background: var(--room-fb-card-soft);
+  animation: room-detail-pulse 1.5s ease-in-out infinite alternate;
+}
+
+body.rooms-facebook-view .room-detail-loading-title { width: min(300px, 70%); height: 30px; }
+body.rooms-facebook-view .room-detail-loading-meta { width: min(220px, 55%); height: 17px; }
+body.rooms-facebook-view .room-detail-loading-action { width: min(180px, 45%); height: 42px; }
+
+body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] > .room-detail-loading-sections {
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 3;
+  gap: 9px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 9px 18px;
+  background: var(--room-fb-card);
+}
+
+body.rooms-facebook-view .room-detail-loading-sections span { width: 88px; height: 38px; flex: 0 0 88px; border-radius: 999px !important; }
+
+body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] > .room-detail-loading-feed {
+  display: grid;
+  grid-column: 1;
+  grid-row: 4;
+  gap: 12px;
+  padding: 18px;
+  background: var(--room-fb-card);
+}
+
+body.rooms-facebook-view .room-detail-loading-feed span:first-child { width: 150px; height: 23px; }
+body.rooms-facebook-view .room-detail-loading-feed span:nth-child(2) { width: 100%; height: 48px; }
+body.rooms-facebook-view .room-detail-loading-feed span:last-child { width: 72%; height: 16px; }
+
+@keyframes room-detail-pulse {
+  to { opacity: .5; }
+}
+
+@media (max-width: 680px) {
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail.room-fb-detail[data-loading] > .circle-detail-card {
+    margin-bottom: 0;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail.room-fb-detail[data-loading] .room-detail-loading-copy {
+    gap: 14px;
+    margin: 0 18px;
+    padding: 0 0 18px;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-loading-title { height: 36px; }
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-loading-action { width: 100%; height: 48px; margin-top: 10px; }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail.room-fb-detail[data-loading] > .room-detail-loading-sections {
+    width: 100%;
+    gap: 6px;
+    margin: 0;
+    padding: 0 12px 16px;
+  }
+
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .room-detail-loading-sections span { width: 65px; flex-basis: 65px; }
+  body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail.room-fb-detail[data-loading] > .room-detail-loading-feed {
+    margin-top: 8px;
+    padding: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .room-detail-loading-copy span,
+  body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .room-detail-loading-sections span,
+  body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .room-detail-loading-feed span { animation: none; }
 }
