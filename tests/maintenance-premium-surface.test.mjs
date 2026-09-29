@@ -8,7 +8,7 @@ import {
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('maintenance premium surface uses Tanzania flag colors outside the card with slow motion', async () => {
+test('maintenance premium surface keeps Tanzania flag colors outside the card without motion', async () => {
   assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /--tz-green: #1eb53a/);
   assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /--tz-blue: #00a3dd/);
   assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /--tz-yellow: #fcd116/);
@@ -16,10 +16,9 @@ test('maintenance premium surface uses Tanzania flag colors outside the card wit
   assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /body::before/);
   assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /body::after/);
   assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /\.maintenance-shell::before/);
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /tzPremiumDrift 20s/);
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /tzPremiumOrbit 31s/);
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /tzCardAura 14s/);
-  assert.match(TANZANIA_PREMIUM_BACKGROUND_CSS, /prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(TANZANIA_PREMIUM_BACKGROUND_CSS, /animation\s*:/);
+  assert.doesNotMatch(TANZANIA_PREMIUM_BACKGROUND_CSS, /@keyframes/);
+  assert.doesNotMatch(TANZANIA_PREMIUM_BACKGROUND_CSS, /tzPremiumDrift|tzPremiumOrbit|tzCardAura/);
 
   const url = new URL('https://sautilink.com/maintenance');
   const response = await handleMaintenanceRequest(new Request(url), url);
