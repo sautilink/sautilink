@@ -210,6 +210,7 @@ await build({
     resolve(workerSource, 'rooms-invitations-style.js'),
     resolve(workerSource, 'rooms-invitations.js'),
     resolve(workerSource, 'rooms-facebook-ui.js'),
+    resolve(workerSource, 'rooms-transient-surfaces.js'),
     resolve(workerSource, 'android-push-notifications.js'),
     resolve(workerSource, 'web-push-notifications.js'),
   ],

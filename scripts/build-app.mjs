@@ -112,6 +112,7 @@ await build({
     resolve(projectRoot, 'src/rooms-invitations-style.js'),
     resolve(projectRoot, 'src/rooms-invitations.js'),
     resolve(projectRoot, 'src/rooms-facebook-ui.js'),
+    resolve(projectRoot, 'src/rooms-transient-surfaces.js'),
     resolve(projectRoot, 'src/mobile-nav-icon-style.js'),
     resolve(projectRoot, 'src/mobile-more-drawer.js'),
     resolve(projectRoot, 'src/post-media-carousel.js'),
