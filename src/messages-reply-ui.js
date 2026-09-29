@@ -69,15 +69,17 @@ function createReplyPreview() {
 
 function clearMessageReply({ focus = false } = {}) {
   if (!messagesReplyComposer) return;
-  delete messagesReplyComposer.dataset.replyToMessageId;
-  messagesReplyComposer.classList.remove('has-message-reply');
+  if (messagesReplyComposer.dataset.replyToMessageId) delete messagesReplyComposer.dataset.replyToMessageId;
+  if (messagesReplyComposer.classList.contains('has-message-reply')) {
+    messagesReplyComposer.classList.remove('has-message-reply');
+  }
   const preview = messageReplyPreview || document.getElementById('message-reply-preview');
   if (preview) {
-    preview.hidden = true;
+    if (!preview.hidden) preview.hidden = true;
     const author = preview.querySelector('[data-message-reply-author]');
     const body = preview.querySelector('[data-message-reply-body]');
-    if (author) author.textContent = '';
-    if (body) body.textContent = '';
+    if (author?.textContent) author.textContent = '';
+    if (body?.textContent) body.textContent = '';
   }
   if (focus && !messagesReplyBody?.disabled) messagesReplyBody?.focus({ preventScroll: true });
 }
@@ -221,14 +223,19 @@ function initializeMessagesReplyUi() {
     subtree: false,
   });
 
-  new MutationObserver(() => {
+  const onVisibilityChange = () => {
     if (messagesReplySurface.hidden || messagesReplyThread?.hidden) clearMessageReply();
     clearReplyForMediaCompose();
-  }).observe(messagesReplySurface, {
-    attributes: true,
-    subtree: true,
-    attributeFilter: ['hidden'],
-  });
+  };
+  const visibilityObserver = new MutationObserver(onVisibilityChange);
+  for (const element of [
+    messagesReplySurface,
+    messagesReplyThread,
+    document.getElementById('message-attachment-preview'),
+    document.getElementById('message-recording-state'),
+  ]) {
+    if (element) visibilityObserver.observe(element, { attributes: true, attributeFilter: ['hidden'] });
+  }
 
   window.addEventListener('popstate', () => clearMessageReply());
 }

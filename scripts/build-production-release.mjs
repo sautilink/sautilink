@@ -11,6 +11,7 @@ import { transformMemberBootstrapResilienceSource } from './member-bootstrap-res
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformMessagesDurableRealtimeSource } from './messages-durable-realtime-source-transform.mjs';
 import { transformMessagesMediaSource } from './messages-media-source-transform.mjs';
+import { transformMessagesReplySource } from './messages-reply-source-transform.mjs';
 import { transformPostMediaSource } from './post-media-source-transform.mjs';
 import { transformPostViewMetricsSource } from './post-view-metrics-source-transform.mjs';
 import { transformProfileTabIconsSource } from './profile-tab-icons-source-transform.mjs';
@@ -31,7 +32,7 @@ const siteRoot = resolve(projectRoot, 'dist-production-site');
 
 const PRODUCTION_REF = 'rggpyiterdbbugluejcs';
 const PRODUCTION_URL = `https://${PRODUCTION_REF}.supabase.co`;
-const APP_JS_RELEASE = '20260929-room-detail2';
+const APP_JS_RELEASE = '20260929-messages-reply-safe1';
 const APP_JS_FEATURE_RELEASE = '20260919-mobilesettings1';
 const APP_JS_BIRTH_DATE_RELEASE = '20260920-birthdate1';
 const PWA_RELEASE = '20260928-pwa-share-camera1';
@@ -152,6 +153,7 @@ for (const file of await walk(workerSource)) {
       ),
     ),
   );
+  output = transformMessagesReplySource(file, output);
   output = transformRoomOpenPerformanceSource(file, output);
   output = transformRoomCoverPerformanceSource(file, output);
   output = transformRoomPreviewCoverStabilitySource(file, output);
@@ -201,6 +203,7 @@ await build({
     resolve(workerSource, 'messages-whatsapp-ui.js'),
     resolve(workerSource, 'messages-media-ui.js'),
     resolve(workerSource, 'messages-durable-realtime.js'),
+    resolve(workerSource, 'messages-reply-ui.js'),
     resolve(workerSource, 'mobile-nav-icon-style.js'),
     resolve(workerSource, 'mobile-more-drawer.js'),
     resolve(workerSource, 'post-media-carousel.js'),
