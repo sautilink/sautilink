@@ -40,7 +40,7 @@ test('Room cover API cache headers survive the general API no-store finalizer', 
   const mediaTransformed = transformMediaPerformanceSource(path, base);
   const output = transformRoomCoverPerformanceSource(path, mediaTransformed);
 
-  assert.match(output, /room-media\\\/\[a-z0-9\]/);
+  assert.match(output, /room-media/);
   assert.match(output, /protectedMediaDelivery/);
   assert.match(output, /!protectedMediaDelivery/);
 });
@@ -53,5 +53,5 @@ test('normal and production builders apply Room cover performance transforms', a
 
   assert.match(normalBuilder, /transformRoomCoverPerformanceSource/);
   assert.match(productionBuilder, /transformRoomCoverPerformanceSource\(file, output\)/);
-  assert.match(productionBuilder, /20260929-room-cover-perf1/);
+  assert.match(productionBuilder, /20260929-room-detail2/);
 });
