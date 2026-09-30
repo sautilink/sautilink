@@ -12,6 +12,7 @@ const IMAGE_VARIANT_WIDTHS = Object.freeze([480, 960, 1440]);
 const IMAGE_VARIANT_EDGE_TTL_SECONDS = 30 * 24 * 60 * 60;
 const VIDEO_VARIANT_VERSION = 'v1';
 const VIDEO_VARIANT_QUALITIES = Object.freeze([360, 720]);
+const MAX_VIDEO_VARIANT_DURATION_MS = 60_000;
 const VIDEO_MEDIA_SESSION_COOKIE = '__Secure-sautilink-media-session';
 const VIDEO_MEDIA_SESSION_TTL_SECONDS = 5 * 60;
 const videoVariantJobs = new Map();
@@ -312,6 +313,30 @@ async function selectMedia(id, auth = '') {
   return Array.isArray(rows) ? rows[0] || null : null;
 }
 
+async function selectVideoMediaForDelivery(request, id, auth) {
+  const cache = globalThis.caches?.default;
+  if (!cache || !auth) return selectMedia(id, auth);
+
+  // Cache only a successful, token-scoped RLS result for the burst of range
+  // requests a browser makes when it starts a video. Never cache denials.
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(auth));
+  const tokenHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  const url = new URL(request.url);
+  url.pathname = `/__sauti_media_access/${id}`;
+  url.search = `?token=${tokenHash}`;
+  const key = new Request(url.toString());
+  const cached = await cache.match(key).catch(() => null);
+  if (cached) return cached.json();
+
+  const row = await selectMedia(id, auth);
+  if (row?.upload_status === 'attached' && row.media_kind === 'video') {
+    await cache.put(key, new Response(JSON.stringify(row), {
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3' },
+    })).catch(() => {});
+  }
+  return row;
+}
+
 async function insertPending(session, row) {
   const response = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?select=id,object_key,media_kind,content_type,size_bytes,upload_status,expires_at`, {
     method: 'POST',
@@ -507,7 +532,8 @@ function videoVariantDimensions(row, quality) {
 async function createSautiVideoVariant(env, row, id, quality) {
   const dimensions = videoVariantDimensions(row, quality);
   const objectKey = sautiVideoVariantObjectKey(row?.object_key, quality);
-  if (!dimensions || !objectKey || !env?.MEDIA || !env?.SAUTI_MEDIA) return '';
+  if (!dimensions || !objectKey || !env?.MEDIA || !env?.SAUTI_MEDIA
+    || Number(row?.duration_ms || 0) > MAX_VIDEO_VARIANT_DURATION_MS) return '';
 
   const existing = await env.SAUTI_MEDIA.head(objectKey).catch(() => null);
   if (existing) return objectKey;
@@ -656,6 +682,11 @@ async function serveOriginalMedia(request, env, row, id) {
 async function serveVideoVariant(request, env, row, id, quality, ctx = null) {
   const objectKey = sautiVideoVariantObjectKey(row.object_key, quality);
   if (!objectKey || row.media_kind !== 'video') return serveOriginalMedia(request, env, row, id);
+  // Media Transformations currently caps output at one minute. A longer
+  // variant would silently end before the source video does.
+  if (Number(row.duration_ms || 0) > MAX_VIDEO_VARIANT_DURATION_MS) {
+    return serveOriginalMedia(request, env, row, id);
+  }
 
   let available = await env.SAUTI_MEDIA.head(objectKey).catch(() => null);
   if (!available && request.method !== 'HEAD') {
@@ -765,7 +796,7 @@ async function serveImageVariant(request, env, row, id, width) {
 
 async function serveMedia(request, env, id, ctx = null) {
   if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
-  const row = await selectMedia(id, mediaDeliveryAuthorization(request));
+  const row = await selectVideoMediaForDelivery(request, id, mediaDeliveryAuthorization(request));
   if (!row || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
 
   const url = new URL(request.url);

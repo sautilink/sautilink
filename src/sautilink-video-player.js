@@ -312,13 +312,19 @@ function enhanceSautiLinkVideo(video) {
   const syncQuality = () => {
     if (!quality || !qualityMenu) return;
     const preference = window.SautiLinkVideoQuality?.getPreference?.() || 'auto';
-    const applied = video.dataset.sautiQuality || 'original';
+    const requested = video.dataset.sautiQuality || 'original';
+    const applied = window.SautiLinkVideoQuality?.deliveredQuality?.(
+      requested, video.videoWidth, video.videoHeight,
+    ) || requested;
     const appliedLabel = applied === 'original' ? 'Original' : `${applied}p`;
     const label = preference === 'auto'
       ? `Auto · ${appliedLabel}`
       : preference === 'data-saver'
         ? `Saver · ${appliedLabel}`
-        : preference === 'original' ? 'Original' : `${preference}p`;
+        : preference === 'original' ? 'Original'
+          : applied === 'original' && requested === preference
+            ? `Original · ${preference}p unavailable`
+            : `${preference}p`;
     let labelNode = quality.querySelector(':scope > .sauti-video-quality-label');
     if (!labelNode) {
       labelNode = document.createElement('span');
@@ -612,6 +618,7 @@ function enhanceSautiLinkVideo(video) {
   video.addEventListener('volumechange', syncAudio);
   video.addEventListener('ratechange', syncRate);
   video.addEventListener('loadedmetadata', () => {
+    syncQuality();
     syncTimeline();
     syncBuffered();
   });

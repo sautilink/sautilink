@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
+  deliveredVideoQuality,
   normalizeVideoQualityPreference,
   selectAdaptiveVideoQuality,
   videoQualityForPreference,
@@ -16,6 +17,14 @@ test('Auto quality follows network capacity and reacts to playback stalls', () =
   assert.equal(selectAdaptiveVideoQuality({ effectiveType: '4g', downlink: 4 }), '720');
   assert.equal(selectAdaptiveVideoQuality({ effectiveType: '4g', downlink: 12 }), 'original');
   assert.equal(selectAdaptiveVideoQuality({ effectiveType: '4g', downlink: 12 }, 2), '360');
+});
+
+test('a cold variant fallback reports the original resolution instead of the requested label', () => {
+  assert.equal(deliveredVideoQuality('360', 720, 1280), 'original');
+  assert.equal(deliveredVideoQuality('360', 360, 640), '360');
+  assert.equal(deliveredVideoQuality('720', 1080, 1920), 'original');
+  assert.equal(deliveredVideoQuality('720', 720, 1280), '720');
+  assert.equal(deliveredVideoQuality('360', 0, 0), '360');
 });
 
 test('Home respects manual preference while Short Videos always stays adaptive', () => {

@@ -29,6 +29,14 @@ export function videoQualityForPreference(preference, connection = {}, context =
   return normalized;
 }
 
+export function deliveredVideoQuality(requested, width, height) {
+  const quality = VIDEO_QUALITY_LEVELS.includes(String(requested)) ? String(requested) : 'original';
+  const shortEdge = Math.min(Number(width) || 0, Number(height) || 0);
+  // A cold or failed variant can serve the original under a quality URL.
+  if (quality !== 'original' && shortEdge > Number(quality) + 16) return 'original';
+  return quality;
+}
+
 function currentConnection() {
   if (typeof navigator === 'undefined') return {};
   return navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
@@ -213,6 +221,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       return videoQualityForPreference(preference, currentConnection(), context, stalls);
     },
     sourceUrl: sautiVideoSourceUrl,
+    deliveredQuality: deliveredVideoQuality,
     values: VIDEO_QUALITY_VALUES,
   });
 }

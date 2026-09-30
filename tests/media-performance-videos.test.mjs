@@ -162,6 +162,50 @@ test('authenticated video delivery forwards byte ranges to R2 and returns HTTP 2
   }
 });
 
+test('a brief video range access cache is scoped to the token and never stores denials', async () => {
+  const previousFetch = globalThis.fetch;
+  const previousCaches = globalThis.caches;
+  const entries = new Map();
+  const keys = [];
+  let accessChecks = 0;
+  globalThis.caches = { default: {
+    async match(key) { return entries.get(key.url)?.clone() || null; },
+    async put(key, response) {
+      keys.push(key.url);
+      assert.equal(response.headers.get('Cache-Control'), 'public, max-age=3');
+      entries.set(key.url, response.clone());
+    },
+  } };
+  globalThis.fetch = async (_url, init) => {
+    accessChecks++;
+    const allowed = init.headers.Authorization === 'Bearer allowed.token.value';
+    return Response.json(allowed ? [videoRow()] : []);
+  };
+  const env = { SAUTI_MEDIA: {
+    async get() { return {
+      body: new Uint8Array([1, 2]), size: 2,
+      writeHttpMetadata(headers) { headers.set('Content-Type', 'video/mp4'); },
+    }; },
+  } };
+  const request = (token) => new Request(`https://sautilink.com/api/sauti-media/${MEDIA_ID}`, {
+    headers: { Cookie: `__Secure-sautilink-media-session=${token}` },
+  });
+
+  try {
+    assert.equal((await handleSautiMediaRequest(request('allowed.token.value'), env)).status, 200);
+    assert.equal((await handleSautiMediaRequest(request('allowed.token.value'), env)).status, 200);
+    assert.equal(accessChecks, 1);
+    assert.equal((await handleSautiMediaRequest(request('denied.token.value'), env)).status, 404);
+    assert.equal((await handleSautiMediaRequest(request('denied.token.value'), env)).status, 404);
+    assert.equal(accessChecks, 3);
+    assert.equal(keys.length, 1);
+    assert.ok(!keys[0].includes('allowed.token.value'));
+  } finally {
+    globalThis.fetch = previousFetch;
+    globalThis.caches = previousCaches;
+  }
+});
+
 test('requested video quality is transformed once, stored in R2, and served as MP4', async () => {
   const previousFetch = globalThis.fetch;
   const row = videoRow();
@@ -221,6 +265,35 @@ test('requested video quality is transformed once, stored in R2, and served as M
     assert.deepEqual(transformOptions, { width: 360, height: 640, fit: 'scale-down' });
     assert.equal(variantKey, `${row.object_key}.video-v1-q360.mp4`);
     assert.equal((await response.arrayBuffer()).byteLength, 3);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('videos longer than the transform output limit keep their full original duration', async () => {
+  const previousFetch = globalThis.fetch;
+  const row = { ...videoRow(), duration_ms: 90_000 };
+  let transformed = false;
+  globalThis.fetch = async () => Response.json([row]);
+  const env = {
+    SAUTI_MEDIA: {
+      async head() { return { size: 3 }; },
+      async get() { return {
+        body: new Uint8Array([1, 2, 3]), size: 3,
+        writeHttpMetadata(headers) { headers.set('Content-Type', 'video/mp4'); },
+      }; },
+    },
+    MEDIA: { input() { transformed = true; throw new Error('unexpected transform'); } },
+  };
+  try {
+    const response = await handleSautiMediaRequest(new Request(
+      `https://sautilink.com/api/sauti-media/${MEDIA_ID}?quality=360`,
+      { headers: { Cookie: '__Secure-sautilink-media-session=allowed.token.value' } },
+    ), env);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('X-Sauti-Media-Variant'), 'original');
+    assert.equal(transformed, false);
+    assert.deepEqual(new Uint8Array(await response.arrayBuffer()), new Uint8Array([1, 2, 3]));
   } finally {
     globalThis.fetch = previousFetch;
   }
