@@ -231,7 +231,7 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
     output,
     `async function serveMedia(request, env, id, ctx = null) {
   if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
-  const row = await selectMedia(id, mediaDeliveryAuthorization(request));
+  const row = await selectVideoMediaForDelivery(request, id, mediaDeliveryAuthorization(request));
   if (!row || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
 
   const url = new URL(request.url);
@@ -249,7 +249,7 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
   }
 
   const accessStartedAt = mediaTimingNow();
-  const row = await selectMedia(id, mediaDeliveryAuthorization(request));
+  const row = await selectVideoMediaForDelivery(request, id, mediaDeliveryAuthorization(request));
   timings.accessMs = mediaTimingDuration(accessStartedAt);
   if (!row || !['ready', 'attached'].includes(row.upload_status)) {
     return withMediaServerTiming(apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.'), timings, totalStartedAt);
