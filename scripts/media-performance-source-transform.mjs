@@ -314,6 +314,17 @@ export function transformMediaPerformanceSource(filePath, source) {
 const SAUTI_VIDEO_SESSION_REFRESH_MS = 4 * 60 * 1000;
 let sautiVideoSessionReadyUntil = 0;
 let sautiVideoSessionPromise = null;
+let sautiVideoSessionRefreshTimer = 0;
+
+function scheduleSautiVideoSessionRefresh() {
+  window.clearTimeout(sautiVideoSessionRefreshTimer);
+  sautiVideoSessionRefreshTimer = window.setTimeout(() => {
+    sautiVideoSessionRefreshTimer = 0;
+    if (!document.hidden && document.querySelector('video[src*="/api/sauti-media/"]')) {
+      void ensureSautiVideoSession().catch(() => {});
+    }
+  }, SAUTI_VIDEO_SESSION_REFRESH_MS);
+}
 
 async function ensureSautiVideoSession() {
   if (Date.now() < sautiVideoSessionReadyUntil) return;
@@ -329,6 +340,7 @@ async function ensureSautiVideoSession() {
     });
     if (!response.ok) throw new Error('MEDIA_SESSION_FAILED');
     sautiVideoSessionReadyUntil = Date.now() + SAUTI_VIDEO_SESSION_REFRESH_MS;
+    scheduleSautiVideoSessionRefresh();
   })();
 
   try {
@@ -340,6 +352,12 @@ async function ensureSautiVideoSession() {
 
 window.SautiLinkVideoMediaSession = Object.freeze({ ensure: ensureSautiVideoSession });
 
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && document.querySelector('video[src*="/api/sauti-media/"]')) {
+    void ensureSautiVideoSession().catch(() => {});
+  }
+});
+
 async function fetchSautiVideoStreamUrl(id, quality = 'original', fastStart = false) {
   await ensureSautiVideoSession();
   const url = new URL(\`/api/sauti-media/\${encodeURIComponent(id)}\`, window.location.origin);
@@ -349,6 +367,8 @@ async function fetchSautiVideoStreamUrl(id, quality = 'original', fastStart = fa
 }
 
 function clearSautiVideoSession() {
+  window.clearTimeout(sautiVideoSessionRefreshTimer);
+  sautiVideoSessionRefreshTimer = 0;
   sautiVideoSessionReadyUntil = 0;
   sautiVideoSessionPromise = null;
   return fetch('/api/sauti-media/session', {

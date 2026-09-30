@@ -1,12 +1,73 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import vm from 'node:vm';
 import { handleSautiMediaRequest } from '../src/sauti-media-api.js';
 import { transformMediaPerformanceSource } from '../scripts/media-performance-source-transform.mjs';
 import { transformPostMediaSource } from '../scripts/post-media-source-transform.mjs';
 
 const MEDIA_ID = '123e4567-e89b-42d3-a456-426614174000';
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+
+test('video media session renews while visible playback remains on the page', async () => {
+  const appPath = new URL('../src/app.js', import.meta.url).pathname;
+  const source = await read('src/app.js');
+  const transformed = transformMediaPerformanceSource(appPath, transformPostMediaSource(appPath, source));
+  const start = transformed.indexOf('const SAUTI_MEDIA_VARIANT_WIDTHS =');
+  const end = transformed.indexOf('function selectSautiMediaVariantWidth(', start);
+  assert.ok(start >= 0 && end > start);
+
+  const timers = new Map();
+  const listeners = new Map();
+  let now = 0;
+  let nextTimer = 1;
+  let sessionPosts = 0;
+  const document = {
+    hidden: false,
+    querySelector: () => ({}),
+    addEventListener(name, listener) { listeners.set(name, listener); },
+  };
+  const window = {
+    location: { origin: 'https://sautilink.com' },
+    setTimeout(callback) { const id = nextTimer++; timers.set(id, callback); return id; },
+    clearTimeout(id) { timers.delete(id); },
+  };
+  const context = vm.createContext({
+    window, document, URL,
+    Date: { now: () => now },
+    currentAuthorizationHeader: async () => ({ Authorization: 'Bearer test.token.value' }),
+    fetch: async (_url, options) => {
+      if (options.method === 'POST') sessionPosts++;
+      return new Response(null, { status: 204 });
+    },
+  });
+  vm.runInContext(transformed.slice(start, end), context);
+  const fireNextTimer = () => {
+    const [id, callback] = timers.entries().next().value;
+    timers.delete(id);
+    callback();
+  };
+
+  await window.SautiLinkVideoMediaSession.ensure();
+  assert.equal(sessionPosts, 1);
+  now += 4 * 60 * 1000;
+  fireNextTimer();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(sessionPosts, 2);
+
+  document.hidden = true;
+  now += 4 * 60 * 1000;
+  fireNextTimer();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(sessionPosts, 2);
+  document.hidden = false;
+  listeners.get('visibilitychange')();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(sessionPosts, 3);
+
+  await vm.runInContext('clearSautiVideoSession()', context);
+  assert.equal(timers.size, 0);
+});
 
 function videoRow() {
   return {
