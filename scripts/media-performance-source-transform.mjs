@@ -458,7 +458,11 @@ function clearHomeFeedMediaState() {
         ? (window.SautiLinkVideoQuality?.qualityFor?.({ context: 'home' }) || '720')
         : 'original';
       const url = streamingVideo
-        ? await fetchSautiVideoStreamUrl(media.id, videoQuality, window.SautiLinkVideoQuality?.getPreference?.() === 'auto')
+        ? await fetchSautiVideoStreamUrl(
+          media.id,
+          videoQuality,
+          videoQuality === '720' && window.SautiLinkVideoQuality?.getPreference?.() === 'auto',
+        )
         : await fetchSautiMediaBlobUrl(media.id, variantWidth);
       if (variantWidth) button.dataset.mediaVariantWidth = String(variantWidth);
       if (streamingVideo) {
