@@ -227,7 +227,7 @@ async function deliverPhoneOtp(phone: string, otp: string, preference: unknown, 
   // owns OTP generation, expiry and verification for both transports.
   const selected = preference === 'sms' || preference === 'whatsapp'
     ? preference
-    : whatsappReady() ? 'whatsapp' : 'sms';
+    : smsReady() ? 'sms' : 'whatsapp';
   const channels = selected === 'whatsapp' ? ['whatsapp', 'sms'] : ['sms', 'whatsapp'];
   for (const channel of channels) {
     if (channel === 'sms' && !smsReady()) continue;

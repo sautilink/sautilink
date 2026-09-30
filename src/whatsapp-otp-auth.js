@@ -305,7 +305,7 @@ async function syncSettingsPhone() {
   selector.querySelector('[value="whatsapp"]').disabled = !channels.whatsapp;
   const preference = user?.user_metadata?.sautilink_phone_otp_channel;
   selector.value = (preference === 'sms' || preference === 'whatsapp') && channels[preference]
-    ? preference : confirmed && channels.whatsapp ? 'whatsapp' : channels.sms ? 'sms' : 'whatsapp';
+    ? preference : channels.sms ? 'sms' : 'whatsapp';
   const status = id('settings-whatsapp-status');
   status.textContent = confirmed
     ? `Verified phone number: ${displayPhone}`
