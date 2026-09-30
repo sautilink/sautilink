@@ -76,16 +76,16 @@ test('Home redesign preserves the approved verification badge contract and offli
   assert.match(sw, /"\/app\/assets\/theme-init\.js"/);
 });
 
-test('Home videos autoplay audibly when allowed and pause when the viewer or page is hidden', async () => {
+test('Home videos start muted and pause when the viewer or page is hidden', async () => {
   const source = await read('src/app.js');
 
   assert.match(source, /const HOME_VIDEO_VISIBILITY_THRESHOLD = 0\.58/);
   assert.match(source, /new IntersectionObserver\([\s\S]*HOME_VIDEO_VISIBILITY_THRESHOLD/);
   assert.match(source, /if \(!gallery\.closest\('#stream-feed'\)\) return/);
-  assert.match(source, /video\.muted = false;[\s\S]*video\.defaultMuted = false;[\s\S]*video\.volume = 1/);
+  assert.match(source, /video\.muted = true;\s*video\.defaultMuted = true;\s*video\.dataset\.sautiAudioPreference = 'muted';\s*video\.volume = 1/);
   assert.match(source, /async function playHomeFeedVideo\(video\)/);
   assert.match(source, /video\.dataset\.autoplayMutedFallback = 'true'/);
-  assert.match(source, /function restoreHomeFeedAudioAfterInteraction\(\)/);
+  assert.doesNotMatch(source, /restoreHomeFeedAudioAfterInteraction/);
   assert.doesNotMatch(source, /video\.autoplay = true/, 'Home playback must be controlled by the foreground surface');
   assert.match(source, /if \(!canPlayHomeFeedVideos\(\)\) video\.pause\(\)/);
   assert.match(source, /video\.loop = true/);

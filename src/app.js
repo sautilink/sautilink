@@ -1160,24 +1160,6 @@ async function playHomeFeedVideo(video) {
   }
 }
 
-function restoreHomeFeedAudioAfterInteraction() {
-  if (!canPlayHomeFeedVideos()) return;
-  let activeVideo = null;
-  let activeRatio = HOME_VIDEO_VISIBILITY_THRESHOLD;
-  homeVideoVisibility.forEach((ratio, video) => {
-    if (ratio >= activeRatio && video.dataset.autoplayMutedFallback === 'true') {
-      activeVideo = video;
-      activeRatio = ratio;
-    }
-  });
-  if (!activeVideo) return;
-  activeVideo.muted = false;
-  activeVideo.defaultMuted = false;
-  activeVideo.dataset.sautiAudioPreference = 'audible';
-  delete activeVideo.dataset.autoplayMutedFallback;
-  activeVideo.play().catch(() => {});
-}
-
 function syncHomeFeedVideoPlayback() {
   if (!canPlayHomeFeedVideos()) {
     pauseHomeFeedVideos();
@@ -1218,8 +1200,9 @@ function ensureHomeVideoObserver() {
 function observeHomeFeedVideo(video, gallery) {
   if (!gallery.closest('#stream-feed')) return;
   video.dataset.homeAutoplayVideo = '';
-  video.muted = false;
-  video.defaultMuted = false;
+  video.muted = true;
+  video.defaultMuted = true;
+  video.dataset.sautiAudioPreference = 'muted';
   video.volume = 1;
   video.playsInline = true;
   video.loop = true;
@@ -1283,8 +1266,9 @@ async function hydrateSautiMediaGallery(postId, gallery) {
       visual = media.media_kind === 'video' ? document.createElement('video') : document.createElement('img');
       visual.src = url;
       if (visual instanceof HTMLVideoElement) {
-        visual.muted = false;
-        visual.defaultMuted = false;
+        visual.muted = true;
+        visual.defaultMuted = true;
+        visual.dataset.sautiAudioPreference = 'muted';
         visual.volume = 1;
         visual.playsInline = true;
         visual.preload = 'metadata';
@@ -8956,9 +8940,6 @@ document.querySelectorAll('dialog').forEach((dialog) => {
 homePlaybackSurfaceObserver.observe(streamSurface, { attributes: true, attributeFilter: ['hidden'] });
 homePlaybackSurfaceObserver.observe(memberView, { attributes: true, attributeFilter: ['hidden'] });
 homePlaybackSurfaceObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-
-document.addEventListener('pointerdown', restoreHomeFeedAudioAfterInteraction, { capture: true });
-document.addEventListener('keydown', restoreHomeFeedAudioAfterInteraction, { capture: true });
 
 byId('show-recovery').addEventListener('click', () => showAuthPanel('recovery'));
 byId('show-passwordless').addEventListener('click', () => showAuthPanel('passwordless'));
