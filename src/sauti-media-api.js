@@ -653,12 +653,18 @@ async function serveOriginalMedia(request, env, row, id) {
   return new Response(object.body, { status: 200, headers });
 }
 
-async function serveVideoVariant(request, env, row, id, quality) {
+async function serveVideoVariant(request, env, row, id, quality, ctx = null) {
   const objectKey = sautiVideoVariantObjectKey(row.object_key, quality);
   if (!objectKey || row.media_kind !== 'video') return serveOriginalMedia(request, env, row, id);
 
   let available = await env.SAUTI_MEDIA.head(objectKey).catch(() => null);
   if (!available && request.method !== 'HEAD') {
+    // Auto playback must not wait for a cold transcode before the first frame.
+    // Manual quality requests still wait so the selected resolution is delivered.
+    if (new URL(request.url).searchParams.get('startup') === '1' && ctx?.waitUntil) {
+      ctx.waitUntil(createSautiVideoVariant(env, row, id, quality));
+      return serveOriginalMedia(request, env, row, id);
+    }
     const generatedKey = await createSautiVideoVariant(env, row, id, quality);
     if (generatedKey) available = await env.SAUTI_MEDIA.head(generatedKey).catch(() => null);
   }
@@ -766,7 +772,7 @@ async function serveMedia(request, env, id, ctx = null) {
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
   if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
-  if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality);
+  if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality, ctx);
   return serveOriginalMedia(request, env, row, id);
 }
 

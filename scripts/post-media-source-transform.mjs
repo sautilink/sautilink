@@ -185,8 +185,9 @@ async function hydrateStreamEvents(events) {`,
       visual = media.media_kind === 'video' ? document.createElement('video') : document.createElement('img');
       visual.src = url;
       if (visual instanceof HTMLVideoElement) {
-        visual.muted = false;
-        visual.defaultMuted = false;
+        visual.muted = true;
+        visual.defaultMuted = true;
+        visual.dataset.sautiAudioPreference = 'muted';
         visual.volume = 1;
         visual.playsInline = true;
         visual.preload = 'metadata';
@@ -233,8 +234,9 @@ async function hydrateStreamEvents(events) {`,
       visual = media.media_kind === 'video' ? document.createElement('video') : document.createElement('img');
       visual.src = url;
       if (visual instanceof HTMLVideoElement) {
-        visual.muted = false;
-        visual.defaultMuted = false;
+        visual.muted = true;
+        visual.defaultMuted = true;
+        visual.dataset.sautiAudioPreference = 'muted';
         visual.volume = 1;
         visual.playsInline = true;
         visual.preload = 'metadata';

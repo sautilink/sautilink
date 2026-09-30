@@ -238,7 +238,7 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
   if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
-  if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality);
+  if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality, ctx);
   return serveOriginalMedia(request, env, row, id);
 }`,
     `async function serveMedia(request, env, id, ctx = null) {
@@ -261,7 +261,7 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
   const response = width && row.media_kind === 'image'
     ? await serveImageVariant(request, env, row, id, width, timings)
     : quality && row.media_kind === 'video'
-      ? await serveVideoVariant(request, env, row, id, quality)
+      ? await serveVideoVariant(request, env, row, id, quality, ctx)
       : await serveOriginalMedia(request, env, row, id, timings);
   return withMediaServerTiming(response, timings, totalStartedAt);
 }`,
@@ -340,10 +340,11 @@ async function ensureSautiVideoSession() {
 
 window.SautiLinkVideoMediaSession = Object.freeze({ ensure: ensureSautiVideoSession });
 
-async function fetchSautiVideoStreamUrl(id, quality = 'original') {
+async function fetchSautiVideoStreamUrl(id, quality = 'original', fastStart = false) {
   await ensureSautiVideoSession();
   const url = new URL(\`/api/sauti-media/\${encodeURIComponent(id)}\`, window.location.origin);
   if (quality === '360' || quality === '720') url.searchParams.set('quality', quality);
+  if (fastStart && quality !== 'original') url.searchParams.set('startup', '1');
   return \`\${url.pathname}\${url.search}\`;
 }
 
@@ -457,7 +458,7 @@ function clearHomeFeedMediaState() {
         ? (window.SautiLinkVideoQuality?.qualityFor?.({ context: 'home' }) || '720')
         : 'original';
       const url = streamingVideo
-        ? await fetchSautiVideoStreamUrl(media.id, videoQuality)
+        ? await fetchSautiVideoStreamUrl(media.id, videoQuality, window.SautiLinkVideoQuality?.getPreference?.() === 'auto')
         : await fetchSautiMediaBlobUrl(media.id, variantWidth);
       if (variantWidth) button.dataset.mediaVariantWidth = String(variantWidth);
       if (streamingVideo) {
