@@ -235,7 +235,7 @@ test('feed videos use protected range URLs while images keep responsive blobs', 
     "fetch('/api/sauti-media/session'",
     "method: 'POST'",
     "credentials: 'same-origin'",
-    "videoQuality === '720' && window.SautiLinkVideoQuality?.getPreference?.() === 'auto'",
+    "fetchSautiVideoStreamUrl(media.id, videoQuality, window.SautiLinkVideoQuality?.getPreference?.() === 'auto')",
     "qualityFor?.({ context: 'home' })",
     "button.dataset.mediaStreaming = 'range'",
     "url.startsWith('blob:')",
@@ -244,5 +244,5 @@ test('feed videos use protected range URLs while images keep responsive blobs', 
     'void clearSautiVideoSession()',
   ]) assert.ok(transformed.includes(marker), `missing transformed marker: ${marker}`);
 
-  assert.match(transformed, /const url = streamingVideo[\s\S]*fetchSautiVideoStreamUrl\([\s\S]*media\.id,[\s\S]*videoQuality,[\s\S]*videoQuality === '720'[\s\S]*fetchSautiMediaBlobUrl\(media\.id, variantWidth\)/);
+  assert.match(transformed, /const url = streamingVideo[\s\S]*fetchSautiVideoStreamUrl\(media\.id, videoQuality,[\s\S]*fetchSautiMediaBlobUrl\(media\.id, variantWidth\)/);
 });
