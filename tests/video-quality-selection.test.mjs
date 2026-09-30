@@ -5,6 +5,7 @@ import {
   deliveredVideoQuality,
   normalizeVideoQualityPreference,
   selectAdaptiveVideoQuality,
+  shouldSwitchVideoQuality,
   videoQualityForPreference,
 } from '../src/video-quality-preference.js';
 
@@ -25,6 +26,17 @@ test('a cold variant fallback reports the original resolution instead of the req
   assert.equal(deliveredVideoQuality('720', 1080, 1920), 'original');
   assert.equal(deliveredVideoQuality('720', 720, 1280), '720');
   assert.equal(deliveredVideoQuality('360', 0, 0), '360');
+});
+
+test('manual 360p selection retries a cold Auto fallback without delaying Auto startup', () => {
+  const cold = '/api/sauti-media/video-id?quality=360&startup=1';
+  const variant = '/api/sauti-media/video-id?quality=360';
+  const state = { quality: '360', context: 'home', preference: 'auto', switching: false };
+  assert.equal(shouldSwitchVideoQuality(state, '360', cold, variant), false);
+  assert.equal(shouldSwitchVideoQuality({ ...state, preference: '360' }, '360', cold, variant), true);
+  assert.equal(shouldSwitchVideoQuality({ ...state, preference: 'data-saver' }, '360', cold, variant), true);
+  assert.equal(shouldSwitchVideoQuality({ ...state, preference: '360' }, '360', variant, variant), false);
+  assert.equal(shouldSwitchVideoQuality({ ...state, preference: '360', switching: true }, '360', cold, variant), false);
 });
 
 test('Home respects manual preference while Short Videos always stays adaptive', () => {

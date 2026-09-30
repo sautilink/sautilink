@@ -93,10 +93,21 @@ function qualityRank(quality) {
   return VIDEO_QUALITY_LEVELS.indexOf(quality);
 }
 
+export function shouldSwitchVideoQuality(state, quality, currentSource, targetSource) {
+  if (state.switching || !VIDEO_QUALITY_LEVELS.includes(quality)) return false;
+  if (state.quality !== quality) return true;
+  // Auto may use a startup URL that serves the original while preparing the
+  // variant. A later explicit selection must request the real quality URL.
+  return state.context === 'home'
+    && state.preference !== 'auto'
+    && currentSource !== targetSource;
+}
+
 async function applyVideoQuality(video, state, quality) {
-  if (!VIDEO_QUALITY_LEVELS.includes(quality) || state.switching || state.quality === quality) return;
   const source = sautiVideoSourceUrl(state.mediaId, quality);
-  if (!source || relativeVideoUrl(video.currentSrc || video.src) === source) {
+  const currentSource = relativeVideoUrl(video.currentSrc || video.src);
+  if (!shouldSwitchVideoQuality(state, quality, currentSource, source)) return;
+  if (!source || currentSource === source) {
     state.quality = quality;
     video.dataset.sautiQuality = quality;
     return;
