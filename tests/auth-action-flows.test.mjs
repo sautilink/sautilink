@@ -70,7 +70,7 @@ test('website actions are wired to the matching Supabase auth methods', async ()
   const html = await read('app/index.html');
   const router = await read('src/asset-router.js');
 
-  assert.match(source, /signUp\([\s\S]*data:\s*\{ username, full_name: displayName \}/);
+  assert.match(source, /signUp\([\s\S]*full_name: displayName,[\s\S]*sautilink_signup_phone: phone/);
   assert.doesNotMatch(source, /signUp\([\s\S]{0,400}emailRedirectTo:\s*authRedirectUrl\('signup'\)/);
   assert.doesNotMatch(source, /resend\([\s\S]{0,300}emailRedirectTo:\s*authRedirectUrl\('signup'\)/);
   assert.match(source, /resetPasswordForEmail\([\s\S]*authRedirectUrl\('recovery'\)/);

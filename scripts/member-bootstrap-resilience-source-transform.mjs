@@ -8,6 +8,11 @@ export function transformMemberBootstrapResilienceSource(sourcePath, source) {
     throw new Error('Could not find the SautiLink member bootstrap block.');
   }
 
+  const signupRequirementsHelper = output.match(/async function showSignupRequirements\(user\) \{[\s\S]*?\n\}\n\n/)?.[0] || '';
+  const signupRequirementsGate = signupRequirementsHelper
+    ? '    if (await showSignupRequirements(user)) return;\n'
+    : '';
+
   const resilientMemberBlock = `let memberLoadPromise = null;
 let memberLoadUserId = '';
 const MEMBER_BOOT_TIMEOUT_MS = 4500;
@@ -261,6 +266,7 @@ function renderMember(profile, userId = currentMemberId) {
   startDeferredMemberServices();
 }
 
+${signupRequirementsHelper}
 async function loadMemberOnce(user) {
   if (!user?.id) {
     showSignedOut('login');
@@ -305,7 +311,7 @@ async function loadMemberOnce(user) {
 
   const account = accountResult?.data || null;
   if (!account) {
-    const suggestedUsername = normalizeUsername(user.user_metadata?.username || '');
+${signupRequirementsGate}    const suggestedUsername = normalizeUsername(user.user_metadata?.username || '');
     const suggestedName = String(user.user_metadata?.full_name || suggestedUsername).trim();
     byId('onboarding-username').value = suggestedUsername;
     byId('onboarding-name').value = suggestedName;
@@ -354,7 +360,7 @@ async function loadMemberOnce(user) {
       await applyLocationRoute();
       return;
     }
-    showAuthPanel('onboarding');
+${signupRequirementsGate}    showAuthPanel('onboarding');
     return;
   }
 

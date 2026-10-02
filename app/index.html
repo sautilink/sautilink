@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="/app/assets/app.css?v=20260927-page-headers1">
   <!-- First-paint UI: keep the final Auth and Home presentation render-blocking so refresh never shows the legacy shell. -->
   <link id="social-oauth-auth-styles" rel="stylesheet" href="/app/assets/guest-entry-gate.css?v=20260920-authui2">
-  <link id="auth-entry-polish-styles" rel="stylesheet" href="/app/assets/auth-entry-polish.css?v=20260920-authui2">
+  <link id="auth-entry-polish-styles" rel="stylesheet" href="/app/assets/auth-entry-polish.css?v=20261002-signup1">
   <link id="username-prefix-fix-styles" rel="stylesheet" href="/app/assets/username-prefix-fix.css?v=20260920-authui3">
   <link id="sautilink-mobile-nav-style" rel="stylesheet" href="/app/assets/mobile-nav-icon-style.css?v=20260907-nav1">
   <link id="sautilink-mobile-more-drawer-style" rel="stylesheet" href="/app/assets/mobile-more-drawer.css?v=20260921-sidebar-systems1">
@@ -211,16 +211,46 @@
               <input id="signup-name" name="displayName" type="text" autocomplete="name" maxlength="80" required placeholder="How people will know you">
               <label for="signup-email">Email address</label>
               <input id="signup-email" name="email" type="email" inputmode="email" autocomplete="email" required placeholder="you@example.com">
+              <label for="signup-phone">Phone number</label>
+              <input id="signup-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="+2557XXXXXXXX">
+              <small class="field-hint">After verifying your email, you will verify this number to finish signup.</small>
+              <label for="signup-phone-channel">Send phone code by</label>
+              <select id="signup-phone-channel" name="phoneChannel" required>
+                <option value="whatsapp" selected>WhatsApp</option>
+                <option value="sms">SMS</option>
+              </select>
               <label for="signup-password">Password</label>
               <div class="password-field"><input id="signup-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="12+ strong characters"><button type="button" data-password-toggle="signup-password">Show</button></div>
               <small class="field-hint">Use uppercase, lowercase, a number and a symbol.</small>
               <label for="signup-password-confirm">Confirm password</label>
               <input id="signup-password-confirm" name="passwordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="Repeat your password">
+              <label class="signup-agreement" for="signup-terms-consent"><input id="signup-terms-consent" name="termsConsent" type="checkbox" required><span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and acknowledge the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
               <div class="form-message" id="signup-message" role="alert" hidden></div>
               <button class="form-submit" type="submit"><span>Create account</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
-              <p class="legal-note">By creating an account, you agree to the <a href="/terms">Terms</a> and acknowledge the <a href="/privacy">Privacy Policy</a>.</p>
               <button class="text-action auth-existing-action" type="button" data-auth-mode="login">Already have an account? Log in</button>
             </form>
+          </section>
+
+          <section id="signup-phone-panel" hidden>
+            <div class="form-heading"><p class="section-label">Finish signup</p><h2>Verify your phone</h2><p>Your email is verified. Choose how to receive a code and link your number before entering SautiLink.</p></div>
+            <details class="signup-documents"><summary>Review the account agreement</summary><p>Read the documents that explain how SautiLink works and how your information is handled.</p><p><a href="/terms" target="_blank" rel="noopener">Terms of Service</a> · <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a></p></details>
+            <form id="signup-phone-form" class="auth-form" novalidate>
+              <label class="signup-agreement" id="signup-phone-terms-label" for="signup-phone-terms-consent"><input id="signup-phone-terms-consent" name="termsConsent" type="checkbox"><span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and acknowledge the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
+              <label for="signup-phone-number">Phone number</label>
+              <input id="signup-phone-number" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="+2557XXXXXXXX">
+              <label for="signup-phone-method">Send code by</label>
+              <select id="signup-phone-method" name="method" required><option value="whatsapp" selected>WhatsApp</option><option value="sms">SMS</option></select>
+              <div class="form-message" id="signup-phone-message" role="alert" hidden></div>
+              <button class="form-submit" type="submit">Send verification code</button>
+            </form>
+            <form id="signup-phone-verify-form" class="auth-form auth-secondary-form" novalidate hidden>
+              <label for="signup-phone-code">Phone verification code</label>
+              <input class="otp-input" id="signup-phone-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" minlength="6" maxlength="10" required placeholder="••••••">
+              <div class="form-message" id="signup-phone-verify-message" role="alert" hidden></div>
+              <button class="form-submit" type="submit">Verify phone and continue</button>
+            </form>
+            <button class="text-action" type="button" id="signup-phone-continue" hidden>Accept and continue</button>
+            <button class="text-action" type="button" id="signup-phone-decline">I don't agree · Sign out</button>
           </section>
 
           <section id="verify-panel" hidden>
@@ -1436,6 +1466,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="/app/assets/app.js?v=20260930-swala-otp2"></script>
+  <script type="module" src="/app/assets/app.js?v=20260930-swala-otp2&amp;signup=20261002-wa1"></script>
 </body>
 </html>

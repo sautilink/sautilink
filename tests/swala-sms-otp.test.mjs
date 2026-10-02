@@ -105,21 +105,21 @@ test('accepted SMS does not also send on WhatsApp', async () => {
   assert.equal(client.requests[0].url, 'https://swalasms.com/api/v1/sms/messages');
 });
 
-test('an account without a channel choice uses SMS first when both channels are ready', async () => {
+test('an account without a channel choice uses WhatsApp first when both channels are ready', async () => {
   const client = hook({ sms: true, whatsapp: true });
-  assert.equal((await client.event(undefined)).status, 200);
+  assert.equal((await client.event(null)).status, 200);
   assert.equal(client.requests.length, 1);
-  assert.equal(client.requests[0].url, 'https://swalasms.com/api/v1/sms/messages');
+  assert.match(client.requests[0].url, /^https:\/\/graph\.facebook\.com\//);
 });
 
-test('an explicit SMS rejection falls back to WhatsApp', async () => {
+test('an explicitly rejected default WhatsApp request falls back to SMS', async () => {
   const client = hook({ sms: true, whatsapp: true, replies: [
-    { status: 422, body: { success: false, message: 'route_not_verified' } },
-    { status: 200, body: { messages: [{ id: 'accepted' }] } },
+    { status: 400, body: { error: { message: 'unavailable' } } },
+    { status: 202, body: { success: true, data: { uid: 'queued-2' } } },
   ] });
-  assert.equal((await client.event(undefined)).status, 200);
-  assert.equal(client.requests[0].url, 'https://swalasms.com/api/v1/sms/messages');
-  assert.match(client.requests[1].url, /^https:\/\/graph\.facebook\.com\//);
+  assert.equal((await client.event(null)).status, 200);
+  assert.match(client.requests[0].url, /^https:\/\/graph\.facebook\.com\//);
+  assert.equal(client.requests[1].url, 'https://swalasms.com/api/v1/sms/messages');
 });
 
 test('uncertain SMS provider response never triggers a duplicate WhatsApp OTP', async () => {

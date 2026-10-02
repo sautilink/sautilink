@@ -32,5 +32,5 @@ test('social OAuth buttons use the approved provider assets and stable username 
   assert.match(html, /<form id="signup-form"[^>]*>[\s\S]*?<div class="username-field"><span[^>]*>@<\/span><input id="signup-username"/);
 
   assert.match(source, /guest-entry-gate\.css\?v=20260920-authui2/);
-  assert.match(source, /auth-entry-polish\.css\?v=20260920-authui2/);
+  assert.match(source, /auth-entry-polish\.css\?v=20261002-signup1/);
 });

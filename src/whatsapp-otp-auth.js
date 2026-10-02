@@ -247,8 +247,8 @@ function createSettingsCard() {
     <label class="settings-select" for="settings-phone-otp-channel">
       <span>Send codes by</span>
       <select id="settings-phone-otp-channel" aria-label="Phone code delivery channel">
-        <option value="sms">SMS</option>
         <option value="whatsapp">WhatsApp</option>
+        <option value="sms">SMS</option>
       </select>
     </label>
     <form class="auth-form" id="settings-whatsapp-link-form" novalidate>
@@ -305,7 +305,7 @@ async function syncSettingsPhone() {
   selector.querySelector('[value="whatsapp"]').disabled = !channels.whatsapp;
   const preference = user?.user_metadata?.sautilink_phone_otp_channel;
   selector.value = (preference === 'sms' || preference === 'whatsapp') && channels[preference]
-    ? preference : channels.sms ? 'sms' : 'whatsapp';
+    ? preference : channels.whatsapp ? 'whatsapp' : 'sms';
   const status = id('settings-whatsapp-status');
   status.textContent = confirmed
     ? `Verified phone number: ${displayPhone}`

@@ -34,6 +34,14 @@ test('member shell opens before optional profile decoration', async () => {
   assert.match(render, /void loadStream\(\{ reset: true \}\)/);
 });
 
+test('production member bootstrap preserves the new signup admission gate', async () => {
+  const app = await transformedApp();
+  assert.match(app, /async function showSignupRequirements\(user\)/);
+  assert.match(app, /supabase\.rpc\('get_signup_requirements'\)/);
+  const accountMissing = app.slice(app.indexOf('const account = accountResult?.data || null;'), app.indexOf('let socialResult;'));
+  assert.ok(accountMissing.indexOf('await showSignupRequirements(user)') < accountMissing.indexOf("showAuthPanel('onboarding')"));
+});
+
 test('bootstrap uses the already-restored session user instead of an extra blocking getUser call', async () => {
   const app = await transformedApp();
   const start = app.indexOf('async function bootstrap()');

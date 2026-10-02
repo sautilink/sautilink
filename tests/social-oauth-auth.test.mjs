@@ -25,7 +25,7 @@ test('Google, Facebook and Microsoft social auth are available from sign-in and 
   assert.match(source, /Continue with Facebook/);
   assert.match(source, /Continue with Microsoft/);
   assert.match(source, /SOCIAL_OAUTH_PROVIDERS\.forEach/);
-  assert.match(source, /By continuing, you agree to the/);
+  assert.match(source, /New members agree and verify a phone before entering SautiLink/);
   assert.match(source, /href=\"\/terms\"/);
   assert.match(source, /href=\"\/privacy\"/);
 });
