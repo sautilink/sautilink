@@ -228,7 +228,7 @@ async function deliverPhoneOtp(phone: string, otp: string, preference: unknown, 
   const selected = preference === 'sms' || preference === 'whatsapp'
     ? preference
     : whatsappReady() ? 'whatsapp' : 'sms';
-  const channels = selected === 'whatsapp' ? ['whatsapp', 'sms'] : ['sms', 'whatsapp'];
+  const channels = selected === 'whatsapp' ? ['whatsapp', 'sms'] : ['sms'];
   for (const channel of channels) {
     if (channel === 'sms' && !smsReady()) continue;
     if (channel === 'whatsapp' && !whatsappReady()) continue;

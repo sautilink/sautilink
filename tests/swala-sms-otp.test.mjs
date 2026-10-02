@@ -105,6 +105,15 @@ test('accepted SMS does not also send on WhatsApp', async () => {
   assert.equal(client.requests[0].url, 'https://swalasms.com/api/v1/sms/messages');
 });
 
+test('an explicitly rejected SMS request does not switch to WhatsApp', async () => {
+  const client = hook({ sms: true, whatsapp: true, replies: [
+    { status: 422, body: { success: false, message: 'route_not_verified' } },
+  ] });
+  assert.equal((await client.event('sms')).status, 502);
+  assert.equal(client.requests.length, 1);
+  assert.equal(client.requests[0].url, 'https://swalasms.com/api/v1/sms/messages');
+});
+
 test('an account without a channel choice uses WhatsApp first when both channels are ready', async () => {
   const client = hook({ sms: true, whatsapp: true });
   assert.equal((await client.event(null)).status, 200);
