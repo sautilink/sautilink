@@ -12,7 +12,7 @@ test('account entry reference layout stays presentation-only and keeps every exi
   ]);
 
   assert.match(socialSource, /guest-entry-gate\.css\?v=20260920-authui2/);
-  assert.match(socialSource, /auth-entry-polish\.css\?v=20260920-authui2/);
+  assert.match(socialSource, /auth-entry-polish\.css\?v=20261002-signup1/);
   assert.match(socialSource, /ensureStylesheetLink\('social-oauth-auth-styles',[\s\S]*ensureStylesheetLink\('auth-entry-polish-styles'/);
   assert.match(socialSource, /title\.textContent = signingUp \? 'Create your SautiLink account' : 'Welcome back to SautiLink'/);
   assert.match(socialSource, /loginTab\.textContent = 'Login'/);

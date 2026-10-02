@@ -1,6 +1,6 @@
 const SOCIAL_OAUTH_REDIRECT = 'https://sautilink.com/home';
 const SOCIAL_OAUTH_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20260920-authui2';
-const AUTH_ENTRY_POLISH_STYLESHEET = '/app/assets/auth-entry-polish.css?v=20260920-authui2';
+const AUTH_ENTRY_POLISH_STYLESHEET = '/app/assets/auth-entry-polish.css?v=20261002-signup1';
 const USERNAME_PREFIX_FIX_STYLESHEET = '/app/assets/username-prefix-fix.css?v=20260920-authui3';
 
 let client = null;
@@ -152,7 +152,7 @@ function createBlock(panelId, formId, context) {
   if (context === 'signup') {
     const legal = document.createElement('p');
     legal.className = 'social-oauth-legal';
-    legal.innerHTML = 'By continuing, you agree to the <a href="/terms">Terms</a> and acknowledge the <a href="/privacy">Privacy Policy</a>.';
+    legal.innerHTML = 'Review the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>. New members agree and verify a phone before entering SautiLink.';
     block.append(legal);
   }
 

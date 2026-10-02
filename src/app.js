@@ -74,6 +74,7 @@ const toast = byId('toast');
 const panels = {
   login: byId('login-panel'),
   signup: byId('signup-panel'),
+  signupPhone: byId('signup-phone-panel'),
   verify: byId('verify-panel'),
   passwordless: byId('passwordless-panel'),
   recovery: byId('recovery-panel'),
@@ -82,6 +83,21 @@ const panels = {
 };
 
 const PENDING_SIGNUP_STORAGE_KEY = 'sautilink.auth.pending_signup';
+const SIGNUP_PHONE_CHANGE_KEY = 'sautilink.auth.signup_phone_change';
+
+function normalizeSignupPhone(value) {
+  const phone = String(value || '').trim().replace(/[\s()-]/g, '');
+  return /^\+[1-9]\d{7,14}$/.test(phone) ? phone : '';
+}
+
+function normalizeSignupCode(value) {
+  const code = String(value || '').replace(/\D/g, '');
+  return /^\d{6,10}$/.test(code) ? code : '';
+}
+
+function signupPhoneMethod(value) {
+  return value === 'sms' ? 'sms' : 'whatsapp';
+}
 
 function restorePendingSignup() {
   try {
@@ -91,6 +107,9 @@ function restorePendingSignup() {
       email: normalizeEmail(value.email),
       username: normalizeUsername(value.username),
       displayName: String(value.displayName || '').trim().slice(0, 80),
+      phone: normalizeSignupPhone(value.phone),
+      phoneChannel: signupPhoneMethod(value.phoneChannel),
+      termsAccepted: value.termsAccepted === true,
     };
   } catch {
     return null;
@@ -98,6 +117,13 @@ function restorePendingSignup() {
 }
 
 let pendingSignup = restorePendingSignup();
+let signupPhoneChange = sessionStorage.getItem(SIGNUP_PHONE_CHANGE_KEY) || '';
+
+function setSignupPhoneChange(phone) {
+  signupPhoneChange = phone;
+  if (phone) sessionStorage.setItem(SIGNUP_PHONE_CHANGE_KEY, phone);
+  else sessionStorage.removeItem(SIGNUP_PHONE_CHANGE_KEY);
+}
 
 function setPendingSignup(value) {
   pendingSignup = value;
@@ -574,6 +600,7 @@ function showAuthPanel(name) {
 
 function showSignedOut(mode = 'login') {
   void stopDmRealtime();
+  setSignupPhoneChange('');
   currentMember = null;
   currentMemberId = '';
   currentAccountEmail = '';
@@ -8525,6 +8552,43 @@ function renderMember(profile, userId = currentMemberId) {
   void syncModerationAccess();
 }
 
+async function showSignupRequirements(user) {
+  let timer;
+  const { data: requirements, error } = await Promise.race([
+    supabase.rpc('get_signup_requirements'),
+    new Promise((resolve) => {
+      timer = window.setTimeout(() => resolve({ data: null, error: new Error('Request timed out.') }), 6000);
+    }),
+  ]).finally(() => window.clearTimeout(timer));
+  if (error || !requirements) {
+    showAuthPanel('signupPhone');
+    setMessage(byId('signup-phone-message'), 'We could not load your signup requirements. Refresh and try again.');
+    byId('signup-phone-form').hidden = true;
+    byId('signup-phone-continue').hidden = true;
+    return true;
+  }
+  if (!requirements.required || (requirements.phoneVerified && requirements.termsAccepted)) return false;
+
+  const accepted = requirements.termsAccepted === true;
+  const verified = requirements.phoneVerified === true;
+  byId('signup-phone-terms-label').hidden = accepted;
+  byId('signup-phone-terms-consent').required = !accepted;
+  byId('signup-phone-decline').textContent = accepted ? 'Sign out' : "I don't agree · Sign out";
+  byId('signup-phone-form').hidden = verified;
+  byId('signup-phone-verify-form').hidden = verified || !signupPhoneChange;
+  byId('signup-phone-continue').hidden = !verified;
+  const phoneInput = byId('signup-phone-number');
+  if (!phoneInput.value) {
+    phoneInput.value = normalizeSignupPhone(pendingSignup?.phone || user?.user_metadata?.sautilink_signup_phone || '');
+  }
+  byId('signup-phone-method').value = signupPhoneMethod(
+    pendingSignup?.phoneChannel || user?.user_metadata?.sautilink_phone_otp_channel,
+  );
+  setMessage(byId('signup-phone-message'), '', '');
+  showAuthPanel('signupPhone');
+  return true;
+}
+
 async function loadMember(user) {
   currentAccountEmail = normalizeEmail(user?.email || '');
   syncAccountSecurityEmail();
@@ -8542,6 +8606,7 @@ async function loadMember(user) {
   }
 
   if (!account) {
+    if (await showSignupRequirements(user)) return;
     const suggestedUsername = normalizeUsername(user.user_metadata?.username || '');
     const suggestedName = String(user.user_metadata?.full_name || suggestedUsername).trim();
     byId('onboarding-username').value = suggestedUsername;
@@ -9064,6 +9129,8 @@ byId('signup-form').addEventListener('submit', async (event) => {
   const displayName = form.displayName.value.trim();
   const email = normalizeEmail(form.email.value);
   const password = form.password.value;
+  const phone = normalizeSignupPhone(form.phone.value);
+  const phoneChannel = signupPhoneMethod(form.phoneChannel.value);
   setMessage(message, '', '');
 
   const invalidUsername = usernameError(username);
@@ -9075,6 +9142,8 @@ byId('signup-form').addEventListener('submit', async (event) => {
   if (invalidEmail) return setMessage(message, invalidEmail);
   if (invalidPassword) return setMessage(message, invalidPassword);
   if (form.passwordConfirm.value !== password) return setMessage(message, 'Passwords do not match.');
+  if (!phone) return setMessage(message, 'Enter your phone number with a + country code, for example +2557XXXXXXXX.');
+  if (!form.termsConsent.checked) return setMessage(message, 'Read and agree to the Terms of Service before creating an account.');
 
   setBusy(submit, true, 'Creating account…');
   try {
@@ -9087,7 +9156,12 @@ byId('signup-form').addEventListener('submit', async (event) => {
       email,
       password,
       options: {
-        data: { username, full_name: displayName },
+        data: {
+          username,
+          full_name: displayName,
+          sautilink_signup_phone: phone,
+          sautilink_phone_otp_channel: phoneChannel,
+        },
       },
     });
     if (error) throw error;
@@ -9096,11 +9170,14 @@ byId('signup-form').addEventListener('submit', async (event) => {
     }
 
     if (data.session) {
-      await completeOnboarding(username, displayName);
+      // If consent recording is temporarily unavailable, the phone step will
+      // request acceptance again before letting the account enter the app.
+      await supabase.rpc('accept_signup_terms');
+      await loadMember(data.user);
       return;
     }
 
-    setPendingSignup({ email, username, displayName });
+    setPendingSignup({ email, username, displayName, phone, phoneChannel, termsAccepted: true });
     byId('verify-email').textContent = email;
     setMessage(byId('verify-message'), '', '');
     showAuthPanel('verify');
@@ -9124,6 +9201,7 @@ byId('signup-verify-form').addEventListener('submit', async (event) => {
   if (!isValidEmailOtp(code)) return setMessage(message, `Enter the ${EMAIL_OTP_LENGTH}-digit verification code from your email.`);
 
   setBusy(submit, true, 'Verifying…');
+  let verifiedUser = null;
   try {
     const { data, error } = await supabase.auth.verifyOtp({
       email: pendingSignup.email,
@@ -9132,17 +9210,119 @@ byId('signup-verify-form').addEventListener('submit', async (event) => {
     });
     if (error) throw error;
     if (!data?.user) throw new Error('Verified account not found.');
+    verifiedUser = data.user;
 
+    if (pendingSignup.termsAccepted) {
+      // The phone step will offer the agreement again if saving it fails.
+      await supabase.rpc('accept_signup_terms');
+    }
     setPendingSignup(null);
     form.reset();
-    showAuthResult('signup');
-    await loadMember(data.user);
+    await loadMember(verifiedUser);
   } catch (error) {
-    setMessage(message, emailOtpError(error));
-    byId('signup-verify-code').focus();
+    if (verifiedUser) {
+      setPendingSignup(null);
+      await loadMember(verifiedUser);
+    } else {
+      setMessage(message, emailOtpError(error));
+      byId('signup-verify-code').focus();
+    }
   } finally {
     setBusy(submit, false, '');
   }
+});
+
+async function acceptSignupDocuments() {
+  if (byId('signup-phone-terms-label').hidden) return;
+  if (!byId('signup-phone-terms-consent').checked) {
+    throw new Error('Read and agree to the Terms of Service before continuing.');
+  }
+  const { error } = await supabase.rpc('accept_signup_terms');
+  if (error) throw new Error('We could not save your agreement. Try again.');
+  byId('signup-phone-terms-label').hidden = true;
+}
+
+byId('signup-phone-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = byId('signup-phone-message');
+  const submit = form.querySelector('[type="submit"]');
+  const phone = normalizeSignupPhone(form.phone.value);
+  const channel = signupPhoneMethod(byId('signup-phone-method').value);
+  setMessage(message, '', '');
+  if (!phone) return setMessage(message, 'Enter a valid phone number including the + country code.');
+
+  setBusy(submit, true, 'Sending code…');
+  try {
+    await acceptSignupDocuments();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error('Your session has expired. Sign in again to finish signup.');
+    const { error: preferenceError } = await supabase.auth.updateUser({
+      data: { ...user.user_metadata, sautilink_phone_otp_channel: channel },
+    });
+    if (preferenceError) throw preferenceError;
+    const { error } = await supabase.auth.updateUser({ phone });
+    if (error) throw error;
+    setSignupPhoneChange(phone);
+    byId('signup-phone-verify-form').hidden = false;
+    setMessage(message, `Code requested by ${channel === 'whatsapp' ? 'WhatsApp' : 'SMS'}. Enter the latest code below.`, 'success');
+    byId('signup-phone-code').focus();
+  } catch (error) {
+    setMessage(message, error?.message || 'We could not send a verification code. Try again.');
+  } finally {
+    setBusy(submit, false, '');
+  }
+});
+
+byId('signup-phone-verify-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const message = byId('signup-phone-verify-message');
+  const submit = form.querySelector('[type="submit"]');
+  const code = normalizeSignupCode(form.code.value);
+  setMessage(message, '', '');
+  if (!signupPhoneChange) return setMessage(message, 'Request a new phone code first.');
+  if (!code) return setMessage(message, 'Enter the complete code you just received.');
+
+  setBusy(submit, true, 'Verifying…');
+  try {
+    const { error } = await supabase.auth.verifyOtp({ phone: signupPhoneChange, token: code, type: 'phone_change' });
+    if (error) throw error;
+    setSignupPhoneChange('');
+    form.reset();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error('We could not refresh your account. Sign in again to continue.');
+    await loadMember(user);
+  } catch (error) {
+    setMessage(message, error?.message || 'That code could not be verified. Request a new one and try again.');
+  } finally {
+    setBusy(submit, false, '');
+  }
+});
+
+byId('signup-phone-continue').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  const message = byId('signup-phone-message');
+  setBusy(button, true, 'Continuing…');
+  try {
+    await acceptSignupDocuments();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) throw new Error('Sign in again to finish signup.');
+    await loadMember(user);
+  } catch (error) {
+    setMessage(message, error?.message || 'We could not continue signup.');
+  } finally {
+    setBusy(button, false, '');
+  }
+});
+
+byId('signup-phone-decline').addEventListener('click', async () => {
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    setMessage(byId('signup-phone-message'), 'We could not sign you out. Try again.');
+    return;
+  }
+  showSignedOut('login');
 });
 
 byId('resend-verification').addEventListener('click', async (event) => {

@@ -708,3 +708,69 @@ body.auth-entry .auth-entry-footer a:hover {
     transition: none !important;
   }
 }
+
+/* Phone verification and explicit agreement belong to the same auth card. */
+body.auth-entry #signup-panel .auth-form > label.signup-agreement,
+body.auth-entry #signup-phone-panel .auth-form > label.signup-agreement {
+  position: static !important;
+  display: flex !important;
+  align-items: flex-start;
+  width: auto !important;
+  height: auto !important;
+  margin: 8px 0 !important;
+  padding: 13px !important;
+  overflow: visible !important;
+  clip: auto !important;
+  white-space: normal !important;
+  border: 1px solid var(--auth-entry-line) !important;
+  border-radius: 12px;
+  background: #f8faff;
+  color: var(--auth-entry-ink) !important;
+  font-size: 12px !important;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+body.auth-entry #signup-phone-panel .auth-form > label.signup-agreement[hidden] {
+  display: none !important;
+}
+
+body.auth-entry .signup-agreement input[type="checkbox"] {
+  flex: 0 0 18px;
+  width: 18px !important;
+  min-height: 18px !important;
+  height: 18px;
+  margin: 1px 10px 0 0;
+  padding: 0 !important;
+  accent-color: var(--auth-entry-accent);
+}
+
+body.auth-entry .signup-agreement a,
+body.auth-entry .signup-documents a {
+  color: var(--auth-entry-accent-strong);
+  text-decoration: underline;
+}
+
+body.auth-entry #signup-phone-channel,
+body.auth-entry #signup-phone-method {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 1px solid var(--auth-entry-line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--auth-entry-ink);
+}
+
+body.auth-entry .signup-documents {
+  margin: 12px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--auth-entry-line);
+  border-radius: 12px;
+  color: var(--auth-entry-ink);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+body.auth-entry .signup-documents summary { cursor: pointer; font-weight: 700; }
+body.auth-entry .signup-documents p { margin: 10px 0 0; }
