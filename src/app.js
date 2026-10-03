@@ -1686,11 +1686,88 @@ async function fetchActiveConversationMessages(conversationId) {
     .from('dm_messages')
     .select('id, conversation_id, sender_id, body, sent_at, deleted_at')
     .eq('conversation_id', conversationId)
-    .order('sent_at', { ascending: true })
-    .order('id', { ascending: true })
+    .order('sent_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(200);
   if (error) throw error;
-  return data || [];
+  return (data || []).reverse();
+}
+
+function dmCalendarKey(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function dmDayLabel(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const today = new Date();
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  if (dmCalendarKey(value) === dmCalendarKey(today)) return 'Today';
+  if (dmCalendarKey(value) === dmCalendarKey(yesterday)) return 'Yesterday';
+  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+}
+
+function renderDmTimeline(feed, messages) {
+  let previousDay = '';
+  const fragment = document.createDocumentFragment();
+  for (const message of messages) {
+    const day = dmCalendarKey(message.sent_at);
+    if (day && day !== previousDay) {
+      const separator = document.createElement('div');
+      separator.className = 'dm-day-separator';
+      separator.textContent = dmDayLabel(message.sent_at);
+      fragment.append(separator);
+    }
+    previousDay = day;
+    const card = renderDirectMessage(message);
+    const time = card.querySelector('.dm-message-meta time');
+    if (time && !Number.isNaN(new Date(message.sent_at).getTime())) {
+      time.textContent = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
+        .format(new Date(message.sent_at));
+    }
+    fragment.append(card);
+  }
+  feed.append(fragment);
+}
+
+function scrollToDmMessage(feed, messageId = '') {
+  const conversationId = activeConversation?.id;
+  const move = () => {
+    if (activeConversation?.id !== conversationId || !feed.isConnected) return;
+    const target = messageId
+      ? [...feed.querySelectorAll('.dm-message[data-message-id]')]
+        .find((card) => card.dataset.messageId === String(messageId))
+      : null;
+    if (target) {
+      target.scrollIntoView({ block: 'center' });
+      target.classList.add('dm-notification-target');
+      window.setTimeout(() => target.classList.remove('dm-notification-target'), 4200);
+    } else if (!messageId) {
+      feed.scrollTop = feed.scrollHeight;
+    }
+  };
+  requestAnimationFrame(() => requestAnimationFrame(move));
+  window.setTimeout(move, 180);
+}
+
+async function fetchDmNotificationWindow(conversationId, messageId) {
+  const fields = 'id, conversation_id, sender_id, body, sent_at, deleted_at';
+  const { data: target, error } = await supabase.from('dm_messages')
+    .select(fields).eq('conversation_id', conversationId).eq('id', messageId).maybeSingle();
+  if (error || !target) return null;
+  const [before, after] = await Promise.all([
+    supabase.from('dm_messages').select(fields).eq('conversation_id', conversationId)
+      .lte('id', messageId).order('id', { ascending: false }).limit(50),
+    supabase.from('dm_messages').select(fields).eq('conversation_id', conversationId)
+      .gt('id', messageId).order('id', { ascending: true }).limit(50),
+  ]);
+  if (before.error || after.error) return [target];
+  const unique = new Map([...(before.data || []), ...(after.data || [])]
+    .map((message) => [String(message.id), message]));
+  return [...unique.values()].sort((a, b) =>
+    new Date(a.sent_at) - new Date(b.sent_at) || Number(BigInt(a.id) - BigInt(b.id)));
 }
 
 async function syncActiveMessageThreadRealtime({ markRead = true } = {}) {
@@ -1704,7 +1781,7 @@ async function syncActiveMessageThreadRealtime({ markRead = true } = {}) {
   if (!messages || activeConversation?.id !== conversationId) return;
 
   feed.replaceChildren();
-  messages.forEach((message) => feed.append(renderDirectMessage(message)));
+  renderDmTimeline(feed, messages);
   empty.hidden = messages.length > 0;
 
   const canMarkRead = markRead
@@ -6560,8 +6637,9 @@ function readMessageRoute(pathname = window.location.pathname) {
 
   try {
     const conversationId = decodeURIComponent(match[1]).toLowerCase();
+    const messageId = new URLSearchParams(window.location.search).get('message') || '';
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(conversationId)
-      ? { invalid: false, conversationId }
+      ? { invalid: false, conversationId, messageId: /^[1-9]\d{0,18}$/.test(messageId) ? messageId : '' }
       : { invalid: true, conversationId: '' };
   } catch {
     return { invalid: true, conversationId: '' };
@@ -6959,7 +7037,7 @@ async function refreshActiveConversationProfile() {
   renderMessageThreadProfile(data);
 }
 
-async function loadMessageThread(conversationId) {
+async function loadMessageThread(conversationId, notificationMessageId = '') {
   if (!currentMemberId || !conversationId) return;
   if (dmConversationRealtimeId && dmConversationRealtimeId !== conversationId) {
     await stopDmConversationRealtime();
@@ -7011,8 +7089,8 @@ async function loadMessageThread(conversationId) {
       .from('dm_messages')
       .select('id, conversation_id, sender_id, body, sent_at, deleted_at')
       .eq('conversation_id', conversation.id)
-      .order('sent_at', { ascending: true })
-      .order('id', { ascending: true })
+      .order('sent_at', { ascending: false })
+      .order('id', { ascending: false })
       .limit(200),
   ]);
 
@@ -7036,8 +7114,13 @@ async function loadMessageThread(conversationId) {
 
   renderMessageThreadProfile(peer);
 
-  const messages = messageResult.data || [];
-  messages.forEach((message) => feed.append(renderDirectMessage(message)));
+  let messages = (messageResult.data || []).reverse();
+  if (notificationMessageId && !messages.some((message) => String(message.id) === notificationMessageId)) {
+    const aroundTarget = await fetchDmNotificationWindow(conversation.id, notificationMessageId);
+    if (requestId !== messagesRequest) return;
+    if (aroundTarget) messages = aroundTarget;
+  }
+  renderDmTimeline(feed, messages);
   empty.hidden = messages.length > 0;
 
   byId('message-body').disabled = false;
@@ -7047,9 +7130,8 @@ async function loadMessageThread(conversationId) {
   await syncMessageThreadSafety(peer);
   void startDmConversationRealtime(conversation.id);
 
-  window.setTimeout(() => {
-    feed.scrollTop = feed.scrollHeight;
-  }, 0);
+  scrollToDmMessage(feed, messages.some((message) => String(message.id) === notificationMessageId)
+    ? notificationMessageId : '');
 }
 
 async function openDirectConversation(peerId, username = '') {
@@ -7137,7 +7219,6 @@ async function sendDirectMessage() {
     updateMessageComposerState();
     await broadcastDmTyping(false);
     await syncActiveMessageThreadRealtime({ markRead: false });
-    showToast('Message sent.');
   } catch (error) {
     const provider = String(error?.message || '');
     const copy = provider.includes('DM_RATE_LIMITED')
@@ -8413,7 +8494,7 @@ async function applyLocationRoute() {
       return;
     }
     if (messageRoute.conversationId) {
-      await loadMessageThread(messageRoute.conversationId);
+      await loadMessageThread(messageRoute.conversationId, messageRoute.messageId);
     } else {
       await loadMessagesInbox();
     }

@@ -38,6 +38,6 @@ test('dispatcher uses FCM HTTP v1 and safe Android routes', () => {
   assert.match(dispatcher, /firebase\.messaging/);
   assert.match(dispatcher, /channel_id: "sautilink_updates"/);
   assert.match(dispatcher, /`\/post\/\$\{postId\}`/);
-  assert.match(dispatcher, /`\/messages\/\$\{conversationId\}`/);
+  assert.match(dispatcher, /`\/messages\/\$\{conversationId\}\?message=\$\{sourceId\}`/);
   assert.match(dispatcher, /sent you a message\./);
 });

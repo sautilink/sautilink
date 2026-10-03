@@ -329,7 +329,7 @@ async function buildMessagePayload(sourceId: string, recipientId: string) {
   return {
     title: `New message from ${name}`,
     body: `${name} sent you a message.`,
-    route: `/messages/${conversationId}`,
+    route: `/messages/${conversationId}?message=${sourceId}`,
     type: "message",
     event: "",
     sourceId,

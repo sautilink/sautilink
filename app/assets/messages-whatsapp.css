@@ -651,6 +651,28 @@
   scrollbar-color: rgba(134, 150, 160, .35) transparent;
 }
 
+.messages-whatsapp-ui .dm-day-separator {
+  align-self: center;
+  margin: 12px 0;
+  padding: 5px 12px;
+  border-radius: 9px;
+  background: var(--wa-panel-soft);
+  color: var(--wa-muted);
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
+}
+
+.messages-whatsapp-ui .dm-message.dm-notification-target {
+  outline: 2px solid #b42d45;
+  outline-offset: 3px;
+  animation: dm-target-glow 2s ease-out 2;
+}
+
+@keyframes dm-target-glow {
+  50% { box-shadow: 0 0 0 8px rgba(180, 45, 69, .28); }
+}
+
 .messages-whatsapp-ui .dm-message {
   position: relative;
   display: grid;

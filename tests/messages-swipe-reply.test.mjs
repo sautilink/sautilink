@@ -18,8 +18,8 @@ test('reply targets are constrained to an existing message in the same conversat
 test('thread hydrates replies without a schema-cache-dependent embedded join and send retains its icon', async () => {
   const transformed = transformMessagesReplySource('/repo/src/app.js', await read('src/app.js'));
   assert.match(transformed, /async function hydrateDmReplyTargets/);
-  assert.match(transformed, /return hydrateDmReplyTargets\(conversationId, data \|\| \[\]\)/);
-  assert.match(transformed, /await hydrateDmReplyTargets\(conversation\.id, messageResult\.data \|\| \[\]\)/);
+  assert.match(transformed, /return hydrateDmReplyTargets\(conversationId, \(data \|\| \[\]\)\.reverse\(\)\)/);
+  assert.match(transformed, /await hydrateDmReplyTargets\(conversation\.id, messages\)/);
   assert.match(transformed, /\.eq\('conversation_id', conversationId\)\s*\.in\('id', missingIds\)/);
   assert.doesNotMatch(transformed, /reply:dm_messages!dm_messages_reply_to_message_id_fkey/);
   assert.match(transformed, /dataset\.replyDmMessage/);

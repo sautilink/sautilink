@@ -155,23 +155,28 @@ function renderDirectMessage(message) {
 
   output = replaceRequired(output,
     `  if (error) throw error;
-  return data || [];
+  return (data || []).reverse();
 }
 
-async function syncActiveMessageThreadRealtime`,
+function dmCalendarKey`,
     `  if (error) throw error;
-  return hydrateDmReplyTargets(conversationId, data || []);
+  return hydrateDmReplyTargets(conversationId, (data || []).reverse());
 }
 
-async function syncActiveMessageThreadRealtime`,
+function dmCalendarKey`,
     'realtime thread reply hydration');
 
   output = replaceRequired(output,
-    `  const messages = messageResult.data || [];
-  messages.forEach((message) => feed.append(renderDirectMessage(message)));`,
-    `  const messages = await hydrateDmReplyTargets(conversation.id, messageResult.data || []);
+    `    if (aroundTarget) messages = aroundTarget;
+  }
+  renderDmTimeline(feed, messages);
+  empty.hidden = messages.length > 0;`,
+    `    if (aroundTarget) messages = aroundTarget;
+  }
+  messages = await hydrateDmReplyTargets(conversation.id, messages);
   if (requestId !== messagesRequest) return;
-  messages.forEach((message) => feed.append(renderDirectMessage(message)));`,
+  renderDmTimeline(feed, messages);
+  empty.hidden = messages.length > 0;`,
     'initial thread reply hydration');
 
   const threadResetSource = `  empty.hidden = true;
