@@ -61,7 +61,23 @@ test('comment menus dismiss on scroll gestures and do not remain over the thread
 
   assert.match(source, /let openCommentMenuShell = null/);
   assert.match(source, /classList\.toggle\('comment-menu-open', opening\)/);
-  assert.match(source, /document\.addEventListener\('scroll', dismissCommentMenuOnViewportMove, \{ capture: true, passive: true \}\)/);
-  assert.match(source, /document\.addEventListener\('touchmove', dismissCommentMenuOnViewportMove, \{ capture: true, passive: true \}\)/);
-  assert.match(source, /document\.addEventListener\('wheel', dismissCommentMenuOnViewportMove, \{ capture: true, passive: true \}\)/);
+  assert.match(source, /if \(openCommentMenuShell\) closeCommentMenus\(\)/);
+  assert.match(source, /document\.addEventListener\('scroll', dismissTransientMenusOnScroll, \{ capture: true, passive: true \}\)/);
+  assert.match(source, /document\.addEventListener\('touchmove', dismissTransientMenusOnScroll, \{ capture: true, passive: true \}\)/);
+  assert.match(source, /document\.addEventListener\('wheel', dismissTransientMenusOnScroll, \{ capture: true, passive: true \}\)/);
+});
+
+test('scroll dismissal covers floating options across the app', async () => {
+  const source = await read('src/app.js');
+  const roomSource = await read('src/rooms-transient-surfaces.js');
+
+  assert.match(source, /dismissTransientMenusOnScroll\(\)[\s\S]*closeHomePostMenus\(\)/);
+  assert.match(source, /dismissTransientMenusOnScroll\(\)[\s\S]*closeRepostMenus\(\)/);
+  assert.match(source, /dismissTransientMenusOnScroll\(\)[\s\S]*profile-more-popover/);
+  assert.match(source, /dismissTransientMenusOnScroll\(\)[\s\S]*messages-wa-thread-menu\[open\]/);
+  assert.match(source, /dismissTransientMenusOnScroll\(\)[\s\S]*sauti-video-quality-menu/);
+  assert.match(source, /dismissTransientMenusOnScroll\(\)[\s\S]*professional-category-options/);
+  assert.match(roomSource, /addEventListener\('scroll', roomTransientHandleScroll, true\)/);
+  assert.match(roomSource, /addEventListener\('touchmove', roomTransientHandleScroll/);
+  assert.match(roomSource, /addEventListener\('wheel', roomTransientHandleScroll/);
 });
