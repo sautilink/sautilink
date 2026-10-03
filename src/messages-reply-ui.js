@@ -6,9 +6,13 @@ const messagesReplyBody = document.getElementById('message-body');
 
 const MESSAGE_REPLY_SWIPE_TRIGGER = 52;
 const MESSAGE_REPLY_SWIPE_MAX = 76;
+const MESSAGE_ACTION_HOLD_MS = 500;
 let messageReplyGesture = null;
 let messageReplyPreview = null;
 let messageReplyMutationTimer = 0;
+let messageActionHoldTimer = 0;
+let messageActionsOpenCard = null;
+let messageActionsOpenedAt = 0;
 
 function ensureMessagesReplyStyles() {
   if (document.querySelector('link[data-messages-reply-style]')) return;
@@ -112,6 +116,24 @@ function pointerTargetIsInteractive(target) {
   return target instanceof Element && Boolean(target.closest('button, a, input, textarea, audio, video, select, [contenteditable="true"]'));
 }
 
+function cancelMessageActionHold() {
+  window.clearTimeout(messageActionHoldTimer);
+  messageActionHoldTimer = 0;
+}
+
+function closeMessageActions() {
+  messageActionsOpenCard?.removeAttribute('data-dm-actions-open');
+  messageActionsOpenCard = null;
+}
+
+function openMessageActions(card) {
+  if (!(card instanceof Element) || card.classList.contains('deleted') || !card.querySelector('.dm-message-action')) return;
+  closeMessageActions();
+  card.dataset.dmActionsOpen = 'true';
+  messageActionsOpenCard = card;
+  messageActionsOpenedAt = Date.now();
+}
+
 function startReplySwipe(event) {
   if (!messagesReplyFeed || messagesReplyThread?.hidden) return;
   if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -127,6 +149,13 @@ function startReplySwipe(event) {
     deltaX: 0,
     swiping: false,
   };
+  cancelMessageActionHold();
+  messageActionHoldTimer = window.setTimeout(() => {
+    if (messageReplyGesture?.pointerId === event.pointerId && !messageReplyGesture.swiping && card.isConnected) {
+      openMessageActions(card);
+    }
+    messageActionHoldTimer = 0;
+  }, MESSAGE_ACTION_HOLD_MS);
 }
 
 function moveReplySwipe(event) {
@@ -135,6 +164,7 @@ function moveReplySwipe(event) {
   const dx = event.clientX - gesture.startX;
   const dy = event.clientY - gesture.startY;
   gesture.deltaX = dx;
+  if (Math.abs(dx) >= 9 || Math.abs(dy) >= 9) cancelMessageActionHold();
 
   if (!gesture.swiping) {
     if (Math.abs(dx) < 9 && Math.abs(dy) < 9) return;
@@ -156,17 +186,24 @@ function moveReplySwipe(event) {
 function finishReplySwipe(event, cancelled = false) {
   const gesture = messageReplyGesture;
   if (!gesture || event.pointerId !== gesture.pointerId) return;
+  cancelMessageActionHold();
   messageReplyGesture = null;
   const shouldReply = !cancelled
     && gesture.swiping
     && gesture.deltaX <= -MESSAGE_REPLY_SWIPE_TRIGGER;
   resetReplySwipe(gesture.card);
-  if (shouldReply) setMessageReply(gesture.card);
+  if (shouldReply) {
+    closeMessageActions();
+    setMessageReply(gesture.card);
+  }
 }
 
 function handleReplyAction(event) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
+
+  if (target.closest('.dm-message-action')) closeMessageActions();
+  else if (messageActionsOpenCard && Date.now() - messageActionsOpenedAt > 650) closeMessageActions();
 
   const reply = target.closest('[data-reply-dm-message]');
   if (reply) {
@@ -191,6 +228,12 @@ function handleReplyAction(event) {
 function reconcileReplyAfterThreadRender() {
   window.clearTimeout(messageReplyMutationTimer);
   messageReplyMutationTimer = window.setTimeout(() => {
+    if (messageActionsOpenCard && !messageActionsOpenCard.isConnected) closeMessageActions();
+    messagesReplyFeed?.querySelectorAll('.dm-message[data-message-id]:not([tabindex])')
+      .forEach((card) => {
+        card.tabIndex = 0;
+        card.setAttribute('aria-keyshortcuts', 'Shift+F10 Enter');
+      });
     const activeId = String(messagesReplyComposer?.dataset.replyToMessageId || '');
     if (!activeId || !messagesReplyFeed || messagesReplyThread?.hidden) return;
     const target = messagesReplyFeed.querySelector(`[data-message-id="${CSS.escape(activeId)}"]`);
@@ -217,6 +260,30 @@ function initializeMessagesReplyUi() {
   messagesReplyFeed.addEventListener('pointerup', (event) => finishReplySwipe(event, false));
   messagesReplyFeed.addEventListener('pointercancel', (event) => finishReplySwipe(event, true));
   messagesReplyFeed.addEventListener('click', handleReplyAction);
+  messagesReplyFeed.addEventListener('contextmenu', (event) => {
+    const card = event.target instanceof Element ? event.target.closest('.dm-message[data-message-id]') : null;
+    if (!card || pointerTargetIsInteractive(event.target)) return;
+    event.preventDefault();
+    cancelMessageActionHold();
+    openMessageActions(card);
+  });
+  messagesReplyFeed.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && messageActionsOpenCard) {
+      const card = messageActionsOpenCard;
+      closeMessageActions();
+      card.focus({ preventScroll: true });
+      return;
+    }
+    if (!['Enter', ' ', 'F10'].includes(event.key) || (event.key === 'F10' && !event.shiftKey)) return;
+    const card = event.target instanceof Element ? event.target.closest('.dm-message[data-message-id]') : null;
+    if (!card || event.target !== card) return;
+    event.preventDefault();
+    openMessageActions(card);
+  });
+  messagesReplyFeed.addEventListener('scroll', closeMessageActions, { passive: true });
+  document.addEventListener('pointerdown', (event) => {
+    if (messageActionsOpenCard && !messageActionsOpenCard.contains(event.target)) closeMessageActions();
+  });
 
   new MutationObserver(reconcileReplyAfterThreadRender).observe(messagesReplyFeed, {
     childList: true,
@@ -224,7 +291,11 @@ function initializeMessagesReplyUi() {
   });
 
   const onVisibilityChange = () => {
-    if (messagesReplySurface.hidden || messagesReplyThread?.hidden) clearMessageReply();
+    if (messagesReplySurface.hidden || messagesReplyThread?.hidden) {
+      clearMessageReply();
+      closeMessageActions();
+      cancelMessageActionHold();
+    }
     clearReplyForMediaCompose();
   };
   const visibilityObserver = new MutationObserver(onVisibilityChange);
@@ -237,7 +308,10 @@ function initializeMessagesReplyUi() {
     if (element) visibilityObserver.observe(element, { attributes: true, attributeFilter: ['hidden'] });
   }
 
-  window.addEventListener('popstate', () => clearMessageReply());
+  window.addEventListener('popstate', () => {
+    clearMessageReply();
+    closeMessageActions();
+  });
 }
 
 window.__sautilinkClearMessageReply = clearMessageReply;
