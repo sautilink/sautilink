@@ -33,7 +33,7 @@ function stamp(input) {
   });
 }
 
-for (const path of [appHtmlPath, appJsPath]) {
+for (const path of [appHtmlPath, appJsPath, resolve(assetRoot, 'post-edit.js')]) {
   const source = await readFile(path, 'utf8');
   await writeFile(path, stamp(source));
 }

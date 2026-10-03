@@ -232,6 +232,16 @@ await build({
   logLevel: 'info',
 });
 
+await build({
+  entryPoints: [resolve(workerSource, 'post-edit.js')],
+  outfile: resolve(siteRoot, 'app/assets/post-edit.js'),
+  bundle: true,
+  minify: true,
+  format: 'esm',
+  target: 'es2022',
+  sourcemap: false,
+});
+
 const productionHeaders = `/app/*
   Cache-Control: no-store, max-age=0
   Content-Security-Policy: default-src 'self'; connect-src 'self' wss://sautilink.com wss://www.sautilink.com ${PRODUCTION_URL} wss://${PRODUCTION_REF}.supabase.co; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests

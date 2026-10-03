@@ -3536,6 +3536,7 @@ function homePostMenuItem(action, label, { danger = false, active = false } = {}
 }
 
 function createHomePostHeadActions(item, post, username) {
+  if (post.author_id === currentMemberId && !post.parent_post_id) void loadPostEditor();
   const controls = document.createElement('div');
   controls.className = 'sauti-card-head-actions';
 
@@ -3586,6 +3587,15 @@ function createHomePostHeadActions(item, post, username) {
   controls.append(menuShell);
   return controls;
 }
+
+let postEditorPromise = null;
+function loadPostEditor() {
+  if (!currentMemberId) return Promise.resolve();
+  postEditorPromise ||= import(new URL('/app/assets/post-edit.js?v=20261003-caption1', window.location.origin).href)
+    .catch(() => { postEditorPromise = null; });
+  return postEditorPromise;
+}
+window.__sautilinkLoadPostEditor = loadPostEditor;
 
 function commentActionIcon(action) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
