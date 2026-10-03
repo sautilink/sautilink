@@ -65,10 +65,11 @@ test('post editor implementation remains author-scoped and text-only while start
   assert.match(css, /\.sauti-head-menu-item\[data-post-edit\]:disabled/);
 });
 
-test('post editor is a separate asset loaded for author cards after app startup', async () => {
-  const [builder, productionBuilder, packageJson, app, profile] = await Promise.all([
+test('post editor is a separate production asset loaded for author cards after app startup', async () => {
+  const [builder, productionBuilder, previewBuilder, packageJson, app, profile] = await Promise.all([
     read('scripts/build-app.mjs'),
     read('scripts/build-production-release.mjs'),
+    read('scripts/stage-preview-site.mjs'),
     read('package.json'),
     read('src/app.js'),
     read('src/profile-activity.js'),
@@ -80,6 +81,7 @@ test('post editor is a separate asset loaded for author cards after app startup'
   assert.match(app, /post\.author_id === currentMemberId && !post\.parent_post_id\) void loadPostEditor\(\)/);
   assert.match(app, /import\(new URL\('\/app\/assets\/post-edit\.js\?v=/);
   assert.match(profile, /__sautilinkLoadPostEditor\?\.\(\)/);
+  assert.match(previewBuilder, /rm\(resolve\(stageRoot, 'app\/assets\/post-edit\.js'\), \{ force: true \}\)/);
 });
 
 test('captionless own posts show disabled Edit; posts with a caption can open it', async () => {

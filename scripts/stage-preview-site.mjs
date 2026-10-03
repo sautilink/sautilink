@@ -53,6 +53,9 @@ for (const [source, destination] of copies) {
   await cp(resolve(projectRoot, source), destinationPath, { recursive: true });
 }
 
+// The post editor targets authenticated production posts, not seeded previews.
+await rm(resolve(stageRoot, 'app/assets/post-edit.js'), { force: true });
+
 await writeFile(resolve(stageRoot, '_headers'), stagingHeaders);
 
 const developmentCss = `
