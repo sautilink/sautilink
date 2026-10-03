@@ -176,7 +176,7 @@ appHtml = appHtml
   .replace("img-src 'self' data: blob:; script-src", "img-src 'self' data: blob:; media-src 'self' blob:; script-src")
   .replace(
     /app\.js\?v=[^"']+/g,
-    `app.js?v=${APP_JS_RELEASE}&feature=${APP_JS_FEATURE_RELEASE}&birthdate=${APP_JS_BIRTH_DATE_RELEASE}&signup=20261003-phone2&messages=20261003-search1&thread=20261003-thread1`,
+    `app.js?v=${APP_JS_RELEASE}&feature=${APP_JS_FEATURE_RELEASE}&birthdate=${APP_JS_BIRTH_DATE_RELEASE}&signup=20261003-phone2&messages=20261003-search1&thread=20261003-thread1&profile=20261003-actions1`,
   );
 appHtml = wireProductionPwa(appHtml);
 await writeFile(appHtmlPath, appHtml);
