@@ -1569,7 +1569,7 @@ function verificationRequestEmailBody() {
     '',
     'Consent: I agree to the SautiLink Privacy Policy and Terms.',
     'Government ID: Not attached or requested through this form.',
-  ].join('\n');
+  ].join('\r\n');
 }
 
 function submitVerificationRequest(event) {
