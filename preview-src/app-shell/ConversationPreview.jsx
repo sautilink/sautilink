@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { useDismissOnScroll } from './useDismissOnScroll.js';
 import {
   ArrowLeft,
   BadgeCheck,
@@ -125,6 +126,7 @@ export default function ConversationPreview({
   const [hiddenShown, setHiddenShown] = useState(false);
   const [reshared, setReshared] = useState(false);
   const [reshareMenuOpen, setReshareMenuOpen] = useState(false);
+  useDismissOnScroll(reshareMenuOpen, () => setReshareMenuOpen(false));
 
   const visibleReplies = useMemo(() => {
     if (sort === 'newest') return [...replies].reverse();

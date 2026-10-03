@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useDismissOnScroll } from './useDismissOnScroll.js';
 import {
   AlertCircle,
   BadgeCheck,
@@ -357,6 +358,7 @@ function MessagesScreen({ conversations, onSend, onMarkRead, onBlock, onReport, 
   const [activeId, setActiveId] = useState(null);
   const [draft, setDraft] = useState('');
   const [actionsOpen, setActionsOpen] = useState(false);
+  useDismissOnScroll(actionsOpen, () => setActionsOpen(false));
   const normalizedQuery = query.trim().toLowerCase();
   const visibleConversations = conversations.filter(({ participant, lastMessage }) => (
     `${participant.name} ${participant.handle} ${lastMessage}`.toLowerCase().includes(normalizedQuery)
@@ -575,6 +577,7 @@ function SavedScreen({ saved, liked, onLike, onSave, onOpenMedia, onOpenThread, 
 function ProfileScreen({ member, viewMode, onViewModeChange, following, onFollow, liked, saved, onLike, onSave, onOpenMedia, onOpenThread, onEdit, onPreviewAction }) {
   const [tab, setTab] = useState('sauti');
   const [controlsOpen, setControlsOpen] = useState(false);
+  useDismissOnScroll(controlsOpen, () => setControlsOpen(false));
   const viewedMember = viewMode === 'public' ? publicMember : member;
   const isOwner = viewMode === 'owner';
 
