@@ -181,6 +181,8 @@ function installRoomTransientSurfaceFix() {
   document.addEventListener('pointerdown', roomTransientHandlePointerDown, true);
   document.addEventListener('click', roomTransientHandleClick);
   document.addEventListener('scroll', roomTransientHandleScroll, true);
+  document.addEventListener('touchmove', roomTransientHandleScroll, { capture: true, passive: true });
+  document.addEventListener('wheel', roomTransientHandleScroll, { capture: true, passive: true });
   document.addEventListener('keydown', roomTransientHandleKeydown);
   window.addEventListener('resize', roomTransientHandleResize, { passive: true });
   window.addEventListener('orientationchange', roomTransientHandleResize, { passive: true });

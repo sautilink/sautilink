@@ -1569,7 +1569,7 @@ function verificationRequestEmailBody() {
     '',
     'Consent: I agree to the SautiLink Privacy Policy and Terms.',
     'Government ID: Not attached or requested through this form.',
-  ].join('\r\n');
+  ].join('\n');
 }
 
 function submitVerificationRequest(event) {
@@ -4787,7 +4787,33 @@ function toggleHomePostMenu(card) {
   closeHomePostMenus(menu);
   menu.hidden = !willOpen;
   toggle.setAttribute('aria-expanded', String(willOpen));
-  if (willOpen) menu.querySelector('[role="menuitem"]')?.focus();
+  if (willOpen) menu.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
+}
+
+function dismissTransientMenusOnScroll() {
+  if (document.querySelector('[data-home-post-menu-toggle][aria-expanded="true"]')) closeHomePostMenus();
+  if (openCommentMenuShell) closeCommentMenus();
+  if (document.querySelector('.sauti-repost-menu:not([hidden])')) closeRepostMenus();
+
+  const profilePopover = byId('profile-more-popover');
+  if (profilePopover && !profilePopover.hidden) {
+    profilePopover.hidden = true;
+    byId('profile-more-button')?.setAttribute('aria-expanded', 'false');
+  }
+
+  document.querySelectorAll('.messages-wa-thread-menu[open]').forEach((menu) => {
+    menu.open = false;
+  });
+  document.querySelectorAll('.sauti-video-quality-menu:not([hidden])').forEach((menu) => {
+    menu.hidden = true;
+    menu.closest('.sauti-video-quality')?.setAttribute('aria-expanded', 'false');
+  });
+
+  const categoryOptions = byId('professional-category-options');
+  if (categoryOptions && !categoryOptions.hidden) {
+    categoryOptions.hidden = true;
+    byId('professional-category-search')?.setAttribute('aria-expanded', 'false');
+  }
 }
 
 function setHomeAuthorInterestState(authorId, interested) {
@@ -10406,17 +10432,14 @@ for (const feedId of ['stream-feed', 'circle-stream-feed', 'discover-sauti-feed'
   byId(feedId).addEventListener('submit', handleSautiFeedSubmit);
 }
 byId('stream-feed').addEventListener('pointerup', handleHomeFeedPointerUp);
-byId('stream-feed').addEventListener('scroll', () => closeHomePostMenus(), { passive: true });
 document.addEventListener('click', (event) => {
   if (!event.target.closest('[data-home-post-menu]')) closeHomePostMenus();
   if (!event.target.closest('[data-comment-menu]')) closeCommentMenus();
 });
-const dismissCommentMenuOnViewportMove = () => {
-  if (openCommentMenuShell) closeCommentMenus();
-};
-document.addEventListener('scroll', dismissCommentMenuOnViewportMove, { capture: true, passive: true });
-document.addEventListener('touchmove', dismissCommentMenuOnViewportMove, { capture: true, passive: true });
-document.addEventListener('wheel', dismissCommentMenuOnViewportMove, { capture: true, passive: true });
+document.addEventListener('scroll', dismissTransientMenusOnScroll, { capture: true, passive: true });
+window.addEventListener('scroll', dismissTransientMenusOnScroll, { passive: true });
+document.addEventListener('touchmove', dismissTransientMenusOnScroll, { capture: true, passive: true });
+document.addEventListener('wheel', dismissTransientMenusOnScroll, { capture: true, passive: true });
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
   const openToggle = document.querySelector(
