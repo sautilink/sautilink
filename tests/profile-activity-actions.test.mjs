@@ -39,7 +39,7 @@ function harness(fetch) {
     setProfileActivityStatus: (...args) => statuses.push(args),
     URLSearchParams,
   };
-  runInNewContext(`${actions}\nthis.actions = { toggleProfileActivityMetric, submitProfileActivityComment };`, context);
+  runInNewContext(`${actions}\nthis.actions = { toggleProfileActivityMetric };`, context);
   return { ...context.actions, button, card, count, statuses };
 }
 
@@ -64,32 +64,23 @@ test('profile Like toggles in place, sends the authenticated action and rolls ba
   assert.equal(statuses.at(-1)[0], 'Try later');
 });
 
-test('inline comment submission keeps a failed draft and reuses its idempotency key on retry', async () => {
-  const requests = [];
-  let fail = true;
-  const { submitProfileActivityComment, card, count } = harness(async (path, options) => {
-    requests.push({ path, body: JSON.parse(options.body) });
-    return { ok: !fail, json: async () => fail ? { error: { message: 'Try later' } } : { ok: true } };
-  });
-  const textarea = { value: 'Hello!' };
-  const submit = { disabled: false };
-  const form = {
-    dataset: {},
-    elements: { body: textarea },
-    closest: () => card,
-    querySelector: () => submit,
-  };
-  await submitProfileActivityComment(form);
-  assert.equal(textarea.value, 'Hello!');
-  assert.equal(count.textContent, '1');
-  assert.equal(form.dataset.requestId, 'request-id');
-  assert.equal(submit.disabled, false);
+test('profile card opens the full post and its comment action opens the conversation', async () => {
+  const navigation = source.slice(source.indexOf('function profileActivityPostPath('), source.indexOf('function createProfileActivityMetric('));
+  const destinations = [];
+  const context = { window: { location: { assign: (path) => destinations.push(path) } }, encodeURIComponent };
+  runInNewContext(`${navigation}\nthis.navigateProfileActivityCard = navigateProfileActivityCard;`, context);
+  const card = { dataset: { postId: 'sample-id' } };
 
-  fail = false;
-  await submitProfileActivityComment(form);
-  assert.equal(textarea.value, '');
-  assert.equal(form.dataset.requestId, undefined);
-  assert.equal(count.textContent, '2');
-  assert.equal(requests[1].path, '/api/social/posts/post-id/comments');
-  assert.equal(requests[0].body.client_request_id, requests[1].body.client_request_id);
+  context.navigateProfileActivityCard(card);
+  context.navigateProfileActivityCard(card, { comments: true });
+  assert.deepEqual(destinations, ['/post/sample-id?view=post', '/post/sample-id']);
+  assert.match(source, /kind === 'reply'\) navigateProfileActivityCard\(card, \{ comments: true \}\)/);
+  assert.doesNotMatch(source, /toggleProfileActivityComments\(/);
+});
+
+test('rounded reactions layer is scoped to profile cards with usable touch targets', async () => {
+  const css = await readFile(new URL('../app/assets/profile-activity.css', import.meta.url), 'utf8');
+  assert.match(css, /\.profile-activity-metrics\s*\{[^}]*border-radius: 28px/s);
+  assert.match(css, /\.profile-activity-metric\s*\{[^}]*min-height: 40px/s);
+  assert.match(css, /\.profile-activity-metric\[hidden\] \{ display: none; \}/);
 });
