@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { notificationPostDestination } from './notification-destinations.js';
+import { normalizeOtpPhone, otpPhoneError } from './phone-number-validation.js';
 import {
   displayNameError,
   emailError,
@@ -86,8 +87,7 @@ const PENDING_SIGNUP_STORAGE_KEY = 'sautilink.auth.pending_signup';
 const SIGNUP_PHONE_CHANGE_KEY = 'sautilink.auth.signup_phone_change';
 
 function normalizeSignupPhone(value) {
-  const phone = String(value || '').trim().replace(/[\s()-]/g, '');
-  return /^\+[1-9]\d{7,14}$/.test(phone) ? phone : '';
+  return normalizeOtpPhone(value);
 }
 
 function normalizeSignupCode(value) {
@@ -9319,7 +9319,7 @@ byId('signup-form').addEventListener('submit', async (event) => {
   if (invalidEmail) return setMessage(message, invalidEmail);
   if (invalidPassword) return setMessage(message, invalidPassword);
   if (form.passwordConfirm.value !== password) return setMessage(message, 'Passwords do not match.');
-  if (!phone) return setMessage(message, 'Enter your phone number with a + country code, for example +2557XXXXXXXX.');
+  if (!phone) return setMessage(message, otpPhoneError(form.phone.value));
   if (!form.termsConsent.checked) return setMessage(message, 'Read and agree to the Terms of Service before creating an account.');
 
   setBusy(submit, true, 'Creating account…');
@@ -9427,7 +9427,7 @@ byId('signup-phone-form').addEventListener('submit', async (event) => {
   const phone = normalizeSignupPhone(form.phone.value);
   const channel = signupPhoneMethod(byId('signup-phone-method').value);
   setMessage(message, '', '');
-  if (!phone) return setMessage(message, 'Enter a valid phone number including the + country code.');
+  if (!phone) return setMessage(message, otpPhoneError(form.phone.value));
 
   setBusy(submit, true, 'Sending code…');
   try {
@@ -9445,7 +9445,10 @@ byId('signup-phone-form').addEventListener('submit', async (event) => {
     setMessage(message, `Code requested by ${channel === 'whatsapp' ? 'WhatsApp' : 'SMS'}. Enter the latest code below.`, 'success');
     byId('signup-phone-code').focus();
   } catch (error) {
-    setMessage(message, error?.message || 'We could not send a verification code. Try again.');
+    const deliveryFailed = /unexpected status code returned from hook|sms_send_failed|phone_delivery_failed/i.test(`${error?.message || ''} ${error?.code || ''}`);
+    setMessage(message, deliveryFailed
+      ? `We could not send the ${channel === 'sms' ? 'SMS' : 'WhatsApp'} code. Check the number and try again${channel === 'sms' ? ', or choose WhatsApp' : ', or choose SMS'}.`
+      : error?.message || 'We could not send a verification code. Try again.');
   } finally {
     setBusy(submit, false, '');
   }
