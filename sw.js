@@ -1,4 +1,4 @@
-const CACHE_NAME = "sautilink-shell-v93";
+const CACHE_NAME = "sautilink-shell-v94";
 const APP_RELEASE = "20260930-swala-otp2";
 const APP_CSS_RELEASE = "20260927-page-headers1";
 const APP_FEATURE_RELEASE = "20260918-signup2";
@@ -12,7 +12,7 @@ const APP_SHELL = [
   "/",
   "/app/",
   `/app/assets/app.css?v=${APP_CSS_RELEASE}`,
-  `/app/assets/app.js?v=${APP_RELEASE}&feature=${APP_FEATURE_RELEASE}&signup=20261002-wa1&messages=20261003-search1&thread=20261003-thread1`,
+  `/app/assets/app.js?v=${APP_RELEASE}&feature=${APP_FEATURE_RELEASE}&signup=20261003-phone2&messages=20261003-search1&thread=20261003-thread1`,
   "/app/assets/profile-x-ui.css?v=20260918-profile2",
   "/app/assets/profile-settings-ui.css?v=20260927-page-headers1",
   "/app/assets/theme-init.js?v=20260904-account2",
