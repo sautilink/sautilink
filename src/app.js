@@ -217,6 +217,8 @@ let homeDoubleTapState = { card: null, target: null, time: 0 };
 let notificationsRequest = 0;
 let notificationUnreadCount = 0;
 let messagesRequest = 0;
+let messagesSearchRequest = 0;
+let messagesSearchTimer = null;
 let messageUnreadCount = 0;
 let activeConversation = null;
 let dmInboxRealtimeChannel = null;
@@ -6613,8 +6615,61 @@ async function refreshMessageBadge() {
 
 function filterMessageInbox() {
   const query = String(byId('messages-search').value || '').trim().toLowerCase();
-  byId('messages-inbox-list').querySelectorAll('[data-message-search]').forEach((item) => {
+  const list = byId('messages-inbox-list');
+  const requestId = ++messagesSearchRequest;
+  window.clearTimeout(messagesSearchTimer);
+  list.querySelectorAll('[data-message-account-id]').forEach((item) => item.remove());
+  list.querySelectorAll('[data-conversation-id]').forEach((item) => {
     item.hidden = Boolean(query) && !item.dataset.messageSearch.includes(query);
+  });
+  byId('messages-empty').hidden = Boolean(query) || Boolean(list.querySelector('[data-conversation-id]'));
+
+  const accountQuery = query.replace(/^@/, '').trim();
+  if (accountQuery.length < 2 || !currentMemberId) return;
+  const inboxRequest = messagesRequest;
+  messagesSearchTimer = window.setTimeout(() => {
+    void searchMessageAccounts(accountQuery, requestId, inboxRequest);
+  }, 250);
+}
+
+async function searchMessageAccounts(query, requestId, inboxRequest) {
+  const pattern = `%${query.replace(/[\\%_]/g, '\\$&')}%`;
+  const profileSelect = 'id, username, display_name, avatar_key, updated_at, is_verified, verification_badge_type';
+  let usernameResult;
+  let nameResult;
+  try {
+    [usernameResult, nameResult] = await Promise.all([
+      supabase.from('social_profiles').select(profileSelect)
+        .eq('is_discoverable', true).neq('id', currentMemberId)
+        .ilike('username', pattern).order('username').limit(12),
+      supabase.from('social_profiles').select(profileSelect)
+        .eq('is_discoverable', true).neq('id', currentMemberId)
+        .ilike('display_name', pattern).order('username').limit(12),
+    ]);
+  } catch {
+    return;
+  }
+
+  if (requestId !== messagesSearchRequest || inboxRequest !== messagesRequest
+      || byId('messages-inbox').hidden || !currentMemberId) return;
+  if (usernameResult.error || nameResult.error) return;
+
+  const list = byId('messages-inbox-list');
+  const knownPeers = new Set([...list.querySelectorAll('[data-conversation-id]')]
+    .map((item) => item.dataset.peerId));
+  const matches = new Map();
+  [...(usernameResult.data || []), ...(nameResult.data || [])].forEach((peer) => {
+    if (peer?.id && peer.id !== currentMemberId && !knownPeers.has(peer.id) && !matches.has(peer.id)) {
+      matches.set(peer.id, peer);
+    }
+  });
+  [...matches.values()].slice(0, 12).forEach((peer) => {
+    const item = renderMessageInboxItem({ peer_id: peer.id, latest_body: 'Start a conversation' }, peer);
+    delete item.dataset.conversationId;
+    item.dataset.messageAccountId = peer.id;
+    item.dataset.username = peer.username;
+    item.querySelector('time')?.remove();
+    list.append(item);
   });
 }
 
@@ -6623,6 +6678,7 @@ function renderMessageInboxItem(row, peer) {
   item.type = 'button';
   item.className = `message-inbox-item${Number(row.effective_unread_count || 0) > 0 ? ' unread' : ''}${row.muted_by_you ? ' muted' : ''}`;
   item.dataset.conversationId = row.conversation_id;
+  item.dataset.peerId = row.peer_id;
 
   const displayName = peer?.display_name || peer?.username || 'SautiLink member';
   const username = peer?.username ? `@${peer.username}` : 'Private conversation';
@@ -8938,6 +8994,13 @@ byId('message-new-form').addEventListener('submit', (event) => {
 byId('messages-search').addEventListener('input', filterMessageInbox);
 byId('messages-retry').addEventListener('click', () => loadMessagesInbox());
 byId('messages-inbox-list').addEventListener('click', (event) => {
+  const account = event.target.closest('[data-message-account-id]');
+  if (account) {
+    account.disabled = true;
+    void openDirectConversation(account.dataset.messageAccountId, account.dataset.username)
+      .finally(() => { account.disabled = false; });
+    return;
+  }
   const item = event.target.closest('[data-conversation-id]');
   if (!item) return;
   const conversationId = item.dataset.conversationId;
