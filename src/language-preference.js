@@ -613,7 +613,6 @@ function applyTree(root, language) {
 function languagePanelMarkup() {
   return `
     <div class="settings-panel-heading">
-      <p class="section-label">Language preference</p>
       <h3>Language</h3>
       <p>Choose the language SautiLink uses for menus, settings and system messages.</p>
     </div>
