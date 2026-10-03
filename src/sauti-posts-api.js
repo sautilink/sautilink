@@ -269,6 +269,9 @@ async function editSauti(request, postId) {
     if (detail.includes('POST_ALREADY_EDITED')) {
       return apiError(409, 'POST_ALREADY_EDITED', 'This post has already used its one edit.');
     }
+    if (detail.includes('POST_EDIT_CAPTION_REQUIRED')) {
+      return apiError(409, 'POST_EDIT_CAPTION_REQUIRED', 'This post has no caption to edit.');
+    }
     if (detail.includes('POST_EDIT_BODY_TOO_LONG')) {
       return apiError(400, 'BODY_TOO_LONG', 'Post text must be 500 characters or fewer.');
     }

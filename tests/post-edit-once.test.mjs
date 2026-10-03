@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { runInNewContext } from 'node:vm';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -29,8 +30,19 @@ test('PATCH edit API accepts text only and delegates to the atomic RPC', async (
   assert.match(edit, /keys\.length !== 1 \|\| keys\[0\] !== 'body'/);
   assert.match(edit, /rpc\/edit_social_post_once/);
   assert.match(edit, /POST_ALREADY_EDITED/);
+  assert.match(edit, /POST_EDIT_CAPTION_REQUIRED/);
   assert.doesNotMatch(edit, /social_post_media/);
   assert.doesNotMatch(edit, /SAUTI_MEDIA/);
+});
+
+test('database refuses edits when the original post has no caption or is a reply', async () => {
+  const migration = await read('supabase/migrations/20261003162634_restrict_post_edits_to_existing_captions.sql');
+  assert.match(migration, /v_post\.author_id <> v_user_id/);
+  assert.match(migration, /v_post\.parent_post_id is not null/);
+  assert.match(migration, /btrim\(coalesce\(v_post\.body, ''\)\) = ''/);
+  assert.match(migration, /POST_EDIT_CAPTION_REQUIRED/);
+  assert.match(migration, /v_post\.edit_count >= 1/);
+  assert.match(migration, /set\s+body = v_body/);
 });
 
 test('post editor implementation remains author-scoped and text-only while startup hotfix isolates it', async () => {
@@ -48,18 +60,42 @@ test('post editor implementation remains author-scoped and text-only while start
   assert.doesNotMatch(ui, /location\.reload/);
   assert.doesNotMatch(ui, /sauti-media\/upload/);
   assert.match(css, /\.post-edit-dialog/);
+  assert.match(ui, /button\.disabled = !hasCaption/);
+  assert.match(ui, /metadata\.parent_post_id/);
+  assert.match(css, /\.sauti-head-menu-item\[data-post-edit\]:disabled/);
 });
 
-test('post editor is not globally injected into startup bundles during bootstrap hotfix', async () => {
-  const [builder, productionBuilder, packageJson] = await Promise.all([
+test('post editor is a separate asset loaded for author cards after app startup', async () => {
+  const [builder, productionBuilder, packageJson, app, profile] = await Promise.all([
     read('scripts/build-app.mjs'),
     read('scripts/build-production-release.mjs'),
     read('package.json'),
+    read('src/app.js'),
+    read('src/profile-activity.js'),
   ]);
 
-  assert.doesNotMatch(builder, /src\/post-edit\.js/);
-  assert.doesNotMatch(productionBuilder, /resolve\(workerSource, 'post-edit\.js'\)/);
+  assert.match(builder, /entryPoints: \[resolve\(projectRoot, 'src\/post-edit\.js'\)\]/);
+  assert.match(productionBuilder, /entryPoints: \[resolve\(workerSource, 'post-edit\.js'\)\]/);
   assert.doesNotMatch(packageJson, /--inject:\.\/src\/post-edit\.js/);
+  assert.match(app, /post\.author_id === currentMemberId && !post\.parent_post_id\) void loadPostEditor\(\)/);
+  assert.match(app, /import\(new URL\('\/app\/assets\/post-edit\.js\?v=/);
+  assert.match(profile, /__sautilinkLoadPostEditor\?\.\(\)/);
+});
+
+test('captionless own posts show disabled Edit; posts with a caption can open it', async () => {
+  const ui = await read('src/post-edit.js');
+  const source = ui.match(/function createPostEditMenuButton\([\s\S]*?\n}\n\nfunction decorateEditableCard/)?.[0]
+    .replace(/\n\nfunction decorateEditableCard$/, '');
+  assert.ok(source);
+  const buttons = runInNewContext(`${source}\n({ menu: createPostEditMenuButton, inline: createPostEditInlineButton })`, {
+    document: { createElement: () => ({ dataset: {}, children: [], append(child) { this.children.push(child); }, setAttribute() {} }) },
+  });
+  for (const type of ['menu', 'inline']) {
+    assert.equal(buttons[type]('post-id', false).disabled, true);
+    assert.equal(buttons[type]('post-id', true).disabled, false);
+  }
+  assert.match(ui, /const hasCaption = Boolean\(String\(metadata\.body \|\| ''\)\.trim\(\)\)/);
+  assert.match(ui, /metadata\.parent_post_id\) return/);
 });
 
 test('Home stream position remains based on created_at rather than edit timestamps', async () => {

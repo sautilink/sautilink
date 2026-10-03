@@ -388,6 +388,8 @@ function createProfileActivityMedia(mediaRows, requestId) {
 }
 
 function createProfileActivityCard(item, { pinned = false, allowPin = false, requestId = profileActivityFeedRequest } = {}) {
+  if (profileActivityState?.owner && item?.author_id === profileActivityState?.profile?.id
+    && !item?.parent_post_id) void window.__sautilinkLoadPostEditor?.();
   const author = item?.author || {};
   const username = String(author.username || 'member');
   const displayName = String(author.display_name || username || 'SautiLink member');

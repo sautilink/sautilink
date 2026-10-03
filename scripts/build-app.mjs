@@ -152,3 +152,13 @@ await build({
   sourcemap: false,
   logLevel: 'info',
 });
+
+await build({
+  entryPoints: [resolve(projectRoot, 'src/post-edit.js')],
+  outfile: resolve(projectRoot, 'app/assets/post-edit.js'),
+  bundle: true,
+  minify: true,
+  format: 'esm',
+  target: 'es2022',
+  sourcemap: false,
+});

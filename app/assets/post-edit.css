@@ -136,6 +136,16 @@
 
 .sauti-edit:hover { color: var(--app-text); }
 
+.sauti-head-menu-item[data-post-edit]:disabled,
+.sauti-head-menu-item[data-post-edit]:disabled:hover,
+.sauti-edit:disabled,
+.sauti-edit:disabled:hover {
+  color: var(--app-muted);
+  opacity: .48;
+  cursor: not-allowed;
+  background: transparent;
+}
+
 .sauti-edited-label {
   color: var(--app-muted);
   font-size: 10px;

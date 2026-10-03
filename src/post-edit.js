@@ -1,7 +1,7 @@
 const POST_EDIT_SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const POST_EDIT_SUPABASE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
 const POST_EDIT_AUTH_KEY = 'sautilink.auth.session';
-const POST_EDIT_STYLESHEET = '/app/assets/post-edit.css?v=20260909-edit1';
+const POST_EDIT_STYLESHEET = '/app/assets/post-edit.css?v=20261003-caption1';
 const POST_EDIT_LIMIT = 500;
 
 let postEditUserPromise = null;
@@ -142,7 +142,8 @@ function postEditBodyFromCard(card) {
 
 function openPostEdit(postId, sourceCard) {
   const metadata = postEditMeta.get(postId);
-  if (!metadata || Number(metadata.edit_count || 0) >= 1) return;
+  if (!metadata || metadata.parent_post_id || !String(metadata.body || '').trim()
+    || Number(metadata.edit_count || 0) >= 1) return;
   const dialog = postEditDialog();
   const body = String(metadata.body ?? postEditBodyFromCard(sourceCard));
   postEditActive = { postId, sourceCard };
@@ -305,52 +306,57 @@ async function submitPostEdit(event) {
   }
 }
 
-function createPostEditMenuButton(postId) {
+function createPostEditMenuButton(postId, hasCaption) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'sauti-head-menu-item';
   button.dataset.postEdit = postId;
   button.setAttribute('role', 'menuitem');
+  button.disabled = !hasCaption;
+  if (!hasCaption) button.title = 'This post has no caption to edit.';
   const text = document.createElement('span');
   text.textContent = 'Edit post';
   button.append(text);
   return button;
 }
 
-function createPostEditInlineButton(postId) {
+function createPostEditInlineButton(postId, hasCaption) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'sauti-edit';
   button.dataset.postEdit = postId;
+  button.disabled = !hasCaption;
+  if (!hasCaption) button.title = 'This post has no caption to edit.';
   button.textContent = 'Edit';
   return button;
 }
 
 function decorateEditableCard(card, metadata, userId) {
   const postId = String(card.dataset.postId || '');
-  if (!postId || metadata?.author_id !== userId) return;
+  if (!postId || metadata?.author_id !== userId || metadata.parent_post_id) return;
   if (Number(metadata.edit_count || 0) >= 1) {
     markPostEdited(card);
     return;
   }
   if (card.querySelector('[data-post-edit]')) return;
+  const hasCaption = Boolean(String(metadata.body || '').trim());
 
   if (card.classList.contains('profile-activity-card')) {
-    card.querySelector('.profile-activity-card-head')?.append(createPostEditInlineButton(postId));
+    card.querySelector('.profile-activity-card-head')?.append(createPostEditInlineButton(postId, hasCaption));
     return;
   }
 
   const menu = card.querySelector('[data-home-post-menu-panel]');
   if (menu) {
     const copyLink = menu.querySelector('[data-home-post-action="copy-link"]');
-    const edit = createPostEditMenuButton(postId);
+    const edit = createPostEditMenuButton(postId, hasCaption);
     if (copyLink) menu.insertBefore(edit, copyLink);
     else menu.append(edit);
     return;
   }
 
   const meta = card.querySelector('.sauti-card-meta');
-  if (meta) meta.prepend(createPostEditInlineButton(postId));
+  if (meta) meta.prepend(createPostEditInlineButton(postId, hasCaption));
 }
 
 async function fetchPostEditMetadata(ids, userId) {
@@ -358,7 +364,7 @@ async function fetchPostEditMetadata(ids, userId) {
   ids.forEach((id) => postEditPending.add(id));
   try {
     const params = new URLSearchParams({
-      select: 'id,author_id,body,edit_count,edited_at',
+      select: 'id,author_id,parent_post_id,body,edit_count,edited_at',
       id: `in.(${ids.join(',')})`,
     });
     const response = await fetch(`${POST_EDIT_SUPABASE_URL}/rest/v1/social_posts?${params}`, {
