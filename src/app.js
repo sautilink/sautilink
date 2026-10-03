@@ -7236,6 +7236,29 @@ async function sendDirectMessage() {
   }
 }
 
+async function editDirectMessage(messageId, body) {
+  const conversationId = activeConversation?.id;
+  const text = String(body || '').trim();
+  if (!conversationId || !currentMemberId || !/^\d{1,20}$/.test(String(messageId))
+    || !text || text.length > 4000) throw new Error('Invalid message edit.');
+
+  const { data, error } = await supabase
+    .from('dm_messages')
+    .update({ body: text })
+    .eq('id', messageId)
+    .eq('conversation_id', conversationId)
+    .eq('sender_id', currentMemberId)
+    .eq('message_kind', 'text')
+    .is('deleted_at', null)
+    .select('id, body, edited_at')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data || activeConversation?.id !== conversationId) throw new Error('Message unavailable.');
+  return data;
+}
+
+window.__sautilinkEditDirectMessage = editDirectMessage;
+
 async function deleteDirectMessage(messageId, button) {
   if (!activeConversation?.id || !messageId) return;
   if (!window.confirm('Delete this message for both people? This cannot be undone.')) return;

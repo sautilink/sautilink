@@ -6,7 +6,7 @@ function replaceRequired(source, search, replacement, label) {
 }
 
 const THREAD_SELECT = "id, conversation_id, sender_id, body, sent_at, deleted_at";
-const THREAD_REPLY_SELECT = "id, conversation_id, sender_id, body, message_kind, sent_at, deleted_at, reply_to_message_id";
+const THREAD_REPLY_SELECT = "id, conversation_id, sender_id, body, message_kind, sent_at, edited_at, deleted_at, reply_to_message_id";
 
 export function transformMessagesReplySource(filePath, source) {
   if (!String(filePath || '').endsWith('app.js')) return source;
@@ -99,6 +99,7 @@ function renderDirectMessage(message) {
   row.dataset.messageId = String(message.id);
   row.dataset.sentAt = String(message.sent_at || '');
   row.dataset.ownMessage = String(own);
+  row.dataset.messageKind = String(message.message_kind || 'text');
   if (message.reply_to_message_id) row.dataset.replyToMessageId = String(message.reply_to_message_id);
 
   if (message.reply_to_message_id) {
@@ -126,6 +127,13 @@ function renderDirectMessage(message) {
   time.textContent = formatSautiTime(message.sent_at);
   meta.append(time);
 
+  if (message.edited_at && !deleted) {
+    const edited = document.createElement('span');
+    edited.className = 'dm-message-edited';
+    edited.textContent = 'Edited';
+    meta.append(edited);
+  }
+
   if (!deleted) {
     const reply = document.createElement('button');
     reply.type = 'button';
@@ -133,6 +141,15 @@ function renderDirectMessage(message) {
     reply.dataset.replyDmMessage = String(message.id);
     reply.textContent = 'Reply';
     meta.append(reply);
+
+    if (own && (message.message_kind || 'text') === 'text') {
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'dm-message-action';
+      edit.dataset.editDmMessage = String(message.id);
+      edit.textContent = 'Edit';
+      meta.append(edit);
+    }
 
     const action = document.createElement('button');
     action.type = 'button';

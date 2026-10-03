@@ -213,3 +213,45 @@ test('message actions open on hold while scrolling cancels the hold and swipe st
   assert.match(source, /addEventListener\('contextmenu'/);
   assert.match(source, /addEventListener\('keydown'/);
 });
+
+test('Edit is offered only for the author of an active text message', async () => {
+  const transformed = transformMessagesReplySource('/repo/src/app.js', await read('src/app.js'));
+  const renderer = transformed.match(/function renderDirectMessage\(message\) \{[\s\S]*?\n}\n\nasync function renderPeerReadReceipt/)?.[0]
+    .replace(/\n\nasync function renderPeerReadReceipt$/, '');
+  assert.ok(renderer);
+  class Element {
+    constructor() { this.dataset = {}; this.children = []; this.className = ''; this.textContent = ''; }
+    append(...children) { this.children.push(...children); }
+    setAttribute() {}
+  }
+  const render = runInNewContext(`${renderer}\nrenderDirectMessage`, {
+    document: { createElement: () => new Element() },
+    currentMemberId: 'me',
+    formatSautiTime: () => '10:00',
+  });
+  const actions = (message) => {
+    const row = render({ id: 5, body: 'Hello', message_kind: 'text', sent_at: '2026-10-03', ...message });
+    const meta = row.children.at(-1);
+    return { row, buttons: meta.children.filter((child) => child.dataset?.editDmMessage) };
+  };
+  assert.equal(actions({ sender_id: 'me' }).buttons.length, 1);
+  assert.equal(actions({ sender_id: 'peer' }).buttons.length, 0);
+  assert.equal(actions({ sender_id: 'me', message_kind: 'photo' }).buttons.length, 0);
+  assert.equal(actions({ sender_id: 'me', deleted_at: '2026-10-03' }).buttons.length, 0);
+  const edited = actions({ sender_id: 'me', edited_at: '2026-10-03' }).row;
+  assert.ok(edited.children.at(-1).children.some((node) => node.textContent === 'Edited'));
+});
+
+test('editing remains scoped to the current conversation, sender, text kind and nondeleted row', async () => {
+  const app = await read('src/app.js');
+  const sql = await read('supabase/migrations/20261003120000_enable_own_dm_text_edits.sql');
+  const edit = app.match(/async function editDirectMessage\([\s\S]*?\n}\n\nwindow\.__sautilinkEditDirectMessage/)?.[0];
+  assert.ok(edit);
+  for (const constraint of [".eq('conversation_id', conversationId)", ".eq('sender_id', currentMemberId)",
+    ".eq('message_kind', 'text')", ".is('deleted_at', null)"]) assert.ok(edit.includes(constraint));
+  assert.match(sql, /grant update \(body\).*authenticated/i);
+  assert.match(sql, /\(select auth\.uid\(\)\) = sender_id\s+and deleted_at is null\s+and message_kind = 'text'/i);
+  assert.match(sql, /new\.edited_at := clock_timestamp\(\)/i);
+  assert.match(sql, /before update of body on public\.dm_messages/i);
+  assert.doesNotMatch(sql, /grant update \(edited_at\)/i);
+});
