@@ -6,6 +6,23 @@
   transform: translateX(var(--dm-reply-swipe-x));
 }
 
+.messages-whatsapp-ui .dm-message .dm-message-action {
+  display: none;
+}
+
+.messages-whatsapp-ui .dm-message[data-dm-actions-open="true"] .dm-message-action {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  padding: 4px;
+  font-size: 11px;
+}
+
+.messages-whatsapp-ui .dm-message[data-dm-actions-open="true"] {
+  outline: 2px solid color-mix(in srgb, var(--message-brand) 42%, transparent);
+  outline-offset: 2px;
+}
+
 .messages-whatsapp-ui .dm-message.reply-swipe-active {
   z-index: 2;
   transition: none;

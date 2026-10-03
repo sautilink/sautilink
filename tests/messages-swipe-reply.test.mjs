@@ -109,6 +109,7 @@ test('clearing reply twice never changes hidden state twice or observes its own 
     getElementById: (id) => ids.get(id) || null,
     querySelector: () => null,
     createElement: () => new Element(),
+    addEventListener() {},
     head: { append() {} },
   };
   class MutationObserver {
@@ -141,4 +142,74 @@ test('normal and production builds activate the reply UI and its scoped styling'
   assert.match(css, /\.messages-whatsapp-ui \.dm-message/);
   assert.match(css, /touch-action:\s*pan-y/);
   assert.doesNotMatch(css, /^body\s*\{/m);
+});
+
+test('message actions open on hold while scrolling cancels the hold and swipe still replies', async () => {
+  const source = await read('src/messages-reply-ui.js');
+  const css = await read('app/assets/messages-reply.css');
+  const helper = source.match(/function cancelMessageActionHold\([\s\S]*?\n}\n\nfunction handleReplyAction/)?.[0]
+    .replace(/\n\nfunction handleReplyAction$/, '');
+  assert.ok(helper);
+  const timers = new Map();
+  let nextTimer = 0;
+  let replies = 0;
+  class Element {
+    constructor() {
+      this.dataset = {};
+      this.isConnected = true;
+      this.classList = { contains: () => false, add() {} };
+      this.style = { setProperty() {} };
+    }
+    closest() { return this; }
+    querySelector() { return {}; }
+    removeAttribute(name) { if (name === 'data-dm-actions-open') delete this.dataset.dmActionsOpen; }
+  }
+  const window = {
+    setTimeout(callback) { timers.set(++nextTimer, callback); return nextTimer; },
+    clearTimeout(id) { timers.delete(id); },
+  };
+  const actions = runInNewContext(`
+    let messageReplyGesture = null;
+    let messageActionHoldTimer = 0;
+    let messageActionsOpenCard = null;
+    let messageActionsOpenedAt = 0;
+    const MESSAGE_ACTION_HOLD_MS = 500;
+    const MESSAGE_REPLY_SWIPE_TRIGGER = 52;
+    const MESSAGE_REPLY_SWIPE_MAX = 76;
+    const messagesReplyFeed = {};
+    const messagesReplyThread = { hidden: false };
+    const pointerTargetIsInteractive = () => false;
+    const resetReplySwipe = () => {};
+    const setMessageReply = () => { replies(); };
+    ${helper}
+    ({ startReplySwipe, moveReplySwipe, finishReplySwipe });
+  `, { Element, window, replies: () => { replies++; }, Date });
+  const first = new Element();
+  const down = (target, pointerId) => ({ target, pointerId, pointerType: 'touch', button: 0, clientX: 100, clientY: 100 });
+
+  actions.startReplySwipe(down(first, 1));
+  assert.equal(first.dataset.dmActionsOpen, undefined);
+  const hold = timers.get(nextTimer);
+  timers.delete(nextTimer);
+  hold();
+  assert.equal(first.dataset.dmActionsOpen, 'true');
+  actions.finishReplySwipe({ pointerId: 1 });
+  assert.equal(replies, 0);
+
+  const second = new Element();
+  actions.startReplySwipe(down(second, 2));
+  actions.moveReplySwipe({ pointerId: 2, clientX: 98, clientY: 120 });
+  assert.equal(timers.size, 0, 'vertical scroll must cancel the hold');
+  actions.finishReplySwipe({ pointerId: 2 });
+  assert.equal(second.dataset.dmActionsOpen, undefined);
+
+  actions.startReplySwipe(down(second, 3));
+  actions.moveReplySwipe({ pointerId: 3, clientX: 42, clientY: 100, preventDefault() {} });
+  actions.finishReplySwipe({ pointerId: 3 });
+  assert.equal(replies, 1);
+  assert.equal(first.dataset.dmActionsOpen, undefined);
+  assert.match(css, /\.dm-message \.dm-message-action\s*\{\s*display: none;/);
+  assert.match(css, /\[data-dm-actions-open="true"\] \.dm-message-action\s*\{\s*display: inline-flex;/);
+  assert.match(source, /addEventListener\('contextmenu'/);
+  assert.match(source, /addEventListener\('keydown'/);
 });
