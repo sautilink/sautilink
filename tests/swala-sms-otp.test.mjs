@@ -22,6 +22,7 @@ function hook({ sms = true, whatsapp = false, replies = [] } = {}) {
     WHATSAPP_OTP_TEMPLATE_LANGUAGE: 'en_US',
   };
   const requests = [];
+  const errors = [];
   let handler;
   class Webhook {
     constructor(secret) { assert.equal(secret, 'test-signature'); }
@@ -44,17 +45,17 @@ function hook({ sms = true, whatsapp = false, replies = [] } = {}) {
     TextEncoder,
     setTimeout,
     clearTimeout,
-    console: { error() {} },
+    console: { error(...args) { errors.push(args); } },
   });
-  const event = (preference = 'sms', signature = 'valid') => handler(new Request('https://example.test/functions/v1/sautilink-whatsapp-otp', {
+  const event = (preference = 'sms', signature = 'valid', phone = '255712345678') => handler(new Request('https://example.test/functions/v1/sautilink-whatsapp-otp', {
     method: 'POST',
     headers: { 'webhook-signature': signature, 'webhook-id': 'event-1' },
     body: JSON.stringify({
-      user: { phone: '255712345678', user_metadata: { sautilink_phone_otp_channel: preference } },
+      user: { phone, user_metadata: { sautilink_phone_otp_channel: preference } },
       sms: { otp: '438921' },
     }),
   }));
-  return { handler, event, requests, env };
+  return { handler, event, requests, errors, env };
 }
 
 test('signed Supabase OTP queues an idempotent SwalaSMS message and never exposes the API key', async () => {
@@ -86,6 +87,23 @@ test('failed SMS send does not claim that the code was delivered', async () => {
   const client = hook({ replies: [{ status: 422, body: { success: false, message: 'route_not_verified' } }] });
   assert.equal((await client.event()).status, 502);
   assert.equal(client.requests.length, 1);
+});
+
+test('invalid Tanzanian mobile length is refused before requesting the SMS provider', async () => {
+  const client = hook();
+  assert.equal((await client.event('sms', 'valid', '2556623701208')).status, 400);
+  assert.equal(client.requests.length, 0);
+});
+
+test('provider rejection logs a safe category without copying its private message', async () => {
+  const client = hook({ replies: [{ status: 422, body: {
+    success: false,
+    message: 'Recipient +255712345678 was rejected with code 438921',
+    errors: { recipient: ['Invalid +255712345678'] },
+  } }] });
+  assert.equal((await client.event()).status, 502);
+  assert.equal(client.errors[0][1].category, 'recipient');
+  assert.doesNotMatch(JSON.stringify(client.errors), /255712345678|438921/);
 });
 
 test('an existing WhatsApp choice remains available and falls back to SMS only when Meta rejects it', async () => {
