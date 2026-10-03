@@ -1,3 +1,5 @@
+import { normalizeOtpPhone, otpPhoneError } from './phone-number-validation.js';
+
 const WHATSAPP_FUNCTION = 'sautilink-whatsapp-otp';
 const LOGIN_PHONE_KEY = 'sautilink.auth.whatsapp_login_phone';
 const PHONE_CHANGE_KEY = 'sautilink.auth.whatsapp_phone_change';
@@ -12,9 +14,7 @@ let phoneChange = sessionStorage.getItem(PHONE_CHANGE_KEY) || '';
 const id = (value) => document.getElementById(value);
 
 function normalizePhone(value) {
-  const raw = String(value || '').trim().replace(/[\s()-]/g, '');
-  if (!raw.startsWith('+') || !/^\+[1-9]\d{7,14}$/.test(raw)) return '';
-  return raw;
+  return normalizeOtpPhone(value);
 }
 
 function normalizeStoredPhone(value) {
@@ -187,7 +187,7 @@ async function requestWhatsAppLoginCode(event) {
   const message = id('whatsapp-login-request-message');
   const submit = form.querySelector('[type="submit"]');
   setFormMessage(message, '');
-  if (!phone) return setFormMessage(message, 'Enter a valid international phone number, for example +2557XXXXXXXX.');
+  if (!phone) return setFormMessage(message, otpPhoneError(form.phone.value));
 
   setSubmitBusy(submit, true, 'Sending code…');
   try {
@@ -335,7 +335,7 @@ async function requestPhoneLinkCode(event) {
   const message = id('settings-whatsapp-link-message');
   const submit = form.querySelector('[type="submit"]');
   setFormMessage(message, '');
-  if (!phone) return setFormMessage(message, 'Enter a valid international phone number.');
+  if (!phone) return setFormMessage(message, otpPhoneError(form.phone.value));
 
   setSubmitBusy(submit, true, 'Sending code…');
   try {

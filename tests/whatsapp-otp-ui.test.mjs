@@ -44,8 +44,10 @@ test('WhatsApp UI stays dormant until the server capability is explicitly enable
 
 test('WhatsApp phone and OTP inputs enforce bounded formats', async () => {
   const source = await read('src/whatsapp-otp-auth.js');
+  const validation = await read('src/phone-number-validation.js');
 
-  assert.match(source, /\^\\\+\[1-9\]\\d\{7,14\}\$/);
+  assert.match(source, /normalizeOtpPhone\(value\)/);
+  assert.match(validation, /\^\\\+\[1-9\]\\d\{7,14\}\$/);
   assert.match(source, /\^\\d\{6,10\}\$/);
   assert.match(source, /international format/);
 });

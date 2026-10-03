@@ -80,7 +80,27 @@ function verifyHook(payload: string, headers: Record<string, string>) {
 function normalizePhone(value: unknown) {
   const raw = String(value || '').trim().replace(/\s/g, '');
   const phone = raw.startsWith('+') ? raw.slice(1) : raw;
-  return /^[1-9]\d{7,14}$/.test(phone) ? phone : '';
+  if (!/^[1-9]\d{7,14}$/.test(phone)) return '';
+  if (phone.startsWith('255') && !/^255[67]\d{8}$/.test(phone)) return '';
+  return phone;
+}
+
+function swalaFailureCategory(result: unknown) {
+  if (!result || typeof result !== 'object') return 'unknown';
+  const payload = result as Record<string, unknown>;
+  const fields = payload.errors && typeof payload.errors === 'object'
+    ? Object.keys(payload.errors as Record<string, unknown>) : [];
+  if (fields.includes('recipient')) return 'recipient';
+  if (fields.includes('sender_id')) return 'sender_id';
+  if (fields.includes('body')) return 'body';
+  const message = typeof payload.message === 'string' ? payload.message.toLowerCase() : '';
+  if (/recipient|phone number|e\.164/.test(message)) return 'recipient';
+  if (/sender id|sender_id/.test(message)) return 'sender_id';
+  if (/route/.test(message)) return 'route';
+  if (/credit|balance|wallet/.test(message)) return 'credit';
+  if (/spam|policy/.test(message)) return 'policy';
+  if (/opt.out/.test(message)) return 'opt_out';
+  return 'other';
 }
 
 function normalizeOtp(value: unknown) {
@@ -210,7 +230,9 @@ async function sendSwalaSmsOtp(phone: string, otp: string, webhookId: string) {
     });
     const result = await response.json().catch(() => null);
     if (![200, 202].includes(response.status) || result?.success === false) {
-      console.error('SMS OTP was not queued', { status: response.status });
+      // Provider messages may contain phone numbers or message contents. Log
+      // only a category so failures can be diagnosed without exposing OTPs.
+      console.error('SMS OTP was not queued', { status: response.status, category: swalaFailureCategory(result) });
       if (response.status >= 500) throw new Error('SMS delivery status uncertain.');
       if (response.status >= 400 && response.status < 500 || result?.success === false) {
         throw new DeliveryRejected('SMS delivery rejected.');
