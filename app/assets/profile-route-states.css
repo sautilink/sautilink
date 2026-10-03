@@ -71,6 +71,10 @@
   display: none;
 }
 
+#profile-route-state .profile-route-mark[data-visual="unavailable"] .profile-route-brand-spinner.sl-lottie-host {
+  display: none !important;
+}
+
 #profile-route-state .profile-route-mark[data-visual="unavailable"] .profile-route-unavailable-icon {
   display: block;
 }
