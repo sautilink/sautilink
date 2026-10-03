@@ -244,7 +244,7 @@ test('Edit is offered only for the author of an active text message', async () =
 
 test('editing remains scoped to the current conversation, sender, text kind and nondeleted row', async () => {
   const app = await read('src/app.js');
-  const sql = await read('supabase/migrations/20261003120000_enable_own_dm_text_edits.sql');
+  const sql = await read('supabase/migrations/20261003150051_enable_own_dm_text_edits.sql');
   const edit = app.match(/async function editDirectMessage\([\s\S]*?\n}\n\nwindow\.__sautilinkEditDirectMessage/)?.[0];
   assert.ok(edit);
   for (const constraint of [".eq('conversation_id', conversationId)", ".eq('sender_id', currentMemberId)",
