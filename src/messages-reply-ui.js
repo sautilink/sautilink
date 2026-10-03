@@ -13,12 +13,13 @@ let messageReplyMutationTimer = 0;
 let messageActionHoldTimer = 0;
 let messageActionsOpenCard = null;
 let messageActionsOpenedAt = 0;
+let messageEditForm = null;
 
 function ensureMessagesReplyStyles() {
   if (document.querySelector('link[data-messages-reply-style]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/app/assets/messages-reply.css?v=20260929-reply1';
+  link.href = '/app/assets/messages-reply.css?v=20261003-edit1';
   link.dataset.messagesReplyStyle = 'true';
   document.head.append(link);
 }
@@ -126,6 +127,98 @@ function closeMessageActions() {
   messageActionsOpenCard = null;
 }
 
+function closeMessageEdit({ focus = false } = {}) {
+  const card = messageEditForm?.closest('.dm-message');
+  messageEditForm?.remove();
+  messageEditForm = null;
+  if (card) card.classList.remove('editing');
+  if (focus && card?.isConnected) card.focus({ preventScroll: true });
+}
+
+function openMessageEdit(card) {
+  if (!(card instanceof Element) || card.dataset.ownMessage !== 'true'
+    || card.dataset.messageKind !== 'text' || card.classList.contains('deleted')) return;
+  const messageId = String(card.dataset.messageId || '');
+  const body = card.querySelector(':scope > p');
+  if (!/^\d{1,20}$/.test(messageId) || !body) return;
+  closeMessageEdit();
+
+  const form = document.createElement('form');
+  form.className = 'dm-message-edit-form';
+  form.dataset.editMessageId = messageId;
+  const input = document.createElement('textarea');
+  input.maxLength = 4000;
+  input.rows = 3;
+  input.required = true;
+  input.value = body.textContent || '';
+  input.setAttribute('aria-label', 'Edit message');
+  const actions = document.createElement('div');
+  actions.className = 'dm-message-edit-actions';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => closeMessageEdit({ focus: true }));
+  const save = document.createElement('button');
+  save.type = 'submit';
+  save.textContent = 'Save';
+  const error = document.createElement('span');
+  error.className = 'dm-message-edit-error';
+  error.setAttribute('role', 'alert');
+  actions.append(cancel, save);
+  form.append(input, actions, error);
+  card.insertBefore(form, card.querySelector('.dm-message-meta'));
+  card.classList.add('editing');
+  messageEditForm = form;
+  input.focus({ preventScroll: true });
+  input.setSelectionRange(input.value.length, input.value.length);
+}
+
+async function saveMessageEdit(event) {
+  const form = event.target instanceof Element ? event.target.closest('.dm-message-edit-form') : null;
+  if (!form) return;
+  event.preventDefault();
+  if (form !== messageEditForm || form.dataset.saving === 'true') return;
+  const card = form.closest('.dm-message');
+  if (!card || card.dataset.ownMessage !== 'true' || card.dataset.messageKind !== 'text'
+    || card.classList.contains('deleted')) return;
+  const body = card.querySelector(':scope > p');
+  const input = form.querySelector('textarea');
+  const text = String(input?.value || '').trim();
+  if (!text || text.length > 4000) {
+    form.querySelector('.dm-message-edit-error').textContent = 'Enter 1 to 4000 characters.';
+    return;
+  }
+  if (text === body?.textContent) {
+    closeMessageEdit({ focus: true });
+    return;
+  }
+  form.dataset.saving = 'true';
+  form.querySelectorAll('button, textarea').forEach((control) => { control.disabled = true; });
+  try {
+    const updated = await window.__sautilinkEditDirectMessage(card.dataset.messageId, text);
+    if (card.isConnected && messageEditForm === form) {
+      body.textContent = updated.body;
+      const meta = card.querySelector('.dm-message-meta');
+      if (meta && !meta.querySelector('.dm-message-edited')) {
+        const edited = document.createElement('span');
+        edited.className = 'dm-message-edited';
+        edited.textContent = 'Edited';
+        meta.insertBefore(edited, meta.querySelector('.dm-message-action'));
+      }
+      closeMessageEdit({ focus: true });
+    }
+  } catch {
+    if (messageEditForm === form) {
+      form.querySelector('.dm-message-edit-error').textContent = 'Could not edit this message. Try again.';
+    }
+  } finally {
+    if (messageEditForm === form) {
+      delete form.dataset.saving;
+      form.querySelectorAll('button, textarea').forEach((control) => { control.disabled = false; });
+    }
+  }
+}
+
 function openMessageActions(card) {
   if (!(card instanceof Element) || card.classList.contains('deleted') || !card.querySelector('.dm-message-action')) return;
   closeMessageActions();
@@ -212,6 +305,12 @@ function handleReplyAction(event) {
     return;
   }
 
+  const edit = target.closest('[data-edit-dm-message]');
+  if (edit) {
+    openMessageEdit(edit.closest('.dm-message[data-message-id]'));
+    return;
+  }
+
   const jump = target.closest('[data-jump-to-dm-message]');
   if (!jump || !messagesReplyFeed) return;
   const id = String(jump.dataset.jumpToDmMessage || '');
@@ -229,6 +328,7 @@ function reconcileReplyAfterThreadRender() {
   window.clearTimeout(messageReplyMutationTimer);
   messageReplyMutationTimer = window.setTimeout(() => {
     if (messageActionsOpenCard && !messageActionsOpenCard.isConnected) closeMessageActions();
+    if (messageEditForm && !messageEditForm.isConnected) closeMessageEdit();
     messagesReplyFeed?.querySelectorAll('.dm-message[data-message-id]:not([tabindex])')
       .forEach((card) => {
         card.tabIndex = 0;
@@ -260,6 +360,7 @@ function initializeMessagesReplyUi() {
   messagesReplyFeed.addEventListener('pointerup', (event) => finishReplySwipe(event, false));
   messagesReplyFeed.addEventListener('pointercancel', (event) => finishReplySwipe(event, true));
   messagesReplyFeed.addEventListener('click', handleReplyAction);
+  messagesReplyFeed.addEventListener('submit', (event) => { void saveMessageEdit(event); });
   messagesReplyFeed.addEventListener('contextmenu', (event) => {
     const card = event.target instanceof Element ? event.target.closest('.dm-message[data-message-id]') : null;
     if (!card || pointerTargetIsInteractive(event.target)) return;
@@ -268,6 +369,11 @@ function initializeMessagesReplyUi() {
     openMessageActions(card);
   });
   messagesReplyFeed.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && messageEditForm && messageEditForm.contains(event.target)) {
+      event.preventDefault();
+      closeMessageEdit({ focus: true });
+      return;
+    }
     if (event.key === 'Escape' && messageActionsOpenCard) {
       const card = messageActionsOpenCard;
       closeMessageActions();
@@ -294,6 +400,7 @@ function initializeMessagesReplyUi() {
     if (messagesReplySurface.hidden || messagesReplyThread?.hidden) {
       clearMessageReply();
       closeMessageActions();
+      closeMessageEdit();
       cancelMessageActionHold();
     }
     clearReplyForMediaCompose();
@@ -311,6 +418,7 @@ function initializeMessagesReplyUi() {
   window.addEventListener('popstate', () => {
     clearMessageReply();
     closeMessageActions();
+    closeMessageEdit();
   });
 }
 

@@ -23,6 +23,62 @@
   outline-offset: 2px;
 }
 
+.messages-whatsapp-ui .dm-message.editing > p,
+.messages-whatsapp-ui .dm-message.editing > .dm-message-meta {
+  display: none;
+}
+
+.messages-whatsapp-ui .dm-message-edit-form {
+  display: grid;
+  gap: 7px;
+  min-width: min(260px, 70vw);
+}
+
+.messages-whatsapp-ui .dm-message-edit-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid var(--message-line);
+  border-radius: 9px;
+  background: var(--message-panel-soft);
+  color: var(--message-text);
+  font: inherit;
+}
+
+.messages-whatsapp-ui .dm-message-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.messages-whatsapp-ui .dm-message-edit-actions button {
+  border: 1px solid var(--message-line);
+  border-radius: 8px;
+  padding: 5px 10px;
+  background: var(--message-panel-soft);
+  color: var(--message-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.messages-whatsapp-ui .dm-message-edit-actions button[type="submit"] {
+  border-color: var(--message-brand);
+  background: var(--message-brand);
+  color: #fff;
+}
+
+.messages-whatsapp-ui .dm-message-edit-error:not(:empty) {
+  font-size: 11px;
+  color: #b42343;
+}
+
+.messages-whatsapp-ui .dm-message-edited {
+  font-style: italic;
+  opacity: .75;
+}
+
 .messages-whatsapp-ui .dm-message.reply-swipe-active {
   z-index: 2;
   transition: none;
