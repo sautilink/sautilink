@@ -4,8 +4,12 @@ import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('professional dashboard hides only the duplicate shell title while open and restores it on exit', async () => {
+test('professional dashboard removes the empty shell header while open and restores it on exit', async () => {
   const source = await read('src/professional-dashboard.js');
+  const css = await read('app/assets/professional-dashboard.css');
+
+  assert.match(css, /body:has\(#professional-dashboard-surface:not\(\[hidden\]\)\) \.stream-header\s*\{\s*display:\s*none;/);
+  assert.match(source, /professional-dashboard\.css\?v=20261004-dashboard-header1/);
 
   const openStart = source.indexOf('async function openDashboard()');
   const closeStart = source.indexOf('function closeDashboard()');
