@@ -14,7 +14,7 @@ test('SautiLink video player preserves a manual pause against Home autoplay', as
   assert.match(transformed, /if \(video !== activeVideo\) \{[\s\S]*video\.pause\(\)/);
 });
 
-test('SautiLink owns video controls while preserving viewer and carousel layers', async () => {
+test('SautiLink owns video controls with one Fullscreen action', async () => {
   const [source, css] = await Promise.all([
     read('src/sautilink-video-player.js'),
     read('app/assets/sautilink-video-player.css'),
@@ -30,8 +30,9 @@ test('SautiLink owns video controls while preserving viewer and carousel layers'
   assert.match(source, /video\.dataset\.sautiUserPaused = 'true'/);
   assert.match(source, /requestPictureInPicture/);
   assert.match(source, /requestFullscreen/);
-  assert.match(source, /Open video viewer/);
-  assert.match(source, /host\.click\(\)/);
+  assert.match(source, /makeVideoControl\('sauti-video-control fullscreen', 'Fullscreen', 'fullscreen'\)/);
+  assert.match(source, /runControlAction\(fullscreen, requestFullscreen\)/);
+  assert.doesNotMatch(source, /sauti-video-control expand|Open video viewer/);
   assert.match(source, /sauti-video-volume/);
   assert.match(source, /Playback speed/);
   assert.match(source, /is-buffering/);
