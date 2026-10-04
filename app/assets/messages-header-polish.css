@@ -300,6 +300,16 @@ body:has(#messages-surface:not([hidden])) .stream-header {
     overflow: visible;
   }
 
+  .messages-whatsapp-ui .message-thread-header {
+    margin: 10px 10px 8px;
+    border: 1px solid color-mix(in srgb, var(--wa-border, #e4e7ec) 72%, transparent);
+    border-radius: 28px;
+    background: var(--wa-panel, #fff);
+    box-shadow:
+      0 14px 34px rgba(15, 23, 42, 0.09),
+      0 3px 9px rgba(15, 23, 42, 0.05);
+  }
+
   .messages-whatsapp-ui .messages-wa-title-row {
     max-width: calc(100% - 188px);
     gap: 7px;
