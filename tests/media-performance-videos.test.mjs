@@ -263,7 +263,7 @@ test('requested video quality is transformed once, stored in R2, and served as M
     assert.equal(response.headers.get('X-Sauti-Video-Quality'), '360p');
     assert.match(response.headers.get('X-Sauti-Media-Variant') || '', /q=360/);
     assert.deepEqual(transformOptions, { width: 360, height: 640, fit: 'scale-down' });
-    assert.equal(variantKey, `${row.object_key}.video-v1-q360.mp4`);
+    assert.equal(variantKey, `${row.object_key}.video-v2-q360.mp4`);
     assert.equal((await response.arrayBuffer()).byteLength, 3);
   } finally {
     globalThis.fetch = previousFetch;
@@ -294,6 +294,35 @@ test('videos longer than the transform output limit keep their full original dur
     assert.equal(response.headers.get('X-Sauti-Media-Variant'), 'original');
     assert.equal(transformed, false);
     assert.deepEqual(new Uint8Array(await response.arrayBuffer()), new Uint8Array([1, 2, 3]));
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('a low resolution original is never served as a misleading 720p variant', async () => {
+  const previousFetch = globalThis.fetch;
+  const row = { ...videoRow(), width: 240, height: 426 };
+  let transformed = false;
+  globalThis.fetch = async () => Response.json([row]);
+  const env = {
+    SAUTI_MEDIA: {
+      async head() { return { size: 3 }; },
+      async get() { return {
+        body: new Uint8Array([1, 2, 3]), size: 3,
+        writeHttpMetadata(headers) { headers.set('Content-Type', 'video/mp4'); },
+      }; },
+    },
+    MEDIA: { input() { transformed = true; throw new Error('unexpected transform'); } },
+  };
+  try {
+    const response = await handleSautiMediaRequest(new Request(
+      `https://sautilink.com/api/sauti-media/${MEDIA_ID}?quality=720`,
+      { headers: { Cookie: '__Secure-sautilink-media-session=low.token.value' } },
+    ), env);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('X-Sauti-Media-Variant'), 'original');
+    assert.equal(response.headers.get('X-Sauti-Video-Quality'), null);
+    assert.equal(transformed, false);
   } finally {
     globalThis.fetch = previousFetch;
   }
@@ -370,7 +399,7 @@ test('feed videos use protected range URLs while images keep responsive blobs', 
     "method: 'POST'",
     "credentials: 'same-origin'",
     "fetchSautiVideoStreamUrl(media.id, videoQuality, window.SautiLinkVideoQuality?.getPreference?.() === 'auto')",
-    "qualityFor?.({ context: 'home' })",
+    "qualityFor?.({ context: 'home', mediaId: media.id })",
     "button.dataset.mediaStreaming = 'range'",
     "url.startsWith('blob:')",
     "item.mediaKind === 'video'",

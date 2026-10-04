@@ -1269,6 +1269,7 @@ async function hydrateSautiMediaGallery(postId, gallery) {
   if (caption) caption.hidden = false;
   gallery.className = `sauti-media-gallery media-count-${rows.length}`;
   gallery.replaceChildren();
+  rows.forEach((media) => window.SautiLinkVideoQuality?.registerMedia?.(media));
 
   if (rows.length === 1) {
     const width = Number(rows[0].width);

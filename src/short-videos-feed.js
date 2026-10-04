@@ -64,7 +64,7 @@ function mediaUrlForTile(tile) {
 function shortVideoUrlForTile(tile) {
   if (!mediaUrlForTile(tile)) return '';
   const mediaId = String(tile?.dataset.openMediaId || '').trim();
-  const quality = window.SautiLinkVideoQuality?.qualityFor?.({ context: 'short' }) || '720';
+  const quality = window.SautiLinkVideoQuality?.qualityFor?.({ context: 'short', mediaId }) || 'original';
   return window.SautiLinkVideoQuality?.sourceUrl?.(mediaId, quality) || mediaUrlForTile(tile);
 }
 

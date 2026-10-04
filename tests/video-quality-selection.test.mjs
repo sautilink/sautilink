@@ -7,7 +7,9 @@ import {
   selectAdaptiveVideoQuality,
   shouldSwitchVideoQuality,
   videoQualityForPreference,
+  resolveVideoQuality,
 } from '../src/video-quality-preference.js';
+import { availableVideoQualities, videoVariantDimensions } from '../src/video-quality-levels.js';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -49,6 +51,22 @@ test('Home respects manual preference while Short Videos always stays adaptive',
   assert.equal(videoQualityForPreference('360', fast, 'short'), 'original');
 });
 
+test('quality choices are derived from original dimensions and transform limits', () => {
+  const low = { width: 240, height: 426, duration_ms: 30_000 };
+  const medium = { width: 480, height: 854, duration_ms: 30_000 };
+  const high = { width: 1080, height: 1920, duration_ms: 30_000 };
+  assert.deepEqual(availableVideoQualities(low), []);
+  assert.deepEqual(availableVideoQualities(medium), [240, 360]);
+  assert.deepEqual(availableVideoQualities(high), [240, 360, 480, 720]);
+  assert.deepEqual(videoVariantDimensions({ width: 1920, height: 820, duration_ms: 30_000 }, 360), { width: 843, height: 360 });
+  assert.deepEqual(availableVideoQualities({ ...high, duration_ms: 90_000 }), []);
+  assert.equal(resolveVideoQuality('720', low), 'original');
+  assert.equal(resolveVideoQuality('data-saver', medium), '240');
+  assert.equal(resolveVideoQuality('720', medium), 'original');
+  assert.equal(resolveVideoQuality('360', high), '360');
+  assert.equal(deliveredVideoQuality('360', 240, 426), 'original');
+});
+
 test('quality module, player, Short Videos, and Worker binding are wired into both builds', async () => {
   const [quality, player, shortVideos, css, normalBuild, productionBuild, config] = await Promise.all([
     read('src/video-quality-preference.js'),
@@ -63,7 +81,7 @@ test('quality module, player, Short Videos, and Worker binding are wired into bo
   assert.match(quality, /SautiLinkVideoMediaSession/);
   assert.match(player, /Data Saver/);
   assert.match(player, /sauti-video-quality-option/);
-  assert.match(shortVideos, /qualityFor\?\.\(\{ context: 'short' \}\)/);
+  assert.match(shortVideos, /qualityFor\?\.\(\{ context: 'short', mediaId \}\)/);
   assert.match(shortVideos, /sautiQualityManaged !== 'true'/);
   assert.match(css, /\.sauti-video-quality-menu/);
   for (const source of [normalBuild, productionBuild]) assert.match(source, /video-quality-preference\.js/);

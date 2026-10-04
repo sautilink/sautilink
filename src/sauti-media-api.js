@@ -1,4 +1,5 @@
 import { inspectImageBytes } from './profile-media-api.js';
+import { VIDEO_VARIANT_QUALITIES, videoVariantDimensions, availableVideoQualities } from './video-quality-levels.js';
 
 const SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
@@ -10,9 +11,7 @@ const UPLOAD_TTL_MS = 60 * 60 * 1000;
 const IMAGE_VARIANT_VERSION = 'v1';
 const IMAGE_VARIANT_WIDTHS = Object.freeze([480, 960, 1440]);
 const IMAGE_VARIANT_EDGE_TTL_SECONDS = 30 * 24 * 60 * 60;
-const VIDEO_VARIANT_VERSION = 'v1';
-const VIDEO_VARIANT_QUALITIES = Object.freeze([360, 720]);
-const MAX_VIDEO_VARIANT_DURATION_MS = 60_000;
+const VIDEO_VARIANT_VERSION = 'v2';
 const VIDEO_MEDIA_SESSION_COOKIE = '__Secure-sautilink-media-session';
 const VIDEO_MEDIA_SESSION_TTL_SECONDS = 5 * 60;
 const videoVariantJobs = new Map();
@@ -138,7 +137,8 @@ export function sautiMediaObjectKeys(row) {
   const original = String(row?.object_key || '');
   if (!original) return [];
   if (row?.media_kind !== 'video') return [original];
-  return [original, ...VIDEO_VARIANT_QUALITIES.map((quality) => sautiVideoVariantObjectKey(original, quality))];
+  return [original, ...VIDEO_VARIANT_QUALITIES.map((quality) => sautiVideoVariantObjectKey(original, quality)),
+    ...[360, 720].map((quality) => `${original}.video-v1-q${quality}.mp4`)];
 }
 
 function responsiveImagesEnabled(env) {
@@ -522,18 +522,10 @@ async function uploadMedia(request, env, id) {
   return json(200, { ok: true, data: { id, width: inspected.width, height: inspected.height, duration_ms: inspected.durationMs } });
 }
 
-function videoVariantDimensions(row, quality) {
-  const portrait = Number(row?.height || 0) > Number(row?.width || 0);
-  if (quality === 360) return portrait ? { width: 360, height: 640 } : { width: 640, height: 360 };
-  if (quality === 720) return portrait ? { width: 720, height: 1280 } : { width: 1280, height: 720 };
-  return null;
-}
-
 async function createSautiVideoVariant(env, row, id, quality) {
   const dimensions = videoVariantDimensions(row, quality);
   const objectKey = sautiVideoVariantObjectKey(row?.object_key, quality);
-  if (!dimensions || !objectKey || !env?.MEDIA || !env?.SAUTI_MEDIA
-    || Number(row?.duration_ms || 0) > MAX_VIDEO_VARIANT_DURATION_MS) return '';
+  if (!dimensions || !objectKey || !env?.MEDIA || !env?.SAUTI_MEDIA) return '';
 
   const existing = await env.SAUTI_MEDIA.head(objectKey).catch(() => null);
   if (existing) return objectKey;
@@ -571,7 +563,7 @@ async function createSautiVideoVariant(env, row, id, quality) {
 function prewarmSautiVideoVariants(env, row, id, ctx) {
   if (row?.media_kind !== 'video' || !ctx?.waitUntil || !env?.MEDIA) return;
   ctx.waitUntil(Promise.allSettled(
-    VIDEO_VARIANT_QUALITIES.map((quality) => createSautiVideoVariant(env, row, id, quality)),
+    availableVideoQualities(row).map((quality) => createSautiVideoVariant(env, row, id, quality)),
   ));
 }
 
@@ -684,7 +676,7 @@ async function serveVideoVariant(request, env, row, id, quality, ctx = null) {
   if (!objectKey || row.media_kind !== 'video') return serveOriginalMedia(request, env, row, id);
   // Media Transformations currently caps output at one minute. A longer
   // variant would silently end before the source video does.
-  if (Number(row.duration_ms || 0) > MAX_VIDEO_VARIANT_DURATION_MS) {
+  if (!videoVariantDimensions(row, quality)) {
     return serveOriginalMedia(request, env, row, id);
   }
 
