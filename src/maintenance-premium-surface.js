@@ -89,31 +89,10 @@ export const MAINTENANCE_BLACK_SPECKLE_CSS = `
       line-height: 1.6;
     }
 
-    .eyebrow {
-      font-size: 11px;
-      letter-spacing: .1em;
-    }
-
-    .countdown-label,
-    .footnote,
-    .scope,
-    .scope strong {
-      font-size: 13px;
-    }
-
-    .time-value {
-      font-size: clamp(26px, 5.5vw, 34px);
-    }
-
-    .time-unit {
-      font-size: 10px;
-    }
-
     @media (max-width: 560px) {
       .brand-logo { width: 74px; }
       h1 { font-size: clamp(27px, 8.4vw, 34px); }
       .lead { font-size: 15px; }
-      .time-value { font-size: clamp(25px, 8vw, 32px); }
       .maintenance-shell::before { inset: 68px -18px 40px; filter: blur(28px); }
     }
 `;
