@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { getVideoAutoplayPreference, setVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autoplay-preference.js';
 import { notificationPostDestination } from './notification-destinations.js';
 import { normalizeOtpPhone, otpPhoneError } from './phone-number-validation.js';
 import {
@@ -1169,15 +1170,12 @@ function canPlayHomeFeedVideos() {
 }
 
 async function playHomeFeedVideo(video) {
-  if (!canPlayHomeFeedVideos()) {
-    video.pause();
-    return;
-  }
+  if (!canPlayHomeFeedVideos() || !getVideoAutoplayPreference() || video.dataset.sautiUserPaused === 'true') return;
   try {
     await video.play();
-    if (!canPlayHomeFeedVideos()) video.pause();
+    if (!canPlayHomeFeedVideos() || !getVideoAutoplayPreference()) video.pause();
   } catch {
-    if (!canPlayHomeFeedVideos()) return;
+    if (!canPlayHomeFeedVideos() || !getVideoAutoplayPreference()) return;
     if (video.muted || video.dataset.sautiAudioPreference === 'muted') return;
     video.muted = true;
     video.defaultMuted = true;
@@ -1185,7 +1183,7 @@ async function playHomeFeedVideo(video) {
     await video.play().catch(() => {
       // Playback can still be declined by browser or device preferences.
     });
-    if (!canPlayHomeFeedVideos()) video.pause();
+    if (!canPlayHomeFeedVideos() || !getVideoAutoplayPreference()) video.pause();
   }
 }
 
@@ -1194,6 +1192,7 @@ function syncHomeFeedVideoPlayback() {
     pauseHomeFeedVideos();
     return;
   }
+  if (!getVideoAutoplayPreference()) return;
 
   let activeVideo = null;
   let activeRatio = HOME_VIDEO_VISIBILITY_THRESHOLD;
@@ -1600,7 +1599,7 @@ function updateVerificationRequestState(event) {
 }
 
 function settingsPanel(section) {
-  const allowed = new Set(['account', 'privacy', 'notifications', 'safety', 'data']);
+  const allowed = new Set(['account', 'privacy', 'playback', 'notifications', 'safety', 'data']);
   const target = allowed.has(section) ? section : 'account';
   document.querySelectorAll('[data-settings-section]').forEach((button) => {
     const active = button.dataset.settingsSection === target;
@@ -6502,6 +6501,7 @@ async function loadConversation(postId) {
   errorState.hidden = true;
   byId('conversation-empty').hidden = true;
   thread.replaceChildren();
+  thread.scrollTop = 0;
   byId('conversation-reply-compose').hidden = true;
   byId('conversation-reply-restriction').hidden = true;
   setMessage(byId('conversation-reply-message'), '', '');
@@ -8522,7 +8522,9 @@ async function applyLocationRoute() {
       showSignedOut('login');
       return;
     }
+    const enteringComments = conversationSurface.hidden && !conversationRoute.viewPost;
     setMemberNavigation(conversationRoute.viewPost && !conversationRoute.invalid ? 'stream' : 'conversation');
+    if (enteringComments) window.scrollTo(0, 0);
     closeProfileEditor();
     if (conversationRoute.invalid) {
       byId('conversation-loading').hidden = true;
@@ -9202,6 +9204,14 @@ document.addEventListener('visibilitychange', () => {
 });
 
 const homePlaybackSurfaceObserver = new MutationObserver(syncHomeFeedVideoPlayback);
+document.addEventListener(VIDEO_AUTOPLAY_EVENT, (event) => {
+  byId('settings-video-autoplay').checked = event.detail.enabled;
+  if (event.detail.enabled) syncHomeFeedVideoPlayback();
+  else {
+    homeVideoVisibility.forEach((_ratio, video) => { delete video.dataset.sautiManualPlay; });
+    pauseHomeFeedVideos();
+  }
+});
 document.querySelectorAll('dialog').forEach((dialog) => {
   homePlaybackSurfaceObserver.observe(dialog, { attributes: true, attributeFilter: ['open'] });
 });
@@ -9810,6 +9820,12 @@ byId('cancel-account-deletion').addEventListener('click', async (event) => {
 document.querySelector('.settings-tabs').addEventListener('click', (event) => {
   const button = event.target.closest('[data-settings-section]');
   if (button) settingsPanel(button.dataset.settingsSection);
+});
+
+byId('settings-video-autoplay').checked = getVideoAutoplayPreference();
+byId('settings-video-autoplay').addEventListener('change', (event) => {
+  setVideoAutoplayPreference(event.currentTarget.checked);
+  settingsMessage('Video Auto Play setting saved.');
 });
 
 byId('profile-settings-button').addEventListener('click', () => showMemberSurface('settings'));
