@@ -15,6 +15,7 @@ function playbackHarness() {
   );
   let resolvePlay;
   let dialogOpen = false;
+  let autoplayEnabled = true;
   const video = {
     isConnected: true,
     paused: true,
@@ -41,13 +42,23 @@ function playbackHarness() {
     homeVideoVisibility: new Map([[video, 0.9]]),
     homeVideoObserver: null,
     HOME_VIDEO_VISIBILITY_THRESHOLD: 0.58,
+    getVideoAutoplayPreference: () => autoplayEnabled,
   };
   runInNewContext(`${source}\nthis.playback = { canPlayHomeFeedVideos, syncHomeFeedVideoPlayback, playHomeFeedVideo };`, context);
   return { ...context.playback, video, location, streamSurface, memberView,
     resolvePlay: () => resolvePlay(),
     setDialogOpen: (value) => { dialogOpen = value; },
+    setAutoplayEnabled: (value) => { autoplayEnabled = value; },
   };
 }
+
+test('Home does not start a visible video when autoplay is off', () => {
+  const state = playbackHarness();
+  state.setAutoplayEnabled(false);
+  state.syncHomeFeedVideoPlayback();
+  assert.equal(state.video.paused, true);
+  assert.equal(state.video.pauses || 0, 0);
+});
 
 test('Home video stops on feature navigation and an in-flight play cannot restart it', async () => {
   const state = playbackHarness();
