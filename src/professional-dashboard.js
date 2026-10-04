@@ -28,7 +28,7 @@ function ensureStylesheet() {
   const link = document.createElement('link');
   link.id = CSS_ID;
   link.rel = 'stylesheet';
-  link.href = '/app/assets/professional-dashboard.css?v=20260918-dashboard1';
+  link.href = '/app/assets/professional-dashboard.css?v=20261004-dashboard-header1';
   document.head.append(link);
 }
 
