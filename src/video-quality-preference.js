@@ -39,11 +39,10 @@ export function normalizeVideoQualityPreference(value) {
 export function selectAdaptiveVideoQuality(connection = {}, stallCount = 0) {
   const effectiveType = String(connection?.effectiveType || '').toLowerCase();
   const downlink = Number(connection?.downlink || 0);
-  if (connection?.saveData || stallCount >= 2 || effectiveType === 'slow-2g' || effectiveType === '2g') return '360';
+  if (connection?.saveData || stallCount >= 2 || effectiveType === 'slow-2g' || effectiveType === '2g') return '240';
   if (stallCount >= 1 || effectiveType === '3g' || (downlink > 0 && downlink < 2.5)) return '360';
-  if (effectiveType === '4g' && downlink >= 6) return 'original';
-  if (downlink >= 6) return 'original';
-  return '720';
+  if (downlink >= 6) return '720';
+  return '360';
 }
 
 export function videoQualityForPreference(preference, connection = {}, context = 'home', stallCount = 0) {
@@ -51,7 +50,7 @@ export function videoQualityForPreference(preference, connection = {}, context =
   if (context === 'short' || normalized === 'auto') {
     return selectAdaptiveVideoQuality(connection, stallCount);
   }
-  if (normalized === 'data-saver') return '360';
+  if (normalized === 'data-saver') return 'data-saver';
   return normalized;
 }
 
@@ -122,8 +121,8 @@ function qualityRank(quality) {
 export function shouldSwitchVideoQuality(state, quality, currentSource, targetSource) {
   if (state.switching || !VIDEO_QUALITY_LEVELS.includes(quality)) return false;
   if (state.quality !== quality) return true;
-  // Auto may use a startup URL that serves the original while preparing the
-  // variant. A later explicit selection must request the real quality URL.
+  // An older startup URL may still be attached when a manual choice is made.
+  // Replace it with the canonical URL for the selected rendition.
   return state.context === 'home'
     && state.preference !== 'auto'
     && currentSource !== targetSource;
@@ -208,6 +207,7 @@ function refreshManagedVideos() {
 
 export function enhanceSautiVideoQuality(video, { context = 'home' } = {}) {
   if (!(video instanceof HTMLVideoElement) || video.dataset.sautiQualityManaged === 'true') return;
+  if (!video.getAttribute('src') && !video.currentSrc) return;
   const mediaId = mediaIdForVideo(video);
   if (!mediaId) return;
 
@@ -238,7 +238,6 @@ export function enhanceSautiVideoQuality(video, { context = 'home' } = {}) {
     if (state.context !== 'short' && state.preference !== 'auto') return;
     state.stableTimer = window.setTimeout(() => {
       state.stalls = 0;
-      void applyVideoQuality(video, state, targetQuality(state));
     }, 10_000);
   };
 

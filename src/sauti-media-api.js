@@ -12,6 +12,7 @@ const IMAGE_VARIANT_VERSION = 'v1';
 const IMAGE_VARIANT_WIDTHS = Object.freeze([480, 960, 1440]);
 const IMAGE_VARIANT_EDGE_TTL_SECONDS = 30 * 24 * 60 * 60;
 const VIDEO_VARIANT_VERSION = 'v2';
+const VIDEO_RANGE_CHUNK_BYTES = 1024 * 1024;
 const VIDEO_MEDIA_SESSION_COOKIE = '__Secure-sautilink-media-session';
 const VIDEO_MEDIA_SESSION_TTL_SECONDS = 5 * 60;
 const videoVariantJobs = new Map();
@@ -152,6 +153,22 @@ function mediaVariantEtag(id, width = 0) {
 
 function videoVariantEtag(id, quality) {
   return `W/"sauti-${id}-video-${VIDEO_VARIANT_VERSION}-q${quality}"`;
+}
+
+export function boundedSautiVideoRange(value, size) {
+  const total = Number(size);
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(String(value || '').trim());
+  if (!match || !Number.isSafeInteger(total) || total <= 0 || (!match[1] && !match[2])) return null;
+  if (!match[1]) {
+    const suffix = Number(match[2]);
+    return Number.isSafeInteger(suffix) && suffix > 0
+      ? { suffix: Math.min(suffix, VIDEO_RANGE_CHUNK_BYTES) } : null;
+  }
+  const offset = Number(match[1]);
+  const end = match[2] ? Number(match[2]) : total - 1;
+  if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(end)
+    || offset < 0 || offset >= total || end < offset) return null;
+  return { offset, length: Math.min(end - offset + 1, total - offset, VIDEO_RANGE_CHUNK_BYTES) };
 }
 
 function mediaResponseHeaders(contentType, etag, variantWidth = 0) {
@@ -643,7 +660,7 @@ async function serveOriginalMedia(request, env, row, id) {
 
   const object = await env.SAUTI_MEDIA.get(
     row.object_key,
-    rangeHeader ? { range: request.headers } : undefined,
+    rangeHeader ? { range: boundedSautiVideoRange(rangeHeader, row.size_bytes) || request.headers } : undefined,
   );
   if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
   object.writeHttpMetadata(headers);
@@ -682,12 +699,8 @@ async function serveVideoVariant(request, env, row, id, quality, ctx = null) {
 
   let available = await env.SAUTI_MEDIA.head(objectKey).catch(() => null);
   if (!available && request.method !== 'HEAD') {
-    // Auto playback must not wait for a cold transcode before the first frame.
-    // Manual quality requests still wait so the selected resolution is delivered.
-    if (new URL(request.url).searchParams.get('startup') === '1' && ctx?.waitUntil) {
-      ctx.waitUntil(createSautiVideoVariant(env, row, id, quality));
-      return serveOriginalMedia(request, env, row, id);
-    }
+    // A quality request must never stream the full-size original while its
+    // smaller rendition is being prepared, including from an older client.
     const generatedKey = await createSautiVideoVariant(env, row, id, quality);
     if (generatedKey) available = await env.SAUTI_MEDIA.head(generatedKey).catch(() => null);
   }
@@ -710,7 +723,7 @@ async function serveVideoVariant(request, env, row, id, quality, ctx = null) {
 
   const object = await env.SAUTI_MEDIA.get(
     objectKey,
-    rangeHeader ? { range: request.headers } : undefined,
+    rangeHeader ? { range: boundedSautiVideoRange(rangeHeader, available.size) || request.headers } : undefined,
   );
   if (!object) return serveOriginalMedia(request, env, row, id);
   object.writeHttpMetadata(headers);

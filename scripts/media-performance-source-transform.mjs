@@ -85,12 +85,12 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
     output,
     `  const object = await env.SAUTI_MEDIA.get(
     row.object_key,
-    rangeHeader ? { range: request.headers } : undefined,
+    rangeHeader ? { range: boundedSautiVideoRange(rangeHeader, row.size_bytes) || request.headers } : undefined,
   );`,
     `  const r2StartedAt = mediaTimingNow();
   const object = await env.SAUTI_MEDIA.get(
     row.object_key,
-    rangeHeader ? { range: request.headers } : undefined,
+    rangeHeader ? { range: boundedSautiVideoRange(rangeHeader, row.size_bytes) || request.headers } : undefined,
   );
   addMediaTiming(timings, 'r2Ms', mediaTimingDuration(r2StartedAt));`,
     'the protected original media ranged read timing',
@@ -358,11 +358,11 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-async function fetchSautiVideoStreamUrl(id, quality = 'original', fastStart = false) {
+async function fetchSautiVideoStreamUrl(id, quality = 'original') {
   await ensureSautiVideoSession();
-  const url = new URL(\`/api/sauti-media/\${encodeURIComponent(id)}\`, window.location.origin);
-  if (quality === '360' || quality === '720') url.searchParams.set('quality', quality);
-  if (fastStart && quality !== 'original') url.searchParams.set('startup', '1');
+  const source = window.SautiLinkVideoQuality?.sourceUrl?.(id, quality)
+    || \`/api/sauti-media/\${encodeURIComponent(id)}\`;
+  const url = new URL(source, window.location.origin);
   return \`\${url.pathname}\${url.search}\`;
 }
 
@@ -394,7 +394,9 @@ function selectSautiMediaVariantWidth(media, tile) {
 
 function waitForSautiMediaNearViewport(tile) {
   if (!tile || !('IntersectionObserver' in window)) return Promise.resolve();
-  const preloadMargin = Math.min(Math.max(Number(window.innerHeight || 720), 480), 1200);
+  const preloadMargin = tile.dataset.mediaKind === 'video'
+    ? Math.min(Math.max(Math.round(Number(window.innerHeight || 720) * 0.3), 180), 320)
+    : Math.min(Math.max(Number(window.innerHeight || 720), 480), 1200);
   return new Promise((resolve) => {
     let settled = false;
     let observer = null;
@@ -478,7 +480,7 @@ function clearHomeFeedMediaState() {
         ? (window.SautiLinkVideoQuality?.qualityFor?.({ context: 'home', mediaId: media.id }) || 'original')
         : 'original';
       const url = streamingVideo
-        ? await fetchSautiVideoStreamUrl(media.id, videoQuality, window.SautiLinkVideoQuality?.getPreference?.() === 'auto')
+        ? await fetchSautiVideoStreamUrl(media.id, videoQuality)
         : await fetchSautiMediaBlobUrl(media.id, variantWidth);
       if (variantWidth) button.dataset.mediaVariantWidth = String(variantWidth);
       if (streamingVideo) {

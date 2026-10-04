@@ -232,6 +232,7 @@ async function hydrateStreamEvents(events) {`,
       }
       button.dataset.mediaObjectUrl = url;
       visual = media.media_kind === 'video' ? document.createElement('video') : document.createElement('img');
+      if (visual instanceof HTMLVideoElement) visual.preload = 'none';
       visual.src = url;
       if (visual instanceof HTMLVideoElement) {
         visual.muted = true;
@@ -239,7 +240,7 @@ async function hydrateStreamEvents(events) {`,
         visual.dataset.sautiAudioPreference = 'muted';
         visual.volume = 1;
         visual.playsInline = true;
-        visual.preload = 'metadata';
+        visual.preload = getVideoAutoplayPreference() ? 'metadata' : 'none';
       } else {
         visual.alt = media.alt_text || '';
         visual.loading = 'lazy';

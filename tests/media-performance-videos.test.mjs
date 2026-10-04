@@ -155,8 +155,43 @@ test('authenticated video delivery forwards byte ranges to R2 and returns HTTP 2
     assert.equal(response.headers.get('Content-Range'), 'bytes 0-1023/25000000');
     assert.equal(response.headers.get('Content-Length'), '1024');
     assert.equal(response.headers.get('Cache-Control'), 'private, max-age=300, must-revalidate');
-    assert.equal(r2Options.range.get('Range'), 'bytes=0-1023');
+    assert.deepEqual(r2Options.range, { offset: 0, length: 1024 });
     assert.equal((await response.arrayBuffer()).byteLength, 1024);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('open-ended video ranges are capped to avoid buffering an entire source file', async () => {
+  const previousFetch = globalThis.fetch;
+  let r2Options = null;
+  globalThis.fetch = async () => Response.json([videoRow()]);
+  const env = {
+    SAUTI_MEDIA: {
+      async get(_key, options) {
+        r2Options = options;
+        const { offset, length } = options.range;
+        return {
+          body: new Uint8Array(length),
+          size: 25_000_000,
+          range: { offset, length },
+          writeHttpMetadata(headers) { headers.set('Content-Type', 'video/mp4'); },
+        };
+      },
+    },
+  };
+
+  try {
+    const response = await handleSautiMediaRequest(new Request(`https://sautilink.com/api/sauti-media/${MEDIA_ID}`, {
+      headers: {
+        Cookie: '__Secure-sautilink-media-session=cookie.token.value',
+        Range: 'bytes=0-',
+      },
+    }), env);
+    assert.equal(response.status, 206);
+    assert.deepEqual(r2Options.range, { offset: 0, length: 1024 * 1024 });
+    assert.equal(response.headers.get('Content-Range'), 'bytes 0-1048575/25000000');
+    assert.equal(response.headers.get('Content-Length'), '1048576');
   } finally {
     globalThis.fetch = previousFetch;
   }
@@ -328,13 +363,10 @@ test('a low resolution original is never served as a misleading 720p variant', a
   }
 });
 
-test('Auto playback serves a cold original range without waiting for a video transcode', async () => {
+test('a cold quality request waits for the smaller rendition instead of streaming Original', async () => {
   const previousFetch = globalThis.fetch;
   const row = videoRow();
-  let finishVariant;
-  const variantReady = new Promise((resolve) => { finishVariant = resolve; });
   const objects = new Map([[row.object_key, new Uint8Array([1, 2, 3, 4])]]);
-  const background = [];
   globalThis.fetch = async () => new Response(JSON.stringify([row]), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
@@ -356,13 +388,11 @@ test('Auto playback serves a cold original range without waiting for a video tra
     MEDIA: {
       input() { return {
         transform() { return {
-          output() { return { media: () => variantReady }; },
+          output() { return { media: async () => new Uint8Array([9, 8]) }; },
         }; },
       }; },
     },
   };
-  const ctx = { waitUntil(promise) { background.push(promise); } };
-
   try {
     const response = await handleSautiMediaRequest(new Request(
       `https://sautilink.com/api/sauti-media/${MEDIA_ID}?quality=360&startup=1`, {
@@ -371,19 +401,10 @@ test('Auto playback serves a cold original range without waiting for a video tra
           Range: 'bytes=0-3',
         },
       },
-    ), env, ctx);
+    ), env);
     assert.equal(response.status, 206);
-    assert.equal(response.headers.get('X-Sauti-Media-Variant'), 'original');
-    assert.equal(background.length, 1);
-    assert.equal((await response.arrayBuffer()).byteLength, 4);
-    finishVariant(new Uint8Array([9, 8]));
-    await Promise.all(background);
-    const warmed = await handleSautiMediaRequest(new Request(
-      `https://sautilink.com/api/sauti-media/${MEDIA_ID}?quality=360&startup=1`, {
-        headers: { Cookie: '__Secure-sautilink-media-session=cookie.token.value' },
-      },
-    ), env, ctx);
-    assert.equal(warmed.headers.get('X-Sauti-Video-Quality'), '360p');
+    assert.equal(response.headers.get('X-Sauti-Video-Quality'), '360p');
+    assert.equal((await response.arrayBuffer()).byteLength, 2);
   } finally {
     globalThis.fetch = previousFetch;
   }
@@ -398,7 +419,7 @@ test('feed videos use protected range URLs while images keep responsive blobs', 
     "fetch('/api/sauti-media/session'",
     "method: 'POST'",
     "credentials: 'same-origin'",
-    "fetchSautiVideoStreamUrl(media.id, videoQuality, window.SautiLinkVideoQuality?.getPreference?.() === 'auto')",
+    "fetchSautiVideoStreamUrl(media.id, videoQuality)",
     "qualityFor?.({ context: 'home', mediaId: media.id })",
     "button.dataset.mediaStreaming = 'range'",
     "url.startsWith('blob:')",
@@ -407,5 +428,6 @@ test('feed videos use protected range URLs while images keep responsive blobs', 
     'void clearSautiVideoSession()',
   ]) assert.ok(transformed.includes(marker), `missing transformed marker: ${marker}`);
 
-  assert.match(transformed, /const url = streamingVideo[\s\S]*fetchSautiVideoStreamUrl\(media\.id, videoQuality,[\s\S]*fetchSautiMediaBlobUrl\(media\.id, variantWidth\)/);
+  assert.match(transformed, /const url = streamingVideo[\s\S]*fetchSautiVideoStreamUrl\(media\.id, videoQuality\)[\s\S]*fetchSautiMediaBlobUrl\(media\.id, variantWidth\)/);
+  assert.match(transformed, /SautiLinkVideoQuality\?\.sourceUrl\?\.\(id, quality\)/);
 });

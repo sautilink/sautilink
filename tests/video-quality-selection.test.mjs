@@ -8,18 +8,20 @@ import {
   shouldSwitchVideoQuality,
   videoQualityForPreference,
   resolveVideoQuality,
+  sautiVideoSourceUrl,
 } from '../src/video-quality-preference.js';
 import { availableVideoQualities, videoVariantDimensions } from '../src/video-quality-levels.js';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('Auto quality follows network capacity and reacts to playback stalls', () => {
-  assert.equal(selectAdaptiveVideoQuality({ saveData: true, effectiveType: '4g', downlink: 20 }), '360');
-  assert.equal(selectAdaptiveVideoQuality({ effectiveType: '2g', downlink: 0.5 }), '360');
+  assert.equal(selectAdaptiveVideoQuality({ saveData: true, effectiveType: '4g', downlink: 20 }), '240');
+  assert.equal(selectAdaptiveVideoQuality({ effectiveType: '2g', downlink: 0.5 }), '240');
   assert.equal(selectAdaptiveVideoQuality({ effectiveType: '3g', downlink: 2 }), '360');
-  assert.equal(selectAdaptiveVideoQuality({ effectiveType: '4g', downlink: 4 }), '720');
-  assert.equal(selectAdaptiveVideoQuality({ effectiveType: '4g', downlink: 12 }), 'original');
-  assert.equal(selectAdaptiveVideoQuality({ effectiveType: '4g', downlink: 12 }, 2), '360');
+  assert.equal(selectAdaptiveVideoQuality({ effectiveType: '4g', downlink: 4 }), '360');
+  assert.equal(selectAdaptiveVideoQuality({ effectiveType: '4g', downlink: 12 }), '720');
+  assert.equal(selectAdaptiveVideoQuality({}, 0), '360');
+  assert.equal(selectAdaptiveVideoQuality({ effectiveType: '4g', downlink: 12 }, 2), '240');
 });
 
 test('a cold variant fallback reports the original resolution instead of the requested label', () => {
@@ -30,7 +32,7 @@ test('a cold variant fallback reports the original resolution instead of the req
   assert.equal(deliveredVideoQuality('360', 0, 0), '360');
 });
 
-test('manual 360p selection retries a cold Auto fallback without delaying Auto startup', () => {
+test('manual selection replaces a legacy startup URL', () => {
   const cold = '/api/sauti-media/video-id?quality=360&startup=1';
   const variant = '/api/sauti-media/video-id?quality=360';
   const state = { quality: '360', context: 'home', preference: 'auto', switching: false };
@@ -41,14 +43,28 @@ test('manual 360p selection retries a cold Auto fallback without delaying Auto s
   assert.equal(shouldSwitchVideoQuality({ ...state, preference: '360', switching: true }, '360', cold, variant), false);
 });
 
+test('all supported qualities request their own media rendition', () => {
+  const previousWindow = globalThis.window;
+  globalThis.window = { location: { origin: 'https://sautilink.com' } };
+  try {
+    for (const quality of ['240', '360', '480', '720', '1080']) {
+      assert.equal(sautiVideoSourceUrl('video-id', quality), `/api/sauti-media/video-id?quality=${quality}`);
+    }
+    assert.equal(sautiVideoSourceUrl('video-id', 'original'), '/api/sauti-media/video-id');
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
 test('Home respects manual preference while Short Videos always stays adaptive', () => {
   const fast = { effectiveType: '4g', downlink: 12 };
   assert.equal(normalizeVideoQualityPreference('DATA-SAVER'), 'data-saver');
   assert.equal(normalizeVideoQualityPreference('invalid'), 'auto');
-  assert.equal(videoQualityForPreference('data-saver', fast, 'home'), '360');
+  assert.equal(videoQualityForPreference('data-saver', fast, 'home'), 'data-saver');
   assert.equal(videoQualityForPreference('720', fast, 'home'), '720');
   assert.equal(videoQualityForPreference('original', fast, 'home'), 'original');
-  assert.equal(videoQualityForPreference('360', fast, 'short'), 'original');
+  assert.equal(videoQualityForPreference('360', fast, 'short'), '720');
 });
 
 test('quality choices are derived from original dimensions and transform limits', () => {
