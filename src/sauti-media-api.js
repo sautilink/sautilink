@@ -539,10 +539,13 @@ async function uploadMedia(request, env, id) {
   return json(200, { ok: true, data: { id, width: inspected.width, height: inspected.height, duration_ms: inspected.durationMs } });
 }
 
-async function createSautiVideoVariant(env, row, id, quality) {
+async function createSautiVideoVariant(env, row, id, quality, diagnostics = null) {
   const dimensions = videoVariantDimensions(row, quality);
   const objectKey = sautiVideoVariantObjectKey(row?.object_key, quality);
-  if (!dimensions || !objectKey || !env?.MEDIA || !env?.SAUTI_MEDIA) return '';
+  if (!dimensions || !objectKey || !env?.MEDIA || !env?.SAUTI_MEDIA) {
+    if (diagnostics) diagnostics.error = !dimensions ? 'UNAVAILABLE_DIMENSIONS' : 'BINDING_UNAVAILABLE';
+    return '';
+  }
 
   const existing = await env.SAUTI_MEDIA.head(objectKey).catch(() => null);
   if (existing) return objectKey;
@@ -571,7 +574,15 @@ async function createSautiVideoVariant(env, row, id, quality) {
       },
     });
     return objectKey;
-  })().catch(() => '').finally(() => videoVariantJobs.delete(jobKey));
+  })().catch((error) => {
+    if (diagnostics) diagnostics.error = String(error?.code || error?.message || 'TRANSFORM_FAILED').slice(0, 160);
+    console.warn('Sauti video rendition failed', {
+      quality,
+      code: String(error?.code || ''),
+      message: String(error?.message || 'Unknown media transform error').slice(0, 160),
+    });
+    return '';
+  }).finally(() => videoVariantJobs.delete(jobKey));
 
   videoVariantJobs.set(jobKey, job);
   return job;
@@ -807,6 +818,17 @@ async function serveMedia(request, env, id, ctx = null) {
   const url = new URL(request.url);
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
+  if (url.searchParams.get('diagnose') === '1' && quality && row.media_kind === 'video') {
+    const diagnostics = {};
+    const objectKey = await createSautiVideoVariant(env, row, id, quality, diagnostics);
+    const variant = objectKey ? await env.SAUTI_MEDIA.head(objectKey).catch(() => null) : null;
+    return json(200, { ok: true, data: {
+      requested_quality: quality,
+      variant_ready: Boolean(variant),
+      variant_bytes: Number(variant?.size || 0),
+      error: diagnostics.error || null,
+    } });
+  }
   if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
   if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality, ctx);
   return serveOriginalMedia(request, env, row, id);
