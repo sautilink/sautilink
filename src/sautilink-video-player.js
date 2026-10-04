@@ -366,10 +366,12 @@ function enhanceSautiLinkVideo(video) {
   const togglePlayback = () => {
     if (video.paused || video.ended) {
       delete video.dataset.sautiUserPaused;
+      video.dataset.sautiManualPlay = 'true';
       if (video.ended && !video.loop) video.currentTime = 0;
       video.play().catch(() => {});
     } else {
       video.dataset.sautiUserPaused = 'true';
+      delete video.dataset.sautiManualPlay;
       video.pause();
     }
     showControls({ hold: video.paused });

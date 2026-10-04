@@ -1,3 +1,5 @@
+import { getVideoAutoplayPreference } from './video-autoplay-preference.js';
+
 const VIDEO_QUALITY_STORAGE_KEY = 'sautilink:video-quality:v1';
 const VIDEO_QUALITY_EVENT = 'sautilink:video-quality-preference';
 const VIDEO_QUALITY_APPLIED_EVENT = 'sautilink:video-quality-applied';
@@ -152,7 +154,10 @@ async function applyVideoQuality(video, state, quality) {
     video.dispatchEvent(new CustomEvent(VIDEO_QUALITY_APPLIED_EVENT, {
       detail: { quality, preference: state.preference, context: state.context },
     }));
-    if (!wasPaused && video.dataset.sautiUserPaused !== 'true') await video.play().catch(() => {});
+    if (!wasPaused && video.dataset.sautiUserPaused !== 'true'
+      && (getVideoAutoplayPreference() || video.dataset.sautiManualPlay === 'true')) {
+      await video.play().catch(() => {});
+    }
   } catch {
     // Keep the currently playable source when a variant cannot be loaded.
   } finally {

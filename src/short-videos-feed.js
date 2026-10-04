@@ -1,3 +1,5 @@
+import { getVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autoplay-preference.js';
+
 const SHORT_VIDEOS_STYLESHEET = '/app/assets/short-videos-feed.css?v=20260907-short1';
 const HOME_VIDEO_TILE_SELECTOR = '#stream-feed .sauti-media-tile[data-media-kind="video"][data-open-media-id]';
 const SHORT_VIDEOS_ROOT_ID = 'sauti-short-videos';
@@ -298,9 +300,10 @@ function syncSlideFromSource(slide) {
   if (video && mediaUrl && video.dataset.sautiQualityManaged !== 'true' && video.src !== mediaUrl) {
     video.src = mediaUrl;
     if (slide.classList.contains('active') && video.dataset.sautiUserPaused !== 'true'
-      && shortVideoPlaybackAllowed(slide.closest(`#${SHORT_VIDEOS_ROOT_ID}`))) {
+      && shortVideoPlaybackAllowed(slide.closest(`#${SHORT_VIDEOS_ROOT_ID}`))
+      && getVideoAutoplayPreference()) {
       video.play().then(() => {
-        if (!shortVideoPlaybackAllowed(slide.closest(`#${SHORT_VIDEOS_ROOT_ID}`))) video.pause();
+        if (!shortVideoPlaybackAllowed(slide.closest(`#${SHORT_VIDEOS_ROOT_ID}`)) || !getVideoAutoplayPreference()) video.pause();
       }).catch(() => {});
     }
   }
@@ -529,9 +532,9 @@ function installShortVideosFeed() {
     pausePlaybackOutsideShortVideos(video);
     pauseShortVideos(video);
     syncActiveShortVideoRoute(slide);
-    if (video?.src && video.dataset.sautiUserPaused !== 'true' && shortVideoPlaybackAllowed(root)) {
+    if (video?.src && video.dataset.sautiUserPaused !== 'true' && shortVideoPlaybackAllowed(root) && getVideoAutoplayPreference()) {
       video.play().then(() => {
-        if (!shortVideoPlaybackAllowed(root)) video.pause();
+        if (!shortVideoPlaybackAllowed(root) || !getVideoAutoplayPreference()) video.pause();
       }).catch(() => {});
     }
     requestMoreIfNeeded(index);
@@ -746,8 +749,19 @@ function installShortVideosFeed() {
       return;
     }
     const video = track.querySelector('.sauti-short-video-slide.active .sauti-short-video-frame video');
-    if (video?.src && video.paused && video.dataset.sautiUserPaused !== 'true') video.play().catch(() => {});
+    if (video?.src && video.paused && video.dataset.sautiUserPaused !== 'true' && getVideoAutoplayPreference()) {
+      video.play().then(() => {
+        if (!shortVideoPlaybackAllowed(root) || !getVideoAutoplayPreference()) video.pause();
+      }).catch(() => {});
+    }
   };
+  document.addEventListener(VIDEO_AUTOPLAY_EVENT, (event) => {
+    if (event.detail.enabled) syncShortVideoForeground();
+    else {
+      track.querySelectorAll('.sauti-short-video-frame video').forEach((video) => { delete video.dataset.sautiManualPlay; });
+      pauseShortVideos();
+    }
+  });
   const shortVideoDialogObserver = new MutationObserver(syncShortVideoForeground);
   document.querySelectorAll('dialog').forEach((dialog) => {
     shortVideoDialogObserver.observe(dialog, { attributes: true, attributeFilter: ['open'] });
