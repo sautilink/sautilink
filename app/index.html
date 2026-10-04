@@ -974,6 +974,7 @@
           <nav class="settings-tabs" aria-label="Settings sections">
             <button type="button" data-settings-section="account" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21c.7-4.2 3.2-6.5 7.5-6.5s6.8 2.3 7.5 6.5"></path></svg><span>Account</span><i aria-hidden="true">›</i></button>
             <button type="button" data-settings-section="privacy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg><span>Privacy</span><i aria-hidden="true">›</i></button>
+            <button type="button" data-settings-section="playback"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="m10 9 5 3-5 3V9Z"></path></svg><span>Playback</span><i aria-hidden="true">›</i></button>
             <button type="button" data-settings-section="notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span>Notifications</span><i aria-hidden="true">›</i></button>
             <button type="button" data-settings-section="safety"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.6 3 7.8 7.5 9.5 4.5-1.7 7.5-4.9 7.5-9.5V6L12 3Z"></path><path d="m8.5 12 2.2 2.2 4.8-5"></path></svg><span>Safety</span><i aria-hidden="true">›</i></button>
             <button type="button" data-settings-section="data"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 20h14"></path></svg><span>Your data</span><i aria-hidden="true">›</i></button>
@@ -1022,6 +1023,13 @@
             </article>
             <article class="settings-card">
               <label class="settings-select"><span><strong>Who can message you</strong><small>Applies to new DM delivery as well as existing conversations.</small></span><select id="settings-dm-access"><option value="following">People you follow</option><option value="everyone">Everyone</option><option value="none">No one</option></select></label>
+            </article>
+          </section>
+
+          <section class="settings-panel" data-settings-panel="playback" hidden>
+            <div class="settings-panel-heading"><h3>Playback</h3><p>Choose how videos start on this device.</p></div>
+            <article class="settings-card settings-toggle-list">
+              <label class="settings-toggle-row"><span><strong>Video Auto Play</strong><small>Play visible videos automatically in Home and Short Videos. Turn off to play videos only when you choose.</small></span><input id="settings-video-autoplay" type="checkbox" checked><i aria-hidden="true"><b></b></i></label>
             </article>
           </section>
 
