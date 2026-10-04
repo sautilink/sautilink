@@ -38,6 +38,16 @@ test('Short Videos exposes every video tile while loading protected media on dem
   assert.match(performanceTransform, /tile\.removeEventListener\('sautilink:request-media-load', finish\)/);
 });
 
+test('Short Videos attaches media only to the active slide and its next neighbor', async () => {
+  const source = await read('src/short-videos-feed.js');
+  const creation = source.slice(source.indexOf('function createShortVideoSlide'), source.indexOf('function syncSlideFromSource'));
+  assert.doesNotMatch(creation, /video\.src\s*=/);
+  assert.match(creation, /video\.preload = 'none'/);
+  assert.match(source, /SHORT_VIDEO_PREFETCH_DISTANCE = 1/);
+  assert.match(source, /slide\.classList\.contains\('active'\) \|\| slide\.classList\.contains\('prefetch'\)/);
+  assert.match(source, /item\.classList\.toggle\('prefetch', position === index \+ 1\)/);
+});
+
 test('Short Videos carries profile identity and verification without inventing a second badge state', async () => {
   const source = await read('src/short-videos-feed.js');
 

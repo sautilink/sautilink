@@ -3,7 +3,7 @@ import { getVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autopl
 const SHORT_VIDEOS_STYLESHEET = '/app/assets/short-videos-feed.css?v=20261004-repost-icon1';
 const HOME_VIDEO_TILE_SELECTOR = '#stream-feed .sauti-media-tile[data-media-kind="video"][data-open-media-id]';
 const SHORT_VIDEOS_ROOT_ID = 'sauti-short-videos';
-const SHORT_VIDEO_PREFETCH_DISTANCE = 2;
+const SHORT_VIDEO_PREFETCH_DISTANCE = 1;
 const SHORT_VIDEO_ROUTE = /^\/(?:app\/)?videos(?:\/[^/?#]+)?\/?$/;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -195,11 +195,10 @@ function createShortVideoSlide(tile) {
 
   const video = document.createElement('video');
   const mediaUrl = shortVideoUrlForTile(tile);
-  if (mediaUrl) video.src = mediaUrl;
   video.dataset.sautiMediaId = mediaId;
   video.dataset.sautiQualityContext = 'short';
   video.playsInline = true;
-  video.preload = 'metadata';
+  video.preload = 'none';
   video.loop = true;
   video.muted = false;
   video.defaultMuted = false;
@@ -297,8 +296,12 @@ function syncSlideFromSource(slide) {
   const frame = slide.querySelector('.sauti-short-video-frame');
   const video = frame?.querySelector('video');
   if (frame) frame.setAttribute('aria-busy', String(!mediaUrl));
-  if (video && mediaUrl && video.dataset.sautiQualityManaged !== 'true' && video.src !== mediaUrl) {
+  const loadVideo = !slide.closest(`#${SHORT_VIDEOS_ROOT_ID}`)?.hidden
+    && (slide.classList.contains('active') || slide.classList.contains('prefetch'));
+  if (video && loadVideo && mediaUrl && video.dataset.sautiQualityManaged !== 'true' && video.src !== mediaUrl) {
+    video.preload = 'metadata';
     video.src = mediaUrl;
+    window.SautiLinkVideoQuality?.enhance?.(video, { context: 'short' });
     if (slide.classList.contains('active') && video.dataset.sautiUserPaused !== 'true'
       && shortVideoPlaybackAllowed(slide.closest(`#${SHORT_VIDEOS_ROOT_ID}`))
       && getVideoAutoplayPreference()) {
@@ -524,10 +527,15 @@ function installShortVideosFeed() {
 
   function activateSlide(slide) {
     if (!slide || root.hidden) return;
-    videoSlides().forEach((item) => item.classList.toggle('active', item === slide));
-    const index = videoSlides().indexOf(slide);
+    const list = videoSlides();
+    const index = list.indexOf(slide);
+    list.forEach((item, position) => {
+      item.classList.toggle('active', item === slide);
+      item.classList.toggle('prefetch', position === index + 1);
+    });
     requestMediaAround(index);
     syncSlideFromSource(slide);
+    if (list[index + 1]) syncSlideFromSource(list[index + 1]);
     const video = slide.querySelector('.sauti-short-video-frame video');
     pausePlaybackOutsideShortVideos(video);
     pauseShortVideos(video);
