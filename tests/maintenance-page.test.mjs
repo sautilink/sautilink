@@ -4,14 +4,11 @@ import test from 'node:test';
 import {
   handleMaintenanceRequest,
   MAINTENANCE_ARTWORK_DATA_URL,
-  MAINTENANCE_END_ISO,
 } from '../src/maintenance-page.js';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('maintenance route uses official branding, embedded artwork and requested content order', async () => {
-  assert.equal(MAINTENANCE_END_ISO, '2026-09-30T01:02:33+03:00');
-  assert.equal(Date.parse(MAINTENANCE_END_ISO), Date.parse('2026-09-30T01:02:33+03:00'));
+test('maintenance route shows only the availability message with branding and social links', async () => {
   assert.match(MAINTENANCE_ARTWORK_DATA_URL, /^data:image\/webp;base64,UklG/);
   assert.ok(MAINTENANCE_ARTWORK_DATA_URL.length > 45_000, 'attached maintenance artwork should be embedded in the Worker source');
 
@@ -30,23 +27,13 @@ test('maintenance route uses official branding, embedded artwork and requested c
     const html = await response.text();
     assert.match(html, /<h1 id="maintenance-title" data-i18n="title">SautiLink isn't available at the moment\.<\/h1>/);
     assert.match(html, /<p class="lead" data-i18n="lead">\s*Please check back later\./);
-    assert.match(html, /Major system upgrade/);
-    assert.match(html, /servers, security, platform infrastructure, performance, reliability/i);
+    assert.doesNotMatch(html, /Major system upgrade|Estimated maintenance time remaining|What is being improved\?/);
+    assert.doesNotMatch(html, /class="countdown-wrap"|id="maintenance-countdown"|data-maintenance-end|setInterval\(/);
+    assert.doesNotMatch(html, /class="status-chip"|Maintenance in progress/);
     assert.match(html, /font-family: "Inter"/);
     assert.match(html, /\/assets\/fonts\/inter\/InterVariable\.woff2/);
     assert.match(html, /class="brand-logo" src="\/logo\.png"/);
     assert.match(html, /class="maintenance-artwork" src="data:image\/webp;base64,UklG/);
-    assert.match(html, /id="hours">--<\/span>/);
-    assert.match(html, /id="minutes">--<\/span>/);
-    assert.match(html, /id="seconds">--<\/span>/);
-    assert.match(html, /data-maintenance-end="2026-09-30T01:02:33\+03:00"/);
-    assert.match(html, /Date\.parse\(rawEnd\)/);
-    assert.match(html, /setInterval\(renderCountdown, 1000\)/);
-
-    const countdownIndex = html.indexOf('class="countdown-wrap"');
-    const scopeIndex = html.indexOf('class="scope"');
-    assert.ok(countdownIndex >= 0 && countdownIndex < scopeIndex, 'countdown must appear above What is being improved');
-
     for (const href of [
       'https://facebook.com/sautilink',
       'https://twitter.com/@sautilink',
@@ -76,13 +63,7 @@ test('maintenance language control defaults to English and switches all maintena
 
   assert.match(html, /SautiLink haipatikani kwa sasa\./);
   assert.match(html, /Tafadhali rudi tena baadaye\./);
-  assert.match(html, /Maboresho makubwa ya mfumo/);
-  assert.match(html, /Muda unaokadiriwa kubaki/);
-  assert.match(html, /Muda wa kukamilika bado haujatangazwa/);
-  assert.match(html, /Nini kinaboreshwa\?/);
-  assert.match(html, /Saa/);
-  assert.match(html, /Dakika/);
-  assert.match(html, /Sekunde/);
+  assert.doesNotMatch(html, /Maboresho makubwa ya mfumo|Muda unaokadiriwa kubaki|Nini kinaboreshwa\?/);
   assert.match(html, /document\.documentElement\.lang = currentLanguage/);
   assert.match(html, /button\.dataset\.language === currentLanguage/);
 });

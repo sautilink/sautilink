@@ -34,7 +34,6 @@ test('maintenance card remains white with medium typography and a smaller logo',
   assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /\.brand-logo\s*\{[\s\S]*?width:\s*82px/);
   assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /h1\s*\{[\s\S]*?font-size:\s*clamp\(28px, 5vw, 40px\)/);
   assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /\.lead\s*\{[\s\S]*?font-size:\s*clamp\(15px, 2\.3vw, 17px\)/);
-  assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /\.time-value\s*\{[\s\S]*?font-size:\s*clamp\(26px, 5\.5vw, 34px\)/);
   assert.match(MAINTENANCE_BLACK_SPECKLE_CSS, /\.brand-logo \{ width: 74px; \}/);
 
   const url = new URL('https://sautilink.com/maintenance');
