@@ -1,6 +1,6 @@
 import { getVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autoplay-preference.js';
 
-const SHORT_VIDEOS_STYLESHEET = '/app/assets/short-videos-feed.css?v=20260907-short1';
+const SHORT_VIDEOS_STYLESHEET = '/app/assets/short-videos-feed.css?v=20261004-repost-icon1';
 const HOME_VIDEO_TILE_SELECTOR = '#stream-feed .sauti-media-tile[data-media-kind="video"][data-open-media-id]';
 const SHORT_VIDEOS_ROOT_ID = 'sauti-short-videos';
 const SHORT_VIDEO_PREFETCH_DISTANCE = 2;
@@ -11,7 +11,7 @@ const SHORT_ICONS = Object.freeze({
   close: '<path d="m6 6 12 12M18 6 6 18"></path>',
   heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"></path>',
   comment: '<path d="M4 5.5h16v11H8l-4 3v-14Z"></path>',
-  repost: '<path d="m7 7-3 3 3 3M4 10h11a4 4 0 0 1 4 4v1M17 17l3-3-3-3M20 14H9a4 4 0 0 1-4-4V9"></path>',
+  repost: '<path d="m2 9 3-3 3 3M5 6h11a2 2 0 0 1 2 2v2m4 5-3 3-3-3m3 3H8a2 2 0 0 1-2-2v-2"></path>',
   save: '<path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z"></path>',
   share: '<path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"></path>',
 });

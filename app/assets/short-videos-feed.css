@@ -363,6 +363,12 @@
   backdrop-filter: blur(8px);
 }
 
+.sauti-short-action[data-short-action="repost"] svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.2;
+}
+
 .sauti-short-action small {
   max-width: 56px;
   overflow: hidden;
