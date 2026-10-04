@@ -571,7 +571,14 @@ async function createSautiVideoVariant(env, row, id, quality) {
       },
     });
     return objectKey;
-  })().catch(() => '').finally(() => videoVariantJobs.delete(jobKey));
+  })().catch((error) => {
+    console.warn('Sauti video rendition failed', {
+      quality,
+      code: String(error?.code || ''),
+      message: String(error?.message || 'Unknown media transform error').slice(0, 160),
+    });
+    return '';
+  }).finally(() => videoVariantJobs.delete(jobKey));
 
   videoVariantJobs.set(jobKey, job);
   return job;
