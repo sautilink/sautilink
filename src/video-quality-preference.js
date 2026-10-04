@@ -1,11 +1,35 @@
 import { getVideoAutoplayPreference } from './video-autoplay-preference.js';
+import { VIDEO_VARIANT_QUALITIES, availableVideoQualities } from './video-quality-levels.js';
 
 const VIDEO_QUALITY_STORAGE_KEY = 'sautilink:video-quality:v1';
 const VIDEO_QUALITY_EVENT = 'sautilink:video-quality-preference';
 const VIDEO_QUALITY_APPLIED_EVENT = 'sautilink:video-quality-applied';
-const VIDEO_QUALITY_VALUES = Object.freeze(['auto', 'data-saver', '360', '720', 'original']);
-const VIDEO_QUALITY_LEVELS = Object.freeze(['360', '720', 'original']);
+const VIDEO_QUALITY_VALUES = Object.freeze(['auto', 'data-saver', ...VIDEO_VARIANT_QUALITIES.map(String), 'original']);
+const VIDEO_QUALITY_LEVELS = Object.freeze([...VIDEO_VARIANT_QUALITIES.map(String), 'original']);
 const managedVideos = new Set();
+const mediaMetadata = new Map();
+
+export function registerVideoMediaMetadata(media) {
+  const id = String(media?.id || '').trim();
+  if (!id || media?.media_kind !== 'video') return;
+  mediaMetadata.set(id, { width: Number(media.width), height: Number(media.height), duration_ms: Number(media.duration_ms) });
+  if (mediaMetadata.size > 500) mediaMetadata.delete(mediaMetadata.keys().next().value);
+}
+
+export function availableVideoQualitiesForMedia(mediaId) {
+  return availableVideoQualities(mediaMetadata.get(String(mediaId || '').trim()));
+}
+
+export function resolveVideoQuality(requested, media) {
+  const qualities = availableVideoQualities(media);
+  if (!qualities.length || requested === 'original') return 'original';
+  if (requested === 'data-saver') return String(qualities[0]);
+  const target = Number(requested);
+  if (!Number.isFinite(target)) return 'original';
+  const shortEdge = Math.min(Number(media?.width), Number(media?.height));
+  if (shortEdge <= target) return 'original';
+  return String(qualities.filter((quality) => quality <= target).at(-1) ?? qualities[0]);
+}
 
 export function normalizeVideoQualityPreference(value) {
   const normalized = String(value || '').trim().toLowerCase();
@@ -35,7 +59,7 @@ export function deliveredVideoQuality(requested, width, height) {
   const quality = VIDEO_QUALITY_LEVELS.includes(String(requested)) ? String(requested) : 'original';
   const shortEdge = Math.min(Number(width) || 0, Number(height) || 0);
   // A cold or failed variant can serve the original under a quality URL.
-  if (quality !== 'original' && shortEdge > Number(quality) + 16) return 'original';
+  if (quality !== 'original' && shortEdge > 0 && Math.abs(shortEdge - Number(quality)) > 2) return 'original';
   return quality;
 }
 
@@ -167,7 +191,8 @@ async function applyVideoQuality(video, state, quality) {
 
 function targetQuality(state) {
   state.preference = state.context === 'short' ? 'auto' : getVideoQualityPreference();
-  return videoQualityForPreference(state.preference, currentConnection(), state.context, state.stalls);
+  const requested = videoQualityForPreference(state.preference, currentConnection(), state.context, state.stalls);
+  return resolveVideoQuality(requested, mediaMetadata.get(state.mediaId));
 }
 
 function refreshManagedVideos() {
@@ -232,10 +257,13 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     enhance: enhanceSautiVideoQuality,
     getPreference: getVideoQualityPreference,
     setPreference: setVideoQualityPreference,
-    qualityFor({ context = 'home', stalls = 0 } = {}) {
+    qualityFor({ context = 'home', stalls = 0, mediaId = '' } = {}) {
       const preference = context === 'short' ? 'auto' : getVideoQualityPreference();
-      return videoQualityForPreference(preference, currentConnection(), context, stalls);
+      return resolveVideoQuality(videoQualityForPreference(preference, currentConnection(), context, stalls), mediaMetadata.get(mediaId));
     },
+    registerMedia: registerVideoMediaMetadata,
+    availableFor: availableVideoQualitiesForMedia,
+    metadataFor: (id) => mediaMetadata.get(String(id || '').trim()) || null,
     sourceUrl: sautiVideoSourceUrl,
     deliveredQuality: deliveredVideoQuality,
     values: VIDEO_QUALITY_VALUES,

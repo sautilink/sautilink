@@ -475,7 +475,7 @@ function clearHomeFeedMediaState() {
       const variantWidth = selectSautiMediaVariantWidth(media, button);
       const streamingVideo = media.media_kind === 'video';
       const videoQuality = streamingVideo
-        ? (window.SautiLinkVideoQuality?.qualityFor?.({ context: 'home' }) || '720')
+        ? (window.SautiLinkVideoQuality?.qualityFor?.({ context: 'home', mediaId: media.id }) || 'original')
         : 'original';
       const url = streamingVideo
         ? await fetchSautiVideoStreamUrl(media.id, videoQuality, window.SautiLinkVideoQuality?.getPreference?.() === 'auto')

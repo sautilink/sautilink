@@ -205,6 +205,10 @@ function enhanceSautiLinkVideo(video) {
   const quality = qualityContext === 'home' ? document.createElement('span') : null;
   const qualityMenu = qualityContext === 'home' ? document.createElement('span') : null;
   if (quality && qualityMenu) {
+    const mediaId = video.dataset.sautiMediaId || host.dataset.openMediaId || '';
+    const variants = window.SautiLinkVideoQuality?.availableFor?.(mediaId) || [];
+    const source = window.SautiLinkVideoQuality?.metadataFor?.(mediaId);
+    const sourceEdge = Math.min(Number(source?.width), Number(source?.height));
     quality.className = 'sauti-video-quality';
     quality.setAttribute('role', 'button');
     quality.setAttribute('tabindex', '0');
@@ -216,10 +220,9 @@ function enhanceSautiLinkVideo(video) {
     qualityMenu.hidden = true;
     [
       ['auto', 'Auto'],
-      ['data-saver', 'Data Saver'],
-      ['360', '360p'],
-      ['720', '720p'],
-      ['original', 'Original'],
+      ...(variants.length ? [['data-saver', 'Data Saver']] : []),
+      ...variants.map((value) => [String(value), `${value}p`]),
+      ['original', sourceEdge > 0 ? `Original (${sourceEdge}p)` : 'Original'],
     ].forEach(([value, label]) => {
       const option = document.createElement('span');
       option.className = 'sauti-video-quality-option';
@@ -306,14 +309,15 @@ function enhanceSautiLinkVideo(video) {
       requested, video.videoWidth, video.videoHeight,
     ) || requested;
     const appliedLabel = applied === 'original' ? 'Original' : `${applied}p`;
-    const label = preference === 'auto'
+    const available = [...(window.SautiLinkVideoQuality?.availableFor?.(video.dataset.sautiMediaId || host.dataset.openMediaId) || []).map(String), 'original'];
+    const effectivePreference = available.includes(preference) || preference === 'auto' || (preference === 'data-saver' && available.length > 1)
+      ? preference : 'original';
+    const label = effectivePreference === 'auto'
       ? `Auto · ${appliedLabel}`
-      : preference === 'data-saver'
+      : effectivePreference === 'data-saver'
         ? `Saver · ${appliedLabel}`
-        : preference === 'original' ? 'Original'
-          : applied === 'original' && requested === preference
-            ? `Original · ${preference}p unavailable`
-            : `${preference}p`;
+        : effectivePreference === 'original' ? 'Original'
+          : appliedLabel;
     let labelNode = quality.querySelector(':scope > .sauti-video-quality-label');
     if (!labelNode) {
       labelNode = document.createElement('span');
@@ -323,7 +327,7 @@ function enhanceSautiLinkVideo(video) {
     labelNode.textContent = label;
     quality.setAttribute('title', `Video quality: ${label}`);
     qualityMenu.querySelectorAll('[data-video-quality-option]').forEach((option) => {
-      option.setAttribute('aria-checked', String(option.dataset.videoQualityOption === preference));
+      option.setAttribute('aria-checked', String(option.dataset.videoQualityOption === effectivePreference));
     });
   };
 
