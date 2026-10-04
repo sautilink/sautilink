@@ -496,8 +496,40 @@ body:has(#conversation-surface:not([hidden])) .stream-header {
 }
 
 @media (max-width: 680px) {
+  #conversation-surface {
+    height: calc(100dvh - 58px - 62px);
+    min-height: 0;
+    overflow: hidden;
+  }
+
   #conversation-surface .conversation-toolbar {
-    top: 58px;
+    top: 0;
+    flex: none;
+  }
+
+  #conversation-thread {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+  }
+
+  #conversation-thread:empty {
+    flex: 0 0 auto;
+  }
+
+  #conversation-surface .conversation-empty {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    align-content: center;
+  }
+
+  #conversation-surface .conversation-reply-form {
+    position: relative;
+    bottom: auto;
+    flex: none;
   }
 
   #conversation-thread .comment-card {
