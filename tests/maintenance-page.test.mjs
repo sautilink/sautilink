@@ -28,6 +28,8 @@ test('maintenance route uses official branding, embedded artwork and requested c
     assert.match(response.headers.get('content-security-policy') || '', /img-src 'self' data:/);
 
     const html = await response.text();
+    assert.match(html, /<h1 id="maintenance-title" data-i18n="title">SautiLink isn't available at the moment\.<\/h1>/);
+    assert.match(html, /<p class="lead" data-i18n="lead">\s*Please check back later\./);
     assert.match(html, /Major system upgrade/);
     assert.match(html, /servers, security, platform infrastructure, performance, reliability/i);
     assert.match(html, /font-family: "Inter"/);
@@ -72,7 +74,8 @@ test('maintenance language control defaults to English and switches all maintena
   assert.match(html, /applyLanguage\('en'\)/);
   assert.doesNotMatch(html, /navigator\.language|navigator\.languages|localStorage|sessionStorage/);
 
-  assert.match(html, /Tunaboresha SautiLink\./);
+  assert.match(html, /SautiLink haipatikani kwa sasa\./);
+  assert.match(html, /Tafadhali rudi tena baadaye\./);
   assert.match(html, /Maboresho makubwa ya mfumo/);
   assert.match(html, /Muda unaokadiriwa kubaki/);
   assert.match(html, /Muda wa kukamilika bado haujatangazwa/);
