@@ -47,8 +47,6 @@ function videoIcon(name) {
   } else if (name === 'pip') {
     svg.append(path('M4 6h16v12H4Z'));
     svg.append(path('M12.5 11.5h6v4.5h-6Z'));
-  } else if (name === 'expand') {
-    svg.append(path('M9 4H4v5M15 4h5v5M20 15v5h-5M4 15v5h5'));
   } else {
     svg.append(path('M12 5v14'));
   }
@@ -113,7 +111,6 @@ function enhanceSautiLinkVideo(video) {
   if (!context) return;
 
   const { host, mode } = context;
-  const canOpenViewer = mode === 'feed' && Boolean(host.closest('#stream-feed'));
   const qualityContext = host.closest('#sauti-short-videos') ? 'short' : 'home';
   video.dataset.sautiVideoPlayerReady = 'true';
   video.controls = false;
@@ -236,14 +233,7 @@ function enhanceSautiLinkVideo(video) {
   }
 
   const pip = makeVideoControl('sauti-video-control pip', 'Picture in Picture', 'pip');
-  const expand = makeVideoControl(
-    'sauti-video-control expand',
-    canOpenViewer ? 'Open video viewer' : 'Fullscreen',
-    canOpenViewer ? 'expand' : 'fullscreen',
-  );
-  const fullscreen = canOpenViewer
-    ? makeVideoControl('sauti-video-control fullscreen', 'Fullscreen', 'fullscreen')
-    : null;
+  const fullscreen = makeVideoControl('sauti-video-control fullscreen', 'Fullscreen', 'fullscreen');
 
   row.append(playPause, audio, volume, time, rate);
   if (quality) row.append(quality);
@@ -252,8 +242,7 @@ function enhanceSautiLinkVideo(video) {
   } else {
     pip.hidden = true;
   }
-  row.append(expand);
-  if (fullscreen) row.append(fullscreen);
+  row.append(fullscreen);
   chrome.append(timeline, row);
 
   player.append(gesture, leftHint, rightHint, spinner, center, chrome);
@@ -454,15 +443,7 @@ function enhanceSautiLinkVideo(video) {
     showControls();
   });
 
-  if (canOpenViewer) {
-    runControlAction(expand, () => {
-      showControls();
-      host.click();
-    });
-    runControlAction(fullscreen, requestFullscreen);
-  } else {
-    runControlAction(expand, requestFullscreen);
-  }
+  runControlAction(fullscreen, requestFullscreen);
 
   const setVolumeFromPointer = (event) => {
     const rect = volume.getBoundingClientRect();
