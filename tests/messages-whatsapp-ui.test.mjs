@@ -52,7 +52,7 @@ test('reference refresh keeps SautiLink branding and the existing paper-plane se
   assert.match(source, /data\.messagesSendIcon|dataset\.messagesSendIcon/);
   assert.match(source, /M22 2 15 22 11 13 2 9 22 2Z/);
   assert.match(source, /messages-composer\.css\?v=20260914-messagesui1/);
-  assert.match(source, /messages-header-polish\.css\?v=20260921-messagesui9/);
+  assert.match(source, /messages-header-polish\.css\?v=20261004-thread-rounded1/);
 
   assert.match(css, /--message-brand: var\(--brand-primary, #2563eb\)/);
   assert.match(css, /grid-template-columns: minmax\(290px, 360px\) minmax\(0, 1fr\)/);
