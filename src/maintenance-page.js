@@ -412,9 +412,9 @@ const MAINTENANCE_HTML = `<!doctype html>
         </div>
 
         <p class="eyebrow" data-i18n="eyebrow">Major system upgrade</p>
-        <h1 id="maintenance-title" data-i18n="title">We are upgrading SautiLink.</h1>
+        <h1 id="maintenance-title" data-i18n="title">SautiLink isn't available at the moment.</h1>
         <p class="lead" data-i18n="lead">
-          SautiLink is temporarily unavailable while we carry out major improvements across the entire platform. We are upgrading core infrastructure to make the service faster, safer and more reliable.
+          Please check back later.
         </p>
 
         <div class="countdown-wrap">
@@ -484,8 +484,8 @@ const MAINTENANCE_HTML = `<!doctype html>
           homeAria: 'SautiLink home',
           artworkAlt: 'SautiLink system maintenance in progress',
           eyebrow: 'Major system upgrade',
-          title: 'We are upgrading SautiLink.',
-          lead: 'SautiLink is temporarily unavailable while we carry out major improvements across the entire platform. We are upgrading core infrastructure to make the service faster, safer and more reliable.',
+          title: "SautiLink isn't available at the moment.",
+          lead: 'Please check back later.',
           countdownLabel: 'Estimated maintenance time remaining',
           countdownAria: 'Maintenance countdown',
           hours: 'Hours',
@@ -507,8 +507,8 @@ const MAINTENANCE_HTML = `<!doctype html>
           homeAria: 'Ukurasa wa mwanzo wa SautiLink',
           artworkAlt: 'Maboresho ya mfumo wa SautiLink yanaendelea',
           eyebrow: 'Maboresho makubwa ya mfumo',
-          title: 'Tunaboresha SautiLink.',
-          lead: 'SautiLink haipatikani kwa muda tunapofanya maboresho makubwa katika mfumo mzima. Tunaboresha miundombinu ya msingi ili huduma iwe ya haraka zaidi, salama zaidi na yenye kuaminika zaidi.',
+          title: 'SautiLink haipatikani kwa sasa.',
+          lead: 'Tafadhali rudi tena baadaye.',
           countdownLabel: 'Muda unaokadiriwa kubaki',
           countdownAria: 'Muda uliobaki wa maboresho',
           hours: 'Saa',
