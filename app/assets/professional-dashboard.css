@@ -53,6 +53,10 @@
 
 .professional-dashboard-surface[hidden] { display: none !important; }
 
+body:has(#professional-dashboard-surface:not([hidden])) .stream-header {
+  display: none;
+}
+
 .professional-dashboard-header {
   min-height: 72px;
   display: flex;
