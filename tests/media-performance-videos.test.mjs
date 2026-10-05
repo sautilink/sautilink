@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
-import { handleSautiMediaRequest } from '../src/sauti-media-api.js';
+import { handleSautiMediaRequest, sautiMediaObjectKeys, sautiVideoPosterObjectKey } from '../src/sauti-media-api.js';
 import { transformMediaPerformanceSource } from '../scripts/media-performance-source-transform.mjs';
 import { transformPostMediaSource } from '../scripts/post-media-source-transform.mjs';
 
@@ -88,6 +88,69 @@ function videoRow() {
     finalized_at: new Date().toISOString(),
   };
 }
+
+test('protected video poster is generated once, cached in R2, and never serves video bytes', async () => {
+  const previousFetch = globalThis.fetch;
+  const row = videoRow();
+  const posterKey = sautiVideoPosterObjectKey(row.object_key);
+  const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  const objects = new Map([[row.object_key, new Uint8Array([1, 2, 3, 4])]]);
+  let transformCount = 0;
+  let rowVisible = true;
+  globalThis.fetch = async () => Response.json(rowVisible ? [row] : []);
+  const env = {
+    SAUTI_MEDIA: {
+      async head(key) {
+        const body = objects.get(key);
+        return body ? { size: body.byteLength } : null;
+      },
+      async get(key) {
+        const body = objects.get(key);
+        return body ? { body, size: body.byteLength, etag: 'source-etag' } : null;
+      },
+      async put(key, body, options) {
+        assert.equal(key, posterKey);
+        assert.equal(options.httpMetadata.contentType, 'image/jpeg');
+        objects.set(key, new Uint8Array(body));
+      },
+    },
+    MEDIA: {
+      input() {
+        transformCount++;
+        return {
+          transform(options) {
+            assert.deepEqual(options, { width: 640, fit: 'scale-down' });
+            return { output(options) {
+              assert.deepEqual(options, { mode: 'frame', time: '1s', format: 'jpg' });
+              return { async media() { return jpeg; } };
+            } };
+          },
+        };
+      },
+    },
+  };
+  const request = () => new Request(`https://sautilink.com/api/sauti-media/${MEDIA_ID}?poster=1`, {
+    headers: { Authorization: 'Bearer viewer.token.value' },
+  });
+  try {
+    const first = await handleSautiMediaRequest(request(), env);
+    assert.equal(first.status, 200);
+    assert.equal(first.headers.get('Content-Type'), 'image/jpeg');
+    assert.match(first.headers.get('Cache-Control'), /^private/);
+    assert.deepEqual(new Uint8Array(await first.arrayBuffer()), jpeg);
+    const second = await handleSautiMediaRequest(request(), env);
+    assert.equal(second.status, 200);
+    assert.deepEqual(new Uint8Array(await second.arrayBuffer()), jpeg);
+    assert.equal(transformCount, 1);
+    assert.ok(sautiMediaObjectKeys(row).includes(posterKey));
+
+    rowVisible = false;
+    const denied = await handleSautiMediaRequest(request(), env);
+    assert.equal(denied.status, 404);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
 
 test('video media session uses a short-lived secure HttpOnly same-site cookie', async () => {
   const previousFetch = globalThis.fetch;
@@ -474,6 +537,9 @@ test('feed videos use protected range URLs while images keep responsive blobs', 
     "url.startsWith('blob:')",
     "item.mediaKind === 'video'",
     "await fetchSautiVideoStreamUrl(item.id, 'original')",
+    'loadSautiVideoPoster(media.id, button)',
+    "visual.poster = button.dataset.mediaPosterObjectUrl",
+    "[data-media-object-url], [data-media-poster-object-url]",
     'void clearSautiVideoSession()',
   ]) assert.ok(transformed.includes(marker), `missing transformed marker: ${marker}`);
 

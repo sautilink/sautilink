@@ -33,7 +33,7 @@ test('Short Videos exposes every video tile while loading protected media on dem
   assert.match(source, /index \+ SHORT_VIDEO_PREFETCH_DISTANCE/);
   assert.match(source, /function shortVideoUrlForTile/);
   assert.match(source, /context: 'short'/);
-  assert.match(source, /attributeFilter: \['data-active', 'data-following', 'data-media-object-url'\]/);
+  assert.match(source, /attributeFilter: \['data-active', 'data-following', 'data-media-object-url', 'data-media-poster-object-url'\]/);
   assert.match(performanceTransform, /tile\.addEventListener\('sautilink:request-media-load', finish, \{ once: true \}\)/);
   assert.match(performanceTransform, /tile\.removeEventListener\('sautilink:request-media-load', finish\)/);
 });

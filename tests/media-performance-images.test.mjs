@@ -49,7 +49,7 @@ test('Home feed waits for viewport proximity, requests sized protected blobs, an
     'fetchSautiMediaBlobUrl(button.dataset.openMediaId)',
     'content.dataset.mediaViewerObjectUrl = originalUrl',
     'function revokeHomeFeedMediaObjectUrls',
-    "root.querySelectorAll('[data-media-object-url]')",
+    "root.querySelectorAll('[data-media-object-url], [data-media-poster-object-url]')",
     'URL.revokeObjectURL(url)',
     'revokeHomeFeedMediaObjectUrls();',
     'revokeHomeFeedMediaObjectUrls(authorCard);',

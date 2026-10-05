@@ -12,10 +12,12 @@ const IMAGE_VARIANT_VERSION = 'v1';
 const IMAGE_VARIANT_WIDTHS = Object.freeze([480, 960, 1440]);
 const IMAGE_VARIANT_EDGE_TTL_SECONDS = 30 * 24 * 60 * 60;
 const VIDEO_VARIANT_VERSION = 'v2';
+const VIDEO_POSTER_VERSION = 'v1';
 const VIDEO_RANGE_CHUNK_BYTES = 1024 * 1024;
 const VIDEO_MEDIA_SESSION_COOKIE = '__Secure-sautilink-media-session';
 const VIDEO_MEDIA_SESSION_TTL_SECONDS = 5 * 60;
 const videoVariantJobs = new Map();
+const videoPosterJobs = new Map();
 
 const TYPES = {
   'image/jpeg': { kind: 'image', extension: 'jpg', limit: IMAGE_LIMIT },
@@ -134,11 +136,16 @@ export function sautiVideoVariantObjectKey(objectKey, quality) {
   return normalized ? `${String(objectKey || '')}.video-${VIDEO_VARIANT_VERSION}-q${normalized}.mp4` : '';
 }
 
+export function sautiVideoPosterObjectKey(objectKey) {
+  return `${String(objectKey || '')}.poster-${VIDEO_POSTER_VERSION}.jpg`;
+}
+
 export function sautiMediaObjectKeys(row) {
   const original = String(row?.object_key || '');
   if (!original) return [];
   if (row?.media_kind !== 'video') return [original];
-  return [original, ...VIDEO_VARIANT_QUALITIES.map((quality) => sautiVideoVariantObjectKey(original, quality)),
+  return [original, sautiVideoPosterObjectKey(original),
+    ...VIDEO_VARIANT_QUALITIES.map((quality) => sautiVideoVariantObjectKey(original, quality)),
     ...[360, 720].map((quality) => `${original}.video-v1-q${quality}.mp4`)];
 }
 
@@ -588,10 +595,48 @@ async function createSautiVideoVariant(env, row, id, quality) {
   return job;
 }
 
+async function createSautiVideoPoster(env, row, id) {
+  if (row?.media_kind !== 'video' || !env?.MEDIA || !env?.SAUTI_MEDIA) return '';
+  const objectKey = sautiVideoPosterObjectKey(row.object_key);
+  if (await env.SAUTI_MEDIA.head(objectKey).catch(() => null)) return objectKey;
+  if (videoPosterJobs.has(id)) return videoPosterJobs.get(id);
+
+  const job = (async () => {
+    const original = await env.SAUTI_MEDIA.get(row.object_key);
+    if (!original?.body) return '';
+    const time = Number(row.duration_ms) >= 1500 ? '1s' : '0s';
+    const result = env.MEDIA.input(original.body)
+      .transform({ width: 640, fit: 'scale-down' })
+      .output({ mode: 'frame', time, format: 'jpg' });
+    const body = await new Response(await result.media()).arrayBuffer();
+    if (!body.byteLength) return '';
+    await env.SAUTI_MEDIA.put(objectKey, body, {
+      httpMetadata: { contentType: 'image/jpeg' },
+      customMetadata: {
+        ownerId: String(row.owner_id || ''),
+        mediaId: id,
+        mediaKind: 'video-poster',
+        variantVersion: VIDEO_POSTER_VERSION,
+        sourceEtag: String(original.etag || ''),
+      },
+    });
+    return objectKey;
+  })().catch((error) => {
+    console.warn('Sauti video poster failed', {
+      code: String(error?.code || ''),
+      message: String(error?.message || 'Unknown media transform error').slice(0, 160),
+    });
+    return '';
+  }).finally(() => videoPosterJobs.delete(id));
+  videoPosterJobs.set(id, job);
+  return job;
+}
+
 function prewarmSautiVideoVariants(env, row, id, ctx) {
   if (row?.media_kind !== 'video' || !ctx?.waitUntil || !env?.MEDIA) return;
   ctx.waitUntil(Promise.allSettled(
-    availableVideoQualities(row).map((quality) => createSautiVideoVariant(env, row, id, quality)),
+    [createSautiVideoPoster(env, row, id),
+      ...availableVideoQualities(row).map((quality) => createSautiVideoVariant(env, row, id, quality))],
   ));
 }
 
@@ -758,6 +803,31 @@ async function serveVideoVariant(request, env, row, id, quality, ctx = null) {
   return new Response(object.body, { status: 200, headers });
 }
 
+async function serveVideoPoster(request, env, row, id) {
+  if (row.media_kind !== 'video') return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
+  const objectKey = sautiVideoPosterObjectKey(row.object_key);
+  let available = await env.SAUTI_MEDIA.head(objectKey).catch(() => null);
+  if (!available && request.method === 'GET') {
+    const generated = await createSautiVideoPoster(env, row, id);
+    if (generated) available = await env.SAUTI_MEDIA.head(generated).catch(() => null);
+  }
+  if (!available) return apiError(404, 'POSTER_UNAVAILABLE', 'This video has no preview image yet.');
+
+  const etag = `W/"sauti-${id}-poster-${VIDEO_POSTER_VERSION}"`;
+  const headers = mediaResponseHeaders('image/jpeg', etag);
+  headers.set('Cache-Control', 'private, max-age=300, must-revalidate');
+  headers.set('X-Sauti-Media-Variant', `poster-${VIDEO_POSTER_VERSION}`);
+  if (requestHasEtag(request, etag)) return new Response(null, { status: 304, headers });
+  if (request.method === 'HEAD') {
+    headers.set('Content-Length', String(available.size));
+    return new Response(null, { status: 200, headers });
+  }
+  const object = await env.SAUTI_MEDIA.get(objectKey);
+  if (!object) return apiError(404, 'POSTER_UNAVAILABLE', 'This video has no preview image yet.');
+  headers.set('Content-Length', String(object.size));
+  return new Response(object.body, { status: 200, headers });
+}
+
 async function serveImageVariant(request, env, row, id, width) {
   if (!responsiveImagesEnabled(env) || row.media_kind !== 'image') {
     return serveOriginalMedia(request, env, row, id);
@@ -818,6 +888,7 @@ async function serveMedia(request, env, id, ctx = null) {
   const url = new URL(request.url);
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
+  if (url.searchParams.get('poster') === '1') return serveVideoPoster(request, env, row, id);
   if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
   if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality, ctx);
   return serveOriginalMedia(request, env, row, id);
