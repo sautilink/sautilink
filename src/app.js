@@ -231,6 +231,15 @@ let dmConversationRealtimeId = '';
 let dmTypingStopTimer = 0;
 let dmTypingSent = false;
 let dmRealtimeSyncTimer = 0;
+const MEMBER_ACTIVITY_HEARTBEAT_MS = 60_000;
+let memberActivityRealtimeChannel = null;
+let memberActivityMemberId = '';
+let memberActivityHeartbeatTimer = 0;
+let dmPeerActivityChannel = null;
+let dmPeerActivityId = '';
+let dmPeerActivityOnline = false;
+let dmPeerActivityRecent = false;
+let dmPeerActivityRequest = 0;
 let discoverRequest = 0;
 let savedRequest = 0;
 let sautiConversationRequest = 0;
@@ -1638,7 +1647,266 @@ function durableDmRealtimeActive() {
   return byId('messages-surface')?.dataset.realtimeTransport === 'durable-object';
 }
 
+function memberActivityTopic(memberId) {
+  return `member-activity:${memberId}`;
+}
+
+function globalDmPresenceActive() {
+  return Boolean(
+    dmPeerActivityChannel
+    && dmPeerActivityId
+    && dmPeerActivityId === String(activeConversation?.peerId || '')
+    && byId('messages-surface')?.dataset.globalPresenceTransport === 'supabase'
+  );
+}
+
+function renderGlobalDmPeerActivity() {
+  if (!globalDmPresenceActive()) return false;
+  const activity = byId('message-thread-activity');
+  const typing = byId('message-typing-status');
+  if (!activity) return true;
+
+  if (typing && !typing.hidden) {
+    activity.textContent = 'Typing…';
+    activity.hidden = false;
+    activity.dataset.state = 'typing';
+    return true;
+  }
+
+  if (dmPeerActivityOnline) {
+    activity.textContent = 'Online';
+    activity.hidden = false;
+    activity.dataset.state = 'online';
+  } else if (dmPeerActivityRecent) {
+    activity.textContent = 'Active recently';
+    activity.hidden = false;
+    activity.dataset.state = 'recent';
+  } else {
+    activity.textContent = 'Online';
+    activity.hidden = true;
+    delete activity.dataset.state;
+  }
+  return true;
+}
+
+window.__sautilinkRenderDmPeerActivity = renderGlobalDmPeerActivity;
+
+async function touchMemberActivity() {
+  if (!currentMemberId) return false;
+  const { data, error } = await supabase.rpc('touch_member_activity_phase37');
+  if (error) throw error;
+  return data === true;
+}
+
+function scheduleMemberActivityHeartbeat() {
+  window.clearTimeout(memberActivityHeartbeatTimer);
+  memberActivityHeartbeatTimer = 0;
+  if (
+    !memberActivityRealtimeChannel
+    || !currentMemberId
+    || memberActivityMemberId !== currentMemberId
+    || !activityStatusEnabled()
+    || document.hidden
+  ) return;
+
+  memberActivityHeartbeatTimer = window.setTimeout(async () => {
+    try {
+      await touchMemberActivity();
+    } catch {
+      // The live Presence socket remains authoritative for Online state.
+    }
+    scheduleMemberActivityHeartbeat();
+  }, MEMBER_ACTIVITY_HEARTBEAT_MS);
+}
+
+async function syncMemberActivityVisibility() {
+  const channel = memberActivityRealtimeChannel;
+  const memberId = memberActivityMemberId;
+  if (!channel || !memberId || memberId !== currentMemberId || !activityStatusEnabled()) return;
+
+  window.clearTimeout(memberActivityHeartbeatTimer);
+  memberActivityHeartbeatTimer = 0;
+
+  try {
+    if (document.hidden) {
+      await channel.untrack();
+      return;
+    }
+    await channel.track({ member_id: memberId });
+    await touchMemberActivity();
+  } catch {
+    // Presence/heartbeat is optional and must not interrupt normal app use.
+  }
+  scheduleMemberActivityHeartbeat();
+}
+
+async function stopMemberActivityPresence({ clearRecent = false } = {}) {
+  window.clearTimeout(memberActivityHeartbeatTimer);
+  memberActivityHeartbeatTimer = 0;
+  const channel = memberActivityRealtimeChannel;
+  memberActivityRealtimeChannel = null;
+  memberActivityMemberId = '';
+
+  if (channel) {
+    try { await channel.untrack(); } catch {}
+    try { await supabase.removeChannel(channel); } catch {}
+  }
+
+  if (clearRecent && currentMemberId) {
+    try { await touchMemberActivity(); } catch {}
+  }
+}
+
+async function syncMemberActivityPresence() {
+  if (!currentMemberId || !currentSettingsPreferences) return;
+
+  if (!activityStatusEnabled()) {
+    await stopMemberActivityPresence({ clearRecent: true });
+    return;
+  }
+
+  if (memberActivityRealtimeChannel && memberActivityMemberId === currentMemberId) {
+    await syncMemberActivityVisibility();
+    return;
+  }
+
+  await stopMemberActivityPresence();
+  try {
+    await supabase.realtime.setAuth();
+    if (!currentMemberId || !activityStatusEnabled()) return;
+
+    const memberId = currentMemberId;
+    const channel = supabase.channel(memberActivityTopic(memberId), {
+      config: {
+        private: true,
+        presence: { key: memberId },
+      },
+    });
+
+    memberActivityRealtimeChannel = channel;
+    memberActivityMemberId = memberId;
+
+    channel.subscribe((status) => {
+      if (channel !== memberActivityRealtimeChannel || memberId !== currentMemberId) return;
+      if (status === 'SUBSCRIBED') {
+        void syncMemberActivityVisibility();
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        window.clearTimeout(memberActivityHeartbeatTimer);
+        memberActivityHeartbeatTimer = 0;
+      }
+    });
+  } catch {
+    await stopMemberActivityPresence();
+  }
+}
+
+async function refreshDmPeerRecentActivity(peerId = dmPeerActivityId) {
+  if (!peerId || peerId !== String(activeConversation?.peerId || '') || !activityStatusEnabled()) return;
+  const requestId = ++dmPeerActivityRequest;
+  const { data, error } = await supabase.rpc('dm_peer_recent_activity_phase37', {
+    p_peer_id: peerId,
+  });
+  if (
+    requestId !== dmPeerActivityRequest
+    || peerId !== dmPeerActivityId
+    || peerId !== String(activeConversation?.peerId || '')
+  ) return;
+
+  dmPeerActivityRecent = !error && data === true;
+  renderGlobalDmPeerActivity();
+}
+
+function syncDmPeerGlobalPresence(channel = dmPeerActivityChannel) {
+  if (!channel || channel !== dmPeerActivityChannel || dmPeerActivityId !== String(activeConversation?.peerId || '')) return;
+
+  const state = channel.presenceState?.() || {};
+  const peerId = dmPeerActivityId;
+  const peerOnline = Object.values(state)
+    .flatMap((entries) => Array.isArray(entries) ? entries : [])
+    .some((entry) => String(entry?.member_id || '') === peerId);
+
+  dmPeerActivityOnline = peerOnline;
+  if (peerOnline) dmPeerActivityRecent = true;
+  renderGlobalDmPeerActivity();
+  if (!peerOnline) void refreshDmPeerRecentActivity(peerId);
+}
+
+async function stopDmPeerActivityPresence() {
+  dmPeerActivityRequest += 1;
+  const channel = dmPeerActivityChannel;
+  dmPeerActivityChannel = null;
+  dmPeerActivityId = '';
+  dmPeerActivityOnline = false;
+  dmPeerActivityRecent = false;
+  const surface = byId('messages-surface');
+  if (surface) delete surface.dataset.globalPresenceTransport;
+
+  if (channel) {
+    try { await supabase.removeChannel(channel); } catch {}
+  }
+}
+
+async function startDmPeerActivityPresence(peerId = String(activeConversation?.peerId || '')) {
+  const normalizedPeerId = String(peerId || '');
+  if (
+    !normalizedPeerId
+    || normalizedPeerId !== String(activeConversation?.peerId || '')
+    || !activityStatusEnabled()
+    || activeConversation?.blockedByYou
+  ) {
+    await stopDmPeerActivityPresence();
+    return;
+  }
+
+  if (dmPeerActivityChannel && dmPeerActivityId === normalizedPeerId) {
+    syncDmPeerGlobalPresence(dmPeerActivityChannel);
+    return;
+  }
+
+  await stopDmPeerActivityPresence();
+  try {
+    await supabase.realtime.setAuth();
+    if (
+      normalizedPeerId !== String(activeConversation?.peerId || '')
+      || !activityStatusEnabled()
+      || activeConversation?.blockedByYou
+    ) return;
+
+    const channel = supabase.channel(memberActivityTopic(normalizedPeerId), {
+      config: {
+        private: true,
+        presence: { key: currentMemberId },
+      },
+    });
+
+    dmPeerActivityChannel = channel;
+    dmPeerActivityId = normalizedPeerId;
+
+    channel
+      .on('presence', { event: 'sync' }, () => syncDmPeerGlobalPresence(channel))
+      .on('presence', { event: 'join' }, () => syncDmPeerGlobalPresence(channel))
+      .on('presence', { event: 'leave' }, () => syncDmPeerGlobalPresence(channel))
+      .subscribe((status) => {
+        if (channel !== dmPeerActivityChannel || normalizedPeerId !== dmPeerActivityId) return;
+        const surface = byId('messages-surface');
+        if (status === 'SUBSCRIBED') {
+          if (surface) surface.dataset.globalPresenceTransport = 'supabase';
+          syncDmPeerGlobalPresence(channel);
+          void refreshDmPeerRecentActivity(normalizedPeerId);
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          if (surface) delete surface.dataset.globalPresenceTransport;
+          dmPeerActivityOnline = false;
+          dmPeerActivityRecent = false;
+          syncDmPresenceState();
+        }
+      });
+  } catch {
+    await stopDmPeerActivityPresence();
+  }
+}
+
 function resetDmActivityUI() {
+  if (renderGlobalDmPeerActivity()) return;
   const activity = byId('message-thread-activity');
   const typing = byId('message-typing-status');
   if (activity) {
