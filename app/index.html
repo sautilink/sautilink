@@ -949,7 +949,9 @@
             <div class="message-thread-feed" id="message-thread-feed" aria-live="polite"></div>
             <p class="message-thread-empty" id="message-thread-empty" hidden>No messages yet. Start the conversation below.</p>
 
-            <p class="message-typing-status" id="message-typing-status" role="status" aria-live="polite" hidden>Typing…</p>
+            <p class="message-typing-status" id="message-typing-status" role="status" aria-live="polite" aria-label="Typing" hidden>
+              <span class="message-typing-bubble" aria-hidden="true"><i></i><i></i><i></i></span>
+            </p>
 
             <form class="message-composer" id="message-composer" novalidate>
               <label class="sr-only" for="message-body">Write a message</label>
