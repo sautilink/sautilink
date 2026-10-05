@@ -6,6 +6,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('Phase 37 stores recent member activity privately and exposes only authorized coarse status', async () => {
   const migration = await read('supabase/migrations/20261005214500_enable_platform_wide_message_presence.sql');
+  const hardening = await read('supabase/migrations/20261005215500_harden_platform_wide_message_presence.sql');
 
   for (const marker of [
     'private.member_activity_phase37',
@@ -25,6 +26,8 @@ test('Phase 37 stores recent member activity privately and exposes only authoriz
   assert.match(migration, /security definer[\s\S]*set search_path = ''/i);
   assert.match(migration, /old\.activity_status is true and new\.activity_status is not true/i);
   assert.doesNotMatch(migration, /grant\s+(?:select|insert|update|delete|all)[\s\S]*member_activity_phase37[\s\S]*authenticated/i);
+  assert.match(hardening, /drop function if exists public\.can_view_member_activity_topic_phase37\(text\)/i);
+  assert.doesNotMatch(hardening, /can_view_member_activity_topic_phase37\(\(select realtime\.topic\(\)\)\)/i);
 });
 
 test('Phase 37 publishes platform-wide Presence while typing remains conversation realtime', async () => {
