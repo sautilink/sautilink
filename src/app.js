@@ -615,6 +615,8 @@ function showAuthPanel(name) {
 
 function showSignedOut(mode = 'login') {
   void stopDmRealtime();
+  void stopDmPeerActivityPresence();
+  void stopMemberActivityPresence();
   setSignupPhoneChange('');
   currentMember = null;
   currentMemberId = '';
@@ -2137,6 +2139,10 @@ async function ensureDmInboxRealtime() {
 }
 
 function syncDmPresenceState(channel = dmConversationRealtimeChannel) {
+  if (globalDmPresenceActive()) {
+    renderGlobalDmPeerActivity();
+    return;
+  }
   if (durableDmRealtimeActive()) return;
   const activity = byId('message-thread-activity');
   if (!activity || !channel || !activityStatusEnabled() || !activeConversation?.peerId) {
@@ -2407,6 +2413,8 @@ async function loadSettings() {
     if (muteResult.error) throw muteResult.error;
 
     currentSettingsPreferences = preferences;
+    void syncMemberActivityPresence();
+    if (activeConversation?.peerId) void startDmPeerActivityPresence(activeConversation.peerId);
     currentMember = { ...currentMember, ...profileResult.data };
     syncVerificationRequestStatus(profileResult.data);
 
@@ -7135,7 +7143,10 @@ function renderMessageInboxItem(row, peer) {
 
 async function loadMessagesInbox() {
   if (!currentMemberId) return;
-  await stopDmConversationRealtime();
+  await Promise.all([
+    stopDmConversationRealtime(),
+    stopDmPeerActivityPresence(),
+  ]);
   const requestId = ++messagesRequest;
   activeConversation = null;
 
@@ -7322,6 +7333,8 @@ async function syncMessageThreadSafety(peer) {
       ? 'Muted. Messages still arrive, but this conversation does not add to your unread badge.'
       : 'Only this conversation can read these messages. Blocking either account stops new delivery.';
   updateMessageComposerState();
+  if (blocked) void stopDmPeerActivityPresence();
+  else if (activeConversation?.peerId) void startDmPeerActivityPresence(activeConversation.peerId);
 }
 
 async function markActiveConversationRead() {
@@ -7456,6 +7469,7 @@ async function loadMessageThread(conversationId, notificationMessageId = '') {
   await markActiveConversationRead();
   await renderPeerReadReceipt(conversation.id, messages);
   await syncMessageThreadSafety(peer);
+  void startDmPeerActivityPresence(peerId);
   void startDmConversationRealtime(conversation.id);
 
   scrollToDmMessage(feed, messages.some((message) => String(message.id) === notificationMessageId)
@@ -9032,9 +9046,13 @@ function renderMember(profile, userId = currentMemberId) {
   void ensureSettingsPreferences()
     .then((preferences) => {
       currentSettingsPreferences = preferences;
+      void syncMemberActivityPresence();
       if (!messageBadgesEnabled()) syncMessageBadges(0);
       else void refreshMessageBadge();
-      if (activeConversation?.id) void startDmConversationRealtime(activeConversation.id);
+      if (activeConversation?.id) {
+        void startDmPeerActivityPresence(activeConversation.peerId);
+        void startDmConversationRealtime(activeConversation.id);
+      }
     })
     .catch(() => { currentSettingsPreferences = null; });
   void refreshNotificationBadge();
@@ -9485,6 +9503,7 @@ window.addEventListener('focus', () => {
 });
 
 document.addEventListener('visibilitychange', () => {
+  void syncMemberActivityVisibility();
   syncHomeFeedVideoPlayback();
   if (document.visibilityState === 'visible' && currentMemberId) {
     void ensureDmInboxRealtime();
@@ -10177,8 +10196,19 @@ for (const [id, column] of [
         else syncMessageBadges(0);
       }
       if (column === 'activity_status') {
-        if (input.checked && activeConversation?.id) void startDmConversationRealtime(activeConversation.id);
-        else if (!input.checked) void stopDmConversationRealtime();
+        if (input.checked) {
+          void syncMemberActivityPresence();
+          if (activeConversation?.id) {
+            void startDmPeerActivityPresence(activeConversation.peerId);
+            void startDmConversationRealtime(activeConversation.id);
+          }
+        } else {
+          await Promise.all([
+            stopMemberActivityPresence({ clearRecent: true }),
+            stopDmPeerActivityPresence(),
+            stopDmConversationRealtime(),
+          ]);
+        }
       }
       if (column !== 'notify_messages') void refreshNotificationBadge();
       settingsMessage('Preference saved.');
