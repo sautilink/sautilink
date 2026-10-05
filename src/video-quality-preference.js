@@ -1,4 +1,5 @@
 import { getVideoAutoplayPreference } from './video-autoplay-preference.js';
+import { getActivePlaybackVideo } from './video-playback-coordinator.js';
 import { VIDEO_VARIANT_QUALITIES, availableVideoQualities } from './video-quality-levels.js';
 
 const VIDEO_QUALITY_STORAGE_KEY = 'sautilink:video-quality:v1';
@@ -128,6 +129,25 @@ export function shouldSwitchVideoQuality(state, quality, currentSource, targetSo
     && currentSource !== targetSource;
 }
 
+export function shouldResumeVideoAfterQualityChange(video, context) {
+  if (!video.isConnected || document.visibilityState === 'hidden') return false;
+  const active = getActivePlaybackVideo();
+  if (active && active !== video) return false;
+  if (document.pictureInPictureElement === video || document.fullscreenElement?.contains(video)) return true;
+  if (context === 'short') {
+    const slide = video.closest('.sauti-short-video-slide');
+    return Boolean(slide?.classList.contains('active') && !slide.closest('#sauti-short-videos')?.hidden);
+  }
+  if (video.closest('#stream-feed')) {
+    const rect = video.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const visibleHeight = Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
+    return visibleHeight >= Math.min(rect.height, viewportHeight) * 0.2;
+  }
+  const dialog = video.closest('dialog');
+  return !dialog || dialog.open;
+}
+
 async function applyVideoQuality(video, state, quality) {
   const source = sautiVideoSourceUrl(state.mediaId, quality);
   const currentSource = relativeVideoUrl(video.currentSrc || video.src);
@@ -177,7 +197,8 @@ async function applyVideoQuality(video, state, quality) {
     video.dispatchEvent(new CustomEvent(VIDEO_QUALITY_APPLIED_EVENT, {
       detail: { quality, preference: state.preference, context: state.context },
     }));
-    if (!wasPaused && video.dataset.sautiUserPaused !== 'true'
+    if (!wasPaused && shouldResumeVideoAfterQualityChange(video, state.context)
+      && video.dataset.sautiUserPaused !== 'true'
       && (getVideoAutoplayPreference() || video.dataset.sautiManualPlay === 'true')) {
       await video.play().catch(() => {});
     }
