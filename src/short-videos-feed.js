@@ -203,7 +203,9 @@ function createShortVideoSlide(tile) {
   video.muted = false;
   video.defaultMuted = false;
   video.volume = sourceVideo?.volume > 0 ? sourceVideo.volume : 1;
-  if (sourceVideo?.poster) video.poster = sourceVideo.poster;
+  if (sourceVideo?.poster || tile.dataset.mediaPosterObjectUrl) {
+    video.poster = sourceVideo?.poster || tile.dataset.mediaPosterObjectUrl;
+  }
   video.setAttribute('aria-label', tile.dataset.mediaAlt ? `Video: ${tile.dataset.mediaAlt}` : `Video by @${username}`);
   frame.setAttribute('aria-busy', String(!mediaUrl));
   frame.append(video);
@@ -295,6 +297,8 @@ function syncSlideFromSource(slide) {
   const mediaUrl = shortVideoUrlForTile(sourceTile);
   const frame = slide.querySelector('.sauti-short-video-frame');
   const video = frame?.querySelector('video');
+  const posterUrl = sourceTile?.dataset.mediaPosterObjectUrl || '';
+  if (video && posterUrl && video.poster !== posterUrl) video.poster = posterUrl;
   if (frame) frame.setAttribute('aria-busy', String(!mediaUrl));
   const loadVideo = !slide.closest(`#${SHORT_VIDEOS_ROOT_ID}`)?.hidden
     && (slide.classList.contains('active') || slide.classList.contains('prefetch'));
@@ -703,7 +707,7 @@ function installShortVideosFeed() {
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ['data-active', 'data-following', 'data-media-object-url'],
+      attributeFilter: ['data-active', 'data-following', 'data-media-object-url', 'data-media-poster-object-url'],
     });
   }
 

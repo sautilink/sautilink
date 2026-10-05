@@ -237,6 +237,7 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
   const url = new URL(request.url);
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
+  if (url.searchParams.get('poster') === '1') return serveVideoPoster(request, env, row, id);
   if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
   if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality, ctx);
   return serveOriginalMedia(request, env, row, id);
@@ -258,7 +259,9 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
   const url = new URL(request.url);
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
-  const response = width && row.media_kind === 'image'
+  const response = url.searchParams.get('poster') === '1'
+    ? await serveVideoPoster(request, env, row, id)
+    : width && row.media_kind === 'image'
     ? await serveImageVariant(request, env, row, id, width, timings)
     : quality && row.media_kind === 'video'
       ? await serveVideoVariant(request, env, row, id, quality, ctx)
@@ -392,9 +395,11 @@ function selectSautiMediaVariantWidth(media, tile) {
     || SAUTI_MEDIA_VARIANT_WIDTHS[SAUTI_MEDIA_VARIANT_WIDTHS.length - 1];
 }
 
-function waitForSautiMediaNearViewport(tile) {
+function waitForSautiMediaNearViewport(tile, poster = false) {
   if (!tile || !('IntersectionObserver' in window)) return Promise.resolve();
-  const preloadMargin = tile.dataset.mediaKind === 'video'
+  const preloadMargin = poster
+    ? Math.min(Math.max(Number(window.innerHeight || 720) * 1.5, 900), 1600)
+    : tile.dataset.mediaKind === 'video'
     ? Math.min(Math.max(Math.round(Number(window.innerHeight || 720) * 0.3), 180), 320)
     : Math.min(Math.max(Number(window.innerHeight || 720), 480), 1200);
   return new Promise((resolve) => {
@@ -423,6 +428,29 @@ async function fetchSautiMediaBlobUrl(id, variantWidth = 0) {
   const response = await fetch(\`\${url.pathname}\${url.search}\`, { headers });
   if (!response.ok) throw new Error('MEDIA_PREVIEW_FAILED');
   return URL.createObjectURL(await response.blob());
+}
+
+async function loadSautiVideoPoster(id, button) {
+  try {
+    await waitForSautiMediaNearViewport(button, true);
+    if (!button.parentNode) return;
+    const headers = await currentAuthorizationHeader();
+    const response = await fetch(\`/api/sauti-media/\${encodeURIComponent(id)}?poster=1\`, { headers });
+    if (!response.ok || response.headers.get('Content-Type')?.split(';')[0] !== 'image/jpeg') return;
+    const posterUrl = URL.createObjectURL(await response.blob());
+    if (!button.isConnected) {
+      URL.revokeObjectURL(posterUrl);
+      return;
+    }
+    button.dataset.mediaPosterObjectUrl = posterUrl;
+    button.style.backgroundImage = \`url("\${posterUrl}")\`;
+    button.style.backgroundPosition = 'center';
+    button.style.backgroundSize = 'cover';
+    const video = button.querySelector('video');
+    if (video) video.poster = posterUrl;
+  } catch {
+    // Playback remains available if a source video cannot produce a poster.
+  }
 }`,
     'the protected Sauti media fetch helper',
   );
@@ -436,10 +464,13 @@ async function fetchSautiMediaBlobUrl(id, variantWidth = 0) {
   pauseHomeFeedVideos();`,
     `function revokeHomeFeedMediaObjectUrls(root = byId('stream-feed')) {
   if (!root) return;
-  root.querySelectorAll('[data-media-object-url]').forEach((button) => {
+  root.querySelectorAll('[data-media-object-url], [data-media-poster-object-url]').forEach((button) => {
     const url = button.dataset.mediaObjectUrl || '';
     if (url.startsWith('blob:')) URL.revokeObjectURL(url);
     delete button.dataset.mediaObjectUrl;
+    const posterUrl = button.dataset.mediaPosterObjectUrl || '';
+    if (posterUrl.startsWith('blob:')) URL.revokeObjectURL(posterUrl);
+    delete button.dataset.mediaPosterObjectUrl;
   });
 }
 
@@ -460,6 +491,18 @@ function clearHomeFeedMediaState() {
       authorCard.remove();
     });`,
     'the direct Home card removal cleanup',
+  );
+
+  output = replaceExactOnce(
+    output,
+    `    gallery.append(button);
+    return { media, button };
+  });`,
+    `    gallery.append(button);
+    if (media.media_kind === 'video') void loadSautiVideoPoster(media.id, button);
+    return { media, button };
+  });`,
+    'the early Home video poster request',
   );
 
   output = replaceExactOnce(
@@ -489,6 +532,20 @@ function clearHomeFeedMediaState() {
       }
       if (!button.parentNode) {`,
     'the Home feed media request start',
+  );
+
+  output = replaceExactOnce(
+    output,
+    `      button.dataset.mediaObjectUrl = url;
+      visual = media.media_kind === 'video' ? document.createElement('video') : document.createElement('img');
+      if (visual instanceof HTMLVideoElement) visual.preload = 'none';`,
+    `      button.dataset.mediaObjectUrl = url;
+      visual = media.media_kind === 'video' ? document.createElement('video') : document.createElement('img');
+      if (visual instanceof HTMLVideoElement && button.dataset.mediaPosterObjectUrl) {
+        visual.poster = button.dataset.mediaPosterObjectUrl;
+      }
+      if (visual instanceof HTMLVideoElement) visual.preload = 'none';`,
+    'the Home video poster attachment',
   );
 
   output = replaceExactOnce(
@@ -525,6 +582,7 @@ function clearHomeFeedMediaState() {
   }
   if (visual instanceof HTMLVideoElement) {
     visual.dataset.sautiMediaId = button.dataset.openMediaId || '';
+    if (button.dataset.mediaPosterObjectUrl) visual.poster = button.dataset.mediaPosterObjectUrl;
     visual.dataset.sautiQuality = button.dataset.mediaQuality || 'original';`,
     'the fullscreen media visual',
   );
