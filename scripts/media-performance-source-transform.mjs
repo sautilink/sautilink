@@ -237,17 +237,6 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
   const url = new URL(request.url);
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
-  if (url.searchParams.get('diagnose') === '1' && quality && row.media_kind === 'video') {
-    const diagnostics = {};
-    const objectKey = await createSautiVideoVariant(env, row, id, quality, diagnostics);
-    const variant = objectKey ? await env.SAUTI_MEDIA.head(objectKey).catch(() => null) : null;
-    return json(200, { ok: true, data: {
-      requested_quality: quality,
-      variant_ready: Boolean(variant),
-      variant_bytes: Number(variant?.size || 0),
-      error: diagnostics.error || null,
-    } });
-  }
   if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
   if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality, ctx);
   return serveOriginalMedia(request, env, row, id);
@@ -269,17 +258,6 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
   const url = new URL(request.url);
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
-  if (url.searchParams.get('diagnose') === '1' && quality && row.media_kind === 'video') {
-    const diagnostics = {};
-    const objectKey = await createSautiVideoVariant(env, row, id, quality, diagnostics);
-    const variant = objectKey ? await env.SAUTI_MEDIA.head(objectKey).catch(() => null) : null;
-    return withMediaServerTiming(json(200, { ok: true, data: {
-      requested_quality: quality,
-      variant_ready: Boolean(variant),
-      variant_bytes: Number(variant?.size || 0),
-      error: diagnostics.error || null,
-    } }), timings, totalStartedAt);
-  }
   const response = width && row.media_kind === 'image'
     ? await serveImageVariant(request, env, row, id, width, timings)
     : quality && row.media_kind === 'video'
