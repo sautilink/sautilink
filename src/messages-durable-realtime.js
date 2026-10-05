@@ -54,15 +54,24 @@ function resetPeerActivity() {
   durablePeerTyping = false;
   durablePeerLastSeenAt = 0;
 
+  const typing = document.getElementById('message-typing-status');
+  if (typing) typing.hidden = true;
+
+  const globalRenderer = window.__sautilinkRenderDmPeerActivity;
+  if (typeof globalRenderer === 'function') {
+    try {
+      if (globalRenderer() === true) return;
+    } catch {
+      // Durable realtime remains a safe presentation fallback.
+    }
+  }
+
   const activity = document.getElementById('message-thread-activity');
   if (activity) {
     activity.textContent = 'Online';
     activity.hidden = true;
     delete activity.dataset.state;
   }
-
-  const typing = document.getElementById('message-typing-status');
-  if (typing) typing.hidden = true;
 }
 
 function renderPeerActivity() {
@@ -75,12 +84,25 @@ function renderPeerActivity() {
   if (typing) typing.hidden = !durablePeerTyping;
   if (!activity) return;
 
+  if (durablePeerTyping) {
+    activity.textContent = 'Typing…';
+    activity.hidden = false;
+    activity.dataset.state = 'typing';
+    return;
+  }
+
+  const globalRenderer = window.__sautilinkRenderDmPeerActivity;
+  if (typeof globalRenderer === 'function') {
+    try {
+      if (globalRenderer() === true) return;
+    } catch {
+      // Fall through to conversation-scoped Durable Object presence.
+    }
+  }
+
   let text = '';
   let state = '';
-  if (durablePeerTyping) {
-    text = 'Typing…';
-    state = 'typing';
-  } else if (durablePeerOnline) {
+  if (durablePeerOnline) {
     text = 'Online';
     state = 'online';
   } else if (recentPeerLastSeen(durablePeerLastSeenAt)) {
