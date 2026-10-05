@@ -73,6 +73,8 @@ test('Phase 36 browser client is additive and leaves Supabase Realtime available
   assert.match(app, /\.channel\(/);
   assert.match(app, /broadcastDmTyping/);
   assert.match(app, /startDmConversationRealtime/);
+  assert.match(app, /durableDmRealtimeActive/);
+  assert.doesNotMatch(app, /typing\.textContent\s*=\s*['"]Typing…['"]/);
   assert.match(html, /message-typing-bubble/);
   assert.match(css, /message-typing-status\[hidden\]/);
   assert.match(css, /@keyframes message-typing-dot/);
