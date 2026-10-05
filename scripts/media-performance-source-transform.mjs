@@ -540,6 +540,7 @@ function clearHomeFeedMediaState() {
   const viewerUrl = content?.dataset.mediaViewerObjectUrl || '';
   if (viewerUrl) URL.revokeObjectURL(viewerUrl);
   if (content) delete content.dataset.mediaViewerObjectUrl;
+  content?.querySelectorAll('video').forEach((video) => video.pause());
   content?.replaceChildren();`,
     'the fullscreen media cleanup',
   );

@@ -42,6 +42,7 @@ function playbackHarness() {
     homeVideoVisibility: new Map([[video, 0.9]]),
     homeVideoObserver: null,
     HOME_VIDEO_VISIBILITY_THRESHOLD: 0.58,
+    HOME_VIDEO_PAUSE_THRESHOLD: 0.2,
     getVideoAutoplayPreference: () => autoplayEnabled,
   };
   runInNewContext(`${source}\nthis.playback = { canPlayHomeFeedVideos, syncHomeFeedVideoPlayback, playHomeFeedVideo };`, context);
@@ -49,6 +50,7 @@ function playbackHarness() {
     resolvePlay: () => resolvePlay(),
     setDialogOpen: (value) => { dialogOpen = value; },
     setAutoplayEnabled: (value) => { autoplayEnabled = value; },
+    setVisibleRatio: (value) => context.homeVideoVisibility.set(video, value),
   };
 }
 
@@ -58,6 +60,16 @@ test('Home does not start a visible video when autoplay is off', () => {
   state.syncHomeFeedVideoPlayback();
   assert.equal(state.video.paused, true);
   assert.equal(state.video.pauses || 0, 0);
+});
+
+test('a manually played Home video pauses after scrolling out of view with autoplay off', () => {
+  const state = playbackHarness();
+  state.setAutoplayEnabled(false);
+  state.video.paused = false;
+  state.setVisibleRatio(0.1);
+  state.syncHomeFeedVideoPlayback();
+  assert.equal(state.video.paused, true);
+  assert.equal(state.video.pauses, 1);
 });
 
 test('Home video stops on feature navigation and an in-flight play cannot restart it', async () => {

@@ -410,6 +410,7 @@ function installShortVideosFeed() {
     slides.forEach((slide, key) => {
       if (availableKeys.has(key)) return;
       observer?.unobserve(slide);
+      slide.querySelectorAll('video').forEach((video) => video.pause());
       slide.remove();
       slides.delete(key);
     });

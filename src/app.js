@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getVideoAutoplayPreference, setVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autoplay-preference.js';
+import { installVideoPlaybackCoordinator } from './video-playback-coordinator.js';
 import { notificationPostDestination } from './notification-destinations.js';
 import { normalizeOtpPhone, otpPhoneError } from './phone-number-validation.js';
 import {
@@ -34,6 +35,7 @@ const INITIAL_AUTH_RETURN = parseAuthReturnUrl(window.location.href);
 const THEME_STORAGE_KEY = 'sautilink.theme';
 const CAPTION_PREVIEW_LIMIT = 180;
 const HOME_VIDEO_VISIBILITY_THRESHOLD = 0.58;
+const HOME_VIDEO_PAUSE_THRESHOLD = 0.2;
 const HOME_DOUBLE_TAP_WINDOW = 320;
 const THEME_COLORS = Object.freeze({ dark: '#0b0c0f', light: '#ffffff' });
 
@@ -53,6 +55,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 });
 
 const byId = (id) => document.getElementById(id);
+installVideoPlaybackCoordinator();
 const loadingView = byId('loading-view');
 const authView = byId('auth-view');
 const memberView = byId('member-view');
@@ -1192,7 +1195,17 @@ function syncHomeFeedVideoPlayback() {
     pauseHomeFeedVideos();
     return;
   }
-  if (!getVideoAutoplayPreference()) return;
+  if (!getVideoAutoplayPreference()) {
+    homeVideoVisibility.forEach((ratio, video) => {
+      if (!video.isConnected) {
+        homeVideoObserver?.unobserve(video);
+        homeVideoVisibility.delete(video);
+      } else if (ratio < HOME_VIDEO_PAUSE_THRESHOLD) {
+        video.pause();
+      }
+    });
+    return;
+  }
 
   let activeVideo = null;
   let activeRatio = HOME_VIDEO_VISIBILITY_THRESHOLD;
@@ -1221,7 +1234,7 @@ function ensureHomeVideoObserver() {
       homeVideoVisibility.set(entry.target, entry.isIntersecting ? entry.intersectionRatio : 0);
     });
     syncHomeFeedVideoPlayback();
-  }, { threshold: [0, 0.35, HOME_VIDEO_VISIBILITY_THRESHOLD, 0.85] });
+  }, { threshold: [0, HOME_VIDEO_PAUSE_THRESHOLD, 0.35, HOME_VIDEO_VISIBILITY_THRESHOLD, 0.85] });
   return homeVideoObserver;
 }
 
