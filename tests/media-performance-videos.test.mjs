@@ -418,16 +418,21 @@ test('a cold quality request waits for the smaller rendition instead of streamin
   }
 });
 
-test('authenticated video diagnosis reports a transform failure without returning media bytes', async () => {
+test('a failed video transform falls back to Original without a false quality label', async () => {
   const previousFetch = globalThis.fetch;
   const previousWarn = console.warn;
   const row = videoRow();
   globalThis.fetch = async () => Response.json([row]);
-  console.warn = () => {};
+  let warning;
+  console.warn = (_message, details) => { warning = details; };
   const env = {
     SAUTI_MEDIA: {
       async head() { return null; },
-      async get() { return { body: new Uint8Array([1, 2, 3]) }; },
+      async get() { return {
+        body: new Uint8Array([1, 2, 3]),
+        size: 3,
+        writeHttpMetadata(headers) { headers.set('Content-Type', 'video/mp4'); },
+      }; },
     },
     MEDIA: {
       input() {
@@ -440,16 +445,14 @@ test('authenticated video diagnosis reports a transform failure without returnin
 
   try {
     const response = await handleSautiMediaRequest(new Request(
-      `https://sautilink.com/api/sauti-media/${MEDIA_ID}?quality=360&diagnose=1`,
+      `https://sautilink.com/api/sauti-media/${MEDIA_ID}?quality=360`,
       { headers: { Cookie: '__Secure-sautilink-media-session=cookie.token.value' } },
     ), env);
     assert.equal(response.status, 200);
-    assert.deepEqual((await response.json()).data, {
-      requested_quality: 360,
-      variant_ready: false,
-      variant_bytes: 0,
-      error: '9402',
-    });
+    assert.equal(response.headers.get('X-Sauti-Video-Quality'), null);
+    assert.equal(response.headers.get('X-Sauti-Media-Variant'), 'original');
+    assert.deepEqual(new Uint8Array(await response.arrayBuffer()), new Uint8Array([1, 2, 3]));
+    assert.equal(warning.code, '9402');
   } finally {
     globalThis.fetch = previousFetch;
     console.warn = previousWarn;

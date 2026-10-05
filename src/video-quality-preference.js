@@ -249,20 +249,6 @@ export function enhanceSautiVideoQuality(video, { context = 'home' } = {}) {
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-  const diagnosticId = new URLSearchParams(window.location.search).get('video_probe') || '';
-  if (/^[0-9a-f-]{36}$/i.test(diagnosticId)) {
-    const result = document.createElement('pre');
-    result.id = 'sauti-video-probe-result';
-    result.textContent = 'Checking video rendition…';
-    result.style.cssText = 'position:fixed;inset:1rem;z-index:2147483647;overflow:auto;background:white;color:black;padding:1rem;white-space:pre-wrap;';
-    document.body.append(result);
-    fetch(`/api/sauti-media/${encodeURIComponent(diagnosticId)}?quality=360&diagnose=1`, {
-      credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
-    }).then(async (response) => {
-      result.textContent = JSON.stringify({ status: response.status, body: await response.json() }, null, 2);
-    }).catch((error) => { result.textContent = String(error?.message || error); });
-  }
   const connection = currentConnection();
   connection?.addEventListener?.('change', refreshManagedVideos);
   document.addEventListener(VIDEO_QUALITY_EVENT, refreshManagedVideos);
