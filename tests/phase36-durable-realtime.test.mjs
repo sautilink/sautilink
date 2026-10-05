@@ -4,7 +4,7 @@ import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Phase 36 Durable Object is a hibernating ephemeral presence and typing hub', async () => {
+test('Phase 36 Durable Object is a hibernating presence and typing hub with bounded recent activity', async () => {
   const hub = await read('src/dm-realtime-hub.js');
 
   for (const marker of [
@@ -16,6 +16,10 @@ test('Phase 36 Durable Object is a hibernating ephemeral presence and typing hub
     "type: 'presence'",
     "type: 'typing'",
     "type: 'pong'",
+    'RECENT_PRESENCE_MS',
+    'peer_last_seen_at',
+    'this.ctx.storage.put',
+    'this.ctx.storage.get',
   ]) assert.ok(hub.includes(marker), `Durable realtime hub missing ${marker}`);
 
   assert.doesNotMatch(hub, /dm_messages|SAUTI_MEDIA|PROFILE_MEDIA|message_body|service_role|sb_secret_/i);
@@ -47,6 +51,8 @@ test('Phase 36 browser client is additive and leaves Supabase Realtime available
   const client = await read('src/messages-durable-realtime.js');
   const app = await read('src/app.js');
   const transform = await read('scripts/messages-durable-realtime-source-transform.mjs');
+  const html = await read('app/index.html');
+  const css = await read('app/assets/messages-whatsapp.css');
 
   for (const marker of [
     'new WebSocket',
@@ -57,6 +63,8 @@ test('Phase 36 browser client is additive and leaves Supabase Realtime available
     '__sautilinkDmRealtimeAuthHeaders',
     'scheduleReconnect',
     'Supabase Realtime remains active',
+    'DM_REALTIME_RECENT_MS',
+    'Active recently',
   ]) assert.ok(client.includes(marker), `Durable realtime client missing ${marker}`);
 
   assert.match(transform, /__sautilinkDmRealtimeContext/);
@@ -65,6 +73,12 @@ test('Phase 36 browser client is additive and leaves Supabase Realtime available
   assert.match(app, /\.channel\(/);
   assert.match(app, /broadcastDmTyping/);
   assert.match(app, /startDmConversationRealtime/);
+  assert.match(app, /durableDmRealtimeActive/);
+  assert.doesNotMatch(app, /typing\.textContent\s*=\s*['"]Typing…['"]/);
+  assert.match(html, /message-typing-bubble/);
+  assert.match(css, /message-typing-status\[hidden\]/);
+  assert.match(css, /@keyframes message-typing-dot/);
+  assert.match(css, /prefers-reduced-motion/);
 });
 
 test('Phase 36 keeps Worker routing isolated from the existing asset router', async () => {

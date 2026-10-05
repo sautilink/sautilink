@@ -4,6 +4,7 @@ const REALTIME_PROTOCOL = 'sautilink-dm-v1';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_EVENT_BYTES = 1024;
 const MIN_EVENT_INTERVAL_MS = 120;
+const RECENT_PRESENCE_MS = 5 * 24 * 60 * 60 * 1000;
 
 function safeSend(socket, payload) {
   try {
@@ -22,6 +23,21 @@ function attachmentOf(socket) {
   }
 }
 
+function lastSeenKey(userId) {
+  return 'last-seen:' + userId;
+}
+
+function recentLastSeen(value, now = Date.now()) {
+  const timestamp = Number(value || 0);
+  const age = now - timestamp;
+  return Number.isFinite(timestamp)
+    && timestamp > 0
+    && age >= 0
+    && age <= RECENT_PRESENCE_MS
+    ? timestamp
+    : 0;
+}
+
 export class DmRealtimeHub extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
@@ -31,19 +47,43 @@ export class DmRealtimeHub extends DurableObject {
     return this.ctx.getWebSockets().filter((socket) => socket !== exclude && socket.readyState === 1);
   }
 
-  broadcastPresence(exclude = null) {
-    const sockets = this.sockets(exclude);
-    const sessions = sockets
+  sessions(exclude = null) {
+    return this.sockets(exclude)
       .map((socket) => ({ socket, state: attachmentOf(socket) }))
       .filter(({ state }) => UUID_PATTERN.test(String(state?.userId || '')));
+  }
+
+  userHasOpenSocket(userId, exclude = null) {
+    return this.sessions(exclude).some(({ state }) => state.userId === userId);
+  }
+
+  async noteLastSeen(userId, at = Date.now()) {
+    if (!UUID_PATTERN.test(String(userId || ''))) return;
+    await this.ctx.storage.put(lastSeenKey(userId), at);
+  }
+
+  async storedRecentLastSeen(userId, now = Date.now()) {
+    if (!UUID_PATTERN.test(String(userId || ''))) return 0;
+    const stored = await this.ctx.storage.get(lastSeenKey(userId));
+    return recentLastSeen(stored, now);
+  }
+
+  async broadcastPresence(exclude = null) {
+    const sessions = this.sessions(exclude);
+    const now = Date.now();
 
     for (const session of sessions) {
       const peerOnline = sessions.some((candidate) => candidate.state.userId !== session.state.userId);
+      const peerLastSeenAt = peerOnline
+        ? 0
+        : await this.storedRecentLastSeen(session.state.peerId, now);
+
       safeSend(session.socket, {
         type: 'presence',
         peer_online: peerOnline,
+        peer_last_seen_at: peerLastSeenAt || null,
         transport: 'durable-object',
-        at: Date.now(),
+        at: now,
       });
     }
   }
@@ -79,6 +119,7 @@ export class DmRealtimeHub extends DurableObject {
       return new Response('Invalid realtime session', { status: 400 });
     }
 
+    const now = Date.now();
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
@@ -86,16 +127,19 @@ export class DmRealtimeHub extends DurableObject {
       conversationId,
       userId,
       peerId,
-      connectedAt: Date.now(),
+      connectedAt: now,
       lastEventAt: 0,
     });
+
+    // Only a coarse conversation-presence timestamp is persisted here; no message content.
+    await this.noteLastSeen(userId, now);
 
     safeSend(server, {
       type: 'ready',
       transport: 'durable-object',
-      at: Date.now(),
+      at: now,
     });
-    this.broadcastPresence();
+    await this.broadcastPresence();
 
     return new Response(null, {
       status: 101,
@@ -133,12 +177,20 @@ export class DmRealtimeHub extends DurableObject {
   }
 
   async webSocketClose(socket) {
+    const session = attachmentOf(socket);
     this.broadcastTyping(socket, false);
-    this.broadcastPresence(socket);
+    if (session?.userId && !this.userHasOpenSocket(session.userId, socket)) {
+      await this.noteLastSeen(session.userId);
+    }
+    await this.broadcastPresence(socket);
   }
 
   async webSocketError(socket) {
+    const session = attachmentOf(socket);
     this.broadcastTyping(socket, false);
-    this.broadcastPresence(socket);
+    if (session?.userId && !this.userHasOpenSocket(session.userId, socket)) {
+      await this.noteLastSeen(session.userId);
+    }
+    await this.broadcastPresence(socket);
   }
 }
