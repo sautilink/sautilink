@@ -2,6 +2,7 @@ const DM_REALTIME_PROTOCOL = 'sautilink-dm-v1';
 const DM_REALTIME_AUTH_PREFIX = 'sautilink-auth.';
 const DM_REALTIME_RECONNECT_MAX_MS = 15000;
 const DM_REALTIME_TYPING_STOP_MS = 1400;
+const DM_REALTIME_RECENT_MS = 5 * 24 * 60 * 60 * 1000;
 
 let durableSocket = null;
 let durableConversationId = '';
@@ -10,6 +11,9 @@ let durableReconnectAttempt = 0;
 let durableTypingStopTimer = 0;
 let durableTypingState = false;
 let durableSyncTimer = 0;
+let durablePeerOnline = false;
+let durablePeerTyping = false;
+let durablePeerLastSeenAt = 0;
 
 function realtimeContext() {
   const provider = window.__sautilinkDmRealtimeContext;
@@ -34,22 +38,77 @@ function setTransportState(active) {
   else delete surface.dataset.realtimeTransport;
 }
 
-function setPeerPresence(online) {
+function recentPeerLastSeen(value) {
+  const timestamp = Number(value || 0);
+  const age = Date.now() - timestamp;
+  return Number.isFinite(timestamp)
+    && timestamp > 0
+    && age >= 0
+    && age <= DM_REALTIME_RECENT_MS
+    ? timestamp
+    : 0;
+}
+
+function resetPeerActivity() {
+  durablePeerOnline = false;
+  durablePeerTyping = false;
+  durablePeerLastSeenAt = 0;
+
+  const activity = document.getElementById('message-thread-activity');
+  if (activity) {
+    activity.textContent = 'Online';
+    activity.hidden = true;
+    delete activity.dataset.state;
+  }
+
+  const typing = document.getElementById('message-typing-status');
+  if (typing) typing.hidden = true;
+}
+
+function renderPeerActivity() {
   const context = realtimeContext();
   if (!context?.activityEnabled || context.blocked || context.conversationId !== durableConversationId) return;
+
   const activity = document.getElementById('message-thread-activity');
+  const typing = document.getElementById('message-typing-status');
+
+  if (typing) typing.hidden = !durablePeerTyping;
   if (!activity) return;
-  activity.textContent = 'Online';
-  activity.hidden = !online;
+
+  let text = '';
+  let state = '';
+  if (durablePeerTyping) {
+    text = 'Typing…';
+    state = 'typing';
+  } else if (durablePeerOnline) {
+    text = 'Online';
+    state = 'online';
+  } else if (recentPeerLastSeen(durablePeerLastSeenAt)) {
+    text = 'Active recently';
+    state = 'recent';
+  }
+
+  activity.textContent = text || 'Online';
+  activity.hidden = !text;
+  if (state) activity.dataset.state = state;
+  else delete activity.dataset.state;
+}
+
+function setPeerPresence(online, lastSeenAt = 0) {
+  const context = realtimeContext();
+  if (!context?.activityEnabled || context.blocked || context.conversationId !== durableConversationId) return;
+
+  durablePeerOnline = Boolean(online);
+  durablePeerLastSeenAt = durablePeerOnline ? 0 : recentPeerLastSeen(lastSeenAt);
+  renderPeerActivity();
 }
 
 function setPeerTyping(typing) {
   const context = realtimeContext();
   if (!context?.activityEnabled || context.blocked || context.conversationId !== durableConversationId) return;
-  const node = document.getElementById('message-typing-status');
-  if (!node) return;
-  node.textContent = 'Typing…';
-  node.hidden = !typing;
+
+  durablePeerTyping = Boolean(typing);
+  renderPeerActivity();
 }
 
 function clearTypingTimer() {
@@ -97,10 +156,9 @@ function closeDurableSocket({ clearPresence = false } = {}) {
   durableSocket = null;
   durableConversationId = '';
   setTransportState(false);
-  if (clearPresence) {
-    setPeerTyping(false);
-    setPeerPresence(false);
-  }
+
+  if (clearPresence) resetPeerActivity();
+
   if (socket && socket.readyState < WebSocket.CLOSING) {
     try { socket.close(1000, 'conversation changed'); } catch {}
   }
@@ -122,8 +180,9 @@ function handleDurableMessage(event) {
     return;
   }
   if (!payload || typeof payload !== 'object') return;
+
   if (payload.type === 'presence' && typeof payload.peer_online === 'boolean') {
-    setPeerPresence(payload.peer_online);
+    setPeerPresence(payload.peer_online, payload.peer_last_seen_at);
     return;
   }
   if (payload.type === 'typing' && typeof payload.typing === 'boolean') {
@@ -144,10 +203,10 @@ async function openDurableRealtime(conversationId) {
   if (!token || currentConversationId() !== conversationId) return;
 
   const scheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const url = `${scheme}//${window.location.host}/api/dm-realtime/${encodeURIComponent(conversationId)}`;
+  const url = scheme + '//' + window.location.host + '/api/dm-realtime/' + encodeURIComponent(conversationId);
   let socket;
   try {
-    socket = new WebSocket(url, [DM_REALTIME_PROTOCOL, `${DM_REALTIME_AUTH_PREFIX}${token}`]);
+    socket = new WebSocket(url, [DM_REALTIME_PROTOCOL, DM_REALTIME_AUTH_PREFIX + token]);
   } catch {
     scheduleReconnect();
     return;
@@ -174,6 +233,9 @@ async function openDurableRealtime(conversationId) {
     setTransportState(false);
     clearTypingTimer();
     durableTypingState = false;
+    durablePeerTyping = false;
+    durablePeerOnline = false;
+    renderPeerActivity();
     scheduleReconnect();
   });
 
@@ -185,7 +247,7 @@ async function openDurableRealtime(conversationId) {
 async function syncDurableRealtime() {
   const wanted = currentConversationId();
   if (!wanted) {
-    closeDurableSocket();
+    closeDurableSocket({ clearPresence: true });
     return;
   }
   if (
@@ -194,7 +256,7 @@ async function syncDurableRealtime() {
     && (durableSocket.readyState === WebSocket.OPEN || durableSocket.readyState === WebSocket.CONNECTING)
   ) return;
 
-  closeDurableSocket();
+  closeDurableSocket({ clearPresence: true });
   await openDurableRealtime(wanted);
 }
 
@@ -211,7 +273,7 @@ messageBody?.addEventListener('input', () => {
 
 window.addEventListener('popstate', queueDurableSync);
 window.addEventListener('online', queueDurableSync);
-window.addEventListener('pagehide', () => closeDurableSocket());
+window.addEventListener('pagehide', () => closeDurableSocket({ clearPresence: true }));
 
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) queueDurableSync();
