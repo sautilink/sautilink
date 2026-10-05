@@ -561,7 +561,9 @@ async function createSautiVideoVariant(env, row, id, quality, diagnostics = null
       .input(original.body)
       .transform({ ...dimensions, fit: 'scale-down' })
       .output({ mode: 'video', audio: true });
-    const body = await result.media();
+    // R2 requires a known length for Worker-created streams. Media
+    // Transformations currently returns an unbounded ReadableStream.
+    const body = await new Response(await result.media()).arrayBuffer();
     await env.SAUTI_MEDIA.put(objectKey, body, {
       httpMetadata: { contentType: 'video/mp4' },
       customMetadata: {

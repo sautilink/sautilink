@@ -269,7 +269,8 @@ test('requested video quality is transformed once, stored in R2, and served as M
       async get(key) { return objectFor(key); },
       async put(key, body) {
         variantKey = key;
-        objects.set(key, body instanceof Uint8Array ? body : new Uint8Array(await new Response(body).arrayBuffer()));
+        assert.ok(body instanceof ArrayBuffer, 'R2 requires a known-length rendition body');
+        objects.set(key, new Uint8Array(body));
       },
     },
     MEDIA: {
@@ -280,7 +281,14 @@ test('requested video quality is transformed once, stored in R2, and served as M
             return {
               output(options) {
                 assert.deepEqual(options, { mode: 'video', audio: true });
-                return { async media() { return new Uint8Array([9, 8, 7]); } };
+                return { async media() {
+                  return new ReadableStream({
+                    start(controller) {
+                      controller.enqueue(new Uint8Array([9, 8, 7]));
+                      controller.close();
+                    },
+                  });
+                } };
               },
             };
           },
