@@ -1634,17 +1634,19 @@ function activityStatusEnabled() {
   return currentSettingsPreferences?.activity_status === true;
 }
 
+function durableDmRealtimeActive() {
+  return byId('messages-surface')?.dataset.realtimeTransport === 'durable-object';
+}
+
 function resetDmActivityUI() {
   const activity = byId('message-thread-activity');
   const typing = byId('message-typing-status');
   if (activity) {
     activity.hidden = true;
     activity.textContent = 'Online';
+    delete activity.dataset.state;
   }
-  if (typing) {
-    typing.hidden = true;
-    typing.textContent = 'Typing…';
-  }
+  if (typing) typing.hidden = true;
 }
 
 async function stopDmConversationRealtime() {
@@ -1867,6 +1869,7 @@ async function ensureDmInboxRealtime() {
 }
 
 function syncDmPresenceState(channel = dmConversationRealtimeChannel) {
+  if (durableDmRealtimeActive()) return;
   const activity = byId('message-thread-activity');
   if (!activity || !channel || !activityStatusEnabled() || !activeConversation?.peerId) {
     resetDmActivityUI();
@@ -1951,12 +1954,19 @@ async function startDmConversationRealtime(conversationId) {
         },
       })
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
-        if (activeConversation?.id !== conversationId || !activityStatusEnabled()) return;
+        if (activeConversation?.id !== conversationId || !activityStatusEnabled() || durableDmRealtimeActive()) return;
         if (String(payload?.member_id || '') !== String(activeConversation.peerId || '')) return;
         const typing = byId('message-typing-status');
-        if (!typing) return;
-        typing.textContent = 'Typing…';
-        typing.hidden = payload?.typing !== true;
+        const activity = byId('message-thread-activity');
+        const peerTyping = payload?.typing === true;
+        if (typing) typing.hidden = !peerTyping;
+        if (activity && peerTyping) {
+          activity.textContent = 'Typing…';
+          activity.hidden = false;
+          activity.dataset.state = 'typing';
+        } else if (!peerTyping) {
+          syncDmPresenceState(channel);
+        }
       })
       .on('presence', { event: 'sync' }, () => syncDmPresenceState(channel))
       .on('presence', { event: 'join' }, () => syncDmPresenceState(channel))
@@ -1974,7 +1984,7 @@ async function startDmConversationRealtime(conversationId) {
           }
           syncDmPresenceState(channel);
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          resetDmActivityUI();
+          if (!durableDmRealtimeActive()) resetDmActivityUI();
         }
       });
 
