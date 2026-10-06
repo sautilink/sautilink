@@ -20,7 +20,7 @@ test('Privacy Policy describes the live SautiLink product rather than pre-launch
 });
 
 test('Terms cover current Rooms, identity, moderation and platform safety', async () => {
-  const terms = await read('terms.html');
+  const [terms, privacy] = await Promise.all([read('terms.html'), read('privacy.html')]);
 
   assert.match(terms, /Effective<\/strong> October 6, 2026/);
   assert.match(terms, /SautiLink calls its group-style community spaces <strong>Rooms<\/strong>/);
