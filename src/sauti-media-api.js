@@ -888,15 +888,58 @@ async function serveImageVariant(request, env, row, id, width) {
   }
 }
 
+export async function servePublicSautiMediaPreview(request, env, media) {
+  if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
+
+  const id = uuid(media?.id);
+  const ownerId = uuid(media?.owner_id);
+  const contentType = String(media?.content_type || '').toLowerCase();
+  const declared = TYPES[contentType];
+  const kind = media?.media_kind === 'video' ? 'video' : media?.media_kind === 'image' ? 'image' : '';
+  if (!id || !ownerId || !declared || declared.kind !== kind) {
+    return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
+  }
+
+  const row = {
+    id,
+    owner_id: ownerId,
+    object_key: `sauti/${ownerId}/${id}.${declared.extension}`,
+    media_kind: kind,
+    content_type: contentType,
+    width: Math.max(0, Number(media?.width || 0)) || null,
+    height: Math.max(0, Number(media?.height || 0)) || null,
+    duration_ms: Math.max(0, Number(media?.duration_ms || 0)) || null,
+    upload_status: 'attached',
+  };
+
+  const url = new URL(request.url);
+  if (kind === 'video') {
+    if (url.searchParams.get('poster') !== '1') {
+      return apiError(401, 'AUTH_REQUIRED', 'Join or sign in to watch this video.');
+    }
+    return serveVideoPoster(request, env, row, id);
+  }
+
+  const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
+  if (width) return serveImageVariant(request, env, row, id, width);
+  return serveOriginalMedia(request, env, row, id);
+}
+
 async function serveMedia(request, env, id, ctx = null) {
   if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
-  const row = await selectVideoMediaForDelivery(request, id, mediaDeliveryAuthorization(request));
+  const deliveryAuth = mediaDeliveryAuthorization(request);
+  const row = await selectVideoMediaForDelivery(request, id, deliveryAuth);
   if (!row || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
 
   const url = new URL(request.url);
+  const posterOnly = url.searchParams.get('poster') === '1';
+  if (row.media_kind === 'video' && !deliveryAuth && !posterOnly) {
+    return apiError(401, 'AUTH_REQUIRED', 'Join or sign in to watch this video.');
+  }
+
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
-  if (url.searchParams.get('poster') === '1') return serveVideoPoster(request, env, row, id);
+  if (posterOnly) return serveVideoPoster(request, env, row, id);
   if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
   if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality, ctx);
   return serveOriginalMedia(request, env, row, id);

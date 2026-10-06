@@ -1,6 +1,8 @@
 User-agent: *
 Allow: /
 Allow: /api/profile-media/
+Allow: /api/public-post-media/
+Allow: /api/public-post-card/
 Allow: /api/public-index/
 Disallow: /api/
 

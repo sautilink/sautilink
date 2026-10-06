@@ -546,3 +546,63 @@ test('feed videos use protected range URLs while images keep responsive blobs', 
   assert.match(transformed, /const url = streamingVideo[\s\S]*fetchSautiVideoStreamUrl\(media\.id, videoQuality\)[\s\S]*fetchSautiMediaBlobUrl\(media\.id, variantWidth\)/);
   assert.match(transformed, /SautiLinkVideoQuality\?\.sourceUrl\?\.\(id, quality\)/);
 });
+
+
+test('signed-out visitors can load a video poster but cannot stream the raw video', async () => {
+  const previousFetch = globalThis.fetch;
+  const row = videoRow();
+  const posterKey = sautiVideoPosterObjectKey(row.object_key);
+  const original = new Uint8Array([1, 2, 3, 4]);
+  const poster = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  let originalReads = 0;
+
+  globalThis.fetch = async () => Response.json([row]);
+  const env = {
+    SAUTI_MEDIA: {
+      async head(key) {
+        if (key === posterKey) return { size: poster.byteLength };
+        if (key === row.object_key) return { size: original.byteLength };
+        return null;
+      },
+      async get(key) {
+        if (key === row.object_key) {
+          originalReads += 1;
+          return {
+            body: original,
+            size: original.byteLength,
+            writeHttpMetadata(headers) { headers.set('Content-Type', 'video/mp4'); },
+          };
+        }
+        if (key === posterKey) {
+          return {
+            body: poster,
+            size: poster.byteLength,
+            writeHttpMetadata(headers) { headers.set('Content-Type', 'image/jpeg'); },
+          };
+        }
+        return null;
+      },
+    },
+  };
+
+  try {
+    const denied = await handleSautiMediaRequest(
+      new Request(`https://sautilink.com/api/sauti-media/${MEDIA_ID}`),
+      env,
+    );
+    assert.equal(denied.status, 401);
+    assert.match(await denied.text(), /AUTH_REQUIRED/);
+    assert.equal(originalReads, 0);
+
+    const preview = await handleSautiMediaRequest(
+      new Request(`https://sautilink.com/api/sauti-media/${MEDIA_ID}?poster=1`),
+      env,
+    );
+    assert.equal(preview.status, 200);
+    assert.equal(preview.headers.get('Content-Type'), 'image/jpeg');
+    assert.deepEqual(new Uint8Array(await preview.arrayBuffer()), poster);
+    assert.equal(originalReads, 0);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
