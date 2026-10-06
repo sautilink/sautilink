@@ -890,13 +890,19 @@ async function serveImageVariant(request, env, row, id, width) {
 
 async function serveMedia(request, env, id, ctx = null) {
   if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
-  const row = await selectVideoMediaForDelivery(request, id, mediaDeliveryAuthorization(request));
+  const deliveryAuth = mediaDeliveryAuthorization(request);
+  const row = await selectVideoMediaForDelivery(request, id, deliveryAuth);
   if (!row || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
 
   const url = new URL(request.url);
+  const posterOnly = url.searchParams.get('poster') === '1';
+  if (row.media_kind === 'video' && !deliveryAuth && !posterOnly) {
+    return apiError(401, 'AUTH_REQUIRED', 'Join or sign in to watch this video.');
+  }
+
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
-  if (url.searchParams.get('poster') === '1') return serveVideoPoster(request, env, row, id);
+  if (posterOnly) return serveVideoPoster(request, env, row, id);
   if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
   if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality, ctx);
   return serveOriginalMedia(request, env, row, id);
