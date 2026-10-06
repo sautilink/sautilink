@@ -325,7 +325,7 @@ function createPostGateShell(route) {
 }
 
 async function readGuestPost(postId) {
-  const response = await fetch(\`/api/public-post/${encodeURIComponent(postId)}\`, {
+  const response = await fetch(`/api/public-post/${encodeURIComponent(postId)}`, {
     headers: { Accept: 'application/json' },
   });
   if (!response.ok) return null;
@@ -340,7 +340,7 @@ function guestActionDialog(route) {
   dialog = document.createElement('dialog');
   dialog.id = 'sautilink-guest-action-dialog';
   dialog.className = 'guest-action-dialog';
-  dialog.innerHTML = \`
+  dialog.innerHTML = `
     <form method="dialog" class="guest-action-panel">
       <button class="guest-action-close" type="submit" value="close" aria-label="Close">×</button>
       <img class="guest-action-logo" src="/logo.png" alt="" width="66">
@@ -350,14 +350,14 @@ function guestActionDialog(route) {
         <a class="guest-profile-primary" data-guest-login>Log in</a>
         <a class="guest-profile-secondary" data-guest-signup>Create account</a>
       </div>
-    </form>\`;
+    </form>`;
   document.body.append(dialog);
 
   const login = dialog.querySelector('[data-guest-login]');
   const signup = dialog.querySelector('[data-guest-signup]');
   for (const [link, base] of [[login, '/login'], [signup, '/signup']]) {
     link?.addEventListener('click', () => saveAuthReturnTarget(route.destination));
-    if (link) link.href = \`${base}?next=${encodeURIComponent(route.destination)}\`;
+    if (link) link.href = `${base}?next=${encodeURIComponent(route.destination)}`;
   }
   return dialog;
 }
@@ -373,7 +373,7 @@ function showGuestAction(route, title, copy) {
 }
 
 function guestActionButton(label, route, title, copy, className = '') {
-  const button = node('button', \`guest-post-action ${className}\`.trim(), label);
+  const button = node('button', `guest-post-action ${className}`.trim(), label);
   button.type = 'button';
   button.addEventListener('click', () => showGuestAction(route, title, copy));
   return button;
@@ -383,9 +383,9 @@ function guestMedia(post, route) {
   const media = Array.isArray(post.media) ? post.media : [];
   if (!media.length) return null;
 
-  const grid = node('div', \`guest-post-media guest-post-media-count-${Math.min(media.length, 5)}\`);
+  const grid = node('div', `guest-post-media guest-post-media-count-${Math.min(media.length, 5)}`);
   for (const item of media) {
-    const frame = node('div', \`guest-post-media-frame ${item.kind === 'video' ? 'is-video' : 'is-image'}\`);
+    const frame = node('div', `guest-post-media-frame ${item.kind === 'video' ? 'is-video' : 'is-image'}`);
     const image = document.createElement('img');
     image.src = String(item.preview_url || '');
     image.alt = String(item.alt_text || (item.kind === 'video' ? 'Video preview' : 'Post image'));
@@ -460,7 +460,7 @@ function renderGuestPost(card, post, route) {
     badge.alt = 'Verified account';
     nameLine.append(badge);
   }
-  identity.append(nameLine, node('span', 'guest-post-author-handle', \`@${post.author?.username || 'member'}\`));
+  identity.append(nameLine, node('span', 'guest-post-author-handle', `@${post.author?.username || 'member'}`));
   header.append(avatarWrap, identity);
 
   const body = String(post.body || '').trim();
@@ -476,9 +476,9 @@ function renderGuestPost(card, post, route) {
 
   const counts = node('div', 'guest-post-counts');
   counts.append(
-    node('span', '', \`${formatGuestCount(post.counts?.likes)} Like${Number(post.counts?.likes || 0) === 1 ? '' : 's'}\`),
-    node('span', '', \`${formatGuestCount(post.counts?.comments)} Comment${Number(post.counts?.comments || 0) === 1 ? '' : 's'}\`),
-    node('span', '', \`${formatGuestCount(post.counts?.reposts)} Repost${Number(post.counts?.reposts || 0) === 1 ? '' : 's'}\`),
+    node('span', '', `${formatGuestCount(post.counts?.likes)} Like${Number(post.counts?.likes || 0) === 1 ? '' : 's'}`),
+    node('span', '', `${formatGuestCount(post.counts?.comments)} Comment${Number(post.counts?.comments || 0) === 1 ? '' : 's'}`),
+    node('span', '', `${formatGuestCount(post.counts?.reposts)} Repost${Number(post.counts?.reposts || 0) === 1 ? '' : 's'}`),
   );
   card.append(counts);
 
