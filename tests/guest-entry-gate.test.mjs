@@ -71,3 +71,27 @@ test('production gate verifies apex and www roots without changing login or sign
   assert.match(appHtml, /id="login-form"/);
   assert.match(appHtml, /id="signup-form"/);
 });
+
+
+test('signed-out public post view shows public content but gates interaction and video playback', async () => {
+  const gate = await read('src/guest-entry-gate.js');
+  const css = await read('app/assets/guest-entry-gate.css');
+
+  assert.match(gate, /function postRoute\(\)/);
+  assert.match(gate, /\/api\/public-post\/\$\{encodeURIComponent\(postId\)\}/);
+  assert.match(gate, /installGuestPostGate\(\)/);
+  assert.match(gate, /Join or sign up to view this content/);
+  assert.match(gate, /Public posts are open to read/);
+  assert.match(gate, /guestActionButton\('Like'/);
+  assert.match(gate, /guestActionButton\('Comment'/);
+  assert.match(gate, /guestActionButton\('Repost'/);
+  assert.match(gate, /navigator\.share/);
+  assert.match(gate, /item\.preview_url/);
+  assert.doesNotMatch(gate, /object_key|\/api\/sauti-media\//i);
+
+  assert.match(css, /\.guest-post-card/);
+  assert.match(css, /\.guest-post-media/);
+  assert.match(css, /\.guest-post-play/);
+  assert.match(css, /\.guest-action-dialog/);
+  assert.match(css, /\.guest-post-actions/);
+});
