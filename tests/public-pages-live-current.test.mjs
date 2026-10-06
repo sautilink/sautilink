@@ -6,7 +6,7 @@ function read(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 }
 
-const englishCurrentPages = ['about.html', 'help.html', 'contact.html', 'account-deletion.html', 'upload-guidelines.html'];
+const englishCurrentPages = ['about.html', 'help.html', 'contact.html', 'account-deletion.html', 'upload-guidelines.html', 'community-guidelines.html'];
 
 for (const path of englishCurrentPages) {
   test(`${path} does not present SautiLink as pre-launch`, () => {
@@ -74,7 +74,7 @@ test('Sitemap index preserves current public pages and adds privacy-filtered soc
   assert.match(indexXml, /https:\/\/sautilink\.com\/sitemap-static\.xml/);
   assert.match(indexXml, /https:\/\/sautilink\.com\/api\/public-index\/sitemap\.xml/);
   assert.match(staticXml, /2026-09-09/);
-  for (const path of ['/about', '/help', '/contact', '/privacy', '/terms', '/upload-guidelines', '/account-deletion', '/sw', '/fr', '/es', '/no']) {
+  for (const path of ['/about', '/help', '/contact', '/privacy', '/terms', '/community-guidelines', '/upload-guidelines', '/verify', '/account-deletion', '/sw', '/fr', '/es', '/no']) {
     assert.match(staticXml, new RegExp(`https:\\/\\/sautilink\\.com${path.replace('/', '\\/')}`));
   }
 });
@@ -87,7 +87,7 @@ test('Template-style public micro-labels are removed from Help and stripped from
   const legalRuntime = read('assets/legal.js');
   assert.match(legalRuntime, /querySelectorAll\('\.eyebrow, \.section-label, \.section-kicker'\)/);
 
-  for (const path of ['about.html', 'contact.html', 'account-deletion.html', 'privacy.html', 'terms.html', 'upload-guidelines.html', 'sautinote.html']) {
+  for (const path of ['about.html', 'contact.html', 'account-deletion.html', 'privacy.html', 'terms.html', 'community-guidelines.html', 'upload-guidelines.html', 'sautinote.html']) {
     assert.match(read(path), /\/assets\/legal\.js/);
   }
 });
@@ -98,7 +98,7 @@ test('Important public pages default to light theme while preserving a saved use
   assert.match(legalRuntime, /return 'light';/);
   assert.doesNotMatch(legalRuntime, /prefers-color-scheme: light/);
 
-  for (const path of ['about.html', 'help.html', 'contact.html', 'account-deletion.html', 'privacy.html', 'terms.html', 'upload-guidelines.html', 'sautinote.html']) {
+  for (const path of ['about.html', 'help.html', 'contact.html', 'account-deletion.html', 'privacy.html', 'terms.html', 'community-guidelines.html', 'upload-guidelines.html', 'sautinote.html']) {
     assert.match(read(path), /\/assets\/legal\.js/);
   }
 });

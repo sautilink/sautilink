@@ -9,6 +9,7 @@ test('desktop sidebar exposes legal, contact and first-party system links', asyn
   const rail = html.match(/<aside class="primary-rail"[\s\S]*?<\/aside>/)?.[0] || '';
 
   assert.match(rail, /href="\/terms"[\s\S]*?<span>Terms of Service<\/span>/);
+  assert.match(rail, /href="\/community-guidelines"[\s\S]*?<span>Community Guidelines<\/span>/);
   assert.match(rail, /href="\/upload-guidelines"[\s\S]*?<span>Upload Guidelines<\/span>/);
   assert.match(rail, /href="\/contact"[\s\S]*?<span>Contact<\/span>/);
   assert.match(rail, /id="primary-rail-systems-title">Other SautiLink Systems<\/p>/);
@@ -16,12 +17,13 @@ test('desktop sidebar exposes legal, contact and first-party system links', asyn
   assert.match(rail, /href="https:\/\/router\.sautilink\.com" target="_blank" rel="noopener noreferrer"[\s\S]*?<span>Router Setup Gateway<\/span>/);
 
   const termsAt = rail.indexOf('Terms of Service');
+  const communityAt = rail.indexOf('Community Guidelines');
   const uploadsAt = rail.indexOf('Upload Guidelines');
   const contactAt = rail.indexOf('>Contact<');
   const systemsAt = rail.indexOf('Other SautiLink Systems');
   const cloudAt = rail.indexOf('>Cloud Engine<');
   const routerAt = rail.indexOf('>Router Setup Gateway<');
-  assert.ok(termsAt < uploadsAt && uploadsAt < contactAt && contactAt < systemsAt && systemsAt < cloudAt && cloudAt < routerAt);
+  assert.ok(termsAt < communityAt && communityAt < uploadsAt && uploadsAt < contactAt && contactAt < systemsAt && systemsAt < cloudAt && cloudAt < routerAt);
 });
 
 test('desktop sidebar keeps long navigation usable without changing mobile navigation', async () => {
