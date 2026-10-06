@@ -1,7 +1,7 @@
 import { handleProfileMediaRequest } from './profile-media-api.js';
 import { handleRoomMediaRequest } from './room-media-api.js';
 import { handleSautiRequest } from './sauti-posts-api.js';
-import { handleSautiMediaRequest, inspectMp4Bytes } from './sauti-media-api.js';
+import { handleSautiMediaRequest } from './sauti-media-api.js';
 import { handlePollRequest } from './polls-api.js';
 import { handleSocialInteractionRequest } from './social-interactions-api.js';
 import { handleTrustSafetyRequest } from './trust-safety-api.js';
@@ -35,8 +35,6 @@ const CLEAN_VIDEO_ROUTE = /^\/videos(?:\/[0-9a-f-]{36})?\/?$/;
 const CLEAN_ROOM_ROUTE = /^\/(?:rooms|sautify)(?:\/[^/]+)?\/?$/;
 const CLEAN_DASHBOARD_ROUTE = /^\/dashboard(?:\/tools(?:\/moneti[sz]ation)?|\/moneti[sz]ation)?\/?$/i;
 const CLEAN_ROUTE_PREFIX = /^\/(?:login|signup|home|compose|discover|saved|appeals|moderation|settings|notifications|messages|videos|rooms|sautify|dashboard)/;
-const SAUTI_MEDIA_UPLOAD_ROUTE = /^\/api\/sauti-media\/upload\/([0-9a-f-]{36})$/i;
-const SHORT_VIDEO_DURATION_MS = 60_000;
 
 const STAGING_HOST = 'test.sautilink.com';
 const RATE_LIMIT_BINDINGS = [
@@ -86,45 +84,6 @@ function authOnlyHeaders(request) {
   const auth = request.headers.get('Authorization');
   if (auth) headers.set('Authorization', auth);
   return headers;
-}
-
-async function handleBoundedMediaUpload(request, env, url, ctx = null) {
-  const match = url.pathname.match(SAUTI_MEDIA_UPLOAD_ROUTE);
-  const contentType = String(request.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
-  if (!match || request.method !== 'PUT' || contentType !== 'video/mp4') return null;
-
-  const bytes = new Uint8Array(await request.arrayBuffer());
-  const inspected = inspectMp4Bytes(bytes);
-  if (!inspected || Number(inspected.durationMs || 0) > SHORT_VIDEO_DURATION_MS) {
-    const cleanupUrl = new URL(`/api/sauti-media/${match[1]}`, url);
-    await handleSautiMediaRequest(new Request(cleanupUrl, {
-      method: 'DELETE',
-      headers: authOnlyHeaders(request),
-    }), env, ctx).catch(() => null);
-    if (!inspected) {
-      return json(415, {
-        ok: false,
-        error: {
-          code: 'INVALID_VIDEO',
-          message: 'Choose a valid MP4 video no longer than 2 minutes.',
-        },
-      });
-    }
-    return json(422, {
-      ok: false,
-      error: {
-        code: 'VIDEO_TOO_LONG',
-        message: 'This video is longer than 60 seconds. Trim it in the composer before uploading.',
-      },
-    });
-  }
-
-  const replay = new Request(request.url, {
-    method: request.method,
-    headers: request.headers,
-    body: bytes,
-  });
-  return handleSautiMediaRequest(replay, env, ctx);
 }
 
 async function handleSautiWithOptionalPoll(request, env, url) {
@@ -302,8 +261,6 @@ async function routeRequest(request, env, url, ctx = null) {
   }
 
   if (url.pathname.startsWith('/api/sauti-media/')) {
-    const boundedVideoResponse = await handleBoundedMediaUpload(request, env, url, ctx);
-    if (boundedVideoResponse) return boundedVideoResponse;
     const mediaResponse = await handleSautiMediaRequest(request, env, ctx);
     if (mediaResponse) return mediaResponse;
     return new Response('Not found', { status: 404 });
