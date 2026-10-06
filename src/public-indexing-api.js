@@ -103,12 +103,12 @@ function avatarUrl(username, hasAvatar) {
 
 function publicPostMediaUrl(postId, mediaId, kind = 'image') {
   const suffix = kind === 'video' ? '?poster=1' : '?w=1440';
-  return \`${PRIMARY_ORIGIN}/api/public-post-media/${postId}/${mediaId}${suffix}\`;
+  return `${PRIMARY_ORIGIN}/api/public-post-media/${postId}/${mediaId}${suffix}`;
 }
 
 function publicPostCardUrl(postId, updatedAt = '') {
   const stamp = encodeURIComponent(isoDate(updatedAt) || '1');
-  return \`${PRIMARY_ORIGIN}/api/public-post-card/${postId}.png?v=${stamp}\`;
+  return `${PRIMARY_ORIGIN}/api/public-post-card/${postId}.png?v=${stamp}`;
 }
 
 function normalizePostMedia(post) {
@@ -130,7 +130,7 @@ function normalizePostMedia(post) {
 
 function secondsToIsoDuration(durationMs) {
   const seconds = Math.max(1, Math.ceil(Number(durationMs || 0) / 1000));
-  return \`PT${seconds}S\`;
+  return `PT${seconds}S`;
 }
 
 function compactCount(value) {
@@ -276,25 +276,25 @@ function postMetadata(post) {
   const firstMedia = media[0] || null;
   const imageMedia = media.filter((item) => item.kind === 'image');
   const videoMedia = media.filter((item) => item.kind === 'video');
-  const titleSeed = body ? plainText(body, 72) : \`${displayName}'s public post\`;
-  const title = \`${titleSeed} — ${displayName} on SautiLink\`;
+  const titleSeed = body ? plainText(body, 72) : `${displayName}'s public post`;
+  const title = `${titleSeed} — ${displayName} on SautiLink`;
   const description = plainText(
-    body || \`A public${media.length ? ' media' : ''} post by ${displayName} (@${username}) on SautiLink.\`,
+    body || `A public${media.length ? ' media' : ''} post by ${displayName} (@${username}) on SautiLink.`,
     180,
   );
   const image = firstMedia
     ? publicPostMediaUrl(postId, firstMedia.id, firstMedia.kind)
     : publicPostCardUrl(postId, post.updated_at);
   const imageAlt = firstMedia?.altText
-    || (firstMedia?.kind === 'video' ? \`Video preview from ${displayName}'s SautiLink post\` : '')
-    || (firstMedia ? \`Image from ${displayName}'s SautiLink post\` : \`Text post by ${displayName} on SautiLink\`);
+    || (firstMedia?.kind === 'video' ? `Video preview from ${displayName}'s SautiLink post` : '')
+    || (firstMedia ? `Image from ${displayName}'s SautiLink post` : `Text post by ${displayName} on SautiLink`);
   const authorUrl = profileCanonical(username);
 
   const author = {
     '@type': 'Person',
-    '@id': \`${authorUrl}#person\`,
+    '@id': `${authorUrl}#person`,
     name: displayName,
-    alternateName: \`@${username}\`,
+    alternateName: `@${username}`,
     url: authorUrl,
   };
   if (verified) {
@@ -308,7 +308,7 @@ function postMetadata(post) {
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'SocialMediaPosting',
-    '@id': \`${canonical}#post\`,
+    '@id': `${canonical}#post`,
     url: canonical,
     mainEntityOfPage: canonical,
     headline: titleSeed,
@@ -316,7 +316,7 @@ function postMetadata(post) {
     author,
     isPartOf: {
       '@type': 'ProfilePage',
-      '@id': \`${authorUrl}#profile\`,
+      '@id': `${authorUrl}#profile`,
       url: authorUrl,
     },
   };
@@ -333,7 +333,7 @@ function postMetadata(post) {
   if (videoMedia.length) {
     structuredData.video = videoMedia.map((item, index) => ({
       '@type': 'VideoObject',
-      name: body ? plainText(body, 90) : \`Video ${index + 1} by ${displayName}\`,
+      name: body ? plainText(body, 90) : `Video ${index + 1} by ${displayName}`,
       description,
       thumbnailUrl: publicPostMediaUrl(postId, item.id, 'video'),
       uploadDate: isoDate(post.created_at) || undefined,
@@ -359,16 +359,16 @@ function postMetadata(post) {
   if (interactions.length) structuredData.interactionStatistic = interactions;
 
   const verifiedLabel = verified ? ' <strong>(Verified)</strong>' : '';
-  const bodyMarkup = body ? \`<p>${htmlEscape(body)}</p>\` : '<p>Public media post.</p>';
+  const bodyMarkup = body ? `<p>${htmlEscape(body)}</p>` : '<p>Public media post.</p>';
   const mediaMarkup = media.map((item) => {
     const mediaUrl = publicPostMediaUrl(postId, item.id, item.kind);
     if (item.kind === 'video') {
-      return \`<figure><img src="${attribute(mediaUrl)}" alt="${attribute(item.altText || 'Video preview')}" width="${item.width || 640}" height="${item.height || 360}"><figcaption>Video available on SautiLink</figcaption></figure>\`;
+      return `<figure><img src="${attribute(mediaUrl)}" alt="${attribute(item.altText || 'Video preview')}" width="${item.width || 640}" height="${item.height || 360}"><figcaption>Video available on SautiLink</figcaption></figure>`;
     }
-    return \`<figure><img src="${attribute(mediaUrl)}" alt="${attribute(item.altText || 'Post image')}"${item.width ? \` width="${item.width}"\` : ''}${item.height ? \` height="${item.height}"\` : ''}></figure>\`;
+    return `<figure><img src="${attribute(mediaUrl)}" alt="${attribute(item.altText || 'Post image')}"${item.width ? ` width="${item.width}"` : ''}${item.height ? ` height="${item.height}"` : ''}></figure>`;
   }).join('');
-  const statsMarkup = \`<p>${compactCount(post.like_count)} likes · ${compactCount(post.comment_count)} comments · ${compactCount(post.repost_count)} reposts</p>\`;
-  const fallbackHtml = \`<main aria-label="Public SautiLink post"><article><header><h1>Post by ${htmlEscape(displayName)}</h1><p><a href="${attribute(authorUrl)}">@${htmlEscape(username)}</a>${verifiedLabel}</p></header>${bodyMarkup}${mediaMarkup}${statsMarkup}<p><a href="${attribute(canonical)}">View this post on SautiLink</a></p></article></main>\`;
+  const statsMarkup = `<p>${compactCount(post.like_count)} likes · ${compactCount(post.comment_count)} comments · ${compactCount(post.repost_count)} reposts</p>`;
+  const fallbackHtml = `<main aria-label="Public SautiLink post"><article><header><h1>Post by ${htmlEscape(displayName)}</h1><p><a href="${attribute(authorUrl)}">@${htmlEscape(username)}</a>${verifiedLabel}</p></header>${bodyMarkup}${mediaMarkup}${statsMarkup}<p><a href="${attribute(canonical)}">View this post on SautiLink</a></p></article></main>`;
 
   return {
     title,
@@ -449,7 +449,7 @@ async function publicPostMediaResponse(request, env, postId, mediaId) {
   const media = normalizePostMedia(post).find((item) => item.id === mediaId);
   if (!media) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
 
-  const mediaUrl = new URL(\`/api/sauti-media/${mediaId}\`, url);
+  const mediaUrl = new URL(`/api/sauti-media/${mediaId}`, url);
   if (media.kind === 'video') {
     mediaUrl.searchParams.set('poster', '1');
   } else {
@@ -473,7 +473,7 @@ function previewLines(value, maxChars = 34, maxLines = 4) {
   const lines = [];
   let current = '';
   for (const word of words) {
-    const next = current ? \`${current} ${word}\` : word;
+    const next = current ? `${current} ${word}` : word;
     if (next.length <= maxChars || !current) {
       current = next;
       continue;
@@ -484,7 +484,7 @@ function previewLines(value, maxChars = 34, maxLines = 4) {
   }
   if (current && lines.length < maxLines) lines.push(current);
   if (words.length && lines.join(' ').length < words.join(' ').length && lines.length) {
-    lines[lines.length - 1] = \`${lines[lines.length - 1].replace(/[.…]+$/, '')}…\`;
+    lines[lines.length - 1] = `${lines[lines.length - 1].replace(/[.…]+$/, '')}…`;
   }
   return lines.slice(0, maxLines);
 }
@@ -513,15 +513,15 @@ async function publicPostCardResponse(request, env, postId) {
 
   const displayName = plainText(post.author_display_name || post.author_username, 60);
   const username = plainText(post.author_username, 40);
-  const body = String(post.body || '').trim() || \`Public post by ${displayName}\`;
+  const body = String(post.body || '').trim() || `Public post by ${displayName}`;
   const lines = previewLines(body);
   const baseSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07101f"/><stop offset="1" stop-color="#101c31"/></linearGradient></defs><rect width="1200" height="630" fill="url(#g)"/><circle cx="1080" cy="90" r="210" fill="#e6205a" opacity=".12"/><circle cx="1120" cy="520" r="280" fill="#246bfe" opacity=".12"/><rect x="70" y="62" width="1060" height="506" rx="32" fill="#0b1525" stroke="#33415a" stroke-width="2"/></svg>';
 
   try {
     let canvas = env.IMAGES.input(new Response(baseSvg, { headers: { 'Content-Type': 'image/svg+xml' } }).body);
     canvas = canvas.draw(env.IMAGES.text('SautiLink', { color: '#f7f9fc', size: 42 }), { left: 112, top: 100 });
-    canvas = canvas.draw(env.IMAGES.text(\`${displayName}${post.author_is_verified ? '  ✓' : ''}\`, { color: '#f7f9fc', size: 32 }), { left: 112, top: 168 });
-    canvas = canvas.draw(env.IMAGES.text(\`@${username}\`, { color: '#aeb8c8', size: 24 }), { left: 112, top: 214 });
+    canvas = canvas.draw(env.IMAGES.text(`${displayName}${post.author_is_verified ? '  ✓' : ''}`, { color: '#f7f9fc', size: 32 }), { left: 112, top: 168 });
+    canvas = canvas.draw(env.IMAGES.text(`@${username}`, { color: '#aeb8c8', size: 24 }), { left: 112, top: 214 });
     lines.forEach((line, index) => {
       canvas = canvas.draw(env.IMAGES.text(line, { color: '#f7f9fc', size: 52 }), { left: 112, top: 286 + (index * 66) });
     });
