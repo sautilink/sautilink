@@ -1,4 +1,4 @@
-import { handleSautiMediaRequest } from './sauti-media-api.js';
+import { servePublicSautiMediaPreview } from './sauti-media-api.js';
 
 const PRIMARY_ORIGIN = 'https://sautilink.com';
 const STAGING_HOST = 'test.sautilink.com';
@@ -117,6 +117,7 @@ function normalizePostMedia(post) {
     .map((item) => ({
       id: String(item?.id || '').toLowerCase(),
       kind: item?.kind === 'video' ? 'video' : 'image',
+      ownerId: String(item?.owner_id || '').toLowerCase(),
       contentType: String(item?.content_type || ''),
       width: Math.max(0, Number(item?.width || 0)),
       height: Math.max(0, Number(item?.height || 0)),
@@ -449,16 +450,24 @@ async function publicPostMediaResponse(request, env, postId, mediaId) {
   const media = normalizePostMedia(post).find((item) => item.id === mediaId);
   if (!media) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
 
-  const mediaUrl = new URL(`/api/sauti-media/${mediaId}`, url);
+  const previewUrl = new URL(request.url);
   if (media.kind === 'video') {
-    mediaUrl.searchParams.set('poster', '1');
+    previewUrl.searchParams.set('poster', '1');
   } else {
     const width = ['480', '960', '1440'].includes(url.searchParams.get('w')) ? url.searchParams.get('w') : '1440';
-    mediaUrl.searchParams.set('w', width);
+    previewUrl.searchParams.set('w', width);
   }
 
   const method = request.method === 'HEAD' && media.kind === 'video' ? 'GET' : request.method;
-  const response = await handleSautiMediaRequest(new Request(mediaUrl, { method }), env);
+  const response = await servePublicSautiMediaPreview(new Request(previewUrl, { method }), env, {
+    id: media.id,
+    owner_id: media.ownerId,
+    media_kind: media.kind,
+    content_type: media.contentType,
+    width: media.width,
+    height: media.height,
+    duration_ms: media.durationMs,
+  });
   if (!response) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
   const headers = new Headers(response.headers);
   headers.set('Cache-Control', 'public, max-age=300, must-revalidate');
