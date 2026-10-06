@@ -92,7 +92,7 @@ test('profile that is not returned by privacy RPC remains noindex without leakin
 test('public opted-in post receives crawlable metadata while app legacy permalink stays noindex', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = rpcFetch((url) => {
-    if (!url.includes('external_index_post_v1')) return [];
+    if (!url.includes('public_share_post_v1')) return [];
     return [{
       post_id: '123e4567-e89b-42d3-a456-426614174000',
       body: 'This is a public SautiLink post for search indexing.',
@@ -107,6 +107,8 @@ test('public opted-in post receives crawlable metadata while app legacy permalin
       author_avatar_key: null,
       author_is_verified: true,
       author_verification_badge_type: 'standard',
+      search_indexable: true,
+      media: [],
     }];
   });
 
@@ -119,6 +121,8 @@ test('public opted-in post receives crawlable metadata while app legacy permalin
     const html = await publicResponse.text();
     assert.match(html, /This is a public SautiLink post for search indexing/);
     assert.match(html, /SocialMediaPosting/);
+    assert.match(html, /twitter:card" content="summary_large_image"/);
+    assert.match(html, /public-post-card\/123e4567-e89b-42d3-a456-426614174000\.png/);
     assert.match(html, /https:\/\/sautilink\.com\/post\/123e4567-e89b-42d3-a456-426614174000/);
 
     const legacyResponse = await handlePublicIndexingRoutes(
@@ -171,6 +175,8 @@ test('staging remains globally noindex and public sitemap discovery is wired fro
   const workerEntry = await read('src/worker-entry.js');
 
   assert.match(robots, /Allow: \/api\/public-index\//);
+  assert.match(robots, /Allow: \/api\/public-post-media\//);
+  assert.match(robots, /Allow: \/api\/public-post-card\//);
   assert.match(robots, /Disallow: \/api\//);
   assert.match(robots, /Sitemap: https:\/\/sautilink\.com\/sitemap\.xml/);
   assert.match(sitemap, /<sitemapindex/);
