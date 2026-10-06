@@ -1,9 +1,14 @@
+import { handleSautiMediaRequest } from './sauti-media-api.js';
+
 const PRIMARY_ORIGIN = 'https://sautilink.com';
 const STAGING_HOST = 'test.sautilink.com';
 const USERNAME_PATTERN = /^[a-z0-9][a-z0-9._]{2,29}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const PROFILE_ROUTE = /^\/(?:app\/)?u\/([^/]+)\/?$/i;
 const POST_ROUTE = /^\/(?:post|app\/sauti)\/([^/]+)\/?$/i;
+const PUBLIC_POST_JSON_ROUTE = /^\/api\/public-post\/([0-9a-f-]{36})\/?$/i;
+const PUBLIC_POST_MEDIA_ROUTE = /^\/api\/public-post-media\/([0-9a-f-]{36})\/([0-9a-f-]{36})\/?$/i;
+const PUBLIC_POST_CARD_ROUTE = /^\/api\/public-post-card\/([0-9a-f-]{36})\.png$/i;
 const SITEMAP_PAGE_SIZE = 1000;
 const INDEX_ROBOTS = 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
 const PRIVATE_ROBOTS = 'noindex, nofollow, noarchive';
@@ -96,6 +101,49 @@ function avatarUrl(username, hasAvatar) {
     : `${PRIMARY_ORIGIN}/logo.png`;
 }
 
+function publicPostMediaUrl(postId, mediaId, kind = 'image') {
+  const suffix = kind === 'video' ? '?poster=1' : '?w=1440';
+  return \`${PRIMARY_ORIGIN}/api/public-post-media/${postId}/${mediaId}${suffix}\`;
+}
+
+function publicPostCardUrl(postId, updatedAt = '') {
+  const stamp = encodeURIComponent(isoDate(updatedAt) || '1');
+  return \`${PRIMARY_ORIGIN}/api/public-post-card/${postId}.png?v=${stamp}\`;
+}
+
+function normalizePostMedia(post) {
+  const source = Array.isArray(post?.media) ? post.media : [];
+  return source
+    .map((item) => ({
+      id: String(item?.id || '').toLowerCase(),
+      kind: item?.kind === 'video' ? 'video' : 'image',
+      contentType: String(item?.content_type || ''),
+      width: Math.max(0, Number(item?.width || 0)),
+      height: Math.max(0, Number(item?.height || 0)),
+      durationMs: Math.max(0, Number(item?.duration_ms || 0)),
+      altText: plainText(item?.alt_text || '', 1000),
+      position: Number(item?.position || 0),
+    }))
+    .filter((item) => UUID_PATTERN.test(item.id))
+    .sort((a, b) => a.position - b.position);
+}
+
+function secondsToIsoDuration(durationMs) {
+  const seconds = Math.max(1, Math.ceil(Number(durationMs || 0) / 1000));
+  return \`PT${seconds}S\`;
+}
+
+function compactCount(value) {
+  const count = Math.max(0, Number(value || 0));
+  return Number.isFinite(count) ? Math.trunc(count) : 0;
+}
+
+async function publicSharePost(env, postId) {
+  if (!UUID_PATTERN.test(postId)) return null;
+  const result = await rpc(env, 'public_share_post_v1', { p_post_id: postId });
+  return result.ok && result.rows[0] ? result.rows[0] : null;
+}
+
 function replaceOrInsertMeta(html, matcher, replacement) {
   if (matcher.test(html)) return html.replace(matcher, replacement);
   return html.replace('</head>', `  ${replacement}\n</head>`);
@@ -124,7 +172,10 @@ function applySeoHead(html, metadata) {
     `<meta property="og:url" content="${attribute(metadata.canonical)}">`,
     `<meta property="og:image" content="${attribute(metadata.image)}">`,
     `<meta property="og:image:alt" content="${attribute(metadata.imageAlt)}">`,
-    `<meta name="twitter:card" content="summary">`,
+    metadata.imageType ? `<meta property="og:image:type" content="${attribute(metadata.imageType)}">` : '',
+    metadata.imageWidth ? `<meta property="og:image:width" content="${attribute(metadata.imageWidth)}">` : '',
+    metadata.imageHeight ? `<meta property="og:image:height" content="${attribute(metadata.imageHeight)}">` : '',
+    `<meta name="twitter:card" content="${attribute(metadata.twitterCard || 'summary')}">`,
     `<meta name="twitter:title" content="${attribute(metadata.title)}">`,
     `<meta name="twitter:description" content="${attribute(metadata.description)}">`,
     `<meta name="twitter:image" content="${attribute(metadata.image)}">`,
