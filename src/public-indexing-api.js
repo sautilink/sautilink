@@ -545,7 +545,7 @@ async function appShell(request, env, url, metadata = null) {
   const shellUrl = new URL('/app/', url);
   const response = await env.ASSETS.fetch(new Request(shellUrl, request));
   const headers = new Headers(response.headers);
-  headers.set('Cache-Control', 'private, no-store, max-age=0');
+  headers.set('Cache-Control', metadata ? 'public, max-age=60, stale-while-revalidate=300' : 'private, no-store, max-age=0');
   headers.set('X-Robots-Tag', metadata?.robots || PRIVATE_ROBOTS);
   headers.delete('Content-Length');
   headers.delete('ETag');
@@ -582,6 +582,8 @@ function productionRobots() {
     'User-agent: *',
     'Allow: /',
     'Allow: /api/profile-media/',
+    'Allow: /api/public-post-media/',
+    'Allow: /api/public-post-card/',
     'Disallow: /api/',
     '',
     `Sitemap: ${PRIMARY_ORIGIN}/sitemap.xml`,
@@ -676,9 +678,9 @@ async function postResponse(request, env, url, rawPostId) {
   }
   if (!UUID_PATTERN.test(postId)) return appShell(request, env, url);
 
-  const result = await rpc(env, 'external_index_post_v1', { p_post_id: postId });
-  if (!result.ok || !result.rows[0]) return appShell(request, env, url);
-  return appShell(request, env, url, postMetadata(result.rows[0]));
+  const post = await publicSharePost(env, postId);
+  if (!post) return appShell(request, env, url);
+  return appShell(request, env, url, postMetadata(post));
 }
 
 export async function handlePublicIndexingRequest(request, env) {
@@ -688,6 +690,21 @@ export async function handlePublicIndexingRequest(request, env) {
   if (url.pathname === '/robots.txt') {
     const body = isStaging(url) ? 'User-agent: *\nDisallow: /\n' : productionRobots();
     return textResponse(request.method === 'HEAD' ? null : body, 'text/plain; charset=utf-8', 200, isStaging(url) ? PRIVATE_ROBOTS : '');
+  }
+
+  let publicMatch = url.pathname.match(PUBLIC_POST_JSON_ROUTE);
+  if (publicMatch && (request.method === 'GET' || request.method === 'HEAD')) {
+    return publicPostJsonResponse(request, env, publicMatch[1].toLowerCase());
+  }
+
+  publicMatch = url.pathname.match(PUBLIC_POST_MEDIA_ROUTE);
+  if (publicMatch && (request.method === 'GET' || request.method === 'HEAD')) {
+    return publicPostMediaResponse(request, env, publicMatch[1].toLowerCase(), publicMatch[2].toLowerCase());
+  }
+
+  publicMatch = url.pathname.match(PUBLIC_POST_CARD_ROUTE);
+  if (publicMatch && (request.method === 'GET' || request.method === 'HEAD')) {
+    return publicPostCardResponse(request, env, publicMatch[1].toLowerCase());
   }
 
   if (url.pathname === '/sitemap-social.xml') {
