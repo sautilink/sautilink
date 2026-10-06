@@ -36,7 +36,7 @@ const CLEAN_ROOM_ROUTE = /^\/(?:rooms|sautify)(?:\/[^/]+)?\/?$/;
 const CLEAN_DASHBOARD_ROUTE = /^\/dashboard(?:\/tools(?:\/moneti[sz]ation)?|\/moneti[sz]ation)?\/?$/i;
 const CLEAN_ROUTE_PREFIX = /^\/(?:login|signup|home|compose|discover|saved|appeals|moderation|settings|notifications|messages|videos|rooms|sautify|dashboard)/;
 const SAUTI_MEDIA_UPLOAD_ROUTE = /^\/api\/sauti-media\/upload\/([0-9a-f-]{36})$/i;
-const SHORT_VIDEO_DURATION_MS = 30_000;
+const SHORT_VIDEO_DURATION_MS = 60_000;
 
 const STAGING_HOST = 'test.sautilink.com';
 const RATE_LIMIT_BINDINGS = [
@@ -114,7 +114,7 @@ async function handleBoundedMediaUpload(request, env, url, ctx = null) {
       ok: false,
       error: {
         code: 'VIDEO_TOO_LONG',
-        message: 'This video is longer than 30 seconds. Trim it in the composer before uploading.',
+        message: 'This video is longer than 60 seconds. Trim it in the composer before uploading.',
       },
     });
   }

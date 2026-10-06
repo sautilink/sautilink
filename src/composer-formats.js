@@ -1,4 +1,4 @@
-const SHORT_VIDEO_LIMIT_SECONDS = 30;
+const SHORT_VIDEO_LIMIT_SECONDS = 60;
 const MAX_TRIMMABLE_VIDEO_SECONDS = 120;
 const MIN_TRIM_SECONDS = 1;
 const POLL_MIN_OPTIONS = 2;
@@ -230,7 +230,7 @@ async function trimVideoFile(file, startSeconds, endSeconds, onProgress) {
   const mimeType = supportedMp4RecorderType();
   const capture = HTMLMediaElement.prototype.captureStream || HTMLMediaElement.prototype.mozCaptureStream;
   if (!mimeType || typeof capture !== 'function') {
-    throw new Error('This browser cannot trim MP4 video yet. Choose a video that is 30 seconds or shorter.');
+    throw new Error('This browser cannot trim MP4 video yet. Choose a video that is 60 seconds or shorter.');
   }
 
   const sourceUrl = URL.createObjectURL(file);
@@ -326,9 +326,9 @@ function trimDialog() {
       <video data-trim-preview controls playsinline preload="metadata"></video>
       <div class="composer-trim-range">
         <label><span>Start</span><output data-trim-start-output>0:00</output><input data-trim-start type="range" min="0" step="0.1" value="0"></label>
-        <label><span>End</span><output data-trim-end-output>0:30</output><input data-trim-end type="range" min="1" step="0.1" value="30"></label>
+        <label><span>End</span><output data-trim-end-output>1:00</output><input data-trim-end type="range" min="1" step="0.1" value="60"></label>
       </div>
-      <p class="composer-trim-summary" data-trim-summary>Select a clip up to 30 seconds.</p>
+      <p class="composer-trim-summary" data-trim-summary>Select a clip up to 60 seconds.</p>
       <p class="composer-trim-status" data-trim-status role="status" aria-live="polite"></p>
       <footer><button type="button" class="secondary-action" data-trim-cancel>Cancel</button><button type="button" data-trim-use>Use clip</button></footer>
     </form>`;
@@ -373,7 +373,7 @@ function promptVideoTrim(file, duration) {
       end.value = String(to);
       startOutput.textContent = formatTrimTime(from);
       endOutput.textContent = formatTrimTime(to);
-      summary.textContent = `${formatTrimTime(to - from)} clip · maximum 0:30`;
+      summary.textContent = `${formatTrimTime(to - from)} clip · maximum 1:00`;
       preview.currentTime = changed === end ? Math.max(from, to - 0.1) : from;
     };
 
@@ -462,7 +462,7 @@ function updateMediaCopy() {
   const heading = document.querySelector('#sauti-media-queue .composer-media-heading strong');
   if (heading) heading.textContent = 'Photos & videos';
   const note = document.querySelector('#sauti-media-queue .composer-media-note');
-  if (note) note.textContent = 'Photos: JPEG, PNG or WebP up to 8 MB. Videos: MP4 up to 25 MB; trim videos up to 2 minutes into a 30-second clip. Add alternative text for accessibility.';
+  if (note) note.textContent = 'Photos: JPEG, PNG or WebP up to 8 MB. Videos: MP4 up to 25 MB; trim videos up to 2 minutes into a 60-second clip. Add alternative text for accessibility.';
 }
 
 function buildVideoTool(photoButton, fileInput) {
@@ -471,7 +471,7 @@ function buildVideoTool(photoButton, fileInput) {
   button.className = 'composer-tool video-tool';
   button.id = 'sauti-video-add';
   button.type = 'button';
-  button.title = 'Add short video (up to 30 seconds)';
+  button.title = 'Add short video (up to 60 seconds)';
   button.disabled = Boolean(document.getElementById('sauti-body')?.disabled);
   button.append(
     createSvg([
