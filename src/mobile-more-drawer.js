@@ -159,6 +159,7 @@ function installMobileMoreDrawer() {
       <p class="sauti-mobile-drawer-verification-message" data-mobile-drawer-verification-message role="status" aria-live="polite" hidden></p>
       <a href="/help">${icon('help')}<span><strong>Help &amp; support</strong><small>Get help with SautiLink</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
       <a href="/terms">${icon('terms')}<span><strong>Terms of Service</strong><small>Rules for using SautiLink</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
+      <a href="/upload-guidelines">${icon('terms')}<span><strong>Upload Guidelines</strong><small>Formats, sizes and media limits</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
       <a href="/contact">${icon('contact')}<span><strong>Contact</strong><small>Reach the SautiLink team</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
       <p class="sauti-mobile-drawer-section-title">Other SautiLink Systems</p>
       <a href="https://cloudengine.sautilink.com" target="_blank" rel="noopener noreferrer">${icon('cloud')}<span><strong>Cloud Engine</strong><small>Open SautiLink Cloud Engine</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
