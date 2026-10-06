@@ -294,7 +294,7 @@ async function trimVideoFile(file, startSeconds, endSeconds, onProgress) {
     timer = window.setTimeout(stopRecording, Math.ceil(clipDuration * 1000) + 3000);
     const blob = await result;
     if (!blob.size) throw new Error('The trimmed video is empty. Try another file.');
-    if (blob.size > 25 * 1024 * 1024) throw new Error('The trimmed video is larger than 25 MB. Choose a shorter section or another file.');
+    if (blob.size > 100_000_000) throw new Error('The trimmed video is larger than 100 MB. Choose a shorter section or another file.');
 
     const baseName = String(file.name || 'video').replace(/\.[^.]+$/, '').slice(0, 80) || 'video';
     return new File([blob], `${baseName}-trimmed.mp4`, { type: 'video/mp4', lastModified: Date.now() });
@@ -462,7 +462,7 @@ function updateMediaCopy() {
   const heading = document.querySelector('#sauti-media-queue .composer-media-heading strong');
   if (heading) heading.textContent = 'Photos & videos';
   const note = document.querySelector('#sauti-media-queue .composer-media-note');
-  if (note) note.textContent = 'Photos: JPEG, PNG or WebP up to 8 MB. Videos: MP4 up to 25 MB; trim videos up to 2 minutes into a 60-second clip. Add alternative text for accessibility.';
+  if (note) note.textContent = 'Photos: JPEG, PNG or WebP up to 8 MB. Videos: MP4 up to 100 MB; trim videos up to 2 minutes into a 60-second clip. Add alternative text for accessibility.';
 }
 
 function buildVideoTool(photoButton, fileInput) {

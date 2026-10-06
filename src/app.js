@@ -1104,9 +1104,9 @@ function addComposerFiles(files) {
     const type = String(file.type || '').toLowerCase();
     const image = ['image/jpeg', 'image/png', 'image/webp'].includes(type);
     const video = type === 'video/mp4';
-    const limit = image ? 8 * 1024 * 1024 : 25 * 1024 * 1024;
+    const limit = image ? 8 * 1024 * 1024 : 100_000_000;
     if ((!image && !video) || file.size < 1 || file.size > limit) {
-      showToast(image ? 'Images must be 8 MB or smaller.' : video ? 'Videos must be 25 MB or smaller.' : 'Use JPEG, PNG, WebP or MP4 media.');
+      showToast(image ? 'Images must be 8 MB or smaller.' : video ? 'Videos must be 100 MB or smaller.' : 'Use JPEG, PNG, WebP or MP4 media.');
       return;
     }
 

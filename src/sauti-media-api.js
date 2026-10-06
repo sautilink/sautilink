@@ -4,8 +4,9 @@ import { VIDEO_VARIANT_QUALITIES, videoVariantDimensions, availableVideoQualitie
 const SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
 const IMAGE_LIMIT = 8 * 1024 * 1024;
-const VIDEO_LIMIT = 25 * 1024 * 1024;
+const VIDEO_LIMIT = 100_000_000;
 const MAX_VIDEO_DURATION_MS = 120_000;
+const SHORT_VIDEO_DURATION_MS = 60_000;
 const MAX_DIMENSION = 8192;
 const UPLOAD_TTL_MS = 60 * 60 * 1000;
 const IMAGE_VARIANT_VERSION = 'v1';
@@ -451,7 +452,7 @@ async function beginUpload(request, env) {
   const type = TYPES[contentType];
   if (!type) return apiError(415, 'UNSUPPORTED_MEDIA', 'Use JPEG, PNG, WebP or MP4 media.');
   if (!Number.isSafeInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > type.limit) {
-    return apiError(413, 'FILE_TOO_LARGE', type.kind === 'video' ? 'Videos must be 25 MB or smaller.' : 'Images must be 8 MB or smaller.');
+    return apiError(413, 'FILE_TOO_LARGE', type.kind === 'video' ? 'Videos must be 100 MB or smaller.' : 'Images must be 8 MB or smaller.');
   }
 
   const id = crypto.randomUUID();
@@ -512,7 +513,14 @@ async function uploadMedia(request, env, id) {
     inspected.durationMs = null;
   } else {
     inspected = inspectMp4Bytes(bytes);
-    if (!inspected) return apiError(415, 'INVALID_VIDEO', 'Use a valid MP4 video no longer than 2 minutes.');
+    if (!inspected) {
+      await deleteMediaRow(session, id).catch(() => false);
+      return apiError(415, 'INVALID_VIDEO', 'Use a valid MP4 video no longer than 2 minutes.');
+    }
+    if (Number(inspected.durationMs || 0) > SHORT_VIDEO_DURATION_MS) {
+      await deleteMediaRow(session, id).catch(() => false);
+      return apiError(422, 'VIDEO_TOO_LONG', 'This video is longer than 60 seconds. Trim it in the composer before uploading.');
+    }
   }
 
   try {
