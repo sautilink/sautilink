@@ -8,6 +8,7 @@ const POST_ID = '123e4567-e89b-42d3-a456-426614174000';
 const IMAGE_A = '123e4567-e89b-42d3-a456-426614174101';
 const IMAGE_B = '123e4567-e89b-42d3-a456-426614174102';
 const VIDEO_ID = '123e4567-e89b-42d3-a456-426614174103';
+const OWNER_ID = '123e4567-e89b-42d3-a456-426614174199';
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 const shell = '<!doctype html><html><head><meta name="robots" content="noindex, nofollow"><title>SautiLink App</title><meta name="description" content="Sign in or create your SautiLink account."></head><body><main>App shell</main></body></html>';
@@ -47,8 +48,11 @@ function basePost(overrides = {}) {
   };
 }
 
-test('public share migration separates direct public viewing from external search indexing', async () => {
-  const sql = await read('supabase/migrations/20261006211233_enable_public_post_sharing.sql');
+test('public share migrations separate direct public viewing from search indexing without reopening media-table reads', async () => {
+  const [sql, hardening] = await Promise.all([
+    read('supabase/migrations/20261006211233_enable_public_post_sharing.sql'),
+    read('supabase/migrations/20261006212530_harden_public_post_sharing.sql'),
+  ]);
 
   assert.match(sql, /create or replace function public\.public_share_post_v1\(p_post_id uuid\)/i);
   assert.match(sql, /post\.visibility = 'public'/);
@@ -65,6 +69,12 @@ test('public share migration separates direct public viewing from external searc
   assert.match(sql, /grant execute on function public\.public_share_post_v1\(uuid\) to anon, authenticated/i);
   assert.match(sql, /drop policy if exists social_post_media_select_phase27_anon/);
   assert.match(sql, /post\.visibility = 'public'[\s\S]*post\.circle_id is null[\s\S]*post\.moderation_state = 'visible'/);
+
+  assert.match(hardening, /'owner_id', media\.owner_id/);
+  assert.doesNotMatch(hardening, /'object_key'/);
+  assert.match(hardening, /revoke execute on function public\.public_share_post_v1\(uuid\) from authenticated/i);
+  assert.match(hardening, /drop policy if exists social_post_media_select_phase27_anon/);
+  assert.match(hardening, /revoke select on table public\.social_post_media from anon/i);
 });
 
 test('public but search-opted-out video post gets a real share preview while remaining noindex', async () => {
@@ -109,8 +119,8 @@ test('multi-image post uses first image for social preview and indexes every pub
   globalThis.fetch = rpcFetch(basePost({
     media_count: 2,
     media: [
-      { id: IMAGE_B, kind: 'image', content_type: 'image/webp', width: 900, height: 700, alt_text: 'Second image', position: 1 },
-      { id: IMAGE_A, kind: 'image', content_type: 'image/jpeg', width: 1200, height: 900, alt_text: 'First image', position: 0 },
+      { id: IMAGE_B, owner_id: OWNER_ID, kind: 'image', content_type: 'image/webp', width: 900, height: 700, alt_text: 'Second image', position: 1 },
+      { id: IMAGE_A, owner_id: OWNER_ID, kind: 'image', content_type: 'image/jpeg', width: 1200, height: 900, alt_text: 'First image', position: 0 },
     ],
   }));
 
@@ -156,8 +166,8 @@ test('guest JSON exposes only public post data, counts and safe preview URLs', a
     search_indexable: false,
     media_count: 2,
     media: [
-      { id: IMAGE_A, kind: 'image', content_type: 'image/jpeg', width: 1200, height: 900, alt_text: 'One', position: 0 },
-      { id: VIDEO_ID, kind: 'video', content_type: 'video/mp4', width: 640, height: 360, duration_ms: 12000, alt_text: 'Clip', position: 1 },
+      { id: IMAGE_A, owner_id: OWNER_ID, kind: 'image', content_type: 'image/jpeg', width: 1200, height: 900, alt_text: 'One', position: 0 },
+      { id: VIDEO_ID, owner_id: OWNER_ID, kind: 'video', content_type: 'video/mp4', width: 640, height: 360, duration_ms: 12000, alt_text: 'Clip', position: 1 },
     ],
   }));
 
@@ -174,7 +184,56 @@ test('guest JSON exposes only public post data, counts and safe preview URLs', a
     assert.equal(json.data.post.media.length, 2);
     assert.match(json.data.post.media[0].preview_url, /\/api\/public-post-media\//);
     assert.match(json.data.post.media[1].preview_url, /poster=1/);
-    assert.doesNotMatch(JSON.stringify(json), /object_key|sauti\//i);
+    assert.doesNotMatch(JSON.stringify(json), /owner_id|object_key|sauti\//i);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
+
+test('public image preview is read from the deterministic private R2 key without an anonymous media-table query', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestedKey = '';
+  globalThis.fetch = rpcFetch(basePost({
+    media_count: 1,
+    media: [{
+      id: IMAGE_A,
+      owner_id: OWNER_ID,
+      kind: 'image',
+      content_type: 'image/jpeg',
+      width: 1200,
+      height: 900,
+      alt_text: 'Public image',
+      position: 0,
+    }],
+  }));
+
+  const imageBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  const mediaEnv = {
+    ...env,
+    SAUTI_MEDIA: {
+      async get(key) {
+        requestedKey = key;
+        return {
+          body: imageBytes,
+          size: imageBytes.byteLength,
+          writeHttpMetadata(headers) { headers.set('Content-Type', 'image/jpeg'); },
+        };
+      },
+      async head() { return null; },
+    },
+  };
+
+  try {
+    const response = await handlePublicIndexingRoutes(
+      new Request(`https://sautilink.com/api/public-post-media/${POST_ID}/${IMAGE_A}?w=1440`),
+      mediaEnv,
+    );
+    assert.equal(response.status, 200);
+    assert.equal(requestedKey, `sauti/${OWNER_ID}/${IMAGE_A}.jpg`);
+    assert.equal(response.headers.get('Content-Type'), 'image/jpeg');
+    assert.deepEqual(new Uint8Array(await response.arrayBuffer()), imageBytes);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -188,4 +247,6 @@ test('text-card source uses Cloudflare Images text drawing and PNG output', asyn
   assert.match(source, /canvas\.draw\(env\.IMAGES\.text/);
   assert.match(source, /output\(\{ format: 'image\/png' \}\)/);
   assert.match(source, /public-post-card/);
+  assert.match(source, /servePublicSautiMediaPreview/);
+  assert.doesNotMatch(source, /handleSautiMediaRequest\(new Request\(previewUrl/);
 });
