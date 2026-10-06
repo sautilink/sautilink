@@ -272,20 +272,29 @@ function postMetadata(post) {
   const verified = Boolean(post.author_is_verified);
   const canonical = postCanonical(postId);
   const body = plainText(post.body, 500);
-  const titleSeed = body ? plainText(body, 72) : `${displayName}'s public post`;
-  const title = `${titleSeed} — ${displayName} on SautiLink`;
+  const media = normalizePostMedia(post);
+  const firstMedia = media[0] || null;
+  const imageMedia = media.filter((item) => item.kind === 'image');
+  const videoMedia = media.filter((item) => item.kind === 'video');
+  const titleSeed = body ? plainText(body, 72) : \`${displayName}'s public post\`;
+  const title = \`${titleSeed} — ${displayName} on SautiLink\`;
   const description = plainText(
-    body || `A public${Number(post.media_count) > 0 ? ' media' : ''} post by ${displayName} (@${username}) on SautiLink.`,
+    body || \`A public${media.length ? ' media' : ''} post by ${displayName} (@${username}) on SautiLink.\`,
     180,
   );
-  const image = avatarUrl(username, Boolean(post.author_avatar_key));
+  const image = firstMedia
+    ? publicPostMediaUrl(postId, firstMedia.id, firstMedia.kind)
+    : publicPostCardUrl(postId, post.updated_at);
+  const imageAlt = firstMedia?.altText
+    || (firstMedia?.kind === 'video' ? \`Video preview from ${displayName}'s SautiLink post\` : '')
+    || (firstMedia ? \`Image from ${displayName}'s SautiLink post\` : \`Text post by ${displayName} on SautiLink\`);
   const authorUrl = profileCanonical(username);
 
   const author = {
     '@type': 'Person',
-    '@id': `${authorUrl}#person`,
+    '@id': \`${authorUrl}#person\`,
     name: displayName,
-    alternateName: `@${username}`,
+    alternateName: \`@${username}\`,
     url: authorUrl,
   };
   if (verified) {
@@ -299,7 +308,7 @@ function postMetadata(post) {
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'SocialMediaPosting',
-    '@id': `${canonical}#post`,
+    '@id': \`${canonical}#post\`,
     url: canonical,
     mainEntityOfPage: canonical,
     headline: titleSeed,
@@ -307,11 +316,31 @@ function postMetadata(post) {
     author,
     isPartOf: {
       '@type': 'ProfilePage',
-      '@id': `${authorUrl}#profile`,
+      '@id': \`${authorUrl}#profile\`,
       url: authorUrl,
     },
   };
   if (body) structuredData.articleBody = body;
+  if (imageMedia.length) {
+    structuredData.image = imageMedia.map((item) => ({
+      '@type': 'ImageObject',
+      contentUrl: publicPostMediaUrl(postId, item.id, 'image'),
+      width: item.width || undefined,
+      height: item.height || undefined,
+      caption: item.altText || undefined,
+    }));
+  }
+  if (videoMedia.length) {
+    structuredData.video = videoMedia.map((item, index) => ({
+      '@type': 'VideoObject',
+      name: body ? plainText(body, 90) : \`Video ${index + 1} by ${displayName}\`,
+      description,
+      thumbnailUrl: publicPostMediaUrl(postId, item.id, 'video'),
+      uploadDate: isoDate(post.created_at) || undefined,
+      duration: item.durationMs ? secondsToIsoDuration(item.durationMs) : undefined,
+      url: canonical,
+    }));
+  }
   const published = isoDate(post.created_at);
   const modified = isoDate(post.updated_at);
   if (published) structuredData.datePublished = published;
@@ -330,21 +359,185 @@ function postMetadata(post) {
   if (interactions.length) structuredData.interactionStatistic = interactions;
 
   const verifiedLabel = verified ? ' <strong>(Verified)</strong>' : '';
-  const bodyMarkup = body ? `<p>${htmlEscape(body)}</p>` : '<p>Public media post.</p>';
-  const fallbackHtml = `<main aria-label="Public SautiLink post"><article><header><h1>Post by ${htmlEscape(displayName)}</h1><p><a href="${attribute(authorUrl)}">@${htmlEscape(username)}</a>${verifiedLabel}</p></header>${bodyMarkup}<p><a href="${attribute(canonical)}">View this post on SautiLink</a></p></article></main>`;
+  const bodyMarkup = body ? \`<p>${htmlEscape(body)}</p>\` : '<p>Public media post.</p>';
+  const mediaMarkup = media.map((item) => {
+    const mediaUrl = publicPostMediaUrl(postId, item.id, item.kind);
+    if (item.kind === 'video') {
+      return \`<figure><img src="${attribute(mediaUrl)}" alt="${attribute(item.altText || 'Video preview')}" width="${item.width || 640}" height="${item.height || 360}"><figcaption>Video available on SautiLink</figcaption></figure>\`;
+    }
+    return \`<figure><img src="${attribute(mediaUrl)}" alt="${attribute(item.altText || 'Post image')}"${item.width ? \` width="${item.width}"\` : ''}${item.height ? \` height="${item.height}"\` : ''}></figure>\`;
+  }).join('');
+  const statsMarkup = \`<p>${compactCount(post.like_count)} likes · ${compactCount(post.comment_count)} comments · ${compactCount(post.repost_count)} reposts</p>\`;
+  const fallbackHtml = \`<main aria-label="Public SautiLink post"><article><header><h1>Post by ${htmlEscape(displayName)}</h1><p><a href="${attribute(authorUrl)}">@${htmlEscape(username)}</a>${verifiedLabel}</p></header>${bodyMarkup}${mediaMarkup}${statsMarkup}<p><a href="${attribute(canonical)}">View this post on SautiLink</a></p></article></main>\`;
 
   return {
     title,
     description,
     canonical,
     image,
-    imageAlt: `${displayName} profile image on SautiLink`,
+    imageAlt,
+    imageType: firstMedia?.kind === 'video' ? 'image/jpeg' : (firstMedia?.contentType || 'image/png'),
+    imageWidth: firstMedia?.width || 1200,
+    imageHeight: firstMedia?.height || 630,
     ogType: 'article',
+    twitterCard: 'summary_large_image',
     profileUsername: username,
     structuredData,
     fallbackHtml,
-    robots: INDEX_ROBOTS,
+    robots: post.search_indexable ? INDEX_ROBOTS : PRIVATE_ROBOTS,
   };
+}
+
+function publicPostJson(post) {
+  const postId = String(post.post_id || '').toLowerCase();
+  const username = String(post.author_username || '').toLowerCase();
+  const media = normalizePostMedia(post);
+  return {
+    ok: true,
+    data: {
+      post: {
+        id: postId,
+        body: String(post.body || ''),
+        created_at: post.created_at || null,
+        updated_at: post.updated_at || null,
+        counts: {
+          likes: compactCount(post.like_count),
+          comments: compactCount(post.comment_count),
+          reposts: compactCount(post.repost_count),
+        },
+        author: {
+          username,
+          display_name: String(post.author_display_name || username),
+          avatar_url: avatarUrl(username, Boolean(post.author_avatar_key)),
+          is_verified: Boolean(post.author_is_verified),
+          verification_badge_type: String(post.author_verification_badge_type || ''),
+        },
+        search_indexable: Boolean(post.search_indexable),
+        media: media.map((item) => ({
+          id: item.id,
+          kind: item.kind,
+          content_type: item.contentType,
+          width: item.width || null,
+          height: item.height || null,
+          duration_ms: item.durationMs || null,
+          alt_text: item.altText,
+          preview_url: publicPostMediaUrl(postId, item.id, item.kind),
+        })),
+      },
+    },
+  };
+}
+
+async function publicPostJsonResponse(request, env, postId) {
+  if (isStaging(new URL(request.url))) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
+  const post = await publicSharePost(env, postId);
+  if (!post) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
+  const headers = new Headers({
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'public, max-age=30, stale-while-revalidate=120',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Robots-Tag': post.search_indexable ? INDEX_ROBOTS : PRIVATE_ROBOTS,
+  });
+  return new Response(request.method === 'HEAD' ? null : JSON.stringify(publicPostJson(post)), { status: 200, headers });
+}
+
+async function publicPostMediaResponse(request, env, postId, mediaId) {
+  const url = new URL(request.url);
+  if (isStaging(url)) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
+  const post = await publicSharePost(env, postId);
+  if (!post) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
+  const media = normalizePostMedia(post).find((item) => item.id === mediaId);
+  if (!media) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
+
+  const mediaUrl = new URL(\`/api/sauti-media/${mediaId}\`, url);
+  if (media.kind === 'video') {
+    mediaUrl.searchParams.set('poster', '1');
+  } else {
+    const width = ['480', '960', '1440'].includes(url.searchParams.get('w')) ? url.searchParams.get('w') : '1440';
+    mediaUrl.searchParams.set('w', width);
+  }
+
+  const method = request.method === 'HEAD' && media.kind === 'video' ? 'GET' : request.method;
+  const response = await handleSautiMediaRequest(new Request(mediaUrl, { method }), env);
+  if (!response) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
+  const headers = new Headers(response.headers);
+  headers.set('Cache-Control', 'public, max-age=300, must-revalidate');
+  headers.set('X-Robots-Tag', post.search_indexable ? 'index, noarchive' : PRIVATE_ROBOTS);
+  headers.delete('Set-Cookie');
+  if (request.method === 'HEAD') return new Response(null, { status: response.status, headers });
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
+function previewLines(value, maxChars = 34, maxLines = 4) {
+  const words = plainText(value, 190).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = '';
+  for (const word of words) {
+    const next = current ? \`${current} ${word}\` : word;
+    if (next.length <= maxChars || !current) {
+      current = next;
+      continue;
+    }
+    lines.push(current);
+    current = word;
+    if (lines.length >= maxLines - 1) break;
+  }
+  if (current && lines.length < maxLines) lines.push(current);
+  if (words.length && lines.join(' ').length < words.join(' ').length && lines.length) {
+    lines[lines.length - 1] = \`${lines[lines.length - 1].replace(/[.…]+$/, '')}…\`;
+  }
+  return lines.slice(0, maxLines);
+}
+
+async function textCardFallback(request, env) {
+  if (!env.ASSETS) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
+  const asset = await env.ASSETS.fetch(new Request(new URL('/logo.png', request.url), request));
+  const headers = new Headers(asset.headers);
+  headers.set('Cache-Control', 'public, max-age=300');
+  return new Response(request.method === 'HEAD' ? null : asset.body, { status: asset.status, headers });
+}
+
+async function publicPostCardResponse(request, env, postId) {
+  const url = new URL(request.url);
+  if (isStaging(url)) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
+  const post = await publicSharePost(env, postId);
+  if (!post) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
+  if (!env.IMAGES) return textCardFallback(request, env);
+
+  const cache = globalThis.caches?.default;
+  const cacheKey = new Request(url.toString(), { method: 'GET' });
+  if (request.method === 'GET' && cache) {
+    const cached = await cache.match(cacheKey).catch(() => null);
+    if (cached) return cached;
+  }
+
+  const displayName = plainText(post.author_display_name || post.author_username, 60);
+  const username = plainText(post.author_username, 40);
+  const body = String(post.body || '').trim() || \`Public post by ${displayName}\`;
+  const lines = previewLines(body);
+  const baseSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07101f"/><stop offset="1" stop-color="#101c31"/></linearGradient></defs><rect width="1200" height="630" fill="url(#g)"/><circle cx="1080" cy="90" r="210" fill="#e6205a" opacity=".12"/><circle cx="1120" cy="520" r="280" fill="#246bfe" opacity=".12"/><rect x="70" y="62" width="1060" height="506" rx="32" fill="#0b1525" stroke="#33415a" stroke-width="2"/></svg>';
+
+  try {
+    let canvas = env.IMAGES.input(new Response(baseSvg, { headers: { 'Content-Type': 'image/svg+xml' } }).body);
+    canvas = canvas.draw(env.IMAGES.text('SautiLink', { color: '#f7f9fc', size: 42 }), { left: 112, top: 100 });
+    canvas = canvas.draw(env.IMAGES.text(\`${displayName}${post.author_is_verified ? '  ✓' : ''}\`, { color: '#f7f9fc', size: 32 }), { left: 112, top: 168 });
+    canvas = canvas.draw(env.IMAGES.text(\`@${username}\`, { color: '#aeb8c8', size: 24 }), { left: 112, top: 214 });
+    lines.forEach((line, index) => {
+      canvas = canvas.draw(env.IMAGES.text(line, { color: '#f7f9fc', size: 52 }), { left: 112, top: 286 + (index * 66) });
+    });
+    canvas = canvas.draw(env.IMAGES.text('sautilink.com', { color: '#aeb8c8', size: 24 }), { left: 112, bottom: 92 });
+    const generated = (await canvas.output({ format: 'image/png' })).response({
+      headers: {
+        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+        'X-Robots-Tag': post.search_indexable ? 'index, noarchive' : PRIVATE_ROBOTS,
+      },
+    });
+    if (request.method === 'HEAD') return new Response(null, { status: generated.status, headers: generated.headers });
+    if (cache) await cache.put(cacheKey, generated.clone()).catch(() => {});
+    return generated;
+  } catch {
+    return textCardFallback(request, env);
+  }
 }
 
 async function appShell(request, env, url, metadata = null) {
