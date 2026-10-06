@@ -18,6 +18,7 @@ test('mobile More drawer delegates to existing SautiLink actions', async () => {
   assert.match(source, /href="\/help"/);
   assert.match(source, /href="\/privacy"/);
   assert.match(source, /href="\/terms"/);
+  assert.match(source, /href="\/community-guidelines"/);
   assert.match(source, /href="\/upload-guidelines"/);
   assert.match(source, /href="\/contact"/);
   assert.match(source, />Other SautiLink Systems<\/p>/);
