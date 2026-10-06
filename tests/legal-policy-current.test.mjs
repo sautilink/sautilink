@@ -7,13 +7,11 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('Privacy Policy describes the live SautiLink product rather than pre-launch plans', async () => {
   const privacy = await read('privacy.html');
 
-  assert.match(privacy, /Effective<\/strong> September 9, 2026/);
+  assert.match(privacy, /Effective<\/strong> October 6, 2026/);
   assert.match(privacy, /Account deletion is available now/);
   assert.match(privacy, /Direct messages are private from the public/);
   assert.match(privacy, /Private Rooms/);
-  assert.match(privacy, /Google, Facebook or Microsoft sign-in/);
-  assert.match(privacy, /Supabase/);
-  assert.match(privacy, /Cloudflare/);
+  assert.match(privacy, /supported connected-account sign-in method/);
   assert.match(privacy, /Ivy Network PLC/);
   assert.match(privacy, /https:\/\/www\.ivynetwork\.co\.uk\//);
   assert.doesNotMatch(privacy, /pre-launch/i);
@@ -24,7 +22,7 @@ test('Privacy Policy describes the live SautiLink product rather than pre-launch
 test('Terms cover current Rooms, identity, moderation and platform safety', async () => {
   const terms = await read('terms.html');
 
-  assert.match(terms, /Effective<\/strong> September 9, 2026/);
+  assert.match(terms, /Effective<\/strong> October 6, 2026/);
   assert.match(terms, /SautiLink calls its group-style community spaces <strong>Rooms<\/strong>/);
   assert.match(terms, /verification badge or other identity signal/i);
   assert.match(terms, /Moderation, visibility actions and appeals/);
@@ -32,8 +30,12 @@ test('Terms cover current Rooms, identity, moderation and platform safety', asyn
   assert.match(terms, /United Republic of Tanzania/);
   assert.match(terms, /Ivy Network PLC/);
   assert.match(terms, /optional paid features/i);
+  assert.match(terms, /href="\/upload-guidelines"/);
   assert.doesNotMatch(terms, /pre-launch/i);
   assert.doesNotMatch(terms, /when those features launch/i);
+  for (const page of [privacy, terms]) {
+    assert.doesNotMatch(page, /Supabase|Cloudflare|Google|Facebook|Microsoft|TikTok/i);
+  }
 });
 
 test('Privacy and Terms use the scoped document-first legal layout', async () => {
