@@ -4668,3 +4668,110 @@ body:not(.auth-entry) select {
     flex: 1;
   }
 }
+
+
+/* Standalone /menu mirrors the existing sidebar without changing the sidebar itself. */
+.menu-surface {
+  min-height: calc(100vh - 72px);
+  padding: 22px 20px 44px;
+}
+
+.menu-page-shell {
+  width: 100%;
+}
+
+.menu-page-sidebar.primary-rail {
+  display: block;
+  width: min(100%, 360px);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--app-line);
+  border-radius: 22px;
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
+}
+
+.menu-page-sidebar .primary-rail-inner {
+  position: static;
+  min-height: 0;
+  max-height: none;
+  padding: 24px 18px 18px;
+  overflow: visible;
+}
+
+.menu-page-sidebar .primary-rail-scroll {
+  min-height: 0;
+  overflow: visible;
+  padding-right: 2px;
+  padding-left: 2px;
+}
+
+.menu-page-sidebar .primary-rail .nav-item,
+.menu-page-sidebar .nav-item {
+  text-decoration: none;
+}
+
+@media (max-width: 1080px) {
+  .menu-page-sidebar .desktop-brand {
+    display: inline-flex;
+    width: fit-content;
+    height: auto;
+    margin: 0 12px 28px;
+  }
+
+  .menu-page-sidebar .desktop-brand img {
+    width: 50px;
+  }
+
+  .menu-page-sidebar .desktop-brand span,
+  .menu-page-sidebar .nav-item span,
+  .menu-page-sidebar .rail-account-copy {
+    display: initial;
+  }
+
+  .menu-page-sidebar .share-sauti-button {
+    display: block;
+  }
+
+  .menu-page-sidebar .primary-rail-section-title {
+    display: block;
+  }
+
+  .menu-page-sidebar .nav-item {
+    justify-content: flex-start;
+    padding: 12px 13px;
+  }
+
+  .menu-page-sidebar .rail-account {
+    justify-content: flex-start;
+    padding: 11px;
+  }
+
+  .menu-page-sidebar .rail-account .icon-control {
+    display: grid;
+  }
+}
+
+@media (max-width: 680px) {
+  .menu-surface {
+    min-height: calc(100vh - 119px);
+    padding: 12px 0 24px;
+  }
+
+  .menu-page-sidebar.primary-rail {
+    display: block;
+    width: 100%;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .menu-page-sidebar .primary-rail-inner {
+    padding: 18px 14px 20px;
+  }
+}
+
+:root[data-theme="light"] .menu-page-sidebar.primary-rail {
+  background: var(--app-panel);
+}
