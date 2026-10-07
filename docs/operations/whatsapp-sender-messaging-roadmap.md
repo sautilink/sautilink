@@ -57,6 +57,8 @@ Configure the following **server-only** secrets:
 - SUPABASE_URL — injected by Supabase hosted Edge Functions
 - SUPABASE_SERVICE_ROLE_KEY — server-only key injected by Supabase
 
+The webhook must fail closed when `WHATSAPP_WEBHOOK_PHONE_NUMBER_ID` is missing; it must **never** fall back to OTP's `WHATSAPP_PHONE_NUMBER_ID`. For the SautiLink number approved in October 2026 use `WHATSAPP_WEBHOOK_PHONE_NUMBER_ID=1262171266988883` and `WHATSAPP_WABA_ID=1078959525106649`. Configure the App Secret and Verify Token directly in Supabase; they are not repository content. Keep the existing OTP sender, WhatsApp access token and SwalaSMS fallback untouched until a separately tested cutover.
+
 On the Meta app's Webhooks page, configure callback and matching verification token; subscribe to messages for whatsapp_business_account, then subscribe the app to the intended WABA through the subscribed_apps API. Activate the callback only when values and permissions are correct.
 
 The new endpoint:
