@@ -22,7 +22,7 @@ function dateFromSeconds(value) {
   const seconds = Number(value);
   return Number.isSafeInteger(seconds) && seconds >= 946684800 && seconds <= 4102444800
     ? new Date(seconds * 1000).toISOString()
-    : new Date().toISOString();
+    : null;
 }
 
 function contentForMessage(message) {
@@ -87,6 +87,8 @@ export function normalizeWhatsAppEvents(payload, expected) {
         const providerMessageId = safeId(message?.id);
         const senderWaId = bounded(message?.from, 24);
         if (!providerMessageId || !WHATSAPP_PHONE.test(senderWaId)) continue;
+        const occurredAt = dateFromSeconds(message.timestamp);
+        if (!occurredAt) continue;
         const messageType = ALLOWED_TYPES.has(message.type) ? message.type : 'unknown';
         result.messages.push({
           waba_id: wabaId,
@@ -95,7 +97,7 @@ export function normalizeWhatsAppEvents(payload, expected) {
           sender_wa_id: senderWaId,
           message_type: messageType,
           text_body: contentForMessage(message),
-          occurred_at: dateFromSeconds(message.timestamp),
+          occurred_at: occurredAt,
         });
       }
       for (const status of (Array.isArray(value.statuses) ? value.statuses : []).slice(0, 100)) {
@@ -104,13 +106,15 @@ export function normalizeWhatsAppEvents(payload, expected) {
         const deliveryStatus = bounded(status?.status, 20);
         if (!providerMessageId || !WHATSAPP_PHONE.test(recipientWaId)
             || !ALLOWED_STATUSES.has(deliveryStatus)) continue;
+        const occurredAt = dateFromSeconds(status.timestamp);
+        if (!occurredAt) continue;
         result.statuses.push({
           waba_id: wabaId,
           phone_number_id: phoneNumberId,
           provider_message_id: providerMessageId,
           recipient_wa_id: recipientWaId,
           delivery_status: deliveryStatus,
-          occurred_at: dateFromSeconds(status.timestamp),
+          occurred_at: occurredAt,
         });
       }
     }
