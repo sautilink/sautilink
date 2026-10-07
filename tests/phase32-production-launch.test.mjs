@@ -122,6 +122,8 @@ test('Phase 32 production build and verifier are permanent repository gates', as
     'https://sautilink.com/login',
     'https://sautilink.com/signup',
     'https://sautilink.com/home',
+    'https://sautilink.com/menu',
+    'id="menu-surface"',
     'app.js?v=20260930-swala-otp2',
     'pwa.js?v=20260930-swala-otp2',
     'sautilink-profile-x-ui',
