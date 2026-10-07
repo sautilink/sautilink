@@ -26,7 +26,7 @@ const VIDEO_ROUTE = /^\/app\/videos(?:\/[0-9a-f-]{36})?\/?$/;
 // Rooms is canonical; historic Sautify/Circles links remain readable so old shared links do not break.
 const ROOM_ROUTE = /^\/app\/(?:rooms|sautify|circles)(?:\/[^/]+)?\/?$/;
 const CLEAN_PROFILE_ROUTE = /^\/u\/[^/]+\/?$/;
-const CLEAN_MEMBER_ROUTE = /^\/(?:home|discover|saved|appeals|moderation|settings|notifications)\/?$/;
+const CLEAN_MEMBER_ROUTE = /^\/(?:home|discover|saved|appeals|moderation|settings|menu|notifications)\/?$/;
 const CLEAN_COMPOSE_ROUTE = /^\/compose\/?$/;
 const CLEAN_AUTH_ROUTE = /^\/(?:login|signup)\/?$/;
 const CLEAN_POST_ROUTE = /^\/post\/[0-9a-f-]{36}\/?$/;
@@ -34,7 +34,7 @@ const CLEAN_MESSAGE_ROUTE = /^\/messages(?:\/[0-9a-f-]{36})?\/?$/;
 const CLEAN_VIDEO_ROUTE = /^\/videos(?:\/[0-9a-f-]{36})?\/?$/;
 const CLEAN_ROOM_ROUTE = /^\/(?:rooms|sautify)(?:\/[^/]+)?\/?$/;
 const CLEAN_DASHBOARD_ROUTE = /^\/dashboard(?:\/tools(?:\/moneti[sz]ation)?|\/moneti[sz]ation)?\/?$/i;
-const CLEAN_ROUTE_PREFIX = /^\/(?:login|signup|home|compose|discover|saved|appeals|moderation|settings|notifications|messages|videos|rooms|sautify|dashboard)/;
+const CLEAN_ROUTE_PREFIX = /^\/(?:login|signup|home|compose|discover|saved|appeals|moderation|settings|menu|notifications|messages|videos|rooms|sautify|dashboard)/;
 
 const STAGING_HOST = 'test.sautilink.com';
 const RATE_LIMIT_BINDINGS = [
