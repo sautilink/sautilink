@@ -87,10 +87,15 @@ test('signed-out public post view shows public content but gates interaction and
   assert.match(gate, /guestActionButton\('Repost'/);
   assert.match(gate, /navigator\.share/);
   assert.match(gate, /item\.preview_url/);
+  assert.match(gate, /--guest-media-aspect/);
+  assert.match(gate, /guest-post-media-fallback/);
+  assert.match(gate, /image\.addEventListener\('error'/);
   assert.doesNotMatch(gate, /object_key|\/api\/sauti-media\//i);
 
   assert.match(css, /\.guest-post-card/);
   assert.match(css, /\.guest-post-media/);
+  assert.match(css, /aspect-ratio:\s*var\(--guest-media-aspect/);
+  assert.match(css, /\.guest-post-media-fallback/);
   assert.match(css, /\.guest-post-play/);
   assert.match(css, /\.guest-action-dialog/);
   assert.match(css, /\.guest-post-actions/);
