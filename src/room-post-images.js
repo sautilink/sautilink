@@ -46,15 +46,6 @@ function roomPostMessage(text, success = false) {
   node.hidden = !text;
 }
 
-function roomPostToast(text) {
-  const toast = roomPostNode('toast');
-  if (!toast) return;
-  toast.textContent = text;
-  toast.hidden = false;
-  window.clearTimeout(roomPostToast.timer);
-  roomPostToast.timer = window.setTimeout(() => { toast.hidden = true; }, 3000);
-}
-
 function ensureRoomPostImageStyles() {
   if (document.querySelector('link[data-room-post-images]')) return;
   const link = document.createElement('link');
@@ -249,18 +240,18 @@ function addRoomPostImages(files) {
 
   const openSlots = Math.max(0, ROOM_POST_IMAGE_LIMIT - roomPostImages.length);
   if (!openSlots) {
-    roomPostToast('A Room post can include up to five images.');
+    roomPostMessage('A Room post can include up to five images.');
     return;
   }
 
   selected.slice(0, openSlots).forEach((file) => {
     const type = String(file.type || '').toLowerCase();
     if (!ROOM_POST_IMAGE_TYPES.has(type)) {
-      roomPostToast('Use JPEG, PNG or WebP images.');
+      roomPostMessage('Use JPEG, PNG or WebP images.');
       return;
     }
     if (file.size < 1 || file.size > ROOM_POST_IMAGE_MAX_BYTES) {
-      roomPostToast('Each image must be 8 MB or smaller.');
+      roomPostMessage('Each image must be 8 MB or smaller.');
       return;
     }
 
@@ -281,7 +272,7 @@ function addRoomPostImages(files) {
 
   renderRoomPostImages();
   queueMicrotask(syncRoomPostImageComposer);
-  if (selected.length > openSlots) roomPostToast('Only the first five Room images were added.');
+  if (selected.length > openSlots) roomPostMessage('Only the first five Room images were added.');
 }
 
 async function clearRoomPostImages({ remote = false } = {}) {
@@ -363,7 +354,6 @@ async function publishRoomPostWithImages(event) {
     textarea.value = '';
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
     roomPostMessage('Post published in this Room.', true);
-    roomPostToast('Posted in Room.');
     roomPostNode('circle-stream-retry')?.click();
   } catch (error) {
     roomPostMessage(error?.message || 'The Room post could not be published.');

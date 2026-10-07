@@ -67,13 +67,8 @@ async function inviteUser() {
   return roomInviteUserPromise;
 }
 
-function inviteToast(message) {
-  const node = document.getElementById('toast');
-  if (!node) return;
-  node.textContent = message;
-  node.hidden = false;
-  window.clearTimeout(inviteToast.timer);
-  inviteToast.timer = window.setTimeout(() => { node.hidden = true; }, 2600);
+function inviteToast(message, type = 'notice') {
+  if (type === 'error') window.__sautilinkShowActionError?.(message);
 }
 
 function activeInviteRoomSlug() {
@@ -299,7 +294,7 @@ async function renderIncomingRoomInvitations() {
       } catch (error) {
         accept.disabled = false;
         decline.disabled = false;
-        inviteToast(error?.message || 'The invitation could not be updated.');
+        inviteToast(error?.message || 'The invitation could not be updated.', 'error');
       }
     };
     accept.addEventListener('click', () => decide('accepted'));

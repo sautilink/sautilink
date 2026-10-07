@@ -75,7 +75,7 @@ const viewTitle = byId('view-title');
 const authTabs = byId('auth-tabs');
 const railAccount = byId('rail-account');
 const mobileSignoutButton = byId('mobile-signout-button');
-const toast = byId('toast');
+const actionError = byId('action-error');
 
 const panels = {
   login: byId('login-panel'),
@@ -143,7 +143,7 @@ let usernameTimer = 0;
 let usernameRequest = 0;
 let availableUsername = '';
 let recoverySession = false;
-let toastTimer = 0;
+let actionErrorTimer = 0;
 let currentMember = null;
 let currentMemberId = '';
 let currentAccountEmail = '';
@@ -258,12 +258,14 @@ function motionBehavior() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
 }
 
-function showToast(message) {
-  window.clearTimeout(toastTimer);
-  toast.textContent = message;
-  toast.hidden = false;
-  toastTimer = window.setTimeout(() => { toast.hidden = true; }, 3600);
+function showToast(message, type = 'notice') {
+  if (type !== 'error' || !actionError) return;
+  window.clearTimeout(actionErrorTimer);
+  actionError.textContent = message;
+  actionError.hidden = false;
+  actionErrorTimer = window.setTimeout(() => { actionError.hidden = true; }, 7000);
 }
+window.__sautilinkShowActionError = (message) => showToast(message, 'error');
 
 function setMessage(node, message, type = 'error') {
   node.textContent = message || '';
@@ -1097,7 +1099,7 @@ function addComposerFiles(files) {
   if (!selected.length) return;
   const openSlots = Math.max(0, 4 - composerMedia.length);
   if (!openSlots) {
-    showToast('A post can include up to four media items.');
+    showToast('A post can include up to four media items.', 'error');
     return;
   }
 
@@ -1107,7 +1109,7 @@ function addComposerFiles(files) {
     const video = type === 'video/mp4';
     const limit = image ? 8 * 1024 * 1024 : 100_000_000;
     if ((!image && !video) || file.size < 1 || file.size > limit) {
-      showToast(image ? 'Images must be 8 MB or smaller.' : video ? 'Videos must be 100 MB or smaller.' : 'Use JPEG, PNG, WebP or MP4 media.');
+      showToast(image ? 'Images must be 8 MB or smaller.' : video ? 'Videos must be 100 MB or smaller.' : 'Use JPEG, PNG, WebP or MP4 media.', 'error');
       return;
     }
 
@@ -1150,7 +1152,7 @@ function addComposerFiles(files) {
 
   renderComposerMedia();
   updateComposerState();
-  if (selected.length > openSlots) showToast('Only the first available media slots were added.');
+  if (selected.length > openSlots) showToast('Only the first available media slots were added.', 'error');
 }
 
 function resumeWaitingComposerMedia() {
@@ -2521,7 +2523,7 @@ async function removeSettingsSafetyTarget(action, targetId, button) {
     await loadSettings();
   } catch {
     button.disabled = false;
-    showToast(action === 'unblock' ? 'This account could not be unblocked.' : 'This account could not be unmuted.');
+    showToast(action === 'unblock' ? 'This account could not be unblocked.' : 'This account could not be unmuted.', 'error');
   }
 }
 
@@ -2997,7 +2999,7 @@ async function decideModerationIdentityRequest(requestId, decision) {
     showToast(decision === 'approved' ? 'Name change approved.' : 'Name change declined.');
     await loadModerationIdentityRequests();
   } catch (error) {
-    showToast(error?.message || 'This name change request could not be decided.');
+    showToast(error?.message || 'This name change request could not be decided.', 'error');
   }
 }
 
@@ -3038,14 +3040,14 @@ async function claimModerationReport(reportId) {
     showToast(`Report #${reportId} claimed.`);
     await loadModerationReports();
   } catch (error) {
-    showToast(error?.message || 'This report could not be claimed.');
+    showToast(error?.message || 'This report could not be claimed.', 'error');
   }
 }
 
 async function decideModerationReport(reportId, action) {
   const textarea = byId('moderation-report-detail').querySelector('[data-report-decision-reason]');
   const reason = String(textarea?.value || '').trim();
-  if (!reason) return showToast('Add a decision reason first.');
+  if (!reason) return showToast('Add a decision reason first.', 'error');
 
   try {
     await moderationRequest(`/api/moderation/reports/${encodeURIComponent(reportId)}/decision`, {
@@ -3060,7 +3062,7 @@ async function decideModerationReport(reportId, action) {
     showToast(`${moderationActionLabel(action)} saved.`);
     await Promise.all([loadModerationReports(), loadModerationAudit()]);
   } catch (error) {
-    showToast(error?.message || 'This moderation decision could not be saved.');
+    showToast(error?.message || 'This moderation decision could not be saved.', 'error');
   }
 }
 
@@ -3070,7 +3072,7 @@ async function claimModerationAppeal(appealId) {
     showToast(`Appeal #${appealId} claimed.`);
     await loadModerationAppeals();
   } catch (error) {
-    showToast(error?.message || 'This appeal could not be claimed.');
+    showToast(error?.message || 'This appeal could not be claimed.', 'error');
   }
 }
 
@@ -3093,7 +3095,7 @@ async function decideModerationAppeal(appealId, action) {
     showToast(action === 'appeal_reversed' ? 'Appeal reversed; content restored where applicable.' : 'Appeal upheld.');
     await Promise.all([loadModerationAppeals(), loadModerationAudit()]);
   } catch (error) {
-    showToast(error?.message || 'This appeal decision could not be saved.');
+    showToast(error?.message || 'This appeal decision could not be saved.', 'error');
   }
 }
 
@@ -3349,7 +3351,7 @@ function saveComposerDraft({ offline = false } = {}) {
   const snapshot = currentComposerSnapshot();
   if (!String(snapshot.body || '').trim() && !snapshot.quote && !snapshot.media?.length) return false;
   if (composerMedia.some((item) => item.status !== 'ready' && !item.cacheReady)) {
-    showToast('Media is still being prepared for device storage. Try saving the draft again.');
+    showToast('Media is still being prepared for device storage. Try saving the draft again.', 'error');
     return false;
   }
 
@@ -3535,7 +3537,7 @@ async function receivePendingPwaShare() {
     const share = await readPwaShare(id);
     if (!share || Date.now() - share.createdAt > 24 * 60 * 60 * 1000) {
       await finishPwaShare(id);
-      showToast('This shared item is no longer available. Share it again.');
+      showToast('This shared item is no longer available. Share it again.', 'error');
       return;
     }
     openSautiComposer({ focus: false });
@@ -3544,7 +3546,7 @@ async function receivePendingPwaShare() {
     const body = [previous, String(share.body || '').trim()].filter(Boolean).join('\n');
     const files = Array.isArray(share.files) ? share.files : [];
     if (body.length > 500 || composerMedia.length + files.length > 4) {
-      showToast('Finish the current draft before importing this shared item.');
+      showToast('Finish the current draft before importing this shared item.', 'error');
       return;
     }
     textarea.value = body;
@@ -3553,7 +3555,7 @@ async function receivePendingPwaShare() {
     await finishPwaShare(id);
     showToast('Shared content added to your draft. Review it before posting.');
   } catch {
-    showToast('Could not import this share. Please try again.');
+    showToast('Could not import this share. Please try again.', 'error');
   } finally {
     acceptingPwaShare = false;
   }
@@ -3916,7 +3918,7 @@ document.addEventListener('click', async (event) => {
   event.stopPropagation();
   const editor = await loadPostEditor();
   if (editor) await editor.handlePostEditClick(button);
-  else showToast('Post editor could not load. Please try again.');
+  else showToast('Post editor could not load. Please try again.', 'error');
 }, true);
 
 function commentActionIcon(action) {
@@ -4611,7 +4613,7 @@ async function toggleCommentReaction(card, button) {
     });
     sautiCardsForPost(card.dataset.postId).forEach((candidate) => syncCommentReactionCard(candidate, data));
   } catch (error) {
-    showToast(error?.message || 'Your comment reaction could not be saved.');
+    showToast(error?.message || 'Your comment reaction could not be saved.', 'error');
   } finally {
     card.querySelectorAll('[data-comment-reaction]').forEach((control) => {
       control.setAttribute('aria-busy', 'false');
@@ -4878,7 +4880,7 @@ async function toggleLike(card, button) {
     void refreshPostInteractionControls(postId);
   } catch (error) {
     setPostInteractionState(postId, 'like', active, liked ? -1 : 1);
-    showToast(error?.message || 'Like could not be updated.');
+    showToast(error?.message || 'Like could not be updated.', 'error');
   }
 }
 
@@ -4898,7 +4900,7 @@ async function toggleRepost(card, button) {
     showToast(active ? 'Repost removed.' : 'Post reposted.');
   } catch (error) {
     setPostInteractionState(postId, 'repost', active, reposted ? -1 : 1);
-    showToast(error?.message || 'Repost could not be updated.');
+    showToast(error?.message || 'Repost could not be updated.', 'error');
   }
 }
 
@@ -4934,7 +4936,7 @@ async function toggleSave(card, button) {
     showToast(active ? 'Removed from Saved.' : card.classList.contains('comment-card') ? 'Comment saved.' : 'Post saved.');
   } catch {
     setPostInteractionState(postId, 'save', active);
-    showToast('Saved state could not be updated.');
+    showToast('Saved state could not be updated.', 'error');
   }
 }
 
@@ -5013,7 +5015,7 @@ async function shareSautiLink(card, button) {
     await copyShareText(url);
     showToast('Post link copied.');
   } catch {
-    showToast('This post link could not be shared.');
+    showToast('This post link could not be shared.', 'error');
   } finally {
     button.disabled = false;
   }
@@ -5039,7 +5041,7 @@ async function shareShortVideoLink(postId, button) {
     await copyShareText(url);
     showToast('Video link copied.');
   } catch {
-    showToast('This video link could not be shared.');
+    showToast('This video link could not be shared.', 'error');
   } finally {
     if (button) button.disabled = false;
   }
@@ -5105,7 +5107,7 @@ async function toggleHomeAuthorFollow(card) {
     showToast(following ? `You’re now following @${username}.` : `You unfollowed @${username}.`);
   } catch (error) {
     setHomeAuthorFollowState(authorId, wasFollowing);
-    showToast(error?.message || 'Follow state could not be changed.');
+    showToast(error?.message || 'Follow state could not be changed.', 'error');
   }
 }
 
@@ -5208,7 +5210,7 @@ async function toggleHomeAuthorInterest(card, button) {
       : `@${username} is back to standard Home ranking.`);
   } catch {
     setHomeAuthorInterestState(authorId, wasInterested);
-    showToast('This Home preference could not be saved.');
+    showToast('This Home preference could not be saved.', 'error');
   } finally {
     homeAuthorCards(authorId).forEach((authorCard) => {
       const action = authorCard.querySelector('[data-home-post-action="interested"]');
@@ -5236,7 +5238,7 @@ async function hideHomeAuthorPosts(card, button) {
     showToast(`Posts from @${username} won’t appear in Home. You can undo this in Settings.`);
   } catch (error) {
     button.disabled = false;
-    showToast(error?.message || 'This Home preference could not be saved.');
+    showToast(error?.message || 'This Home preference could not be saved.', 'error');
   }
 }
 
@@ -5264,7 +5266,7 @@ async function handleHomePostMenuAction(card, button) {
       await copyShareText(sautiShareUrl(card.dataset.postId));
       showToast('Post link copied.');
     } catch {
-      showToast('This post link could not be copied.');
+      showToast('This post link could not be copied.', 'error');
     }
     return;
   }
@@ -5281,7 +5283,7 @@ function openSautiTarget(postId) {
 
 function startQuoteSauti(card) {
   if (!card || card.dataset.visibility !== 'public') {
-    showToast('Only public posts can be quoted.');
+    showToast('Only public posts can be quoted.', 'error');
     return;
   }
 
@@ -5310,7 +5312,7 @@ async function submitComment(form) {
   const submit = form.querySelector('[type="submit"]');
   const body = textarea.value.trim();
   if (!body) return;
-  if (body.length > 500) return showToast('Comments must be 500 characters or fewer.');
+  if (body.length > 500) return showToast('Comments must be 500 characters or fewer.', 'error');
 
   submit.disabled = true;
   try {
@@ -5323,7 +5325,7 @@ async function submitComment(form) {
     await loadComments(postId, panel);
     await refreshPostInteractionControls(postId);
   } catch (error) {
-    showToast(error?.message || 'Comment could not be shared.');
+    showToast(error?.message || 'Comment could not be shared.', 'error');
   } finally {
     submit.disabled = false;
   }
@@ -5337,7 +5339,7 @@ async function deleteComment(commentId, postId, button) {
     await loadComments(postId, panel);
     await refreshPostInteractionControls(postId);
   } catch (error) {
-    showToast(error?.message || 'Comment could not be deleted.');
+    showToast(error?.message || 'Comment could not be deleted.', 'error');
     button.disabled = false;
   }
 }
@@ -5428,7 +5430,7 @@ async function deleteThreadComment(commentId, button) {
     if (rootId) await loadConversation(rootId);
   } catch (error) {
     button.disabled = false;
-    showToast(error?.message || 'This comment could not be deleted.');
+    showToast(error?.message || 'This comment could not be deleted.', 'error');
   }
 }
 
@@ -5477,7 +5479,7 @@ async function deleteSauti(postId, button) {
     }
     showToast('Post deleted.');
   } catch (error) {
-    showToast(error?.message || 'This post could not be deleted.');
+    showToast(error?.message || 'This post could not be deleted.', 'error');
     button.disabled = false;
     button.textContent = previous;
   }
@@ -5883,7 +5885,7 @@ async function toggleProfileMute() {
     await loadDiscoverableProfile(username);
     showToast(muted ? `@${username} unmuted.` : `@${username} muted.`);
   } catch (error) {
-    showToast(error?.message || 'Mute state could not be changed.');
+    showToast(error?.message || 'Mute state could not be changed.', 'error');
     button.disabled = false;
   }
 }
@@ -5913,7 +5915,7 @@ async function toggleProfileBlock() {
     await loadDiscoverableProfile(username);
     showToast(blocked ? `@${username} unblocked.` : `@${username} blocked.`);
   } catch (error) {
-    showToast(error?.message || 'Block state could not be changed.');
+    showToast(error?.message || 'Block state could not be changed.', 'error');
     button.disabled = false;
   }
 }
@@ -6017,7 +6019,7 @@ async function toggleProfileFollow() {
       );
     }
     setProfileFollowState(profileId, wasFollowing, { followerCount: previousFollowerCount });
-    showToast(error?.message || 'Follow state could not be changed.');
+    showToast(error?.message || 'Follow state could not be changed.', 'error');
   }
 }
 
@@ -6266,7 +6268,7 @@ async function markNotificationRead(id, item) {
     .is('read_at', null);
 
   if (error) {
-    showToast('Notification could not be marked as read.');
+    showToast('Notification could not be marked as read.', 'error');
     return;
   }
 
@@ -6289,7 +6291,7 @@ async function markAllNotificationsRead() {
 
   if (error) {
     button.disabled = false;
-    showToast('Notifications could not be marked as read.');
+    showToast('Notifications could not be marked as read.', 'error');
     return;
   }
 
@@ -7539,7 +7541,7 @@ async function openDirectConversation(peerId, username = '') {
         : provider.includes('42501') || provider.includes('DM_BLOCKED') || provider.includes('DM_CONVERSATION_UNAVAILABLE')
           ? 'Messaging is unavailable between these accounts.'
           : 'This conversation could not be opened.';
-    showToast(message);
+    showToast(message, 'error');
   }
 }
 
@@ -7655,7 +7657,7 @@ async function deleteDirectMessage(messageId, button) {
 
   if (error) {
     button.disabled = false;
-    showToast('This message could not be deleted.');
+    showToast('This message could not be deleted.', 'error');
     return;
   }
 
@@ -7674,7 +7676,7 @@ async function hideActiveConversation() {
     .eq('user_id', currentMemberId);
 
   if (error) {
-    showToast('This conversation could not be removed from your inbox.');
+    showToast('This conversation could not be removed from your inbox.', 'error');
     return;
   }
 
@@ -7706,7 +7708,7 @@ async function toggleMessageThreadMute() {
     showToast(muted ? `@${username} unmuted.` : `@${username} muted.`);
   } catch (error) {
     button.disabled = false;
-    showToast(error?.message || 'Mute state could not be changed.');
+    showToast(error?.message || 'Mute state could not be changed.', 'error');
   }
 }
 
@@ -7732,7 +7734,7 @@ async function toggleMessageThreadBlock() {
     showToast(blocked ? `@${username} unblocked.` : `@${username} blocked.`);
   } catch (error) {
     button.disabled = false;
-    showToast(error?.message || 'Block state could not be changed.');
+    showToast(error?.message || 'Block state could not be changed.', 'error');
   }
 }
 
@@ -8159,7 +8161,7 @@ async function removeCircleMember(memberId, row) {
       button.disabled = false;
       button.textContent = 'Remove';
     }
-    showToast('That member could not be removed.');
+    showToast('That member could not be removed.', 'error');
     return;
   }
 
@@ -8465,7 +8467,7 @@ async function handleCirclePrimaryAction() {
   } catch {
     button.disabled = false;
     label.textContent = oldLabel;
-    showToast('That Room action could not be completed.');
+    showToast('That Room action could not be completed.', 'error');
   }
 }
 
@@ -8484,7 +8486,7 @@ async function decideCircleRequest(requesterId, status, row) {
 
   if (error) {
     buttons.forEach((button) => { button.disabled = false; });
-    showToast('That membership request could not be updated.');
+    showToast('That membership request could not be updated.', 'error');
     return;
   }
 
@@ -8927,7 +8929,7 @@ async function applyLocationRoute() {
     }
     if (shortVideoRoute.invalid) {
       window.history.replaceState({}, '', shortVideoPath());
-      showToast('That Short Video address is invalid. Opening the latest videos instead.');
+      showToast('That Short Video address is invalid. Opening the latest videos instead.', 'error');
     }
     activeHomeFeed = 'short-videos';
     showMemberSurface('stream', { syncUrl: false });
@@ -8975,7 +8977,7 @@ async function applyLocationRoute() {
     if (messageRoute.invalid) {
       window.history.replaceState({}, '', messagePath());
       await loadMessagesInbox();
-      showToast('That conversation address is unavailable.');
+      showToast('That conversation address is unavailable.', 'error');
       return;
     }
     if (messageRoute.conversationId) {
@@ -9352,7 +9354,7 @@ document.querySelectorAll('[data-password-toggle]').forEach((button) => {
 
 document.querySelectorAll('[data-preview-nav]').forEach((button) => {
   button.addEventListener('click', () => {
-    showToast('This area opens in a later focused slice.');
+    showToast('This area opens in a later focused slice.', 'error');
   });
 });
 
@@ -9405,7 +9407,7 @@ byId('appeals-list').addEventListener('click', (event) => {
       const action = (data.actions || []).find((row) => String(row.id) === actionId);
       if (action) openAppealDialog(action);
     })
-    .catch(() => showToast('This moderation decision could not be opened.'));
+    .catch(() => showToast('This moderation decision could not be opened.', 'error'));
 });
 byId('appeal-dialog-close').addEventListener('click', closeAppealDialog);
 byId('appeal-cancel').addEventListener('click', closeAppealDialog);
@@ -11056,7 +11058,7 @@ async function signOut() {
   clearProfileMediaUrl('avatar');
   clearProfileMediaUrl('header');
   const { error } = await supabase.auth.signOut();
-  if (error) return showToast('Sign out failed. Please try again.');
+  if (error) return showToast('Sign out failed. Please try again.', 'error');
   currentMember = null;
   currentMemberId = '';
   currentAccountEmail = '';

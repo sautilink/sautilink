@@ -438,8 +438,6 @@ function ensureRoomDetailActions() {
         if (navigator.share) await navigator.share({ title, url });
         else {
           await navigator.clipboard.writeText(url);
-          roomFbById('toast')?.removeAttribute('hidden');
-          if (roomFbById('toast')) roomFbById('toast').textContent = 'Room link copied.';
         }
       } catch {
         // Cancelling a native share sheet should not surface an error.

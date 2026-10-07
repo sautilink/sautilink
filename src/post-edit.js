@@ -288,12 +288,6 @@ async function submitPostEdit(event) {
     postEditActive = null;
     if (typeof dialog.close === 'function' && dialog.open) dialog.close();
     else dialog.removeAttribute('open');
-    const toast = document.getElementById('toast');
-    if (toast) {
-      toast.textContent = 'Post updated.';
-      toast.hidden = false;
-      window.setTimeout(() => { toast.hidden = true; }, 2600);
-    }
   } catch (error) {
     message.textContent = error?.message || 'This post could not be edited.';
     message.hidden = false;
@@ -444,12 +438,7 @@ export async function handlePostEditClick(button) {
     if (!String(metadata.body || '').trim()) return;
     openPostEdit(postId, card);
   } catch (error) {
-    const toast = document.getElementById('toast');
-    if (toast) {
-      toast.textContent = error?.message || 'This post could not be edited. Please try again.';
-      toast.hidden = false;
-      window.setTimeout(() => { toast.hidden = true; }, 3200);
-    }
+    window.__sautilinkShowActionError?.(error?.message || 'This post could not be edited. Please try again.');
   } finally {
     if (button.isConnected) button.disabled = false;
   }

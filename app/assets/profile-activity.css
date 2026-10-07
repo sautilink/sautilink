@@ -362,7 +362,10 @@
 
 .profile-activity-media {
   display: grid;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--profile-media-rows, 2), minmax(0, 1fr));
   gap: 2px;
   overflow: hidden;
   margin-top: 10px;
@@ -371,26 +374,64 @@
   background: var(--app-media);
 }
 
-.profile-activity-media.single { grid-template-columns: 1fr; }
-.profile-activity-media-item { position: relative; min-height: 140px; background: var(--app-media); }
-.profile-activity-media.single .profile-activity-media-item { min-height: 220px; }
+.profile-activity-media.single {
+  max-height: 520px;
+  aspect-ratio: var(--profile-media-ratio, 4 / 5);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.profile-activity-media-item {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--app-media);
+}
 
 .profile-activity-media-item img,
 .profile-activity-media-item video {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-  min-height: inherit;
-  max-height: 520px;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity 220ms ease;
 }
 
+.profile-activity-media.single .profile-activity-media-item img,
+.profile-activity-media.single .profile-activity-media-item video { object-fit: contain; }
+
+.profile-activity-media-item :is(img, video)[hidden] { display: none; }
+.profile-activity-media-item :is(img, video).is-ready { opacity: 1; }
+
 .profile-activity-media-placeholder {
+  position: absolute;
+  inset: 0;
   display: grid;
-  min-height: inherit;
   place-items: center;
+  background: linear-gradient(110deg, var(--app-media) 15%, var(--app-elevated) 50%, var(--app-media) 85%);
+  background-size: 200% 100%;
   color: var(--app-muted);
   font-size: 10px;
+  animation: profile-media-loading 1.8s ease-in-out infinite;
+  transition: opacity 220ms ease;
+}
+
+.profile-activity-media-placeholder.is-fading { opacity: 0; }
+.profile-activity-media-placeholder.is-error { background: var(--app-media); animation: none; }
+
+@keyframes profile-media-loading {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-activity-media-placeholder { animation: none; }
+  .profile-activity-media-item :is(img, video),
+  .profile-activity-media-placeholder { transition: none; }
 }
 
 .profile-activity-metrics {
@@ -518,7 +559,6 @@ button.profile-activity-metric[aria-busy="true"] { opacity: .65; cursor: wait; }
   .profile-activity-card-avatar { width: 37px; height: 37px; }
   .profile-activity-card-head { gap: 4px; font-size: 10px; }
   .profile-activity-body { font-size: 12px; }
-  .profile-activity-media.single .profile-activity-media-item { min-height: 190px; }
   .profile-activity-loading,
   .profile-activity-error,
   .profile-activity-empty { min-height: 190px; padding: 34px 20px; }
