@@ -23,7 +23,7 @@ function respond(status: number, body: string, contentType = 'text/plain; charse
 function ready(): boolean {
   return env('WHATSAPP_WEBHOOK_ENABLED') === 'true'
     && /^\d+$/.test(env('WHATSAPP_WABA_ID'))
-    && /^\d+$/.test(env('WHATSAPP_PHONE_NUMBER_ID'))
+    && /^\d+$/.test(env('WHATSAPP_WEBHOOK_PHONE_NUMBER_ID'))
     && env('WHATSAPP_META_APP_SECRET').length >= 16
     && env('WHATSAPP_WEBHOOK_VERIFY_TOKEN').length >= 24
     && /^https:\/\//.test(env('SUPABASE_URL'))
@@ -92,7 +92,7 @@ async function receiveWebhook(request: Request): Promise<Response> {
 
   const data = normalizeWhatsAppEvents(payload, {
     wabaId: env('WHATSAPP_WABA_ID'),
-    phoneNumberId: env('WHATSAPP_PHONE_NUMBER_ID'),
+    phoneNumberId: env('WHATSAPP_WEBHOOK_PHONE_NUMBER_ID'),
   });
   try {
     await appendEvents(

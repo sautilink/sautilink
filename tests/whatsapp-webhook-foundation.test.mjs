@@ -112,10 +112,12 @@ test('Delivery events are deduplicated by provider message id, status, timestamp
 test('Webhook must fail closed without Meta signature, verified config, or database write', async () => {
   const source = await read('supabase/functions/sautilink-whatsapp-webhook/index.ts');
   for (const expected of [
-    'WHATSAPP_WEBHOOK_ENABLED', 'WHATSAPP_WABA_ID', 'WHATSAPP_PHONE_NUMBER_ID',
+    'WHATSAPP_WEBHOOK_ENABLED', 'WHATSAPP_WABA_ID', 'WHATSAPP_WEBHOOK_PHONE_NUMBER_ID',
     'WHATSAPP_META_APP_SECRET', 'WHATSAPP_WEBHOOK_VERIFY_TOKEN',
     'SUPABASE_SERVICE_ROLE_KEY', 'x-hub-signature-256',
   ]) assert.ok(source.includes(expected));
+  assert.doesNotMatch(source, /env\('WHATSAPP_PHONE_NUMBER_ID'\)/);
+  assert.equal(source.match(/env\('WHATSAPP_WEBHOOK_PHONE_NUMBER_ID'\)/g)?.length, 2);
   assert.match(source, /if \(!valid\) return respond\(401, 'Unauthorized'\)/);
   assert.match(source, /return respond\(503, 'Try again'\)/);
   assert.match(source, /if \(request\.method === 'GET'\) return verifyChallenge/);
