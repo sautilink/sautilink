@@ -97,7 +97,7 @@ function postRoute() {
   if (!match) return null;
   return {
     postId: match[1].toLowerCase(),
-    destination: `/post/${match[1].toLowerCase()}`,
+    destination: `/post/${match[1].toLowerCase()}?view=post`,
   };
 }
 
@@ -372,9 +372,32 @@ function showGuestAction(route, title, copy) {
   else dialog.setAttribute('open', '');
 }
 
-function guestActionButton(label, route, title, copy, className = '') {
-  const button = node('button', `guest-post-action ${className}`.trim(), label);
+function guestPostActionIcon(action) {
+  const paths = {
+    comments: ['M21 12a8 8 0 0 1-8 8H7l-4 3v-6.5A8 8 0 1 1 21 12Z'],
+    repost: ['M7 7h10l-2.5-2.5', 'M17 17H7l2.5 2.5', 'M17 7v4', 'M7 17v-4'],
+    like: ['M20.8 8.2c0 5-8.8 10.3-8.8 10.3S3.2 13.2 3.2 8.2A4.3 4.3 0 0 1 12 6.8a4.3 4.3 0 0 1 8.8 1.4Z'],
+    save: ['M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z'],
+    share: ['M12 4v11', 'm8 8 4-4 4 4', 'M5 13v6h14v-6'],
+  };
+  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  icon.setAttribute('aria-hidden', 'true');
+  for (const d of paths[action] || []) {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d);
+    icon.append(path);
+  }
+  return icon;
+}
+
+function guestActionButton(action, label, count, route, title, copy) {
+  const button = node('button', 'guest-post-action');
   button.type = 'button';
+  button.dataset.guestPostAction = action;
+  button.setAttribute('aria-label', `${label}${count === null ? '' : `, ${formatGuestCount(count)}`}. Log in or create an account to continue.`);
+  button.append(guestPostActionIcon(action), node('span', 'guest-post-action-label', label));
+  if (count !== null) button.append(node('span', 'guest-post-action-count', formatGuestCount(count)));
   button.addEventListener('click', () => showGuestAction(route, title, copy));
   return button;
 }
@@ -437,22 +460,6 @@ function guestMedia(post, route) {
   return grid;
 }
 
-async function shareGuestPost(button) {
-  const url = window.location.href;
-  try {
-    if (navigator.share) {
-      await navigator.share({ title: document.title || 'SautiLink post', text: 'View this post on SautiLink', url });
-      return;
-    }
-    await navigator.clipboard?.writeText(url);
-    const original = button.textContent;
-    button.textContent = 'Link copied';
-    window.setTimeout(() => { button.textContent = original; }, 1600);
-  } catch {
-    // Cancellation or clipboard denial should not block the public post view.
-  }
-}
-
 function renderPostUnavailable(card) {
   card.replaceChildren();
   card.append(
@@ -500,24 +507,14 @@ function renderGuestPost(card, post, route) {
   const media = guestMedia(post, route);
   if (media) card.append(media);
 
-  const counts = node('div', 'guest-post-counts');
-  counts.append(
-    node('span', '', `${formatGuestCount(post.counts?.likes)} Like${Number(post.counts?.likes || 0) === 1 ? '' : 's'}`),
-    node('span', '', `${formatGuestCount(post.counts?.comments)} Comment${Number(post.counts?.comments || 0) === 1 ? '' : 's'}`),
-    node('span', '', `${formatGuestCount(post.counts?.reposts)} Repost${Number(post.counts?.reposts || 0) === 1 ? '' : 's'}`),
-  );
-  card.append(counts);
-
   const actions = node('div', 'guest-post-actions');
   actions.append(
-    guestActionButton('Like', route, 'Join SautiLink to like this post', 'Log in or create an account to react to public posts.'),
-    guestActionButton('Comment', route, 'Join SautiLink to comment', 'Log in or create an account to join the conversation.'),
-    guestActionButton('Repost', route, 'Join SautiLink to repost', 'Log in or create an account to repost this content on SautiLink.'),
+    guestActionButton('like', 'Like', post.counts?.likes ?? 0, route, 'Join SautiLink to like this post', 'Log in or create an account to react to public posts.'),
+    guestActionButton('comments', 'Comment', post.counts?.comments ?? 0, route, 'Join SautiLink to comment', 'Log in or create an account to join the conversation.'),
+    guestActionButton('repost', 'Repost', post.counts?.reposts ?? 0, route, 'Join SautiLink to repost', 'Log in or create an account to repost this content on SautiLink.'),
+    guestActionButton('share', 'Share', null, route, 'Join SautiLink to share', 'Log in or create an account to share this post.'),
+    guestActionButton('save', 'Save', null, route, 'Join SautiLink to save', 'Log in or create an account to save this post.'),
   );
-  const share = node('button', 'guest-post-action', 'Share');
-  share.type = 'button';
-  share.addEventListener('click', () => shareGuestPost(share));
-  actions.append(share);
   card.append(actions);
 
   const join = node('section', 'guest-post-join');

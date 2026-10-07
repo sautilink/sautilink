@@ -31,7 +31,7 @@ body.auth-entry .auth-result {
 
 body.auth-entry .app-shell,
 body.auth-entry .stream-column,
-body.auth-entry main,
+body.auth-entry main:not(.guest-profile-gate),
 body.auth-entry .app-main {
   width: 100% !important;
   max-width: none !important;

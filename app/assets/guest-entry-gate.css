@@ -590,40 +590,63 @@ body.auth-entry .social-oauth-legal a {
   backdrop-filter: blur(8px);
 }
 
-.guest-post-counts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  padding: 15px 22px 12px;
-  border-bottom: 1px solid var(--guest-gate-border);
-  color: var(--guest-gate-muted);
-  font-size: 13px;
-  font-weight: 650;
-}
-
 .guest-post-actions {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--guest-gate-border);
 }
 
 .guest-post-action {
-  min-height: 48px;
+  display: inline-flex;
+  min-width: 0;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 6px;
   border: 0;
-  border-right: 1px solid var(--guest-gate-border);
+  border-radius: 12px;
   background: transparent;
-  color: var(--guest-gate-text);
+  color: var(--guest-gate-muted);
   font: inherit;
-  font-size: 13px;
-  font-weight: 750;
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
+  opacity: .72;
 }
 
-.guest-post-action:last-child {
-  border-right: 0;
+.guest-post-action svg {
+  width: 23px;
+  height: 23px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.guest-post-action:hover {
+.guest-post-action-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.guest-post-action-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-post-action:hover,
+.guest-post-action:focus-visible {
+  opacity: 1;
   background: color-mix(in srgb, var(--guest-gate-surface) 88%, var(--guest-gate-text));
 }
 
@@ -723,11 +746,13 @@ body.auth-entry .social-oauth-legal a {
   }
 
   .guest-post-actions {
-    grid-template-columns: repeat(4, 1fr);
+    padding: 5px 4px;
   }
 
   .guest-post-action {
-    font-size: 12px;
+    gap: 3px;
+    padding: 0 2px;
+    font-size: 11px;
   }
 
   .guest-post-auth-actions {
