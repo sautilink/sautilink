@@ -46,6 +46,8 @@ test('Phase 32 production Worker is path-scoped and keeps the account-entry root
     'sautilink.com/home*',
     'sautilink.com/videos*',
     'sautilink.com/messages*',
+    'sautilink.com/menu*',
+    'www.sautilink.com/menu*',
     'sautilink.com/sautify*',
     'sautilink.com/u/*',
     'sautilink.com/post/*',
