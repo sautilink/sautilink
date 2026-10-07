@@ -76,16 +76,19 @@ test('production gate verifies apex and www roots without changing login or sign
 test('signed-out public post view shows public content but gates interaction and video playback', async () => {
   const gate = await read('src/guest-entry-gate.js');
   const css = await read('app/assets/guest-entry-gate.css');
+  const authCss = await read('app/assets/auth-entry-polish.css');
 
   assert.match(gate, /function postRoute\(\)/);
   assert.match(gate, /\/api\/public-post\/\$\{encodeURIComponent\(postId\)\}/);
   assert.match(gate, /installGuestPostGate\(\)/);
   assert.match(gate, /Join or sign up to view this content/);
   assert.match(gate, /Public posts are open to read/);
-  assert.match(gate, /guestActionButton\('Like'/);
-  assert.match(gate, /guestActionButton\('Comment'/);
-  assert.match(gate, /guestActionButton\('Repost'/);
-  assert.match(gate, /navigator\.share/);
+  assert.match(gate, /destination: `\/post\/\$\{match\[1\]\.toLowerCase\(\)\}\?view=post`/);
+  assert.match(gate, /guestPostActionIcon/);
+  for (const action of ['like', 'comments', 'repost', 'share', 'save']) {
+    assert.match(gate, new RegExp(`guestActionButton\\('${action}'`));
+  }
+  assert.doesNotMatch(gate, /shareGuestPost|navigator\.share/);
   assert.match(gate, /item\.preview_url/);
   assert.match(gate, /--guest-media-aspect/);
   assert.match(gate, /guest-post-media-fallback/);
@@ -99,4 +102,6 @@ test('signed-out public post view shows public content but gates interaction and
   assert.match(css, /\.guest-post-play/);
   assert.match(css, /\.guest-action-dialog/);
   assert.match(css, /\.guest-post-actions/);
+  assert.match(css, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(authCss, /body\.auth-entry main:not\(\.guest-profile-gate\)/);
 });
