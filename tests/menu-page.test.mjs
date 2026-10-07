@@ -37,7 +37,7 @@ test('Menu page preserves sidebar actions while keeping /menu as its own member 
   assert.match(source, /name === 'menu'[\s\S]*?\? 'Menu'/);
   assert.match(source, /'settings', 'menu', 'profile'/);
   assert.match(source, /name === 'menu'[\s\S]*?\? '\/menu'/);
-  assert.match(source, /if \(\/\^\(\?:\\\/app\)\?\\\/menu\\\/?\$\/\.test\(window\.location\.pathname\)\)/);
+  assert.ok(source.includes("if (/^(?:\\/app)?\\/menu\\/?$/.test(window.location.pathname))"));
   assert.match(source, /if \(window\.location\.pathname !== '\/menu'\) window\.history\.replaceState\(\{\}, '', '\/menu'\)/);
   assert.match(source, /menuSurface\.addEventListener\('click'/);
   assert.match(source, /showMemberSurface\(view\.dataset\.memberView\)/);
