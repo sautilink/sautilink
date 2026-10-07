@@ -18,8 +18,9 @@ test('profile media reserves its frame before protected files arrive', async () 
   assert.match(css, /\.profile-activity-media-item (?:img|video)[\s\S]*position:\s*absolute/s);
 
   const loadMedia = source.slice(source.indexOf('async function loadProtectedProfileActivityMedia('), source.indexOf('function createProfileActivityAvatar('));
-  assert.ok(loadMedia.indexOf('await element.decode()') < loadMedia.indexOf("element.classList.add('is-ready')"));
-  assert.ok(loadMedia.indexOf("element.addEventListener('loadeddata'") < loadMedia.indexOf("element.classList.add('is-ready')"));
+  assert.ok(loadMedia.indexOf('await element.decode()') < loadMedia.indexOf('revealProfileActivityMedia(element, placeholder, requestId)'));
+  assert.ok(loadMedia.indexOf("element.addEventListener('loadeddata'") < loadMedia.indexOf('revealProfileActivityMedia(element, placeholder, requestId)'));
+  assert.match(source, /function revealProfileActivityMedia\([\s\S]*?element\.classList\.add\('is-ready'\)/);
 });
 
 test('success confirmations have no bottom toast while errors remain visible', async () => {

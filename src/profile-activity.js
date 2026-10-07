@@ -321,7 +321,58 @@ function appendProfileActivityBody(body, text) {
   if (cursor < source.length) body.append(document.createTextNode(source.slice(cursor)));
 }
 
-async function loadProtectedProfileActivityMedia(url, element, placeholder, requestId) {
+function revealProfileActivityMedia(element, placeholder, requestId) {
+  if (requestId !== profileActivityFeedRequest || element.dataset.mediaUnavailable === 'true') return;
+  element.hidden = false;
+  if (!placeholder || element.classList.contains('is-ready')) return;
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      if (requestId !== profileActivityFeedRequest || element.dataset.mediaUnavailable === 'true') return;
+      element.classList.add('is-ready');
+      placeholder.classList.add('is-fading');
+      window.setTimeout(() => placeholder.remove(), 240);
+    });
+  });
+}
+
+async function loadProfileActivityVideoPoster(mediaId, video, placeholder, requestId) {
+  let posterUrl = '';
+  const controller = new AbortController();
+  let timeout = 0;
+  const deadline = new Promise((_, reject) => {
+    timeout = window.setTimeout(() => {
+      controller.abort();
+      reject(new Error('POSTER_TIMEOUT'));
+    }, 5000);
+  });
+  try {
+    const token = profileActivityAccessToken();
+    if (!token) return false;
+    const response = await Promise.race([fetch(`/api/sauti-media/${encodeURIComponent(mediaId)}?poster=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    }), deadline]);
+    if (!response.ok || response.headers.get('Content-Type')?.split(';')[0] !== 'image/jpeg') return false;
+    posterUrl = URL.createObjectURL(await Promise.race([response.blob(), deadline]));
+    if (requestId !== profileActivityFeedRequest) return false;
+    const preview = new Image();
+    preview.src = posterUrl;
+    await Promise.race([preview.decode(), deadline]);
+    if (requestId !== profileActivityFeedRequest || video.dataset.mediaUnavailable === 'true') return false;
+    profileActivityObjectUrls.add(posterUrl);
+    video.poster = posterUrl;
+    revealProfileActivityMedia(video, placeholder, requestId);
+    posterUrl = '';
+    return true;
+  } catch {
+    return false;
+  } finally {
+    window.clearTimeout(timeout);
+    if (posterUrl) URL.revokeObjectURL(posterUrl);
+  }
+}
+
+async function loadProtectedProfileActivityMedia(url, element, placeholder, requestId, posterReady = null) {
   let objectUrl = '';
   try {
     const token = profileActivityAccessToken();
@@ -355,19 +406,11 @@ async function loadProtectedProfileActivityMedia(url, element, placeholder, requ
         element.load();
       });
     }
+    if (posterReady) await posterReady;
     if (requestId !== profileActivityFeedRequest) return;
-    element.hidden = false;
-    if (placeholder) {
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          if (requestId !== profileActivityFeedRequest) return;
-          element.classList.add('is-ready');
-          placeholder.classList.add('is-fading');
-          window.setTimeout(() => placeholder.remove(), 240);
-        });
-      });
-    }
+    revealProfileActivityMedia(element, placeholder, requestId);
   } catch {
+    element.dataset.mediaUnavailable = 'true';
     if (placeholder) element.hidden = true;
     if (objectUrl) {
       profileActivityObjectUrls.delete(objectUrl);
@@ -375,8 +418,10 @@ async function loadProtectedProfileActivityMedia(url, element, placeholder, requ
     }
     if (placeholder && requestId === profileActivityFeedRequest) {
       placeholder.textContent = 'Media unavailable';
+      placeholder.classList.remove('is-fading');
       placeholder.classList.add('is-error');
       placeholder.removeAttribute('aria-hidden');
+      if (!placeholder.parentNode) element.parentNode?.append(placeholder);
     }
   }
 }
@@ -437,7 +482,10 @@ function createProfileActivityMedia(mediaRows, requestId) {
     element.hidden = true;
     item.append(placeholder, element);
     grid.append(item);
-    void loadProtectedProfileActivityMedia(`/api/sauti-media/${encodeURIComponent(media.id)}`, element, placeholder, requestId);
+    const posterReady = media.kind === 'video'
+      ? loadProfileActivityVideoPoster(media.id, element, placeholder, requestId)
+      : null;
+    void loadProtectedProfileActivityMedia(`/api/sauti-media/${encodeURIComponent(media.id)}`, element, placeholder, requestId, posterReady);
   });
   return grid;
 }
