@@ -125,6 +125,7 @@ test('clean social routes are canonical while legacy app paths remain readable',
     'sautilink.com/signup*',
     'sautilink.com/home*',
     'sautilink.com/messages*',
+    'sautilink.com/menu*',
     'sautilink.com/sautify*',
     'sautilink.com/u/*',
     'sautilink.com/post/*',
@@ -141,7 +142,7 @@ test('service worker recognizes clean social routes and rotates its cache', asyn
   const sw = await read('sw.js');
   const cacheVersion = Number(sw.match(/sautilink-shell-v([0-9]+)/)?.[1] || 0);
   assert.ok(cacheVersion >= 29, `expected unified backend cache v29+, got v${cacheVersion}`);
-  assert.match(sw, /login\|signup\|home\|compose\|discover/);
+  assert.match(sw, /login\|signup\|home\|compose\|discover\|saved\|appeals\|moderation\|settings\|menu\|notifications/);
   assert.match(sw, /\/messages/);
   assert.match(sw, /rooms\|sautify/);
   assert.match(sw, /\/post/);

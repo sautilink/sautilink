@@ -169,6 +169,10 @@
       "zone_name": "sautilink.com"
     },
     {
+      "pattern": "sautilink.com/menu*",
+      "zone_name": "sautilink.com"
+    },
+    {
       "pattern": "sautilink.com/notifications*",
       "zone_name": "sautilink.com"
     },
@@ -250,6 +254,10 @@
     },
     {
       "pattern": "www.sautilink.com/settings*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.sautilink.com/menu*",
       "zone_name": "sautilink.com"
     },
     {

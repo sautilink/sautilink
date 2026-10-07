@@ -237,6 +237,8 @@ for (const marker of [
   'sautilink.com/compose*',
   'sautilink.com/videos*',
   'sautilink.com/messages*',
+  'sautilink.com/menu*',
+  'www.sautilink.com/menu*',
   'sautilink.com/rooms*',
   'www.sautilink.com/rooms*',
   'sautilink.com/sautify*',
