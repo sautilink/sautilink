@@ -239,6 +239,51 @@ test('public image preview is read from the deterministic private R2 key without
   }
 });
 
+test('public video poster falls back to a branded post card instead of a broken image', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = rpcFetch(basePost({
+    media_count: 1,
+    media: [{
+      id: VIDEO_ID,
+      owner_id: OWNER_ID,
+      kind: 'video',
+      content_type: 'video/mp4',
+      width: 1080,
+      height: 1350,
+      duration_ms: 38510,
+      alt_text: '',
+      position: 0,
+    }],
+  }));
+
+  const fallbackEnv = {
+    ...env,
+    SAUTI_MEDIA: {
+      async head() { return null; },
+      async get() { return null; },
+    },
+    ASSETS: {
+      async fetch() {
+        return new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), {
+          headers: { 'Content-Type': 'image/png' },
+        });
+      },
+    },
+  };
+
+  try {
+    const response = await handlePublicIndexingRoutes(
+      new Request(`https://sautilink.com/api/public-post-media/${POST_ID}/${VIDEO_ID}?poster=1`),
+      fallbackEnv,
+    );
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('X-Sauti-Public-Preview'), 'video-fallback-card');
+    assert.equal(response.headers.get('Content-Type'), 'image/png');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('text-card source uses Cloudflare Images text drawing and PNG output', async () => {
   const source = await read('src/public-indexing-api.js');
 

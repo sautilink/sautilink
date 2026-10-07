@@ -9,6 +9,7 @@ test('installed Chrome app accepts shares into the existing composer', async () 
   const manifest = JSON.parse(await read('manifest.json'));
   const html = await read('app/index.html');
   const app = await read('src/app.js');
+  assert.ok(html.includes('<link rel="manifest" href="/manifest.json?v=20261007-sharetarget1">'));
   assert.deepEqual(manifest.share_target, {
     action: '/share-target', method: 'POST', enctype: 'multipart/form-data',
     params: {
