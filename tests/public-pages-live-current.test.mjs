@@ -43,7 +43,7 @@ test('Contact page keeps the live form wiring while removing waitlist help copy'
   const html = read('contact.html');
   assert.match(html, /id="contact-form"/);
   assert.match(html, /\/assets\/contact\.js/);
-  assert.match(html, /accounts, profiles, posts, Rooms, messages, privacy, safety and account controls/i);
+  assert.match(html, /WhatsApp is available 24\/7/i);
 });
 
 test('Important support surfaces expose the official 24/7 WhatsApp channel', () => {
