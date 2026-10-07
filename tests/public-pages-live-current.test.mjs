@@ -43,7 +43,30 @@ test('Contact page keeps the live form wiring while removing waitlist help copy'
   const html = read('contact.html');
   assert.match(html, /id="contact-form"/);
   assert.match(html, /\/assets\/contact\.js/);
-  assert.match(html, /accounts, profiles, posts, Rooms, messages, privacy, safety and account controls/i);
+  assert.match(html, /WhatsApp is available 24\/7/i);
+});
+
+test('Important support surfaces expose the official 24/7 WhatsApp channel', () => {
+  const publicSupportPages = [
+    'help.html',
+    'contact.html',
+    'verify.html',
+    'account-deletion.html',
+    'privacy.html',
+    'terms.html',
+    'community-guidelines.html',
+    'upload-guidelines.html',
+  ];
+
+  for (const path of publicSupportPages) {
+    const html = read(path);
+    assert.match(html, /https:\/\/wa\.me\/255629145502/);
+  }
+
+  assert.match(read('contact.html'), /\+255 629 145 502/);
+  assert.match(read('help.html'), /Live Human Agents/i);
+  assert.match(read('app\/index.html'), /WhatsApp Support · 24\/7/);
+  assert.match(read('src\/mobile-more-drawer.js'), /WhatsApp Support · 24\/7/);
 });
 
 test('Legacy localized landing pages now point to live account entry', () => {
