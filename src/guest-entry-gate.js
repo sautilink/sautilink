@@ -384,21 +384,47 @@ function guestMedia(post, route) {
   if (!media.length) return null;
 
   const grid = node('div', `guest-post-media guest-post-media-count-${Math.min(media.length, 5)}`);
-  for (const item of media) {
+  media.forEach((item, index) => {
     const frame = node('div', `guest-post-media-frame ${item.kind === 'video' ? 'is-video' : 'is-image'}`);
+    const width = Math.max(0, Number(item.width || 0));
+    const height = Math.max(0, Number(item.height || 0));
+    if (media.length === 1 && width > 0 && height > 0) {
+      frame.style.setProperty('--guest-media-aspect', `${width} / ${height}`);
+    }
+
+    const fallback = node('div', 'guest-post-media-fallback');
+    fallback.hidden = true;
+    fallback.setAttribute('aria-hidden', 'true');
+    const fallbackLogo = document.createElement('img');
+    fallbackLogo.className = 'guest-post-media-fallback-logo';
+    fallbackLogo.src = '/assets/brand/logo-compact.webp';
+    fallbackLogo.alt = '';
+    fallback.append(
+      fallbackLogo,
+      node('span', 'guest-post-media-fallback-label', item.kind === 'video' ? 'SautiLink video' : 'Media preview'),
+    );
+
     const image = document.createElement('img');
     image.src = String(item.preview_url || '');
-    image.alt = String(item.alt_text || (item.kind === 'video' ? 'Video preview' : 'Post image'));
-    image.loading = 'eager';
+    image.alt = String(item.alt_text || '');
+    image.loading = index === 0 ? 'eager' : 'lazy';
     image.decoding = 'async';
-    if (item.width) image.width = Number(item.width);
-    if (item.height) image.height = Number(item.height);
-    frame.append(image);
+    if (width) image.width = width;
+    if (height) image.height = height;
+    image.addEventListener('load', () => {
+      frame.classList.add('has-preview');
+    }, { once: true });
+    image.addEventListener('error', () => {
+      image.hidden = true;
+      fallback.hidden = false;
+      frame.classList.add('preview-unavailable');
+    }, { once: true });
+    frame.append(image, fallback);
 
     if (item.kind === 'video') {
       const play = node('button', 'guest-post-play', '▶');
       play.type = 'button';
-      play.setAttribute('aria-label', 'Play video');
+      play.setAttribute('aria-label', 'Play video on SautiLink');
       play.addEventListener('click', () => showGuestAction(
         route,
         'Join or sign up to view this content',
@@ -407,7 +433,7 @@ function guestMedia(post, route) {
       frame.append(play);
     }
     grid.append(frame);
-  }
+  });
   return grid;
 }
 
