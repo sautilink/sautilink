@@ -468,6 +468,24 @@ async function publicPostMediaResponse(request, env, postId, mediaId) {
     height: media.height,
     duration_ms: media.durationMs,
   });
+
+  if (media.kind === 'video' && (!response || !response.ok || !String(response.headers.get('Content-Type') || '').toLowerCase().startsWith('image/'))) {
+    const fallbackUrl = new URL(`/api/public-post-card/${postId}.png`, request.url);
+    const fallbackRequest = new Request(fallbackUrl, { method: request.method === 'HEAD' ? 'HEAD' : 'GET' });
+    const fallback = await publicPostCardResponse(fallbackRequest, env, postId);
+    const fallbackHeaders = new Headers(fallback.headers);
+    fallbackHeaders.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+    fallbackHeaders.set('X-Robots-Tag', post.search_indexable ? 'index, noarchive' : PRIVATE_ROBOTS);
+    fallbackHeaders.set('X-Sauti-Public-Preview', 'video-fallback-card');
+    fallbackHeaders.delete('Set-Cookie');
+    if (request.method === 'HEAD') return new Response(null, { status: fallback.status, headers: fallbackHeaders });
+    return new Response(fallback.body, {
+      status: fallback.status,
+      statusText: fallback.statusText,
+      headers: fallbackHeaders,
+    });
+  }
+
   if (!response) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
   const headers = new Headers(response.headers);
   headers.set('Cache-Control', 'public, max-age=300, must-revalidate');
