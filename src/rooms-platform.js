@@ -114,13 +114,8 @@ async function roomCurrentUser() {
   return roomCurrentUserPromise;
 }
 
-function roomToast(message) {
-  const node = roomById('toast');
-  if (!node) return;
-  node.textContent = message;
-  node.hidden = false;
-  window.clearTimeout(roomToast.timer);
-  roomToast.timer = window.setTimeout(() => { node.hidden = true; }, 2600);
+function roomToast(message, type = 'notice') {
+  if (type === 'error') window.__sautilinkShowActionError?.(message);
 }
 
 function roomStatus(node, message, success = false) {
@@ -367,7 +362,7 @@ async function finalizeRoomCreate(attempt) {
     roomToast('Room created.');
     scheduleRoomsUi();
   } catch (error) {
-    roomToast(error?.message || 'The Room was created, but some advanced settings need another try.');
+    roomToast(error?.message || 'The Room was created, but some advanced settings need another try.', 'error');
   }
 }
 
@@ -868,7 +863,7 @@ function renderRoomRequests(room, root, requests, profiles) {
       } catch (error) {
         approve.disabled = false;
         decline.disabled = false;
-        roomToast(error?.message || 'The request could not be updated.');
+        roomToast(error?.message || 'The request could not be updated.', 'error');
       }
     };
     approve.addEventListener('click', () => decide('approved'));
@@ -916,7 +911,7 @@ function renderRoomMembers(room, viewerRole, root, members, profiles) {
           roomToast('Member role updated.');
         } catch (error) {
           role.value = oldRole;
-          roomToast(error?.message || 'The member role could not be changed.');
+          roomToast(error?.message || 'The member role could not be changed.', 'error');
         } finally {
           role.disabled = false;
         }
@@ -944,7 +939,7 @@ function renderRoomMembers(room, viewerRole, root, members, profiles) {
           scheduleRoomsUi();
         } catch (error) {
           remove.disabled = false;
-          roomToast(error?.message || 'The member could not be removed.');
+          roomToast(error?.message || 'The member could not be removed.', 'error');
         }
       });
       controls.append(remove);

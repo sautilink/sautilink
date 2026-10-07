@@ -1,4 +1,4 @@
-const PROFILE_ACTIVITY_STYLESHEET = '/app/assets/profile-activity.css?v=20261003-profile-reactions1';
+const PROFILE_ACTIVITY_STYLESHEET = '/app/assets/profile-activity.css?v=20261007-stable-media1';
 const PROFILE_ACTIVITY_SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const PROFILE_ACTIVITY_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
 const PROFILE_ACTIVITY_SESSION_KEY = 'sautilink.auth.session';
@@ -182,6 +182,7 @@ function ensureProfileActivityShell() {
 }
 
 function setProfileActivityStatus(message = '', type = '') {
+  if (type === 'success') message = '';
   const { status: node, tools } = profileActivityNodes();
   if (!node) return;
   window.clearTimeout(profileActivityStatusTimer);
@@ -321,23 +322,62 @@ function appendProfileActivityBody(body, text) {
 }
 
 async function loadProtectedProfileActivityMedia(url, element, placeholder, requestId) {
+  let objectUrl = '';
   try {
     const token = profileActivityAccessToken();
     if (!token) throw new Error('AUTH_REQUIRED');
     const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!response.ok) throw new Error('MEDIA_UNAVAILABLE');
     const blob = await response.blob();
-    const objectUrl = URL.createObjectURL(blob);
+    objectUrl = URL.createObjectURL(blob);
     if (requestId !== profileActivityFeedRequest) {
       URL.revokeObjectURL(objectUrl);
       return;
     }
     profileActivityObjectUrls.add(objectUrl);
     element.src = objectUrl;
+    if (placeholder) element.hidden = false;
+    if (element.tagName === 'IMG' && typeof element.decode === 'function') {
+      await element.decode();
+    } else if (element.tagName === 'VIDEO') {
+      await new Promise((resolve, reject) => {
+        if (element.readyState >= 2) return resolve();
+        const finish = () => { cleanup(); resolve(); };
+        const fail = () => { cleanup(); reject(new Error('MEDIA_UNAVAILABLE')); };
+        const fallback = window.setTimeout(finish, 5000);
+        const cleanup = () => {
+          window.clearTimeout(fallback);
+          element.removeEventListener('loadeddata', finish);
+          element.removeEventListener('error', fail);
+        };
+        element.addEventListener('loadeddata', finish, { once: true });
+        element.addEventListener('error', fail, { once: true });
+        element.load();
+      });
+    }
+    if (requestId !== profileActivityFeedRequest) return;
     element.hidden = false;
-    placeholder?.remove();
+    if (placeholder) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          if (requestId !== profileActivityFeedRequest) return;
+          element.classList.add('is-ready');
+          placeholder.classList.add('is-fading');
+          window.setTimeout(() => placeholder.remove(), 240);
+        });
+      });
+    }
   } catch {
-    if (placeholder) placeholder.textContent = 'Media unavailable';
+    if (placeholder) element.hidden = true;
+    if (objectUrl) {
+      profileActivityObjectUrls.delete(objectUrl);
+      URL.revokeObjectURL(objectUrl);
+    }
+    if (placeholder && requestId === profileActivityFeedRequest) {
+      placeholder.textContent = 'Media unavailable';
+      placeholder.classList.add('is-error');
+      placeholder.removeAttribute('aria-hidden');
+    }
   }
 }
 
@@ -367,24 +407,31 @@ function createProfileActivityMedia(mediaRows, requestId) {
   if (!rows.length) return null;
   const grid = document.createElement('div');
   grid.className = `profile-activity-media${rows.length === 1 ? ' single' : ''}`;
+  grid.style.setProperty('--profile-media-rows', String(Math.ceil(rows.length / 2)));
+  if (rows.length === 1) {
+    const width = Number(rows[0].width);
+    const height = Number(rows[0].height);
+    const ratio = width > 0 && height > 0 ? Math.max(3 / 4, Math.min(16 / 9, width / height)) : 4 / 5;
+    grid.style.setProperty('--profile-media-ratio', String(ratio));
+  }
 
   rows.forEach((media) => {
     const item = document.createElement('div');
     item.className = 'profile-activity-media-item';
     const placeholder = document.createElement('span');
     placeholder.className = 'profile-activity-media-placeholder';
-    placeholder.textContent = 'Loading media…';
+    placeholder.setAttribute('aria-hidden', 'true');
     let element;
     if (media.kind === 'video') {
       element = document.createElement('video');
       element.controls = true;
-      element.preload = 'metadata';
+      element.preload = 'auto';
       element.setAttribute('playsinline', '');
       element.setAttribute('aria-label', media.alt_text || 'Post video');
     } else {
       element = document.createElement('img');
       element.alt = media.alt_text || 'Post image';
-      element.loading = 'lazy';
+      element.loading = 'eager';
       element.decoding = 'async';
     }
     element.hidden = true;
