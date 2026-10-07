@@ -81,3 +81,18 @@ References:
 - https://www.postman.com/meta/whatsapp-business-platform/overview
 - https://www.postman.com/meta/whatsapp-business-platform/documentation/wlk6lh4/whatsapp-cloud-api
 - https://www.postman.com/meta/whatsapp-business-platform/documentation/du6gzjv/embedded-signup
+
+
+## First-party outbound support replies
+
+The first reply phase is intentionally narrower than a general-purpose messaging provider.
+
+- `public.whatsapp_outbound_messages` is the service-role-only outbound ledger with UUID idempotency keys and provider message ids for webhook status correlation.
+- `public.whatsapp_support_threads` stores server-owned assignment/read state.
+- `public.whatsapp_support_thread_summary` is a server-only security-invoker view used by the protected Staff Console.
+- Staff can reply only to a phone number already observed in a signed inbound WhatsApp event; the first UI does not accept arbitrary destination numbers.
+- Free-form replies are limited to the rolling 24-hour customer support window. Outside that window, a later template-sending workflow must be used.
+- Ambiguous network outcomes are recorded as `uncertain` and must not be automatically resent.
+- Meta access tokens remain server secrets and are never stored in these database tables or browser assets.
+
+The Staff Console integration lives in the private `sautilink/staff-console` repository and is restricted to support/admin roles.
