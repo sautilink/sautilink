@@ -247,7 +247,7 @@ let sautiConversationRequest = 0;
 let activeSautiConversation = null;
 let threadReplyRequestId = '';
 const THREAD_DRAFT_PREFIX = 'sautilink.thread.draft.v1:';
-const THREAD_POST_SELECT = 'id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)';
+const THREAD_POST_SELECT = 'id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)';
 const THREAD_RENDER_DEPTH = 4;
 let circlesRequest = 0;
 let activeCircle = null;
@@ -3836,7 +3836,6 @@ function homePostMenuItem(action, label, { danger = false, active = false } = {}
 }
 
 function createHomePostHeadActions(item, post, username) {
-  if (post.author_id === currentMemberId && !post.parent_post_id) void loadPostEditor();
   const controls = document.createElement('div');
   controls.className = 'sauti-card-head-actions';
 
@@ -3879,6 +3878,19 @@ function createHomePostHeadActions(item, post, username) {
     );
   }
   menu.append(homePostMenuItem('copy-link', 'Copy link'));
+  if (post.author_id === currentMemberId && !post.parent_post_id && Number(post.edit_count || 0) < 1) {
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'sauti-head-menu-item';
+    edit.dataset.postEdit = String(post.id);
+    edit.setAttribute('role', 'menuitem');
+    edit.disabled = !String(post.body || '').trim();
+    if (edit.disabled) edit.title = 'This post has no caption to edit.';
+    const label = document.createElement('span');
+    label.textContent = 'Edit post';
+    edit.append(label);
+    menu.insertBefore(edit, menu.querySelector('[data-home-post-action="copy-link"]'));
+  }
   if (post.author_id !== currentMemberId) {
     menu.append(homePostMenuItem('report', 'Report', { danger: true }));
   }
@@ -3896,6 +3908,16 @@ function loadPostEditor() {
   return postEditorPromise;
 }
 window.__sautilinkLoadPostEditor = loadPostEditor;
+window.__sautilinkPostEditUserId = () => currentMemberId;
+document.addEventListener('click', async (event) => {
+  const button = event.target.closest?.('[data-post-edit]');
+  if (!button || button.disabled) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const editor = await loadPostEditor();
+  if (editor) await editor.handlePostEditClick(button);
+  else showToast('Post editor could not load. Please try again.');
+}, true);
 
 function commentActionIcon(action) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -4055,6 +4077,7 @@ function createCommentCard(item) {
 function createSautiCard(item, { home = false } = {}) {
   const post = item.post;
   if (!post) return null;
+  if (post.author_id === currentMemberId && !post.parent_post_id) void loadPostEditor();
 
   const author = authorFromPost(post) || {};
   const username = String(author.username || 'member');
@@ -4120,6 +4143,13 @@ function createSautiCard(item, { home = false } = {}) {
   head.append(avatar, identity);
   if (home) head.append(createHomePostHeadActions(item, post, username));
   head.append(time);
+  if (Number(post.edit_count || 0) >= 1) {
+    const edited = document.createElement('span');
+    edited.className = 'sauti-edited-label';
+    edited.textContent = 'Edited';
+    edited.title = 'This post was edited once.';
+    head.append(edited);
+  }
 
   const body = document.createElement('p');
   body.className = 'sauti-card-body';
@@ -4218,6 +4248,16 @@ function createSautiCard(item, { home = false } = {}) {
     remove.dataset.deleteSauti = post.id;
     remove.textContent = 'Delete';
     meta.append(remove);
+    if (!home && !post.parent_post_id && Number(post.edit_count || 0) < 1) {
+      const edit = document.createElement('button');
+      edit.className = 'sauti-edit';
+      edit.type = 'button';
+      edit.dataset.postEdit = String(post.id);
+      edit.disabled = !String(post.body || '').trim();
+      if (edit.disabled) edit.title = 'This post has no caption to edit.';
+      edit.textContent = 'Edit';
+      meta.prepend(edit);
+    }
   } else if (!home) {
     const report = document.createElement('button');
     report.className = 'sauti-report';
@@ -4304,7 +4344,7 @@ async function loadQuotedPostMap(posts) {
 
   const { data, error } = await supabase
     .from('social_posts')
-    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
     .in('id', quoteIds);
 
   if (error) throw error;
@@ -4319,7 +4359,7 @@ async function hydrateStreamEvents(events) {
 
   const postQuery = supabase
     .from('social_posts')
-    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
     .in('id', postIds);
 
   const actorQuery = supabase
@@ -6376,7 +6416,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
 
     let postQuery = supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
       .eq('visibility', 'public')
       .is('circle_id', null)
       .is('reply_to_post_id', null)
@@ -6470,7 +6510,7 @@ async function loadSavedSauti() {
 
     const { data: posts, error: postError } = await supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
       .in('id', postIds);
 
     if (postError) throw postError;
@@ -6531,7 +6571,7 @@ async function loadSharedSautiTarget(postId) {
   try {
     const { data: post, error } = await supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
       .eq('id', postId)
       .maybeSingle();
 
@@ -8216,7 +8256,7 @@ async function loadCircleStream(circleId) {
   try {
     const { data: posts, error } = await supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
       .eq('circle_id', circleId)
       .eq('visibility', 'circle')
       .is('reply_to_post_id', null)

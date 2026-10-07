@@ -404,6 +404,7 @@ function createProfileActivityCard(item, { pinned = false, allowPin = false, req
   const card = document.createElement('article');
   card.className = 'profile-activity-card';
   card.dataset.postId = String(item.id || '');
+  card.dataset.authorId = String(item.author_id || '');
   card.setAttribute('role', 'link');
   card.tabIndex = 0;
   card.setAttribute('aria-label', `Open post by @${username}`);
@@ -433,6 +434,17 @@ function createProfileActivityCard(item, { pinned = false, allowPin = false, req
   time.dateTime = String(item.created_at || '');
   time.textContent = profileActivityTime(item.created_at);
   head.append(authorName, handle, dot, time);
+  if (profileActivityState?.owner && item.author_id === profileActivityState?.profile?.id
+    && !item.parent_post_id) {
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'sauti-edit';
+    edit.dataset.postEdit = String(item.id);
+    edit.disabled = !String(item.body || '').trim();
+    if (edit.disabled) edit.title = 'This post has no caption to edit.';
+    edit.textContent = 'Edit';
+    head.append(edit);
+  }
 
   if (profileActivityState?.owner && allowPin && item.author_id === profileActivityState?.profile?.id) {
     const isPinned = pinned || Boolean(item.is_pinned) || profileActivityPinnedIds.has(item.id);
