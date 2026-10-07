@@ -62,6 +62,7 @@ const memberView = byId('member-view');
 const streamSurface = byId('stream-surface');
 const profileSurface = byId('profile-surface');
 const settingsSurface = byId('settings-surface');
+const menuSurface = byId('menu-surface');
 const notificationsSurface = byId('notifications-surface');
 const circlesSurface = byId('circles-surface');
 const messagesSurface = byId('messages-surface');
@@ -8594,6 +8595,75 @@ function openProfileEditor() {
   byId('profile-name-input').focus();
 }
 
+let menuMirrorObserver = null;
+let menuMirrorQueued = false;
+
+function namespaceMenuCloneIds(root) {
+  const idMap = new Map();
+  root.querySelectorAll('[id]').forEach((node) => {
+    const originalId = node.id;
+    if (!originalId) return;
+    node.dataset.menuSourceId = originalId;
+    const nextId = `menu-page-${originalId}`;
+    idMap.set(originalId, nextId);
+    node.id = nextId;
+  });
+
+  for (const attribute of ['aria-labelledby', 'aria-controls', 'aria-describedby']) {
+    root.querySelectorAll(`[${attribute}]`).forEach((node) => {
+      const value = String(node.getAttribute(attribute) || '').trim();
+      if (!value) return;
+      node.setAttribute(attribute, value.split(/\s+/).map((id) => idMap.get(id) || id).join(' '));
+    });
+  }
+
+  root.querySelectorAll('[aria-current]').forEach((node) => node.removeAttribute('aria-current'));
+  root.querySelectorAll('.nav-item.active').forEach((node) => node.classList.remove('active'));
+}
+
+function scheduleMenuMirror() {
+  if (menuMirrorQueued || menuSurface?.hidden) return;
+  menuMirrorQueued = true;
+  queueMicrotask(() => {
+    menuMirrorQueued = false;
+    if (!menuSurface?.hidden) renderMenuPage();
+  });
+}
+
+function ensureMenuMirrorObserver() {
+  if (menuMirrorObserver) return;
+  const source = document.querySelector('.primary-rail-inner');
+  if (!source || !('MutationObserver' in window)) return;
+  menuMirrorObserver = new MutationObserver(scheduleMenuMirror);
+  menuMirrorObserver.observe(source, {
+    subtree: true,
+    childList: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ['hidden', 'class', 'aria-current'],
+  });
+}
+
+function renderMenuPage() {
+  const source = document.querySelector('.primary-rail-inner');
+  const target = byId('menu-page-shell');
+  if (!source || !target) return;
+
+  const clone = source.cloneNode(true);
+  clone.classList.add('menu-page-rail-inner');
+  namespaceMenuCloneIds(clone);
+  clone.querySelectorAll('[data-open-sauti-composer]').forEach((button) => {
+    button.disabled = !currentMember;
+  });
+
+  const frame = document.createElement('aside');
+  frame.className = 'menu-page-sidebar primary-rail';
+  frame.setAttribute('aria-label', 'SautiLink menu');
+  frame.append(clone);
+  target.replaceChildren(frame);
+  ensureMenuMirrorObserver();
+}
+
 function setMemberNavigation(name) {
   if (name !== 'messages' && dmConversationRealtimeChannel) void stopDmConversationRealtime();
   if (name !== 'stream') pauseHomeFeedVideos();
@@ -8607,10 +8677,13 @@ function setMemberNavigation(name) {
   moderationSurface.hidden = name !== 'moderation';
   conversationSurface.hidden = name !== 'conversation';
   settingsSurface.hidden = name !== 'settings';
+  menuSurface.hidden = name !== 'menu';
   profileSurface.hidden = name !== 'profile';
-  viewTitle.textContent = name === 'settings'
-    ? 'Settings'
-    : name === 'profile'
+  viewTitle.textContent = name === 'menu'
+    ? 'Menu'
+    : name === 'settings'
+      ? 'Settings'
+      : name === 'profile'
       ? 'Profile'
     : name === 'notifications'
       ? 'Notifications'
@@ -8657,10 +8730,13 @@ function readProfileRoute(pathname = window.location.pathname) {
 }
 
 function showMemberSurface(name, { syncUrl = true } = {}) {
-  if (!currentMember || !['stream', 'discover', 'saved', 'appeals', 'moderation', 'notifications', 'messages', 'circles', 'settings', 'profile'].includes(name)) return;
+  if (!currentMember || !['stream', 'discover', 'saved', 'appeals', 'moderation', 'notifications', 'messages', 'circles', 'settings', 'menu', 'profile'].includes(name)) return;
   setMemberNavigation(name);
 
-  if (name === 'profile') {
+  if (name === 'menu') {
+    closeProfileEditor();
+    renderMenuPage();
+  } else if (name === 'profile') {
     renderProfile(currentMember, { owner: true });
   } else {
     closeProfileEditor();
@@ -8698,7 +8774,9 @@ function showMemberSurface(name, { syncUrl = true } = {}) {
             ? '/moderation'
             : name === 'settings'
               ? '/settings'
-              : name === 'notifications'
+              : name === 'menu'
+                ? '/menu'
+                : name === 'notifications'
           ? '/notifications'
           : name === 'messages'
             ? messagePath()
@@ -8955,6 +9033,19 @@ async function applyLocationRoute() {
     if (window.location.pathname !== '/settings') window.history.replaceState({}, '', '/settings');
     closeProfileEditor();
     await loadSettings();
+    return;
+  }
+
+  if (/^(?:\/app)?\/menu\/?$/.test(window.location.pathname)) {
+    profileRouteRequest += 1;
+    if (!currentMember) {
+      showSignedOut('login');
+      return;
+    }
+    setMemberNavigation('menu');
+    if (window.location.pathname !== '/menu') window.history.replaceState({}, '', '/menu');
+    closeProfileEditor();
+    renderMenuPage();
     return;
   }
 
@@ -9233,6 +9324,28 @@ document.querySelectorAll('[data-member-view]').forEach((button) => {
     }
     showMemberSurface(button.dataset.memberView);
   });
+});
+
+menuSurface.addEventListener('click', (event) => {
+  const view = event.target.closest('[data-member-view]');
+  if (view) {
+    event.preventDefault();
+    if (currentMember) showMemberSurface(view.dataset.memberView);
+    return;
+  }
+
+  const compose = event.target.closest('[data-open-sauti-composer]');
+  if (compose) {
+    event.preventDefault();
+    byId('open-sauti-composer')?.click();
+    return;
+  }
+
+  const signout = event.target.closest('[data-menu-source-id="signout-button"]');
+  if (signout) {
+    event.preventDefault();
+    byId('signout-button')?.click();
+  }
 });
 
 byId('discover-form').addEventListener('submit', (event) => {
