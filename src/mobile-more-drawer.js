@@ -162,6 +162,7 @@ function installMobileMoreDrawer() {
       <a href="/community-guidelines">${icon('safety')}<span><strong>Community Guidelines</strong><small>Expression, safety and community rules</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
       <a href="/upload-guidelines">${icon('terms')}<span><strong>Upload Guidelines</strong><small>Formats, sizes and media limits</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
       <a href="/contact">${icon('contact')}<span><strong>Contact</strong><small>Reach the SautiLink team</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
+      <a href="https://wa.me/255629145502" target="_blank" rel="noopener noreferrer">${icon('contact')}<span><strong>WhatsApp Support · 24/7</strong><small>+255 629 145 502 · AI + Live Human Agents</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
       <p class="sauti-mobile-drawer-section-title">Other SautiLink Systems</p>
       <a href="https://cloudengine.sautilink.com" target="_blank" rel="noopener noreferrer">${icon('cloud')}<span><strong>Cloud Engine</strong><small>Open SautiLink Cloud Engine</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
       <a href="https://router.sautilink.com" target="_blank" rel="noopener noreferrer">${icon('router')}<span><strong>Router Setup Gateway</strong><small>Open the router setup system</small></span>${icon('chevron', 'sauti-mobile-drawer-chevron')}</a>
