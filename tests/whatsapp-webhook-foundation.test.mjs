@@ -67,6 +67,7 @@ test('Only configured WABA and phone number can add messages', () => {
   const payload = event({
     messages: [{
       from: '255712345678', id: 'wamid.HBgMTEXT1234567890',
+      timestamp: '1791334800',
       type: 'text', text: { body: 'Help' },
     }],
   });
@@ -74,6 +75,19 @@ test('Only configured WABA and phone number can add messages', () => {
   assert.equal(normalizeWhatsAppEvents(payload, { ...options, phoneNumberId: '456' }).messages.length, 0);
   assert.equal(normalizeWhatsAppEvents({ ...payload, object: 'other' }, options).messages.length, 0);
   assert.equal(normalizeWhatsAppEvents(payload, options).messages.length, 1);
+});
+
+test('Invalid timestamps cannot create new duplicates with different receipt times', () => {
+  const payload = event({
+    messages: [{
+      from: '255712345678',
+      id: 'wamid.HBgMREPLAY123456789',
+      timestamp: 'not-a-timestamp',
+      type: 'text',
+      text: { body: 'Retry' },
+    }],
+  });
+  assert.equal(normalizeWhatsAppEvents(payload, options).messages.length, 0);
 });
 
 test('Delivery events are deduplicated by provider message id, status, timestamp at DB level', async () => {
