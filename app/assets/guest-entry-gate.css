@@ -498,6 +498,10 @@ body.auth-entry .social-oauth-legal a {
   background: color-mix(in srgb, var(--guest-gate-surface) 88%, #07101f);
 }
 
+.guest-post-media-count-1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .guest-post-media-count-2,
 .guest-post-media-count-3,
 .guest-post-media-count-4,
@@ -518,6 +522,8 @@ body.auth-entry .social-oauth-legal a {
 }
 
 .guest-post-media-count-1 .guest-post-media-frame {
+  width: 100%;
+  min-width: 0;
   min-height: 0;
   aspect-ratio: var(--guest-media-aspect, 16 / 9);
   max-height: min(76vh, 720px);
