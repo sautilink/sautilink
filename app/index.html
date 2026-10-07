@@ -14,7 +14,7 @@
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <script src="/app/assets/theme-init.js?v=20260904-account2"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260927-page-headers1">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20261007-menu1">
   <!-- First-paint UI: keep the final Auth and Home presentation render-blocking so refresh never shows the legacy shell. -->
   <link id="social-oauth-auth-styles" rel="stylesheet" href="/app/assets/guest-entry-gate.css?v=20261006-publicpost1">
   <link id="auth-entry-polish-styles" rel="stylesheet" href="/app/assets/auth-entry-polish.css?v=20261002-signup1">
@@ -1089,6 +1089,10 @@
           </section>
         </section>
 
+        <section class="menu-surface" id="menu-surface" aria-label="Menu" hidden>
+          <div class="menu-page-shell" id="menu-page-shell" aria-live="polite"></div>
+        </section>
+
         <section class="profile-surface" id="profile-surface" aria-label="Profile" hidden>
           <article class="profile-card" id="profile-card">
             <div class="profile-banner">
@@ -1484,6 +1488,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="/app/assets/app.js?v=20260930-swala-otp2&amp;signup=20261003-phone2&amp;messages=20261003-search1&amp;thread=20261003-thread1&amp;profile=20261003-actions1"></script>
+  <script type="module" src="/app/assets/app.js?v=20260930-swala-otp2&amp;signup=20261003-phone2&amp;messages=20261003-search1&amp;thread=20261003-thread1&amp;profile=20261003-actions1&amp;menu=20261007-page1"></script>
 </body>
 </html>
