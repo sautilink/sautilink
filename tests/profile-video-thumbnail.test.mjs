@@ -72,3 +72,12 @@ test('unavailable or undecodable posters leave the video fallback intact', async
   assert.match(createMedia, /media\.kind === 'video'[\s\S]*loadProfileActivityVideoPoster\(media\.id/);
   assert.match(createMedia, /loadProtectedProfileActivityMedia\([^;]*posterReady\)/);
 });
+
+test('production HTML requests the current profile video bundle version', async () => {
+  const [builder, html] = await Promise.all([
+    readFile(new URL('../scripts/build-production-release.mjs', import.meta.url), 'utf8'),
+    readFile(new URL('../app/index.html', import.meta.url), 'utf8'),
+  ]);
+  assert.match(builder, /profile=20261007-video-poster1/);
+  assert.match(html, /profile=20261007-video-poster1/);
+});
