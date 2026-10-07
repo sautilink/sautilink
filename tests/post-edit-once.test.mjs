@@ -78,16 +78,19 @@ test('post editor is a separate production asset loaded for author cards after a
   assert.match(builder, /entryPoints: \[resolve\(projectRoot, 'src\/post-edit\.js'\)\]/);
   assert.match(productionBuilder, /entryPoints: \[resolve\(workerSource, 'post-edit\.js'\)\]/);
   assert.doesNotMatch(packageJson, /--inject:\.\/src\/post-edit\.js/);
-  assert.match(app, /post\.author_id === currentMemberId && !post\.parent_post_id\) void loadPostEditor\(\)/);
+  assert.match(app, /if \(post\.author_id === currentMemberId && !post\.parent_post_id\) void loadPostEditor\(\)/);
   assert.match(app, /import\(new URL\('\/app\/assets\/post-edit\.js\?v=/);
+  assert.match(app, /editor\.handlePostEditClick\(button\)/);
+  assert.match(app, /__sautilinkPostEditUserId = \(\) => currentMemberId/);
   assert.match(profile, /__sautilinkLoadPostEditor\?\.\(\)/);
+  assert.match(profile, /edit\.dataset\.postEdit = String\(item\.id\)/);
   assert.match(previewBuilder, /rm\(resolve\(stageRoot, 'app\/assets\/post-edit\.js'\), \{ force: true \}\)/);
 });
 
 test('captionless own posts show disabled Edit; posts with a caption can open it', async () => {
   const ui = await read('src/post-edit.js');
-  const source = ui.match(/function createPostEditMenuButton\([\s\S]*?\n}\n\nfunction decorateEditableCard/)?.[0]
-    .replace(/\n\nfunction decorateEditableCard$/, '');
+  const source = ui.match(/function createPostEditMenuButton\([\s\S]*?\r?\n}\r?\n\r?\nfunction decorateEditableCard/)?.[0]
+    .replace(/\r?\n\r?\nfunction decorateEditableCard$/, '');
   assert.ok(source);
   const buttons = runInNewContext(`${source}\n({ menu: createPostEditMenuButton, inline: createPostEditInlineButton })`, {
     document: { createElement: () => ({ dataset: {}, children: [], append(child) { this.children.push(child); }, setAttribute() {} }) },
@@ -98,6 +101,85 @@ test('captionless own posts show disabled Edit; posts with a caption can open it
   }
   assert.match(ui, /const hasCaption = Boolean\(String\(metadata\.body \|\| ''\)\.trim\(\)\)/);
   assert.match(ui, /metadata\.parent_post_id\) return/);
+});
+
+test('own post Edit is present in the Home menu before the lazy editor finishes loading', async () => {
+  const app = await read('src/app.js');
+  const source = app.match(/function createHomePostHeadActions\([\s\S]*?\r?\n}\r?\n\r?\nlet postEditorPromise/)?.[0]
+    .replace(/\r?\n\r?\nlet postEditorPromise$/, '');
+  assert.ok(source);
+  class Node {
+    constructor() { this.children = []; this.dataset = {}; this.classList = { toggle() {} }; }
+    append(...children) { this.children.push(...children); }
+    setAttribute() {}
+    querySelector(selector) {
+      if (selector === '[data-home-post-action="copy-link"]') {
+        return this.children.find((child) => child.dataset.homePostAction === 'copy-link') || null;
+      }
+      return null;
+    }
+    insertBefore(child, reference) {
+      const index = this.children.indexOf(reference);
+      this.children.splice(index < 0 ? this.children.length : index, 0, child);
+    }
+  }
+  const create = runInNewContext(`${source}\ncreateHomePostHeadActions`, {
+    currentMemberId: 'member',
+    document: { createElement: () => new Node() },
+    homePostMoreIcon: () => new Node(),
+    homePostMenuItem: (action) => {
+      const node = new Node();
+      node.dataset.homePostAction = action;
+      return node;
+    },
+  });
+  const editFor = (post) => {
+    const controls = create({}, post, 'member');
+    const shell = controls.children.find((child) => child.dataset.homePostMenu !== undefined);
+    return shell.children[1].children.find((child) => child.dataset.postEdit);
+  };
+  assert.equal(editFor({ id: 'post', author_id: 'member', body: 'Caption', edit_count: 0 })?.disabled, false);
+  assert.equal(editFor({ id: 'post', author_id: 'member', body: '', edit_count: 0 })?.disabled, true);
+  assert.equal(editFor({ id: 'post', author_id: 'member', body: 'Caption', edit_count: 1 }), undefined);
+  assert.equal(editFor({ id: 'post', author_id: 'other', body: 'Caption', edit_count: 0 }), undefined);
+  assert.equal(editFor({ id: 'post', author_id: 'member', parent_post_id: 'parent', body: 'Caption', edit_count: 0 }), undefined);
+});
+
+test('an immediate Edit click loads post state and refuses an already edited post', async () => {
+  const ui = await read('src/post-edit.js');
+  const source = ui.match(/export async function handlePostEditClick\([\s\S]*?\r?\n}\r?\n\r?\nensurePostEditStyles/)?.[0]
+    .replace(/^export /, '')
+    .replace(/\r?\n\r?\nensurePostEditStyles$/, '');
+  assert.ok(source);
+  const metadata = new Map();
+  const calls = { fetched: 0, opened: 0, marked: 0 };
+  const card = { dataset: { postId: 'post' } };
+  const button = {
+    dataset: { postEdit: 'post' },
+    isConnected: true,
+    disabled: false,
+    closest: (selector) => selector === '.sauti-card, .profile-activity-card' ? card : null,
+  };
+  const click = runInNewContext(`${source}\nhandlePostEditClick`, {
+    postEditMeta: metadata,
+    postEditCurrentUserId: async () => 'member',
+    fetchPostEditMetadata: async () => {
+      calls.fetched += 1;
+      metadata.set('post', { author_id: 'member', body: 'Caption', edit_count: 0 });
+    },
+    postEditCards: () => [card],
+    markPostEdited: () => { calls.marked += 1; },
+    openPostEdit: () => { calls.opened += 1; },
+    document: { getElementById: () => null },
+    window: { setTimeout() {} },
+  });
+  await click(button);
+  assert.deepEqual(calls, { fetched: 1, opened: 1, marked: 0 });
+  assert.equal(button.disabled, false);
+
+  metadata.set('post', { author_id: 'member', body: 'Caption', edit_count: 1 });
+  await click(button);
+  assert.deepEqual(calls, { fetched: 1, opened: 1, marked: 1 });
 });
 
 test('Home stream position remains based on created_at rather than edit timestamps', async () => {

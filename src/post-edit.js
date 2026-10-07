@@ -37,6 +37,8 @@ function postEditHeaders(json = false) {
 }
 
 async function postEditCurrentUserId() {
+  const currentUserId = window.__sautilinkPostEditUserId?.();
+  if (currentUserId) return String(currentUserId);
   const token = postEditToken();
   if (!token) {
     postEditUserPromise = null;
@@ -390,10 +392,11 @@ async function fetchPostEditMetadata(ids, userId) {
 }
 
 async function scanPostEditCards() {
-  const cards = [...document.querySelectorAll('.sauti-card[data-post-id], .profile-activity-card[data-post-id]')];
-  if (!cards.length) return;
   const userId = await postEditCurrentUserId();
   if (!userId) return;
+  const cards = [...document.querySelectorAll('.sauti-card[data-post-id], .profile-activity-card[data-post-id]')]
+    .filter((card) => card.dataset.authorId === userId);
+  if (!cards.length) return;
   const unknown = new Set();
   cards.forEach((card) => {
     const postId = String(card.dataset.postId || '');
@@ -405,8 +408,10 @@ async function scanPostEditCards() {
     }
     if (!postEditPending.has(postId)) unknown.add(postId);
   });
-  const ids = [...unknown].slice(0, 50);
-  if (ids.length) await fetchPostEditMetadata(ids, userId);
+  const ids = [...unknown];
+  for (let offset = 0; offset < ids.length; offset += 50) {
+    await fetchPostEditMetadata(ids.slice(offset, offset + 50), userId);
+  }
 }
 
 function schedulePostEditScan() {
@@ -414,11 +419,7 @@ function schedulePostEditScan() {
   postEditScanTimer = window.setTimeout(() => { void scanPostEditCards(); }, 100);
 }
 
-function handlePostEditClick(event) {
-  const button = event.target.closest?.('[data-post-edit]');
-  if (!button) return;
-  event.preventDefault();
-  event.stopPropagation();
+export async function handlePostEditClick(button) {
   const card = button.closest('.sauti-card, .profile-activity-card');
   const postId = String(button.dataset.postEdit || card?.dataset.postId || '');
   if (!postId || !card) return;
@@ -427,11 +428,34 @@ function handlePostEditClick(event) {
     menu.hidden = true;
     menu.closest('[data-home-post-menu]')?.querySelector('[data-home-post-menu-toggle]')?.setAttribute('aria-expanded', 'false');
   }
-  openPostEdit(postId, card);
+  button.disabled = true;
+  try {
+    const userId = await postEditCurrentUserId();
+    if (!userId) throw new Error('Sign in again before editing this post.');
+    if (!postEditMeta.has(postId)) await fetchPostEditMetadata([postId], userId);
+    const metadata = postEditMeta.get(postId);
+    if (!metadata || metadata.author_id !== userId || metadata.parent_post_id) {
+      throw new Error('This post is unavailable for editing. Please try again.');
+    }
+    if (Number(metadata.edit_count || 0) >= 1) {
+      postEditCards(postId).forEach(markPostEdited);
+      return;
+    }
+    if (!String(metadata.body || '').trim()) return;
+    openPostEdit(postId, card);
+  } catch (error) {
+    const toast = document.getElementById('toast');
+    if (toast) {
+      toast.textContent = error?.message || 'This post could not be edited. Please try again.';
+      toast.hidden = false;
+      window.setTimeout(() => { toast.hidden = true; }, 3200);
+    }
+  } finally {
+    if (button.isConnected) button.disabled = false;
+  }
 }
 
 ensurePostEditStyles();
-document.addEventListener('click', handlePostEditClick, true);
 new MutationObserver(schedulePostEditScan).observe(document.body, { childList: true, subtree: true });
 window.addEventListener('popstate', schedulePostEditScan);
 schedulePostEditScan();
