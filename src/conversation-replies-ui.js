@@ -1,4 +1,4 @@
-const CONVERSATION_REPLIES_UI_CSS = '/app/assets/conversation-replies-ui.css?v=20261004-mobile-comments1';
+const CONVERSATION_REPLIES_UI_CSS = '/app/assets/conversation-replies-ui.css?v=20261009-comments-skeleton1';
 
 export function ensureConversationRepliesUiStyles() {
   if (typeof document === 'undefined') return;

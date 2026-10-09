@@ -110,6 +110,63 @@ body:has(#conversation-surface:not([hidden])) .stream-header {
   background: var(--app-panel);
 }
 
+/* Only the Comments view uses this placeholder while its thread is fetched. */
+#conversation-surface .conversation-comment-skeleton {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--app-panel);
+}
+
+.conversation-comment-skeleton-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  padding: 14px 14px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-line) 72%, transparent);
+}
+
+.conversation-comment-skeleton-avatar,
+.conversation-comment-skeleton-line {
+  display: block;
+  background: var(--app-elevated);
+  background-image: linear-gradient(100deg, transparent 20%, color-mix(in srgb, var(--app-text) 9%, transparent) 50%, transparent 80%);
+  background-size: 200% 100%;
+  animation: conversation-comment-shimmer 1.5s ease-in-out infinite;
+}
+
+.conversation-comment-skeleton-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+
+.conversation-comment-skeleton-content {
+  min-width: 0;
+  padding-top: 3px;
+}
+
+.conversation-comment-skeleton-line {
+  height: 10px;
+  border-radius: 999px;
+}
+
+.conversation-comment-skeleton-line.name { width: min(35%, 130px); height: 11px; }
+.conversation-comment-skeleton-line.body { width: min(86%, 480px); margin-top: 14px; }
+.conversation-comment-skeleton-line.body.short { width: min(55%, 300px); margin-top: 7px; }
+.conversation-comment-skeleton-line.body.medium { width: min(68%, 360px); margin-top: 7px; }
+.conversation-comment-skeleton-line.action { width: 76px; height: 8px; margin-top: 15px; }
+
+@keyframes conversation-comment-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conversation-comment-skeleton-avatar,
+  .conversation-comment-skeleton-line { animation: none; }
+}
+
 #conversation-thread .comment-card {
   --verification-badge-size: clamp(12px, 1.08em, 14px);
   position: relative;
@@ -496,6 +553,17 @@ body:has(#conversation-surface:not([hidden])) .stream-header {
 }
 
 @media (max-width: 680px) {
+  .conversation-comment-skeleton-row {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    padding: 12px 10px 14px;
+  }
+
+  .conversation-comment-skeleton-avatar {
+    width: 34px;
+    height: 34px;
+  }
+
   #conversation-surface {
     height: calc(100dvh - 58px - 62px);
     min-height: 0;
