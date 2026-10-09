@@ -467,6 +467,39 @@ async function loadSautiVideoPoster(id, button) {
   } catch {
     // Playback remains available if a source video cannot produce a poster.
   }
+}
+
+function enableSautiVideoBlobFallback(video, button, id) {
+  const isStreaming = () => video.src.includes('/api/sauti-media/');
+  let timer = 0;
+  const startTimer = () => {
+    if (timer) return;
+    timer = window.setTimeout(async () => {
+      if (!video.isConnected || video.readyState >= 1 || !isStreaming()) return;
+      let blobUrl = '';
+      try {
+        blobUrl = await fetchSautiMediaBlobUrl(id);
+        if (!video.isConnected || video.readyState >= 1 || !isStreaming()) {
+          URL.revokeObjectURL(blobUrl);
+          return;
+        }
+        button.dataset.mediaObjectUrl = blobUrl;
+        button.dataset.mediaStreaming = 'blob-fallback';
+        video.dataset.sautiBlobFallback = 'true';
+        video.dataset.sautiQuality = 'original';
+        video.preload = 'auto';
+        video.src = blobUrl;
+        video.load();
+        video.dispatchEvent(new CustomEvent('sautilink:video-blob-fallback'));
+        syncHomeFeedVideoPlayback();
+      } catch {
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
+      }
+    }, 4000);
+  };
+  video.addEventListener('loadedmetadata', () => window.clearTimeout(timer), { once: true });
+  if (getVideoAutoplayPreference()) startTimer();
+  else video.addEventListener('play', startTimer, { once: true });
 }`,
     'the protected Sauti media fetch helper',
   );
@@ -566,6 +599,16 @@ function clearHomeFeedMediaState() {
 
   output = replaceExactOnce(
     output,
+    `    if (visual instanceof HTMLVideoElement) observeHomeFeedVideo(visual, gallery);`,
+    `    if (visual instanceof HTMLVideoElement) {
+      observeHomeFeedVideo(visual, gallery);
+      enableSautiVideoBlobFallback(visual, button, media.id);
+    }`,
+    'the Home video playback fallback',
+  );
+
+  output = replaceExactOnce(
+    output,
     `  try {
     const url = await fetchSautiMediaBlobUrl(item.id);
     if (!composerMedia.some((current) => current.localId === item.localId)) {`,
@@ -598,6 +641,7 @@ function clearHomeFeedMediaState() {
   }
   if (visual instanceof HTMLVideoElement) {
     visual.dataset.sautiMediaId = button.dataset.openMediaId || '';
+    if (button.dataset.mediaStreaming === 'blob-fallback') visual.dataset.sautiBlobFallback = 'true';
     if (button.dataset.mediaPosterObjectUrl) visual.poster = button.dataset.mediaPosterObjectUrl;
     visual.dataset.sautiQuality = button.dataset.mediaQuality || 'original';`,
     'the fullscreen media visual',
