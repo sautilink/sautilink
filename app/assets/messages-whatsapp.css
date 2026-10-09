@@ -257,6 +257,12 @@
 .messages-whatsapp-ui #messages-loading:not([hidden]) {
   display: block;
   padding: 0;
+  place-content: normal;
+  text-align: left;
+}
+
+.messages-whatsapp-ui #messages-loading .messages-skeleton-list {
+  width: 100%;
 }
 
 .messages-whatsapp-ui .messages-skeleton-list:not([hidden]) {
