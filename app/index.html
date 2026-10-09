@@ -498,9 +498,14 @@
             </div>
           </header>
 
-          <section class="stream-state" id="conversation-loading" role="status" hidden>
-            <span class="loading-mark"></span>
-            <p>Loading comments…</p>
+          <section class="conversation-comment-skeleton" id="conversation-loading" role="status" hidden>
+            <span class="sr-only">Loading comments…</span>
+            <div class="conversation-comment-skeleton-list" aria-hidden="true">
+              <div class="conversation-comment-skeleton-row"><span class="conversation-comment-skeleton-avatar"></span><div class="conversation-comment-skeleton-content"><span class="conversation-comment-skeleton-line name"></span><span class="conversation-comment-skeleton-line body"></span><span class="conversation-comment-skeleton-line body short"></span><span class="conversation-comment-skeleton-line action"></span></div></div>
+              <div class="conversation-comment-skeleton-row"><span class="conversation-comment-skeleton-avatar"></span><div class="conversation-comment-skeleton-content"><span class="conversation-comment-skeleton-line name"></span><span class="conversation-comment-skeleton-line body"></span><span class="conversation-comment-skeleton-line body medium"></span><span class="conversation-comment-skeleton-line action"></span></div></div>
+              <div class="conversation-comment-skeleton-row"><span class="conversation-comment-skeleton-avatar"></span><div class="conversation-comment-skeleton-content"><span class="conversation-comment-skeleton-line name"></span><span class="conversation-comment-skeleton-line body"></span><span class="conversation-comment-skeleton-line body short"></span><span class="conversation-comment-skeleton-line action"></span></div></div>
+              <div class="conversation-comment-skeleton-row"><span class="conversation-comment-skeleton-avatar"></span><div class="conversation-comment-skeleton-content"><span class="conversation-comment-skeleton-line name"></span><span class="conversation-comment-skeleton-line body"></span><span class="conversation-comment-skeleton-line body medium"></span><span class="conversation-comment-skeleton-line action"></span></div></div>
+            </div>
           </section>
           <section class="stream-state error" id="conversation-error" hidden>
             <h2>Comments could not load.</h2>
@@ -1493,6 +1498,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="/app/assets/app.js?v=20260930-swala-otp2&amp;signup=20261003-phone2&amp;messages=20261003-search1&amp;thread=20261003-thread1&amp;profile=20261007-video-poster1&amp;menu=20261007-page1"></script>
+  <script type="module" src="/app/assets/app.js?v=20260930-swala-otp2&amp;signup=20261003-phone2&amp;messages=20261003-search1&amp;thread=20261003-thread1&amp;profile=20261007-video-poster1&amp;menu=20261007-page1&amp;comments=20261009-skeleton1"></script>
 </body>
 </html>
