@@ -52,7 +52,8 @@ test('reference refresh keeps SautiLink branding and the existing paper-plane se
   assert.match(source, /data\.messagesSendIcon|dataset\.messagesSendIcon/);
   assert.match(source, /M22 2 15 22 11 13 2 9 22 2Z/);
   assert.match(source, /messages-composer\.css\?v=20260914-messagesui1/);
-  assert.match(source, /messages-header-polish\.css\?v=20261004-thread-rounded1/);
+  assert.match(source, /messages-header-polish\.css\?v=20261009-appearance1/);
+  assert.match(source, /messages-appearance\.css\?v=20261009-appearance1/);
 
   assert.match(css, /--message-brand: var\(--brand-primary, #2563eb\)/);
   assert.match(css, /grid-template-columns: minmax\(290px, 360px\) minmax\(0, 1fr\)/);
@@ -81,7 +82,7 @@ test('mobile Messages header gets rounded iOS-inspired corners and distant shado
 
   assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.messages-whatsapp-ui \.messages-toolbar\s*\{[^}]*border-radius:\s*28px;[^}]*box-shadow:/s);
   assert.match(css, /\.messages-whatsapp-ui \.messages-wa-app-back\s*\{[^}]*border-radius:\s*18px;[^}]*box-shadow:/s);
-  assert.match(css, /\.messages-whatsapp-ui \.messages-wa-new-chat\s*\{[^}]*border-radius:\s*18px;[^}]*box-shadow:/s);
+  assert.match(css, /\.messages-whatsapp-ui \.messages-wa-menu-button\s*\{[^}]*border-radius:\s*18px;[^}]*box-shadow:/s);
 });
 
 test('Messages bubbles use WhatsApp iOS geometry and stable light/dark colour pairs', async () => {

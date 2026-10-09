@@ -359,7 +359,7 @@ body:has(#messages-surface:not([hidden])) .stream-header {
     align-items: center;
   }
 
-  .messages-whatsapp-ui .messages-wa-new-chat {
+  .messages-whatsapp-ui .messages-wa-menu-button {
     width: 42px;
     height: 42px;
     border: 0;
@@ -367,13 +367,10 @@ body:has(#messages-surface:not([hidden])) .stream-header {
     background: color-mix(in srgb, var(--wa-panel-soft, #f4f6f8) 74%, transparent);
     color: var(--wa-text, #111827);
     box-shadow: 0 6px 17px rgba(15, 23, 42, 0.07);
-    font-size: 25px;
-    font-weight: 420;
-    line-height: 1;
   }
 
-  .messages-whatsapp-ui .messages-wa-new-chat:hover,
-  .messages-whatsapp-ui .messages-wa-new-chat:focus-visible {
+  .messages-whatsapp-ui .messages-wa-menu-button:hover,
+  .messages-whatsapp-ui .messages-wa-menu-button:focus-visible {
     background: var(--wa-panel-soft, #f4f6f8);
     box-shadow: 0 8px 22px rgba(15, 23, 42, 0.10);
     outline: none;

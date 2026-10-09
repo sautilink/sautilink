@@ -146,6 +146,7 @@ let recoverySession = false;
 let actionErrorTimer = 0;
 let currentMember = null;
 let currentMemberId = '';
+window.__sautilinkMessagesUserId = () => currentMemberId;
 let currentAccountEmail = '';
 let pendingPasswordlessEmail = sessionStorage.getItem('sautilink.auth.passwordless_email') || '';
 let reauthCodeRequested = false;
