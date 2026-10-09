@@ -98,7 +98,7 @@
   gap: 6px;
 }
 
-.messages-whatsapp-ui .messages-wa-new-chat {
+.messages-whatsapp-ui .messages-wa-menu-button {
   display: grid;
   width: 40px;
   height: 40px;
@@ -108,14 +108,11 @@
   border-radius: 50%;
   background: transparent;
   color: var(--wa-text);
-  font-size: 28px;
-  font-weight: 350;
-  line-height: 1;
   cursor: pointer;
 }
 
-.messages-whatsapp-ui .messages-wa-new-chat:hover,
-.messages-whatsapp-ui .messages-wa-new-chat:focus-visible {
+.messages-whatsapp-ui .messages-wa-menu-button:hover,
+.messages-whatsapp-ui .messages-wa-menu-button:focus-visible {
   background: rgba(134, 150, 160, .14);
   outline: none;
 }

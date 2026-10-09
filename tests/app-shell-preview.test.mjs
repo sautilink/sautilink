@@ -101,6 +101,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/guest-entry-gate.css'));
   assert.ok(files.includes('app/assets/messages-composer.css'));
   assert.ok(files.includes('app/assets/messages-header-polish.css'));
+  assert.ok(files.includes('app/assets/messages-appearance.css'));
   assert.ok(files.includes('app/assets/messages-media.css'));
   assert.ok(files.includes('app/assets/messages-reply.css'));
   assert.ok(files.includes('app/assets/messages-whatsapp.css'));
@@ -178,6 +179,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/guest-entry-gate.css',
     'app/assets/messages-composer.css',
     'app/assets/messages-header-polish.css',
+    'app/assets/messages-appearance.css',
     'app/assets/messages-media.css',
     'app/assets/messages-reply.css',
     'app/assets/messages-whatsapp.css',
