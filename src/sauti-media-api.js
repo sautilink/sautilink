@@ -763,10 +763,14 @@ async function serveVideoVariant(request, env, row, id, quality, ctx = null) {
 
   let available = await env.SAUTI_MEDIA.head(objectKey).catch(() => null);
   if (!available && request.method !== 'HEAD') {
-    // A quality request must never stream the full-size original while its
-    // smaller rendition is being prepared, including from an older client.
-    const generatedKey = await createSautiVideoVariant(env, row, id, quality);
-    if (generatedKey) available = await env.SAUTI_MEDIA.head(generatedKey).catch(() => null);
+    const generation = createSautiVideoVariant(env, row, id, quality);
+    if (ctx?.waitUntil) {
+      // Keep playback responsive while the first request warms this rendition.
+      ctx.waitUntil(generation);
+    } else {
+      const generatedKey = await generation;
+      if (generatedKey) available = await env.SAUTI_MEDIA.head(generatedKey).catch(() => null);
+    }
   }
   if (!available) return serveOriginalMedia(request, env, row, id);
 

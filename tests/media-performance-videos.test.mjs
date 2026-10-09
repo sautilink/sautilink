@@ -69,6 +69,46 @@ test('video media session renews while visible playback remains on the page', as
   assert.equal(timers.size, 0);
 });
 
+test('a stalled Home stream switches to an authorized blob and keeps the viewer URL usable', async () => {
+  const appPath = new URL('../src/app.js', import.meta.url).pathname;
+  const source = await read('src/app.js');
+  const transformed = transformMediaPerformanceSource(appPath, transformPostMediaSource(appPath, source));
+  const start = transformed.indexOf('function enableSautiVideoBlobFallback(');
+  const end = transformed.indexOf('function revokeHomeFeedMediaObjectUrls(', start);
+  assert.ok(start >= 0 && end > start);
+
+  let callback;
+  let loaded;
+  const events = [];
+  const video = {
+    src: `https://sautilink.com/api/sauti-media/${MEDIA_ID}?quality=360`,
+    isConnected: true,
+    readyState: 0,
+    dataset: {},
+    addEventListener(name, listener) { if (name === 'loadedmetadata') loaded = listener; },
+    load() {},
+    dispatchEvent(event) { events.push(event.type); },
+  };
+  const button = { dataset: {} };
+  const context = vm.createContext({
+    window: { setTimeout(fn) { callback = fn; return 1; }, clearTimeout() {} },
+    URL: { revokeObjectURL() {} },
+    CustomEvent: class { constructor(type) { this.type = type; } },
+    getVideoAutoplayPreference: () => true,
+    syncHomeFeedVideoPlayback() {},
+    fetchSautiMediaBlobUrl: async () => 'blob:working-video',
+  });
+  vm.runInContext(transformed.slice(start, end), context);
+  vm.runInContext('enableSautiVideoBlobFallback', context)(video, button, MEDIA_ID);
+  assert.equal(typeof loaded, 'function');
+  await callback();
+  assert.equal(video.src, 'blob:working-video');
+  assert.equal(button.dataset.mediaObjectUrl, 'blob:working-video');
+  assert.equal(button.dataset.mediaStreaming, 'blob-fallback');
+  assert.equal(video.dataset.sautiBlobFallback, 'true');
+  assert.deepEqual(events, ['sautilink:video-blob-fallback']);
+});
+
 function videoRow() {
   return {
     id: MEDIA_ID,
@@ -434,7 +474,7 @@ test('a low resolution original is never served as a misleading 720p variant', a
   }
 });
 
-test('a cold quality request waits for the smaller rendition instead of streaming Original', async () => {
+test('a cold quality request without a background context can generate the smaller rendition', async () => {
   const previousFetch = globalThis.fetch;
   const row = videoRow();
   const objects = new Map([[row.object_key, new Uint8Array([1, 2, 3, 4])]]);
@@ -477,6 +517,47 @@ test('a cold quality request waits for the smaller rendition instead of streamin
     assert.equal(response.headers.get('X-Sauti-Video-Quality'), '360p');
     assert.equal((await response.arrayBuffer()).byteLength, 2);
   } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('production serves original range promptly while a cold rendition warms in the background', async () => {
+  const previousFetch = globalThis.fetch;
+  const row = videoRow();
+  const original = new Uint8Array([1, 2, 3, 4]);
+  let releaseTransform;
+  const transformPending = new Promise((resolve) => { releaseTransform = resolve; });
+  let backgroundJob;
+  globalThis.fetch = async () => Response.json([row]);
+  const env = {
+    SAUTI_MEDIA: {
+      async head(key) { return key === row.object_key ? { size: original.byteLength } : null; },
+      async get() { return {
+        body: original,
+        size: original.byteLength,
+        range: { offset: 0, length: original.byteLength },
+        writeHttpMetadata(headers) { headers.set('Content-Type', 'video/mp4'); },
+      }; },
+      async put() {},
+    },
+    MEDIA: { input() { return {
+      transform() { return { output() { return { media: () => transformPending }; } }; },
+    }; } },
+  };
+
+  try {
+    const response = await handleSautiMediaRequest(new Request(
+      `https://sautilink.com/api/sauti-media/${MEDIA_ID}?quality=360`, {
+        headers: { Cookie: '__Secure-sautilink-media-session=cookie.token.value', Range: 'bytes=0-3' },
+      },
+    ), env, { waitUntil(job) { backgroundJob = job; } });
+    assert.equal(response.status, 206);
+    assert.equal(response.headers.get('X-Sauti-Media-Variant'), 'original');
+    assert.deepEqual(new Uint8Array(await response.arrayBuffer()), original);
+    assert.ok(backgroundJob);
+  } finally {
+    releaseTransform(new Uint8Array([9, 8]));
+    await backgroundJob;
     globalThis.fetch = previousFetch;
   }
 });

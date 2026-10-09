@@ -202,8 +202,9 @@ function enhanceSautiLinkVideo(video) {
   rate.setAttribute('title', 'Playback speed');
   rate.textContent = '1×';
 
-  const quality = qualityContext === 'home' ? document.createElement('span') : null;
-  const qualityMenu = qualityContext === 'home' ? document.createElement('span') : null;
+  const hasQualityControl = qualityContext === 'home' && video.dataset.sautiBlobFallback !== 'true';
+  const quality = hasQualityControl ? document.createElement('span') : null;
+  const qualityMenu = hasQualityControl ? document.createElement('span') : null;
   if (quality && qualityMenu) {
     const mediaId = video.dataset.sautiMediaId || host.dataset.openMediaId || '';
     const variants = window.SautiLinkVideoQuality?.availableFor?.(mediaId) || [];
@@ -617,6 +618,10 @@ function enhanceSautiLinkVideo(video) {
   video.addEventListener('playing', () => player.classList.remove('is-buffering'));
   video.addEventListener('canplay', () => player.classList.remove('is-buffering'));
   video.addEventListener('sautilink:video-quality-applied', syncQuality);
+  video.addEventListener('sautilink:video-blob-fallback', () => {
+    quality?.remove();
+    syncPlayState();
+  });
   document.addEventListener('sautilink:video-quality-preference', syncQuality);
 
   syncPlayState();

@@ -149,6 +149,7 @@ export function shouldResumeVideoAfterQualityChange(video, context) {
 }
 
 async function applyVideoQuality(video, state, quality) {
+  if (video.dataset.sautiBlobFallback === 'true') return;
   const source = sautiVideoSourceUrl(state.mediaId, quality);
   const currentSource = relativeVideoUrl(video.currentSrc || video.src);
   if (!shouldSwitchVideoQuality(state, quality, currentSource, source)) return;
@@ -176,11 +177,12 @@ async function applyVideoQuality(video, state, quality) {
         if (error) reject(error);
         else resolve();
       };
-      const loaded = () => finish();
+      const loaded = () => finish(video.dataset.sautiBlobFallback === 'true'
+        ? new Error('VIDEO_BLOB_FALLBACK_ACTIVE') : null);
       const failed = () => finish(new Error('VIDEO_QUALITY_LOAD_FAILED'));
       video.addEventListener('loadedmetadata', loaded, { once: true });
       video.addEventListener('error', failed, { once: true });
-      timer = window.setTimeout(() => finish(), 8000);
+      timer = window.setTimeout(() => finish(new Error('VIDEO_QUALITY_LOAD_TIMEOUT')), 8000);
       video.src = source;
       video.load();
     });
@@ -249,6 +251,7 @@ export function enhanceSautiVideoQuality(video, { context = 'home' } = {}) {
   managedVideos.add(video);
 
   const markStall = () => {
+    if (video.dataset.sautiBlobFallback === 'true') return;
     if (state.switching || (state.context !== 'short' && state.preference !== 'auto')) return;
     state.stalls = Math.min(3, state.stalls + 1);
     const target = targetQuality(state);
