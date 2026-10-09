@@ -7070,11 +7070,17 @@ async function refreshMessageBadge() {
   }
 }
 
+function setMessageSearchLoading(loading) {
+  const state = byId('messages-search-loading');
+  if (state) state.hidden = !loading;
+}
+
 function filterMessageInbox() {
   const query = String(byId('messages-search').value || '').trim().toLowerCase();
   const list = byId('messages-inbox-list');
   const requestId = ++messagesSearchRequest;
   window.clearTimeout(messagesSearchTimer);
+  setMessageSearchLoading(false);
   list.querySelectorAll('[data-message-account-id]').forEach((item) => item.remove());
   list.querySelectorAll('[data-conversation-id]').forEach((item) => {
     item.hidden = Boolean(query) && !item.dataset.messageSearch.includes(query);
@@ -7083,6 +7089,7 @@ function filterMessageInbox() {
 
   const accountQuery = query.replace(/^@/, '').trim();
   if (accountQuery.length < 2 || !currentMemberId) return;
+  setMessageSearchLoading(true);
   const inboxRequest = messagesRequest;
   messagesSearchTimer = window.setTimeout(() => {
     void searchMessageAccounts(accountQuery, requestId, inboxRequest);
@@ -7104,11 +7111,13 @@ async function searchMessageAccounts(query, requestId, inboxRequest) {
         .ilike('display_name', pattern).order('username').limit(12),
     ]);
   } catch {
+    if (requestId === messagesSearchRequest && inboxRequest === messagesRequest) setMessageSearchLoading(false);
     return;
   }
 
   if (requestId !== messagesSearchRequest || inboxRequest !== messagesRequest
       || byId('messages-inbox').hidden || !currentMemberId) return;
+  setMessageSearchLoading(false);
   if (usernameResult.error || nameResult.error) return;
 
   const list = byId('messages-inbox-list');
@@ -7202,6 +7211,7 @@ async function loadMessagesInbox() {
   byId('message-thread').hidden = true;
   inbox.hidden = false;
   loading.hidden = false;
+  setMessageSearchLoading(false);
   errorState.hidden = true;
   empty.hidden = true;
   list.replaceChildren();
@@ -7437,6 +7447,7 @@ async function loadMessageThread(conversationId, notificationMessageId = '') {
   inbox.hidden = true;
   thread.hidden = false;
   loading.hidden = false;
+  setMessageSearchLoading(false);
   errorState.hidden = true;
   empty.hidden = true;
   feed.replaceChildren();
@@ -7479,9 +7490,8 @@ async function loadMessageThread(conversationId, notificationMessageId = '') {
   ]);
 
   if (requestId !== messagesRequest) return;
-  loading.hidden = true;
-
   if (messageResult.error) {
+    loading.hidden = true;
     errorState.hidden = false;
     activeConversation = null;
     return;
@@ -7506,6 +7516,7 @@ async function loadMessageThread(conversationId, notificationMessageId = '') {
   }
   renderDmTimeline(feed, messages);
   empty.hidden = messages.length > 0;
+  loading.hidden = true;
 
   byId('message-body').disabled = false;
   updateMessageComposerState();

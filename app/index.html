@@ -918,8 +918,14 @@
           </label>
 
           <section class="stream-state" id="messages-loading" role="status" hidden>
-            <span class="loading-mark"></span>
-            <p>Loading messages…</p>
+            <span class="sr-only">Loading messages…</span>
+            <div class="messages-skeleton-list" aria-hidden="true">
+              <div class="messages-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div>
+              <div class="messages-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div>
+              <div class="messages-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div>
+              <div class="messages-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div>
+              <div class="messages-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div>
+            </div>
           </section>
           <section class="stream-state error" id="messages-error" hidden>
             <h2>Messages could not load.</h2>
@@ -929,6 +935,11 @@
 
           <section class="messages-inbox" id="messages-inbox">
             <div class="messages-inbox-list" id="messages-inbox-list" aria-live="polite"></div>
+            <div class="messages-skeleton-list messages-skeleton-search" id="messages-search-loading" role="status" hidden>
+              <span class="sr-only">Searching for people…</span>
+              <div class="messages-skeleton-row" aria-hidden="true"><i></i><span><b></b><b></b></span><em></em></div>
+              <div class="messages-skeleton-row" aria-hidden="true"><i></i><span><b></b><b></b></span><em></em></div>
+            </div>
             <section class="stream-empty messages-empty" id="messages-empty" hidden>
               <span></span><span></span><span></span>
               <h2>No conversations yet.</h2>
@@ -957,8 +968,14 @@
             <p class="message-safety-note" id="message-safety-note">Private messages are not end-to-end encrypted. Do not share passwords or sensitive account credentials.</p>
 
             <section class="stream-state" id="message-thread-loading" role="status" hidden>
-              <span class="loading-mark"></span>
-              <p>Loading conversation…</p>
+              <span class="sr-only">Loading conversation…</span>
+              <div class="messages-skeleton-chat" aria-hidden="true">
+                <div class="messages-skeleton-bubble"><b></b><b></b><i></i></div>
+                <div class="messages-skeleton-bubble own"><b></b><b></b><i></i></div>
+                <div class="messages-skeleton-bubble"><b></b><b></b><i></i></div>
+                <div class="messages-skeleton-bubble own"><b></b><b></b><i></i></div>
+                <div class="messages-skeleton-bubble"><b></b><b></b><i></i></div>
+              </div>
             </section>
             <section class="stream-state error" id="message-thread-error" hidden>
               <h2>Conversation could not load.</h2>
@@ -1498,6 +1515,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="/app/assets/app.js?v=20260930-swala-otp2&amp;signup=20261003-phone2&amp;messages=20261003-search1&amp;thread=20261003-thread1&amp;profile=20261007-video-poster1&amp;menu=20261007-page1&amp;comments=20261009-skeleton1"></script>
+  <script type="module" src="/app/assets/app.js?v=20260930-swala-otp2&amp;signup=20261003-phone2&amp;messages=20261009-skeleton1&amp;thread=20261003-thread1&amp;profile=20261007-video-poster1&amp;menu=20261007-page1&amp;comments=20261009-skeleton1"></script>
 </body>
 </html>

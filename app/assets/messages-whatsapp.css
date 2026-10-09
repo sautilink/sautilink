@@ -249,6 +249,79 @@
   background: var(--wa-panel);
 }
 
+.messages-whatsapp-ui {
+  --wa-skeleton-base: color-mix(in srgb, var(--wa-panel-soft) 84%, var(--wa-muted) 16%);
+  --wa-skeleton-shine: color-mix(in srgb, var(--wa-panel-soft) 55%, var(--wa-text) 45%);
+}
+
+.messages-whatsapp-ui #messages-loading:not([hidden]) {
+  display: block;
+  padding: 0;
+}
+
+.messages-whatsapp-ui .messages-skeleton-list:not([hidden]) {
+  display: block;
+}
+
+.messages-whatsapp-ui .messages-skeleton-row {
+  display: grid;
+  grid-template-columns: 49px minmax(0, 1fr) 32px;
+  min-height: 70px;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--wa-line);
+}
+
+.messages-whatsapp-ui .messages-skeleton-row > i {
+  width: 49px;
+  height: 49px;
+  border-radius: 50%;
+}
+
+.messages-whatsapp-ui .messages-skeleton-row > span {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.messages-whatsapp-ui .messages-skeleton-row b,
+.messages-whatsapp-ui .messages-skeleton-row em,
+.messages-whatsapp-ui .messages-skeleton-row > i,
+.messages-whatsapp-ui .messages-skeleton-bubble b,
+.messages-whatsapp-ui .messages-skeleton-bubble i {
+  display: block;
+  background: linear-gradient(100deg, var(--wa-skeleton-base) 35%, var(--wa-skeleton-shine) 50%, var(--wa-skeleton-base) 65%);
+  background-size: 240% 100%;
+  animation: messages-skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.messages-whatsapp-ui .messages-skeleton-row b {
+  height: 10px;
+  border-radius: 6px;
+}
+
+.messages-whatsapp-ui .messages-skeleton-row b:first-child { width: 56%; }
+.messages-whatsapp-ui .messages-skeleton-row b:nth-child(2) { width: 82%; height: 8px; }
+.messages-whatsapp-ui .messages-skeleton-row:nth-child(2n) b:first-child { width: 72%; }
+.messages-whatsapp-ui .messages-skeleton-row:nth-child(3n) b:nth-child(2) { width: 62%; }
+
+.messages-whatsapp-ui .messages-skeleton-row em {
+  align-self: start;
+  width: 30px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 5px;
+}
+
+.messages-whatsapp-ui .messages-skeleton-search {
+  border-top: 1px solid var(--wa-line);
+}
+
+@keyframes messages-skeleton-shimmer {
+  to { background-position-x: -240%; }
+}
+
 .messages-whatsapp-ui .messages-inbox {
   min-height: 0;
   flex: 1;
@@ -641,6 +714,59 @@
   background: var(--wa-panel-soft);
 }
 
+.messages-whatsapp-ui #message-thread-loading:not([hidden]) {
+  display: block;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden auto;
+  margin: 0;
+  padding: 22px 7%;
+  border-radius: 0;
+  background: var(--wa-chat);
+}
+
+.messages-whatsapp-ui #message-thread-loading:not([hidden]) + #message-thread-error + #message-thread-feed {
+  display: none;
+}
+
+.messages-whatsapp-ui .messages-skeleton-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.messages-whatsapp-ui .messages-skeleton-bubble {
+  display: grid;
+  width: min(62%, 310px);
+  gap: 8px;
+  padding: 13px 12px 11px;
+  border-radius: 8px;
+  background: var(--wa-incoming);
+}
+
+.messages-whatsapp-ui .messages-skeleton-bubble.own {
+  align-self: flex-end;
+  width: min(52%, 260px);
+  background: var(--wa-outgoing);
+}
+
+.messages-whatsapp-ui .messages-skeleton-bubble b,
+.messages-whatsapp-ui .messages-skeleton-bubble i {
+  height: 8px;
+  border-radius: 5px;
+}
+
+.messages-whatsapp-ui .messages-skeleton-bubble b:first-child { width: 92%; }
+.messages-whatsapp-ui .messages-skeleton-bubble b:nth-child(2) { width: 66%; }
+.messages-whatsapp-ui .messages-skeleton-bubble i { width: 28px; height: 6px; justify-self: end; }
+
+.messages-whatsapp-ui .messages-skeleton-bubble:nth-child(3) { width: min(46%, 230px); }
+.messages-whatsapp-ui .messages-skeleton-bubble:nth-child(4) { width: min(66%, 330px); }
+
 .messages-whatsapp-ui .message-thread-feed {
   display: flex;
   min-height: 0;
@@ -815,6 +941,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .messages-whatsapp-ui .messages-skeleton-row b,
+  .messages-whatsapp-ui .messages-skeleton-row em,
+  .messages-whatsapp-ui .messages-skeleton-row > i,
+  .messages-whatsapp-ui .messages-skeleton-bubble b,
+  .messages-whatsapp-ui .messages-skeleton-bubble i {
+    animation: none;
+  }
+
   .messages-whatsapp-ui .message-typing-bubble i {
     animation: none;
     opacity: .75;

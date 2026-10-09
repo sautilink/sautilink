@@ -4,7 +4,7 @@ let messagesReturnView = 'stream';
 
 function ensureMessagesWhatsAppStyles() {
   const styles = [
-    ['data-messages-whatsapp-style', '/app/assets/messages-whatsapp.css?v=20261003-thread1'],
+    ['data-messages-whatsapp-style', '/app/assets/messages-whatsapp.css?v=20261009-skeleton1'],
     ['data-messages-composer-style', '/app/assets/messages-composer.css?v=20260914-messagesui1'],
     ['data-messages-header-polish-style', '/app/assets/messages-header-polish.css?v=20261004-thread-rounded1'],
   ];

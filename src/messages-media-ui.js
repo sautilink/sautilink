@@ -38,7 +38,7 @@ function ensureMessagesMediaStyles() {
   if (document.querySelector('link[data-messages-media-style]')) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = '/app/assets/messages-media.css?v=20260912-media1';
+  link.href = '/app/assets/messages-media.css?v=20261009-skeleton1';
   link.dataset.messagesMediaStyle = 'true';
   document.head.append(link);
 }

@@ -263,6 +263,13 @@
   font-size: 10px;
 }
 
+.messages-whatsapp-ui .dm-media-photo:not([data-loaded="true"]):not(.error) {
+  background: linear-gradient(100deg, var(--wa-skeleton-base) 35%, var(--wa-skeleton-shine) 50%, var(--wa-skeleton-base) 65%);
+  background-size: 240% 100%;
+  animation: messages-skeleton-shimmer 1.5s ease-in-out infinite;
+  font-size: 0;
+}
+
 .messages-whatsapp-ui .dm-message.own .dm-media-photo {
   background: color-mix(in srgb, var(--wa-outgoing) 82%, #000 18%);
 }
@@ -276,6 +283,21 @@
 
 .messages-whatsapp-ui .dm-media-photo.error {
   aspect-ratio: 4 / 3;
+}
+
+.messages-whatsapp-ui .dm-media-voice-load:disabled,
+.messages-whatsapp-ui .dm-media-file[data-loading="true"] {
+  background: linear-gradient(100deg, var(--wa-skeleton-base) 35%, var(--wa-skeleton-shine) 50%, var(--wa-skeleton-base) 65%);
+  background-size: 240% 100%;
+  animation: messages-skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messages-whatsapp-ui .dm-media-photo:not([data-loaded="true"]):not(.error),
+  .messages-whatsapp-ui .dm-media-voice-load:disabled,
+  .messages-whatsapp-ui .dm-media-file[data-loading="true"] {
+    animation: none;
+  }
 }
 
 .messages-whatsapp-ui .dm-media-voice {
