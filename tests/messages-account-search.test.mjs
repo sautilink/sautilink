@@ -5,7 +5,7 @@ import test from 'node:test';
 
 const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
 const searchFunctions = source.slice(
-  source.indexOf('function filterMessageInbox() {'),
+  source.indexOf('function setMessageSearchLoading(loading) {'),
   source.indexOf('function renderMessageInboxItem(row, peer) {'),
 );
 
@@ -24,7 +24,8 @@ function makeSearch({ usernameRows = [], nameRows = [], conversations = [] } = {
   const input = { value: '' };
   const empty = { hidden: true };
   const inbox = { hidden: false };
-  const byId = (id) => ({ 'messages-inbox-list': list, 'messages-search': input, 'messages-empty': empty, 'messages-inbox': inbox })[id];
+  const searchLoading = { hidden: true };
+  const byId = (id) => ({ 'messages-inbox-list': list, 'messages-search': input, 'messages-empty': empty, 'messages-inbox': inbox, 'messages-search-loading': searchLoading })[id];
   const supabase = {
     from(table) {
       assert.equal(table, 'social_profiles');
@@ -49,7 +50,7 @@ function makeSearch({ usernameRows = [], nameRows = [], conversations = [] } = {
     },
   };
   runInNewContext(`${searchFunctions}\nglobalThis.search = { filterMessageInbox, searchMessageAccounts };`, context);
-  return { list, input, empty, inbox, calls, context };
+  return { list, input, empty, inbox, searchLoading, calls, context };
 }
 
 test('search keeps matching chats and adds only new discoverable account results to the same list', async () => {
@@ -59,7 +60,9 @@ test('search keeps matching chats and adds only new discoverable account results
   search.input.value = 'bo';
   search.context.search.filterMessageInbox();
   assert.equal(oldChat.hidden, true);
+  assert.equal(search.searchLoading.hidden, false);
   await search.context.search.searchMessageAccounts('bo', 1, 7);
+  assert.equal(search.searchLoading.hidden, true);
   assert.equal(search.list.items.length, 2);
   assert.equal(search.list.items[1].dataset.messageAccountId, 'bob');
   assert.equal(search.calls.filter(([method, field, value]) => method === 'eq' && field === 'is_discoverable' && value === true).length, 2);
@@ -68,6 +71,7 @@ test('search keeps matching chats and adds only new discoverable account results
   search.input.value = '';
   search.context.search.filterMessageInbox();
   assert.equal(oldChat.hidden, false);
+  assert.equal(search.searchLoading.hidden, true);
   assert.equal(search.list.items.length, 1);
 });
 
@@ -78,9 +82,11 @@ test('late account results cannot reappear after the search changes or the inbox
   search.input.value = 'next';
   search.context.search.filterMessageInbox();
   await search.context.search.searchMessageAccounts('other', 1, 7);
+  assert.equal(search.searchLoading.hidden, false);
   assert.equal(search.list.items.length, 0);
   search.context.messagesRequest += 1;
   await search.context.search.searchMessageAccounts('next', 2, 7);
+  assert.equal(search.searchLoading.hidden, false);
   assert.equal(search.list.items.length, 0);
 });
 
