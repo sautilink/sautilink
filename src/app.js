@@ -2382,6 +2382,8 @@ async function ensureSettingsPreferences() {
 async function loadSettings() {
   if (!currentMemberId) return;
   const requestId = ++settingsRequest;
+  settingsSurface.dataset.loading = 'true';
+  byId('settings-loading').hidden = false;
   settingsMessage('', '');
   byId('settings-username').textContent = `@${currentMember?.username || 'username'}`;
   byId('settings-email').textContent = currentAccountEmail || 'Unavailable';
@@ -2465,6 +2467,11 @@ async function loadSettings() {
     if (requestId !== settingsRequest) return;
     syncVerificationRequestStatus(currentMember);
     settingsMessage(error?.message || 'Settings could not be loaded.', 'error');
+  } finally {
+    if (requestId === settingsRequest) {
+      delete settingsSurface.dataset.loading;
+      byId('settings-loading').hidden = true;
+    }
   }
 }
 

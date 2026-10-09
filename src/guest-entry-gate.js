@@ -1,3 +1,5 @@
+import { createLoadingSkeleton } from './non-home-skeleton.js';
+
 const GUEST_GATE_SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const GUEST_GATE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
 const AUTH_STORAGE_KEY = 'sautilink.auth.session';
@@ -174,8 +176,9 @@ function createGateShell(route) {
   const card = node('section', 'guest-profile-card');
   card.setAttribute('aria-live', 'polite');
 
-  const loading = node('p', 'guest-profile-loading', 'Loading profile…');
+  const loading = node('div', 'guest-profile-loading');
   loading.id = 'guest-profile-loading';
+  loading.append(createLoadingSkeleton({ label: 'Loading profile…', heading: true, rows: 1 }));
   card.append(loading);
 
   gate.append(brand, card);
@@ -317,7 +320,9 @@ function createPostGateShell(route) {
 
   const card = node('article', 'guest-profile-card guest-post-card');
   card.setAttribute('aria-live', 'polite');
-  card.append(node('p', 'guest-profile-loading', 'Loading post…'));
+  const loading = node('div', 'guest-profile-loading');
+  loading.append(createLoadingSkeleton({ label: 'Loading post…', rows: 2 }));
+  card.append(loading);
 
   gate.append(brand, card);
   document.body.append(gate);
