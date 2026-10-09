@@ -1,0 +1,116 @@
+/* Content placeholders are limited to non-Home loading states. */
+.home-boot-loading { display: grid; justify-items: center; }
+.non-home-boot-loading { display: none; }
+:root[data-sauti-boot-loading="content"] #loading-view { display: block; width: 100%; min-height: calc(100vh - 72px); padding: 24px 0; }
+:root[data-sauti-boot-loading="content"] #loading-view .home-boot-loading { display: none; }
+:root[data-sauti-boot-loading="content"] #loading-view .non-home-boot-loading { display: block; }
+
+.sl-skeleton {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--app-panel, #fff);
+}
+.sl-skeleton-boot { max-width: 720px; margin: 0 auto; }
+.sl-skeleton-heading,
+.sl-skeleton-row {
+  display: flex;
+  min-height: 88px;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--app-line, #e5e7eb);
+}
+.sl-skeleton-heading { min-height: 116px; }
+.sl-skeleton-row:last-child { border-bottom: 0; }
+.sl-skeleton-heading > i,
+.sl-skeleton-row > i,
+.sl-skeleton-row > em,
+.sl-skeleton-heading b,
+.sl-skeleton-row b {
+  display: block;
+  flex: 0 0 auto;
+  background: linear-gradient(100deg, var(--app-panel-soft, #e9edf3) 25%, var(--app-elevated, #f4f6f8) 45%, var(--app-panel-soft, #e9edf3) 65%);
+  background-size: 220% 100%;
+  animation: sl-skeleton-shimmer 1.35s ease-in-out infinite;
+}
+.sl-skeleton-heading > i { width: 68px; height: 68px; border-radius: 14px; }
+.sl-skeleton-row > i { width: 48px; height: 48px; border-radius: 50%; }
+.sl-skeleton-heading > span,
+.sl-skeleton-row > span { display: grid; width: min(72%, 440px); min-width: 0; gap: 11px; }
+.sl-skeleton-heading b,
+.sl-skeleton-row b { width: 78%; height: 13px; border-radius: 999px; }
+.sl-skeleton-heading b:first-child { width: 58%; height: 22px; }
+.sl-skeleton-heading b:last-child,
+.sl-skeleton-row b:last-child { width: 52%; height: 10px; }
+.sl-skeleton-row:nth-child(even) b:first-child { width: 63%; }
+.sl-skeleton-row:nth-child(3n) b:last-child { width: 39%; }
+.sl-skeleton-row > em { width: 42px; height: 11px; margin-left: auto; border-radius: 999px; }
+.sl-skeleton-rooms .sl-skeleton-row { min-height: 116px; }
+.sl-skeleton-rooms .sl-skeleton-row > i { width: 70px; height: 70px; border-radius: 13px; }
+
+#discover-loading,
+#saved-loading,
+#appeals-loading,
+#moderation-loading,
+#notifications-loading,
+#circles-loading,
+#circle-stream-loading {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.sl-settings-loading { padding: 16px; }
+.settings-surface[data-loading="true"] .settings-tabs,
+.settings-surface[data-loading="true"] .settings-panel { display: none !important; }
+
+#profile-activity-loading {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.guest-profile-loading { margin: 8px 0; text-align: left; }
+.guest-profile-loading .sl-skeleton { background: transparent; }
+.guest-profile-loading .sl-skeleton-heading,
+.guest-profile-loading .sl-skeleton-row { border-color: var(--guest-gate-border, var(--app-line)); }
+
+.professional-dashboard-surface[data-loading="true"] .professional-dashboard-panel { display: none !important; }
+.professional-dashboard-loading { padding: 20px; }
+
+body #profile-route-state[data-state="loading"],
+body #circle-route-state[data-state="loading"] {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+#profile-route-state[data-state="loading"] > :not(.sl-skeleton),
+#circle-route-state[data-state="loading"] > :not(.sl-skeleton) { display: none !important; }
+.profile-route-state > .sl-skeleton { display: none; }
+#profile-route-state[data-state="loading"] > .sl-skeleton,
+#circle-route-state[data-state="loading"] > .sl-skeleton { display: block; }
+
+@keyframes sl-skeleton-shimmer { to { background-position-x: -220%; } }
+@media (max-width: 680px) {
+  .sl-skeleton-heading,
+  .sl-skeleton-row { gap: 12px; padding: 14px 16px; }
+  .sl-skeleton-row > i { width: 44px; height: 44px; }
+  .sl-skeleton-row > em { width: 30px; }
+  .sl-skeleton-rooms .sl-skeleton-row > i { width: 60px; height: 60px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-skeleton-heading > i,
+  .sl-skeleton-row > i,
+  .sl-skeleton-row > em,
+  .sl-skeleton-heading b,
+  .sl-skeleton-row b { animation: none; }
+}

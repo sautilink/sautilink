@@ -1,3 +1,5 @@
+import { createLoadingSkeleton } from './non-home-skeleton.js';
+
 const ANALYTICS_TABLE = 'social_creator_daily_metrics';
 const DASHBOARD_ID = 'professional-dashboard-surface';
 const OWNER_ACTIONS_ID = 'profile-owner-dashboard-actions';
@@ -383,7 +385,11 @@ function createDashboardSurface() {
     });
   }
 
-  surface.append(header, tabs, insights, monetisation);
+  const loading = document.createElement('section');
+  loading.className = 'professional-dashboard-loading';
+  loading.hidden = true;
+  loading.append(createLoadingSkeleton({ label: 'Loading dashboard…', heading: true, rows: 2 }));
+  surface.append(header, tabs, loading, insights, monetisation);
   profileSurface.parentNode.insertBefore(surface, profileSurface.nextSibling);
   return surface;
 }
@@ -608,9 +614,17 @@ async function loadTopPosts(userId) {
 
 async function refreshDashboard() {
   if (!dashboardOpen || !analyticsClient) return;
+  const surface = byId(DASHBOARD_ID);
+  const loading = surface?.querySelector('.professional-dashboard-loading');
+  const firstLoad = lastSeries.length === 0;
+  if (firstLoad && surface && loading) {
+    surface.dataset.loading = 'true';
+    loading.hidden = false;
+  }
   const userId = String(getCurrentMemberId() || '').trim();
   if (!userId) {
     setStatus('Your session could not be verified. Sign in again to view analytics.', true);
+    if (surface && loading) { delete surface.dataset.loading; loading.hidden = true; }
     return;
   }
   setStatus('');
@@ -625,6 +639,7 @@ async function refreshDashboard() {
 
   if (error) {
     setStatus('Analytics could not be loaded right now. Your statistics have not been replaced with estimates.', true);
+    if (surface && loading) { delete surface.dataset.loading; loading.hidden = true; }
     return;
   }
 
@@ -634,6 +649,7 @@ async function refreshDashboard() {
   renderTopPosts(await loadTopPosts(userId));
   const updated = byId('professional-dashboard-updated');
   if (updated) updated.textContent = `Live · updated ${new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date())}`;
+  if (surface && loading) { delete surface.dataset.loading; loading.hidden = true; }
   subscribeRealtime(userId);
 }
 

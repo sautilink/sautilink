@@ -58,7 +58,7 @@ function syncRoomRouteFeedback() {
 
   const routeActive = !routeState.hidden;
   const state = routeActive ? String(routeState.dataset.state || '') : '';
-  const loadingCopy = loading.querySelector('p');
+  const loadingCopy = loading.querySelector('.sr-only');
   if (loadingCopy) loadingCopy.textContent = routeActive ? 'Loading Room…' : 'Loading Rooms…';
 
   const errorTitle = error.querySelector('h2');

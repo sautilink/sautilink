@@ -1417,8 +1417,9 @@ body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .room-detai
 body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] .room-detail-loading-feed span {
   display: block;
   border-radius: 10px;
-  background: var(--room-fb-card-soft);
-  animation: room-detail-pulse 1.5s ease-in-out infinite alternate;
+  background: linear-gradient(100deg, var(--room-fb-card-soft) 25%, var(--room-fb-card) 45%, var(--room-fb-card-soft) 65%);
+  background-size: 220% 100%;
+  animation: sl-skeleton-shimmer 1.35s ease-in-out infinite;
 }
 
 body.rooms-facebook-view .room-detail-loading-title { width: min(300px, 70%); height: 30px; }
@@ -1450,10 +1451,6 @@ body.rooms-facebook-view .circle-detail.room-fb-detail[data-loading] > .room-det
 body.rooms-facebook-view .room-detail-loading-feed span:first-child { width: 150px; height: 23px; }
 body.rooms-facebook-view .room-detail-loading-feed span:nth-child(2) { width: 100%; height: 48px; }
 body.rooms-facebook-view .room-detail-loading-feed span:last-child { width: 72%; height: 16px; }
-
-@keyframes room-detail-pulse {
-  to { opacity: .5; }
-}
 
 @media (max-width: 680px) {
   body.rooms-facebook-view #circles-surface.room-fb-detail-open .circle-detail.room-fb-detail[data-loading] > .circle-detail-card {

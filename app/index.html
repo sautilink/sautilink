@@ -14,6 +14,7 @@
   <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512">
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <script src="/app/assets/theme-init.js?v=20260904-account2"></script>
+  <script src="/app/assets/non-home-loading-init.js?v=20261009-skeleton1"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
   <link rel="stylesheet" href="/app/assets/app.css?v=20260927-page-headers1&amp;menu=20261007-page1">
   <!-- First-paint UI: keep the final Auth and Home presentation render-blocking so refresh never shows the legacy shell. -->
@@ -27,6 +28,7 @@
   <link id="sautilink-video-player-style" rel="stylesheet" href="/app/assets/sautilink-video-player.css">
   <link id="sautilink-profile-x-ui" rel="stylesheet" href="/app/assets/profile-x-ui.css?v=20260918-profile2">
   <link rel="stylesheet" href="/app/assets/profile-settings-ui.css?v=20260927-page-headers1">
+  <link rel="stylesheet" href="/app/assets/non-home-loading.css?v=20261009-skeleton1">
   <script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>
 </head>
 <body>
@@ -181,8 +183,16 @@
       </section>
 
       <section class="loading-view" id="loading-view" aria-live="polite">
-        <span class="loading-mark"></span>
-        <p>Opening SautiLink…</p>
+        <div class="home-boot-loading"><span class="loading-mark"></span><p>Opening SautiLink…</p></div>
+        <div class="non-home-boot-loading" role="status">
+          <span class="sr-only">Opening SautiLink…</span>
+          <div class="sl-skeleton sl-skeleton-boot" aria-hidden="true">
+            <div class="sl-skeleton-heading"><i></i><span><b></b><b></b></span></div>
+            <div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div>
+            <div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div>
+            <div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div>
+          </div>
+        </div>
       </section>
 
       <section class="auth-view" id="auth-view" hidden>
@@ -546,8 +556,8 @@
           </form>
 
           <section class="stream-state" id="discover-loading" role="status" hidden>
-            <span class="loading-mark"></span>
-            <p>Searching SautiLink…</p>
+            <span class="sr-only">Searching SautiLink…</span>
+            <div class="sl-skeleton" aria-hidden="true"><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div></div>
           </section>
           <section class="stream-state error" id="discover-error" hidden>
             <h2>Discover could not load.</h2>
@@ -579,8 +589,8 @@
             <p class="surface-intro-copy">Keep useful posts here and return to them later. Other members cannot see what you save.</p>
           </header>
           <section class="stream-state" id="saved-loading" role="status" hidden>
-            <span class="loading-mark"></span>
-            <p>Loading saved posts…</p>
+            <span class="sr-only">Loading saved posts…</span>
+            <div class="sl-skeleton" aria-hidden="true"><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div></div>
           </section>
           <section class="stream-state error" id="saved-error" hidden>
             <h2>Saved Posts could not load.</h2>
@@ -600,8 +610,8 @@
             <p class="surface-intro-copy">See moderation decisions that affect your posts or comments and request another review when an action is appealable.</p>
           </header>
           <section class="stream-state" id="appeals-loading" role="status" hidden>
-            <span class="loading-mark"></span>
-            <p>Loading moderation decisions…</p>
+            <span class="sr-only">Loading moderation decisions…</span>
+            <div class="sl-skeleton" aria-hidden="true"><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div></div>
           </section>
           <section class="stream-state error" id="appeals-error" hidden>
             <h2>Appeals could not load.</h2>
@@ -623,8 +633,8 @@
           </header>
 
           <section class="stream-state" id="moderation-loading" role="status" hidden>
-            <span class="loading-mark"></span>
-            <p>Loading moderation workspace…</p>
+            <span class="sr-only">Loading moderation workspace…</span>
+            <div class="sl-skeleton" aria-hidden="true"><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div></div>
           </section>
           <section class="stream-state error" id="moderation-error" hidden>
             <h2>Moderation workspace unavailable.</h2>
@@ -713,8 +723,8 @@
 
         <section class="notifications-surface" id="notifications-surface" aria-label="Notifications" hidden>
           <section class="stream-state" id="notifications-loading" role="status" hidden>
-            <span class="loading-mark"></span>
-            <p>Loading notifications…</p>
+            <span class="sr-only">Loading notifications…</span>
+            <div class="sl-skeleton" aria-hidden="true"><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div></div>
           </section>
           <section class="stream-state error" id="notifications-error" hidden>
             <h2>Notifications could not load.</h2>
@@ -767,8 +777,8 @@
           </section>
 
           <section class="stream-state" id="circles-loading" role="status" hidden>
-            <span class="loading-mark"></span>
-            <p>Loading Rooms…</p>
+            <span class="sr-only">Loading Rooms…</span>
+            <div class="sl-skeleton sl-skeleton-rooms" aria-hidden="true"><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div></div>
           </section>
           <section class="stream-state error" id="circles-error" hidden>
             <h2>Rooms could not load.</h2>
@@ -844,8 +854,8 @@
               </form>
 
               <section class="stream-state circle-stream-state" id="circle-stream-loading" role="status" aria-live="polite" hidden>
-                <span class="loading-mark"></span>
-                <p>Loading Room posts…</p>
+                <span class="sr-only">Loading Room posts…</span>
+                <div class="sl-skeleton" aria-hidden="true"><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div></div>
               </section>
               <section class="stream-state error circle-stream-state" id="circle-stream-error" role="alert" hidden>
                 <h2>Room posts could not load</h2>
@@ -890,6 +900,7 @@
             <h2 id="circle-route-title">Opening Room…</h2>
             <p id="circle-route-message">Looking up this SautiLink Room.</p>
             <button class="secondary-action" id="circle-route-home" type="button">Back to Rooms</button>
+            <div class="sl-skeleton sl-skeleton-rooms" aria-hidden="true"><div class="sl-skeleton-heading"><i></i><span><b></b><b></b></span></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div></div>
           </section>
         </section>
 
@@ -1009,6 +1020,10 @@
           <header class="settings-toolbar">
             <p>Privacy-first controls for your SautiLink account.</p>
           </header>
+          <section class="sl-settings-loading" id="settings-loading" role="status" hidden>
+            <span class="sr-only">Loading settings…</span>
+            <div class="sl-skeleton" aria-hidden="true"><div class="sl-skeleton-heading"><i></i><span><b></b><b></b></span></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div></div>
+          </section>
           <nav class="settings-tabs" aria-label="Settings sections">
             <button type="button" data-settings-section="account" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21c.7-4.2 3.2-6.5 7.5-6.5s6.8 2.3 7.5 6.5"></path></svg><span>Account</span><i aria-hidden="true">›</i></button>
             <button type="button" data-settings-section="privacy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg><span>Privacy</span><i aria-hidden="true">›</i></button>
@@ -1184,6 +1199,7 @@
             <h2 id="profile-route-title">Opening profile…</h2>
             <p id="profile-route-message">Looking up this SautiLink profile.</p>
             <a class="secondary-action profile-route-home" href="/home">Back to SautiLink</a>
+            <div class="sl-skeleton" aria-hidden="true"><div class="sl-skeleton-heading"><i></i><span><b></b><b></b></span></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div></div>
           </section>
 
           <section class="profile-editor" id="profile-editor" role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" hidden>
@@ -1515,6 +1531,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="/app/assets/app.js?v=20260930-swala-otp2&amp;signup=20261003-phone2&amp;messages=20261009-appearance1&amp;thread=20261003-thread1&amp;profile=20261007-video-poster1&amp;menu=20261007-page1&amp;comments=20261009-skeleton1&amp;video=20261009-playback1"></script>
+  <script type="module" src="/app/assets/app.js?v=20260930-swala-otp2&amp;signup=20261003-phone2&amp;messages=20261009-appearance1&amp;thread=20261003-thread1&amp;profile=20261007-video-poster1&amp;menu=20261007-page1&amp;comments=20261009-skeleton1&amp;video=20261009-playback1&amp;other=20261009-skeleton1"></script>
 </body>
 </html>

@@ -161,8 +161,8 @@ function ensureProfileActivityShell() {
       <div class="profile-activity-pinned-list" id="profile-activity-pinned-list"></div>
     </section>
     <section class="profile-activity-loading" id="profile-activity-loading" role="status" aria-live="polite" hidden>
-      <span class="loading-mark"></span>
-      <p>Loading profile activity…</p>
+      <span class="sr-only">Loading profile activity…</span>
+      <div class="sl-skeleton" aria-hidden="true"><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div><div class="sl-skeleton-row"><i></i><span><b></b><b></b></span><em></em></div></div>
     </section>
     <section class="profile-activity-error" id="profile-activity-error" role="alert" hidden>
       <h3>Profile activity could not load</h3>
