@@ -1,5 +1,10 @@
 /* Content placeholders are limited to non-Home loading states. */
-.home-boot-loading { display: grid; justify-items: center; }
+:root[data-sauti-boot-loading="home"] body:has(#loading-view:not([hidden])) { padding-bottom: 0; }
+:root[data-sauti-boot-loading="home"] body:has(#loading-view:not([hidden])) :is(.mobile-header, .primary-rail, .context-rail, .stream-header, .mobile-nav) { display: none; }
+.home-boot-loading { display: grid; place-items: center; }
+.home-boot-logo { display: block; width: clamp(118px, 22vw, 160px); height: auto; animation: home-boot-logo-fade 2.2s ease-in-out infinite; }
+@keyframes home-boot-logo-fade { 0%, 100% { opacity: .42; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .home-boot-logo { animation: none; opacity: 1; } }
 .non-home-boot-loading { display: none; }
 :root[data-sauti-boot-loading="content"] #loading-view { display: block; width: 100%; min-height: calc(100vh - 72px); padding: 24px 0; }
 :root[data-sauti-boot-loading="content"] #loading-view .home-boot-loading { display: none; }
