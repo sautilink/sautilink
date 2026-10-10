@@ -3575,6 +3575,9 @@ function openSautiComposer({ focus = true } = {}) {
   const composer = byId('sauti-composer');
   if (!dialog || !composer || !currentMember) return;
 
+  const authorName = currentMember.display_name || currentMember.full_name || currentMember.username || 'SautiLink member';
+  const authorLabel = byId('composer-author-name');
+  if (authorLabel) authorLabel.textContent = authorName;
   composer.hidden = false;
   if (!dialog.open) {
     composerRestoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;

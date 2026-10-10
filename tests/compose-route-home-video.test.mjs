@@ -113,6 +113,7 @@ test('composer URL follows open, close, direct loading and browser Back', () => 
   const nodes = {
     'sauti-composer-dialog': dialog,
     'sauti-composer': { hidden: true },
+    'composer-author-name': { textContent: 'SautiLink member' },
     'composer-drafts': { hidden: false },
     'sauti-drafts-toggle': { setAttribute() {} },
   };
@@ -124,7 +125,7 @@ test('composer URL follows open, close, direct loading and browser Back', () => 
     } } },
     HTMLElement: class {},
     byId: (id) => nodes[id],
-    currentMember: { id: 'member-id' },
+    currentMember: { id: 'member-id', display_name: 'SautiLink Corporation' },
     composerRestoreFocus: null,
     pauseHomeFeedVideos: () => calls.push(['pause']),
     syncHomeFeedVideoPlayback: () => calls.push(['sync']),
@@ -132,6 +133,7 @@ test('composer URL follows open, close, direct loading and browser Back', () => 
   runInNewContext(`${code}\nthis.composer = { openSautiComposer, closeSautiComposer };`, context);
 
   context.composer.openSautiComposer({ focus: false });
+  assert.equal(nodes['composer-author-name'].textContent, 'SautiLink Corporation');
   assert.equal(location.pathname, '/compose');
   assert.equal(dialog.open, true);
   assert.equal(bodyClasses.has('composer-open'), true);
