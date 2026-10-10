@@ -223,7 +223,7 @@ body.composer-open {
   gap: 2px;
 }
 
-.composer-dialog .composer-tool.active {
+.composer-dialog .composer-actions .composer-tool.active {
   display: none;
 }
 
