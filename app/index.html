@@ -13,6 +13,7 @@
   <meta name="sautilink-release-generation" content="36">
   <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512">
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/brand/logo-compact.webp" as="image">
   <script src="/app/assets/theme-init.js?v=20260904-account2"></script>
   <script src="/app/assets/non-home-loading-init.js?v=20261009-skeleton1"></script>
   <link rel="stylesheet" href="/assets/brand/system.css">
@@ -28,7 +29,7 @@
   <link id="sautilink-video-player-style" rel="stylesheet" href="/app/assets/sautilink-video-player.css">
   <link id="sautilink-profile-x-ui" rel="stylesheet" href="/app/assets/profile-x-ui.css?v=20260918-profile2">
   <link rel="stylesheet" href="/app/assets/profile-settings-ui.css?v=20260927-page-headers1">
-  <link rel="stylesheet" href="/app/assets/non-home-loading.css?v=20261009-skeleton1">
+  <link rel="stylesheet" href="/app/assets/non-home-loading.css?v=20261010-home-logo1">
   <script src="/assets/lottie-loader.js?v=20260917-lottie1" defer></script>
 </head>
 <body>
@@ -183,7 +184,9 @@
       </section>
 
       <section class="loading-view" id="loading-view" aria-live="polite">
-        <div class="home-boot-loading"><span class="loading-mark"></span><p>Opening SautiLink…</p></div>
+        <div class="home-boot-loading" role="status" aria-label="Loading SautiLink">
+          <img class="home-boot-logo" src="/assets/brand/logo-compact.webp" alt="" width="160" height="78">
+        </div>
         <div class="non-home-boot-loading" role="status">
           <span class="sr-only">Opening SautiLink…</span>
           <div class="sl-skeleton sl-skeleton-boot" aria-hidden="true">

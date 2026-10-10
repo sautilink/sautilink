@@ -23,7 +23,7 @@ test('app shell is self-hosted and carries a restrictive CSP', async () => {
   assert.match(headers, /Strict-Transport-Security: max-age=31536000; includeSubDomains/);
   assert.match(headers, /X-Frame-Options: DENY/);
   assert.match(headers, /Cache-Control: no-store/);
-  assert.equal((html.match(/\/assets\/brand\/logo-compact\.webp/g) || []).length, 2);
+  assert.equal((html.match(/\/assets\/brand\/logo-compact\.webp/g) || []).length, 4);
 });
 
 test('authentication surface includes all required account flows', async () => {
