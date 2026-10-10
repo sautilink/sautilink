@@ -1,4 +1,5 @@
 import { sautiMediaObjectKeys } from './sauti-media-api.js';
+import { POST_BODY_LIMIT } from './post-text-formatting.js';
 
 const SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
@@ -103,7 +104,7 @@ async function createSauti(request, env) {
   if (!body && !requestedQuote && !requestedMedia.length) {
     return apiError(400, 'BODY_REQUIRED', 'Write something or add media before sharing.');
   }
-  if (body.length > 500) return apiError(400, 'BODY_TOO_LONG', 'Post text must be 500 characters or fewer.');
+  if (body.length > POST_BODY_LIMIT) return apiError(400, 'BODY_TOO_LONG', `Post text must be ${POST_BODY_LIMIT} characters or fewer.`);
   if (requestedReplyAccess === 'mentioned' && !hasMentionToken(body)) {
     return apiError(400, 'MENTION_REQUIRED', 'Mention at least one SautiLink username or change who can comment.');
   }
@@ -240,7 +241,7 @@ async function editSauti(request, postId) {
   if (!session) return apiError(401, 'AUTH_REQUIRED', 'Sign in before editing a post.');
 
   const contentLength = Number(request.headers.get('Content-Length') || '0');
-  if (contentLength > 4096) return apiError(413, 'BODY_TOO_LARGE', 'This edit request is too large.');
+  if (contentLength > 16384) return apiError(413, 'BODY_TOO_LARGE', 'This edit request is too large.');
 
   const payload = await request.json().catch(() => null);
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
@@ -252,7 +253,7 @@ async function editSauti(request, postId) {
   }
 
   const body = normalizeBody(payload.body);
-  if (body.length > 500) return apiError(400, 'BODY_TOO_LONG', 'Post text must be 500 characters or fewer.');
+  if (body.length > POST_BODY_LIMIT) return apiError(400, 'BODY_TOO_LONG', `Post text must be ${POST_BODY_LIMIT} characters or fewer.`);
 
   const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/edit_social_post_once`, {
     method: 'POST',
@@ -273,7 +274,7 @@ async function editSauti(request, postId) {
       return apiError(409, 'POST_EDIT_CAPTION_REQUIRED', 'This post has no caption to edit.');
     }
     if (detail.includes('POST_EDIT_BODY_TOO_LONG')) {
-      return apiError(400, 'BODY_TOO_LONG', 'Post text must be 500 characters or fewer.');
+      return apiError(400, 'BODY_TOO_LONG', `Post text must be ${POST_BODY_LIMIT} characters or fewer.`);
     }
     if (detail.includes('POST_EDIT_BODY_REQUIRED')) {
       return apiError(400, 'BODY_REQUIRED', 'This post needs text because it has no attached media or quoted post.');

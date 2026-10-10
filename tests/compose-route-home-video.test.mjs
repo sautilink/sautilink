@@ -44,6 +44,7 @@ function playbackHarness() {
     HOME_VIDEO_VISIBILITY_THRESHOLD: 0.58,
     HOME_VIDEO_PAUSE_THRESHOLD: 0.2,
     getVideoAutoplayPreference: () => autoplayEnabled,
+    applyHomeVideoAudio: (target) => { target.muted ??= true; },
   };
   runInNewContext(`${source}\nthis.playback = { canPlayHomeFeedVideos, syncHomeFeedVideoPlayback, playHomeFeedVideo };`, context);
   return { ...context.playback, video, location, streamSurface, memberView,

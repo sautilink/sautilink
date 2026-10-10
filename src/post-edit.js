@@ -1,8 +1,10 @@
+import { POST_BODY_LIMIT, hasPostFormatting } from './post-text-formatting.js';
+
 const POST_EDIT_SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const POST_EDIT_SUPABASE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
 const POST_EDIT_AUTH_KEY = 'sautilink.auth.session';
 const POST_EDIT_STYLESHEET = '/app/assets/post-edit.css?v=20261003-caption1';
-const POST_EDIT_LIMIT = 500;
+const POST_EDIT_LIMIT = POST_BODY_LIMIT;
 
 let postEditUserPromise = null;
 let postEditUserToken = '';
@@ -183,7 +185,8 @@ function updatePostEditCaption(card, body) {
     return;
   }
 
-  const preview = postEditPreview(body);
+  const formatted = hasPostFormatting(body);
+  const preview = formatted ? { text: body, truncated: body.length > 180 } : postEditPreview(body);
   if (!caption) {
     caption = document.createElement('p');
     caption.className = 'sauti-caption';
@@ -204,6 +207,8 @@ function updatePostEditCaption(card, body) {
 
   const text = caption.querySelector('.sauti-caption-text');
   if (!text) return;
+  caption.classList.toggle('has-post-formatting', formatted);
+  caption.classList.remove('expanded');
   text.dataset.fullCaption = body;
   text.dataset.previewCaption = preview.text;
   text.textContent = preview.text;

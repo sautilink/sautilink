@@ -129,6 +129,149 @@
   font-weight: 750;
 }
 
+/* Post composer: clear writing flow, accessible formatting and media affordances. */
+.composer-dialog .composer-author {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 10px;
+}
+.composer-dialog .composer-author strong { color: var(--app-text); font-size: 15px; line-height: 1.25; }
+.composer-dialog .composer-author span { color: var(--app-muted); font-size: 11px; }
+.composer-dialog .composer-body #sauti-body {
+  min-height: 150px;
+  max-height: 400px;
+  flex: 0 0 auto;
+  padding: 10px 2px;
+  overflow-y: hidden;
+  font-size: clamp(19px, 2.3vw, 23px);
+  line-height: 1.45;
+  transition: height 170ms ease;
+}
+.composer-dialog .composer-format-bar {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 5px;
+  margin: 4px 0 12px;
+  padding: 5px;
+  border: 1px solid var(--app-line);
+  border-radius: 12px;
+  background: var(--app-panel-soft);
+}
+.composer-format-bar > span {
+  margin: 0 auto 0 7px;
+  color: var(--app-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.composer-format-bar button {
+  display: grid;
+  min-width: 34px;
+  min-height: 34px;
+  place-items: center;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--app-text);
+  font-size: 15px;
+  cursor: pointer;
+}
+.composer-format-bar button:hover,
+.composer-format-bar button:focus-visible { background: color-mix(in srgb, var(--app-accent) 15%, transparent); outline: none; }
+.composer-format-bar #composer-preview-toggle { min-width: 65px; font-size: 11px; font-weight: 750; }
+.composer-format-bar #composer-preview-toggle[aria-expanded="true"] { color: var(--app-accent); }
+.composer-format-preview {
+  margin: 0 0 13px;
+  padding: 11px 13px;
+  border: 1px solid var(--app-line);
+  border-radius: 12px;
+  background: var(--app-panel-soft);
+}
+.composer-format-preview > span { color: var(--app-muted); font-size: 10px; font-weight: 750; text-transform: uppercase; letter-spacing: .05em; }
+.composer-format-preview p { margin: 7px 0 0; color: var(--app-text); font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.composer-format-preview a { color: var(--app-accent); }
+.composer-upload-zone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 90px;
+  margin: 0 0 12px;
+  padding: 14px;
+  border: 1.5px dashed color-mix(in srgb, var(--app-accent) 42%, var(--app-line));
+  border-radius: 15px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--app-accent) 8%, var(--app-panel)), var(--app-panel-soft));
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+.composer-upload-zone.drag-over { border-color: var(--app-accent); transform: scale(1.01); }
+.composer-upload-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-accent) 16%, var(--app-panel));
+  color: var(--app-accent);
+}
+.composer-upload-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.composer-upload-copy { display: grid; min-width: 0; gap: 4px; }
+.composer-upload-copy strong { color: var(--app-text); font-size: 13px; }
+.composer-upload-copy span { color: var(--app-muted); font-size: 11px; line-height: 1.35; }
+.composer-upload-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.composer-upload-buttons button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--app-line);
+  border-radius: 9px;
+  background: var(--app-panel);
+  color: var(--app-text);
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.composer-upload-buttons button:hover:not(:disabled) { border-color: var(--app-accent); }
+.composer-upload-buttons button:disabled { opacity: .45; cursor: not-allowed; }
+.composer-upload-buttons #composer-upload-photo { color: #25a962; }
+.composer-upload-buttons #composer-upload-video { color: #7665e9; }
+.composer-dialog .composer-actions .media-tool { color: #25a962; }
+.composer-dialog .composer-actions .video-tool { color: #7665e9; }
+.composer-dialog .composer-actions #sauti-camera-add { color: #ee8a38; }
+.composer-dialog .composer-actions .poll-tool { color: #e9b83b; }
+.composer-dialog .composer-media-queue { padding: 14px; border-radius: 15px; }
+.composer-dialog .composer-media-heading strong { color: var(--app-text); font-size: 13px; }
+.composer-dialog .composer-media-item { border-color: var(--app-line); background: var(--app-panel); }
+.composer-dialog .composer-media-preview { width: 76px; height: 66px; border-radius: 10px; }
+.composer-dialog .composer-media-copy strong { color: var(--app-text); font-size: 11px; }
+.composer-dialog .composer-media-copy span { font-size: 10px; }
+.composer-dialog .composer-media-note { color: var(--app-muted); font-size: 10px; }
+.sauti-caption.has-post-formatting .sauti-caption-text { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sauti-caption.has-post-formatting:not(.expanded) .sauti-caption-text { max-height: 7.4em; overflow: hidden; }
+.sauti-caption.has-post-formatting .sauti-caption-toggle { margin-top: 5px; }
+.sauti-card-body strong, .sauti-caption-text strong, .profile-activity-body strong { font-weight: 800; }
+.sauti-card-body u, .sauti-caption-text u, .profile-activity-body u { text-underline-offset: 3px; }
+
+.composer-trim-card { gap: 15px; padding: 20px; }
+.composer-trim-card video { max-height: 340px; border: 1px solid var(--app-line); border-radius: 14px; }
+.composer-trim-range { padding: 14px; border: 1px solid var(--app-line); border-radius: 12px; background: var(--app-panel-soft); }
+.composer-trim-range input { height: 22px; cursor: pointer; }
+.composer-trim-summary { padding: 0 2px; color: var(--app-text); font-weight: 700; }
+.composer-trim-card footer button[data-trim-use] { border: 0; background: var(--app-accent-strong); color: white; }
+.composer-trim-card footer button[data-trim-use]:disabled { opacity: .55; }
+
+@media (max-width: 680px) {
+  .composer-dialog .composer-body #sauti-body { min-height: 150px; font-size: 20px; }
+  .composer-upload-zone { align-items: flex-start; flex-wrap: wrap; }
+  .composer-upload-buttons { width: 100%; margin-left: 0; padding-left: 54px; }
+  .composer-format-bar > span { font-size: 10px; }
+  .composer-format-bar button { min-width: 31px; }
+  .composer-dialog .composer-media-preview { width: 62px; height: 62px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-dialog .composer-body #sauti-body, .composer-upload-zone { transition: none; }
+}
+
 .composer-poll-editor {
   display: grid;
   gap: 10px;

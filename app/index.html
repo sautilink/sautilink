@@ -369,6 +369,7 @@
             <div class="composer-content">
               <span class="avatar large" id="member-avatar" aria-hidden="true">S</span>
               <div class="composer-body">
+              <div class="composer-author"><strong id="composer-author-name">SautiLink member</strong><span>Create a post</span></div>
               <div class="composer-settings" aria-label="Post audience and comment controls">
                 <label class="composer-select">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"></path></svg>
@@ -390,7 +391,22 @@
               </div>
 
               <label class="sr-only" for="sauti-body">Post text</label>
-              <textarea id="sauti-body" name="body" rows="4" maxlength="500" placeholder="What deserves to be heard?" disabled></textarea>
+              <textarea id="sauti-body" name="body" rows="3" maxlength="2000" placeholder="What’s on your mind?" disabled></textarea>
+              <div class="composer-format-bar" role="toolbar" aria-label="Format post text">
+                <span>Text style</span>
+                <button type="button" data-post-format="bold" title="Bold" aria-label="Bold selected text"><strong>B</strong></button>
+                <button type="button" data-post-format="italic" title="Italic" aria-label="Italic selected text"><em>I</em></button>
+                <button type="button" data-post-format="underline" title="Underline" aria-label="Underline selected text"><u>U</u></button>
+                <button type="button" data-post-format="strikethrough" title="Strikethrough" aria-label="Strikethrough selected text"><s>S</s></button>
+                <button type="button" id="composer-preview-toggle" aria-expanded="false" aria-controls="composer-format-preview">Preview</button>
+              </div>
+              <div class="composer-format-preview" id="composer-format-preview" hidden><span>Post preview</span><p id="composer-preview-text"></p></div>
+
+              <div class="composer-upload-zone" id="composer-upload-zone" aria-label="Add photos or video">
+                <div class="composer-upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path></svg></div>
+                <div class="composer-upload-copy"><strong>Add photos or video</strong><span>Choose files or drag them here · Up to 4 items</span></div>
+                <div class="composer-upload-buttons"><button id="composer-upload-photo" type="button">Photo</button><button id="composer-upload-video" type="button">Video</button></div>
+              </div>
 
               <section class="composer-media-queue" id="sauti-media-queue" aria-label="Post media attachments" hidden>
                 <div class="composer-media-heading">
@@ -416,7 +432,7 @@
 
               <div class="composer-meta">
                 <span class="composer-audience" id="composer-audience-note">Public post · Everyone can comment</span>
-                <span id="sauti-count" aria-live="polite">0 / 500</span>
+                <span id="sauti-count" aria-live="polite">0 / 2000</span>
               </div>
 
               <div class="composer-offline" id="composer-offline" role="status" hidden>

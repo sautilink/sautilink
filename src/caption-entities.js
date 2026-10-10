@@ -1,4 +1,6 @@
-const CAPTION_SELECTOR = '.sauti-card-body, .sauti-caption-text';
+import { parsePostFormatting } from './post-text-formatting.js';
+
+const CAPTION_SELECTOR = '.sauti-card-body, .sauti-caption-text, .profile-activity-body';
 const PROFILE_BIO_SELECTOR = '#profile-bio';
 const ENTITY_SELECTOR = `${CAPTION_SELECTOR}, ${PROFILE_BIO_SELECTOR}`;
 const ENTITY_STYLESHEET_ID = 'sautilink-caption-entities-style';
@@ -162,43 +164,55 @@ function createEntityAnchor(entity) {
   return anchor;
 }
 
+function appendEntities(fragment, source, host) {
+  const candidates = host.matches(PROFILE_BIO_SELECTOR)
+    ? findProfileBioEntities(source)
+    : findCaptionEntities(source);
+  const entities = candidates.filter((entity) => !previewCutsEntity(host, entity, source));
+  let cursor = 0;
+  for (const entity of entities) {
+    if (entity.start < cursor) continue;
+    if (entity.start > cursor) fragment.append(document.createTextNode(source.slice(cursor, entity.start)));
+    fragment.append(createEntityAnchor(entity));
+    cursor = entity.end;
+  }
+  if (cursor < source.length) fragment.append(document.createTextNode(source.slice(cursor)));
+  return entities.length > 0;
+}
+
+export function appendFormattedPostText(parent, value, host = parent) {
+  let changed = false;
+  const appendNodes = (target, nodes) => {
+    for (const node of nodes) {
+      if (node.tag) {
+        const element = document.createElement(node.tag);
+        appendNodes(element, node.children);
+        target.append(element);
+        changed = true;
+      } else if (node.text) {
+        changed = appendEntities(target, node.text, host) || changed;
+      }
+    }
+  };
+  appendNodes(parent, parsePostFormatting(value));
+  return changed;
+}
+
 export function renderCaptionEntities(element) {
   if (typeof Element === 'undefined' || !(element instanceof Element)) return false;
   if (!element.matches(ENTITY_SELECTOR)) return false;
 
   const source = element.textContent || '';
-  const previousSource = element.dataset.captionEntitiesText || '';
-  if (
-    previousSource === source &&
-    element.querySelector(`[${ENTITY_ATTR}]`)
-  ) {
-    return false;
-  }
-
-  const candidates = element.matches(PROFILE_BIO_SELECTOR)
-    ? findProfileBioEntities(source)
-    : findCaptionEntities(source);
-  const entities = candidates.filter(
-    (entity) => !previewCutsEntity(element, entity, source),
-  );
-  element.dataset.captionEntitiesText = source;
-  if (!entities.length) return false;
-
+  if (element.dataset.captionEntitiesRenderedText === source) return false;
   const fragment = document.createDocumentFragment();
-  let cursor = 0;
-  for (const entity of entities) {
-    if (entity.start < cursor) continue;
-    if (entity.start > cursor) {
-      fragment.append(document.createTextNode(source.slice(cursor, entity.start)));
-    }
-    fragment.append(createEntityAnchor(entity));
-    cursor = entity.end;
-  }
-  if (cursor < source.length) {
-    fragment.append(document.createTextNode(source.slice(cursor)));
-  }
-
+  const changed = element.matches(PROFILE_BIO_SELECTOR)
+    ? appendEntities(fragment, source, element)
+    : appendFormattedPostText(fragment, source, element);
+  element.dataset.captionEntitiesText = source;
+  element.dataset.captionEntitiesRenderedText = source;
+  if (!changed) return false;
   element.replaceChildren(fragment);
+  element.dataset.captionEntitiesRenderedText = element.textContent || '';
   return true;
 }
 
