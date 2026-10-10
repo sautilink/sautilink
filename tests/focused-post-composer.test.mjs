@@ -28,3 +28,17 @@ test('post composer open and close behavior stays in the browser UI layer', asyn
   assert.match(source, /querySelectorAll\('\[data-open-sauti-composer\]'\)/);
   assert.match(source, /addEventListener\('cancel'/);
 });
+
+test('wider composer shows one media action row while keeping drag and drop', async () => {
+  const [html, css, tools] = await Promise.all([
+    read('app/index.html'),
+    read('app/assets/composer-formats.css'),
+    read('src/composer-formats.js'),
+  ]);
+
+  assert.match(html, /class="composer-add-label"/);
+  assert.match(css, /@media \(min-width: 501px\)[\s\S]*?\.composer-dialog \.composer-upload-zone \{ display: none; \}/);
+  assert.match(css, /\.composer-dialog \.composer-meta \.composer-audience \{ display: none; \}/);
+  assert.match(css, /\.composer-dialog \.composer-actions \.composer-tools\.drag-over/);
+  assert.match(tools, /for \(const target of \[zone, tools\]\.filter\(Boolean\)\)/);
+});
