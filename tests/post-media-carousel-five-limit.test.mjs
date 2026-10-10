@@ -8,6 +8,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('post composer and server enforce a five-media-item limit in built sources', async () => {
   const appSource = await read('src/app.js');
   const postApiSource = await read('src/sauti-posts-api.js');
+  const html = await read('app/index.html');
   const app = transformPostMediaSource('/repo/src/app.js', appSource);
   const api = transformPostMediaSource('/repo/src/sauti-posts-api.js', postApiSource);
 
@@ -23,6 +24,8 @@ test('post composer and server enforce a five-media-item limit in built sources'
   assert.match(api, /requestedMedia\.length > 5/);
   assert.match(api, /up to five media items/);
   assert.doesNotMatch(api, /requestedMedia\.length > 4/);
+  assert.match(html, /Up to 5 items/);
+  assert.match(html, /id="sauti-media-count">0 \/ 5/);
 });
 
 test('multi-media post view uses a swipeable carousel without changing single-media behavior', async () => {
