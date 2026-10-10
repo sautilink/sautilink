@@ -82,7 +82,7 @@ test('Home videos start muted and pause when the viewer or page is hidden', asyn
   assert.match(source, /const HOME_VIDEO_VISIBILITY_THRESHOLD = 0\.58/);
   assert.match(source, /new IntersectionObserver\([\s\S]*HOME_VIDEO_VISIBILITY_THRESHOLD/);
   assert.match(source, /if \(!gallery\.closest\('#stream-feed'\)\) return/);
-  assert.match(source, /video\.muted = true;\s*video\.defaultMuted = true;\s*video\.dataset\.sautiAudioPreference = 'muted';\s*video\.volume = 1/);
+  assert.match(source, /video\.dataset\.homeAutoplayVideo = '';\s*applyHomeVideoAudio\(video\)/);
   assert.match(source, /async function playHomeFeedVideo\(video\)/);
   assert.match(source, /video\.dataset\.autoplayMutedFallback = 'true'/);
   assert.doesNotMatch(source, /restoreHomeFeedAudioAfterInteraction/);

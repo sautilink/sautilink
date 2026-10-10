@@ -1,3 +1,5 @@
+import { rememberHomeVideoAudio } from './home-video-audio-session.js';
+
 const SAUTILINK_VIDEO_PLAYER_STYLESHEET = '/app/assets/sautilink-video-player.css?v=20260925-video-quality1';
 const SAUTILINK_VIDEO_PLAYER_STYLESHEET_ID = 'sautilink-video-player-style';
 const SAUTILINK_VIDEO_SELECTOR = '.sauti-media-tile video, #sauti-media-viewer-content > video';
@@ -111,6 +113,12 @@ function enhanceSautiLinkVideo(video) {
   if (!context) return;
 
   const { host, mode } = context;
+  const rememberAudio = () => {
+    if (mode === 'feed' && video.dataset.homeAutoplayVideo !== undefined) {
+      rememberHomeVideoAudio(video.muted, video.volume, video);
+      video.dataset.sautiAudioPreference = video.muted ? 'muted' : 'unmuted';
+    }
+  };
   const qualityContext = host.closest('#sauti-short-videos') ? 'short' : 'home';
   video.dataset.sautiVideoPlayerReady = 'true';
   video.controls = false;
@@ -409,7 +417,9 @@ function enhanceSautiLinkVideo(video) {
   runControlAction(playPause, togglePlayback);
   runControlAction(audio, () => {
     video.muted = !video.muted;
+    if (!video.muted && video.volume === 0) video.volume = 1;
     video.defaultMuted = video.muted;
+    rememberAudio();
     syncAudio();
     showControls();
   });
@@ -457,6 +467,7 @@ function enhanceSautiLinkVideo(video) {
     video.volume = level;
     video.muted = level === 0;
     video.defaultMuted = video.muted;
+    rememberAudio();
     syncAudio();
     showControls();
   };
@@ -492,6 +503,7 @@ function enhanceSautiLinkVideo(video) {
     }
     video.muted = video.volume === 0;
     video.defaultMuted = video.muted;
+    rememberAudio();
     syncAudio();
     showControls();
   });
@@ -581,7 +593,9 @@ function enhanceSautiLinkVideo(video) {
       flashSeek('right');
     } else if (event.key === 'm' || event.key === 'M') {
       video.muted = !video.muted;
+      if (!video.muted && video.volume === 0) video.volume = 1;
       video.defaultMuted = video.muted;
+      rememberAudio();
       syncAudio();
     } else if (event.key === 'f' || event.key === 'F') {
       requestFullscreen();

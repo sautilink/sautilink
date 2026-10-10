@@ -1,3 +1,6 @@
+import { appendFormattedPostText } from './caption-entities.js';
+import { insertPostFormatting } from './post-text-formatting.js';
+
 const SHORT_VIDEO_LIMIT_SECONDS = 60;
 const MAX_TRIMMABLE_VIDEO_SECONDS = 120;
 const MIN_TRIM_SECONDS = 1;
@@ -155,10 +158,86 @@ function setPickerMode(mode) {
   if (mode === 'video') {
     input.accept = 'video/mp4';
     input.multiple = false;
+  } else if (mode === 'all') {
+    input.accept = 'image/jpeg,image/png,image/webp,video/mp4';
+    input.multiple = true;
   } else {
     input.accept = 'image/jpeg,image/png,image/webp';
     input.multiple = true;
   }
+}
+
+function installPostTextTools(textarea) {
+  const preview = document.getElementById('composer-format-preview');
+  const previewText = document.getElementById('composer-preview-text');
+  const toggle = document.getElementById('composer-preview-toggle');
+  let resizeFrame = 0;
+  const resize = () => {
+    window.cancelAnimationFrame(resizeFrame);
+    const previous = Math.max(150, textarea.getBoundingClientRect().height);
+    textarea.style.height = 'auto';
+    const target = Math.max(150, Math.min(400, textarea.scrollHeight));
+    textarea.style.height = `${previous}px`;
+    textarea.style.overflowY = textarea.scrollHeight > 400 ? 'auto' : 'hidden';
+    resizeFrame = window.requestAnimationFrame(() => { textarea.style.height = `${target}px`; });
+  };
+  const renderPreview = () => {
+    if (!preview || !previewText || preview.hidden) return;
+    previewText.replaceChildren();
+    if (textarea.value.trim()) appendFormattedPostText(previewText, textarea.value, previewText);
+    else previewText.textContent = 'Your post will appear here.';
+  };
+  document.querySelectorAll('[data-post-format]').forEach((button) => {
+    button.addEventListener('mousedown', (event) => event.preventDefault());
+    button.addEventListener('click', () => {
+      if (insertPostFormatting(textarea, button.dataset.postFormat)) {
+        if (preview) preview.hidden = false;
+        if (toggle) toggle.setAttribute('aria-expanded', 'true');
+        renderPreview();
+      }
+    });
+  });
+  toggle?.addEventListener('click', () => {
+    preview.hidden = !preview.hidden;
+    toggle.setAttribute('aria-expanded', String(!preview.hidden));
+    renderPreview();
+  });
+  textarea.addEventListener('input', () => { resize(); renderPreview(); });
+  document.getElementById('sauti-composer-dialog')?.addEventListener('close', () => {
+    if (preview) preview.hidden = true;
+    toggle?.setAttribute('aria-expanded', 'false');
+  });
+  // Draft restoration updates textarea.value without firing an input event.
+  new MutationObserver(resize).observe(textarea, { attributes: true, attributeFilter: ['disabled'] });
+  resize();
+  window.SautiLinkResizePostComposer = resize;
+}
+
+function installUploadZone(textarea, photoButton, videoButton, fileInput) {
+  const zone = document.getElementById('composer-upload-zone');
+  const photo = document.getElementById('composer-upload-photo');
+  const video = document.getElementById('composer-upload-video');
+  if (!zone || !photo || !video) return;
+  photo.addEventListener('click', () => photoButton.click());
+  video.addEventListener('click', () => videoButton.click());
+  zone.addEventListener('dragover', (event) => {
+    if (textarea.disabled || photo.disabled) return;
+    event.preventDefault();
+    zone.classList.add('drag-over');
+  });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', (event) => {
+    zone.classList.remove('drag-over');
+    if (textarea.disabled || photo.disabled) return;
+    event.preventDefault();
+    const files = [...(event.dataTransfer?.files || [])];
+    if (!files.length) return;
+    const transfer = new DataTransfer();
+    files.forEach((file) => transfer.items.add(file));
+    setPickerMode('all');
+    fileInput.files = transfer.files;
+    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+  });
 }
 
 function videoDuration(file) {
@@ -652,6 +731,8 @@ function installComposerTools() {
   fileInput.addEventListener('change', validateSelectedShortVideo, true);
 
   const videoButton = buildVideoTool(photoButton, fileInput);
+  installPostTextTools(textarea);
+  installUploadZone(textarea, photoButton, videoButton, fileInput);
   buildPollEditor(textarea);
   const disabledPoll = document.querySelector('.composer-tool.disabled-feature');
   const pollButton = disabledPoll ? buildPollTool(disabledPoll, textarea) : document.getElementById('sauti-poll-add');

@@ -11,7 +11,7 @@ test('post composer keeps SautiLink copy and uses a focused responsive surface',
   assert.match(html, /id="sauti-composer-dialog"/);
   assert.match(html, /id="sauti-composer-close"/);
   assert.match(html, /data-open-sauti-composer/);
-  assert.match(html, /placeholder="What deserves to be heard\?"/);
+  assert.match(html, /placeholder="What’s on your mind\?"/);
   assert.doesNotMatch(html, /What(?:'|’)s happening\?/i);
   assert.match(css, /\.composer-dialog::backdrop/);
   assert.match(css, /\.composer-header #sauti-submit/);

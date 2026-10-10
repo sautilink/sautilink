@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { getVideoAutoplayPreference, setVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autoplay-preference.js';
 import { installVideoPlaybackCoordinator } from './video-playback-coordinator.js';
+import { applyHomeVideoAudio, resetHomeVideoAudio } from './home-video-audio-session.js';
+import { POST_BODY_LIMIT, hasPostFormatting } from './post-text-formatting.js';
 import { notificationPostDestination } from './notification-destinations.js';
 import { normalizeOtpPhone, otpPhoneError } from './phone-number-validation.js';
 import {
@@ -1189,6 +1191,7 @@ function canPlayHomeFeedVideos() {
 
 async function playHomeFeedVideo(video) {
   if (!canPlayHomeFeedVideos() || !getVideoAutoplayPreference() || video.dataset.sautiUserPaused === 'true') return;
+  applyHomeVideoAudio(video);
   try {
     await video.play();
     if (!canPlayHomeFeedVideos() || !getVideoAutoplayPreference()) video.pause();
@@ -1256,10 +1259,7 @@ function ensureHomeVideoObserver() {
 function observeHomeFeedVideo(video, gallery) {
   if (!gallery.closest('#stream-feed')) return;
   video.dataset.homeAutoplayVideo = '';
-  video.muted = true;
-  video.defaultMuted = true;
-  video.dataset.sautiAudioPreference = 'muted';
-  video.volume = 1;
+  applyHomeVideoAudio(video);
   video.playsInline = true;
   video.loop = true;
   video.addEventListener('play', () => {
@@ -3383,7 +3383,7 @@ function applyComposerSnapshot(snapshot) {
   const textarea = byId('sauti-body');
   const audience = byId('sauti-audience');
   const replies = byId('sauti-reply-access');
-  if (textarea) textarea.value = String(snapshot.body || '').slice(0, 500);
+  if (textarea) textarea.value = String(snapshot.body || '').slice(0, POST_BODY_LIMIT);
   if (audience && [...audience.options].some((option) => option.value === snapshot.audience)) {
     audience.value = snapshot.audience;
   } else if (audience) {
@@ -3399,6 +3399,7 @@ function applyComposerSnapshot(snapshot) {
   restoreComposerMedia(snapshot.media || []);
   restoringComposerState = false;
   updateComposerState({ persist: false });
+  window.SautiLinkResizePostComposer?.();
 }
 
 function restoreComposerDraft(id) {
@@ -3553,7 +3554,7 @@ async function receivePendingPwaShare() {
     const previous = textarea.value.trim();
     const body = [previous, String(share.body || '').trim()].filter(Boolean).join('\n');
     const files = Array.isArray(share.files) ? share.files : [];
-    if (body.length > 500 || composerMedia.length + files.length > 4) {
+    if (body.length > POST_BODY_LIMIT || composerMedia.length + files.length > 4) {
       showToast('Finish the current draft before importing this shared item.', 'error');
       return;
     }
@@ -3628,12 +3629,14 @@ function updateComposerState({ persist = true } = {}) {
   const mediaDraftReady = composerMedia.every((item) => item.status === 'ready' || item.cacheReady);
   const mentionedReady = replies.value !== 'mentioned' || composerHasMention(textarea.value);
 
-  count.textContent = `${textarea.value.length} / 500`;
+  count.textContent = `${textarea.value.length} / ${POST_BODY_LIMIT}`;
   submit.textContent = navigator.onLine ? 'Post' : 'Save draft';
-  submit.disabled = textarea.disabled || !hasContent || textarea.value.length > 500 || !mentionedReady || (hasMedia && !mediaReady);
+  submit.disabled = textarea.disabled || !hasContent || textarea.value.length > POST_BODY_LIMIT || !mentionedReady || (hasMedia && !mediaReady);
   saveDraft.disabled = textarea.disabled || !hasContent || (hasMedia && !mediaDraftReady);
   if (byId('sauti-media-add')) byId('sauti-media-add').disabled = textarea.disabled || composerMedia.length >= 4;
   if (byId('sauti-camera-add')) byId('sauti-camera-add').disabled = textarea.disabled || composerMedia.length >= 4;
+  if (byId('composer-upload-photo')) byId('composer-upload-photo').disabled = textarea.disabled || composerMedia.length >= 4;
+  if (byId('composer-upload-video')) byId('composer-upload-video').disabled = textarea.disabled || composerMedia.length >= 4;
 
   const audienceLabel = audience.selectedOptions[0]?.textContent || 'Public';
   byId('composer-audience-note').textContent =
@@ -3773,9 +3776,11 @@ function createSautiCaption(value) {
   const fullText = String(value || '').trim();
   if (!fullText) return null;
 
-  const preview = captionPreview(fullText);
+  const formatted = hasPostFormatting(fullText);
+  const preview = formatted ? { text: fullText, truncated: fullText.length > CAPTION_PREVIEW_LIMIT } : captionPreview(fullText);
   const caption = document.createElement('p');
   caption.className = 'sauti-caption';
+  if (formatted) caption.classList.add('has-post-formatting');
   caption.hidden = true;
 
   const text = document.createElement('span');
@@ -3805,7 +3810,11 @@ function toggleSautiCaption(button) {
   if (!text) return;
 
   const expanded = button.getAttribute('aria-expanded') === 'true';
-  text.textContent = expanded ? text.dataset.previewCaption : text.dataset.fullCaption;
+  if (caption.classList.contains('has-post-formatting')) {
+    caption.classList.toggle('expanded', !expanded);
+  } else {
+    text.textContent = expanded ? text.dataset.previewCaption : text.dataset.fullCaption;
+  }
   button.setAttribute('aria-expanded', String(!expanded));
   button.setAttribute('aria-label', expanded ? 'Show full caption' : 'Collapse caption');
   button.textContent = expanded ? 'more' : 'less';
@@ -5370,7 +5379,7 @@ async function shareSauti() {
   if (composerMedia.some((item) => item.status !== 'ready' || !item.id)) {
     return setMessage(message, navigator.onLine ? 'Wait for media uploads to finish or retry the failed item.' : 'Media is waiting for connection.');
   }
-  if (textarea.value.length > 500) return setMessage(message, 'Post text must be 500 characters or fewer.');
+  if (textarea.value.length > POST_BODY_LIMIT) return setMessage(message, `Post text must be ${POST_BODY_LIMIT} characters or fewer.`);
   if (replyAccess === 'mentioned' && !composerHasMention(textarea.value)) {
     return setMessage(message, 'Mention at least one SautiLink username or change who can comment.');
   }
@@ -5699,6 +5708,7 @@ async function refreshCurrentMemberAvatar() {
   currentMember = { ...currentMember, ...data };
   const displayName = currentMember.display_name || currentMember.full_name || currentMember.username;
   renderProfileAvatar(byId('member-avatar'), currentMember, displayName);
+  if (byId('composer-author-name')) byId('composer-author-name').textContent = displayName;
   renderProfileAvatar(byId('rail-avatar'), currentMember, displayName);
 }
 
@@ -9175,6 +9185,7 @@ function renderMember(profile, userId = currentMemberId) {
   currentMemberId = userId || profile.id || currentMemberId;
 
   renderProfileAvatar(byId('member-avatar'), currentMember, displayName);
+  if (byId('composer-author-name')) byId('composer-author-name').textContent = displayName;
   renderProfileAvatar(byId('rail-avatar'), currentMember, displayName);
   setInlineVerifiedName(byId('rail-name'), displayName, currentMember);
   byId('rail-username').textContent = `@${username}`;
@@ -11066,6 +11077,7 @@ byId('profile-form').addEventListener('submit', async (event) => {
 });
 
 async function signOut() {
+  resetHomeVideoAudio();
   streamRequest += 1;
   discoverRequest += 1;
   savedRequest += 1;
@@ -11101,6 +11113,7 @@ supabase.auth.onAuthStateChange((event, session) => {
     return;
   }
   if (event === 'SIGNED_OUT') {
+    resetHomeVideoAudio();
     if (pendingSignup) {
       window.setTimeout(() => {
         byId('verify-email').textContent = pendingSignup.email;

@@ -666,8 +666,10 @@ function clearHomeFeedMediaState() {
   output = replaceExactOnce(
     output,
     `  if (event === 'SIGNED_OUT') {
+    resetHomeVideoAudio();
     if (pendingSignup) {`,
     `  if (event === 'SIGNED_OUT') {
+    resetHomeVideoAudio();
     void clearSautiVideoSession();
     if (pendingSignup) {`,
     'the signed-out video media session cleanup',

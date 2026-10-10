@@ -23,7 +23,7 @@ test('Phase 16 text composer foundation remains bounded as later media phases ev
 
   const phase = Number(html.match(/name="sautilink-release-generation" content="([0-9]+)"/)?.[1] || 0);
   assert.ok(phase >= 16, `app milestone regressed below Phase 16: ${phase}`);
-  assert.match(html, /id="sauti-body"[\s\S]*?maxlength="500"/);
+  assert.match(html, /id="sauti-body"[\s\S]*?maxlength="2000"/);
   assert.match(html, /id="sauti-audience"[\s\S]*?<option value="public">Public<\/option>/);
   assert.match(html, /app\.css\?v=\d+/);
   assert.match(html, /app\.js\?v=\d+/);
@@ -72,7 +72,7 @@ test('Text Sauti Worker requires authentication before writes', async () => {
 test('Worker fixes protected Phase 16 post fields and contains no privileged key', async () => {
   const worker = await read('src/sauti-posts-api.js');
 
-  assert.match(worker, /body\.length > 500/);
+  assert.match(worker, /body\.length > POST_BODY_LIMIT/);
   assert.match(worker, /author_id: session\.user\.id/);
   assert.match(worker, /const requestedVisibility = requestedCircle \? 'circle' : audienceVisibility\(payload\?\.visibility\)/);
   assert.match(worker, /visibility: requestedVisibility/);
