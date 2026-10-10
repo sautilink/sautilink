@@ -215,29 +215,31 @@ function installPostTextTools(textarea) {
 
 function installUploadZone(textarea, photoButton, videoButton, fileInput) {
   const zone = document.getElementById('composer-upload-zone');
+  const tools = document.querySelector('.composer-dialog .composer-actions .composer-tools');
   const photo = document.getElementById('composer-upload-photo');
   const video = document.getElementById('composer-upload-video');
-  if (!zone || !photo || !video) return;
-  photo.addEventListener('click', () => photoButton.click());
-  video.addEventListener('click', () => videoButton.click());
-  zone.addEventListener('dragover', (event) => {
-    if (textarea.disabled || photo.disabled) return;
-    event.preventDefault();
-    zone.classList.add('drag-over');
-  });
-  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-  zone.addEventListener('drop', (event) => {
-    zone.classList.remove('drag-over');
-    if (textarea.disabled || photo.disabled) return;
-    event.preventDefault();
-    const files = [...(event.dataTransfer?.files || [])];
-    if (!files.length) return;
-    const transfer = new DataTransfer();
-    files.forEach((file) => transfer.items.add(file));
-    setPickerMode('all');
-    fileInput.files = transfer.files;
-    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-  });
+  photo?.addEventListener('click', () => photoButton.click());
+  video?.addEventListener('click', () => videoButton.click());
+  for (const target of [zone, tools].filter(Boolean)) {
+    target.addEventListener('dragover', (event) => {
+      if (textarea.disabled || photoButton.disabled) return;
+      event.preventDefault();
+      target.classList.add('drag-over');
+    });
+    target.addEventListener('dragleave', () => target.classList.remove('drag-over'));
+    target.addEventListener('drop', (event) => {
+      target.classList.remove('drag-over');
+      if (textarea.disabled || photoButton.disabled) return;
+      event.preventDefault();
+      const files = [...(event.dataTransfer?.files || [])];
+      if (!files.length) return;
+      const transfer = new DataTransfer();
+      files.forEach((file) => transfer.items.add(file));
+      setPickerMode('all');
+      fileInput.files = transfer.files;
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
 }
 
 function videoDuration(file) {

@@ -259,6 +259,75 @@
 .composer-trim-card footer button[data-trim-use] { border: 0; background: var(--app-accent-strong); color: white; }
 .composer-trim-card footer button[data-trim-use]:disabled { opacity: .55; }
 
+.composer-dialog .composer-add-label { display: none; }
+
+/* Keep the phone composer intact. Wider windows use one media action row. */
+@media (min-width: 501px) {
+  .composer-dialog .composer-body { min-height: 0; }
+  .composer-dialog .composer-body #sauti-body {
+    min-height: 170px;
+    padding: 16px 2px;
+    background-color: transparent;
+  }
+  .composer-dialog .composer-format-bar {
+    margin: 2px 0 12px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .composer-dialog .composer-upload-zone { display: none; }
+  .composer-dialog .composer-meta {
+    min-height: 34px;
+    justify-content: flex-end;
+    margin: 8px 0 0;
+    padding: 7px 2px;
+    border-top: 0;
+  }
+  .composer-dialog .composer-meta .composer-audience { display: none; }
+  .composer-dialog .composer-actions {
+    position: static;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+    padding: 0 0 12px;
+    border-top: 0;
+    background: transparent;
+  }
+  .composer-dialog .composer-actions .composer-tools {
+    display: flex;
+    width: 100%;
+    min-height: 66px;
+    flex: 0 0 100%;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 5px;
+    padding: 10px 12px;
+    border: 1px solid var(--app-line-strong);
+    border-radius: 13px;
+    background: var(--app-panel);
+    box-shadow: 0 2px 9px rgba(0, 0, 0, .035);
+  }
+  .composer-dialog .composer-actions .composer-tools.drag-over {
+    border-color: var(--app-accent);
+    background: color-mix(in srgb, var(--app-accent) 9%, var(--app-panel));
+  }
+  .composer-dialog .composer-actions .composer-add-label {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+    margin-right: auto;
+    color: var(--app-text);
+    line-height: 1.25;
+  }
+  .composer-dialog .composer-add-label strong { font-size: 13px; }
+  .composer-dialog .composer-add-label small { color: var(--app-muted); font-size: 10px; font-weight: 500; }
+  .composer-dialog .composer-actions #sauti-save-draft { margin-left: auto; }
+  .composer-dialog .composer-actions #sauti-save-draft:disabled { display: none; }
+  .composer-dialog .composer-actions #sauti-drafts-toggle { margin-left: auto; }
+  .composer-dialog .composer-actions #sauti-save-draft:not(:disabled) + #sauti-drafts-toggle { margin-left: 0; }
+}
+
 @media (max-width: 680px) {
   .composer-dialog .composer-body #sauti-body { min-height: 150px; font-size: 20px; }
   .composer-upload-zone { align-items: flex-start; flex-wrap: wrap; }
