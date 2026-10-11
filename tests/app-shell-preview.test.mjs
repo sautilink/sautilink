@@ -191,6 +191,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/mobile-more-drawer.css',
     'app/assets/post-edit.css',
     'app/assets/post-media-carousel.css',
+    'app/assets/motion-foundation.css',
     'app/assets/short-videos-feed.css',
     'app/assets/sautilink-video-player.css',
     'app/assets/professional-profile-category.css',
