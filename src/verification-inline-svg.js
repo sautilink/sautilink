@@ -27,7 +27,7 @@ export function createInlineVerificationSvg(badgeType = 'standard', theme = docu
   const team = String(badgeType || '').toLowerCase() === 'team';
   const dark = theme !== 'light';
   const svg = svgNode('svg', {
-    viewBox: '0 0 2048 2048',
+    viewBox: '384 414 1240 1240',
     'aria-hidden': 'true',
     focusable: 'false',
     draggable: 'false',
