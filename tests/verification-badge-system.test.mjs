@@ -48,9 +48,9 @@ test('archived verification PNGs remain intact as rollback assets', () => {
 });
 
 test('active verification badges render local SVG artwork with no PNG requests', () => {
-  assert.match(app, /verified-team\\.svg/);
-  assert.match(app, /verified-user-primary\\.svg/);
-  assert.match(app, /verified-user-secondary\\.svg/);
+  assert.match(app, /verified-team\.svg/);
+  assert.match(app, /verified-user-primary\.svg/);
+  assert.match(app, /verified-user-secondary\.svg/);
   assert.match(css, /\.verification-badge img\s*\{[\s\S]*object-fit:\s*contain/);
   assert.match(css, /\.verification-badge\s*\{[\s\S]*width:\s*var\(--verification-badge-size, 1em\)[\s\S]*height:\s*var\(--verification-badge-size, 1em\)/);
   assert.match(css, /\.verification-badge img\s*\{[\s\S]*width:\s*100%[\s\S]*height:\s*100%[\s\S]*max-width:\s*100%/);
