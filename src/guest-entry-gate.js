@@ -1,3 +1,4 @@
+import { createInlineVerificationSvg } from './verification-inline-svg.js';
 import { createLoadingSkeleton } from './non-home-skeleton.js';
 
 const GUEST_GATE_SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
@@ -125,17 +126,6 @@ function initials(value) {
   return letters || 'S';
 }
 
-function badgeAsset(type) {
-  const normalized = String(type || '').toLowerCase();
-  if (normalized.includes('team') || normalized.includes('staff')) {
-    return '/app/assets/verification/verified-team.svg';
-  }
-  if (normalized.includes('secondary')) {
-    return '/app/assets/verification/verified-user-secondary.svg';
-  }
-  return '/app/assets/verification/verified-user-primary.svg';
-}
-
 function makeAuthLink(label, route, destination, className) {
   const link = node('a', className, label);
   link.href = `${route}?next=${encodeURIComponent(destination)}`;
@@ -242,10 +232,11 @@ function renderProfileTeaser(card, profile, route) {
   const nameLine = node('div', 'guest-profile-name-line');
   nameLine.append(node('h1', 'guest-profile-name', profile.display_name || profile.username));
   if (profile.is_verified) {
-    const badge = document.createElement('img');
+    const badge = document.createElement('span');
     badge.className = 'guest-profile-badge';
-    badge.src = badgeAsset(profile.verification_badge_type);
-    badge.alt = 'Verified account';
+    badge.setAttribute('role', 'img');
+    badge.setAttribute('aria-label', 'Verified account');
+    badge.append(createInlineVerificationSvg(profile.verification_badge_type));
     badge.title = `This profile was verified that belongs to ${profile.display_name || profile.username}.`;
     nameLine.append(badge);
   }
@@ -492,10 +483,11 @@ function renderGuestPost(card, post, route) {
   const nameLine = node('div', 'guest-post-author-name-line');
   nameLine.append(node('strong', 'guest-post-author-name', post.author?.display_name || post.author?.username || 'SautiLink member'));
   if (post.author?.is_verified) {
-    const badge = document.createElement('img');
+    const badge = document.createElement('span');
     badge.className = 'guest-profile-badge guest-post-badge';
-    badge.src = badgeAsset(post.author.verification_badge_type);
-    badge.alt = 'Verified account';
+    badge.setAttribute('role', 'img');
+    badge.setAttribute('aria-label', 'Verified account');
+    badge.append(createInlineVerificationSvg(post.author.verification_badge_type));
     nameLine.append(badge);
   }
   identity.append(nameLine, node('span', 'guest-post-author-handle', `@${post.author?.username || 'member'}`));
