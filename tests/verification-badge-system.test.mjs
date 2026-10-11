@@ -1,15 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
 const [
   html,
   css,
   app,
-  teamBadge,
-  userPrimaryBadge,
-  userSecondaryBadge,
+  vectorSource,
   migration,
   hardening,
   badgeTypes,
@@ -17,61 +14,33 @@ const [
   readFile(new URL('../app/index.html', import.meta.url), 'utf8'),
   readFile(new URL('../app/assets/app.css', import.meta.url), 'utf8'),
   readFile(new URL('../src/app.js', import.meta.url), 'utf8'),
-  readFile(new URL('../app/assets/verification/verified-team.png', import.meta.url)),
-  readFile(new URL('../app/assets/verification/verified-user-primary.png', import.meta.url)),
-  readFile(new URL('../app/assets/verification/verified-user-secondary.png', import.meta.url)),
+  readFile(new URL('../src/verification-inline-svg.js', import.meta.url), 'utf8'),
   readFile(new URL('../supabase/migrations/20260903044000_enable_verification_management.sql', import.meta.url), 'utf8'),
   readFile(new URL('../supabase/migrations/20260903044500_harden_verification_management.sql', import.meta.url), 'utf8'),
   readFile(new URL('../supabase/migrations/20260903104500_enable_verification_badge_types.sql', import.meta.url), 'utf8'),
 ]);
 
-function gitBlobSha(buffer) {
-  return createHash('sha1')
-    .update(`blob ${buffer.length}\0`)
-    .update(buffer)
-    .digest('hex');
-}
-
-function assertOfficialPng(buffer, expectedSha) {
-  assert.equal(buffer.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
-  assert.equal(buffer.readUInt32BE(16), 3264);
-  assert.equal(buffer.readUInt32BE(20), 3264);
-  assert.equal(buffer[24], 8);
-  assert.equal(buffer[25], 6);
-  assert.equal(gitBlobSha(buffer), expectedSha);
-}
-
-test('archived verification PNGs remain intact as rollback assets', () => {
-  assertOfficialPng(teamBadge, '0d76fae420117b5e11e7cc22b03b1c8a413c20b1');
-  assertOfficialPng(userPrimaryBadge, '2069e335942b74d79b007b7093e46d7fcb6b3c14');
-  assertOfficialPng(userSecondaryBadge, '580282e5d59a0a7528b8669bd684856eb96917ef');
-});
-
-test('active verification badges render local SVG artwork with no PNG requests', () => {
-  assert.match(app, /verified-team\.svg/);
-  assert.match(app, /verified-user-primary\.svg/);
-  assert.match(app, /verified-user-secondary\.svg/);
-  assert.match(css, /\.verification-badge img\s*\{[\s\S]*object-fit:\s*contain/);
-  assert.match(css, /\.verification-badge\s*\{[\s\S]*width:\s*var\(--verification-badge-size, 1em\)[\s\S]*height:\s*var\(--verification-badge-size, 1em\)/);
-  assert.match(css, /\.verification-badge img\s*\{[\s\S]*width:\s*100%[\s\S]*height:\s*100%[\s\S]*max-width:\s*100%/);
-  assert.doesNotMatch(css, /\.verification-badge::after/);
-  assert.doesNotMatch(css, /--verification-badge-fill/);
+test('original SautiLink badge vector is generated inline without image URLs', () => {
+  assert.match(vectorSource, /const BADGE_PATH =/);
+  assert.match(vectorSource, /M988 426 L963 433/);
+  assert.match(vectorSource, /createElementNS\(SVG_NS, name\)/);
+  assert.match(vectorSource, /replaceChildren\(createInlineVerificationSvg\(badgeType\)\)/);
+  assert.match(vectorSource, /#28a9e3/);
+  assert.match(vectorSource, /#ffffff/);
+  assert.match(vectorSource, /#fa1f56/);
+  assert.match(vectorSource, /#fb873f/);
+  assert.match(app, /mountInlineVerificationSvg\(image, normalizedType\)/);
+  assert.match(app, /mountInlineVerificationSvg\(byId\('verification-info-badge-image'\), badgeType\)/);
+  assert.doesNotMatch(app, /\/app\/assets\/verification\/verified-(?:team|user-primary|user-secondary)\.(?:svg|png)/);
+  assert.match(css, /\.verification-badge svg\s*\{[^}]*width:\s*100%[^}]*height:\s*100%/);
   assert.match(html, /data-verification-badge-image/);
+  assert.match(html, /<span id="verification-info-badge-image"/);
 });
 
-
-test('new SautiLink SVG badge variants are valid local vector resources', async () => {
-  const names = ['verified-team', 'verified-user-primary', 'verified-user-secondary'];
-  for (const name of names) {
-    const svg = await readFile(new URL(`../app/assets/verification/${name}.svg`, import.meta.url), 'utf8');
-    assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 26 26"/);
-    assert.match(svg, /<path fill="#[0-9a-fA-F]{6}" fill-rule="evenodd" clip-rule="evenodd" d="/);
-    assert.match(svg, /<circle cx="13" cy="13" r="8" fill="#fff"\/>/);
-    assert.match(svg, /Telegram Web K/);
-    assert.doesNotMatch(svg, /<script|<foreignObject|https?:\/\/[^ "']+\.(?:svg|png|webp)/i);
-    assert.ok(Buffer.byteLength(svg) < 3000, `${name} SVG should stay compact`);
-  }
-  assert.doesNotMatch(app, /\/app\/assets\/verification\/verified-(?:team|user-primary|user-secondary)\.png/);
+test('inline badge vectors contain no remote assets or executable SVG markup', () => {
+  assert.doesNotMatch(vectorSource, /<script|<foreignObject|\.src\s*=|fetch\(/i);
+  assert.match(vectorSource, /'aria-hidden': 'true'/);
+  assert.match(vectorSource, /focusable: 'false'/);
 });
 
 test('verification badge size stays balanced with the local display-name typography', () => {
@@ -94,7 +63,7 @@ test('verification badge spacing and artwork follow the active theme', () => {
   assert.match(css, /\.verified-name\s*\{[\s\S]*gap:\s*\.25em/);
   assert.match(css, /\.inline-verified-name\s*\{[\s\S]*gap:\s*\.25em/);
   assert.match(css, /\.verified-name > strong\s*\{[\s\S]*color:\s*inherit !important/);
-  assert.match(app, /dataset\.theme === 'light'[\s\S]{0,100}\? VERIFICATION_BADGE_ASSETS\.standardPrimary[\s\S]{0,100}: VERIFICATION_BADGE_ASSETS\.standardSecondary/);
+  assert.match(vectorSource, /theme !== 'light'/);
   assert.match(app, /function applyTheme[\s\S]*syncVerificationBadgeAssets\(\)/);
 });
 

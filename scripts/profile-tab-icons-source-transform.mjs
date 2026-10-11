@@ -15,12 +15,12 @@ export function transformProfileTabIconsSource(filePath, source) {
   if (!PROFILE_ACTIVITY_SOURCE.test(normalized)) return source;
   if (source.includes('data-profile-activity-tab-icon="posts"')) return source;
 
-  const badgesMarker = 'const PROFILE_ACTIVITY_BADGES = Object.freeze({';
+  const badgesMarker = 'const PROFILE_ACTIVITY_LABELS = Object.freeze({';
   const tabRenderMarker = '${PROFILE_ACTIVITY_LABELS[tab]}</button>';
   const privacyRenderMarker = 'aria-expanded="false">Activity privacy</button>';
 
   if (!source.includes(badgesMarker)) {
-    throw new Error('Profile tab icon transform could not find the badge-map insertion point.');
+    throw new Error('Profile tab icon transform could not find the label-map insertion point.');
   }
   if (!source.includes(tabRenderMarker)) {
     throw new Error('Profile tab icon transform could not find the profile activity tab renderer.');

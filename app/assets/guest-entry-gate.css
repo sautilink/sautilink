@@ -65,6 +65,12 @@ html[data-theme="light"] {
 
 .guest-profile-loading,
 .guest-profile-copy,
+.guest-profile-badge svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .guest-profile-username {
   color: var(--guest-gate-muted);
 }
@@ -125,6 +131,9 @@ html[data-theme="light"] {
 }
 
 .guest-profile-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
