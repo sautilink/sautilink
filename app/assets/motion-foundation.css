@@ -1,0 +1,149 @@
+/* SautiLink Motion Foundation — production UI-only progressive enhancement.
+   No layout, application state, navigation, or API changes.
+   Motion respects hover capability, keyboard focus, and reduced-motion preferences. */
+:root {
+  --sl-motion-fast: 140ms;
+  --sl-motion-standard: 210ms;
+  --sl-motion-soft: 260ms;
+  --sl-motion-ease: cubic-bezier(.2, .7, .2, 1);
+}
+
+/* Navigation: animate icons without changing active tab or spacing. */
+body:not(.auth-entry) .primary-rail .nav-item svg {
+  transform-origin: center;
+  transition: transform var(--sl-motion-standard) var(--sl-motion-ease),
+              color var(--sl-motion-fast) ease;
+}
+body:not(.auth-entry) .primary-rail .nav-item.active svg {
+  transform: scale(1.055);
+}
+@media (hover: hover) and (pointer: fine) {
+  body:not(.auth-entry) .primary-rail .nav-item:not(:disabled):hover svg {
+    transform: translateY(-1px) scale(1.075);
+  }
+  body:not(.auth-entry) .sauti-action:not(:disabled):hover svg {
+    transform: scale(1.085);
+  }
+  body:not(.auth-entry) .icon-control:not(:disabled):hover svg,
+  body:not(.auth-entry) .theme-toggle:not(:disabled):hover svg {
+    transform: rotate(-7deg);
+  }
+  body:not(.auth-entry) .secondary-action:not(:disabled):hover {
+    box-shadow: 0 3px 12px rgba(0, 0, 0, .10);
+  }
+}
+
+/* Home post actions: emphasize state changes without layout shifts. */
+body:not(.auth-entry) .sauti-action {
+  transition: color var(--sl-motion-fast) ease,
+              background-color var(--sl-motion-standard) ease,
+              border-color var(--sl-motion-standard) ease;
+}
+body:not(.auth-entry) .sauti-action svg {
+  transform-origin: center;
+  transition: transform var(--sl-motion-standard) var(--sl-motion-ease),
+              fill var(--sl-motion-fast) ease,
+              stroke var(--sl-motion-fast) ease;
+}
+body:not(.auth-entry) .sauti-action:active:not(:disabled) svg {
+  transform: scale(.91);
+}
+@keyframes sl-heart-pop {
+  0% { transform: scale(.92); }
+  48% { transform: scale(1.19); }
+  100% { transform: scale(1); }
+}
+@keyframes sl-save-settle {
+  0% { transform: translateY(-2px) scale(.95); }
+  58% { transform: translateY(1px) scale(1.085); }
+  100% { transform: translateY(0) scale(1); }
+}
+body:not(.auth-entry) .sauti-action[data-sauti-action="like"].active svg {
+  animation: sl-heart-pop var(--sl-motion-soft) var(--sl-motion-ease) both;
+}
+body:not(.auth-entry) .sauti-action[data-sauti-action="save"].active svg {
+  animation: sl-save-settle var(--sl-motion-soft) var(--sl-motion-ease) both;
+}
+
+/* Mobile tabs retain their existing dimensions, labels and ordering. */
+@media (max-width: 680px) {
+  body:not(.auth-entry) .mobile-nav button {
+    transition: opacity var(--sl-motion-fast) ease,
+                color var(--sl-motion-standard) ease,
+                background-color var(--sl-motion-standard) ease;
+  }
+  body:not(.auth-entry) .mobile-nav .mobile-nav-icon {
+    transform-origin: center;
+    transition: transform var(--sl-motion-standard) var(--sl-motion-ease),
+                stroke-width var(--sl-motion-standard) ease;
+  }
+  body:not(.auth-entry) .mobile-nav button:active:not(:disabled) .mobile-nav-icon {
+    transform: scale(.92);
+  }
+}
+
+/* Existing native-style switches: animate the track and thumb independently. */
+body:not(.auth-entry) .settings-toggle-row i {
+  transition: background-color var(--sl-motion-standard) ease,
+              border-color var(--sl-motion-standard) ease;
+}
+body:not(.auth-entry) .settings-toggle-row i b {
+  transition: transform var(--sl-motion-standard) var(--sl-motion-ease),
+              left var(--sl-motion-standard) var(--sl-motion-ease),
+              background-color var(--sl-motion-standard) ease;
+}
+body:not(.auth-entry) .settings-toggle-row:has(input:focus-visible) i {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 3px;
+}
+
+/* Secondary controls and media pagination: lightweight feedback only. */
+body:not(.auth-entry) .secondary-action,
+body:not(.auth-entry) .icon-control,
+body:not(.auth-entry) .theme-toggle {
+  transition: color var(--sl-motion-fast) ease,
+              background-color var(--sl-motion-standard) ease,
+              border-color var(--sl-motion-standard) ease,
+              box-shadow var(--sl-motion-standard) ease;
+}
+body:not(.auth-entry) .icon-control svg,
+body:not(.auth-entry) .theme-toggle svg {
+  transform-origin: center;
+  transition: transform var(--sl-motion-standard) var(--sl-motion-ease);
+}
+body:not(.auth-entry) .sauti-media-carousel-dot {
+  transition: background-color var(--sl-motion-standard) ease,
+              opacity var(--sl-motion-fast) ease,
+              transform var(--sl-motion-standard) var(--sl-motion-ease);
+}
+body:not(.auth-entry) .sauti-media-carousel-dot.active {
+  transform: scale(1.12);
+}
+
+/* No surprise animations or smooth scrolling for motion-sensitive users. */
+@media (prefers-reduced-motion: reduce) {
+  body:not(.auth-entry) .primary-rail .nav-item svg,
+  body:not(.auth-entry) .sauti-action,
+  body:not(.auth-entry) .sauti-action svg,
+  body:not(.auth-entry) .mobile-nav button,
+  body:not(.auth-entry) .mobile-nav .mobile-nav-icon,
+  body:not(.auth-entry) .settings-toggle-row i,
+  body:not(.auth-entry) .settings-toggle-row i b,
+  body:not(.auth-entry) .secondary-action,
+  body:not(.auth-entry) .icon-control,
+  body:not(.auth-entry) .icon-control svg,
+  body:not(.auth-entry) .theme-toggle,
+  body:not(.auth-entry) .theme-toggle svg,
+  body:not(.auth-entry) .sauti-media-carousel-dot {
+    animation: none !important;
+    transition: none !important;
+  }
+  body:not(.auth-entry) .primary-rail .nav-item svg,
+  body:not(.auth-entry) .sauti-action svg,
+  body:not(.auth-entry) .mobile-nav .mobile-nav-icon,
+  body:not(.auth-entry) .icon-control svg,
+  body:not(.auth-entry) .theme-toggle svg,
+  body:not(.auth-entry) .sauti-media-carousel-dot {
+    transform: none !important;
+  }
+}
