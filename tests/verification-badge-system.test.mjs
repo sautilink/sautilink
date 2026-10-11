@@ -41,22 +41,37 @@ function assertOfficialPng(buffer, expectedSha) {
   assert.equal(gitBlobSha(buffer), expectedSha);
 }
 
-test('official verification PNGs are exact copies of the SautiLink source assets', () => {
+test('archived verification PNGs remain intact as rollback assets', () => {
   assertOfficialPng(teamBadge, '0d76fae420117b5e11e7cc22b03b1c8a413c20b1');
   assertOfficialPng(userPrimaryBadge, '2069e335942b74d79b007b7093e46d7fcb6b3c14');
   assertOfficialPng(userSecondaryBadge, '580282e5d59a0a7528b8669bd684856eb96917ef');
 });
 
-test('verification badges render PNG artwork without CSS-drawn substitute shapes', () => {
-  assert.match(app, /verified-team\.png/);
-  assert.match(app, /verified-user-primary\.png/);
-  assert.match(app, /verified-user-secondary\.png/);
+test('active verification badges render local SVG artwork with no PNG requests', () => {
+  assert.match(app, /verified-team\\.svg/);
+  assert.match(app, /verified-user-primary\\.svg/);
+  assert.match(app, /verified-user-secondary\\.svg/);
   assert.match(css, /\.verification-badge img\s*\{[\s\S]*object-fit:\s*contain/);
   assert.match(css, /\.verification-badge\s*\{[\s\S]*width:\s*var\(--verification-badge-size, 1em\)[\s\S]*height:\s*var\(--verification-badge-size, 1em\)/);
-  assert.match(css, /\.verification-badge img\s*\{[\s\S]*width:\s*168\.4%[\s\S]*height:\s*168\.4%[\s\S]*max-width:\s*none/);
+  assert.match(css, /\.verification-badge img\s*\{[\s\S]*width:\s*100%[\s\S]*height:\s*100%[\s\S]*max-width:\s*100%/);
   assert.doesNotMatch(css, /\.verification-badge::after/);
   assert.doesNotMatch(css, /--verification-badge-fill/);
   assert.match(html, /data-verification-badge-image/);
+});
+
+
+test('new SautiLink SVG badge variants are valid local vector resources', async () => {
+  const names = ['verified-team', 'verified-user-primary', 'verified-user-secondary'];
+  for (const name of names) {
+    const svg = await readFile(new URL(`../app/assets/verification/${name}.svg`, import.meta.url), 'utf8');
+    assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 26 26"/);
+    assert.match(svg, /<path fill="#[0-9a-fA-F]{6}" fill-rule="evenodd" clip-rule="evenodd" d="/);
+    assert.match(svg, /<circle cx="13" cy="13" r="8" fill="#fff"\/>/);
+    assert.match(svg, /Telegram Web K/);
+    assert.doesNotMatch(svg, /<script|<foreignObject|https?:\/\/[^ "']+\.(?:svg|png|webp)/i);
+    assert.ok(Buffer.byteLength(svg) < 3000, `${name} SVG should stay compact`);
+  }
+  assert.doesNotMatch(app, /\/app\/assets\/verification\/verified-(?:team|user-primary|user-secondary)\.png/);
 });
 
 test('verification badge size stays balanced with the local display-name typography', () => {
