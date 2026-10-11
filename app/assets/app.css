@@ -2873,9 +2873,9 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
 
 .verification-badge img {
   display: block;
-  width: 168.4%;
-  height: 168.4%;
-  max-width: none;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
   flex: 0 0 auto;
   object-fit: contain;
 }

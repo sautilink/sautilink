@@ -135,6 +135,10 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/verification/verified-team.png'));
   assert.ok(files.includes('app/assets/verification/verified-user-primary.png'));
   assert.ok(files.includes('app/assets/verification/verified-user-secondary.png'));
+  assert.ok(files.includes('app/assets/verification/verified-team.svg'));
+  assert.ok(files.includes('app/assets/verification/verified-user-primary.svg'));
+  assert.ok(files.includes('app/assets/verification/verified-user-secondary.svg'));
+  assert.ok(files.includes('app/assets/verification/LICENSE-GPL-3.0.txt'));
   assert.ok(files.includes('preview/app-shell/index.html'));
   assert.ok(files.includes('preview/app-shell/device-lab.html'));
   assert.ok(files.includes('preview/app-shell/device-lab.css'));
@@ -216,6 +220,10 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/verification/verified-team.png',
     'app/assets/verification/verified-user-primary.png',
     'app/assets/verification/verified-user-secondary.png',
+    'app/assets/verification/verified-team.svg',
+    'app/assets/verification/verified-user-primary.svg',
+    'app/assets/verification/verified-user-secondary.svg',
+    'app/assets/verification/LICENSE-GPL-3.0.txt',
     'logo.png',
     'assets/favicon.png',
     'assets/brand/system.css',

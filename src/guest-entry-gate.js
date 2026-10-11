@@ -128,12 +128,12 @@ function initials(value) {
 function badgeAsset(type) {
   const normalized = String(type || '').toLowerCase();
   if (normalized.includes('team') || normalized.includes('staff')) {
-    return '/app/assets/verification/verified-team.png';
+    return '/app/assets/verification/verified-team.svg';
   }
   if (normalized.includes('secondary')) {
-    return '/app/assets/verification/verified-user-secondary.png';
+    return '/app/assets/verification/verified-user-secondary.svg';
   }
-  return '/app/assets/verification/verified-user-primary.png';
+  return '/app/assets/verification/verified-user-primary.svg';
 }
 
 function makeAuthLink(label, route, destination, className) {

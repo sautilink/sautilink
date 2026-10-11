@@ -172,8 +172,8 @@ test('verification badge uses official PNG artwork and profile disclosure', asyn
   assert.match(css, /\.verification-badge img\s*\{[\s\S]*object-fit:\s*contain/);
   assert.match(css, /\.verification-badge\s*\{[\s\S]*width:\s*var\(--verification-badge-size, 1em\)[\s\S]*height:\s*var\(--verification-badge-size, 1em\)/);
   assert.doesNotMatch(css, /\.verification-badge::after|--verification-badge-fill/);
-  assert.match(source, /verified-user-primary\.png/);
+  assert.match(source, /verified-user-primary\.svg/);
   assert.match(html, /id="verification-info-dialog"/);
-  assert.match(source, /verified-team\.png/);
-  assert.match(source, /verified-user-secondary\.png/);
+  assert.match(source, /verified-team\.svg/);
+  assert.match(source, /verified-user-secondary\.svg/);
 });

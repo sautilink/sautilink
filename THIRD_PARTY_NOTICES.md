@@ -21,3 +21,20 @@ Their copyright and license texts remain available in the installed packages,
 the vendored runtime notice, and their upstream repositories. This notice does
 not cover transitive dependencies; the lockfile and automated license inventory
 remain the source for release audits.
+
+## Telegram Web K verification vector
+
+The SautiLink verification SVGs at `app/assets/verification/verified-team.svg`,
+`verified-user-primary.svg`, and `verified-user-secondary.svg` adapt the
+`verified-icon-background` vector from Telegram Web K's public `index.html`:
+https://github.com/TelegramOrg/Telegram-web-k/blob/master/index.html
+
+Original project: Telegram Web K (TelegramOrg), licensed under GNU GPL v3.
+The original license accompanies these assets in
+`app/assets/verification/LICENSE-GPL-3.0.txt`. SautiLink has modified colors
+and placed a white backing behind the cut-out checkmark. SVG source for the
+modified badges is included with the distributed app and public repository.
+
+This reuse does **not** imply that Telegram endorses or is affiliated with
+SautiLink. Use as a distinct official product brand identifier may require
+additional trademark/design-right review beyond open-source code licensing.

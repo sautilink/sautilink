@@ -277,9 +277,9 @@ function setMessage(node, message, type = 'error') {
 }
 
 const VERIFICATION_BADGE_ASSETS = Object.freeze({
-  team: '/app/assets/verification/verified-team.png',
-  standardPrimary: '/app/assets/verification/verified-user-primary.png',
-  standardSecondary: '/app/assets/verification/verified-user-secondary.png',
+  team: '/app/assets/verification/verified-team.svg',
+  standardPrimary: '/app/assets/verification/verified-user-primary.svg',
+  standardSecondary: '/app/assets/verification/verified-user-secondary.svg',
 });
 
 function normalizeVerificationBadgeType(value) {
