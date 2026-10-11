@@ -164,12 +164,12 @@ test('app footer keeps readable WCAG AA text contrast', async () => {
 });
 
 
-test('verification badge uses official PNG artwork and profile disclosure', async () => {
+test('verification badge uses original SautiLink inline vector and profile disclosure', async () => {
   const css = await read('app/assets/app.css');
   const html = await read('app/index.html');
   const source = await read('src/app.js');
 
-  assert.match(css, /\.verification-badge img\s*\{[\s\S]*object-fit:\s*contain/);
+  assert.match(css, /\.verification-badge svg\s*\{[^}]*width:\s*100%/);
   assert.match(css, /\.verification-badge\s*\{[\s\S]*width:\s*var\(--verification-badge-size, 1em\)[\s\S]*height:\s*var\(--verification-badge-size, 1em\)/);
   assert.doesNotMatch(css, /\.verification-badge::after|--verification-badge-fill/);
   assert.match(source, /verification-inline-svg/);
