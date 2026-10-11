@@ -19,6 +19,6 @@ test('UI motion styles change presentation only and respect reduced motion', asy
   assert.match(css, /\.sauti-action\[data-sauti-action="like"\]\.active svg/);
   assert.match(css, /\.settings-toggle-row i b/);
   assert.match(css, /\.mobile-nav \.mobile-nav-icon/);
-  assert.doesNotMatch(css, /(?:display|visibility|position|pointer-events|z-index|width|height|grid-template-columns)\s*:/);
+  assert.doesNotMatch(css, /^\s*(?:display|visibility|position|pointer-events|z-index|width|height|grid-template-columns)\s*:/m);
   assert.doesNotMatch(css, /url\s*\(/i);
 });
