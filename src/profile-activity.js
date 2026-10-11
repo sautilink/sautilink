@@ -1,3 +1,4 @@
+import { createInlineVerificationSvg } from './verification-inline-svg.js';
 const PROFILE_ACTIVITY_STYLESHEET = '/app/assets/profile-activity.css?v=20261007-stable-media1';
 const PROFILE_ACTIVITY_SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const PROFILE_ACTIVITY_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
@@ -11,12 +12,6 @@ const PROFILE_ACTIVITY_LABELS = Object.freeze({
   saves: 'Saves',
   hashtags: 'Hashtags',
 });
-const PROFILE_ACTIVITY_BADGES = Object.freeze({
-  team: '/app/assets/verification/verified-team.svg',
-  primary: '/app/assets/verification/verified-user-primary.svg',
-  secondary: '/app/assets/verification/verified-user-secondary.svg',
-});
-
 let profileActivityState = null;
 let profileActivityUsername = '';
 let profileActivityTab = 'posts';
@@ -203,17 +198,9 @@ function clearProfileActivityObjectUrls() {
   profileActivityObjectUrls.clear();
 }
 
-function currentProfileActivityBadgeAsset(type) {
-  if (String(type || '').toLowerCase() === 'team') return PROFILE_ACTIVITY_BADGES.team;
-  return document.documentElement.dataset.theme === 'light'
-    ? PROFILE_ACTIVITY_BADGES.primary
-    : PROFILE_ACTIVITY_BADGES.secondary;
-}
-
 function syncProfileActivityBadges() {
   document.querySelectorAll('[data-profile-activity-badge-type]').forEach((badge) => {
-    const image = badge.querySelector('img');
-    if (image) image.src = currentProfileActivityBadgeAsset(badge.dataset.profileActivityBadgeType);
+    badge.replaceChildren(createInlineVerificationSvg(badge.dataset.profileActivityBadgeType));
   });
 }
 
@@ -226,13 +213,7 @@ function createProfileActivityBadge(profile = {}) {
   badge.setAttribute('role', 'img');
   badge.setAttribute('aria-label', type === 'team' ? 'Verified SautiLink Team account' : 'Verified account');
   badge.title = type === 'team' ? 'Verified SautiLink Team account' : 'Verified account';
-  const image = document.createElement('img');
-  image.alt = '';
-  image.width = 64;
-  image.height = 64;
-  image.decoding = 'async';
-  image.src = currentProfileActivityBadgeAsset(type);
-  badge.append(image);
+  badge.append(createInlineVerificationSvg(type));
   return badge;
 }
 
