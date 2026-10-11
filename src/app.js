@@ -1,3 +1,4 @@
+import { mountInlineVerificationSvg } from './verification-inline-svg.js';
 import { createClient } from '@supabase/supabase-js';
 import { getVideoAutoplayPreference, setVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autoplay-preference.js';
 import { installVideoPlaybackCoordinator } from './video-playback-coordinator.js';
@@ -276,21 +277,8 @@ function setMessage(node, message, type = 'error') {
   node.hidden = !message;
 }
 
-const VERIFICATION_BADGE_ASSETS = Object.freeze({
-  team: '/app/assets/verification/verified-team.svg',
-  standardPrimary: '/app/assets/verification/verified-user-primary.svg',
-  standardSecondary: '/app/assets/verification/verified-user-secondary.svg',
-});
-
 function normalizeVerificationBadgeType(value) {
   return String(value || '').toLowerCase() === 'team' ? 'team' : 'standard';
-}
-
-function verificationBadgeAsset(badgeType = 'standard') {
-  if (normalizeVerificationBadgeType(badgeType) === 'team') return VERIFICATION_BADGE_ASSETS.team;
-  return document.documentElement.dataset.theme === 'light'
-    ? VERIFICATION_BADGE_ASSETS.standardPrimary
-    : VERIFICATION_BADGE_ASSETS.standardSecondary;
 }
 
 function applyVerificationBadgeAsset(badge, badgeType = 'standard') {
@@ -300,7 +288,7 @@ function applyVerificationBadgeAsset(badge, badgeType = 'standard') {
   const image = badge.matches?.('[data-verification-badge-image]')
     ? badge
     : badge.querySelector?.('[data-verification-badge-image]');
-  if (image) image.src = verificationBadgeAsset(normalizedType);
+  if (image) mountInlineVerificationSvg(image, normalizedType);
 }
 
 function syncVerificationBadgeAssets() {
@@ -353,13 +341,9 @@ function createVerificationBadge(label = 'Verified account', badgeType = 'standa
   badge.setAttribute('aria-label', label);
   badge.title = label;
 
-  const image = document.createElement('img');
-  image.alt = '';
-  image.width = 64;
-  image.height = 64;
-  image.decoding = 'async';
-  image.dataset.verificationBadgeImage = '';
-  badge.append(image);
+  const vector = document.createElement('span');
+  vector.dataset.verificationBadgeImage = '';
+  badge.append(vector);
   applyVerificationBadgeAsset(badge, badgeType);
   return badge;
 }
@@ -432,7 +416,7 @@ function openVerificationInfoDialog() {
   const owner = source.dataset.profileOwner === 'true';
   const team = badgeType === 'team';
 
-  byId('verification-info-badge-image').src = verificationBadgeAsset(badgeType);
+  mountInlineVerificationSvg(byId('verification-info-badge-image'), badgeType);
   byId('verification-info-label').textContent = team ? 'SautiLink Team' : 'Verification';
   byId('verification-info-title').textContent = team ? 'Official team profile' : 'Verified profile';
   byId('verification-team-wordmark').hidden = !team;
