@@ -2871,20 +2871,20 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
   overflow: visible;
 }
 
-.verification-badge img {
+.verification-badge [data-verification-badge-image],
+.verification-badge svg {
   display: block;
   width: 100%;
   height: 100%;
   max-width: 100%;
   flex: 0 0 auto;
-  object-fit: contain;
 }
 
 button.verification-badge {
   cursor: pointer;
 }
 
-button.verification-badge:hover img {
+button.verification-badge:hover svg {
   transform: scale(1.035);
 }
 
@@ -2994,7 +2994,8 @@ button.verification-badge:hover img {
   height: 38px;
 }
 
-.verification-info-badge img {
+.verification-info-badge > span,
+.verification-info-badge svg {
   display: block;
   width: 100%;
   height: 100%;
