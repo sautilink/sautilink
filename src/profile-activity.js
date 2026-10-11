@@ -12,9 +12,9 @@ const PROFILE_ACTIVITY_LABELS = Object.freeze({
   hashtags: 'Hashtags',
 });
 const PROFILE_ACTIVITY_BADGES = Object.freeze({
-  team: '/app/assets/verification/verified-team.png',
-  primary: '/app/assets/verification/verified-user-primary.png',
-  secondary: '/app/assets/verification/verified-user-secondary.png',
+  team: '/app/assets/verification/verified-team.svg',
+  primary: '/app/assets/verification/verified-user-primary.svg',
+  secondary: '/app/assets/verification/verified-user-secondary.svg',
 });
 
 let profileActivityState = null;
