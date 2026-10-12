@@ -8,6 +8,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.rounded.Phone
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -78,6 +81,9 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var visibilityRevision by remember { mutableIntStateOf(0) }
     var mediaByMessage by remember { mutableStateOf<Map<String, DmMedia>>(emptyMap()) }
     val mediaClient = remember(auth) { NativeDmMediaClient(auth) }
+    var peerReceipts by remember(selectedId) {
+        mutableStateOf(NativePeerReceipts(null, null))
+    }
     val appearance = remember(context, auth.account?.id) {
         MessageAppearancePrefs(context, auth.account?.id)
     }
@@ -161,7 +167,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     LaunchedEffect(auth.account?.id, refresh) {
         if (auth.account == null) { conversations = emptyList(); selectedId = null; return@LaunchedEffect }
         loading = true; error = null
-        try { conversations = client.inbox() }
+        try {
+            conversations = client.inbox()
+            conversations.filter { it.unread > 0 }.take(15).forEach { c ->
+                runCatching { client.acknowledgeDelivery(c.id) }
+            }
+        }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) { error = e.message ?: "Could not load messages." }
         finally { loading = false }
@@ -174,7 +185,10 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             val updated = client.thread(id)
             thread = updated
             mediaByMessage = runCatching { mediaClient.attachments(updated.messages) }.getOrDefault(emptyMap())
+            runCatching { client.acknowledgeDelivery(id) }
             runCatching { client.markRead(id) }
+            peerReceipts = runCatching { client.peerReceipts(id) }
+                .getOrDefault(NativePeerReceipts(null, null))
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) { error = e.message ?: "Could not open conversation." }
         finally { loading = false }
@@ -191,6 +205,8 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                         .getOrDefault(mediaByMessage)
                     client.markRead(id)
                 }
+                peerReceipts = runCatching { client.peerReceipts(id) }
+                    .getOrDefault(peerReceipts)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { /* Manual refresh shows any persistent error. */ }
         }
@@ -199,7 +215,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         if (auth.account == null || selectedId != null || !foreground) return@LaunchedEffect
         while (true) {
             delay(30000)
-            try { conversations = client.inbox() }
+            try {
+                conversations = client.inbox()
+                conversations.filter { it.unread > 0 }.take(15).forEach { c ->
+                    runCatching { client.acknowledgeDelivery(c.id) }
+                }
+            }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { /* The refresh action exposes persistent failures. */ }
         }
@@ -341,7 +362,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 }) {
                     Row(verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text(active?.conversation?.name ?: "Conversation", style = MaterialTheme.typography.titleLarge)
+                        Text(active?.conversation?.name ?: "Conversation",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f, fill = false),
+                            maxLines = 1, softWrap = false,
+                            overflow = TextOverflow.Ellipsis)
                         active?.conversation?.let { peer ->
                             SautiVerificationBadge(peer.verified, peer.badgeType, peer.name, size = 17.dp)
                         }
@@ -431,8 +457,10 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 val shownMessages = if (threadQuery.isBlank()) active.messages
                     else active.messages.filter { it.body.contains(threadQuery, ignoreCase = true) }
                 val listState = rememberLazyListState()
-                LaunchedEffect(shownMessages.size, searchingThread) {
-                    if (shownMessages.isNotEmpty()) listState.scrollToItem(shownMessages.lastIndex)
+                LaunchedEffect(shownMessages.size, searchingThread, peerTyping) {
+                    if (shownMessages.isNotEmpty()) {
+                        listState.animateScrollToItem(shownMessages.lastIndex + if (peerTyping) 1 else 0)
+                    }
                 }
                 LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth()
                     .background(messageWallpaper(wallpaper)),
@@ -503,11 +531,21 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                             color = if (own && bubble != "neutral") Color.White
                                                 else MaterialTheme.colorScheme.onSurface)
                                     }
-                                    Text(chatClock(message.sentAt) +
-                                        if (message.editedAt != null) " · edited" else "",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (own && bubble != "neutral") Color.White.copy(alpha = .78f)
-                                            else MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Row(
+                                        modifier = Modifier.align(Alignment.End),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Text(chatClock(message.sentAt) +
+                                            if (message.editedAt != null) " · edited" else "",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (own && bubble != "neutral") Color.White.copy(alpha = .78f)
+                                                else MaterialTheme.colorScheme.onSurfaceVariant)
+                                        if (own) NativeDmReceiptTicks(
+                                            message.sentAt, peerReceipts,
+                                            color = if (bubble != "neutral") Color.White.copy(alpha = .8f)
+                                                else MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
  
                                 }
                             }
