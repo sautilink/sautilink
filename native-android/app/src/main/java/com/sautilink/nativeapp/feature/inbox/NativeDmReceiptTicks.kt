@@ -52,7 +52,7 @@ internal fun NativeDmReceiptTicks(
             else -> "Sent"
         },
         tint = if (seen) Color(0xFF53C8FF) else color,
-        modifier = Modifier.size(16.dp)
+        modifier = Modifier.size(19.dp)
     )
 }
 
