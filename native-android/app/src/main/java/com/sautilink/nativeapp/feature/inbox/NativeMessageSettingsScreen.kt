@@ -46,6 +46,9 @@ internal class MessageAppearancePrefs(context: Context, accountId: String?) {
     var compact: Boolean
         get() = store.getBoolean("compact", false)
         set(value) { store.edit().putBoolean("compact", value).apply() }
+    var autoPhotos: Boolean
+        get() = store.getBoolean("auto_photos", true)
+        set(value) { store.edit().putBoolean("auto_photos", value).apply() }
     var dataSaver: Boolean
         get() = store.getBoolean("data_saver", false)
         set(value) { store.edit().putBoolean("data_saver", value).apply() }
@@ -89,6 +92,7 @@ internal fun NativeMessageSettingsScreen(
     }
     var compact by remember { mutableStateOf(preferences.compact) }
     var dataSaver by remember { mutableStateOf(preferences.dataSaver) }
+    var autoPhotos by remember { mutableStateOf(preferences.autoPhotos) }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack, Modifier.size(48.dp)) {
@@ -197,7 +201,17 @@ internal fun NativeMessageSettingsScreen(
                         dataSaver = it; preferences.dataSaver = it
                     }) }
                 )
-                Text("Auto-download photos and videos is not available yet because native direct messages currently support text only.",
+                ListItem(
+                    headlineContent = { Text("Auto-load chat photos") },
+                    supportingContent = { Text("Automatically display photos in chats. Files and voice notes remain on demand.") },
+                    leadingContent = { Icon(Icons.Rounded.Image, null) },
+                    trailingContent = {
+                        Switch(checked = autoPhotos, onCheckedChange = {
+                            autoPhotos = it; preferences.autoPhotos = it
+                        })
+                    }
+                )
+                Text("Documents and voice notes require a tap; media limits are enforced by SautiLink storage.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 ListItem(
