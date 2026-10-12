@@ -88,9 +88,18 @@ internal fun NativeMessageSettingsScreen(
     val scope = rememberCoroutineScope()
     var activityVisible by remember { mutableStateOf(false) }
     var activityBusy by remember { mutableStateOf(false) }
+    var activityLoading by remember { mutableStateOf(true) }
     var activityError by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(auth.account?.id) {
-        activityVisible = runCatching { client.activityStatusEnabled() }.getOrDefault(false)
+        activityLoading = true
+        activityError = null
+        try {
+            activityVisible = client.activityStatusEnabled()
+        } catch (e: Exception) {
+            activityError = e.message ?: "Online privacy status could not be loaded."
+        } finally {
+            activityLoading = false
+        }
     }
     var compact by remember { mutableStateOf(preferences.compact) }
     var dataSaver by remember { mutableStateOf(preferences.dataSaver) }
@@ -155,15 +164,16 @@ internal fun NativeMessageSettingsScreen(
                     supportingContent = { Text("Show activity to eligible chats. If disabled, you also cannot see others' activity.") },
                     leadingContent = { Icon(Icons.Rounded.Visibility, null) },
                     trailingContent = {
-                        Switch(checked = activityVisible, enabled = !activityBusy,
+                        Switch(checked = activityVisible, enabled = !activityBusy && !activityLoading
+                                && activityError == null,
                             onCheckedChange = { choice ->
                                 activityBusy = true
                                 scope.launch {
                                     try {
                                         client.editActivityVisibility(choice)
                                         activityVisible = choice
-                                        onVisibilityChanged()
                                         activityError = null
+                                        onVisibilityChanged()
                                     } catch (e: Exception) {
                                         activityError = e.message ?: "Privacy setting failed."
                                     } finally { activityBusy = false }
@@ -171,8 +181,19 @@ internal fun NativeMessageSettingsScreen(
                             })
                     }
                 )
+                if (activityLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (activityError != null) {
                     Text(activityError.orEmpty(), color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = {
+                        activityError = null
+                        activityLoading = true
+                        scope.launch {
+                            try { activityVisible = client.activityStatusEnabled() }
+                            catch (e: Exception) {
+                                activityError = e.message ?: "Could not refresh privacy setting."
+                            } finally { activityLoading = false }
+                        }
+                    }) { Text("Retry") }
                 }
                 ListItem(
                     headlineContent = { Text("Message privacy") },
