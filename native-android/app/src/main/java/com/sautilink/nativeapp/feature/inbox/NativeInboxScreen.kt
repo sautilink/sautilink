@@ -69,6 +69,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var editedText by remember { mutableStateOf("") }
     var forwarding by remember { mutableStateOf(false) }
     var clearConfirm by remember { mutableStateOf(false) }
+    var clearEveryone by remember { mutableStateOf(false) }
     var chatMenu by remember { mutableStateOf(false) }
     var searchingThread by remember { mutableStateOf(false) }
     var threadQuery by remember { mutableStateOf("") }
@@ -350,6 +351,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                 }
                             })
                             DropdownMenuItem(text = { Text("Clear chat for me") }, onClick = {
+                                clearEveryone = false
                                 clearConfirm = true; chatMenu = false
                             })
                         }
@@ -617,13 +619,26 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         }
         if (clearConfirm) AlertDialog(onDismissRequest = { clearConfirm = false },
             title = { Text("Clear chat for you?") },
-            text = { Text("This removes messages from your view only. The other person keeps their copies.") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("All messages will disappear from your view.")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = clearEveryone, onCheckedChange = { clearEveryone = it })
+                        Text("Also delete messages you sent for the recipient.",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text("You cannot erase messages the other person wrote from their account.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
             confirmButton = {
                 TextButton(onClick = {
                     val id = active?.conversation?.id ?: return@TextButton
                     sending = true
                     scope.launch {
                         try {
+                            if (clearEveryone) client.clearMySentForEveryone(id)
                             client.clearForMe(id)
                             thread = thread?.copy(messages = emptyList())
                             clearConfirm = false
