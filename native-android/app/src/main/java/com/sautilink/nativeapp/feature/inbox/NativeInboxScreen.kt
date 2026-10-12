@@ -510,28 +510,124 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 }
             }
         }
-        selectedMessage?.let { message ->
-            val own = message.senderId == auth.account?.id
-            AlertDialog(onDismissRequest = { selectedMessage = null },
-                title = { Text("Message options") },
-                text = { Text("Choose an action for this message.") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        clipboard.setText(AnnotatedString(message.body))
-                        selectedMessage = null
-                    }) { Text("Copy") }
-                },
-                dismissButton = {
-                    Row {
-                        if (!own) TextButton(onClick = {
-                            selectedMessage = null
-                            reportMessageId = message.id
-                            reportNote = null
-                        }) { Text("Report") }
-                        TextButton(onClick = { selectedMessage = null }) { Text("Cancel") }
+        if (deleteConfirm && selectedMessage != null) {
+            val target = selectedMessage!!
+            val owner = target.senderId == auth.account?.id
+            AlertDialog(
+                onDismissRequest = { if (!sending) deleteConfirm = false },
+                title = { Text("Delete message") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Are you sure you want to delete this message?")
+                        if (owner) Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = deleteEverywhere, onCheckedChange = {
+                                deleteEverywhere = it
+                            })
+                            Text("Also delete for " +
+                                (active?.conversation?.name ?: "recipient"),
+                                style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
-                })
+                },
+                confirmButton = {
+                    TextButton(enabled = !sending, onClick = {
+                        sending = true
+                        scope.launch {
+                            try {
+                                if (deleteEverywhere && owner) client.deleteOwnForEveryone(target.id)
+                                else client.deleteForMe(target, active!!.conversation.id)
+                                thread = thread?.copy(messages =
+                                    thread?.messages.orEmpty().filterNot { it.id == target.id })
+                                selectedMessage = null
+                                deleteConfirm = false
+                            } catch (e: Exception) { error = e.message ?: "Delete failed." }
+                            finally { sending = false }
+                        }
+                    }) {
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = { TextButton(onClick = { deleteConfirm = false }) {
+                    Text("Cancel")
+                } }
+            )
         }
+        if (editing && selectedMessage != null) {
+            val target = selectedMessage!!
+            AlertDialog(onDismissRequest = { editing = false },
+                title = { Text("Edit message") },
+                text = {
+                    OutlinedTextField(editedText, { editedText = it.take(4000) },
+                        label = { Text("Message") }, minLines = 2, maxLines = 5)
+                },
+                confirmButton = {
+                    TextButton(enabled = !sending && editedText.isNotBlank(), onClick = {
+                        sending = true
+                        scope.launch {
+                            try {
+                                val value = editedText.trim()
+                                client.editOwnMessage(target.id, value)
+                                thread = thread?.copy(messages = thread?.messages.orEmpty().map {
+                                    if (it.id == target.id) it.copy(body = value,
+                                        editedAt = java.time.Instant.now().toString()) else it
+                                })
+                                editing = false
+                                selectedMessage = null
+                            } catch (e: Exception) { error = e.message ?: "Edit failed." }
+                            finally { sending = false }
+                        }
+                    }) { Text("Save") }
+                },
+                dismissButton = { TextButton(onClick = { editing = false }) { Text("Cancel") } }
+            )
+        }
+        if (forwarding && selectedMessage != null) {
+            val target = selectedMessage!!
+            AlertDialog(onDismissRequest = { forwarding = false },
+                title = { Text("Forward to") },
+                text = {
+                    Column(Modifier.heightIn(max = 320.dp)) {
+                        if (target.kind != "text") Text(
+                            "Forwarding attachments is not yet available.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        else {
+                            conversations.filter { it.id != selectedId }.forEach { conv ->
+                                TextButton(enabled = !sending, onClick = {
+                                    sending = true
+                                    scope.launch {
+                                        try {
+                                            client.send(conv.id, target.body)
+                                            forwarding = false; selectedMessage = null
+                                        } catch (e: Exception) { error = e.message }
+                                        finally { sending = false }
+                                    }
+                                }) { Text(conv.name) }
+                            }
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = { forwarding = false }) { Text("Done") } }
+            )
+        }
+        if (clearConfirm) AlertDialog(onDismissRequest = { clearConfirm = false },
+            title = { Text("Clear chat for you?") },
+            text = { Text("This removes messages from your view only. The other person keeps their copies.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val id = active?.conversation?.id ?: return@TextButton
+                    sending = true
+                    scope.launch {
+                        try {
+                            client.clearForMe(id)
+                            thread = thread?.copy(messages = emptyList())
+                            clearConfirm = false
+                        } catch (e: Exception) { error = e.message }
+                        finally { sending = false }
+                    }
+                }, enabled = !sending) { Text("Clear", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { clearConfirm = false }) { Text("Cancel") } }
+        )
         if (reportMessageId != null) NativeReportDialog("message", reportBusy, error = reportNote,
             onDismiss = { reportMessageId = null }) { reason, details ->
             val id = reportMessageId ?: return@NativeReportDialog
