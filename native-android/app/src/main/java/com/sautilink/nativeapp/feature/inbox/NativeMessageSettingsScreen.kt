@@ -9,6 +9,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,6 +21,20 @@ internal class MessageAppearancePrefs(context: Context, accountId: String?) {
     private val store = context.applicationContext.getSharedPreferences(
         "sautilink_dm_ui_${accountId ?: "guest"}", Context.MODE_PRIVATE
     )
+    fun wallpaperFor(conversationId: String?): String =
+        conversationId?.let { store.getString("wallpaper:$it", null) } ?: wallpaper
+    fun bubbleFor(conversationId: String?): String =
+        conversationId?.let { store.getString("bubble:$it", null) } ?: bubble
+    fun setWallpaperFor(conversationId: String?, choice: String) {
+        if (conversationId == null) wallpaper = choice
+        else if (choice in listOf("system", "warm", "blue", "dark"))
+            store.edit().putString("wallpaper:$conversationId", choice).apply()
+    }
+    fun setBubbleFor(conversationId: String?, choice: String) {
+        if (conversationId == null) bubble = choice
+        else if (choice in listOf("blue", "teal", "neutral"))
+            store.edit().putString("bubble:$conversationId", choice).apply()
+    }
     var wallpaper: String
         get() = store.getString("wallpaper", "system") ?: "system"
         set(value) { if (value in listOf("system", "warm", "blue", "dark"))
@@ -54,12 +70,23 @@ internal fun outgoingBubble(choice: String): Color = when (choice) {
 @Composable
 internal fun NativeMessageSettingsScreen(
     preferences: MessageAppearancePrefs,
+    auth: StagingAuthClient,
+    conversationId: String? = null,
     onBack: () -> Unit,
     onPrivacy: () -> Unit,
-    onBlocked: () -> Unit
+    onBlocked: () -> Unit,
+    onVisibilityChanged: () -> Unit = {}
 ) {
-    var wallpaper by remember { mutableStateOf(preferences.wallpaper) }
-    var bubble by remember { mutableStateOf(preferences.bubble) }
+    var wallpaper by remember(conversationId) { mutableStateOf(preferences.wallpaperFor(conversationId)) }
+    var bubble by remember(conversationId) { mutableStateOf(preferences.bubbleFor(conversationId)) }
+    val client = remember(auth) { NativeMessagesClient(auth) }
+    val scope = rememberCoroutineScope()
+    var activityVisible by remember { mutableStateOf(false) }
+    var activityBusy by remember { mutableStateOf(false) }
+    var activityError by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(auth.account?.id) {
+        activityVisible = runCatching { client.activityStatusEnabled() }.getOrDefault(false)
+    }
     var compact by remember { mutableStateOf(preferences.compact) }
     var dataSaver by remember { mutableStateOf(preferences.dataSaver) }
     Column(Modifier.fillMaxSize()) {
@@ -88,7 +115,7 @@ internal fun NativeMessageSettingsScreen(
                     listOf("system" to "Auto", "warm" to "Warm", "blue" to "Blue", "dark" to "Dark")
                         .forEach { (key, label) ->
                             FilterChip(selected = wallpaper == key,
-                                onClick = { wallpaper = key; preferences.wallpaper = key },
+                                onClick = { wallpaper = key; preferences.setWallpaperFor(conversationId, key) },
                                 label = { Text(label) })
                         }
                 }
@@ -99,7 +126,7 @@ internal fun NativeMessageSettingsScreen(
                     listOf("blue" to "Blue", "teal" to "Teal", "neutral" to "Neutral")
                         .forEach { (key, label) ->
                             FilterChip(selected = bubble == key,
-                                onClick = { bubble = key; preferences.bubble = key },
+                                onClick = { bubble = key; preferences.setBubbleFor(conversationId, key) },
                                 label = { Text(label) })
                         }
                 }
@@ -116,6 +143,30 @@ internal fun NativeMessageSettingsScreen(
             }
             item {
                 Text("Privacy and safety", style = MaterialTheme.typography.titleMedium)
+                ListItem(
+                    headlineContent = { Text("Online, last seen and typing") },
+                    supportingContent = { Text("Show activity to eligible chats. If disabled, you also cannot see others' activity.") },
+                    leadingContent = { Icon(Icons.Rounded.Visibility, null) },
+                    trailingContent = {
+                        Switch(checked = activityVisible, enabled = !activityBusy,
+                            onCheckedChange = { choice ->
+                                activityBusy = true
+                                scope.launch {
+                                    try {
+                                        client.editActivityVisibility(choice)
+                                        activityVisible = choice
+                                        onVisibilityChanged()
+                                        activityError = null
+                                    } catch (e: Exception) {
+                                        activityError = e.message ?: "Privacy setting failed."
+                                    } finally { activityBusy = false }
+                                }
+                            })
+                    }
+                )
+                if (activityError != null) {
+                    Text(activityError.orEmpty(), color = MaterialTheme.colorScheme.error)
+                }
                 ListItem(
                     headlineContent = { Text("Message privacy") },
                     supportingContent = { Text("Who may message you, read receipts and activity status") },
