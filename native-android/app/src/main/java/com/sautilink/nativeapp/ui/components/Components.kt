@@ -1,11 +1,10 @@
 package com.sautilink.nativeapp.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -23,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,61 +50,70 @@ val nativeTabs = listOf(
     NativeTab("Profile", Icons.Rounded.PersonOutline)
 )
 
-/** A native Android bottom bar using iOS-inspired geometry, not an iOS control clone. */
+/** Floating, accessible iOS-inspired navigation; remains native Jetpack Compose. */
 @Composable
 fun SautiBottomBar(selected: Int, onSelect: (Int) -> Unit) {
     Surface(
-        shadowElevation = 12.dp,
-        tonalElevation = 2.dp,
-        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 8.dp,
+        tonalElevation = 0.dp,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = .96f),
         shape = SautiShape.Pill,
-        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 14.dp, vertical = 7.dp)
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .26f), SautiShape.Pill)
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .22f), SautiShape.Pill)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
             nativeTabs.forEachIndexed { index, tab ->
-                val active = index == selected
                 val create = index == 2
+                val active = index == selected && !create
                 val fill by animateColorAsState(
                     targetValue = when {
-                        create -> SautiColors.Blue
+                        create -> MaterialTheme.colorScheme.primary
                         active -> MaterialTheme.colorScheme.primary.copy(alpha = .12f)
                         else -> Color.Transparent
                     },
-                    label = "navigation background"
+                    label = "Bottom navigation background"
                 )
                 val tint by animateColorAsState(
-                    targetValue = if (create) Color.White else if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    label = "navigation icon"
-                )
-                val iconSize by animateDpAsState(
-                    targetValue = if (active) 25.dp else 23.dp,
-                    animationSpec = spring(), label = "navigation icon size"
+                    targetValue = when {
+                        create -> MaterialTheme.colorScheme.onPrimary
+                        active -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    label = "Bottom navigation tint"
                 )
                 Column(
-                    modifier = Modifier.weight(1f).clip(SautiShape.Button).clickable { onSelect(index) }
-                        .padding(vertical = 2.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 54.dp)
+                        .clip(SautiShape.Button)
+                        .then(if (create) Modifier.clickable { onSelect(index) }
+                            else Modifier.selectable(selected = active, role = Role.Tab,
+                                onClick = { onSelect(index) }))
+                        .padding(vertical = 3.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
                     Box(
-                        modifier = Modifier.size(if (create) 42.dp else 34.dp)
-                            .clip(if (create) CircleShape else SautiShape.Button)
+                        modifier = Modifier.size(if (create) 42.dp else 33.dp)
+                            .clip(if (create) CircleShape else SautiShape.Pill)
                             .background(fill),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(tab.icon, contentDescription = tab.title, tint = tint,
-                            modifier = Modifier.size(if (create) 27.dp else iconSize))
+                            modifier = Modifier.size(if (create) 24.dp else 22.dp))
                     }
-                    if (!create) Text(
-                        tab.title, fontSize = 10.sp,
-                        color = tint, maxLines = 1,
-                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal
-                    )
+                    if (!create) {
+                        Text(
+                            tab.title,
+                            fontSize = 11.sp,
+                            color = tint,
+                            maxLines = 1,
+                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium
+                        )
+                    }
                 }
             }
         }
