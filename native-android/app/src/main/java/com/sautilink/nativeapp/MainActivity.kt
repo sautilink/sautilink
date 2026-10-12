@@ -21,8 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.sautilink.nativeapp.feature.chat.ChatScreen
-import com.sautilink.nativeapp.feature.home.HomeScreen
 import com.sautilink.nativeapp.feature.home.StagingFeedScreen
 import com.sautilink.nativeapp.feature.home.NativePostDetailScreen
 import com.sautilink.nativeapp.feature.inbox.InboxScreen
@@ -39,14 +37,12 @@ import com.sautilink.nativeapp.feature.videos.ProductionShortVideosScreen
 import com.sautilink.nativeapp.feature.explore.NativeExploreScreen
 import com.sautilink.nativeapp.feature.rooms.NativeRoomsScreen
 import com.sautilink.nativeapp.feature.media.MediaViewerScreen
-import com.sautilink.nativeapp.feature.diagnostics.StagingConnectionScreen
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.NativeAuthScreen
 import com.sautilink.nativeapp.feature.auth.NativeRegistrationScreen
 import com.sautilink.nativeapp.feature.auth.NativeRecoveryScreen
-import com.sautilink.nativeapp.feature.auth.StagingProfileScreen
 import com.sautilink.nativeapp.ui.components.SautiBottomBar
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import com.sautilink.nativeapp.ui.theme.SautiTheme
@@ -110,22 +106,9 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     var notificationRoomSlug by rememberSaveable { mutableStateOf<String?>(null) }
     var roomReturn by rememberSaveable { mutableStateOf<String?>(null) }
     var messageDeepId by rememberSaveable { mutableStateOf<String?>(null) }
-    var chatContact by rememberSaveable { mutableStateOf("Aisha Mohamed") }
-    var chatInitials by rememberSaveable { mutableStateOf("AM") }
-    val stagingAuth = remember(context.applicationContext) {
-        StagingAuthClient(BuildConfig.STAGING_SUPABASE_PUBLISHABLE_KEY, context.applicationContext)
-    }
     val productionAuth = remember(context.applicationContext) {
         StagingAuthClient(BuildConfig.PRODUCTION_SUPABASE_PUBLISHABLE_KEY,
             context.applicationContext, SautiBackend.PRODUCTION)
-    }
-    if (BuildConfig.FLAVOR == "preview") {
-        LaunchedEffect(stagingAuth) {
-            stagingAuth.restoreSession()
-            if (stagingAuth.sessionState == StagingSessionState.RETRYABLE_ERROR) {
-                delay(2000); stagingAuth.restoreSession()
-            }
-        }
     }
     LaunchedEffect(productionAuth) {
         productionAuth.restoreSession()
@@ -180,7 +163,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         when {
             composerOpen -> if (!composerInFlight) composerOpen = false else notice("Wait for upload to finish")
             detail == "media" -> closeMedia()
-            detail == "staging-profile" || detail == "production-profile" -> detail = profileReturn
+            detail == "production-profile" -> detail = profileReturn
             detail == "member-profile" -> detail = memberProfileReturn
             detail == "my-posts" -> detail = null
             detail == "post" -> detail = postReturn
@@ -208,7 +191,6 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                 Crossfade(targetState = detail to root, label = "SautiLink screen transition") { destination ->
                 val (activeDetail, activeRoot) = destination
                 when (activeDetail) {
-                    "chat" -> ChatScreen(onBack = { detail = null }, onToggleTheme = ::toggleTheme, onNotice = ::notice, contactName = chatContact, contactInitials = chatInitials)
                     "settings" -> NativeSettingsScreen(
                         auth = productionAuth,
                         isDark = isDark,
@@ -217,12 +199,9 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onSignIn = { detail = "production-auth" },
                         onOpenProfile = { profileReturn = "settings"; detail = "production-profile" },
                         onOpenNotifications = { detail = "notifications" },
-                        onOpenConnection = { detail = "connection" },
                         onOpenAuth = { detail = "production-auth" },
                         onOpenRecovery = { detail = "production-recovery" }
                     )
-                    "connection" -> StagingConnectionScreen(onBack = { detail = "settings" })
-                    "staging-feed" -> StagingFeedScreen(auth = stagingAuth, onBack = { detail = null }, onSignIn = { detail = "auth" })
                     "production-auth" -> NativeAuthScreen(client = productionAuth, onBack = { detail = null; root = 0 },
                         onViewProfile = { profileReturn = "production-auth"; detail = "production-profile" },
                         onRegister = { detail = "production-signup" },
@@ -241,25 +220,6 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onBack = { detail = memberProfileReturn }, onSignIn = { detail = "production-auth" })
                     "my-posts" -> NativeOwnPostsScreen(auth = productionAuth, refreshKey = postsRefresh,
                         onBack = { detail = null; root = 4 }, onCreate = { composerOpen = true })
-                    "auth" -> NativeAuthScreen(client = stagingAuth, onBack = { detail = "settings" },
-                        onViewProfile = { profileReturn = "auth"; detail = "staging-profile" })
-                    "staging-profile" -> StagingProfileScreen(
-                        client = stagingAuth,
-                        onBack = { detail = profileReturn },
-                        onSignIn = { detail = "auth" }
-                    )
-                    "demo-home" -> HomeScreen(
-                        onOpenChat = { detail = "chat" },
-                        onToggleTheme = ::toggleTheme,
-                        onOpenNotifications = { detail = "notifications" },
-                        onOpenVideos = { detail = "videos" },
-                        onCreatePost = { composerOpen = true },
-                        onOpenProfile = { detail = null; root = 4 },
-                        onOpenMedia = ::openMedia,
-                        onOpenStagingFeed = { detail = "staging-feed" },
-                        onOpenProductionFeed = { detail = null; root = 0 },
-                        onNotice = ::notice
-                    )
                     "notifications" -> NativeNotificationsScreen(auth = productionAuth,
                         onBack = { detail = null }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle ->
@@ -292,8 +252,6 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             onBack = {},
                             onSignIn = { detail = "production-auth" },
                             asHome = true,
-                            onOpenDemo = { detail = "demo-home" },
-                            onOpenStaging = { detail = "staging-feed" },
                             onOpenNotifications = { detail = "notifications" },
                             onOpenSettings = { detail = "settings" },
                             onOpenVideos = { detail = "videos" },
@@ -317,8 +275,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             onOpenPosts = { detail = "my-posts" })
                         else -> StagingFeedScreen(
                             auth = productionAuth, onBack = {}, onSignIn = { detail = "production-auth" },
-                            asHome = true, onOpenDemo = { detail = "demo-home" },
-                            onOpenStaging = { detail = "staging-feed" },
+                            asHome = true,
                             onOpenNotifications = { detail = "notifications" },
                             onOpenSettings = { detail = "settings" },
                             onOpenVideos = { detail = "videos" },
