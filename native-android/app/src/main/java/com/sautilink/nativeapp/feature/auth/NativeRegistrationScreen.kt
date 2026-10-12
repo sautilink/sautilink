@@ -154,7 +154,12 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBackIosNew, "Back") }
-            Text("Create your SautiLink account", style = MaterialTheme.typography.titleLarge)
+            Text("Sign up", style = MaterialTheme.typography.headlineMedium)
+        }
+        if (step == SignupStep.DETAILS) {
+            SautiAuthBrand()
+            Text("Join SautiLink — completely free",
+                style = MaterialTheme.typography.titleLarge)
         }
         if (checking || client.sessionState == StagingSessionState.CHECKING) {
             LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -168,7 +173,7 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
             Button(onClick = { progressRetry++ }, enabled = !checking) { Text("Retry checking progress") }
         } else when (step) {
             SignupStep.DETAILS -> {
-                Text("1 of 4 · Your details", style = MaterialTheme.typography.titleMedium)
+                Text("Your details", style = MaterialTheme.typography.titleMedium)
                 OutlinedTextField(username, { username = it.lowercase().removePrefix("@") },
                     label = { Text("Username") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(displayName, { displayName = it },
