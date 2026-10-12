@@ -172,12 +172,11 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
     }
 
     suspend fun markRead(conversationId: String) {
-        val own = viewer()
         if (!uuid.matches(conversationId)) return
-        // Read state is the viewer's own row; no other conversation is updated.
-        rest("dm_conversation_states?conversation_id=eq.$conversationId&user_id=eq.$own",
-            "PATCH", JSONObject().put("last_read_at", java.time.Instant.now().toString())
-                .put("hidden_at", JSONObject.NULL))
+        // Server only writes when actual unread peer messages exist.
+        // Prevents every UI refresh from generating another realtime broadcast.
+        rpcJson("dm_mark_read_if_unread_phase_a",
+            JSONObject().put("p_conversation_id", conversationId))
     }
 
     suspend fun send(conversationId: String, rawBody: String, replyToId: String? = null): NativeMessage {
