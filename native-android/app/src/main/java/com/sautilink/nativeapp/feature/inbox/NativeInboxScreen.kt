@@ -209,6 +209,16 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 IconButton(onClick = { selectedId = null; thread = null; refresh++ }, Modifier.size(48.dp)) {
                     Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to inbox")
                 }
+                active?.conversation?.let { peer ->
+                    val initials = peer.name.split(" ").filter { it.isNotBlank() }
+                        .take(2).joinToString("") { it.take(1).uppercase() }.ifBlank { "SL" }
+                    if (peer.hasAvatar && peer.handle.isNotBlank()) {
+                        AuthorizedImage(auth, "/api/profile-media/${peer.handle}/avatar",
+                            "Chat avatar", Modifier.size(41.dp).clip(CircleShape),
+                            fallback = { SautiAvatar(initials, Modifier.size(41.dp), SautiColors.Blue) })
+                    } else SautiAvatar(initials, Modifier.size(41.dp), SautiColors.Blue)
+                }
+                Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f).clickable(enabled = active?.conversation?.handle?.isNotBlank() == true) {
                     active?.conversation?.handle?.let(onOpenProfile)
                 }) {
@@ -400,7 +410,15 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 }
                 items(shown, key = { it.id }) { item ->
                     Row(Modifier.fillMaxWidth().clickable { selectedId = item.id }.padding(horizontal = 18.dp, vertical = 13.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        val initials = item.name.split(" ").filter { it.isNotBlank() }
+                            .take(2).joinToString("") { it.take(1).uppercase() }.ifBlank { "SL" }
+                        if (item.hasAvatar && item.handle.isNotBlank()) {
+                            AuthorizedImage(auth, "/api/profile-media/${item.handle}/avatar",
+                                "Profile picture", Modifier.size(54.dp).clip(CircleShape),
+                                fallback = { SautiAvatar(initials, Modifier.size(54.dp), SautiColors.Blue) })
+                        } else SautiAvatar(initials, Modifier.size(54.dp), SautiColors.Blue)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(5.dp)) {
