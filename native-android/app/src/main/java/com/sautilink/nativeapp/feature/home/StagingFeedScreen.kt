@@ -86,6 +86,7 @@ fun StagingFeedScreen(
     val sessionState = auth.sessionState
     var mode by rememberSaveable(auth.backend.id) { mutableStateOf("for_you") }
     LaunchedEffect(savedRequestVersion) {
+        if (mode == "short_videos") mode = "for_you" // Retire saved old tab state.
         if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION) mode = "saved"
     }
     var refreshVersion by remember { mutableIntStateOf(0) }
@@ -453,7 +454,8 @@ fun StagingFeedScreen(
     ) { insets ->
         LazyColumn(
             Modifier.fillMaxSize().padding(insets),
-            contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 24.dp),
+            contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 6.dp,
+                bottom = if (asHome) 90.dp else 24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
