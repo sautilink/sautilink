@@ -60,7 +60,6 @@ import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.Locale
-import com.sautilink.nativeapp.BuildConfig
 
 /** Explicit environment-isolated read-only feed; production and staging use different auth sessions. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,8 +69,6 @@ fun StagingFeedScreen(
     onBack: () -> Unit,
     onSignIn: () -> Unit,
     asHome: Boolean = false,
-    onOpenDemo: () -> Unit = {},
-    onOpenStaging: () -> Unit = {},
     onOpenNotifications: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenVideos: () -> Unit = {},
@@ -451,10 +448,6 @@ fun StagingFeedScreen(
                                 )
                                 if (auth.backend == SautiBackend.PRODUCTION) DropdownMenuItem(
                                     text = { Text("Rooms") }, onClick = { menuOpen = false; onOpenRooms() })
-                                if (BuildConfig.FLAVOR == "preview") {
-                                    DropdownMenuItem(text = { Text("Demo Home · UI preview") }, onClick = { menuOpen = false; onOpenDemo() })
-                                    DropdownMenuItem(text = { Text("Staging test feed") }, onClick = { menuOpen = false; onOpenStaging() })
-                                }
                                 DropdownMenuItem(text = { Text("Settings") }, onClick = { menuOpen = false; onOpenSettings() })
                             }
                         }
