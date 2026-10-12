@@ -54,6 +54,7 @@ internal fun NativeDmMediaControls(
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordedFile by remember { mutableStateOf<File?>(null) }
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraFile by remember { mutableStateOf<File?>(null) }
 
     fun send(bytes: ByteArray, kind: String, mime: String, name: String, durationMs: Int = 0) {
         if (busy) return
@@ -68,7 +69,7 @@ internal fun NativeDmMediaControls(
         }
     }
 
-    fun sendUri(uri: Uri?, kind: String) {
+    fun sendUri(uri: Uri?, kind: String, cleanup: File? = null) {
         if (uri == null) return
         scope.launch {
             try {
@@ -79,7 +80,7 @@ internal fun NativeDmMediaControls(
                 send(bytes, kind, mime, name)
             } catch (e: Exception) {
                 onError(e.message ?: "Could not read selected file.")
-            }
+            } finally { cleanup?.delete() }
         }
     }
 
@@ -90,8 +91,10 @@ internal fun NativeDmMediaControls(
         sendUri(it, "file")
     }
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) {
-        if (it) sendUri(cameraUri, "photo")
+        if (it) sendUri(cameraUri, "photo", cameraFile)
+        else cameraFile?.delete()
         cameraUri = null
+        cameraFile = null
     }
 
     fun startVoice() {
@@ -192,6 +195,7 @@ internal fun NativeDmMediaControls(
                             val file = File.createTempFile("sauti_camera_", ".jpg", dir)
                             val capture = FileProvider.getUriForFile(context,
                                 context.packageName + ".fileprovider", file)
+                            cameraFile = file
                             cameraUri = capture
                             camera.launch(capture)
                         } catch (_: Exception) { onError("Camera is unavailable.") }
