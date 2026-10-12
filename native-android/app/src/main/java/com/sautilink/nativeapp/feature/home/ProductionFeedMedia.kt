@@ -144,17 +144,18 @@ private fun stableFeedAspect(media: FeedMedia): Float {
 internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>) {
     if (media.isEmpty()) return
     val pager = androidx.compose.foundation.pager.rememberPagerState(pageCount = { media.size })
+    // Use one measured frame across carousel pages, preventing vertical layout jumps on swipe.
+    val carouselAspect = media.minOf(::stableFeedAspect)
     Column(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth()) {
             androidx.compose.foundation.pager.HorizontalPager(
                 state = pager,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().aspectRatio(carouselAspect),
                 key = { index -> media[index].id }
             ) { page ->
                 val item = media[page]
-                val aspect = stableFeedAspect(item)
                 Box(
-                    Modifier.fillMaxWidth().aspectRatio(aspect)
+                    Modifier.fillMaxSize()
                         .background(Color.Black)
                         .clip(RoundedCornerShape(7.dp)),
                     contentAlignment = Alignment.Center
