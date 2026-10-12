@@ -260,7 +260,7 @@ fun NativeProfileScreen(
                                 if (member.hasHeader) {
                                     AuthorizedImage(
                                         auth,
-                                        "/api/profile-media/${member.username}/header",
+                                        "/api/profile-media/${member.username}/header?v=$refresh",
                                         "${member.displayName}'s profile cover",
                                         modifier = Modifier.fillMaxWidth().height(155.dp)
                                             .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
