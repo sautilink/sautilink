@@ -32,7 +32,8 @@ data class NativeProfile(
     val categorySlug: String,
     val verified: Boolean,
     val badgeType: String,
-    val dmAccess: String = "none"
+    val dmAccess: String = "none",
+    val verifiedSince: String = ""
 )
 
 data class ProfileEdit(val bio: String, val location: String, val website: String, val discoverable: Boolean)
@@ -44,7 +45,7 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
     private val uuid = Regex("^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
     private val handle = Regex("^[a-z0-9][a-z0-9._]{2,29}$")
     private val http = OkHttpClient.Builder().callTimeout(20, TimeUnit.SECONDS).build()
-    private val select = "id,username,display_name,bio,location,website_url,is_discoverable,followers_count,following_count,created_at,avatar_key,header_key,professional_category_slug,is_verified,verification_badge_type,dm_access"
+    private val select = "id,username,display_name,bio,location,website_url,is_discoverable,followers_count,following_count,created_at,avatar_key,header_key,professional_category_slug,is_verified,verification_badge_type,dm_access,username_locked_at"
 
     private suspend fun rows(path: String): JSONArray = JSONArray(call(path, "GET"))
 
@@ -91,7 +92,9 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
         categorySlug = row.optString("professional_category_slug").takeUnless { it == "null" }.orEmpty(),
         verified = row.optBoolean("is_verified"),
         badgeType = row.optString("verification_badge_type", "standard"),
-        dmAccess = row.optString("dm_access", "none")
+        dmAccess = row.optString("dm_access", "none"),
+        verifiedSince = if (row.optBoolean("is_verified"))
+            row.optString("username_locked_at").takeUnless { it == "null" }.orEmpty() else ""
     )
 
     /** Same professional category taxonomy and column-level ownership policy as SautiLink Web. */
