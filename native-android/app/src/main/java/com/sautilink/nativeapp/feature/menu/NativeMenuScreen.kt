@@ -99,6 +99,7 @@ private val menuDestinations = listOf(
     MenuDestination("Saved", Icons.Rounded.Bookmark, "saved"),
     MenuDestination("Notifications", Icons.Rounded.NotificationsNone, "notifications"),
     MenuDestination("Settings", Icons.Rounded.Settings, "settings"),
+    MenuDestination("Verification", Icons.Rounded.VerifiedUser, "verification"),
     MenuDestination("Privacy", Icons.Rounded.AdminPanelSettings, "privacy"),
     MenuDestination("Language", Icons.Rounded.Language, "language"),
     MenuDestination("Terms of Service", Icons.Rounded.Description, "terms"),
@@ -122,6 +123,7 @@ fun NativeMenuScreen(
     onSaved: () -> Unit,
     onNotifications: () -> Unit,
     onSettings: () -> Unit,
+    onVerification: () -> Unit,
     onPrivacy: () -> Unit,
     onLanguage: () -> Unit,
     onWebsite: (String) -> Unit,
@@ -249,7 +251,8 @@ fun NativeMenuScreen(
                         translationY = (1f - reveal) * 18f
                     }
                 ) {
-                    MenuTile(entry, selected = entry.key == "theme" && isDark) {
+                    MenuTile(entry, selected = entry.key == "theme" && isDark,
+                        disabled = entry.key == "verification" && ownProfile?.verified == true) {
                         // Prevent invisible tiles from being activated during their entrance.
                         if (index < visibleCount) {
                             when (entry.key) {
@@ -257,6 +260,7 @@ fun NativeMenuScreen(
                                 "saved" -> onSaved()
                                 "notifications" -> onNotifications()
                                 "settings" -> onSettings()
+                                "verification" -> onVerification()
                                 "privacy" -> onPrivacy()
                                 "language" -> onLanguage()
                                 "theme" -> onToggleTheme()
@@ -309,13 +313,15 @@ fun NativeMenuScreen(
 }
 
 @Composable
-private fun MenuTile(item: MenuDestination, selected: Boolean, onClick: () -> Unit) {
+private fun MenuTile(item: MenuDestination, selected: Boolean,
+    disabled: Boolean = false, onClick: () -> Unit) {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) .965f else 1f,
         animationSpec = tween(130), label = "Menu tile feedback")
     Surface(
         onClick = onClick,
+        enabled = !disabled,
         interactionSource = source,
         modifier = Modifier.fillMaxSize().graphicsLayer {
             scaleX = scale
@@ -338,10 +344,13 @@ private fun MenuTile(item: MenuDestination, selected: Boolean, onClick: () -> Un
                 item.icon,
                 contentDescription = null,
                 modifier = Modifier.size(29.dp),
-                tint = if (selected) MaterialTheme.colorScheme.primary
+                tint = if (disabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .4f)
+                    else if (selected) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurface
             )
-            Text(item.label,
+            Text(if (item.key == "verification" && disabled) "Verified" else item.label,
+                color = if (disabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f)
+                    else MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Medium,
                 maxLines = 2,
