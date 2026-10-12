@@ -36,6 +36,39 @@ with check (
   )
 );
 
+-- Atomic participant-only clear for the viewer. The other participant keeps their messages.
+create or replace function public.dm_clear_chat_for_me_native_phase38(p_conversation_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $fn$
+declare
+  inserted_count integer;
+begin
+  if (select auth.uid()) is null or p_conversation_id is null or not exists (
+    select 1 from public.dm_conversations conversation
+    where conversation.id = p_conversation_id
+      and (conversation.member_one_id = (select auth.uid())
+        or conversation.member_two_id = (select auth.uid()))
+  ) then
+    raise exception 'DM_ACCESS_DENIED' using errcode = '42501';
+  end if;
+
+  insert into public.dm_hidden_messages_native_phase38(user_id, message_id, conversation_id)
+  select (select auth.uid()), m.id, p_conversation_id
+  from public.dm_messages m
+  where m.conversation_id = p_conversation_id
+  on conflict (user_id, message_id) do nothing;
+
+  get diagnostics inserted_count = row_count;
+  return inserted_count;
+end;
+$fn$;
+
+revoke all on function public.dm_clear_chat_for_me_native_phase38(uuid) from public, anon;
+grant execute on function public.dm_clear_chat_for_me_native_phase38(uuid) to authenticated;
+
 -- Only expose coarse activity buckets, never precise last-active timestamps.
 -- Both viewer and target must opt in. Existing phase37 function also checks DM membership and blocks.
 create or replace function public.dm_peer_activity_bucket_native_phase38(p_peer_id uuid)
