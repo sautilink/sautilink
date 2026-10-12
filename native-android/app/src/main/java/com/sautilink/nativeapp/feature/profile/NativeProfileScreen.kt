@@ -33,6 +33,7 @@ import com.sautilink.nativeapp.feature.safety.MemberSafetyState
 import com.sautilink.nativeapp.feature.safety.NativeReportDialog
 import com.sautilink.nativeapp.feature.safety.NativeSafetyClient
 import com.sautilink.nativeapp.ui.theme.SautiShape
+import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import kotlinx.coroutines.launch
 import java.net.URI
@@ -178,7 +179,7 @@ fun NativeProfileScreen(
             }
             if (connections.size >= 100) Text("Showing the latest 100 connections.", style = MaterialTheme.typography.bodySmall)
         } else {
-            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (loading && profile == null) repeat(3) { SautiExploreSkeleton() }
             if (error != null) ProfileNotice(error.orEmpty())
             if (!loading && loaded && profile == null && error == null) {
                 ProfileNotice(if (ownerRoute) "Your social profile is still being prepared."
