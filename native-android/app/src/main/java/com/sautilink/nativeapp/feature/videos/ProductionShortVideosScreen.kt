@@ -3,9 +3,16 @@ package com.sautilink.nativeapp.feature.videos
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 
 import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Intent
 import android.net.ConnectivityManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -15,6 +22,9 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,11 +48,18 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import com.sautilink.nativeapp.feature.auth.SautiBackend
+import com.sautilink.nativeapp.feature.home.PostInteractionsClient
 import com.sautilink.nativeapp.feature.home.StagingFeedClient
 import com.sautilink.nativeapp.feature.home.StagingFeedPost
 import com.sautilink.nativeapp.feature.home.rememberNetworkAvailable
 import com.sautilink.nativeapp.ui.components.SautiSkeletonBlock
 import com.sautilink.nativeapp.ui.theme.SautiShape
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import java.util.Locale
 
 private data class LiveClip(val post: StagingFeedPost, val mediaId: String)
 
@@ -54,12 +71,16 @@ fun ProductionShortVideosScreen(
     auth: StagingAuthClient,
     onBack: () -> Unit,
     onSignIn: () -> Unit,
-    onOpenProfile: (String) -> Unit
+    onOpenProfile: (String) -> Unit,
+    onOpenComments: (String) -> Unit
 ) {
     val context = LocalContext.current
     val online = rememberNetworkAvailable()
     val owner = LocalLifecycleOwner.current
     val client = remember(auth) { StagingFeedClient(auth) }
+    val actions = remember(auth) { PostInteractionsClient(auth) }
+    val scope = rememberCoroutineScope()
+    val feedback = remember { SnackbarHostState() }
     val preferences = remember(context) { context.getSharedPreferences("sautilink_live_video", Context.MODE_PRIVATE) }
     var clips by remember(auth) { mutableStateOf<List<LiveClip>>(emptyList()) }
     var nextOffset by remember(auth) { mutableIntStateOf(0) }
@@ -77,6 +98,97 @@ fun ProductionShortVideosScreen(
     var playing by remember { mutableStateOf(false) }
     var playbackError by remember { mutableStateOf<String?>(null) }
     var resumeAfterBackground by remember { mutableStateOf(false) }
+    // All interaction state is server-confirmed. Unknown state never implies an Unlike/Undo.
+    var likeStates by remember(auth, auth.account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var saveStates by remember(auth, auth.account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var repostStates by remember(auth, auth.account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var busyActions by remember(auth, auth.account?.id) { mutableStateOf<Set<String>>(emptySet()) }
+    val canInteract = auth.backend == SautiBackend.PRODUCTION && auth.account != null && online
+
+    fun togglePostAction(post: StagingFeedPost, kind: String) {
+        if (!canInteract) {
+            scope.launch { feedback.showSnackbar("Reconnect to interact with this video.") }
+            return
+        }
+        val key = "$kind:${post.id}"
+        if (key in busyActions) return
+        val before = when (kind) {
+            "like" -> likeStates[post.id]
+            "save" -> saveStates[post.id]
+            "repost" -> repostStates[post.id]
+            else -> return
+        }
+        val desired = before != true
+        val accountId = auth.account?.id
+        busyActions = busyActions + key
+        scope.launch {
+            try {
+                withTimeout(20_000L) {
+                    when (kind) {
+                        "like" -> actions.setLike(post.id, desired)
+                        "save" -> actions.setSaved(post.id, desired)
+                        "repost" -> actions.setRepost(post.id, desired)
+                    }
+                }
+                if (auth.account?.id != accountId) return@launch
+                when (kind) {
+                    "like" -> {
+                        likeStates = likeStates + (post.id to desired)
+                        if (before != null) clips = clips.map { clip ->
+                            if (clip.post.id == post.id) clip.copy(post = clip.post.copy(
+                                likes = (clip.post.likes + if (before) -1 else 1).coerceAtLeast(0)))
+                            else clip
+                        }
+                    }
+                    "save" -> saveStates = saveStates + (post.id to desired)
+                    "repost" -> {
+                        repostStates = repostStates + (post.id to desired)
+                        // Resolve counts from the source of truth; a replay or unknown prior
+                        // state must never invent a repost total.
+                        try {
+                            val total = withTimeout(12_000L) { actions.loadRepostCount(post.id) }
+                            if (auth.account?.id == accountId) clips = clips.map { clip ->
+                                if (clip.post.id == post.id) clip.copy(post = clip.post.copy(reposts = total)) else clip
+                            }
+                        } catch (cancelled: CancellationException) { throw cancelled }
+                        catch (_: Exception) { /* Feed refresh reconciles a delayed count. */ }
+                    }
+                }
+            } catch (cancelled: TimeoutCancellationException) {
+                // A timed-out request may have succeeded; discard uncertain status.
+                when (kind) {
+                    "like" -> likeStates = likeStates - post.id
+                    "save" -> saveStates = saveStates - post.id
+                    "repost" -> repostStates = repostStates - post.id
+                }
+                feedback.showSnackbar("${kind.replaceFirstChar { it.uppercase() }} timed out. Check status before trying again.")
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (e: Exception) {
+                feedback.showSnackbar(e.message ?: "Could not update this video. Please try again.")
+            } finally {
+                busyActions = busyActions - key
+            }
+        }
+    }
+
+    fun shareClip(post: StagingFeedPost, copyOnly: Boolean) {
+        try {
+            val url = actions.postShareUrl(post.id)
+            if (copyOnly) {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("SautiLink video", url))
+                scope.launch { feedback.showSnackbar("Link copied") }
+            } else {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, url)
+                }
+                context.startActivity(Intent.createChooser(intent, "Share SautiLink video"))
+            }
+        } catch (_: Exception) {
+            scope.launch { feedback.showSnackbar("Could not share this video.") }
+        }
+    }
 
     LaunchedEffect(auth, auth.account?.id, reload, online) {
         val cached = if (auth.account != null) client.cached("short_videos") else null
@@ -158,6 +270,33 @@ fun ProductionShortVideosScreen(
     }
     LaunchedEffect(player, muted) { player?.volume = if (muted) 0f else 1f }
     val clip = clips.getOrNull(pager.settledPage)
+    LaunchedEffect(auth.account?.id, clip?.post?.id, online) {
+        val postId = clip?.post?.id ?: return@LaunchedEffect
+        val accountId = auth.account?.id ?: return@LaunchedEffect
+        if (!canInteract) return@LaunchedEffect
+        // Independent reads: a slow Save lookup never prevents Like or Repost.
+        if (postId !in likeStates) launch {
+            try {
+                val states = withTimeout(18_000L) { actions.getLikeStates(listOf(postId)) }
+                if (auth.account?.id == accountId) likeStates = states + likeStates
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* An explicit Like remains possible. */ }
+        }
+        if (postId !in saveStates) launch {
+            try {
+                val states = withTimeout(18_000L) { actions.getSavedStates(listOf(postId)) }
+                if (auth.account?.id == accountId) saveStates = states + saveStates
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* An explicit Save remains possible. */ }
+        }
+        if (postId !in repostStates) launch {
+            try {
+                val states = withTimeout(18_000L) { actions.getRepostStates(listOf(postId)) }
+                if (auth.account?.id == accountId) repostStates = states + repostStates
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* An explicit Repost remains possible. */ }
+        }
+    }
     val selectedQuality = when (quality) {
         "240", "360", "480", "720", "1080" -> quality
         "original" -> null
@@ -230,7 +369,7 @@ fun ProductionShortVideosScreen(
                     }
                     Box(Modifier.fillMaxWidth().height(220.dp).align(Alignment.BottomCenter)
                         .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .85f)))))
-                    Column(Modifier.align(Alignment.BottomStart).padding(start = 20.dp, end = 20.dp, bottom = 42.dp),
+                    Column(Modifier.align(Alignment.BottomStart).padding(start = 16.dp, end = 94.dp, bottom = 42.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -244,11 +383,38 @@ fun ProductionShortVideosScreen(
                         if (item.post.body.isNotBlank()) Text(item.post.body, color = Color.White,
                             maxLines = 3, overflow = TextOverflow.Ellipsis)
                     }
+                    Column(Modifier.align(Alignment.BottomEnd)
+                        .padding(end = 8.dp, bottom = 44.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        val post = item.post
+                        val liked = likeStates[post.id] == true
+                        val saved = saveStates[post.id] == true
+                        val reposted = repostStates[post.id] == true
+                        VideoRailAction(
+                            if (liked) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbUpOffAlt,
+                            "Like", formatVideoCount(post.likes), liked,
+                            enabled = canInteract && "like:${post.id}" !in busyActions
+                        ) { togglePostAction(post, "like") }
+                        VideoRailAction(Icons.Rounded.ChatBubbleOutline, "Comments",
+                            formatVideoCount(post.comments)) { onOpenComments(post.id) }
+                        VideoRailAction(if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                            "Save", null, saved,
+                            enabled = canInteract && "save:${post.id}" !in busyActions
+                        ) { togglePostAction(post, "save") }
+                        VideoRailAction(Icons.Rounded.Repeat, "Repost", formatVideoCount(post.reposts),
+                            reposted, enabled = canInteract && "repost:${post.id}" !in busyActions
+                        ) { togglePostAction(post, "repost") }
+                        VideoRailAction(Icons.Rounded.Share, "Share") { shareClip(post, false) }
+                        VideoRailAction(Icons.Rounded.ContentCopy, "Copy link") { shareClip(post, true) }
+                    }
                 }
             }
             if (error != null) TextButton(onClick = { error = null; pageRetry++ },
                 modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)) { Text("Retry more videos") }
         }
+        SnackbarHost(hostState = feedback,
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 54.dp))
         Row(Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back", tint = Color.White) }
@@ -287,4 +453,50 @@ fun ProductionShortVideosScreen(
 
 private fun List<StagingFeedPost>.toLiveClips(): List<LiveClip> = mapNotNull { post ->
     post.media.firstOrNull { it.kind == "video" }?.let { LiveClip(post, it.id) }
+}
+
+
+private fun formatVideoCount(value: Int): String = when {
+    value >= 1_000_000 -> String.format(Locale.US, "%.1fM", value / 1_000_000.0)
+    value >= 1_000 -> String.format(Locale.US, "%.1fK", value / 1_000.0)
+    else -> value.coerceAtLeast(0).toString()
+}
+
+/** Tap animation + explicit semantics for TalkBack and large-screen navigation. */
+@Composable
+private fun VideoRailAction(
+    icon: ImageVector,
+    label: String,
+    count: String? = null,
+    active: Boolean = false,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) .87f else if (active) 1.07f else 1f,
+        animationSpec = spring(dampingRatio = .63f),
+        label = "Short video $label press"
+    )
+    Column(Modifier.width(66.dp).heightIn(min = 52.dp)
+        .clickable(interactionSource = interaction, indication = null,
+            enabled = enabled, role = Role.Button, onClick = onClick)
+        .padding(vertical = 3.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center) {
+        Icon(icon, contentDescription = label,
+            modifier = Modifier.size(28.dp).graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            },
+            tint = when {
+                !enabled -> Color.White.copy(alpha = .45f)
+                active -> Color(0xFFFF5964)
+                else -> Color.White
+            })
+        Spacer(Modifier.height(2.dp))
+        Text(count ?: label, color = Color.White.copy(alpha = if (enabled) 1f else .55f),
+            style = MaterialTheme.typography.labelSmall, maxLines = 1)
+    }
 }
