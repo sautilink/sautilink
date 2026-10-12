@@ -84,7 +84,24 @@ begin
   if (select auth.uid()) is null or p_peer_id is null or p_peer_id = (select auth.uid()) then
     return 'hidden';
   end if;
-  if not public.can_view_member_activity_topic_phase37('member-activity:' || p_peer_id::text) then
+  -- The hardened phase37 migration removed the old topic-access function.
+  -- Reproduce the same reciprocal privacy, DM membership and block checks explicitly.
+  if not exists (
+    select 1 from public.social_member_preferences p
+    where p.user_id = (select auth.uid()) and p.activity_status = true
+  ) or not exists (
+    select 1 from public.social_member_preferences p
+    where p.user_id = p_peer_id and p.activity_status = true
+  ) or not exists (
+    select 1 from public.dm_conversations c
+    where ((c.member_one_id = (select auth.uid()) and c.member_two_id = p_peer_id)
+       or (c.member_two_id = (select auth.uid()) and c.member_one_id = p_peer_id))
+      and not exists (
+        select 1 from public.social_blocks b
+        where (b.blocker_id = (select auth.uid()) and b.blocked_id = p_peer_id)
+           or (b.blocker_id = p_peer_id and b.blocked_id = (select auth.uid()))
+      )
+  ) then
     return 'hidden';
   end if;
   select activity.last_active_at into last_active
