@@ -467,7 +467,11 @@ fun NativeProfileScreen(
                     Text("Joined: ${member.joinedAt.take(10).ifBlank { "Not available" }}")
                     Text(if (member.verified) "Verification: Verified"
                         else "Verification: Not verified")
-                    Text("Verification date: Not available from current profile data")
+                    Text("Verified since: " + runCatching {
+                        java.time.LocalDate.parse(member.verifiedSince.take(10))
+                            .format(java.time.format.DateTimeFormatter.ofPattern(
+                                "MMMM yyyy", java.util.Locale.getDefault()))
+                    }.getOrDefault("Not available"))
                     Text("Discoverability: ${if (member.discoverable) "Discoverable" else "Limited"}")
                     Text("Profile category: ${categoryCatalog.firstOrNull { it.slug == member.categorySlug }?.label ?: "Not selected"}")
                 }
