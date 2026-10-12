@@ -83,7 +83,8 @@ internal class NativeProfileActivityClient(private val auth: StagingAuthClient) 
                 if (!Regex("^[0-9a-fA-F-]{36}$").matches(id)) return@mapNotNull null
                 val m = p.optJSONArray("media") ?: JSONArray()
                 ProfileActivityEntry(
-                    id = id, authorHandle = author.optString("username"),
+                    id = id, authorId = p.optString("author_id"),
+                    authorHandle = author.optString("username"),
                     authorName = author.optString("display_name")
                         .takeIf { it.isNotBlank() && it != "null" }
                         ?: author.optString("username").ifBlank { "SautiLink member" },
@@ -115,6 +116,13 @@ internal class NativeProfileActivityClient(private val auth: StagingAuthClient) 
         )
     }
 
+    suspend fun setPinned(postId: String, pinned: Boolean) {
+        if (!Regex("^[0-9a-fA-F-]{36}$").matches(postId))
+            throw AuthRequestException("Invalid post reference.")
+        rpc("set_profile_pin_phase33", JSONObject()
+            .put("p_post_id", postId).put("p_pinned", pinned))
+    }
+
     suspend fun savePrivacy(likes: String, saves: String, hashtags: String) {
         val valid = setOf("private", "followers", "public")
         if (listOf(likes, saves, hashtags).any { it !in valid })
@@ -131,7 +139,7 @@ internal data class ProfileActivityState(
     val likesPrivacy: String, val savesPrivacy: String, val hashtagsPrivacy: String
 )
 internal data class ProfileActivityEntry(
-    val id: String, val authorHandle: String, val authorName: String,
+    val id: String, val authorId: String, val authorHandle: String, val authorName: String,
     val hasAvatar: Boolean, val verified: Boolean, val badgeType: String,
     val body: String, val postedAt: String, val likes: Int, val comments: Int,
     val reposts: Int, val liked: Boolean, val saved: Boolean, val reposted: Boolean,
