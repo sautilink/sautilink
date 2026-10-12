@@ -449,9 +449,7 @@ fun StagingFeedScreen(
                             Icon(Icons.Rounded.Refresh, "Refresh posts")
                         }
                     } else {
-                        IconButton(onClick = onOpenNotifications) {
-                            Icon(Icons.Rounded.NotificationsNone, "Notifications")
-                        }
+                        // Notifications already has a dedicated bottom-navigation destination.
                         AnimatedHamburgerButton(onClick = onOpenMenu)
                     }
                 },
