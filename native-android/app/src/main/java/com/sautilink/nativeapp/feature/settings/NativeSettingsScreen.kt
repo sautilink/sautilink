@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
+import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -68,7 +69,8 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                 Icon(Icons.Rounded.Refresh, "Refresh settings")
             }
         }
-        if (loading || busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (loading && state == null) repeat(4) { SautiExploreSkeleton() }
+        else if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (error != null) Text(error.orEmpty(), Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
             color = MaterialTheme.colorScheme.error)
         if (note != null) Text(note.orEmpty(), Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
