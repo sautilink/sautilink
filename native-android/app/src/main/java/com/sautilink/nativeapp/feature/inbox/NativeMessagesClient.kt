@@ -37,8 +37,10 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
             val builder = Request.Builder().url(auth.restOrigin + path)
                 .header("apikey", auth.publicKeyForRead()).header("Authorization", "Bearer $token")
                 .header("Accept", "application/json").header("Cache-Control", "no-store")
-            if (method == "PATCH" || method == "POST") {
-                builder.header("Prefer", "return=representation")
+            if (method == "PATCH" || method == "POST" || method == "UPSERT") {
+                builder.header("Prefer",
+                    if (method == "UPSERT") "resolution=merge-duplicates,return=representation"
+                    else "return=representation")
                 val body = (payload ?: JSONObject()).toString().toRequestBody(jsonType)
                 if (method == "PATCH") builder.patch(body) else builder.post(body)
             } else builder.get()
@@ -202,9 +204,13 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
 
     suspend fun editActivityVisibility(enabled: Boolean) {
         val own = viewer()
-        val rows = rest("social_member_preferences?user_id=eq.$own&select=user_id",
-            "PATCH", JSONObject().put("activity_status", enabled))
-        if (rows.length() != 1) throw AuthRequestException("Could not update online visibility.")
+        val rows = rest(
+            "social_member_preferences?on_conflict=user_id&select=user_id,activity_status",
+            "UPSERT", JSONObject().put("user_id", own).put("activity_status", enabled))
+        if (rows.length() != 1 || rows.optJSONObject(0)?.optBoolean("activity_status") != enabled)
+            throw AuthRequestException("Could not save the online visibility setting.")
+        // Apply the new preference immediately to the server-side activity record.
+        touchActivity()
     }
 
     suspend fun touchActivity() {
@@ -213,7 +219,10 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
             val body = "{}".toRequestBody(jsonType)
             http.newCall(Request.Builder().url(auth.restOrigin + "rpc/touch_member_activity_phase37")
                 .header("apikey", auth.publicKeyForRead())
-                .header("Authorization", "Bearer $token").post(body).build()).execute().close()
+                .header("Authorization", "Bearer $token").post(body).build()).execute().use { response ->
+                if (!response.isSuccessful)
+                    throw AuthRequestException("Unable to update your online status (HTTP ${response.code}).")
+            }
         }
     }
 
