@@ -454,6 +454,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             if (loading && active == null) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (active != null) {
                 val ownId = auth.account?.id
+                val bubbleLimit = minOf(LocalConfiguration.current.screenWidthDp.dp * .79f, 320.dp)
                 val shownMessages = if (threadQuery.isBlank()) active.messages
                     else active.messages.filter { it.body.contains(threadQuery, ignoreCase = true) }
                 val listState = rememberLazyListState()
@@ -465,7 +466,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth()
                     .background(messageWallpaper(wallpaper)),
                     contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 9.dp)) {
+                    verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 5.dp)) {
                     if (shownMessages.isEmpty()) item {
                         Text(if (threadQuery.isBlank()) "No messages yet." else "No matching messages.")
                     }
@@ -485,13 +486,13 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = if (own) Arrangement.End else Arrangement.Start) {
                             Surface(
-                                shape = if (own) RoundedCornerShape(21.dp, 21.dp, 5.dp, 21.dp)
-                                    else RoundedCornerShape(21.dp, 21.dp, 21.dp, 5.dp),
+                                shape = if (own) RoundedCornerShape(17.dp, 17.dp, 5.dp, 17.dp)
+                                    else RoundedCornerShape(17.dp, 17.dp, 17.dp, 5.dp),
                                 color = if (own) outgoingBubble(bubble)
                                     else MaterialTheme.colorScheme.surface,
                                 tonalElevation = if (own) 0.dp else 1.dp,
                                 shadowElevation = 1.dp,
-                                modifier = Modifier.widthIn(max = 305.dp)
+                                modifier = Modifier.widthIn(max = bubbleLimit)
                                     .pointerInput(message.id) {
                                         var movement = 0f
                                         detectHorizontalDragGestures(
@@ -510,13 +511,38 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                         onClick = { if (selectedMessage != null) selectedMessage = message },
                                         onLongClick = { selectedMessage = message })
                             ) {
-                                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Column(Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     if (message.replyTo != null) {
                                         val quoted = active.messages.firstOrNull { it.id == message.replyTo }
-                                        Text("↪ " + (quoted?.body?.take(65) ?: "Reply"),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = if (own && bubble != "neutral") Color.White.copy(alpha = .7f)
-                                                else MaterialTheme.colorScheme.primary)
+                                        val author = if (quoted?.senderId == ownId) "You" else active.conversation.name
+                                        val quoteColor = if (own && bubble != "neutral") Color.White
+                                            else MaterialTheme.colorScheme.primary
+                                        Row(
+                                            Modifier.clickable {
+                                                val at = shownMessages.indexOfFirst { it.id == message.replyTo }
+                                                if (at >= 0) scope.launch { listState.animateScrollToItem(at) }
+                                            }.background(
+                                                if (own && bubble != "neutral") Color.White.copy(alpha = .12f)
+                                                else MaterialTheme.colorScheme.primary.copy(alpha = .08f),
+                                                RoundedCornerShape(8.dp))
+                                                .padding(horizontal = 7.dp, vertical = 6.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(7.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(Modifier.width(3.dp).height(34.dp)
+                                                .background(quoteColor, RoundedCornerShape(2.dp)))
+                                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Text(author, color = quoteColor,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                Text(quoted?.body?.ifBlank { "Attachment" } ?: "Original message",
+                                                    color = quoteColor.copy(alpha = .82f),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
+                                        }
                                     }
                                     if (message.kind != "text") {
                                         val media = mediaByMessage[message.id]
@@ -552,14 +578,8 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                         }
                         }
                     }
-                    if (peerTyping) item {
-                        Surface(shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 5.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier.padding(start = 10.dp, top = 4.dp)) {
-                            Text("typing…", modifier = Modifier.padding(horizontal = 15.dp, vertical = 9.dp),
-                                color = MaterialTheme.colorScheme.primary,
-                                style = MaterialTheme.typography.bodySmall)
-                        }
+                    if (peerTyping) item(key = "peer-typing") {
+                        NativeDmTypingBubble()
                     }
                 }
                 if (error != null) Text(error.orEmpty(), Modifier.padding(horizontal = 16.dp),
@@ -568,12 +588,28 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     color = if (reportNote == "Report submitted.") MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.error)
                 if (replyTo != null) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text("Replying to: " + replyTo!!.body.take(70),
-                            modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                        IconButton(onClick = { replyTo = null }) {
-                            Icon(Icons.Rounded.Close, "Cancel reply")
+                    Surface(shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .55f),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp)) {
+                        Row(Modifier.padding(start = 10.dp, end = 2.dp, top = 7.dp, bottom = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.width(3.dp).height(35.dp)
+                                .background(MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(3.dp)))
+                            Spacer(Modifier.width(9.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(if (replyTo?.senderId == ownId) "Reply to yourself"
+                                    else "Reply to ${active.conversation.name}",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.labelMedium)
+                                Text(replyTo?.body?.take(85) ?: "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                            IconButton(onClick = { replyTo = null }) {
+                                Icon(Icons.Rounded.Close, "Cancel reply", Modifier.size(19.dp))
+                            }
                         }
                     }
                 }
