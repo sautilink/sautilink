@@ -260,7 +260,7 @@ fun NativeProfileScreen(
                                 if (member.hasHeader) {
                                     AuthorizedImage(
                                         auth,
-                                        "/api/profile-media/${member.username}/header?v=$refresh",
+                                        "/api/profile-media/${member.username}/header?v=${member.headerRevision}-$refresh",
                                         "${member.displayName}'s profile cover",
                                         modifier = Modifier.fillMaxWidth().height(155.dp)
                                             .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
@@ -682,7 +682,7 @@ private fun ProfileAvatar(auth: StagingAuthClient, profile: NativeProfile, size:
                           revision: Int = 0) {
     val modifier = Modifier.size(size.dp).clip(CircleShape)
     if (profile.hasAvatar) AuthorizedImage(auth,
-        "/api/profile-media/${profile.username}/avatar?v=$revision", "${profile.displayName}'s avatar", modifier,
+        "/api/profile-media/${profile.username}/avatar?v=${profile.avatarRevision}-$revision", "${profile.displayName}'s avatar", modifier,
         fallback = { ProfileAvatarFallback(profile.displayName, modifier) })
     else ProfileAvatarFallback(profile.displayName, modifier)
 }
