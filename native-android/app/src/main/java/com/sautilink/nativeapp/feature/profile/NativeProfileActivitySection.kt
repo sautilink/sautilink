@@ -26,6 +26,7 @@ import com.sautilink.nativeapp.feature.home.AuthorizedImage
 import com.sautilink.nativeapp.feature.home.PostInteractionsClient
 import com.sautilink.nativeapp.feature.home.PostMediaGallery
 import com.sautilink.nativeapp.feature.home.relativePostTime
+import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
 import com.sautilink.nativeapp.ui.components.SautiAvatar
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.theme.SautiColors
@@ -148,7 +149,7 @@ internal fun ProfileActivitySection(
                 }
             }
         }
-        if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (busy && entries.isEmpty()) repeat(2) { SautiPostSkeleton() }
         if (error != null) {
             Text(error.orEmpty(), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error)
