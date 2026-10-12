@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.sautilink.nativeapp.feature.menu.NativeMenuScreen
 import com.sautilink.nativeapp.feature.home.StagingFeedScreen
 import com.sautilink.nativeapp.feature.home.NativePostDetailScreen
 import com.sautilink.nativeapp.feature.inbox.InboxScreen
@@ -96,6 +97,9 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     var composerInFlight by remember { mutableStateOf(false) }
     var postDraft by rememberSaveable { mutableStateOf("") }
     var postsRefresh by remember { mutableIntStateOf(0) }
+    var savedRequestVersion by remember { mutableIntStateOf(0) }
+    var menuEntryDestination by rememberSaveable { mutableStateOf<String?>(null) }
+    var settingsPrivacyFocus by rememberSaveable { mutableStateOf(false) }
     var mediaStartIndex by rememberSaveable { mutableStateOf(0) }
     var previousDetail by rememberSaveable { mutableStateOf<String?>(null) }
     var profileReturn by rememberSaveable { mutableStateOf<String?>(null) }
@@ -153,6 +157,20 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     fun notice(message: String) { scope.launch { snackbar.showSnackbar(message) } }
     fun openMedia(index: Int) { mediaStartIndex = index; previousDetail = detail; detail = "media" }
     fun closeMedia() { detail = previousDetail; previousDetail = null }
+    fun openWebsite(section: String) {
+        // Only allow official, verified destinations; no arbitrary URL input from content.
+        if (section !in setOf("terms", "community-guidelines", "appeals", "help", "about", "contact", "privacy")) return
+        val url = android.net.Uri.parse("https://sautilink.com/$section")
+        runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, url).addCategory(Intent.CATEGORY_BROWSABLE))
+        }.onFailure { notice("Unable to open this page. Try again later.") }
+    }
+    fun openDeviceLanguage() {
+        runCatching {
+            context.startActivity(Intent(android.provider.Settings.ACTION_LOCALE_SETTINGS))
+        }.onFailure { notice("Language settings are unavailable on this device.") }
+    }
+
     fun toggleTheme() {
         val nextDark = !isDark
         darkOverride = nextDark
@@ -163,6 +181,11 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         when {
             composerOpen -> if (!composerInFlight) composerOpen = false else notice("Wait for upload to finish")
             detail == "media" -> closeMedia()
+            detail == "menu" -> detail = null
+            detail == menuEntryDestination && menuEntryDestination != null -> {
+                menuEntryDestination = null
+                detail = "menu"
+            }
             detail == "production-profile" -> detail = profileReturn
             detail == "member-profile" -> detail = memberProfileReturn
             detail == "my-posts" -> detail = null
@@ -193,14 +216,63 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                 when (activeDetail) {
                     "settings" -> NativeSettingsScreen(
                         auth = productionAuth,
+                        focusPrivacy = settingsPrivacyFocus,
                         isDark = isDark,
-                        onBack = { detail = null },
+                        onBack = {
+                            detail = if (menuEntryDestination == "settings") "menu" else null
+                            menuEntryDestination = null
+                            settingsPrivacyFocus = false
+                        },
                         onToggleTheme = ::toggleTheme,
                         onSignIn = { detail = "production-auth" },
                         onOpenProfile = { profileReturn = "settings"; detail = "production-profile" },
                         onOpenNotifications = { detail = "notifications" },
                         onOpenAuth = { detail = "production-auth" },
                         onOpenRecovery = { detail = "production-recovery" }
+                    )
+                    "menu" -> NativeMenuScreen(
+                        auth = productionAuth,
+                        isDark = isDark,
+                        onBack = { detail = null },
+                        onProfile = {
+                            if (productionAuth.account == null) detail = "production-auth"
+                            else { detail = null; root = 4 }
+                        },
+                        onRooms = {
+                            menuEntryDestination = "rooms"
+                            notificationRoomSlug = null
+                            detail = "rooms"
+                        },
+                        onSaved = {
+                            detail = null
+                            root = 0
+                            savedRequestVersion++
+                        },
+                        onNotifications = {
+                            menuEntryDestination = "notifications"
+                            detail = "notifications"
+                        },
+                        onSettings = {
+                            menuEntryDestination = "settings"
+                            settingsPrivacyFocus = false
+                            detail = "settings"
+                        },
+                        onPrivacy = {
+                            menuEntryDestination = "settings"
+                            settingsPrivacyFocus = true
+                            detail = "settings"
+                        },
+                        onLanguage = ::openDeviceLanguage,
+                        onWebsite = ::openWebsite,
+                        onToggleTheme = ::toggleTheme,
+                        onSignOut = {
+                            scope.launch {
+                                runCatching { NativePushManager.unregister(context, productionAuth) }
+                                runCatching { productionAuth.signOut() }
+                                    .onSuccess { detail = null; root = 0; notice("Signed out") }
+                                    .onFailure { notice("Could not complete sign out. Try again.") }
+                            }
+                        }
                     )
                     "production-auth" -> NativeAuthScreen(client = productionAuth, onBack = { detail = null; root = 0 },
                         onViewProfile = { profileReturn = "production-auth"; detail = "production-profile" },
@@ -221,7 +293,10 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                     "my-posts" -> NativeOwnPostsScreen(auth = productionAuth, refreshKey = postsRefresh,
                         onBack = { detail = null; root = 4 }, onCreate = { composerOpen = true })
                     "notifications" -> NativeNotificationsScreen(auth = productionAuth,
-                        onBack = { detail = null }, onSignIn = { detail = "production-auth" },
+                        onBack = {
+                            detail = if (menuEntryDestination == "notifications") "menu" else null
+                            menuEntryDestination = null
+                        }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle ->
                             viewedProfileHandle = handle; memberProfileReturn = "notifications"; detail = "member-profile"
                         }, onOpenRoom = { slug -> notificationRoomSlug = slug; roomReturn = "notifications"; detail = "rooms" },
@@ -239,7 +314,9 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         })
                     "rooms" -> NativeRoomsScreen(auth = productionAuth,
                         onBack = {
-                            detail = if (notificationRoomSlug != null) roomReturn else null
+                            detail = if (notificationRoomSlug != null) roomReturn
+                                else if (menuEntryDestination == "rooms") "menu" else null
+                            menuEntryDestination = null
                             notificationRoomSlug = null
                         }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle ->
@@ -252,7 +329,9 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             onBack = {},
                             onSignIn = { detail = "production-auth" },
                             asHome = true,
-                            onOpenNotifications = { detail = "notifications" },
+                            savedRequestVersion = savedRequestVersion,
+                            onOpenMenu = { detail = "menu" },
+                            onOpenNotifications = { menuEntryDestination = null; detail = "notifications" },
                             onOpenSettings = { detail = "settings" },
                             onOpenVideos = { detail = "videos" },
                             onOpenRooms = { detail = "rooms" },
@@ -276,7 +355,9 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         else -> StagingFeedScreen(
                             auth = productionAuth, onBack = {}, onSignIn = { detail = "production-auth" },
                             asHome = true,
-                            onOpenNotifications = { detail = "notifications" },
+                            savedRequestVersion = savedRequestVersion,
+                            onOpenMenu = { detail = "menu" },
+                            onOpenNotifications = { menuEntryDestination = null; detail = "notifications" },
                             onOpenSettings = { detail = "settings" },
                             onOpenVideos = { detail = "videos" },
                             onOpenRooms = { detail = "rooms" },
