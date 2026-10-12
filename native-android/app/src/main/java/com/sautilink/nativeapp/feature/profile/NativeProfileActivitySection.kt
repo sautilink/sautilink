@@ -57,6 +57,8 @@ internal fun ProfileActivitySection(
     var busy by remember(profile.id) { mutableStateOf(true) }
     var error by remember(profile.id) { mutableStateOf<String?>(null) }
     var revision by remember(profile.id) { mutableIntStateOf(0) }
+    var pageIndex by remember(profile.id) { mutableIntStateOf(0) }
+    var hasMore by remember(profile.id) { mutableStateOf(false) }
     var privacyDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -68,19 +70,23 @@ internal fun ProfileActivitySection(
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) { error = e.message ?: "Could not load profile categories."; busy = false }
     }
-    LaunchedEffect(client, profile.id, selected, revision, refreshKey, state) {
+    LaunchedEffect(client, profile.id, selected, revision, refreshKey, state, pageIndex) {
         val permissions = state ?: return@LaunchedEffect
         if (permissions.allowed[selected] != true) return@LaunchedEffect
         busy = true
         error = null
         try {
             // Fetch pins separately, just as the web does, without duplicating posts in the feed.
-            val feed = client.entries(profile.username, selected)
-            val pins = if (selected == "posts") client.entries(profile.username, "pins").entries else emptyList()
+            val feed = client.entries(profile.username, selected, limit = 12,
+                offset = pageIndex * 12)
+            val pins = if (selected == "posts" && pageIndex == 0)
+                client.entries(profile.username, "pins").entries else pinned
             pinned = pins
             val excluded = pins.map { it.id }.toSet()
-            entries = feed.entries.filter { it.id !in excluded }
+            val newEntries = feed.entries.filter { it.id !in excluded }
+            entries = if (pageIndex == 0) newEntries else (entries + newEntries).distinctBy { it.id }
             hashtags = feed.hashtags
+            hasMore = selected != "hashtags" && feed.entries.size == 12
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) { error = e.message ?: "Could not load profile activity." }
         finally { busy = false }
@@ -118,7 +124,8 @@ internal fun ProfileActivitySection(
                     }
                     val active = selected == tab
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        TextButton(onClick = { selected = tab }, modifier = Modifier.heightIn(min = 48.dp),
+                        TextButton(onClick = { selected = tab; pageIndex = 0; pinned = emptyList(); entries = emptyList() },
+                            modifier = Modifier.heightIn(min = 48.dp),
                             colors = ButtonDefaults.textButtonColors(
                                 contentColor = if (active) MaterialTheme.colorScheme.onSurface
                                     else MaterialTheme.colorScheme.onSurfaceVariant
@@ -187,6 +194,12 @@ internal fun ProfileActivitySection(
                             }
                         }
                     )
+                }
+            }
+            if (hasMore) {
+                OutlinedButton(onClick = { pageIndex++ }, modifier = Modifier.fillMaxWidth()
+                    .heightIn(min = 48.dp), shape = RoundedCornerShape(16.dp)) {
+                    Text("Load more")
                 }
             }
             if (entries.isEmpty() && pinned.isEmpty() && hashtags.isEmpty()) {
