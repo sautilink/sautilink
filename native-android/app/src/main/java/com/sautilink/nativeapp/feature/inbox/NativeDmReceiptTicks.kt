@@ -1,6 +1,17 @@
 package com.sautilink.nativeapp.feature.inbox
 
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.*
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberInfiniteTransition
+import androidx.compose.ui.Alignment
+import kotlin.math.abs
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Done
 import androidx.compose.material.icons.rounded.DoneAll
@@ -44,4 +55,34 @@ internal fun NativeDmReceiptTicks(
         tint = if (seen) Color(0xFF53C8FF) else color,
         modifier = Modifier.size(16.dp)
     )
+}
+
+/** Compact iOS / Telegram-like typing bubble that animates while the peer is composing. */
+@Composable
+internal fun NativeDmTypingBubble() {
+    val transition = rememberInfiniteTransition(label = "typingDots")
+    val progress by transition.animateFloat(
+        initialValue = 0f, targetValue = 3f,
+        animationSpec = infiniteRepeatable(animation = tween(950, easing = LinearEasing)),
+        label = "dots"
+    )
+    Surface(shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 5.dp),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 1.dp,
+        modifier = Modifier.padding(start = 8.dp, top = 6.dp)) {
+        Row(Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            repeat(3) { i ->
+                Box(Modifier.size(if (abs(progress - i) < .6f) 8.dp else 6.dp)
+                    .background(
+                        if (abs(progress - i) < .6f) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .55f),
+                        CircleShape))
+            }
+            Spacer(Modifier.width(3.dp))
+            Text("typing", style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }
