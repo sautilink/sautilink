@@ -569,6 +569,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                         val media = mediaByMessage[message.id]
                                         if (media != null) NativeDmAttachmentBubble(
                                             auth, media, autoLoadPhotos = autoPhotos,
+                                            isOutgoing = own,
                                             onError = { error = it })
                                         else Text("Attachment unavailable",
                                             style = MaterialTheme.typography.bodySmall)
