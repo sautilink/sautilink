@@ -46,6 +46,7 @@ import kotlinx.coroutines.awaitCancellation
 @Composable
 fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfile: (String) -> Unit,
     initialConversationId: String? = null, onDeepLinkConsumed: () -> Unit = {},
+    initialPeerId: String? = null, onPeerConsumed: () -> Unit = {},
     onOpenPrivacy: () -> Unit = {}) {
     val client = remember(auth) { NativeMessagesClient(auth) }
     val context = LocalContext.current
@@ -83,6 +84,19 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         if (initialConversationId?.matches(Regex("^[0-9a-fA-F-]{36}$")) == true) {
             selectedId = initialConversationId
             onDeepLinkConsumed()
+        }
+    }
+    LaunchedEffect(initialPeerId) {
+        val id = initialPeerId ?: return@LaunchedEffect
+        if (id.matches(Regex("^[0-9a-fA-F-]{36}$"))) {
+            try {
+                selectedId = client.openConversation(id)
+                refresh++
+                onPeerConsumed()
+            } catch (e: Exception) {
+                error = e.message ?: "This member cannot receive your messages."
+                onPeerConsumed()
+            }
         }
     }
     DisposableEffect(lifecycleOwner) {
