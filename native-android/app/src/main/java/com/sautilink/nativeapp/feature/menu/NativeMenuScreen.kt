@@ -1,11 +1,8 @@
 package com.sautilink.nativeapp.feature.menu
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -202,13 +199,21 @@ fun NativeMenuScreen(
                 )
             }
             itemsIndexed(menuDestinations, key = { _, item -> item.key }) { index, entry ->
-                Box(Modifier.fillMaxWidth().height(112.dp)) {
-                    AnimatedVisibility(
-                        visible = index < visibleCount,
-                        enter = fadeIn(tween(220)) + slideInVertically(
-                            initialOffsetY = { it / 5 }, animationSpec = tween(220, easing = FastOutSlowInEasing))
-                    ) {
-                        MenuTile(entry, selected = entry.key == "theme" && isDark) {
+                // Float animation works in a LazyGrid item without requiring ColumnScope.
+                val reveal by animateFloatAsState(
+                    targetValue = if (index < visibleCount) 1f else 0f,
+                    animationSpec = tween(220, easing = FastOutSlowInEasing),
+                    label = "Menu tile reveal"
+                )
+                Box(
+                    Modifier.fillMaxWidth().height(112.dp).graphicsLayer {
+                        alpha = reveal
+                        translationY = (1f - reveal) * 18f
+                    }
+                ) {
+                    MenuTile(entry, selected = entry.key == "theme" && isDark) {
+                        // Prevent invisible tiles from being activated during their entrance.
+                        if (index < visibleCount) {
                             when (entry.key) {
                                 "rooms" -> onRooms()
                                 "saved" -> onSaved()
