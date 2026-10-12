@@ -77,7 +77,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: () -> Unit,
     appResumeVersion: Int) {
-    val systemDark = isSystemInDarkTheme()
     val context = LocalContext.current
     // Local-only appearance preference. No account API or analytics is involved.
     val themePrefs = remember(context) {
@@ -86,10 +85,11 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     var darkOverride by remember(themePrefs) {
         mutableStateOf<Boolean?>(
             if (themePrefs.contains("dark_theme_override"))
-                themePrefs.getBoolean("dark_theme_override", false) else null
+                themePrefs.getBoolean("dark_theme_override", false) else false
         )
     }
-    val isDark = darkOverride ?: systemDark
+    // Light is the default; explicit in-app choices are persisted.
+    val isDark = darkOverride ?: false
     // Retain light UI state on rotation / ordinary activity recreation.
     var root by rememberSaveable { mutableStateOf(0) }
     var detail by rememberSaveable { mutableStateOf<String?>(null) }
@@ -205,10 +205,44 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
             containerColor = MaterialTheme.colorScheme.background,
             snackbarHost = { SnackbarHost(snackbar) },
             bottomBar = {
-                if (detail == null) SautiBottomBar(root) { tab ->
-                    if (tab == 2) composerOpen = true else root = tab
+                // Primary destinations keep one stable navigation bar, including Notifications and Videos.
+                if (detail == null || detail == "notifications" || detail == "videos") {
+                    val selectedTab = when (detail) {
+                        "notifications" -> 3
+                        "videos" -> 4
+                        else -> when (root) { 0 -> 0; 1 -> 1; 3 -> 2; 4 -> 5; else -> 0 }
+                    }
+                    SautiBottomBar(selectedTab) { tab ->
+                        menuEntryDestination = null
+                        when (tab) {
+                            0 -> { detail = null; root = 0 }
+                            1 -> { detail = null; root = 1 }
+                            2 -> { detail = null; root = 3 }
+                            3 -> { detail = "notifications" }
+                            4 -> { detail = "videos" }
+                            5 -> { detail = null; root = 4 }
+                        }
+                    }
                 }
-            }
+            },
+            floatingActionButton = {
+                // Twitter/X-inspired composer above the bottom navigation, never inside it.
+                if (detail == null && root == 0) {
+                    FloatingActionButton(
+                        onClick = { composerOpen = true },
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(58.dp),
+                        elevation = FloatingActionButtonDefaults.elevation(
+                            defaultElevation = 6.dp, pressedElevation = 10.dp
+                        )
+                    ) {
+                        Icon(Icons.Rounded.Add, "Create a post", Modifier.size(28.dp))
+                    }
+                }
+            },
+            floatingActionButtonPosition = FabPosition.End
         ) { insets ->
             Box(Modifier.fillMaxSize().padding(insets)) {
                 Crossfade(targetState = detail to root, label = "SautiLink screen transition") { destination ->
