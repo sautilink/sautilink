@@ -77,11 +77,6 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var statusBucket by remember { mutableStateOf("hidden") }
     var visibilityRevision by remember { mutableIntStateOf(0) }
     var mediaByMessage by remember { mutableStateOf<Map<String, DmMedia>>(emptyMap()) }
-    LaunchedEffect(selectedId, appearance) {
-        wallpaper = appearance.wallpaperFor(selectedId)
-        bubble = appearance.bubbleFor(selectedId)
-        autoPhotos = appearance.autoPhotos && !appearance.dataSaver
-    }
     val mediaClient = remember(auth) { NativeDmMediaClient(auth) }
     val appearance = remember(context, auth.account?.id) {
         MessageAppearancePrefs(context, auth.account?.id)
@@ -94,6 +89,11 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     val safety = remember(auth) { NativeSafetyClient(auth) }
     var conversations by remember { mutableStateOf<List<NativeConversation>>(emptyList()) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(selectedId, appearance) {
+        wallpaper = appearance.wallpaperFor(selectedId)
+        bubble = appearance.bubbleFor(selectedId)
+        autoPhotos = appearance.autoPhotos && !appearance.dataSaver
+    }
     var thread by remember { mutableStateOf<NativeThread?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     var unreadOnly by rememberSaveable { mutableStateOf(false) }
