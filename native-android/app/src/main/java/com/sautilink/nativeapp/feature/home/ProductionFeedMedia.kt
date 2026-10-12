@@ -341,8 +341,7 @@ private fun InlineFeedVideo(
                 Modifier.fillMaxSize().clickable {
                     wantsToPlay = false
                     player?.pause()
-                },
-                contentAlignment = Alignment.Center
+                }
             )
         }
         if (started && token == null && requestError == null) {
