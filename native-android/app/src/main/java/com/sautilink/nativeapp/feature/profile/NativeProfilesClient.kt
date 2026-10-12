@@ -31,7 +31,8 @@ data class NativeProfile(
     val hasHeader: Boolean,
     val categorySlug: String,
     val verified: Boolean,
-    val badgeType: String
+    val badgeType: String,
+    val dmAccess: String = "none"
 )
 
 data class ProfileEdit(val bio: String, val location: String, val website: String, val discoverable: Boolean)
@@ -43,7 +44,7 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
     private val uuid = Regex("^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
     private val handle = Regex("^[a-z0-9][a-z0-9._]{2,29}$")
     private val http = OkHttpClient.Builder().callTimeout(20, TimeUnit.SECONDS).build()
-    private val select = "id,username,display_name,bio,location,website_url,is_discoverable,followers_count,following_count,created_at,avatar_key,header_key,professional_category_slug,is_verified,verification_badge_type"
+    private val select = "id,username,display_name,bio,location,website_url,is_discoverable,followers_count,following_count,created_at,avatar_key,header_key,professional_category_slug,is_verified,verification_badge_type,dm_access"
 
     private suspend fun rows(path: String): JSONArray = JSONArray(call(path, "GET"))
 
@@ -89,7 +90,8 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
         hasHeader = !row.isNull("header_key") && row.optString("header_key").isNotBlank(),
         categorySlug = row.optString("professional_category_slug").takeUnless { it == "null" }.orEmpty(),
         verified = row.optBoolean("is_verified"),
-        badgeType = row.optString("verification_badge_type", "standard")
+        badgeType = row.optString("verification_badge_type", "standard"),
+        dmAccess = row.optString("dm_access", "none")
     )
 
     /** Same professional category taxonomy and column-level ownership policy as SautiLink Web. */
@@ -134,6 +136,20 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
         if (!handle.matches(normalized)) throw AuthRequestException("Invalid profile address.")
         val result = rows("social_profiles?username=eq.$normalized&is_discoverable=eq.true&select=$select&limit=1")
         return result.optJSONObject(0)?.let(::parse)
+    }
+
+    /** Conservative visibility check; backend RPC still enforces the actual DM policy. */
+    suspend fun canMessage(profile: NativeProfile): Boolean {
+        val ownId = auth.account?.id?.takeIf(uuid::matches) ?: return false
+        if (ownId == profile.id) return false
+        return when (profile.dmAccess) {
+            "everyone" -> true
+            "following" -> {
+                // "Following" means a member the recipient follows, not any follower.
+                rows("social_follows?follower_id=eq.${profile.id}&followed_id=eq.$ownId&select=followed_id&limit=1").length() > 0
+            }
+            else -> false
+        }
     }
 
     suspend fun following(profileId: String): Boolean {
