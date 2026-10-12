@@ -2,6 +2,7 @@ package com.sautilink.nativeapp.feature.settings
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Refresh
@@ -20,11 +21,13 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme: () -> Unit,
+    focusPrivacy: Boolean = false,
     onBack: () -> Unit, onSignIn: () -> Unit, onOpenAuth: () -> Unit,
     onOpenRecovery: () -> Unit, onOpenProfile: () -> Unit,
     onOpenNotifications: () -> Unit) {
     val client = remember(auth) { NativeSettingsClient(auth) }
     val scope = rememberCoroutineScope()
+    val settingsListState = rememberLazyListState()
     var settings by remember { mutableStateOf<NativeAccountSettings?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
     var loading by remember { mutableStateOf(false) }
@@ -54,6 +57,9 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
     }
 
     val state = settings
+    LaunchedEffect(focusPrivacy, state != null) {
+        if (focusPrivacy && state != null) settingsListState.scrollToItem(3)
+    }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
@@ -75,7 +81,9 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                 if (auth.sessionState != StagingSessionState.CHECKING)
                     Button(onClick = onSignIn) { Text("Sign in") }
             }
-        } else if (state != null) LazyColumn(contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 32.dp),
+        } else if (state != null) LazyColumn(
+            state = settingsListState,
+            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
