@@ -71,18 +71,13 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
                 Icon(Icons.Rounded.ArrowBackIosNew, contentDescription = "Back")
             }
             Spacer(Modifier.width(6.dp))
-            Text("Sign in", style = MaterialTheme.typography.headlineMedium)
+            Text("Login", style = MaterialTheme.typography.headlineMedium)
         }
 
-        Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
-            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Rounded.Lock, null, tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(30.dp))
-                Text("Welcome to SautiLink", style = MaterialTheme.typography.titleLarge)
-                Text("Sign in to connect, share posts and stay in touch with your community.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+        SautiAuthBrand()
+        if (account == null) {
+            Text("Log in to your account", style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface)
         }
 
         if (!client.configured) {
@@ -263,7 +258,7 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
             Button(
                 modifier = Modifier.fillMaxWidth().height(54.dp),
                 enabled = !loading && canSubmit && client.configured,
-                shape = SautiShape.Pill,
+                shape = RoundedCornerShape(18.dp),
                 onClick = {
                     runAction {
                         when (method) {
