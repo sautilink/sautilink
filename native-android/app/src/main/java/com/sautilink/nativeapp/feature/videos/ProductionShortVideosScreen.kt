@@ -41,6 +41,7 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.home.StagingFeedClient
 import com.sautilink.nativeapp.feature.home.StagingFeedPost
 import com.sautilink.nativeapp.feature.home.rememberNetworkAvailable
+import com.sautilink.nativeapp.ui.components.SautiSkeletonBlock
 import com.sautilink.nativeapp.ui.theme.SautiShape
 
 private data class LiveClip(val post: StagingFeedPost, val mediaId: String)
@@ -193,7 +194,7 @@ fun ProductionShortVideosScreen(
         } else if (clips.isEmpty()) {
             Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                if (loading) CircularProgressIndicator(color = Color.White)
+                if (loading) SautiSkeletonBlock(Modifier.fillMaxWidth().height(180.dp))
                 else Text(error ?: "No short videos yet.", color = Color.White)
                 if (!loading) Button(onClick = { reload++ }) { Text("Retry") }
             }
