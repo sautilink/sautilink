@@ -117,6 +117,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     var notificationRoomSlug by rememberSaveable { mutableStateOf<String?>(null) }
     var roomReturn by rememberSaveable { mutableStateOf<String?>(null) }
     var messageDeepId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingMessagePeerId by rememberSaveable { mutableStateOf<String?>(null) }
     val productionAuth = remember(context.applicationContext) {
         StagingAuthClient(BuildConfig.PRODUCTION_SUPABASE_PUBLISHABLE_KEY,
             context.applicationContext, SautiBackend.PRODUCTION)
@@ -346,6 +347,11 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onOpenPost = { id -> notificationPostId = id; postReturn = "production-profile"; detail = "post" })
                     "member-profile" -> NativeProfileScreen(auth = productionAuth, username = viewedProfileHandle,
                         onBack = { detail = memberProfileReturn }, onSignIn = { detail = "production-auth" },
+                        onStartMessage = { recipientId ->
+                            pendingMessagePeerId = recipientId
+                            detail = null
+                            root = 3
+                        },
                         onOpenPost = { id -> notificationPostId = id; postReturn = "member-profile"; detail = "post" })
                     "my-posts" -> NativeOwnPostsScreen(auth = productionAuth, refreshKey = postsRefresh,
                         onBack = { detail = null; root = 4 }, onCreate = { composerOpen = true })
@@ -404,6 +410,9 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             onOpenPost = { id -> notificationPostId = id; postReturn = null; detail = "post" })
                         3 -> NativeInboxScreen(auth = productionAuth,
                             onSignIn = { detail = "production-auth" },
+                            onOpenPrivacy = { settingsPrivacyFocus = true; detail = "settings" },
+                            initialPeerId = pendingMessagePeerId,
+                            onPeerConsumed = { pendingMessagePeerId = null },
                             onOpenProfile = { handle -> viewedProfileHandle = handle; memberProfileReturn = null; detail = "member-profile" },
                             initialConversationId = messageDeepId,
                             onDeepLinkConsumed = { messageDeepId = null })
