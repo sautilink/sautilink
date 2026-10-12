@@ -43,6 +43,7 @@ private fun fileName(context: Context, uri: Uri, fallback: String): String {
     } ?: fallback
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun NativeDmMediaControls(
     auth: StagingAuthClient,
