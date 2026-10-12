@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -130,137 +131,207 @@ private fun fetchBoundedBitmap(url: String, token: String): Bitmap {
     } finally { conn.disconnect() }
 }
 
+/** Media dimensions are known from social_post_media before the poster request:
+ * ratio >= 4:5 is natural; extra-tall items letterbox inside a fixed 4:5 frame.
+ * The layout never changes its height when image bytes finish loading.
+ */
+private fun stableFeedAspect(media: FeedMedia): Float {
+    val original = if (media.width > 0 && media.height > 0)
+        media.width.toFloat() / media.height else .8f
+    return original.coerceIn(.8f, 3f)
+}
+
 @Composable
 internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>) {
-    var expanded by remember(auth) { mutableStateOf<FeedMedia?>(null) }
-    val single = media.singleOrNull()
-    if (single != null) {
-        val route = "/api/sauti-media/${single.id}" +
-            if (single.kind == "video") "?poster=1" else "?w=960"
-        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
-            .clickable { expanded = single }) {
-            AuthorizedImage(
-                auth, route, "Post ${single.kind}",
+    if (media.isEmpty()) return
+    val pager = androidx.compose.foundation.pager.rememberPagerState(pageCount = { media.size })
+    Column(Modifier.fillMaxWidth()) {
+        Box(Modifier.fillMaxWidth()) {
+            androidx.compose.foundation.pager.HorizontalPager(
+                state = pager,
                 modifier = Modifier.fillMaxWidth(),
-                crop = false, naturalAspectRatio = true
-            )
-            if (single.kind == "video") {
-                Surface(color = Color.Black.copy(alpha = .58f), shape = CircleShape,
-                    modifier = Modifier.align(Alignment.Center)) {
-                    Icon(Icons.Rounded.PlayArrow, "Play video",
-                        Modifier.padding(12.dp).size(30.dp), tint = Color.White)
-                }
-            }
-        }
-    } else {
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            media.chunked(2).forEach { group ->
-                Row(Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    group.forEach { item ->
-                        val route = "/api/sauti-media/${item.id}" +
-                            if (item.kind == "video") "?poster=1" else "?w=960"
-                        Box(Modifier.weight(1f).aspectRatio(if (group.size == 1) 1.4f else 1f)
-                            .clip(RoundedCornerShape(8.dp)).clickable { expanded = item }) {
-                            AuthorizedImage(auth, route, "Post ${item.kind}", Modifier.fillMaxSize())
-                            if (item.kind == "video") {
-                                Surface(color = Color.Black.copy(alpha = .58f), shape = CircleShape,
-                                    modifier = Modifier.align(Alignment.Center)) {
-                                    Icon(Icons.Rounded.PlayArrow, "Play video",
-                                        Modifier.padding(10.dp).size(25.dp), tint = Color.White)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    expanded?.let { item ->
-        Dialog(onDismissRequest = { expanded = null }) {
-            Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.fillMaxWidth()) {
-                Column {
-                    Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 6.dp, top = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (item.kind == "video") "SautiLink video" else "SautiLink photo",
-                            style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { expanded = null }) { Icon(Icons.Rounded.Close, "Close viewer") }
-                    }
+                key = { index -> media[index].id }
+            ) { page ->
+                val item = media[page]
+                val aspect = stableFeedAspect(item)
+                Box(
+                    Modifier.fillMaxWidth().aspectRatio(aspect)
+                        .background(Color.Black)
+                        .clip(RoundedCornerShape(7.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
                     if (item.kind == "video") {
-                        AuthorizedVideoPlayer(auth, item.id)
+                        InlineFeedVideo(auth, item, Modifier.fillMaxSize(), isCurrent = pager.currentPage == page)
                     } else {
-                        AuthorizedImage(auth, "/api/sauti-media/${item.id}?w=1280", "Full post image",
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 230.dp, max = 475.dp), crop = false)
+                        AuthorizedImage(auth, "/api/sauti-media/${item.id}?w=960",
+                            "Photo ${page + 1} of ${media.size}",
+                            modifier = Modifier.fillMaxSize(),
+                            crop = false)
                     }
-                    Spacer(Modifier.height(10.dp))
+                }
+            }
+            if (media.size > 1) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.Black.copy(alpha = .55f),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
+                ) {
+                    Text("${pager.currentPage + 1}/${media.size}", color = Color.White,
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp))
+                }
+            }
+        }
+        if (media.size > 1) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                media.forEachIndexed { index, _ ->
+                    Spacer(
+                        Modifier.padding(horizontal = 3.dp)
+                            .size(if (index == pager.currentPage) 7.dp else 5.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (index == pager.currentPage) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .35f)
+                            )
+                    )
                 }
             }
         }
     }
 }
 
-/** Single play-on-demand Media3 decoder. Streams with a short-lived authorized header; no token logging. */
+/** Same-player inline video, no popup/Dialog and no route transition.
+ * Poster is kept visible until the first decoded frame, removing sudden video flashes.
+ */
 @Composable
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
-private fun AuthorizedVideoPlayer(auth: StagingAuthClient, mediaId: String) {
+private fun InlineFeedVideo(
+    auth: StagingAuthClient, media: FeedMedia, modifier: Modifier = Modifier,
+    isCurrent: Boolean
+) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
-    var token by remember(auth, mediaId) { mutableStateOf<String?>(null) }
-    var error by remember(auth, mediaId) { mutableStateOf<String?>(null) }
-    LaunchedEffect(auth, mediaId) {
-        token = null
-        error = null
-        try { token = auth.accessTokenForStagingRead() }
-        catch (_: Exception) { error = "Sign in again to watch this video." }
+    var started by remember(auth, media.id) { mutableStateOf(false) }
+    var accessToken by remember(auth, media.id) { mutableStateOf<String?>(null) }
+    var requestError by remember(auth, media.id) { mutableStateOf<String?>(null) }
+    var muted by remember(auth, media.id) { mutableStateOf(true) }
+    var firstFrame by remember(auth, media.id) { mutableStateOf(false) }
+    LaunchedEffect(started, auth.account?.id, media.id) {
+        if (!started) return@LaunchedEffect
+        try { accessToken = auth.accessTokenForStagingRead() }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { requestError = "Video unavailable. Sign in and try again." }
     }
-    if (error != null) {
-        Box(Modifier.fillMaxWidth().height(250.dp), contentAlignment = Alignment.Center) {
-            Text(error.orEmpty(), Modifier.padding(20.dp))
+    val token = accessToken
+    val player = remember(auth, media.id, token) {
+        token?.let {
+            val http = DefaultHttpDataSource.Factory()
+                .setDefaultRequestProperties(mapOf("Authorization" to "Bearer $it"))
+                .setAllowCrossProtocolRedirects(false)
+            ExoPlayer.Builder(context)
+                .setMediaSourceFactory(DefaultMediaSourceFactory(http))
+                .build().apply {
+                    volume = 0f
+                    setMediaItem(MediaItem.fromUri("${auth.mediaOrigin}/api/sauti-media/${media.id}"))
+                    prepare()
+                    playWhenReady = false
+                }
         }
-        return
     }
-    val accessToken = token
-    if (accessToken == null) {
-        Box(Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        return
-    }
-    val player = remember(auth, mediaId, accessToken) {
-        val http = DefaultHttpDataSource.Factory()
-            .setDefaultRequestProperties(mapOf("Authorization" to "Bearer $accessToken"))
-            .setAllowCrossProtocolRedirects(false)
-        ExoPlayer.Builder(context)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(http))
-            .build().apply {
-                volume = 0f // Always starts muted. The viewer controls may unmute.
-                setMediaItem(MediaItem.fromUri("${auth.mediaOrigin}/api/sauti-media/$mediaId"))
-                prepare()
-                playWhenReady = true
-            }
-    }
+    var playing by remember(player) { mutableStateOf(false) }
     DisposableEffect(player, owner) {
-        val watcher = LifecycleEventObserver { _, event ->
+        if (player == null) return@DisposableEffect onDispose { }
+        val listener = object : androidx.media3.common.Player.Listener {
+            override fun onRenderedFirstFrame() { firstFrame = true }
+            override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                requestError = "Video could not play. Tap retry."
+            }
+        }
+        player.addListener(listener)
+        val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) player.pause()
         }
-        owner.lifecycle.addObserver(watcher)
+        owner.lifecycle.addObserver(observer)
         onDispose {
-            owner.lifecycle.removeObserver(watcher)
+            owner.lifecycle.removeObserver(observer)
+            player.removeListener(listener)
             player.release()
         }
     }
-    var muted by remember(player) { mutableStateOf(true) }
-    LaunchedEffect(player, muted) { player.volume = if (muted) 0f else 1f }
-    Column {
-        AndroidView(
-            factory = { ctx -> PlayerView(ctx).apply { useController = true; this.player = player } },
-            update = { it.player = player },
-            modifier = Modifier.fillMaxWidth().height(300.dp).background(Color.Black)
-        )
-        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Muted by default", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick = { muted = !muted }) { Text(if (muted) "Unmute" else "Mute") }
+    LaunchedEffect(player, isCurrent, started, muted) {
+        if (player != null) {
+            player.volume = if (muted) 0f else 1f
+            if (!isCurrent) player.pause()
+            else if (started && requestError == null) player.play()
+        }
+    }
+    Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
+        // Preserve the poster while waiting for the first frame; stable outer frame is 4:5-max.
+        if (!firstFrame) {
+            AuthorizedImage(auth, "/api/sauti-media/${media.id}?poster=1",
+                "Video cover", modifier = Modifier.fillMaxSize(), crop = false)
+        }
+        if (player != null) {
+            AndroidView(
+                factory = { ctx -> PlayerView(ctx).apply {
+                    useController = false
+                    this.player = player
+                    resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                } },
+                update = { it.player = player },
+                onRelease = { it.player = null },
+                modifier = Modifier.fillMaxSize()
+                    .graphicsLayer { alpha = if (firstFrame) 1f else 0f }
+            )
+        }
+        if (!playing || !firstFrame) {
+            Surface(
+                onClick = {
+                    requestError = null
+                    started = true
+                    player?.play()
+                },
+                shape = CircleShape,
+                color = Color.Black.copy(alpha = .58f),
+                modifier = Modifier.size(60.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.PlayArrow, contentDescription = "Play video in post",
+                        tint = Color.White, modifier = Modifier.size(32.dp))
+                }
+            }
+        } else {
+            Box(
+                Modifier.fillMaxSize().clickable { player?.pause() },
+                contentAlignment = Alignment.Center
+            )
+        }
+        if (started && token == null && requestError == null) {
+            CircularProgressIndicator(Modifier.size(30.dp),
+                color = Color.White, strokeWidth = 2.dp)
+        }
+        if (requestError != null) {
+            Surface(
+                color = Color.Black.copy(alpha = .72f),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                Text(requestError.orEmpty(), color = Color.White,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(10.dp))
+            }
+        }
+        if (player != null && firstFrame) {
+            TextButton(
+                onClick = { muted = !muted },
+                modifier = Modifier.align(Alignment.BottomEnd).padding(7.dp)
+            ) {
+                Text(if (muted) "Unmute" else "Mute", color = Color.White)
+            }
         }
     }
 }
