@@ -18,6 +18,7 @@ data class NativeConversation(val id: String, val peerId: String, val handle: St
 data class NativeMessage(val id: String, val senderId: String, val body: String,
     val sentAt: String, val deleted: Boolean, val kind: String = "text",
     val editedAt: String? = null, val replyTo: String? = null)
+data class NativePeerReceipts(val deliveredAt: String?, val readAt: String?)
 data class NativeThread(val conversation: NativeConversation, val messages: List<NativeMessage>)
 data class NativeMessageAccount(val id: String, val handle: String, val name: String,
     val verified: Boolean, val badgeType: String)
@@ -137,6 +138,37 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
             peer?.optString("verification_badge_type", "standard") ?: "standard",
             peer?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null),
             messages.filterNot { it.id in hidden })
+    }
+
+    private suspend fun rpcJson(name: String, payload: JSONObject): String {
+        val token = auth.accessTokenForStagingRead()
+        return withContext(Dispatchers.IO) {
+            http.newCall(Request.Builder().url(auth.restOrigin + "rpc/$name")
+                .header("apikey", auth.publicKeyForRead())
+                .header("Authorization", "Bearer $token")
+                .header("Content-Type", "application/json")
+                .post(payload.toString().toRequestBody(jsonType)).build()).execute().use {
+                if (!it.isSuccessful) throw AuthRequestException(
+                    "Message receipts unavailable (HTTP ${it.code}).")
+                it.body?.string().orEmpty()
+            }
+        }
+    }
+
+    suspend fun acknowledgeDelivery(conversationId: String) {
+        if (!uuid.matches(conversationId)) return
+        rpcJson("dm_ack_delivery_native_phase_a",
+            JSONObject().put("p_conversation_id", conversationId))
+    }
+
+    suspend fun peerReceipts(conversationId: String): NativePeerReceipts {
+        if (!uuid.matches(conversationId)) return NativePeerReceipts(null, null)
+        val json = rpcJson("dm_peer_receipts_native_phase_a",
+            JSONObject().put("p_conversation_id", conversationId))
+        val entry = runCatching { JSONArray(json).optJSONObject(0) }.getOrNull()
+        return NativePeerReceipts(
+            entry?.optString("last_delivered_at")?.takeIf { it.isNotBlank() && it != "null" },
+            entry?.optString("last_read_at")?.takeIf { it.isNotBlank() && it != "null" })
     }
 
     suspend fun markRead(conversationId: String) {
