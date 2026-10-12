@@ -174,7 +174,7 @@ fun NativeProfileScreen(
                                 val handle = profile?.username ?: return@DropdownMenuItem
                                 val share = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, "https://sautilink.com/@$handle")
+                                    putExtra(Intent.EXTRA_TEXT, "https://sautilink.com/u/$handle")
                                 }
                                 runCatching { context.startActivity(Intent.createChooser(share, "Share profile")) }
                             })
