@@ -104,7 +104,8 @@ internal class NativeProfileActivityClient(private val auth: StagingAuthClient) 
                         val media = m.optJSONObject(idx) ?: return@mapNotNull null
                         val kind = media.optString("kind")
                         if (kind !in listOf("image", "video")) null
-                        else FeedMedia(media.optString("id"), kind, media.optInt("position"))
+                        else FeedMedia(media.optString("id"), kind, media.optInt("position"),
+                            media.optInt("width"), media.optInt("height"))
                     }.sortedBy { it.position }.take(4)
                 )
             },
