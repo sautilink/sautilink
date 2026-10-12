@@ -33,7 +33,10 @@ data class NativeProfile(
     val verified: Boolean,
     val badgeType: String,
     val dmAccess: String = "none",
-    val verifiedSince: String = ""
+    val verifiedSince: String = "",
+    // A non-reversible key fingerprint forces Compose media reload when the R2 object changes.
+    val avatarRevision: String = "",
+    val headerRevision: String = ""
 )
 
 data class ProfileEdit(val bio: String, val location: String, val website: String, val discoverable: Boolean)
@@ -94,7 +97,11 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
         badgeType = row.optString("verification_badge_type", "standard"),
         dmAccess = row.optString("dm_access", "none"),
         verifiedSince = if (row.optBoolean("is_verified"))
-            row.optString("username_locked_at").takeUnless { it == "null" }.orEmpty() else ""
+            row.optString("username_locked_at").takeUnless { it == "null" }.orEmpty() else "",
+        avatarRevision = row.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
+            ?.hashCode()?.toUInt()?.toString(16).orEmpty(),
+        headerRevision = row.optString("header_key").takeIf { it.isNotBlank() && it != "null" }
+            ?.hashCode()?.toUInt()?.toString(16).orEmpty()
     )
 
     /** Same professional category taxonomy and column-level ownership policy as SautiLink Web. */
