@@ -142,6 +142,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val scope = rememberCoroutineScope()
+    BackHandler(chatSettings) {
+        wallpaper = appearance.wallpaperFor(selectedId)
+        bubble = appearance.bubbleFor(selectedId)
+        autoPhotos = appearance.autoPhotos && !appearance.dataSaver
+        chatSettings = false
+    }
     BackHandler(selectedId != null && !chatSettings) {
         if (selectedMessage != null) selectedMessage = null
         else {
@@ -408,7 +414,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                 contentAlignment = Alignment.Center) {
                                 Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = .86f),
                                     shape = RoundedCornerShape(15.dp)) {
-                                    Text(message.sentAt.take(10),
+                                    Text(chatDay(message.sentAt),
                                         style = MaterialTheme.typography.labelSmall,
                                         modifier = Modifier.padding(horizontal = 13.dp, vertical = 5.dp))
                                 }
@@ -462,7 +468,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                             color = if (own && bubble != "neutral") Color.White
                                                 else MaterialTheme.colorScheme.onSurface)
                                     }
-                                    Text(message.sentAt.take(16).takeLast(5) +
+                                    Text(chatClock(message.sentAt) +
                                         if (message.editedAt != null) " · edited" else "",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = if (own && bubble != "neutral") Color.White.copy(alpha = .78f)
@@ -794,3 +800,15 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         }
     }
 }
+
+private fun chatDay(timestamp: String): String = runCatching {
+    java.time.OffsetDateTime.parse(timestamp)
+        .atZoneSameInstant(java.time.ZoneId.systemDefault())
+        .format(java.time.format.DateTimeFormatter.ofPattern("MMMM d"))
+}.getOrDefault(timestamp.take(10))
+
+private fun chatClock(timestamp: String): String = runCatching {
+    java.time.OffsetDateTime.parse(timestamp)
+        .atZoneSameInstant(java.time.ZoneId.systemDefault())
+        .format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"))
+}.getOrDefault(timestamp.take(16).takeLast(5))
