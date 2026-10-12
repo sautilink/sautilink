@@ -279,7 +279,7 @@ fun NativeProfileScreen(
                                     color = MaterialTheme.colorScheme.surface,
                                     border = BorderStroke(3.dp, MaterialTheme.colorScheme.surface)
                                 ) {
-                                    ProfileAvatar(auth, member, 96)
+                                    ProfileAvatar(auth, member, 96, revision = refresh)
                                 }
                             }
                             Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
@@ -678,10 +678,11 @@ private fun IdentityEditor(client: NativeProfilesClient, profile: NativeProfile,
 }
 
 @Composable
-private fun ProfileAvatar(auth: StagingAuthClient, profile: NativeProfile, size: Int) {
+private fun ProfileAvatar(auth: StagingAuthClient, profile: NativeProfile, size: Int,
+                          revision: Int = 0) {
     val modifier = Modifier.size(size.dp).clip(CircleShape)
     if (profile.hasAvatar) AuthorizedImage(auth,
-        "/api/profile-media/${profile.username}/avatar", "${profile.displayName}'s avatar", modifier,
+        "/api/profile-media/${profile.username}/avatar?v=$revision", "${profile.displayName}'s avatar", modifier,
         fallback = { ProfileAvatarFallback(profile.displayName, modifier) })
     else ProfileAvatarFallback(profile.displayName, modifier)
 }
