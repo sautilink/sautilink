@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.dashboard.NativeDashboardScreen
 import com.sautilink.nativeapp.feature.menu.NativeMenuScreen
+import com.sautilink.nativeapp.feature.verification.NativeVerificationScreen
 import com.sautilink.nativeapp.feature.home.StagingFeedScreen
 import com.sautilink.nativeapp.feature.home.NativePostDetailScreen
 import com.sautilink.nativeapp.feature.inbox.InboxScreen
@@ -273,6 +274,10 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onOpenAuth = { detail = "production-auth" },
                         onOpenRecovery = { detail = "production-recovery" }
                     )
+                    "verification" -> NativeVerificationScreen(
+                        auth = productionAuth,
+                        onBack = { detail = "menu" }
+                    )
                     "menu" -> NativeMenuScreen(
                         auth = productionAuth,
                         isDark = isDark,
@@ -295,6 +300,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             menuEntryDestination = "notifications"
                             detail = "notifications"
                         },
+                        onVerification = { detail = "verification" },
                         onSettings = {
                             menuEntryDestination = "settings"
                             settingsPrivacyFocus = false
