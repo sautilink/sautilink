@@ -56,7 +56,7 @@ val nativeTabs = listOf(
 
 /** Web-inspired six-icon bottom navigation. All destinations have >=48dp touch targets. */
 @Composable
-fun SautiBottomBar(selected: Int, onSelect: (Int) -> Unit) {
+fun SautiBottomBar(selected: Int, unreadNotifications: Int = 0, onSelect: (Int) -> Unit) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
@@ -93,10 +93,24 @@ fun SautiBottomBar(selected: Int, onSelect: (Int) -> Unit) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(tab.icon, contentDescription = tab.title,
-                            tint = tint,
-                            modifier = Modifier.size(27.dp)
-                                .graphicsLayer { scaleX = scale; scaleY = scale })
+                        Box(contentAlignment = Alignment.Center,
+                            modifier = Modifier.size(34.dp)) {
+                            Icon(tab.icon,
+                                contentDescription = if (index == 3 && unreadNotifications > 0)
+                                    "Notifications, $unreadNotifications unread" else tab.title,
+                                tint = tint, modifier = Modifier.size(27.dp)
+                                    .graphicsLayer { scaleX = scale; scaleY = scale })
+                            if (index == 3 && unreadNotifications > 0) {
+                                Badge(
+                                    modifier = Modifier.align(Alignment.TopEnd)
+                                        .offset(x = 7.dp, y = (-5).dp),
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Text(if (unreadNotifications >= 50) "50+" else unreadNotifications.toString(),
+                                        style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
                         Spacer(Modifier.height(4.dp))
                         Box(Modifier.width(18.dp).height(3.dp)
                             .clip(CircleShape)
