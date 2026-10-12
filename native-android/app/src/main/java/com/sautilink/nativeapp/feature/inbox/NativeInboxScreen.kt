@@ -95,6 +95,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var peerReceipts by remember(selectedId) {
         mutableStateOf(NativePeerReceipts(null, null))
     }
+    var receiptIssue by remember(selectedId) { mutableStateOf(false) }
     LaunchedEffect(selectedId, appearance) {
         wallpaper = appearance.wallpaperFor(selectedId)
         bubble = appearance.bubbleFor(selectedId)
@@ -185,10 +186,13 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             val updated = client.thread(id)
             thread = updated
             mediaByMessage = runCatching { mediaClient.attachments(updated.messages) }.getOrDefault(emptyMap())
-            runCatching { client.acknowledgeDelivery(id) }
-            runCatching { client.markRead(id) }
-            peerReceipts = runCatching { client.peerReceipts(id) }
-                .getOrDefault(NativePeerReceipts(null, null))
+            val delivery = runCatching { client.acknowledgeDelivery(id) }
+            val reading = runCatching { client.markRead(id) }
+            val receipts = runCatching { client.peerReceipts(id) }
+            if (receipts.isSuccess) {
+                peerReceipts = receipts.getOrThrow()
+            }
+            receiptIssue = delivery.isFailure || reading.isFailure || receipts.isFailure
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) { error = e.message ?: "Could not open conversation." }
         finally { loading = false }
@@ -203,12 +207,25 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     thread = updated
                     mediaByMessage = runCatching { mediaClient.attachments(updated.messages) }
                         .getOrDefault(mediaByMessage)
+                    client.acknowledgeDelivery(id)
                     client.markRead(id)
                 }
-                peerReceipts = runCatching { client.peerReceipts(id) }
-                    .getOrDefault(peerReceipts)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { /* Manual refresh shows any persistent error. */ }
+        }
+    }
+    // Read status is recipient-owned; poll only while the conversation is visible.
+    // Unlike text messages, a remote browser read does not emit a Native chat event.
+    LaunchedEffect(auth.account?.id, selectedId, foreground) {
+        val id = selectedId?.takeIf { foreground && auth.account != null }
+            ?: return@LaunchedEffect
+        while (true) {
+            delay(7_000)
+            try {
+                peerReceipts = client.peerReceipts(id)
+                receiptIssue = false
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { receiptIssue = true }
         }
     }
     LaunchedEffect(auth.account?.id, selectedId, foreground) {
@@ -580,6 +597,17 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     }
                     if (peerTyping) item(key = "peer-typing") {
                         NativeDmTypingBubble()
+                    }
+                }
+                if (receiptIssue) {
+                    TextButton(
+                        onClick = { refresh++ },
+                        modifier = Modifier.padding(horizontal = 10.dp)
+                    ) {
+                        Icon(Icons.Rounded.SyncProblem, null, Modifier.size(15.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text("Message status unavailable · Retry",
+                            style = MaterialTheme.typography.labelSmall)
                     }
                 }
                 if (error != null) Text(error.orEmpty(), Modifier.padding(horizontal = 16.dp),
