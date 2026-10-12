@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 
 data class NativeConversation(val id: String, val peerId: String, val handle: String, val name: String,
     val latestBody: String, val latestAt: String, val unread: Int, val muted: Boolean,
-    val verified: Boolean, val badgeType: String)
+    val verified: Boolean, val badgeType: String, val hasAvatar: Boolean = false)
 data class NativeMessage(val id: String, val senderId: String, val body: String, val sentAt: String, val deleted: Boolean)
 data class NativeThread(val conversation: NativeConversation, val messages: List<NativeMessage>)
 data class NativeMessageAccount(val id: String, val handle: String, val name: String,
@@ -63,7 +63,7 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
             .objects().map { it.optString("muted_id") }.toSet()
         val ids = rows.mapNotNull { it.optString("peer_id").takeIf(uuid::matches) }.distinct()
         val profiles = if (ids.isEmpty()) emptyMap() else rest(
-            "social_profiles?id=in.(${ids.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type"
+            "social_profiles?id=in.(${ids.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type,avatar_key"
         ).objects().associateBy { it.optString("id") }
         return rows.mapNotNull { row ->
             val id = row.optString("conversation_id")
@@ -80,7 +80,8 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
                 if (peerId in muted) 0 else row.optInt("unread_count").coerceAtLeast(0),
                 peerId in muted,
                 peer?.optBoolean("is_verified", false) == true,
-                peer?.optString("verification_badge_type", "standard") ?: "standard")
+                peer?.optString("verification_badge_type", "standard") ?: "standard",
+                peer?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null)
         }
     }
 
@@ -89,7 +90,7 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
         val query = rawQuery.trim().removePrefix("@").take(64).replace("%", "").replace("*", "").replace("_", "")
         if (query.length < 2) return emptyList()
         val filter = java.net.URLEncoder.encode("ilike.*$query*", "UTF-8")
-        val select = "id,username,display_name,is_verified,verification_badge_type"
+        val select = "id,username,display_name,is_verified,verification_badge_type,avatar_key"
         val left = rest("social_profiles?select=$select&is_discoverable=eq.true&id=neq.$own&username=$filter&order=username.asc&limit=12")
         val right = rest("social_profiles?select=$select&is_discoverable=eq.true&id=neq.$own&display_name=$filter&order=username.asc&limit=12")
         return (left.objects() + right.objects()).distinctBy { it.optString("id") }.take(12).mapNotNull { row ->
@@ -125,7 +126,8 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
                 ?: handle.ifBlank { "SautiLink member" },
             messages.lastOrNull()?.body.orEmpty(), row.optString("last_message_at"), 0, false,
             peer?.optBoolean("is_verified", false) == true,
-            peer?.optString("verification_badge_type", "standard") ?: "standard"), messages)
+            peer?.optString("verification_badge_type", "standard") ?: "standard",
+            peer?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null), messages)
     }
 
     suspend fun markRead(conversationId: String) {
