@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.SautiBackend
@@ -396,31 +397,46 @@ fun StagingFeedScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Column {
-                    Text(if (asHome) "SautiLink" else "SautiLink Feed", style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        if (auth.backend == SautiBackend.PRODUCTION) "PRODUCTION · LIVE INTERACTIONS"
-                        else "STAGING · READ ONLY",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                } },
+                title = {
+                    if (asHome) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Sauti", style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold)
+                            Text("Link", style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                    } else {
+                        Column {
+                            Text("SautiLink Feed", style = MaterialTheme.typography.titleLarge)
+                            if (auth.backend != SautiBackend.PRODUCTION) {
+                                Text("STAGING · READ ONLY", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                },
                 navigationIcon = {
                     if (!asHome) IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") }
                 },
                 actions = {
-                    IconButton(onClick = { refreshVersion++ }, enabled = account != null && !loading && !loadingMore) {
-                        Icon(Icons.Rounded.Refresh, "Refresh posts")
-                    }
-                    if (asHome) {
+                    if (!asHome) {
+                        IconButton(onClick = { refreshVersion++ }, enabled = account != null && !loading && !loadingMore) {
+                            Icon(Icons.Rounded.Refresh, "Refresh posts")
+                        }
+                    } else {
                         IconButton(onClick = onOpenNotifications) {
-                            Icon(Icons.Rounded.NotificationsNone, "Notifications preview")
+                            Icon(Icons.Rounded.NotificationsNone, "Notifications")
                         }
                         Box {
                             IconButton(onClick = { menuOpen = true }) {
                                 Icon(Icons.Rounded.MoreHoriz, "Home options")
                             }
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Refresh feed") },
+                                    enabled = account != null && !loading && !loadingMore,
+                                    onClick = { menuOpen = false; refreshVersion++ }
+                                )
                                 if (auth.backend == SautiBackend.PRODUCTION) DropdownMenuItem(
                                     text = { Text("Rooms") }, onClick = { menuOpen = false; onOpenRooms() })
                                 if (BuildConfig.FLAVOR == "preview") {
@@ -441,22 +457,23 @@ fun StagingFeedScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FilterChip(selected = mode == "for_you", onClick = { mode = "for_you" }, label = { Text("For You") }, shape = SautiShape.Pill)
-                    FilterChip(selected = mode == "following", onClick = { mode = "following" }, label = { Text("Following") }, shape = SautiShape.Pill)
-                    FilterChip(selected = mode == "short_videos", onClick = {
+                Row(modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FeedModePill("For You", mode == "for_you") { mode = "for_you" }
+                    FeedModePill("Following", mode == "following") { mode = "following" }
+                    FeedModePill("Short Videos", mode == "short_videos") {
                         if (auth.backend == SautiBackend.PRODUCTION && asHome) onOpenVideos()
                         else mode = "short_videos"
-                    }, label = { Text("Short Videos") }, shape = SautiShape.Pill)
+                    }
                     if (auth.backend == SautiBackend.PRODUCTION) {
-                        FilterChip(selected = mode == "saved", onClick = { mode = "saved" }, label = { Text("Saved") }, shape = SautiShape.Pill)
+                        FeedModePill("Saved", mode == "saved") { mode = "saved" }
                     }
                 }
             }
-            item {
-                Text(if (mode == "saved") "Saved posts · Private to your production account."
-                    else "${if (asHome) "Live feed" else "Posts"} from ${auth.backend.siteOrigin} · ${if (auth.backend == SautiBackend.PRODUCTION) "Like, Save, Comment, Repost and publishing are live." else "Test environment · Read only."}",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (auth.backend != SautiBackend.PRODUCTION) item {
+                Text("Staging test feed · Read only",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (actionError != null && account != null) item {
                 FeedMessageCard(actionError.orEmpty()) {
@@ -614,6 +631,23 @@ fun StagingFeedScreen(
     }
 }
 
+/** Compact selection chips with quiet grouped-surface styling and 44dp hit targets. */
+@Composable
+private fun FeedModePill(label: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = SautiShape.Pill,
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = .12f)
+                else MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.heightIn(min = 44.dp)) {
+        Box(Modifier.padding(horizontal = 17.dp, vertical = 11.dp),
+            contentAlignment = Alignment.Center) {
+            Text(label, style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (selected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
 @Composable
 private fun FeedMessageCard(message: String, footer: @Composable () -> Unit = {}) {
     Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
@@ -698,6 +732,11 @@ private fun RealPostCard(
                             style = MaterialTheme.typography.labelMedium)
                     }
                 }
+                if (auth.backend == SautiBackend.PRODUCTION) {
+                    IconButton(onClick = onOpenPost, enabled = online) {
+                        Icon(Icons.Rounded.MoreHoriz, contentDescription = "Post options")
+                    }
+                }
             }
             if (auth.backend == SautiBackend.PRODUCTION && auth.account != null &&
                 post.authorId != auth.account?.id &&
@@ -709,12 +748,6 @@ private fun RealPostCard(
                 }
             }
             if (post.body.isNotBlank()) Text(post.body, style = MaterialTheme.typography.bodyMedium)
-            if (auth.backend == SautiBackend.PRODUCTION) {
-                TextButton(onClick = onOpenPost, enabled = online,
-                    contentPadding = PaddingValues(horizontal = 2.dp)) {
-                    Text("Open post and safety options")
-                }
-            }
             if (post.media.isNotEmpty()) {
                 PostMediaGallery(auth, post.media)
             } else if (post.mediaCount > 0) {
@@ -727,43 +760,27 @@ private fun RealPostCard(
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             if (auth.backend == SautiBackend.PRODUCTION) {
-                if (liked == null) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (likeReadError == null) {
-                            CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
-                            Text("Checking Like status… You can still Like this post.", style = MaterialTheme.typography.labelSmall)
-                        } else {
-                            Text(likeReadError, style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
-                            TextButton(onClick = onRetryLike) { Text("Retry Like") }
-                        }
+                // Keep background relationship checks invisible. Only actionable failures
+                // should interrupt the feed's visual rhythm.
+                if (liked == null && likeReadError != null) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(likeReadError, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
+                        TextButton(onClick = onRetryLike) { Text("Retry Like") }
                     }
                 }
-                if (saved == null) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (savedReadError == null) {
-                            CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
-                            Text("Checking Saved status… You can still Save this post.", style = MaterialTheme.typography.labelSmall)
-                        } else {
-                            Text(savedReadError, style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
-                            TextButton(onClick = onRetrySaved) { Text("Retry Save") }
-                        }
+                if (saved == null && savedReadError != null) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(savedReadError, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
+                        TextButton(onClick = onRetrySaved) { Text("Retry Save") }
                     }
                 }
-                if (reposted == null) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (repostReadError == null) {
-                            CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
-                            Text("Checking Repost status… You can still Repost.", style = MaterialTheme.typography.labelSmall)
-                        } else {
-                            Text(repostReadError, style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
-                            TextButton(onClick = onRetryRepost) { Text("Retry Repost") }
-                        }
+                if (reposted == null && repostReadError != null) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(repostReadError, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
+                        TextButton(onClick = onRetryRepost) { Text("Retry Repost") }
                     }
                 }
                 if (mutationError != null) {
