@@ -496,13 +496,13 @@ fun StagingFeedScreen(
                         }
                     }
                     StagingSessionState.RETRYABLE_ERROR -> item {
-                        FeedMessageCard("Could not restore your encrypted ${auth.backend.title.lowercase()} session. Check your connection and try again; your login has been kept on this device.") {
+                        FeedMessageCard("Could not restore your session. Check your connection and try again; your sign-in is still saved on this device.") {
                             Button(onClick = { scope.launch { auth.restoreSession() } }, shape = SautiShape.Pill) { Text("Retry session") }
                             TextButton(onClick = onSignIn) { Text("Account options") }
                         }
                     }
                     else -> item {
-                        FeedMessageCard("Sign in to your ${auth.backend.title.lowercase()} SautiLink account to see accessible posts.") {
+                        FeedMessageCard("Sign in to SautiLink to see posts from your community.") {
                             Button(onClick = onSignIn, shape = SautiShape.Pill) { Text("Sign in to SautiLink") }
                         }
                     }
