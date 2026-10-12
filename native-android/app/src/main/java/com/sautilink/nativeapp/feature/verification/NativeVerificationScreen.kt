@@ -87,7 +87,7 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
         catch (e: Exception) { message = e.message ?: "Could not check verification status." }
         finally { busy = false }
     }
-    val active = case?.optString("status") in listOf("submitted", "reviewing", "action_required")
+    val active = case?.optString("status") in listOf("submitted", "reviewing")
     val cooldown = case?.optString("status") == "rejected" && case?.optBoolean("can_reapply") != true
     val canApply = auth.account != null && verified == false && !active && !cooldown && !busy
     Column(Modifier.fillMaxSize()) {
@@ -137,8 +137,9 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
                 label = { Text("TikTok URL") }, enabled = canApply)
             OutlinedTextField(youtube, { youtube = it.take(500) }, Modifier.fillMaxWidth(),
                 label = { Text("YouTube URL") }, enabled = canApply)
-            OutlinedTextField(article, { article = it.take(1000) }, Modifier.fillMaxWidth(),
-                label = { Text("Independent news/article URL") }, enabled = canApply)
+            OutlinedTextField(article, { article = it.take(5500) }, Modifier.fillMaxWidth(),
+                label = { Text("Independent article URLs, up to 5 (one per line)") },
+                minLines = 3, enabled = canApply)
             OutlinedTextField(reason, { reason = it.take(2000) }, Modifier.fillMaxWidth(),
                 label = { Text("Why should your account be verified? *") },
                 minLines = 3, enabled = canApply)
@@ -155,7 +156,8 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
                         if (url.trim().isNotBlank()) social.put(key, url.trim())
                     }
                     val articles = JSONArray()
-                    if (article.trim().isNotBlank()) articles.put(article.trim())
+                    article.lines().map { it.trim() }.filter { it.isNotEmpty() }
+                        .take(5).forEach { articles.put(it) }
                     if (legalName.trim().length < 2 || category.trim().length < 2 ||
                         country.trim().length < 2 || reason.trim().length < 20 ||
                         !accepted || (social.length() == 0 && articles.length() == 0)) {
