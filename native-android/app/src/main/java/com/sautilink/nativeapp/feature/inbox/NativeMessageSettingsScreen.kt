@@ -2,6 +2,8 @@ package com.sautilink.nativeapp.feature.inbox
 
 import android.content.Context
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -115,7 +117,8 @@ internal fun NativeMessageSettingsScreen(
             }
             item {
                 Text("Wallpaper", style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     listOf("system" to "Auto", "warm" to "Warm", "blue" to "Blue", "dark" to "Dark")
                         .forEach { (key, label) ->
                             FilterChip(selected = wallpaper == key,
