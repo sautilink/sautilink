@@ -15,7 +15,7 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Public
-import androidx.compose.material.icons.rounded.InfoOutline
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material3.*
@@ -258,7 +258,7 @@ fun NativeProfileScreen(
                                             style = MaterialTheme.typography.labelLarge)
                                         IconButton(onClick = { categoryInfo = true },
                                             modifier = Modifier.size(38.dp)) {
-                                            Icon(Icons.Rounded.InfoOutline, "About this profile category",
+                                            Icon(Icons.Rounded.Info, "About this profile category",
                                                 modifier = Modifier.size(18.dp))
                                         }
                                     }
