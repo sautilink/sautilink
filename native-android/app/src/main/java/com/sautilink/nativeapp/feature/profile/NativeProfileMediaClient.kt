@@ -124,21 +124,28 @@ internal suspend fun decodeProfileCropSource(context: Context, uri: Uri): Bitmap
         } else decoded
     }
 
-internal fun croppedProfileJpeg(bitmap: Bitmap, slot: String, zoom: Float, panX: Float, panY: Float): ByteArray {
-    val width = if (slot == "avatar") 1000 else 1440
-    val height = if (slot == "avatar") 1000 else 540
-    val aspect = width.toFloat() / height
-    val cropW = minOf(bitmap.width.toFloat(), bitmap.height * aspect) / zoom
+/** Shared rect drives both preview and exported pixels (WYSIWYG crop). */
+internal fun profileCropSourceRect(
+    bitmap: Bitmap, slot: String, zoom: Float, panX: Float, panY: Float
+): android.graphics.Rect {
+    val aspect = if (slot == "avatar") 1f else 1440f / 540f
+    val cropW = minOf(bitmap.width.toFloat(), bitmap.height * aspect) / zoom.coerceIn(1f, 3f)
     val cropH = cropW / aspect
     val centerX = bitmap.width / 2f + panX.coerceIn(-1f, 1f) * (bitmap.width - cropW) / 2f
     val centerY = bitmap.height / 2f + panY.coerceIn(-1f, 1f) * (bitmap.height - cropH) / 2f
     val left = (centerX - cropW / 2f).coerceIn(0f, bitmap.width - cropW)
     val top = (centerY - cropH / 2f).coerceIn(0f, bitmap.height - cropH)
-    val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-    val canvas = android.graphics.Canvas(output)
-    val src = android.graphics.Rect(left.toInt(), top.toInt(),
+    return android.graphics.Rect(left.toInt(), top.toInt(),
         (left + cropW).toInt().coerceAtMost(bitmap.width),
         (top + cropH).toInt().coerceAtMost(bitmap.height))
+}
+
+internal fun croppedProfileJpeg(bitmap: Bitmap, slot: String, zoom: Float, panX: Float, panY: Float): ByteArray {
+    val width = if (slot == "avatar") 1000 else 1440
+    val height = if (slot == "avatar") 1000 else 540
+    val src = profileCropSourceRect(bitmap, slot, zoom, panX, panY)
+    val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(output)
     canvas.drawBitmap(bitmap, src, android.graphics.RectF(0f, 0f, width.toFloat(), height.toFloat()),
         android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or
             android.graphics.Paint.FILTER_BITMAP_FLAG))
