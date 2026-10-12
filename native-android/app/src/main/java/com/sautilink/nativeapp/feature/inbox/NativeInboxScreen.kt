@@ -2,6 +2,11 @@ package com.sautilink.nativeapp.feature.inbox
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +48,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitCancellation
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfile: (String) -> Unit,
     initialConversationId: String? = null, onDeepLinkConsumed: () -> Unit = {},
@@ -50,6 +56,8 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     onOpenPrivacy: () -> Unit = {}) {
     val client = remember(auth) { NativeMessagesClient(auth) }
     val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    var selectedMessage by remember { mutableStateOf<NativeMessage?>(null) }
     val appearance = remember(context, auth.account?.id) {
         MessageAppearancePrefs(context, auth.account?.id)
     }
@@ -249,8 +257,20 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     contentPadding = PaddingValues(12.dp),
                     verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 9.dp)) {
                     if (active.messages.isEmpty()) item { Text("No messages yet.") }
-                    items(active.messages, key = { it.id }) { message ->
+                    itemsIndexed(active.messages, key = { _, entry -> entry.id }) { index, message ->
                         val own = message.senderId == ownId
+                        Column {
+                        if (index == 0 || active.messages[index - 1].sentAt.take(10) != message.sentAt.take(10)) {
+                            Box(Modifier.fillMaxWidth().padding(vertical = 9.dp),
+                                contentAlignment = Alignment.Center) {
+                                Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = .86f),
+                                    shape = RoundedCornerShape(15.dp)) {
+                                    Text(message.sentAt.take(10),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 5.dp))
+                                }
+                            }
+                        }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = if (own) Arrangement.End else Arrangement.Start) {
                             Surface(
                                 shape = if (own) RoundedCornerShape(21.dp, 21.dp, 5.dp, 21.dp)
@@ -260,20 +280,21 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                 tonalElevation = if (own) 0.dp else 1.dp,
                                 shadowElevation = 1.dp,
                                 modifier = Modifier.widthIn(max = 305.dp)
+                                    .combinedClickable(onClick = {},
+                                        onLongClick = { if (!message.deleted) selectedMessage = message })
                             ) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                     Text(if (message.deleted) "Message deleted." else message.body,
                                         color = if (own && bubble != "neutral") Color.White
                                             else MaterialTheme.colorScheme.onSurface)
-                                    Text(message.sentAt.take(16).replace('T', ' '),
+                                    Text(message.sentAt.take(16).takeLast(5),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = if (own && bubble != "neutral") Color.White.copy(alpha = .78f)
                                             else MaterialTheme.colorScheme.onSurfaceVariant)
-                                    if (!own && !message.deleted) TextButton(onClick = {
-                                        reportMessageId = message.id; reportNote = null
-                                    }, contentPadding = PaddingValues(0.dp)) { Text("Report") }
+ 
                                 }
                             }
+                        }
                         }
                     }
                 }
@@ -309,6 +330,28 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     }, enabled = draft.isNotBlank() && !sending) { Text(if (sending) "..." else "Send") }
                 }
             }
+        }
+        selectedMessage?.let { message ->
+            val own = message.senderId == auth.account?.id
+            AlertDialog(onDismissRequest = { selectedMessage = null },
+                title = { Text("Message options") },
+                text = { Text("Choose an action for this message.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        clipboard.setText(AnnotatedString(message.body))
+                        selectedMessage = null
+                    }) { Text("Copy") }
+                },
+                dismissButton = {
+                    Row {
+                        if (!own) TextButton(onClick = {
+                            selectedMessage = null
+                            reportMessageId = message.id
+                            reportNote = null
+                        }) { Text("Report") }
+                        TextButton(onClick = { selectedMessage = null }) { Text("Cancel") }
+                    }
+                })
         }
         if (reportMessageId != null) NativeReportDialog("message", reportBusy, error = reportNote,
             onDismiss = { reportMessageId = null }) { reason, details ->
