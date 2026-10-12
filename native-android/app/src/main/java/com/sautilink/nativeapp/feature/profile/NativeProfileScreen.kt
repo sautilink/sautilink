@@ -8,6 +8,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -48,11 +53,16 @@ fun NativeProfileScreen(
     onOpenProfile: (String) -> Unit = {},
     onOpenPosts: () -> Unit = {},
     onOpenDashboard: () -> Unit = {},
+    onStartMessage: (String) -> Unit = {},
     onOpenPost: (String) -> Unit = {}
 ) {
     val client = remember(auth) { NativeProfilesClient(auth) }
     val safety = remember(auth) { NativeSafetyClient(auth) }
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    var moreOpen by remember { mutableStateOf(false) }
+    var aboutOpen by remember { mutableStateOf(false) }
+    var canMessage by remember(username, auth.account?.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val account = auth.account
     val ownerRoute = username == null
@@ -104,6 +114,8 @@ fun NativeProfileScreen(
             val result = if (ownerRoute) client.own() else client.byHandle(username)
             profile = result
             following = if (result != null && result.id != account.id) client.following(result.id) else null
+            canMessage = result != null && result.id != account.id &&
+                runCatching { client.canMessage(result) }.getOrDefault(false)
             loaded = true
         } catch (e: Exception) {
             error = e.message ?: "Could not load profile."
@@ -147,7 +159,38 @@ fun NativeProfileScreen(
                 else -> "Profile"
             }, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
             if (!edit && account != null) {
-                IconButton(onClick = { refresh++ }, enabled = !loading) { Icon(Icons.Rounded.Refresh, "Refresh profile") }
+                if (ownerRoute) {
+                    IconButton(onClick = { refresh++ }, enabled = !loading) {
+                        Icon(Icons.Rounded.Refresh, "Refresh profile")
+                    }
+                } else {
+                    Box {
+                        IconButton(onClick = { moreOpen = true }, modifier = Modifier.size(48.dp)) {
+                            Icon(Icons.Rounded.MoreHoriz, "More profile options")
+                        }
+                        DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
+                            DropdownMenuItem(text = { Text("Share profile") }, onClick = {
+                                moreOpen = false
+                                val handle = profile?.username ?: return@DropdownMenuItem
+                                val share = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, "https://sautilink.com/@$handle")
+                                }
+                                runCatching { context.startActivity(Intent.createChooser(share, "Share profile")) }
+                            })
+                            DropdownMenuItem(text = { Text("Report profile") }, onClick = {
+                                moreOpen = false; reportOpen = true
+                            })
+                            DropdownMenuItem(text = { Text(
+                                if (safetyState?.blocked == true) "Unblock account" else "Block account"
+                            ) }, onClick = { moreOpen = false; blockConfirm = true })
+                            DropdownMenuItem(text = { Text("Restrict (not available yet)") },
+                                enabled = false, onClick = {})
+                            DropdownMenuItem(text = { Text("About this account") },
+                                onClick = { moreOpen = false; aboutOpen = true })
+                        }
+                    }
+                }
             }
         }
 
@@ -334,6 +377,8 @@ fun NativeProfileScreen(
                                         }
                                     }
                                 } else if (member.id != account.id) {
+                                    Row(Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Button(onClick = {
                                         val desired = following != true
                                         followBusy = true; actionError = null
@@ -348,8 +393,18 @@ fun NativeProfileScreen(
                                         }
                                     }, enabled = !followBusy && following != null && safetyState?.blocked != true,
                                         shape = RoundedCornerShape(14.dp),
-                                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                                         Text(if (following == true) "Following" else "Follow")
+                                    }
+                                    if (canMessage && safetyState?.blocked != true) {
+                                        OutlinedButton(onClick = { onStartMessage(member.id) },
+                                            shape = RoundedCornerShape(14.dp),
+                                            modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                                            Icon(Icons.Rounded.ChatBubbleOutline, null, Modifier.size(18.dp))
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("Message")
+                                        }
+                                    }
                                     }
                                 }
                             }
@@ -401,6 +456,26 @@ fun NativeProfileScreen(
         }
     }
 
+    if (aboutOpen && profile != null) {
+        val member = profile!!
+        AlertDialog(onDismissRequest = { aboutOpen = false },
+            title = { Text("About this account") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Name: ${member.displayName}")
+                    Text("Username: @${member.username}")
+                    Text("Joined: ${member.joinedAt.take(10).ifBlank { "Not available" }}")
+                    Text(if (member.verified) "Verification: Verified"
+                        else "Verification: Not verified")
+                    Text("Verification date: Not available from current profile data")
+                    Text("Discoverability: ${if (member.discoverable) "Discoverable" else "Limited"}")
+                    Text("Profile category: ${categoryCatalog.firstOrNull { it.slug == member.categorySlug }?.label ?: "Not selected"}")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { aboutOpen = false }) { Text("Close") }
+            })
+    }
     if (categoryInfo && profile != null) {
         val category = categoryCatalog.firstOrNull { it.slug == profile?.categorySlug }
         AlertDialog(onDismissRequest = { categoryInfo = false },
