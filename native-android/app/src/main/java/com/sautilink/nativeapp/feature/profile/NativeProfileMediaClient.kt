@@ -96,9 +96,12 @@ internal suspend fun decodeProfileCropSource(context: Context, uri: Uri): Bitmap
         if (sourceSize > 64L * 1024 * 1024)
             throw AuthRequestException("Choose an image smaller than 64 MB.")
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use {
-            BitmapFactory.decodeStream(it, null, bounds)
-        } ?: throw AuthRequestException("Cannot read this image.")
+        // With inJustDecodeBounds, BitmapFactory.decodeStream intentionally returns
+        // a null Bitmap even for valid images. Validate the input stream, not its
+        // return value; actual dimensions are checked below.
+        val boundsStream = resolver.openInputStream(uri)
+            ?: throw AuthRequestException("Cannot open the selected image. Try downloading it to your device.")
+        boundsStream.use { BitmapFactory.decodeStream(it, null, bounds) }
         if (bounds.outWidth < 20 || bounds.outHeight < 20 ||
             bounds.outWidth > 16_000 || bounds.outHeight > 16_000)
             throw AuthRequestException("This image has unsupported dimensions.")
