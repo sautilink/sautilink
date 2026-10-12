@@ -70,7 +70,7 @@ fun NativePostDetailScreen(auth: StagingAuthClient, postId: String, onBack: () -
                         SautiVerificationBadge(item.verified, item.badgeType,
                             item.authorName, size = 16.dp)
                     }
-                    Text("@${item.authorHandle} · ${item.createdAt.take(10)}",
+                    Text("@${item.authorHandle} · ${relativePostTime(item.createdAt)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
