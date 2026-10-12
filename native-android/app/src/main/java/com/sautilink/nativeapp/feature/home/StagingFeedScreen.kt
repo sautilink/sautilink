@@ -45,6 +45,7 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.menu.AnimatedHamburgerButton
+import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
 import com.sautilink.nativeapp.ui.components.SautiAvatar
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.theme.SautiColors
@@ -481,11 +482,7 @@ fun StagingFeedScreen(
             }
             if (account == null) {
                 when (sessionState) {
-                    StagingSessionState.CHECKING -> item {
-                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    }
+                    StagingSessionState.CHECKING -> items(2) { SautiPostSkeleton() }
                     StagingSessionState.RETRYABLE_ERROR -> item {
                         FeedMessageCard("Could not restore your session. Check your connection and try again; your sign-in is still saved on this device.") {
                             Button(onClick = { scope.launch { auth.restoreSession() } }, shape = SautiShape.Pill) { Text("Retry session") }
@@ -499,11 +496,7 @@ fun StagingFeedScreen(
                     }
                 }
             } else {
-                if (loading) item {
-                    Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
+                if (loading && posts.isEmpty()) items(3) { SautiPostSkeleton() }
                 if (error != null) item { FeedMessageCard(error.orEmpty()) {
                     OutlinedButton(onClick = { refreshVersion++ }, shape = SautiShape.Pill) { Text("Try again") }
                 } }
@@ -564,7 +557,7 @@ fun StagingFeedScreen(
                 }
                 if (hasMore && error == null && !loading) item {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        if (loadingMore) CircularProgressIndicator(Modifier.padding(15.dp))
+                        if (loadingMore) SautiPostSkeleton()
                         else OutlinedButton(onClick = {
                             val requestedUserId = auth.account?.id
                             val requestedMode = mode
