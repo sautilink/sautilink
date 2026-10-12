@@ -309,7 +309,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     OutlinedTextField(draft, { draft = it.take(4000) },
                         modifier = Modifier.weight(1f), placeholder = { Text("Message") },
                         shape = RoundedCornerShape(25.dp),
-                        maxLines = 5, shape = SautiShape.Card)
+                        maxLines = 5)
                     Button(onClick = {
                         if (sending) return@Button
                         val body = draft.trim()
@@ -423,7 +423,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             }
             IconButton(onClick = { error = null; newConversation = true },
                 enabled = auth.account != null) {
-                Icon(Icons.Rounded.EditSquare, "New message")
+                Icon(Icons.Rounded.Edit, "New message")
             }
         }
         OutlinedTextField(query, { query = it.take(80) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
