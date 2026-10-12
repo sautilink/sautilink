@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.sautilink.nativeapp.feature.dashboard.NativeDashboardScreen
 import com.sautilink.nativeapp.feature.menu.NativeMenuScreen
 import com.sautilink.nativeapp.feature.home.StagingFeedScreen
 import com.sautilink.nativeapp.feature.home.NativePostDetailScreen
@@ -109,6 +110,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     var viewedProfileHandle by rememberSaveable { mutableStateOf("") }
     var notificationPostId by rememberSaveable { mutableStateOf("") }
     var postReturn by rememberSaveable { mutableStateOf<String?>(null) }
+    var dashboardReturn by rememberSaveable { mutableStateOf<String?>(null) }
     var notificationRoomSlug by rememberSaveable { mutableStateOf<String?>(null) }
     var roomReturn by rememberSaveable { mutableStateOf<String?>(null) }
     var messageDeepId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -192,6 +194,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                 menuEntryDestination = null
                 detail = "menu"
             }
+            detail == "dashboard" -> detail = dashboardReturn
             detail == "production-profile" -> detail = profileReturn
             detail == "member-profile" -> detail = memberProfileReturn
             detail == "my-posts" -> detail = null
@@ -324,10 +327,14 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onFinished = { detail = null; root = 0 })
                     "production-recovery" -> NativeRecoveryScreen(client = productionAuth,
                         onBack = { detail = "production-auth" })
+                    "dashboard" -> NativeDashboardScreen(auth = productionAuth,
+                        onBack = { detail = dashboardReturn },
+                        onOpenPost = { id -> notificationPostId = id; postReturn = "dashboard"; detail = "post" })
                     "production-profile" -> NativeProfileScreen(auth = productionAuth,
                         onBack = { detail = profileReturn }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle -> viewedProfileHandle = handle; memberProfileReturn = "production-profile"; detail = "member-profile" },
                         onOpenPosts = { detail = "my-posts" },
+                        onOpenDashboard = { dashboardReturn = "production-profile"; detail = "dashboard" },
                         onOpenPost = { id -> notificationPostId = id; postReturn = "production-profile"; detail = "post" })
                     "member-profile" -> NativeProfileScreen(auth = productionAuth, username = viewedProfileHandle,
                         onBack = { detail = memberProfileReturn }, onSignIn = { detail = "production-auth" },
@@ -396,6 +403,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             onSignIn = { detail = "production-auth" },
                             onOpenProfile = { handle -> viewedProfileHandle = handle; memberProfileReturn = null; detail = "member-profile" },
                             onOpenPosts = { detail = "my-posts" },
+                            onOpenDashboard = { dashboardReturn = null; detail = "dashboard" },
                             onOpenPost = { id -> notificationPostId = id; postReturn = null; detail = "post" })
                         else -> StagingFeedScreen(
                             auth = productionAuth, onBack = {}, onSignIn = { detail = "production-auth" },
