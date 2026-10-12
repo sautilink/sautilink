@@ -70,6 +70,7 @@ fun StagingFeedScreen(
     onBack: () -> Unit,
     onSignIn: () -> Unit,
     asHome: Boolean = false,
+    savedRequestVersion: Int = 0,
     onOpenNotifications: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenMenu: () -> Unit = {},
@@ -81,6 +82,9 @@ fun StagingFeedScreen(
     val account = auth.account
     val sessionState = auth.sessionState
     var mode by rememberSaveable(auth.backend.id) { mutableStateOf("for_you") }
+    LaunchedEffect(savedRequestVersion) {
+        if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION) mode = "saved"
+    }
     var refreshVersion by remember { mutableIntStateOf(0) }
     var loading by remember { mutableStateOf(false) }
     var loadingMore by remember { mutableStateOf(false) }
