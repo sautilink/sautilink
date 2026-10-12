@@ -35,6 +35,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import com.sautilink.nativeapp.ui.components.SautiSkeletonBlock
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -83,9 +84,7 @@ internal fun AuthorizedImage(
                 contentScale = if (crop) ContentScale.Crop else ContentScale.Fit,
                 modifier = Modifier.fillMaxSize())
         } else if (loading) {
-            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
-            }
+            SautiSkeletonBlock(Modifier.fillMaxSize(), 6.dp)
         } else fallback()
     }
 }
@@ -216,6 +215,7 @@ private fun InlineFeedVideo(
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     var started by remember(auth, media.id) { mutableStateOf(false) }
+    var wantsToPlay by remember(auth, media.id) { mutableStateOf(false) }
     var accessToken by remember(auth, media.id) { mutableStateOf<String?>(null) }
     var requestError by remember(auth, media.id) { mutableStateOf<String?>(null) }
     var muted by remember(auth, media.id) { mutableStateOf(true) }
@@ -263,19 +263,15 @@ private fun InlineFeedVideo(
             player.release()
         }
     }
-    LaunchedEffect(player, isCurrent, started, muted) {
+    LaunchedEffect(player, isCurrent, wantsToPlay, muted, requestError) {
         if (player != null) {
             player.volume = if (muted) 0f else 1f
             if (!isCurrent) player.pause()
-            else if (started && requestError == null) player.play()
+            else if (wantsToPlay && requestError == null) player.play()
+            else if (!wantsToPlay) player.pause()
         }
     }
     Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
-        // Preserve the poster while waiting for the first frame; stable outer frame is 4:5-max.
-        if (!firstFrame) {
-            AuthorizedImage(auth, "/api/sauti-media/${media.id}?poster=1",
-                "Video cover", modifier = Modifier.fillMaxSize(), crop = false)
-        }
         if (player != null) {
             AndroidView(
                 factory = { ctx -> PlayerView(ctx).apply {
@@ -289,11 +285,18 @@ private fun InlineFeedVideo(
                     .graphicsLayer { alpha = if (firstFrame) 1f else 0f }
             )
         }
+        // Poster overlays any decoder/player surface until a real frame has arrived.
+        if (!firstFrame) {
+            AuthorizedImage(auth, "/api/sauti-media/${media.id}?poster=1",
+                "Video cover", modifier = Modifier.fillMaxSize(), crop = false)
+        }
         if (!playing || !firstFrame) {
             Surface(
                 onClick = {
                     requestError = null
                     started = true
+                    wantsToPlay = true
+                    if (player?.playerError != null) player.prepare()
                     player?.play()
                 },
                 shape = CircleShape,
@@ -307,7 +310,10 @@ private fun InlineFeedVideo(
             }
         } else {
             Box(
-                Modifier.fillMaxSize().clickable { player?.pause() },
+                Modifier.fillMaxSize().clickable {
+                    wantsToPlay = false
+                    player?.pause()
+                },
                 contentAlignment = Alignment.Center
             )
         }
