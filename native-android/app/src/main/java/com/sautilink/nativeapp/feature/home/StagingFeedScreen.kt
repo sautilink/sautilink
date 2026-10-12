@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.MoreHoriz
@@ -37,6 +38,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.SautiBackend
@@ -732,12 +735,21 @@ private fun RealPostCard(
 ) {
     val initials = post.authorName.split(" ").filter { it.isNotBlank() }.take(2)
         .map { it.first().uppercaseChar() }.joinToString("").ifBlank { "SL" }
-    Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .20f)),
-        shadowElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .18f)),
+        shadowElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+            // Author identity and actions match the established SautiLink web order.
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
                 if (post.hasAvatar && Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(post.authorHandle)) {
                     AuthorizedImage(
                         auth = auth,
@@ -747,141 +759,139 @@ private fun RealPostCard(
                         fallback = { SautiAvatar(initials, Modifier.size(44.dp), SautiColors.Blue) }
                     )
                 } else SautiAvatar(initials, Modifier.size(44.dp), SautiColors.Blue)
-                Column(Modifier.weight(1f).clickable(onClick = onOpenProfile)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(
+                    modifier = Modifier.weight(1f).clickable(onClick = onOpenProfile),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(post.authorName, style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.weight(1f, fill = false), maxLines = 1,
-                            overflow = TextOverflow.Ellipsis)
-                        if (post.verified) Spacer(Modifier.width(5.dp))
+                            modifier = Modifier.weight(1f, fill = false),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
                         SautiVerificationBadge(post.verified, post.badgeType,
                             post.authorName, size = 16.dp)
                     }
-                    Text("${if (post.authorHandle.isNotBlank()) "@${post.authorHandle} · " else ""}${relativePostTime(post.createdAt)}",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "${if (post.authorHandle.isNotBlank()) "@${post.authorHandle} · " else ""}${relativePostTime(post.createdAt)}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
                 }
                 if (auth.backend == SautiBackend.PRODUCTION && auth.account != null &&
                     post.authorId != auth.account?.id &&
                     Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(post.authorHandle)) {
-                    TextButton(onClick = onFollow, enabled = online && !busyFollow,
-                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 7.dp)) {
+                    OutlinedButton(
+                        onClick = onFollow, enabled = online && !busyFollow,
+                        modifier = Modifier.heightIn(min = 40.dp),
+                        shape = RoundedCornerShape(13.dp),
+                        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp)
+                    ) {
                         if (busyFollow) {
-                            CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                         } else {
-                            Icon(if (following == true) Icons.Rounded.Check else Icons.Rounded.PersonAdd,
-                                if (following == true) "Unfollow @${post.authorHandle}" else "Follow @${post.authorHandle}",
-                                modifier = Modifier.size(17.dp))
+                            Text(if (following == true) "Following" else "Follow",
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1)
                         }
-                        Spacer(Modifier.width(4.dp))
-                        Text(if (following == true) "Following" else "Follow",
-                            style = MaterialTheme.typography.labelMedium)
                     }
                 }
                 if (auth.backend == SautiBackend.PRODUCTION) {
-                    IconButton(onClick = onOpenPost, enabled = online) {
-                        Icon(Icons.Rounded.MoreHoriz, contentDescription = "Post options")
+                    IconButton(onClick = onOpenPost, enabled = online, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Rounded.MoreHoriz, contentDescription = "Post options",
+                            modifier = Modifier.size(23.dp))
                     }
                 }
             }
             if (auth.backend == SautiBackend.PRODUCTION && auth.account != null &&
                 post.authorId != auth.account?.id &&
                 Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(post.authorHandle) && followReadError != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
                     Text("Follow status unavailable", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
                     TextButton(onClick = onRetryFollow) { Text("Retry Follow") }
                 }
             }
-            if (post.body.isNotBlank()) Text(post.body, style = MaterialTheme.typography.bodyLarge)
+            if (post.body.isNotBlank()) {
+                Text(post.body, style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 10.dp))
+            }
+            // Gallery is flush with card edges; caption is never overlaid onto the media.
             if (post.media.isNotEmpty()) {
                 PostMediaGallery(auth, post.media)
             } else if (post.mediaCount > 0) {
-                Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceVariant) {
-                    Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
+                    Row(Modifier.fillMaxWidth().padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Rounded.PhotoLibrary, null, modifier = Modifier.size(19.dp))
                         Text("Media unavailable for this session", style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .55f)
+            )
             if (auth.backend == SautiBackend.PRODUCTION) {
-                // Keep background relationship checks invisible. Only actionable failures
-                // should interrupt the feed's visual rhythm.
-                if (liked == null && likeReadError != null) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {
+                    // Only failures interrupt the feed, not routine relationship queries.
+                    if (liked == null && likeReadError != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(likeReadError, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
+                            TextButton(onClick = onRetryLike) { Text("Retry Like") }
+                        }
+                    }
+                    if (saved == null && savedReadError != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(savedReadError, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
+                            TextButton(onClick = onRetrySaved) { Text("Retry Save") }
+                        }
+                    }
+                    if (reposted == null && repostReadError != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(repostReadError, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
+                            TextButton(onClick = onRetryRepost) { Text("Retry Repost") }
+                        }
+                    }
+                    if (mutationError != null) {
+                        Text(mutationError, color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    // Four compact web-like actions group on the left; Save stays at the far right.
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(likeReadError, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
-                        TextButton(onClick = onRetryLike) { Text("Retry Like") }
-                    }
-                }
-                if (saved == null && savedReadError != null) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(savedReadError, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
-                        TextButton(onClick = onRetrySaved) { Text("Retry Save") }
-                    }
-                }
-                if (reposted == null && repostReadError != null) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(repostReadError, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
-                        TextButton(onClick = onRetryRepost) { Text("Retry Repost") }
-                    }
-                }
-                if (mutationError != null) {
-                    Text(mutationError, color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall)
-                }
-                // All five post actions share one compact, evenly spaced touch row.
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceEvenly) {
-                    TextButton(onClick = onLike, enabled = online && !busyLike,
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        contentPadding = PaddingValues(horizontal = 0.dp)) {
-                        Icon(if (liked == true) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            "Like post", modifier = Modifier.size(21.dp),
-                            tint = if (liked == true) SautiColors.Red else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(3.dp))
-                        Text(feedCount(post.likes), style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                    }
-                    TextButton(onClick = onComments, enabled = online,
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        contentPadding = PaddingValues(horizontal = 0.dp)) {
-                        Icon(Icons.Rounded.ChatBubbleOutline, "View comments",
-                            modifier = Modifier.size(21.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(3.dp))
-                        Text(feedCount(post.comments), style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                    }
-                    TextButton(onClick = onRepost, enabled = online && !busyRepost,
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        contentPadding = PaddingValues(horizontal = 0.dp)) {
-                        Icon(Icons.Rounded.Repeat, if (reposted == true) "Undo repost" else "Repost",
-                            modifier = Modifier.size(21.dp),
-                            tint = if (reposted == true) MaterialTheme.colorScheme.primary
+                        CompactPostAction(Icons.Rounded.FavoriteBorder,
+                            if (liked == true) "Unlike post" else "Like post", feedCount(post.likes),
+                            Modifier.weight(1f), onLike, online && !busyLike,
+                            if (liked == true) SautiColors.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                            if (liked == true) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder)
+                        CompactPostAction(Icons.Rounded.ChatBubbleOutline, "View comments",
+                            feedCount(post.comments), Modifier.weight(1f), onComments, online)
+                        CompactPostAction(Icons.Rounded.Repeat,
+                            if (reposted == true) "Undo repost" else "Repost",
+                            feedCount(post.reposts), Modifier.weight(1f), onRepost,
+                            online && !busyRepost,
+                            if (reposted == true) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(3.dp))
-                        Text(feedCount(post.reposts), style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                    }
-                    TextButton(onClick = onShare,
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        contentPadding = PaddingValues(horizontal = 0.dp)) {
-                        Icon(Icons.Rounded.Share, "Share post", modifier = Modifier.size(21.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    TextButton(onClick = onSave, enabled = online && !busySave,
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        contentPadding = PaddingValues(horizontal = 0.dp)) {
-                        Icon(if (saved == true) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                            if (saved == true) "Remove from saved" else "Save post",
-                            modifier = Modifier.size(21.dp),
-                            tint = if (saved == true) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant)
+                        CompactPostAction(Icons.Rounded.Share, "Share post", null,
+                            Modifier.weight(1f), onShare)
+                        IconButton(onClick = onSave, enabled = online && !busySave,
+                            modifier = Modifier.size(48.dp)) {
+                            Icon(if (saved == true) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                                if (saved == true) "Remove from saved" else "Save post",
+                                modifier = Modifier.size(23.dp),
+                                tint = if (saved == true) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             } else {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("${post.likes} likes · ${post.comments} comments · ${post.reposts} reposts",
                         style = MaterialTheme.typography.labelMedium)
@@ -895,6 +905,35 @@ private fun RealPostCard(
         }
     }
 }
+
+/** Compact accessible touch target; reaction counts stay beside their icons. */
+@Composable
+private fun CompactPostAction(
+    icon: ImageVector,
+    label: String,
+    count: String?,
+    modifier: Modifier,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    activeIcon: ImageVector = icon
+) {
+    Row(
+        modifier = modifier.heightIn(min = 48.dp)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 1.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(activeIcon, contentDescription = label, tint = tint, modifier = Modifier.size(21.dp))
+        if (count != null) {
+            Spacer(Modifier.width(3.dp))
+            Text(count, style = MaterialTheme.typography.labelSmall,
+                color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
 
 
 /** Production comments and nested replies share SautiLink's existing guarded APIs.
