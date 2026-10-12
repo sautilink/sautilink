@@ -52,7 +52,7 @@ internal fun outgoingBubble(choice: String): Color = when (choice) {
 
 /** Telegram/iOS-style messaging controls, no false promises of DM attachment support. */
 @Composable
-fun NativeMessageSettingsScreen(
+internal fun NativeMessageSettingsScreen(
     preferences: MessageAppearancePrefs,
     onBack: () -> Unit,
     onPrivacy: () -> Unit,
