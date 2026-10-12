@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Paint
 import android.graphics.RectF
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
@@ -49,6 +50,7 @@ internal fun NativeProfileMediaEditor(
     val client = remember(auth) { NativeProfileMediaClient(auth) }
     var ready by remember(auth.account?.id) { mutableStateOf(false) }
     var checking by remember(auth.account?.id) { mutableStateOf(true) }
+    var readinessAttempt by remember(auth.account?.id) { mutableIntStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
     var editingSlot by remember { mutableStateOf("avatar") }
     var cropSlot by remember { mutableStateOf<String?>(null) }
@@ -57,8 +59,9 @@ internal fun NativeProfileMediaEditor(
     var busy by remember { mutableStateOf(false) }
     var removeSlot by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(auth.account?.id) {
+    LaunchedEffect(auth.account?.id, readinessAttempt) {
         checking = true
+        error = null
         try {
             ready = client.isReady()
             if (!ready) error = "Profile media service is not available yet."
@@ -68,7 +71,8 @@ internal fun NativeProfileMediaEditor(
         } finally { checking = false }
     }
 
-    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    // Scoped photo picker works on supported Samsung/Android releases without broad gallery access.
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
             error = null
             preparing = true
@@ -105,7 +109,7 @@ internal fun NativeProfileMediaEditor(
             Text("Profile picture", style = MaterialTheme.typography.bodyMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 OutlinedButton(
-                    onClick = { editingSlot = "avatar"; gallery.launch("image/*") },
+                    onClick = { editingSlot = "avatar"; gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     enabled = ready && !busy && !preparing && !checking,
                     shape = RoundedCornerShape(13.dp)
                 ) { Text(if (profile.hasAvatar) "Change" else "Add") }
@@ -131,7 +135,7 @@ internal fun NativeProfileMediaEditor(
         verticalAlignment = Alignment.CenterVertically) {
         OutlinedButton(onClick = {
             editingSlot = "header"
-            gallery.launch("image/*")
+            gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }, enabled = ready && !busy && !preparing && !checking,
             shape = RoundedCornerShape(13.dp)) {
             Icon(Icons.Rounded.Crop, null, Modifier.size(18.dp))
@@ -146,12 +150,17 @@ internal fun NativeProfileMediaEditor(
     if (error != null) Text(error.orEmpty(),
         color = MaterialTheme.colorScheme.error,
         style = MaterialTheme.typography.bodySmall)
+    if (!ready && !checking) {
+        OutlinedButton(onClick = { readinessAttempt++ }, enabled = !busy && !preparing) {
+            Text("Retry connection")
+        }
+    }
     HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
     if (cropSlot != null && source != null) {
         val kind = cropSlot!!
         val bitmap = source!!
-        ProfileCropDialog(bitmap, kind, busy = busy,
+        ProfileCropDialog(bitmap, kind, busy = busy, error = error,
             onCancel = { if (!busy) { cropSlot = null; source = null } },
             onSave = { zoom, panX, panY ->
                 if (busy) return@ProfileCropDialog
@@ -203,6 +212,7 @@ private fun ProfileCropDialog(
     bitmap: Bitmap,
     slot: String,
     busy: Boolean,
+    error: String?,
     onCancel: () -> Unit,
     onSave: (Float, Float, Float) -> Unit
 ) {
@@ -228,8 +238,8 @@ private fun ProfileCropDialog(
                 Canvas(
                     Modifier.fillMaxWidth().aspectRatio(aspect)
                         .clip(if (slot == "avatar") CircleShape else RoundedCornerShape(13.dp))
-                        .pointerInput(bitmap, slot) {
-                            detectTransformGestures { _, pan, pinch, _ ->
+                        .pointerInput(bitmap, slot, busy) {
+                            if (!busy) detectTransformGestures { _, pan, pinch, _ ->
                                 zoom = (zoom * pinch).coerceIn(1f, 3f)
                                 if (size.width > 0 && size.height > 0) {
                                     panX = (panX - pan.x / size.width * 2f).coerceIn(-1f, 1f)
@@ -247,6 +257,19 @@ private fun ProfileCropDialog(
                 Text("Zoom", style = MaterialTheme.typography.labelMedium)
                 Slider(value = zoom, onValueChange = { zoom = it }, valueRange = 1f..3f,
                     enabled = !busy)
+                // Accessible position controls remain usable when a device intercepts touch gestures.
+                Text("Horizontal position", style = MaterialTheme.typography.labelSmall)
+                Slider(value = panX, onValueChange = { panX = it }, valueRange = -1f..1f,
+                    enabled = !busy)
+                Text("Vertical position", style = MaterialTheme.typography.labelSmall)
+                Slider(value = panY, onValueChange = { panY = it }, valueRange = -1f..1f,
+                    enabled = !busy)
+                if (error != null) {
+                    Text(error, color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall)
+                    Text("Adjust the crop or tap Save photo to retry.",
+                        style = MaterialTheme.typography.bodySmall)
+                }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = onCancel, enabled = !busy,
                         modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) {
