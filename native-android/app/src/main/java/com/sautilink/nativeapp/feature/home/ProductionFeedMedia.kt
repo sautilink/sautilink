@@ -49,6 +49,7 @@ internal fun AuthorizedImage(
     description: String,
     modifier: Modifier = Modifier,
     crop: Boolean = true,
+    naturalAspectRatio: Boolean = false,
     fallback: @Composable () -> Unit = {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
             Icon(Icons.Rounded.ImageNotSupported, contentDescription = null,
@@ -68,7 +69,13 @@ internal fun AuthorizedImage(
         catch (_: Exception) { bitmap = null }
         finally { loading = false }
     }
-    Box(modifier, contentAlignment = Alignment.Center) {
+    // In-feed single media keeps its actual poster/image proportions rather than
+    // forcing the previous cropped 1.35:1 tile used by the prototype.
+    val naturalAspect = bitmap?.let { image ->
+        if (image.height > 0) (image.width.toFloat() / image.height).coerceIn(.65f, 2.25f) else 1.35f
+    } ?: 1.35f
+    Box(if (naturalAspectRatio) modifier.aspectRatio(naturalAspect) else modifier,
+        contentAlignment = Alignment.Center) {
         val image = bitmap
         if (image != null) {
             Image(image.asImageBitmap(), contentDescription = description,
@@ -126,23 +133,46 @@ private fun fetchBoundedBitmap(url: String, token: String): Bitmap {
 @Composable
 internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>) {
     var expanded by remember(auth) { mutableStateOf<FeedMedia?>(null) }
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        media.chunked(2).forEach { group ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                group.forEach { item ->
-                    val route = "/api/sauti-media/${item.id}" + if (item.kind == "video") "?poster=1" else "?w=960"
-                    Box(Modifier.weight(1f).aspectRatio(if (media.size == 1) 1.35f else 1.0f)
-                        .clip(RoundedCornerShape(16.dp)).clickable { expanded = item }) {
-                        AuthorizedImage(auth, route, "Post ${item.kind}", Modifier.fillMaxSize())
-                        if (item.kind == "video") {
-                            Surface(color = Color.Black.copy(alpha = .64f), shape = CircleShape,
-                                modifier = Modifier.align(Alignment.Center)) {
-                                Icon(Icons.Rounded.PlayArrow, "Play video", Modifier.padding(12.dp).size(30.dp), tint = Color.White)
+    val single = media.singleOrNull()
+    if (single != null) {
+        val route = "/api/sauti-media/${single.id}" +
+            if (single.kind == "video") "?poster=1" else "?w=960"
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+            .clickable { expanded = single }) {
+            AuthorizedImage(
+                auth, route, "Post ${single.kind}",
+                modifier = Modifier.fillMaxWidth(),
+                crop = false, naturalAspectRatio = true
+            )
+            if (single.kind == "video") {
+                Surface(color = Color.Black.copy(alpha = .58f), shape = CircleShape,
+                    modifier = Modifier.align(Alignment.Center)) {
+                    Icon(Icons.Rounded.PlayArrow, "Play video",
+                        Modifier.padding(12.dp).size(30.dp), tint = Color.White)
+                }
+            }
+        }
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            media.chunked(2).forEach { group ->
+                Row(Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    group.forEach { item ->
+                        val route = "/api/sauti-media/${item.id}" +
+                            if (item.kind == "video") "?poster=1" else "?w=960"
+                        Box(Modifier.weight(1f).aspectRatio(if (group.size == 1) 1.4f else 1f)
+                            .clip(RoundedCornerShape(8.dp)).clickable { expanded = item }) {
+                            AuthorizedImage(auth, route, "Post ${item.kind}", Modifier.fillMaxSize())
+                            if (item.kind == "video") {
+                                Surface(color = Color.Black.copy(alpha = .58f), shape = CircleShape,
+                                    modifier = Modifier.align(Alignment.Center)) {
+                                    Icon(Icons.Rounded.PlayArrow, "Play video",
+                                        Modifier.padding(10.dp).size(25.dp), tint = Color.White)
+                                }
                             }
                         }
                     }
                 }
-                if (group.size == 1 && media.size > 1) Spacer(Modifier.weight(1f))
             }
         }
     }
