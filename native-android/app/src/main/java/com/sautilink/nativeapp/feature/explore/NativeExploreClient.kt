@@ -13,7 +13,8 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 data class ExplorePerson(val id: String, val username: String, val name: String, val bio: String,
-    val followers: Int, val verified: Boolean, val badgeType: String)
+    val followers: Int, val verified: Boolean, val badgeType: String,
+    val hasAvatar: Boolean)
 data class ExplorePost(val id: String, val authorHandle: String, val authorName: String,
     val body: String, val createdAt: String, val likes: Int, val comments: Int, val mediaCount: Int,
     val verified: Boolean, val badgeType: String)
@@ -60,7 +61,7 @@ class NativeExploreClient(private val auth: StagingAuthClient) {
                 addQueryParameter("muter_id", "eq.$ownId")
                 addQueryParameter("select", "muted_id")
             }, token).objects().mapNotNull { it.optString("muted_id").takeIf(uuid::matches) }.toSet()
-            val personSelect = "id,username,display_name,bio,followers_count,is_verified,verification_badge_type"
+            val personSelect = "id,username,display_name,bio,followers_count,is_verified,verification_badge_type,avatar_key"
             val personRows = (if (query.isBlank()) listOf("" ) else listOf("username", "display_name"))
                 .flatMap { column -> rows(url("social_profiles") {
                     addQueryParameter("select", personSelect)
@@ -78,7 +79,8 @@ class NativeExploreClient(private val auth: StagingAuthClient) {
                             ?: row.optString("username"),
                         row.optString("bio").takeUnless { it == "null" }.orEmpty(),
                         row.optInt("followers_count").coerceAtLeast(0), row.optBoolean("is_verified"),
-                        row.optString("verification_badge_type", "standard"))
+                        row.optString("verification_badge_type", "standard"),
+                        row.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" } != null)
                 }.toList()
             val postRows = rows(url("social_posts") {
                 addQueryParameter("select", "id,author_id,body,created_at,like_count,comment_count,media_count")
