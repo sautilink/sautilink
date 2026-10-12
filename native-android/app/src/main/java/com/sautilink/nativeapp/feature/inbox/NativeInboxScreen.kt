@@ -167,7 +167,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     BackHandler(newConversation) { newConversation = false; newQuery = ""; accounts = emptyList() }
     LaunchedEffect(auth.account?.id, refresh) {
         if (auth.account == null) { conversations = emptyList(); selectedId = null; return@LaunchedEffect }
-        loading = true; error = null
+        loading = conversations.isEmpty() && selectedId == null
         try {
             conversations = client.inbox()
             conversations.filter { it.unread > 0 }.take(15).forEach { c ->
@@ -180,19 +180,23 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     }
     LaunchedEffect(selectedId, refresh) {
         val id = selectedId ?: return@LaunchedEffect
-        loading = true; error = null
-        if (thread?.conversation?.id != id) { thread = null; mediaByMessage = emptyMap() }
+        val firstOpen = thread?.conversation?.id != id
+        loading = firstOpen
+        if (firstOpen) { thread = null; mediaByMessage = emptyMap() }
         try {
             val updated = client.thread(id)
-            thread = updated
-            mediaByMessage = runCatching { mediaClient.attachments(updated.messages) }.getOrDefault(emptyMap())
+            if (firstOpen || updated.messages != thread?.messages) {
+                thread = updated
+                mediaByMessage = runCatching { mediaClient.attachments(updated.messages) }
+                    .getOrDefault(mediaByMessage)
+            }
             val delivery = runCatching { client.acknowledgeDelivery(id) }
             val reading = runCatching { client.markRead(id) }
             val receipts = runCatching { client.peerReceipts(id) }
-            if (receipts.isSuccess) {
-                peerReceipts = receipts.getOrThrow()
-            }
-            receiptIssue = delivery.isFailure || reading.isFailure || receipts.isFailure
+            if (receipts.isSuccess) peerReceipts = receipts.getOrThrow()
+            // Do not treat optional ACK/read errors as a broken receipt display.
+            // The status-specific retry UI represents peer status loading only.
+            receiptIssue = receipts.isFailure
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) { error = e.message ?: "Could not open conversation." }
         finally { loading = false }
@@ -200,7 +204,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     LaunchedEffect(selectedId, foreground) {
         val id = selectedId?.takeIf { foreground } ?: return@LaunchedEffect
         while (true) {
-            delay(15000)
+            delay(25_000)
             try {
                 val updated = client.thread(id)
                 if (selectedId == id && updated.messages != thread?.messages) {
@@ -220,7 +224,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         val id = selectedId?.takeIf { foreground && auth.account != null }
             ?: return@LaunchedEffect
         while (true) {
-            delay(7_000)
+            delay(10_000)
             try {
                 peerReceipts = client.peerReceipts(id)
                 receiptIssue = false
