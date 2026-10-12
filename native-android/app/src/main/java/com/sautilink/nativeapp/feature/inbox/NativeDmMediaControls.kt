@@ -12,6 +12,12 @@ import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.animation.core.*
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -51,6 +57,7 @@ internal fun NativeDmMediaControls(
     var busy by remember { mutableStateOf(false) }
     var recording by remember { mutableStateOf(false) }
     var recordStart by remember { mutableLongStateOf(0L) }
+    var recordElapsed by remember { mutableLongStateOf(0L) }
     var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var recordedFile by remember { mutableStateOf<File?>(null) }
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
@@ -114,6 +121,7 @@ internal fun NativeDmMediaControls(
             recorder = device
             recordedFile = output
             recordStart = SystemClock.elapsedRealtime()
+            recordElapsed = 0L
             recording = true
         } catch (e: Exception) {
             recorder?.release(); recorder = null
@@ -157,9 +165,13 @@ internal fun NativeDmMediaControls(
         else onError("Microphone permission is required for voice notes.")
     }
     LaunchedEffect(recording) {
-        if (recording) {
-            kotlinx.coroutines.delay(60_000)
-            if (recording) stopVoice()
+        while (recording) {
+            recordElapsed = (SystemClock.elapsedRealtime() - recordStart).coerceAtMost(60_000)
+            if (recordElapsed >= 60_000) {
+                stopVoice()
+                break
+            }
+            delay(100)
         }
     }
     DisposableEffect(Unit) {
@@ -168,6 +180,64 @@ internal fun NativeDmMediaControls(
                 runCatching { recorder?.stop() }
                 recorder?.release()
                 recordedFile?.delete()
+            }
+        }
+    }
+
+    if (recording) {
+        val fraction = (recordElapsed.toFloat() / 60_000f).coerceIn(0f, 1f)
+        val seconds = (recordElapsed / 1_000).toInt()
+        val pulse = rememberInfiniteTransition(label = "recordingPulse")
+        val alpha by pulse.animateFloat(0.35f, 1f,
+            infiniteRepeatable(tween(550), RepeatMode.Reverse), label = "pulse")
+        ModalBottomSheet(onDismissRequest = { stopVoice(cancel = true) },
+            dragHandle = null, shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 26.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.size(12.dp).alpha(alpha)
+                        .background(MaterialTheme.colorScheme.error, CircleShape))
+                    Text("Recording voice note",
+                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                }
+                Text("%d:%02d".format(seconds / 60, seconds % 60),
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.SemiBold)
+                Row(Modifier.fillMaxWidth().height(40.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    repeat(25) { i ->
+                        val height = 9.dp + ((i * 7 + seconds * 5) % 23).dp
+                        Box(Modifier.width(3.dp).height(height)
+                            .background(MaterialTheme.colorScheme.primary,
+                                RoundedCornerShape(3.dp)))
+                        Spacer(Modifier.width(3.dp))
+                    }
+                }
+                LinearProgressIndicator(progress = { fraction },
+                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                    color = MaterialTheme.colorScheme.primary)
+                Text("Maximum 1 minute · Only you can hear the draft",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(onClick = { stopVoice(cancel = true) },
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 52.dp)) {
+                        Icon(Icons.Rounded.DeleteOutline, null, Modifier.size(19.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text("Discard")
+                    }
+                    Button(onClick = { stopVoice() },
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 52.dp)) {
+                        Icon(Icons.Rounded.Send, null, Modifier.size(19.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text("Send")
+                    }
+                }
             }
         }
     }
@@ -217,7 +287,8 @@ internal fun NativeDmMediaControls(
                 tint = if (recording) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.onSurface)
         }
-        if (recording) Text("Recording · max 1:00", style = MaterialTheme.typography.labelSmall)
+        if (recording) Text("REC", color = MaterialTheme.colorScheme.error,
+            fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelSmall)
         if (busy) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
     }
 }
