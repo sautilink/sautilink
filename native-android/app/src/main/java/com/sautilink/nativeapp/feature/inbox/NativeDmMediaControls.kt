@@ -328,10 +328,9 @@ internal fun NativeDmAttachmentBubble(
     }
     when (media.kind) {
         "photo" -> {
-            if (openPhoto) AuthorizedImage(
-                auth = auth, route = "/api/dm-media/${media.id}",
-                description = "Message photo",
-                modifier = modifier.fillMaxWidth().heightIn(max = 300.dp))
+            if (openPhoto) NativeDmCachedPhoto(
+                auth = auth, media = media, modifier = modifier,
+                onError = onError)
             else OutlinedButton(onClick = { openPhoto = true },
                 shape = RoundedCornerShape(15.dp)) {
                 Icon(Icons.Rounded.Image, null)
