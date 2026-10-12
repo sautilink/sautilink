@@ -39,7 +39,8 @@ import java.util.UUID
 @Composable
 fun NativePostDetailScreen(
     auth: StagingAuthClient, postId: String, onBack: () -> Unit,
-    onSignIn: () -> Unit, onOpenProfile: (String) -> Unit
+    onSignIn: () -> Unit, onOpenProfile: (String) -> Unit,
+    initialComments: Boolean = false
 ) {
     val client = remember(auth) { StagingFeedClient(auth) }
     val actions = remember(auth) { PostInteractionsClient(auth) }
@@ -50,7 +51,7 @@ fun NativePostDetailScreen(
     var comments by remember(postId) { mutableStateOf<List<NativePostComment>>(emptyList()) }
     var replies by remember(postId) { mutableStateOf<Map<String, List<NativePostComment>>>(emptyMap()) }
     var expanded by remember(postId) { mutableStateOf<Set<String>>(emptySet()) }
-    var commentsMode by remember(postId) { mutableStateOf(false) }
+    var commentsMode by remember(postId, initialComments) { mutableStateOf(initialComments) }
     var replyTarget by remember(postId) { mutableStateOf<NativePostComment?>(null) }
     var draft by remember(postId) { mutableStateOf("") }
     var loading by remember(postId) { mutableStateOf(true) }
