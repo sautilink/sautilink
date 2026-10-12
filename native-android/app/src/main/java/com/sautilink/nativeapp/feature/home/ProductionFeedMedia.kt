@@ -12,6 +12,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ImageNotSupported
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.VolumeOff
+import androidx.compose.material.icons.rounded.VolumeUp
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -242,12 +248,27 @@ private fun InlineFeedVideo(
 ) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val windowHeight = with(density) { configuration.screenHeightDp.dp.toPx() }
+    var visibleFraction by remember(auth, media.id) { mutableFloatStateOf(0f) }
     var started by remember(auth, media.id) { mutableStateOf(false) }
     var wantsToPlay by remember(auth, media.id) { mutableStateOf(false) }
     var accessToken by remember(auth, media.id) { mutableStateOf<String?>(null) }
     var requestError by remember(auth, media.id) { mutableStateOf<String?>(null) }
     var muted by remember(auth, media.id) { mutableStateOf(true) }
     var firstFrame by remember(auth, media.id) { mutableStateOf(false) }
+    LaunchedEffect(visibleFraction, isCurrent, NativePlaybackPreferences.autoplayEnabled) {
+        val visible = visibleFraction >= .58f && isCurrent
+        if (NativePlaybackPreferences.autoplayEnabled && visible) {
+            started = true
+            wantsToPlay = true
+        } else if (!visible) {
+            wantsToPlay = false
+        } else if (!NativePlaybackPreferences.autoplayEnabled) {
+            wantsToPlay = false
+        }
+    }
     LaunchedEffect(started, auth.account?.id, media.id) {
         if (!started) return@LaunchedEffect
         try { accessToken = auth.accessTokenForStagingRead() }
@@ -299,7 +320,13 @@ private fun InlineFeedVideo(
             else if (!wantsToPlay) player.pause()
         }
     }
-    Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
+    Box(modifier.background(Color.Black).onGloballyPositioned { coordinates ->
+        val rect = coordinates.boundsInWindow()
+        val shownTop = rect.top.coerceAtLeast(0f)
+        val shownBottom = rect.bottom.coerceAtMost(windowHeight)
+        visibleFraction = ((shownBottom - shownTop).coerceAtLeast(0f) /
+            rect.height.coerceAtLeast(1f)).coerceIn(0f, 1f)
+    }, contentAlignment = Alignment.Center) {
         if (player != null) {
             AndroidView(
                 factory = { ctx -> PlayerView(ctx).apply {
@@ -318,7 +345,7 @@ private fun InlineFeedVideo(
             AuthorizedImage(auth, "/api/sauti-media/${media.id}?poster=1",
                 "Video cover", modifier = Modifier.fillMaxSize(), crop = false)
         }
-        if (!playing || !firstFrame) {
+        if (!playing && (!NativePlaybackPreferences.autoplayEnabled || requestError != null || !started)) {
             Surface(
                 onClick = {
                     requestError = null
@@ -359,11 +386,15 @@ private fun InlineFeedVideo(
             }
         }
         if (player != null && firstFrame) {
-            TextButton(
+            IconButton(
                 onClick = { muted = !muted },
                 modifier = Modifier.align(Alignment.BottomEnd).padding(7.dp)
+                    .background(Color.Black.copy(alpha = .56f), CircleShape)
+                    .size(44.dp)
             ) {
-                Text(if (muted) "Unmute" else "Mute", color = Color.White)
+                Icon(if (muted) Icons.Rounded.VolumeOff else Icons.Rounded.VolumeUp,
+                    contentDescription = if (muted) "Unmute video" else "Mute video",
+                    tint = Color.White, modifier = Modifier.size(23.dp))
             }
         }
     }
