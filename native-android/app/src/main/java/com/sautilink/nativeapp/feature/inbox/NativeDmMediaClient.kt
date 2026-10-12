@@ -114,6 +114,31 @@ internal class NativeDmMediaClient(private val auth: StagingAuthClient) {
         }
     }
 
+    suspend fun downloadMedia(id: String): ByteArray {
+        if (!uuid.matches(id)) throw AuthRequestException("Invalid attachment.")
+        val token = auth.accessTokenForStagingRead()
+        return withContext(Dispatchers.IO) {
+            http.newCall(Request.Builder().url(auth.backend.siteOrigin + "/api/dm-media/$id")
+                .header("Authorization", "Bearer $token")
+                .header("Cache-Control", "no-store").get().build()).execute().use {
+                if (!it.isSuccessful) throw AuthRequestException("This file is unavailable.")
+                val body = it.body ?: throw AuthRequestException("Empty attachment.")
+                body.byteStream().use { input ->
+                    val output = ByteArrayOutputStream()
+                    val buffer = ByteArray(32 * 1024)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        if (output.size() + count > MAX_BYTES)
+                            throw AuthRequestException("Attachment exceeds the 5 MB limit.")
+                        output.write(buffer, 0, count)
+                    }
+                    output.toByteArray()
+                }
+            }
+        }
+    }
+
     suspend fun readDocument(context: Context, uri: Uri): ByteArray = withContext(Dispatchers.IO) {
         val info = context.contentResolver.openAssetFileDescriptor(uri, "r")
         val length = info?.length ?: -1L
