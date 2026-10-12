@@ -40,7 +40,8 @@ import kotlinx.coroutines.launch
 fun NativeNotificationsScreen(
     auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () -> Unit,
     onOpenProfile: (String) -> Unit, onOpenRoom: (String) -> Unit,
-    onOpenPost: (String) -> Unit, onOpenInbox: () -> Unit
+    onOpenPost: (String) -> Unit, onOpenInbox: () -> Unit,
+    onUnreadChanged: (Int) -> Unit = {}
 ) {
     val client = remember(auth) { NativeNotificationsClient(auth) }
     val scope = rememberCoroutineScope()
@@ -58,13 +59,14 @@ fun NativeNotificationsScreen(
     LaunchedEffect(auth.account?.id, refresh) {
         if (auth.account == null) { items = emptyList(); return@LaunchedEffect }
         loading = true; error = null
-        try { items = client.load() }
+        try { items = client.load(); onUnreadChanged(items.count { !it.isRead }) }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) { error = e.message ?: "Could not load notifications." }
         finally { loading = false }
     }
     val unread = items.count { !it.isRead }
     val shown = if (unreadOnly) items.filterNot { it.isRead } else items
+    val bodyTextColor = MaterialTheme.colorScheme.onSurface
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Row(
             Modifier.fillMaxWidth().padding(start = 7.dp, end = 11.dp, top = 9.dp, bottom = 7.dp),
@@ -81,6 +83,7 @@ fun NativeNotificationsScreen(
                     try {
                         client.markAllRead()
                         items = items.map { it.copy(isRead = true) }
+                        onUnreadChanged(0)
                     } catch (cancelled: CancellationException) { throw cancelled }
                     catch (e: Exception) { error = e.message ?: "Could not mark notifications as read." }
                     finally { busy = false }
@@ -150,6 +153,7 @@ fun NativeNotificationsScreen(
                                 try {
                                     if (!item.isRead) client.markRead(item.id)
                                     items = items.map { if (it.id == item.id) it.copy(isRead = true) else it }
+                                    onUnreadChanged(items.count { !it.isRead })
                                     when {
                                         item.type == "circle" && item.circleSlug.isNotBlank() ->
                                             onOpenRoom(item.circleSlug)
@@ -179,7 +183,7 @@ fun NativeNotificationsScreen(
                             horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                             Text(buildAnnotatedString {
                                 withStyle(SpanStyle(fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface)) { append(actor) }
+                                    color = bodyTextColor)) { append(actor) }
                                 append(" ")
                                 append(notificationActionCopy(item))
                             }, style = MaterialTheme.typography.bodyMedium,
