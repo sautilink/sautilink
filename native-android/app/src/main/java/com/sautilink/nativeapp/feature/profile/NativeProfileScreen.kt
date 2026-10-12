@@ -20,7 +20,6 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Public
-import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material3.*
@@ -31,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.home.AuthorizedImage
@@ -42,6 +42,17 @@ import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import kotlinx.coroutines.launch
 import java.net.URI
+
+/** Matches the first 20 popular preview categories already defined by the SautiLink Web editor.
+ * These are curated suggestions, not usage-count rankings. Search covers the full live catalog.
+ */
+private val PROFILE_CATEGORY_PREVIEW_SLUGS = listOf(
+    "public-figure", "content-creator", "company", "artist",
+    "government-official", "comedian", "entrepreneur", "musician", "actor",
+    "athlete", "journalist", "media-company", "news-media-website",
+    "organization", "nonprofit-organization", "software-company",
+    "photographer", "fashion-model", "producer", "blogger"
+)
 
 /** Live profile for the owner or a discoverable member. Other users' connection lists stay private. */
 @Composable
@@ -100,8 +111,8 @@ fun NativeProfileScreen(
 
     BackHandler(edit || connectionList != null || categoryEditing) {
         when {
-            edit -> edit = false
             categoryEditing -> categoryEditing = false
+            edit -> edit = false
             else -> connectionList = null
         }
     }
@@ -238,6 +249,22 @@ fun NativeProfileScreen(
                 if (edit) {
                     NativeProfileMediaEditor(auth, member, imageRevision = refresh,
                         onChanged = { refresh++ })
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Profile category", style = MaterialTheme.typography.titleMedium)
+                            Text(categoryCatalog.firstOrNull { it.slug == member.categorySlug }?.label
+                                    ?: "Not selected",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        OutlinedButton(onClick = { categoryEditing = true },
+                            shape = RoundedCornerShape(13.dp)) {
+                            Icon(Icons.Rounded.Category, null, Modifier.size(16.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text(if (member.categorySlug.isNotBlank()) "Change" else "Add")
+                        }
+                    }
                     ProfileEditor(member, saving = followBusy, onCancel = { edit = false }) { values ->
                         followBusy = true
                         actionError = null
@@ -283,52 +310,46 @@ fun NativeProfileScreen(
                                 }
                             }
                             Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text(member.displayName, style = MaterialTheme.typography.headlineMedium,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Text(member.displayName,
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontSize = 21.sp, lineHeight = 25.sp),
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.weight(1f, fill = false),
                                         maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                                     SautiVerificationBadge(member.verified, member.badgeType,
-                                        member.displayName, size = 21.dp, profileOwner = ownerRoute)
+                                        member.displayName, size = 19.dp, profileOwner = ownerRoute)
                                 }
                                 Text("@${member.username}",
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 if (category != null) {
-                                    Row(verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(category.label,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            fontWeight = FontWeight.SemiBold,
-                                            style = MaterialTheme.typography.labelLarge)
-                                        IconButton(onClick = { categoryInfo = true },
-                                            modifier = Modifier.size(38.dp)) {
-                                            Icon(Icons.Rounded.Info, "About this profile category",
-                                                modifier = Modifier.size(18.dp))
-                                        }
-                                    }
+                                    Text(category.label,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        modifier = Modifier.clickable { categoryInfo = true }
+                                            .padding(vertical = 2.dp))
                                 }
-                                if (ownerRoute) {
-                                    TextButton(onClick = { categoryEditing = true },
-                                        modifier = Modifier.heightIn(min = 40.dp)) {
-                                        Icon(Icons.Rounded.Category, null, Modifier.size(16.dp))
-                                        Spacer(Modifier.width(5.dp))
-                                        Text(if (category != null) "Change category" else "Add profile category")
-                                    }
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(18.dp),
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     verticalAlignment = Alignment.CenterVertically) {
                                     Row(Modifier.then(if (ownerRoute) Modifier.clickable { connectionList = "followers" } else Modifier),
-                                        horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                        Text("${member.followers}", fontWeight = FontWeight.Bold)
-                                        Text("Followers", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically) {
+                                        Text("${member.followers}", style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold)
+                                        Text("Followers", style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Row(Modifier.then(if (ownerRoute) Modifier.clickable { connectionList = "following" } else Modifier),
-                                        horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                        Text("${member.following}", fontWeight = FontWeight.Bold)
-                                        Text("Following", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically) {
+                                        Text("${member.following}", style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold)
+                                        Text("Following", style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
                                 if (member.bio.isNotBlank()) {
@@ -339,7 +360,7 @@ fun NativeProfileScreen(
                                 }
                                 if (member.location.isNotBlank() || websiteLink != null) {
                                     Row(verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                        horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                                         if (member.location.isNotBlank()) {
                                             Icon(Icons.Rounded.LocationOn, null, Modifier.size(18.dp),
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -493,10 +514,17 @@ fun NativeProfileScreen(
         var search by remember(categoryEditing) { mutableStateOf("") }
         var selection by remember(categoryEditing) { mutableStateOf(profile?.categorySlug.orEmpty()) }
         val matches = remember(search, categoryCatalog) {
-            categoryCatalog.filter { search.isBlank() ||
-                it.label.contains(search.trim(), ignoreCase = true) ||
-                it.group.contains(search.trim(), ignoreCase = true)
-            }.take(35)
+            val query = search.trim()
+            if (query.isEmpty()) {
+                PROFILE_CATEGORY_PREVIEW_SLUGS.mapNotNull { slug ->
+                    categoryCatalog.firstOrNull { it.slug == slug }
+                }
+            } else {
+                categoryCatalog.filter {
+                    it.label.contains(query, ignoreCase = true) ||
+                        it.group.contains(query, ignoreCase = true)
+                }.take(35)
+            }
         }
         AlertDialog(
             onDismissRequest = { if (!categorySaving) categoryEditing = false },
@@ -504,8 +532,19 @@ fun NativeProfileScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(search, { search = it.take(80) },
-                        label = { Text("Search categories") },
+                        label = { Text("Search all categories") },
                         modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    Text(if (search.isBlank()) "Popular categories · 20 suggestions"
+                         else "Matching categories",
+                         style = MaterialTheme.typography.labelMedium,
+                         color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (search.isBlank() && selection.isNotBlank() &&
+                        matches.none { it.slug == selection }) {
+                        val current = categoryCatalog.firstOrNull { it.slug == selection }?.label
+                        if (current != null) Text("Current: $current",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
                         matches.forEach { option ->
                             Row(Modifier.fillMaxWidth()
