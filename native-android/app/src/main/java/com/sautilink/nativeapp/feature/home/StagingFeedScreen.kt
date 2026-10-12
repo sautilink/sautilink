@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
+import com.sautilink.nativeapp.feature.menu.AnimatedHamburgerButton
 import com.sautilink.nativeapp.ui.components.SautiAvatar
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.theme.SautiColors
@@ -71,6 +72,7 @@ fun StagingFeedScreen(
     asHome: Boolean = false,
     onOpenNotifications: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenMenu: () -> Unit = {},
     onOpenVideos: () -> Unit = {},
     onOpenRooms: () -> Unit = {},
     onOpenProfile: (String) -> Unit = {},
@@ -78,7 +80,6 @@ fun StagingFeedScreen(
 ) {
     val account = auth.account
     val sessionState = auth.sessionState
-    var menuOpen by remember { mutableStateOf(false) }
     var mode by rememberSaveable(auth.backend.id) { mutableStateOf("for_you") }
     var refreshVersion by remember { mutableIntStateOf(0) }
     var loading by remember { mutableStateOf(false) }
@@ -436,21 +437,7 @@ fun StagingFeedScreen(
                         IconButton(onClick = onOpenNotifications) {
                             Icon(Icons.Rounded.NotificationsNone, "Notifications")
                         }
-                        Box {
-                            IconButton(onClick = { menuOpen = true }) {
-                                Icon(Icons.Rounded.MoreHoriz, "Home options")
-                            }
-                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                                DropdownMenuItem(
-                                    text = { Text("Refresh feed") },
-                                    enabled = account != null && !loading && !loadingMore,
-                                    onClick = { menuOpen = false; refreshVersion++ }
-                                )
-                                if (auth.backend == SautiBackend.PRODUCTION) DropdownMenuItem(
-                                    text = { Text("Rooms") }, onClick = { menuOpen = false; onOpenRooms() })
-                                DropdownMenuItem(text = { Text("Settings") }, onClick = { menuOpen = false; onOpenSettings() })
-                            }
-                        }
+                        AnimatedHamburgerButton(onClick = onOpenMenu)
                     }
                 },
                 windowInsets = WindowInsets(0, 0, 0, 0)
