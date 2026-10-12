@@ -190,9 +190,10 @@ internal fun NativeDmMediaControls(
                         try {
                             val dir = File(context.cacheDir, "chat-camera").apply { mkdirs() }
                             val file = File.createTempFile("sauti_camera_", ".jpg", dir)
-                            cameraUri = FileProvider.getUriForFile(context,
+                            val capture = FileProvider.getUriForFile(context,
                                 context.packageName + ".fileprovider", file)
-                            camera.launch(cameraUri)
+                            cameraUri = capture
+                            camera.launch(capture)
                         } catch (_: Exception) { onError("Camera is unavailable.") }
                     })
             }
