@@ -45,6 +45,7 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.menu.AnimatedHamburgerButton
+import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
 import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
 import com.sautilink.nativeapp.ui.components.SautiAvatar
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
@@ -995,11 +996,7 @@ private fun PostCommentsSheet(
                     }
                 }
             }
-            if (loading) {
-                Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
+            if (loading) repeat(3) { SautiExploreSkeleton() }
             if (loadError != null) {
                 Text(loadError.orEmpty(), color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall)
