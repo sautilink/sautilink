@@ -10,6 +10,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -460,14 +461,22 @@ fun StagingFeedScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FeedModePill("For You", mode == "for_you") { mode = "for_you" }
                     FeedModePill("Following", mode == "following") { mode = "following" }
-                    FeedModePill("Short Videos", mode == "short_videos") {
-                        if (auth.backend == SautiBackend.PRODUCTION && asHome) onOpenVideos()
-                        else mode = "short_videos"
-                    }
-                    if (auth.backend == SautiBackend.PRODUCTION) {
-                        FeedModePill("Saved", mode == "saved") { mode = "saved" }
-                    }
+                    FeedModePill("Trending", mode == "trending") { mode = "trending" }
                 }
+            }
+            if (mode == "saved" && auth.backend == SautiBackend.PRODUCTION) item {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Saved posts", modifier = Modifier.weight(1f),
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMedium)
+                    TextButton(onClick = { mode = "for_you" }) { Text("Back to For You") }
+                }
+            }
+            if (mode == "trending") item {
+                Text("Top 20 trending · public posts from the last 7 days",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 3.dp))
             }
             if (auth.backend != SautiBackend.PRODUCTION) item {
                 Text("Staging test feed · Read only",
@@ -505,13 +514,15 @@ fun StagingFeedScreen(
                     FeedMessageCard(when (mode) {
                         "following" -> "No posts from followed accounts yet."
                         "short_videos" -> "No accessible short videos available yet."
+                        "trending" -> "No trending public posts available in the last 7 days."
                         "saved" -> "No saved posts yet. Save a post from For You or Following to find it here."
                         else -> "No accessible posts available for this account."
                     })
                 }
-                items(posts, key = { it.id }) { post ->
+                itemsIndexed(posts, key = { _, post -> post.id }) { index, post ->
                     RealPostCard(
                         post, auth,
+                        trendingRank = if (mode == "trending") index + 1 else null,
                         online = online,
                         following = followingStates[post.authorId],
                         busyFollow = "follow:${post.authorId}" in busyKeys,
@@ -684,6 +695,7 @@ private fun FeedMessageCard(message: String, footer: @Composable () -> Unit = {}
 private fun RealPostCard(
     post: StagingFeedPost,
     auth: StagingAuthClient,
+    trendingRank: Int?,
     online: Boolean,
     following: Boolean?,
     busyFollow: Boolean,
@@ -721,6 +733,13 @@ private fun RealPostCard(
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+            if (trendingRank != null) {
+                Text("#$trendingRank on Trending",
+                    color = SautiColors.Red,
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(start = 14.dp, top = 9.dp))
+            }
             // Author identity and actions match the established SautiLink web order.
             Row(
                 modifier = Modifier.fillMaxWidth()
