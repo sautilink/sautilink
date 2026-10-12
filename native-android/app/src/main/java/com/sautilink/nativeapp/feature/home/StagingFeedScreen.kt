@@ -1,6 +1,7 @@
 package com.sautilink.nativeapp.feature.home
 
 import android.content.Intent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -50,6 +51,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
 import java.util.UUID
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import com.sautilink.nativeapp.BuildConfig
 
 /** Explicit environment-isolated read-only feed; production and staging use different auth sessions. */
@@ -393,8 +397,10 @@ fun StagingFeedScreen(
         }
     }
 
+    // The activity owns system-bar insets. Avoid doubling the status-bar spacer.
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {
@@ -447,14 +453,15 @@ fun StagingFeedScreen(
                             }
                         }
                     }
-                }
+                },
+                windowInsets = WindowInsets(0, 0, 0, 0)
             )
         }
     ) { insets ->
         LazyColumn(
             Modifier.fillMaxSize().padding(insets),
-            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 30.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
                 Row(modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -631,6 +638,19 @@ fun StagingFeedScreen(
     }
 }
 
+private fun feedCount(count: Int): String = when {
+    count >= 1_000_000 -> String.format(Locale.US, "%.1fM", count / 1_000_000.0)
+    count >= 1_000 -> String.format(Locale.US, "%.1fK", count / 1_000.0)
+    else -> count.toString()
+}
+
+private fun feedDate(isoDate: String): String {
+    val date = runCatching { LocalDate.parse(isoDate.take(10)) }.getOrNull()
+        ?: return isoDate.take(10)
+    val pattern = if (date.year == LocalDate.now().year) "MMM d" else "MMM d, yyyy"
+    return date.format(DateTimeFormatter.ofPattern(pattern, Locale.getDefault()))
+}
+
 /** Compact selection chips with quiet grouped-surface styling and 44dp hit targets. */
 @Composable
 private fun FeedModePill(label: String, selected: Boolean, onClick: () -> Unit) {
@@ -691,8 +711,11 @@ private fun RealPostCard(
 ) {
     val initials = post.authorName.split(" ").filter { it.isNotBlank() }.take(2)
         .map { it.first().uppercaseChar() }.joinToString("").ifBlank { "SL" }
-    Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .20f)),
+        shadowElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
                 if (post.hasAvatar && Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(post.authorHandle)) {
                     AuthorizedImage(
@@ -712,7 +735,7 @@ private fun RealPostCard(
                         SautiVerificationBadge(post.verified, post.badgeType,
                             post.authorName, size = 16.dp)
                     }
-                    Text("${if (post.authorHandle.isNotBlank()) "@${post.authorHandle} · " else ""}${post.createdAt.take(10)}",
+                    Text("${if (post.authorHandle.isNotBlank()) "@${post.authorHandle} · " else ""}${feedDate(post.createdAt)}",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 }
                 if (auth.backend == SautiBackend.PRODUCTION && auth.account != null &&
@@ -747,7 +770,7 @@ private fun RealPostCard(
                     TextButton(onClick = onRetryFollow) { Text("Retry Follow") }
                 }
             }
-            if (post.body.isNotBlank()) Text(post.body, style = MaterialTheme.typography.bodyMedium)
+            if (post.body.isNotBlank()) Text(post.body, style = MaterialTheme.typography.bodyLarge)
             if (post.media.isNotEmpty()) {
                 PostMediaGallery(auth, post.media)
             } else if (post.mediaCount > 0) {
@@ -787,38 +810,53 @@ private fun RealPostCard(
                     Text(mutationError, color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall)
                 }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    TextButton(onClick = onLike, enabled = online && !busyLike, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Icon(if (liked == true) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            "Like post", modifier = Modifier.size(19.dp), tint = if (liked == true) SautiColors.Red else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(5.dp))
-                        Text("${post.likes}", style = MaterialTheme.typography.labelMedium)
-                    }
-                    TextButton(onClick = onComments, enabled = online, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Icon(Icons.Rounded.ChatBubbleOutline, "View comments", modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text("${post.comments}", style = MaterialTheme.typography.labelMedium)
-                    }
-                    TextButton(onClick = onSave, enabled = online && !busySave, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Icon(if (saved == true) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                            if (saved == true) "Remove from saved" else "Save post", modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text(if (saved == true) "Saved" else "Save", style = MaterialTheme.typography.labelMedium)
-                    }
-                }
+                // All five post actions share one compact, evenly spaced touch row.
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween) {
-                    TextButton(onClick = onRepost, enabled = online && !busyRepost, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Icon(Icons.Rounded.Repeat, if (reposted == true) "Undo repost" else "Repost", modifier = Modifier.size(18.dp),
-                            tint = if (reposted == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(5.dp))
-                        Text(if (reposted == true) "Reposted (${post.reposts})" else "Repost (${post.reposts})",
-                            style = MaterialTheme.typography.labelMedium)
+                    horizontalArrangement = Arrangement.SpaceEvenly) {
+                    TextButton(onClick = onLike, enabled = online && !busyLike,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        contentPadding = PaddingValues(horizontal = 0.dp)) {
+                        Icon(if (liked == true) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                            "Like post", modifier = Modifier.size(21.dp),
+                            tint = if (liked == true) SautiColors.Red else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.width(3.dp))
+                        Text(feedCount(post.likes), style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                     }
-                    TextButton(onClick = onShare, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Icon(Icons.Rounded.Share, "Share post", modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text("Share", style = MaterialTheme.typography.labelMedium)
+                    TextButton(onClick = onComments, enabled = online,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        contentPadding = PaddingValues(horizontal = 0.dp)) {
+                        Icon(Icons.Rounded.ChatBubbleOutline, "View comments",
+                            modifier = Modifier.size(21.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.width(3.dp))
+                        Text(feedCount(post.comments), style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                    }
+                    TextButton(onClick = onRepost, enabled = online && !busyRepost,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        contentPadding = PaddingValues(horizontal = 0.dp)) {
+                        Icon(Icons.Rounded.Repeat, if (reposted == true) "Undo repost" else "Repost",
+                            modifier = Modifier.size(21.dp),
+                            tint = if (reposted == true) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.width(3.dp))
+                        Text(feedCount(post.reposts), style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                    }
+                    TextButton(onClick = onShare,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        contentPadding = PaddingValues(horizontal = 0.dp)) {
+                        Icon(Icons.Rounded.Share, "Share post", modifier = Modifier.size(21.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    TextButton(onClick = onSave, enabled = online && !busySave,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        contentPadding = PaddingValues(horizontal = 0.dp)) {
+                        Icon(if (saved == true) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                            if (saved == true) "Remove from saved" else "Save post",
+                            modifier = Modifier.size(21.dp),
+                            tint = if (saved == true) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             } else {
