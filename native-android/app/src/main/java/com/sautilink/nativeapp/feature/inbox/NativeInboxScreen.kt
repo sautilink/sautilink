@@ -26,6 +26,7 @@ import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.safety.NativeReportDialog
 import com.sautilink.nativeapp.feature.safety.NativeSafetyClient
 import com.sautilink.nativeapp.ui.theme.SautiShape
+import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -322,6 +323,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         } else {
             if (error != null) Text(error.orEmpty(), Modifier.padding(18.dp), color = MaterialTheme.colorScheme.error)
             LazyColumn(contentPadding = PaddingValues(bottom = 20.dp)) {
+                if (loading && conversations.isEmpty()) items(5) { SautiExploreSkeleton() }
                 if (!loading && shown.isEmpty()) item {
                     Text(if (query.isBlank() && !unreadOnly) "No conversations yet."
                         else "No matching conversations.", Modifier.padding(22.dp),
