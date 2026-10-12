@@ -61,17 +61,17 @@ internal class NativeProfileActivityClient(private val auth: StagingAuthClient) 
         )
     }
 
-    suspend fun entries(name: String, tab: String): ProfileActivityFeed {
+    suspend fun entries(name: String, tab: String, limit: Int = 12, offset: Int = 0): ProfileActivityFeed {
         if (tab !in tabs) throw AuthRequestException("Unsupported profile category.")
         val normalized = username(name)
         val query = JSONObject().put("p_username", normalized)
         val result = when (tab) {
             "hashtags" -> rpc("profile_hashtags_phase33", query)
             "reposts" -> rpc("profile_reposts_feed_phase35",
-                query.put("p_limit", 40).put("p_offset", 0))
+                query.put("p_limit", limit.coerceIn(1, 50)).put("p_offset", offset.coerceIn(0, 500)))
             else -> rpc("profile_activity_feed_phase33",
-                query.put("p_tab", tab).put("p_limit", if (tab == "pins") 3 else 40)
-                    .put("p_offset", 0))
+                query.put("p_tab", tab).put("p_limit", if (tab == "pins") 3 else limit.coerceIn(1, 50))
+                    .put("p_offset", offset.coerceIn(0, 500)))
         }
         if (!result.optBoolean("allowed")) throw AuthRequestException("This profile activity is private.")
         val rows = result.optJSONArray("items") ?: JSONArray()
