@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import kotlinx.coroutines.CancellationException
@@ -109,6 +110,7 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
             }
         } else if (selected == null) {
             LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (loading && rooms.isEmpty()) items(4) { SautiExploreSkeleton() }
                 if (!loading && rooms.isEmpty()) item { Text("No Rooms available yet.") }
                 items(rooms, key = { it.id }) { room ->
                     Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainer,
