@@ -29,7 +29,8 @@ class NativeDmRealtime(
 ) {
     private val http = OkHttpClient.Builder().pingInterval(30, TimeUnit.SECONDS).build()
     private val main = Handler(Looper.getMainLooper())
-    private val ref = AtomicInteger(3)
+    // Keep dynamic message refs distinct from fixed join refs (1-4).
+    private val ref = AtomicInteger(100)
     private var socket: WebSocket? = null
     private var heartbeat: Job? = null
     private var currentToken: String? = null
