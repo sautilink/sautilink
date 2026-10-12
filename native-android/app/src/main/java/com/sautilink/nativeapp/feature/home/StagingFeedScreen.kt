@@ -417,11 +417,18 @@ fun StagingFeedScreen(
             TopAppBar(
                 title = {
                     if (asHome) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Sauti", style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold)
-                            Text("Link", style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(
+                                    com.sautilink.nativeapp.R.mipmap.ic_launcher),
+                                contentDescription = "SautiLink logo",
+                                modifier = Modifier.size(32.dp)
+                                    .clip(androidx.compose.foundation.shape.CircleShape))
+                            Text("SautiLink", style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1)
                         }
                     } else {
                         Column {
