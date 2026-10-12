@@ -287,9 +287,11 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                     "production-profile" -> NativeProfileScreen(auth = productionAuth,
                         onBack = { detail = profileReturn }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle -> viewedProfileHandle = handle; memberProfileReturn = "production-profile"; detail = "member-profile" },
-                        onOpenPosts = { detail = "my-posts" })
+                        onOpenPosts = { detail = "my-posts" },
+                        onOpenPost = { id -> notificationPostId = id; postReturn = "production-profile"; detail = "post" })
                     "member-profile" -> NativeProfileScreen(auth = productionAuth, username = viewedProfileHandle,
-                        onBack = { detail = memberProfileReturn }, onSignIn = { detail = "production-auth" })
+                        onBack = { detail = memberProfileReturn }, onSignIn = { detail = "production-auth" },
+                        onOpenPost = { id -> notificationPostId = id; postReturn = "member-profile"; detail = "post" })
                     "my-posts" -> NativeOwnPostsScreen(auth = productionAuth, refreshKey = postsRefresh,
                         onBack = { detail = null; root = 4 }, onCreate = { composerOpen = true })
                     "notifications" -> NativeNotificationsScreen(auth = productionAuth,
@@ -351,7 +353,8 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         4 -> NativeProfileScreen(auth = productionAuth,
                             onSignIn = { detail = "production-auth" },
                             onOpenProfile = { handle -> viewedProfileHandle = handle; memberProfileReturn = null; detail = "member-profile" },
-                            onOpenPosts = { detail = "my-posts" })
+                            onOpenPosts = { detail = "my-posts" },
+                            onOpenPost = { id -> notificationPostId = id; postReturn = null; detail = "post" })
                         else -> StagingFeedScreen(
                             auth = productionAuth, onBack = {}, onSignIn = { detail = "production-auth" },
                             asHome = true,
