@@ -280,6 +280,8 @@ private fun ProfileActivityCard(
     var reposted by remember(item.id, item.reposted) { mutableStateOf(item.reposted) }
     var busy by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
+    val likeTotal = (item.likes + (if (liked) 1 else 0) - (if (item.liked) 1 else 0)).coerceAtLeast(0)
+    val repostTotal = (item.reposts + (if (reposted) 1 else 0) - (if (item.reposted) 1 else 0)).coerceAtLeast(0)
     val initials = item.authorName.split(" ").filter { it.isNotBlank() }.take(2)
         .map { it.first().uppercaseChar() }.joinToString("").ifBlank { "SL" }
 
@@ -343,7 +345,7 @@ private fun ProfileActivityCard(
             ) {
                 ProfileAction(Icons.Rounded.ChatBubbleOutline, item.comments.toString(), "Comments",
                     Modifier.weight(1f)) { onOpenPost(item.id) }
-                ProfileAction(Icons.Rounded.Repeat, item.reposts.toString(), "Repost",
+                ProfileAction(Icons.Rounded.Repeat, repostTotal.toString(), "Repost",
                     Modifier.weight(1f), selected = reposted) {
                     if (!busy) {
                         busy = true; failure = null
@@ -356,7 +358,7 @@ private fun ProfileActivityCard(
                 }
                 ProfileAction(
                     if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    item.likes.toString(), "Like", Modifier.weight(1f), selected = liked,
+                    likeTotal.toString(), "Like", Modifier.weight(1f), selected = liked,
                     activeColor = SautiColors.Red
                 ) {
                     if (!busy) {
@@ -390,7 +392,9 @@ private fun ProfileActivityCard(
                 }, enabled = !busy, modifier = Modifier.size(48.dp)) {
                     Icon(if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                         contentDescription = if (saved) "Remove from saved" else "Save post",
-                        modifier = Modifier.size(21.dp))
+                        modifier = Modifier.size(21.dp),
+                        tint = if (saved) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
