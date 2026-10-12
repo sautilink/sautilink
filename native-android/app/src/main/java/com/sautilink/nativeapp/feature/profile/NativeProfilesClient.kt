@@ -60,7 +60,8 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
             else builder.get()
             try {
                 http.newCall(builder.build()).execute().use { response ->
-                    val content = response.body?.string()?.take(65_536).orEmpty()
+                    // The public professional-category catalog is larger than the profile payload.
+                    val content = response.body?.string()?.take(300_000).orEmpty()
                     if (!response.isSuccessful) throw AuthRequestException(when (response.code) {
                         401, 403 -> "Profile access denied. Check your session and try again."
                         429 -> "Too many requests. Try again shortly."
