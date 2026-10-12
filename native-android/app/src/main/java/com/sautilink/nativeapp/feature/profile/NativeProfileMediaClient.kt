@@ -136,7 +136,9 @@ internal fun croppedProfileJpeg(bitmap: Bitmap, slot: String, zoom: Float, panX:
     val top = (centerY - cropH / 2f).coerceIn(0f, bitmap.height - cropH)
     val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
     val canvas = android.graphics.Canvas(output)
-    val src = android.graphics.RectF(left, top, left + cropW, top + cropH)
+    val src = android.graphics.Rect(left.toInt(), top.toInt(),
+        (left + cropW).toInt().coerceAtMost(bitmap.width),
+        (top + cropH).toInt().coerceAtMost(bitmap.height))
     canvas.drawBitmap(bitmap, src, android.graphics.RectF(0f, 0f, width.toFloat(), height.toFloat()),
         android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or
             android.graphics.Paint.FILTER_BITMAP_FLAG))
