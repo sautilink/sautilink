@@ -268,9 +268,18 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)
                 .background(MaterialTheme.colorScheme.surface),
                 verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { selectedId = null; thread = null; refresh++ }, Modifier.size(48.dp)) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to inbox")
+                IconButton(onClick = {
+                    if (selectedMessage != null) selectedMessage = null
+                    else { selectedId = null; thread = null; refresh++ }
+                }, Modifier.size(44.dp)) {
+                    Icon(if (selectedMessage != null) Icons.Rounded.Close
+                        else Icons.AutoMirrored.Rounded.ArrowBack,
+                        if (selectedMessage != null) "Cancel selection" else "Back to inbox")
                 }
+                if (selectedMessage != null) {
+                    Text("1 Selected", style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.weight(1f), maxLines = 1)
+                } else {
                 active?.conversation?.let { peer ->
                     val initials = peer.name.split(" ").filter { it.isNotBlank() }
                         .take(2).joinToString("") { it.take(1).uppercase() }.ifBlank { "SL" }
@@ -303,6 +312,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodySmall,
                         color = if (peerOnline || peerTyping) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 }
                 if (selectedMessage != null) {
                     IconButton(onClick = {
