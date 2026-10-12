@@ -93,7 +93,7 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
     )
 
     /** Same professional category taxonomy and column-level ownership policy as SautiLink Web. */
-    suspend fun categoryCatalog(): List<ProfileProfessionalCategory> {
+    internal suspend fun categoryCatalog(): List<ProfileProfessionalCategory> {
         val categories = rows("profile_categories?select=slug,label,group_name,description&order=group_name.asc,label.asc&limit=1000")
         return (0 until categories.length()).mapNotNull {
             val o = categories.optJSONObject(it) ?: return@mapNotNull null
