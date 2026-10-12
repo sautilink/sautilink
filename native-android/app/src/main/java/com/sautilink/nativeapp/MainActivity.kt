@@ -33,6 +33,7 @@ import com.sautilink.nativeapp.feature.posts.NativeOwnPostsScreen
 import com.sautilink.nativeapp.feature.settings.NativeSettingsScreen
 import com.sautilink.nativeapp.feature.other.NotificationsScreen
 import com.sautilink.nativeapp.feature.notifications.NativeNotificationsScreen
+import com.sautilink.nativeapp.feature.notifications.NativeNotificationsClient
 import com.sautilink.nativeapp.feature.notifications.NativePushManager
 import com.sautilink.nativeapp.feature.videos.ProductionShortVideosScreen
 import com.sautilink.nativeapp.feature.explore.NativeExploreScreen
@@ -97,6 +98,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     var composerInFlight by remember { mutableStateOf(false) }
     var postDraft by rememberSaveable { mutableStateOf("") }
     var postsRefresh by remember { mutableIntStateOf(0) }
+    var unreadNotifications by remember { mutableIntStateOf(0) }
     var savedRequestVersion by remember { mutableIntStateOf(0) }
     var menuEntryDestination by rememberSaveable { mutableStateOf<String?>(null) }
     var settingsPrivacyFocus by rememberSaveable { mutableStateOf(false) }
@@ -121,7 +123,11 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         }
     }
     LaunchedEffect(productionAuth.account?.id, appResumeVersion) {
-        if (productionAuth.account != null) NativePushManager.sync(context, productionAuth)
+        if (productionAuth.account != null) {
+            NativePushManager.sync(context, productionAuth)
+            runCatching { NativeNotificationsClient(productionAuth).load() }
+                .onSuccess { notices -> unreadNotifications = notices.count { !it.isRead } }
+        } else unreadNotifications = 0
     }
     LaunchedEffect(pendingPushRoute) {
         val route = pendingPushRoute ?: return@LaunchedEffect
@@ -212,7 +218,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         "videos" -> 4
                         else -> when (root) { 0 -> 0; 1 -> 1; 3 -> 2; 4 -> 5; else -> 0 }
                     }
-                    SautiBottomBar(selectedTab) { tab ->
+                    SautiBottomBar(selectedTab, unreadNotifications) { tab ->
                         menuEntryDestination = null
                         when (tab) {
                             0 -> { detail = null; root = 0 }
@@ -329,6 +335,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                     "my-posts" -> NativeOwnPostsScreen(auth = productionAuth, refreshKey = postsRefresh,
                         onBack = { detail = null; root = 4 }, onCreate = { composerOpen = true })
                     "notifications" -> NativeNotificationsScreen(auth = productionAuth,
+                        onUnreadChanged = { unreadNotifications = it },
                         onBack = {
                             detail = if (menuEntryDestination == "notifications") "menu" else null
                             menuEntryDestination = null
