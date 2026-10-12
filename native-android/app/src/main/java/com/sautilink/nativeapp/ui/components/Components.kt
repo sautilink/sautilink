@@ -12,7 +12,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.NotificationsNone
-import androidx.compose.material.icons.rounded.Theaters
+import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.PersonOutline
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
@@ -50,7 +50,7 @@ val nativeTabs = listOf(
     NativeTab("Explore", Icons.Rounded.Search),
     NativeTab("Messages", Icons.Rounded.ChatBubbleOutline),
     NativeTab("Notifications", Icons.Rounded.NotificationsNone),
-    NativeTab("Short Videos", Icons.Rounded.Theaters),
+    NativeTab("Short Videos", Icons.Rounded.Movie),
     NativeTab("Profile", Icons.Rounded.PersonOutline)
 )
 
@@ -98,7 +98,7 @@ fun SautiBottomBar(selected: Int, unreadNotifications: Int = 0, onSelect: (Int) 
                             Icon(tab.icon,
                                 contentDescription = if (index == 3 && unreadNotifications > 0)
                                     "Notifications, $unreadNotifications unread" else tab.title,
-                                tint = tint, modifier = Modifier.size(27.dp)
+                                tint = tint, modifier = Modifier.size(if (index == 4) 29.dp else 27.dp)
                                     .graphicsLayer { scaleX = scale; scaleY = scale })
                             if (index == 3 && unreadNotifications > 0) {
                                 Badge(
