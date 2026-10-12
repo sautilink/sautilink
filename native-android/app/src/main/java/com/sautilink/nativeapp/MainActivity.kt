@@ -17,6 +17,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.sautilink.nativeapp.feature.inbox.NativeMessagesClient
+import com.sautilink.nativeapp.feature.inbox.NativeDmRealtime
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -103,6 +108,19 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     var postDraft by rememberSaveable { mutableStateOf("") }
     var postsRefresh by remember { mutableIntStateOf(0) }
     var unreadNotifications by remember { mutableIntStateOf(0) }
+    var activityRevision by remember { mutableIntStateOf(0) }
+    val lifecycle = LocalLifecycleOwner.current
+    var visibleOnScreen by remember(lifecycle) {
+        mutableStateOf(lifecycle.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+    }
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) visibleOnScreen = true
+            if (event == Lifecycle.Event.ON_STOP) visibleOnScreen = false
+        }
+        lifecycle.lifecycle.addObserver(observer)
+        onDispose { lifecycle.lifecycle.removeObserver(observer) }
+    }
     var savedRequestVersion by remember { mutableIntStateOf(0) }
     var menuEntryDestination by rememberSaveable { mutableStateOf<String?>(null) }
     var settingsPrivacyFocus by rememberSaveable { mutableStateOf(false) }
@@ -134,6 +152,20 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
             runCatching { NativeNotificationsClient(productionAuth).load() }
                 .onSuccess { notices -> unreadNotifications = notices.count { !it.isRead } }
         } else unreadNotifications = 0
+    }
+    // Platform-wide activity is ephemeral, opt-in, reciprocal and foreground-only.
+    LaunchedEffect(productionAuth.account?.id, visibleOnScreen, activityRevision, appResumeVersion) {
+        if (productionAuth.account == null || !visibleOnScreen) return@LaunchedEffect
+        val dm = NativeMessagesClient(productionAuth)
+        if (!runCatching { dm.activityStatusEnabled() }.getOrDefault(false)) return@LaunchedEffect
+        val live = NativeDmRealtime(productionAuth, null, null, {}, {}, {})
+        try {
+            live.start(this, true)
+            while (true) {
+                runCatching { dm.touchActivity() }
+                delay(180_000)
+            }
+        } finally { live.close() }
     }
     LaunchedEffect(pendingPushRoute) {
         val route = pendingPushRoute ?: return@LaunchedEffect
@@ -411,6 +443,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         3 -> NativeInboxScreen(auth = productionAuth,
                             onSignIn = { detail = "production-auth" },
                             onOpenPrivacy = { settingsPrivacyFocus = true; detail = "settings" },
+                            onActivityVisibilityChanged = { activityRevision++ },
                             initialPeerId = pendingMessagePeerId,
                             onPeerConsumed = { pendingMessagePeerId = null },
                             onOpenProfile = { handle -> viewedProfileHandle = handle; memberProfileReturn = null; detail = "member-profile" },
