@@ -1,5 +1,7 @@
 package com.sautilink.nativeapp.feature.videos
 
+import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
+
 import android.content.Context
 import android.net.ConnectivityManager
 import androidx.compose.foundation.background
@@ -229,10 +231,15 @@ fun ProductionShortVideosScreen(
                         .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .85f)))))
                     Column(Modifier.align(Alignment.BottomStart).padding(start = 20.dp, end = 20.dp, bottom = 42.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(item.post.authorName, color = Color.White, style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.clickable(enabled = item.post.authorHandle.isNotBlank()) {
-                                onOpenProfile(item.post.authorHandle)
-                            })
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text(item.post.authorName, color = Color.White, style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.clickable(enabled = item.post.authorHandle.isNotBlank()) {
+                                    onOpenProfile(item.post.authorHandle)
+                                })
+                            SautiVerificationBadge(item.post.verified, item.post.badgeType,
+                                item.post.authorName, size = 16.dp, onDarkSurface = true)
+                        }
                         if (item.post.body.isNotBlank()) Text(item.post.body, color = Color.White,
                             maxLines = 3, overflow = TextOverflow.Ellipsis)
                     }

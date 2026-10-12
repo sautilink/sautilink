@@ -21,7 +21,9 @@ data class NativePostComment(
     val body: String,
     val createdAt: String,
     val authorId: String,
-    val replyCount: Int
+    val replyCount: Int,
+    val verified: Boolean,
+    val badgeType: String
 )
 
 class PostInteractionsClient(private val auth: StagingAuthClient) {
@@ -189,7 +191,7 @@ class PostInteractionsClient(private val auth: StagingAuthClient) {
             val comments = (0 until rows.length()).mapNotNull { rows.optJSONObject(it) }
             val users = comments.map { it.optString("author_id") }.filter { userIdPattern.matches(it) }.distinct()
             val profiles = if (users.isEmpty()) emptyMap() else {
-                val names = readArray("${rest}social_profiles?id=in.(${users.joinToString(",")})&select=id,username,display_name", token)
+                val names = readArray("${rest}social_profiles?id=in.(${users.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type", token)
                 (0 until names.length()).mapNotNull { names.optJSONObject(it) }.associateBy { it.optString("id") }
             }
             comments.mapNotNull { c ->
@@ -204,7 +206,9 @@ class PostInteractionsClient(private val auth: StagingAuthClient) {
                     c.optString("body").takeUnless { it == "null" }.orEmpty(),
                     c.optString("created_at"),
                     c.optString("author_id"),
-                    c.optInt("comment_count").coerceAtLeast(0)
+                    c.optInt("comment_count").coerceAtLeast(0),
+                    profile?.optBoolean("is_verified", false) == true,
+                    profile?.optString("verification_badge_type", "standard") ?: "standard"
                 )
             }
         }

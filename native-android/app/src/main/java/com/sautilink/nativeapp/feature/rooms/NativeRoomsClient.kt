@@ -19,9 +19,12 @@ data class NativeRoom(val id: String, val ownerId: String, val slug: String, val
     internal var currentOwnerId: String = ""
 }
 data class NativeRoomPost(val id: String, val authorId: String, val authorName: String,
-    val authorHandle: String, val body: String, val createdAt: String)
-data class NativeRoomMember(val id: String, val role: String, val name: String, val handle: String)
-data class NativeJoinRequest(val requesterId: String, val name: String, val handle: String)
+    val authorHandle: String, val body: String, val createdAt: String,
+    val verified: Boolean, val badgeType: String)
+data class NativeRoomMember(val id: String, val role: String, val name: String, val handle: String,
+    val verified: Boolean, val badgeType: String)
+data class NativeJoinRequest(val requesterId: String, val name: String, val handle: String,
+    val verified: Boolean, val badgeType: String)
 
 /** Room operations follow the production web client's RLS policies and /api/sauti contract. */
 class NativeRoomsClient(private val auth: StagingAuthClient) {
@@ -137,7 +140,7 @@ class NativeRoomsClient(private val auth: StagingAuthClient) {
             .objects().filter { uuid.matches(it.optString("id")) }
         val ids = posts.mapNotNull { it.optString("author_id").takeIf(uuid::matches) }.distinct()
         val authors = if (ids.isEmpty()) emptyMap() else rest(
-            "social_profiles?id=in.(${ids.joinToString(",")})&select=id,username,display_name"
+            "social_profiles?id=in.(${ids.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type"
         ).objects().associateBy { it.optString("id") }
         return posts.map { row ->
             val author = authors[row.optString("author_id")]
@@ -145,7 +148,9 @@ class NativeRoomsClient(private val auth: StagingAuthClient) {
             NativeRoomPost(row.optString("id"), row.optString("author_id"),
                 author?.optString("display_name")?.takeUnless { it.isBlank() || it == "null" }
                     ?: handle.ifBlank { "SautiLink member" }, handle,
-                row.optString("body").takeUnless { it == "null" }.orEmpty(), row.optString("created_at"))
+                row.optString("body").takeUnless { it == "null" }.orEmpty(), row.optString("created_at"),
+                author?.optBoolean("is_verified", false) == true,
+                author?.optString("verification_badge_type", "standard") ?: "standard")
         }
     }
 
@@ -179,7 +184,7 @@ class NativeRoomsClient(private val auth: StagingAuthClient) {
             .objects()
         val ids = rows.mapNotNull { it.optString("member_id").takeIf(uuid::matches) }
         val profiles = if (ids.isEmpty()) emptyMap() else rest(
-            "social_profiles?id=in.(${ids.joinToString(",")})&select=id,username,display_name"
+            "social_profiles?id=in.(${ids.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type"
         ).objects().associateBy { it.optString("id") }
         return rows.map { row ->
             val id = row.optString("member_id")
@@ -187,7 +192,9 @@ class NativeRoomsClient(private val auth: StagingAuthClient) {
             NativeRoomMember(id, row.optString("member_role"),
                 person?.optString("display_name")?.takeUnless { it.isBlank() || it == "null" }
                     ?: person?.optString("username").orEmpty().ifBlank { "SautiLink member" },
-                person?.optString("username").orEmpty())
+                person?.optString("username").orEmpty(),
+                person?.optBoolean("is_verified", false) == true,
+                person?.optString("verification_badge_type", "standard") ?: "standard")
         }
     }
 
@@ -198,7 +205,7 @@ class NativeRoomsClient(private val auth: StagingAuthClient) {
             .objects()
         val ids = rows.mapNotNull { it.optString("requester_id").takeIf(uuid::matches) }
         val profiles = if (ids.isEmpty()) emptyMap() else rest(
-            "social_profiles?id=in.(${ids.joinToString(",")})&select=id,username,display_name"
+            "social_profiles?id=in.(${ids.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type"
         ).objects().associateBy { it.optString("id") }
         return rows.map { row ->
             val id = row.optString("requester_id")
@@ -206,7 +213,9 @@ class NativeRoomsClient(private val auth: StagingAuthClient) {
             NativeJoinRequest(id, person?.optString("display_name")
                 ?.takeUnless { it.isBlank() || it == "null" }
                 ?: person?.optString("username").orEmpty().ifBlank { "SautiLink member" },
-                person?.optString("username").orEmpty())
+                person?.optString("username").orEmpty(),
+                person?.optBoolean("is_verified", false) == true,
+                person?.optString("verification_badge_type", "standard") ?: "standard")
         }
     }
 

@@ -26,6 +26,7 @@ import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.safety.NativeReportDialog
 import com.sautilink.nativeapp.feature.safety.NativeSafetyClient
 import com.sautilink.nativeapp.ui.theme.SautiShape
+import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -161,7 +162,13 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 Column(Modifier.weight(1f).clickable(enabled = active?.conversation?.handle?.isNotBlank() == true) {
                     active?.conversation?.handle?.let(onOpenProfile)
                 }) {
-                    Text(active?.conversation?.name ?: "Conversation", style = MaterialTheme.typography.titleLarge)
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text(active?.conversation?.name ?: "Conversation", style = MaterialTheme.typography.titleLarge)
+                        active?.conversation?.let { peer ->
+                            SautiVerificationBadge(peer.verified, peer.badgeType, peer.name, size = 17.dp)
+                        }
+                    }
                     if (peerTyping || peerOnline) Text(if (peerTyping) "Typing…" else "Online",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -270,7 +277,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                             finally { newLoading = false }
                         }
                     }.padding(horizontal = 18.dp, vertical = 14.dp)) {
-                        Text(account.name, fontWeight = FontWeight.SemiBold)
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text(account.name, fontWeight = FontWeight.SemiBold)
+                            SautiVerificationBadge(account.verified, account.badgeType,
+                                account.name, size = 15.dp)
+                        }
                         Text("@${account.handle}", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -319,7 +331,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     Row(Modifier.fillMaxWidth().clickable { selectedId = item.id }.padding(horizontal = 18.dp, vertical = 13.dp),
                         verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text(item.name, fontWeight = if (item.unread > 0) FontWeight.Bold else FontWeight.SemiBold)
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Text(item.name, fontWeight = if (item.unread > 0) FontWeight.Bold else FontWeight.SemiBold)
+                                SautiVerificationBadge(item.verified, item.badgeType,
+                                    item.name, size = 15.dp)
+                            }
                             Text("@${item.handle}" + if (item.muted) " · Muted" else "",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)

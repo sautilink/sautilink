@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.ui.components.SautiAvatar
+import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.theme.SautiColors
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.delay
@@ -215,7 +216,8 @@ private fun PostCard(post: DemoPost, onOpenProfile: () -> Unit, onOpenMedia: (In
                         Text(post.name, style = MaterialTheme.typography.titleMedium)
                         if (post.verified) {
                             Spacer(Modifier.width(5.dp))
-                            Icon(Icons.Rounded.Verified, "Preview verified badge", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                            SautiVerificationBadge(true, "standard", post.name,
+                                size = 16.dp, interactive = false)
                         }
                     }
                     Text(post.meta, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)

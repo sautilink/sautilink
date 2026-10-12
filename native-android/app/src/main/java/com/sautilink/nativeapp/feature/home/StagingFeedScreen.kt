@@ -25,7 +25,6 @@ import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.*
@@ -41,6 +40,7 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.ui.components.SautiAvatar
+import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.theme.SautiColors
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.CancellationException
@@ -671,11 +671,12 @@ private fun RealPostCard(
                 } else SautiAvatar(initials, Modifier.size(44.dp), SautiColors.Blue)
                 Column(Modifier.weight(1f).clickable(onClick = onOpenProfile)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(post.authorName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (post.verified) {
-                            Spacer(Modifier.width(5.dp))
-                            Icon(Icons.Rounded.Verified, "Verified account", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                        }
+                        Text(post.authorName, style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f, fill = false), maxLines = 1,
+                            overflow = TextOverflow.Ellipsis)
+                        if (post.verified) Spacer(Modifier.width(5.dp))
+                        SautiVerificationBadge(post.verified, post.badgeType,
+                            post.authorName, size = 16.dp)
                     }
                     Text("${if (post.authorHandle.isNotBlank()) "@${post.authorHandle} · " else ""}${post.createdAt.take(10)}",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
@@ -920,10 +921,13 @@ private fun PostCommentsSheet(
                 items(comments, key = { it.id }) { comment ->
                     Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
                         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text(
-                                comment.author + if (comment.handle.isNotBlank()) " · @${comment.handle}" else "",
-                                style = MaterialTheme.typography.labelMedium
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Text(comment.author + if (comment.handle.isNotBlank()) " · @${comment.handle}" else "",
+                                    style = MaterialTheme.typography.labelMedium)
+                                SautiVerificationBadge(comment.verified, comment.badgeType,
+                                    comment.author, size = 13.dp)
+                            }
                             Text(comment.body, style = MaterialTheme.typography.bodyMedium)
                             Text(comment.createdAt.take(10), style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)

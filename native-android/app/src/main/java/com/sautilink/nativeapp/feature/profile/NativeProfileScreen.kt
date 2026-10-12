@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +26,7 @@ import com.sautilink.nativeapp.feature.safety.MemberSafetyState
 import com.sautilink.nativeapp.feature.safety.NativeReportDialog
 import com.sautilink.nativeapp.feature.safety.NativeSafetyClient
 import com.sautilink.nativeapp.ui.theme.SautiShape
+import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import kotlinx.coroutines.launch
 import java.net.URI
 
@@ -182,11 +182,13 @@ fun NativeProfileScreen(
                     Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
                         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             ProfileAvatar(auth, member, 72)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(member.displayName, style = MaterialTheme.typography.headlineMedium,
-                                    modifier = Modifier.weight(1f))
-                                if (member.verified) Icon(Icons.Rounded.Verified, "Verified account",
-                                    tint = MaterialTheme.colorScheme.primary)
+                                    modifier = Modifier.weight(1f, fill = false), maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                SautiVerificationBadge(member.verified, member.badgeType,
+                                    member.displayName, size = 22.dp, profileOwner = ownerRoute)
                             }
                             Text("@${member.username}", color = MaterialTheme.colorScheme.primary,
                                 style = MaterialTheme.typography.titleMedium)

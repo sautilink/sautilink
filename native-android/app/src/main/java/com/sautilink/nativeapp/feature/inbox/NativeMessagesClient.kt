@@ -13,10 +13,12 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 data class NativeConversation(val id: String, val peerId: String, val handle: String, val name: String,
-    val latestBody: String, val latestAt: String, val unread: Int, val muted: Boolean)
+    val latestBody: String, val latestAt: String, val unread: Int, val muted: Boolean,
+    val verified: Boolean, val badgeType: String)
 data class NativeMessage(val id: String, val senderId: String, val body: String, val sentAt: String, val deleted: Boolean)
 data class NativeThread(val conversation: NativeConversation, val messages: List<NativeMessage>)
-data class NativeMessageAccount(val id: String, val handle: String, val name: String)
+data class NativeMessageAccount(val id: String, val handle: String, val name: String,
+    val verified: Boolean, val badgeType: String)
 
 /** RLS-protected DM reads. Only the signed-in participant can retrieve a thread. */
 class NativeMessagesClient(private val auth: StagingAuthClient) {
@@ -61,7 +63,7 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
             .objects().map { it.optString("muted_id") }.toSet()
         val ids = rows.mapNotNull { it.optString("peer_id").takeIf(uuid::matches) }.distinct()
         val profiles = if (ids.isEmpty()) emptyMap() else rest(
-            "social_profiles?id=in.(${ids.joinToString(",")})&select=id,username,display_name"
+            "social_profiles?id=in.(${ids.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type"
         ).objects().associateBy { it.optString("id") }
         return rows.mapNotNull { row ->
             val id = row.optString("conversation_id")
@@ -76,7 +78,9 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
                 row.optString("latest_sent_at").takeUnless { it == "null" }
                     ?: row.optString("last_message_at"),
                 if (peerId in muted) 0 else row.optInt("unread_count").coerceAtLeast(0),
-                peerId in muted)
+                peerId in muted,
+                peer?.optBoolean("is_verified", false) == true,
+                peer?.optString("verification_badge_type", "standard") ?: "standard")
         }
     }
 
@@ -85,7 +89,7 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
         val query = rawQuery.trim().removePrefix("@").take(64).replace("%", "").replace("*", "").replace("_", "")
         if (query.length < 2) return emptyList()
         val filter = java.net.URLEncoder.encode("ilike.*$query*", "UTF-8")
-        val select = "id,username,display_name"
+        val select = "id,username,display_name,is_verified,verification_badge_type"
         val left = rest("social_profiles?select=$select&is_discoverable=eq.true&id=neq.$own&username=$filter&order=username.asc&limit=12")
         val right = rest("social_profiles?select=$select&is_discoverable=eq.true&id=neq.$own&display_name=$filter&order=username.asc&limit=12")
         return (left.objects() + right.objects()).distinctBy { it.optString("id") }.take(12).mapNotNull { row ->
@@ -93,7 +97,8 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
             if (!uuid.matches(id)) null else {
                 val handle = row.optString("username")
                 NativeMessageAccount(id, handle,
-                    row.optString("display_name").takeUnless { it.isBlank() || it == "null" } ?: handle)
+                    row.optString("display_name").takeUnless { it.isBlank() || it == "null" } ?: handle,
+                    row.optBoolean("is_verified"), row.optString("verification_badge_type", "standard"))
             }
         }
     }
@@ -107,7 +112,7 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
         val second = row.optString("member_two_id")
         if (own != first && own != second) throw AuthRequestException("Conversation access denied.")
         val peerId = if (own == first) second else first
-        val peer = rest("social_profiles?id=eq.$peerId&select=id,username,display_name&limit=1").optJSONObject(0)
+        val peer = rest("social_profiles?id=eq.$peerId&select=id,username,display_name,is_verified,verification_badge_type&limit=1").optJSONObject(0)
         val handle = peer?.optString("username").orEmpty()
         val messages = rest("dm_messages?conversation_id=eq.$conversationId&select=id,sender_id,body,sent_at,deleted_at&order=sent_at.desc,id.desc&limit=200")
             .objects().asReversed().map { item ->
@@ -118,7 +123,9 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
         return NativeThread(NativeConversation(conversationId, peerId, handle,
             peer?.optString("display_name")?.takeUnless { it.isBlank() || it == "null" }
                 ?: handle.ifBlank { "SautiLink member" },
-            messages.lastOrNull()?.body.orEmpty(), row.optString("last_message_at"), 0, false), messages)
+            messages.lastOrNull()?.body.orEmpty(), row.optString("last_message_at"), 0, false,
+            peer?.optBoolean("is_verified", false) == true,
+            peer?.optString("verification_badge_type", "standard") ?: "standard"), messages)
     }
 
     suspend fun markRead(conversationId: String) {

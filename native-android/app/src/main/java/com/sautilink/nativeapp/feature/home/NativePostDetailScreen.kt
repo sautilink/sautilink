@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.safety.NativeReportDialog
 import com.sautilink.nativeapp.feature.safety.NativeSafetyClient
+import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -62,8 +63,13 @@ fun NativePostDetailScreen(auth: StagingAuthClient, postId: String, onBack: () -
                 Column(Modifier.clickable(enabled = item.authorHandle.isNotBlank()) {
                     onOpenProfile(item.authorHandle)
                 }) {
-                    Text(item.authorName, fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.titleMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text(item.authorName, fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleMedium)
+                        SautiVerificationBadge(item.verified, item.badgeType,
+                            item.authorName, size = 16.dp)
+                    }
                     Text("@${item.authorHandle} · ${item.createdAt.take(10)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)

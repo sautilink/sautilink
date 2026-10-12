@@ -23,6 +23,7 @@ import com.sautilink.nativeapp.feature.media.DemoGallery
 import com.sautilink.nativeapp.feature.media.DemoMediaArtwork
 import com.sautilink.nativeapp.feature.auth.StagingAccount
 import com.sautilink.nativeapp.ui.components.SautiAvatar
+import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.theme.SautiColors
 import com.sautilink.nativeapp.ui.theme.SautiShape
 
@@ -121,7 +122,8 @@ fun PremiumProfileScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("SautiLink Member", style = MaterialTheme.typography.headlineMedium)
                     Spacer(Modifier.width(7.dp))
-                    Icon(Icons.Rounded.Verified, "Illustrative verified badge", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    SautiVerificationBadge(true, "standard", "SautiLink Member",
+                        size = 20.dp, interactive = false)
                 }
                 Text("@sautilink.preview", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Moments, creativity and connections. A more personal SautiLink experience starts here.", style = MaterialTheme.typography.bodyMedium)

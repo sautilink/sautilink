@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
+import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -126,7 +127,12 @@ fun NativeNotificationsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSig
                         finally { busy = false }
                     }
                 }.padding(horizontal = 18.dp, vertical = 15.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(notificationCopy(item), fontWeight = if (item.isRead) FontWeight.Normal else FontWeight.SemiBold)
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text(notificationCopy(item), fontWeight = if (item.isRead) FontWeight.Normal else FontWeight.SemiBold)
+                        SautiVerificationBadge(item.actorVerified, item.actorBadgeType,
+                            item.actorName, size = 15.dp)
+                    }
                     Text(item.createdAt.take(16).replace('T', ' '),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)

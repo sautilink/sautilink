@@ -13,9 +13,10 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 data class ExplorePerson(val id: String, val username: String, val name: String, val bio: String,
-    val followers: Int, val verified: Boolean)
+    val followers: Int, val verified: Boolean, val badgeType: String)
 data class ExplorePost(val id: String, val authorHandle: String, val authorName: String,
-    val body: String, val createdAt: String, val likes: Int, val comments: Int, val mediaCount: Int)
+    val body: String, val createdAt: String, val likes: Int, val comments: Int, val mediaCount: Int,
+    val verified: Boolean, val badgeType: String)
 data class ExploreResults(val people: List<ExplorePerson>, val posts: List<ExplorePost>)
 
 /** Search mirrors production Discover filters; every read is still subject to PostgREST RLS. */
@@ -59,7 +60,7 @@ class NativeExploreClient(private val auth: StagingAuthClient) {
                 addQueryParameter("muter_id", "eq.$ownId")
                 addQueryParameter("select", "muted_id")
             }, token).objects().mapNotNull { it.optString("muted_id").takeIf(uuid::matches) }.toSet()
-            val personSelect = "id,username,display_name,bio,followers_count,is_verified"
+            val personSelect = "id,username,display_name,bio,followers_count,is_verified,verification_badge_type"
             val personRows = (if (query.isBlank()) listOf("" ) else listOf("username", "display_name"))
                 .flatMap { column -> rows(url("social_profiles") {
                     addQueryParameter("select", personSelect)
@@ -76,7 +77,8 @@ class NativeExploreClient(private val auth: StagingAuthClient) {
                         row.optString("display_name").takeUnless { it.isBlank() || it == "null" }
                             ?: row.optString("username"),
                         row.optString("bio").takeUnless { it == "null" }.orEmpty(),
-                        row.optInt("followers_count").coerceAtLeast(0), row.optBoolean("is_verified"))
+                        row.optInt("followers_count").coerceAtLeast(0), row.optBoolean("is_verified"),
+                        row.optString("verification_badge_type", "standard"))
                 }.toList()
             val postRows = rows(url("social_posts") {
                 addQueryParameter("select", "id,author_id,body,created_at,like_count,comment_count,media_count")
@@ -92,7 +94,7 @@ class NativeExploreClient(private val auth: StagingAuthClient) {
             }
             val authorIds = postRows.mapNotNull { it.optString("author_id").takeIf(uuid::matches) }.distinct()
             val authorById = if (authorIds.isEmpty()) emptyMap() else rows(url("social_profiles") {
-                addQueryParameter("select", "id,username,display_name")
+                addQueryParameter("select", "id,username,display_name,is_verified,verification_badge_type")
                 addQueryParameter("id", "in.(${authorIds.joinToString(",")})")
             }, token).objects().associateBy { it.optString("id") }
             val posts = postRows.mapNotNull { row ->
@@ -104,7 +106,9 @@ class NativeExploreClient(private val auth: StagingAuthClient) {
                     ?.takeUnless { it.isBlank() || it == "null" } ?: handle.ifBlank { "SautiLink member" },
                     row.optString("body").takeUnless { it == "null" }.orEmpty(),
                     row.optString("created_at"), row.optInt("like_count").coerceAtLeast(0),
-                    row.optInt("comment_count").coerceAtLeast(0), row.optInt("media_count").coerceAtLeast(0))
+                    row.optInt("comment_count").coerceAtLeast(0), row.optInt("media_count").coerceAtLeast(0),
+                    author?.optBoolean("is_verified", false) == true,
+                    author?.optString("verification_badge_type", "standard") ?: "standard")
             }
             ExploreResults(people, posts)
         }

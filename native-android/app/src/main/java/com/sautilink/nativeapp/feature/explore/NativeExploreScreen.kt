@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -77,7 +78,12 @@ fun NativeExploreScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenPro
                     color = MaterialTheme.colorScheme.surfaceContainer, shape = SautiShape.Card) {
                     Column(Modifier.fillMaxWidth().clickable { onOpenProfile(person.username) }.padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(person.name + if (person.verified) " ✓" else "", fontWeight = FontWeight.SemiBold)
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text(person.name, fontWeight = FontWeight.SemiBold)
+                            SautiVerificationBadge(person.verified, person.badgeType,
+                                person.name, size = 16.dp)
+                        }
                         Text("@${person.username} · ${person.followers} followers",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall)
@@ -98,10 +104,15 @@ fun NativeExploreScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenPro
                     color = MaterialTheme.colorScheme.surfaceContainer, shape = SautiShape.Card) {
                     Column(Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Text(post.authorName, fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.clickable(enabled = post.authorHandle.isNotBlank()) {
-                                onOpenProfile(post.authorHandle)
-                            })
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text(post.authorName, fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.clickable(enabled = post.authorHandle.isNotBlank()) {
+                                    onOpenProfile(post.authorHandle)
+                                })
+                            SautiVerificationBadge(post.verified, post.badgeType,
+                                post.authorName, size = 15.dp)
+                        }
                         Text(post.body.ifBlank { "Media post" }, maxLines = if (expanded) Int.MAX_VALUE else 4,
                             overflow = TextOverflow.Ellipsis)
                         Text("${post.likes} likes · ${post.comments} comments" +

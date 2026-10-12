@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.ui.theme.SautiShape
+import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -169,16 +170,26 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
                     items(members, key = { "member:${it.id}" }) { member ->
                         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically) {
-                            Text(member.name, modifier = Modifier.weight(1f).clickable(enabled = member.handle.isNotBlank()) {
-                                onOpenProfile(member.handle)
-                            })
+                            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Text(member.name, modifier = Modifier.clickable(enabled = member.handle.isNotBlank()) {
+                                    onOpenProfile(member.handle)
+                                })
+                                SautiVerificationBadge(member.verified, member.badgeType,
+                                    member.name, size = 15.dp)
+                            }
                             Text(member.role, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     if (pending.isNotEmpty()) item { Text("Join requests", style = MaterialTheme.typography.titleLarge) }
                     items(pending, key = { "request:${it.requesterId}" }) { request ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(request.name, modifier = Modifier.weight(1f))
+                            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Text(request.name)
+                                SautiVerificationBadge(request.verified, request.badgeType,
+                                    request.name, size = 15.dp)
+                            }
                             TextButton(onClick = { perform { client.decide(room, request.requesterId, true) } }, enabled = !busy) {
                                 Text("Approve")
                             }
@@ -208,10 +219,15 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
                         Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainer,
                             shape = SautiShape.Card) {
                             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(post.authorName, fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.clickable(enabled = post.authorHandle.isNotBlank()) {
-                                        onOpenProfile(post.authorHandle)
-                                    })
+                                Row(verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Text(post.authorName, fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.clickable(enabled = post.authorHandle.isNotBlank()) {
+                                            onOpenProfile(post.authorHandle)
+                                        })
+                                    SautiVerificationBadge(post.verified, post.badgeType,
+                                        post.authorName, size = 15.dp)
+                                }
                                 Text(post.body)
                                 Text(post.createdAt.take(10), color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     style = MaterialTheme.typography.bodySmall)

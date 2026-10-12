@@ -16,6 +16,7 @@ data class StagingFeedPost(
     val authorName: String,
     val authorHandle: String,
     val verified: Boolean,
+    val badgeType: String,
     val body: String,
     val createdAt: String,
     val likes: Int,
@@ -75,7 +76,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                 .optJSONObject(0) ?: return@withContext null
             val authorId = post.optString("author_id")
             val author = if (uuid.matches(authorId)) getJsonArray(
-                "social_profiles?id=eq.$authorId&select=id,username,display_name,is_verified,avatar_key&limit=1", token
+                "social_profiles?id=eq.$authorId&select=id,username,display_name,is_verified,verification_badge_type,avatar_key&limit=1", token
             ).optJSONObject(0) else null
             val handle = author?.optString("username").orEmpty()
             val mediaRows = getJsonArray(
@@ -92,6 +93,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                 author?.optString("display_name")?.takeUnless { it.isBlank() || it == "null" }
                     ?: handle.ifBlank { "SautiLink member" },
                 handle, author?.optBoolean("is_verified", false) == true,
+                author?.optString("verification_badge_type", "standard") ?: "standard",
                 post.optString("body").takeUnless { it == "null" }.orEmpty(),
                 post.optString("created_at"), post.optInt("like_count").coerceAtLeast(0),
                 post.optInt("comment_count").coerceAtLeast(0), post.optInt("repost_count").coerceAtLeast(0),
@@ -136,7 +138,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
             val authorIds = byId.values.mapNotNull { it.optString("author_id").takeIf(uuid::matches) }.distinct()
             val authors = if (authorIds.isEmpty()) emptyMap() else {
                 val rows = getJsonArray(
-                    "social_profiles?id=in.(${authorIds.joinToString(",")})&select=id,username,display_name,is_verified,avatar_key", token
+                    "social_profiles?id=in.(${authorIds.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type,avatar_key", token
                 )
                 (0 until rows.length()).mapNotNull { rows.optJSONObject(it) }
                     .associateBy { it.optString("id") }
@@ -166,6 +168,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                         ?: handle.ifBlank { "SautiLink member" },
                     authorHandle = handle,
                     verified = a?.optBoolean("is_verified", false) == true,
+                    badgeType = a?.optString("verification_badge_type", "standard") ?: "standard",
                     body = p.optString("body").takeUnless { it == "null" }.orEmpty(),
                     createdAt = p.optString("created_at"),
                     likes = p.optInt("like_count", 0).coerceAtLeast(0),
