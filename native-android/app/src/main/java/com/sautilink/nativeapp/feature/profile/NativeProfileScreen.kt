@@ -47,6 +47,7 @@ fun NativeProfileScreen(
     onSignIn: () -> Unit,
     onOpenProfile: (String) -> Unit = {},
     onOpenPosts: () -> Unit = {},
+    onOpenDashboard: () -> Unit = {},
     onOpenPost: (String) -> Unit = {}
 ) {
     val client = remember(auth) { NativeProfilesClient(auth) }
@@ -324,12 +325,12 @@ fun NativeProfileScreen(
                                             Spacer(Modifier.width(5.dp))
                                             Text("Edit profile")
                                         }
-                                        OutlinedButton(onClick = onOpenPosts,
+                                        OutlinedButton(onClick = onOpenDashboard,
                                             shape = RoundedCornerShape(14.dp),
                                             modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                                             Icon(Icons.Rounded.Dashboard, null, Modifier.size(18.dp))
                                             Spacer(Modifier.width(5.dp))
-                                            Text("Manage posts")
+                                            Text("Dashboard")
                                         }
                                     }
                                 } else if (member.id != account.id) {
