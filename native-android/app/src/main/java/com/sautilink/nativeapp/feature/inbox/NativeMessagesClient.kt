@@ -15,7 +15,9 @@ import java.util.concurrent.TimeUnit
 data class NativeConversation(val id: String, val peerId: String, val handle: String, val name: String,
     val latestBody: String, val latestAt: String, val unread: Int, val muted: Boolean,
     val verified: Boolean, val badgeType: String, val hasAvatar: Boolean = false)
-data class NativeMessage(val id: String, val senderId: String, val body: String, val sentAt: String, val deleted: Boolean)
+data class NativeMessage(val id: String, val senderId: String, val body: String,
+    val sentAt: String, val deleted: Boolean, val kind: String = "text",
+    val editedAt: String? = null, val replyTo: String? = null)
 data class NativeThread(val conversation: NativeConversation, val messages: List<NativeMessage>)
 data class NativeMessageAccount(val id: String, val handle: String, val name: String,
     val verified: Boolean, val badgeType: String)
@@ -115,11 +117,14 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
         val peerId = if (own == first) second else first
         val peer = rest("social_profiles?id=eq.$peerId&select=id,username,display_name,is_verified,verification_badge_type,avatar_key&limit=1").optJSONObject(0)
         val handle = peer?.optString("username").orEmpty()
-        val messages = rest("dm_messages?conversation_id=eq.$conversationId&select=id,sender_id,body,sent_at,deleted_at&order=sent_at.desc,id.desc&limit=200")
+        val messages = rest("dm_messages?conversation_id=eq.$conversationId&deleted_at=is.null&select=id,sender_id,body,sent_at,deleted_at,message_kind,edited_at,reply_to_message_id&order=sent_at.desc,id.desc&limit=200")
             .objects().asReversed().map { item ->
                 NativeMessage(item.optString("id"), item.optString("sender_id"),
                     item.optString("body").takeUnless { it == "null" }.orEmpty(),
-                    item.optString("sent_at"), !item.isNull("deleted_at"))
+                    item.optString("sent_at"), !item.isNull("deleted_at"),
+                    item.optString("message_kind", "text"),
+                    item.optString("edited_at").takeIf { !item.isNull("edited_at") },
+                    item.optString("reply_to_message_id").takeIf { !item.isNull("reply_to_message_id") })
             }
         return NativeThread(NativeConversation(conversationId, peerId, handle,
             peer?.optString("display_name")?.takeUnless { it.isBlank() || it == "null" }
@@ -139,16 +144,90 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
                 .put("hidden_at", JSONObject.NULL))
     }
 
-    suspend fun send(conversationId: String, rawBody: String): NativeMessage {
+    suspend fun send(conversationId: String, rawBody: String, replyToId: String? = null): NativeMessage {
         val own = viewer()
         if (!uuid.matches(conversationId)) throw AuthRequestException("Invalid conversation.")
         val body = rawBody.trim()
         if (body.isEmpty() || body.length > 4000) throw AuthRequestException("Keep messages within 4,000 characters.")
-        val row = rest("dm_messages?select=id,sender_id,body,sent_at,deleted_at", "POST",
-            JSONObject().put("conversation_id", conversationId).put("sender_id", own).put("body", body))
+        val row = rest("dm_messages?select=id,sender_id,body,sent_at,deleted_at,message_kind,reply_to_message_id", "POST",
+            JSONObject().put("conversation_id", conversationId).put("sender_id", own)
+                .put("body", body).apply {
+                    if (replyToId != null && replyToId.matches(Regex("^[0-9]{1,20}$")))
+                        put("reply_to_message_id", replyToId.toLong())
+                })
             .optJSONObject(0) ?: throw AuthRequestException("Message delivery could not be confirmed.")
         return NativeMessage(row.optString("id"), row.optString("sender_id"), row.optString("body"),
             row.optString("sent_at"), false)
+    }
+
+    suspend fun editOwnMessage(messageId: String, text: String) {
+        val own = viewer()
+        require(messageId.matches(Regex("^[0-9]{1,20}$")))
+        val safe = text.trim().take(4000)
+        if (safe.isBlank()) throw AuthRequestException("A message cannot be empty.")
+        val rows = rest("dm_messages?id=eq.$messageId&sender_id=eq.$own&deleted_at=is.null" +
+            "&message_kind=eq.text&select=id", "PATCH", JSONObject().put("body", safe))
+        if (rows.length() != 1) throw AuthRequestException("Editing this message is unavailable.")
+    }
+
+    /** For everyone: author-only tombstone, hidden from chat UI rather than displayed as a placeholder. */
+    suspend fun deleteOwnForEveryone(messageId: String) {
+        val own = viewer()
+        require(messageId.matches(Regex("^[0-9]{1,20}$")))
+        val rows = rest("dm_messages?id=eq.$messageId&sender_id=eq.$own&deleted_at=is.null" +
+            "&select=id", "PATCH", JSONObject().put("deleted_at", java.time.Instant.now().toString()))
+        if (rows.length() != 1) throw AuthRequestException("You can delete for everyone only messages you sent.")
+    }
+
+    /** Requires additive native phase38 migration and its own participant RLS. */
+    suspend fun deleteForMe(message: NativeMessage, conversationId: String) {
+        val own = viewer()
+        if (!conversationId.matches(uuid) || !message.id.matches(Regex("^[0-9]{1,20}$")))
+            throw AuthRequestException("Invalid message.")
+        val rows = rest("dm_hidden_messages_native_phase38?select=message_id", "POST",
+            JSONObject().put("user_id", own).put("message_id", message.id.toLong())
+                .put("conversation_id", conversationId))
+        if (rows.length() != 1) throw AuthRequestException("Could not hide the message.")
+    }
+
+    suspend fun hiddenForMe(conversationId: String): Set<String> {
+        val own = viewer()
+        if (!conversationId.matches(uuid)) return emptySet()
+        return rest("dm_hidden_messages_native_phase38?user_id=eq.$own" +
+            "&conversation_id=eq.$conversationId&select=message_id&limit=500")
+            .objects().map { it.optString("message_id") }.toSet()
+    }
+
+    suspend fun editActivityVisibility(enabled: Boolean) {
+        val own = viewer()
+        val rows = rest("social_member_preferences?user_id=eq.$own&select=user_id",
+            "PATCH", JSONObject().put("activity_status", enabled))
+        if (rows.length() != 1) throw AuthRequestException("Could not update online visibility.")
+    }
+
+    suspend fun touchActivity() {
+        val token = auth.accessTokenForStagingRead()
+        withContext(Dispatchers.IO) {
+            val body = "{}".toRequestBody(jsonType)
+            http.newCall(Request.Builder().url(auth.restOrigin + "rpc/touch_member_activity_phase37")
+                .header("apikey", auth.publicKeyForRead())
+                .header("Authorization", "Bearer $token").post(body).build()).execute().close()
+        }
+    }
+
+    suspend fun peerActivityBucket(peerId: String): String {
+        if (!peerId.matches(uuid)) return "hidden"
+        val token = auth.accessTokenForStagingRead()
+        return withContext(Dispatchers.IO) {
+            val response = http.newCall(Request.Builder()
+                .url(auth.restOrigin + "rpc/dm_peer_activity_bucket_native_phase38")
+                .header("apikey", auth.publicKeyForRead())
+                .header("Authorization", "Bearer $token")
+                .post(JSONObject().put("p_peer_id", peerId).toString().toRequestBody(jsonType))
+                .build()).execute()
+            response.use { if (!it.isSuccessful) "hidden" else
+                it.body?.string().orEmpty().trim().trim('"').ifBlank { "hidden" } }
+        }
     }
 
     suspend fun activityStatusEnabled(): Boolean {
