@@ -2,6 +2,16 @@ package com.sautilink.nativeapp.feature.inbox
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import com.sautilink.nativeapp.feature.home.AuthorizedImage
+import com.sautilink.nativeapp.ui.components.SautiAvatar
+import com.sautilink.nativeapp.ui.theme.SautiColors
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,8 +45,17 @@ import kotlinx.coroutines.awaitCancellation
 
 @Composable
 fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfile: (String) -> Unit,
-    initialConversationId: String? = null, onDeepLinkConsumed: () -> Unit = {}) {
+    initialConversationId: String? = null, onDeepLinkConsumed: () -> Unit = {},
+    onOpenPrivacy: () -> Unit = {}) {
     val client = remember(auth) { NativeMessagesClient(auth) }
+    val context = LocalContext.current
+    val appearance = remember(context, auth.account?.id) {
+        MessageAppearancePrefs(context, auth.account?.id)
+    }
+    var chatSettings by remember { mutableStateOf(false) }
+    var wallpaper by remember { mutableStateOf(appearance.wallpaper) }
+    var bubble by remember { mutableStateOf(appearance.bubble) }
+    var compact by remember { mutableStateOf(appearance.compact) }
     val safety = remember(auth) { NativeSafetyClient(auth) }
     var conversations by remember { mutableStateOf<List<NativeConversation>>(emptyList()) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -153,11 +172,27 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) { error = e.message ?: "Could not search members." }
     }
+    if (chatSettings) {
+        NativeMessageSettingsScreen(
+            preferences = appearance,
+            onBack = {
+                wallpaper = appearance.wallpaper
+                bubble = appearance.bubble
+                compact = appearance.compact
+                chatSettings = false
+            },
+            onPrivacy = onOpenPrivacy,
+            onBlocked = onOpenPrivacy
+        )
+        return
+    }
     val active = thread
     if (selectedId != null) {
         Column(Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { selectedId = null; thread = null; refresh++ }) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)
+                .background(MaterialTheme.colorScheme.surface),
+                verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { selectedId = null; thread = null; refresh++ }, Modifier.size(48.dp)) {
                     Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to inbox")
                 }
                 Column(Modifier.weight(1f).clickable(enabled = active?.conversation?.handle?.isNotBlank() == true) {
@@ -174,7 +209,9 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                IconButton(onClick = { refresh++ }, enabled = !loading) { Icon(Icons.Rounded.Refresh, "Refresh conversation") }
+                IconButton(onClick = { chatSettings = true }) {
+                    Icon(Icons.Rounded.MoreHoriz, "Chat settings")
+                }
             }
             if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (active != null) {
@@ -183,21 +220,31 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 LaunchedEffect(active.messages.size) {
                     if (active.messages.isNotEmpty()) listState.scrollToItem(active.messages.lastIndex)
                 }
-                LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth()
+                    .background(messageWallpaper(wallpaper)),
+                    contentPadding = PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 9.dp)) {
                     if (active.messages.isEmpty()) item { Text("No messages yet.") }
                     items(active.messages, key = { it.id }) { message ->
                         val own = message.senderId == ownId
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = if (own) Arrangement.End else Arrangement.Start) {
-                            Surface(shape = SautiShape.Card,
-                                color = if (own) MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.surfaceContainer,
-                                modifier = Modifier.widthIn(max = 300.dp)) {
+                            Surface(
+                                shape = if (own) RoundedCornerShape(21.dp, 21.dp, 5.dp, 21.dp)
+                                    else RoundedCornerShape(21.dp, 21.dp, 21.dp, 5.dp),
+                                color = if (own) outgoingBubble(bubble)
+                                    else MaterialTheme.colorScheme.surface,
+                                tonalElevation = if (own) 0.dp else 1.dp,
+                                shadowElevation = 1.dp,
+                                modifier = Modifier.widthIn(max = 305.dp)
+                            ) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    Text(if (message.deleted) "Message deleted." else message.body)
+                                    Text(if (message.deleted) "Message deleted." else message.body,
+                                        color = if (own && bubble != "neutral") Color.White
+                                            else MaterialTheme.colorScheme.onSurface)
                                     Text(message.sentAt.take(16).replace('T', ' '),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (own && bubble != "neutral") Color.White.copy(alpha = .78f)
+                                            else MaterialTheme.colorScheme.onSurfaceVariant)
                                     if (!own && !message.deleted) TextButton(onClick = {
                                         reportMessageId = message.id; reportNote = null
                                     }, contentPadding = PaddingValues(0.dp)) { Text("Report") }
@@ -211,10 +258,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 if (reportNote != null) Text(reportNote.orEmpty(), Modifier.padding(horizontal = 16.dp),
                     color = if (reportNote == "Report submitted.") MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.error)
-                Row(Modifier.fillMaxWidth().imePadding().padding(12.dp),
+                Row(Modifier.fillMaxWidth().imePadding()
+                    .background(MaterialTheme.colorScheme.surface).padding(10.dp),
                     verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(draft, { draft = it.take(4000) },
                         modifier = Modifier.weight(1f), placeholder = { Text("Message") },
+                        shape = RoundedCornerShape(25.dp),
                         maxLines = 5, shape = SautiShape.Card)
                     Button(onClick = {
                         if (sending) return@Button
@@ -300,9 +349,15 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 12.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Text("Messages", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
-            TextButton(onClick = { error = null; newConversation = true }, enabled = auth.account != null) { Text("New") }
-            IconButton(onClick = { refresh++ }, enabled = !loading) { Icon(Icons.Rounded.Refresh, "Refresh inbox") }
+            Text("Chats", style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            IconButton(onClick = { chatSettings = true }) {
+                Icon(Icons.Rounded.Settings, "Chat settings")
+            }
+            IconButton(onClick = { error = null; newConversation = true },
+                enabled = auth.account != null) {
+                Icon(Icons.Rounded.EditSquare, "New message")
+            }
         }
         OutlinedTextField(query, { query = it.take(80) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
             placeholder = { Text("Search conversations") }, leadingIcon = { Icon(Icons.Rounded.Search, null) },
