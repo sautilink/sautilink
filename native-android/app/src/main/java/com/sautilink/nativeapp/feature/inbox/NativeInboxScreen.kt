@@ -77,6 +77,11 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var statusBucket by remember { mutableStateOf("hidden") }
     var visibilityRevision by remember { mutableIntStateOf(0) }
     var mediaByMessage by remember { mutableStateOf<Map<String, DmMedia>>(emptyMap()) }
+    LaunchedEffect(selectedId, appearance) {
+        wallpaper = appearance.wallpaperFor(selectedId)
+        bubble = appearance.bubbleFor(selectedId)
+        autoPhotos = appearance.autoPhotos && !appearance.dataSaver
+    }
     val mediaClient = remember(auth) { NativeDmMediaClient(auth) }
     val appearance = remember(context, auth.account?.id) {
         MessageAppearancePrefs(context, auth.account?.id)
