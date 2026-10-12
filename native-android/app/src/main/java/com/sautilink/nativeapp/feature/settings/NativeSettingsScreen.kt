@@ -16,6 +16,7 @@ import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import com.sautilink.nativeapp.BuildConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -194,8 +195,10 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                     Text("Request account deletion")
                 }
             }
-            item { SectionTitle("DEVELOPER") }
-            item { TextButton(onClick = onOpenConnection) { Text("Staging connection") } }
+            if (BuildConfig.FLAVOR == "preview") {
+                item { SectionTitle("DEVELOPER") }
+                item { TextButton(onClick = onOpenConnection) { Text("Staging connection") } }
+            }
         }
     }
 

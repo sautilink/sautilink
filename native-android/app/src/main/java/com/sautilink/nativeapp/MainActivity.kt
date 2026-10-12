@@ -119,10 +119,12 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         StagingAuthClient(BuildConfig.PRODUCTION_SUPABASE_PUBLISHABLE_KEY,
             context.applicationContext, SautiBackend.PRODUCTION)
     }
-    LaunchedEffect(stagingAuth) {
-        stagingAuth.restoreSession()
-        if (stagingAuth.sessionState == StagingSessionState.RETRYABLE_ERROR) {
-            delay(2000); stagingAuth.restoreSession()
+    if (BuildConfig.FLAVOR == "preview") {
+        LaunchedEffect(stagingAuth) {
+            stagingAuth.restoreSession()
+            if (stagingAuth.sessionState == StagingSessionState.RETRYABLE_ERROR) {
+                delay(2000); stagingAuth.restoreSession()
+            }
         }
     }
     LaunchedEffect(productionAuth) {

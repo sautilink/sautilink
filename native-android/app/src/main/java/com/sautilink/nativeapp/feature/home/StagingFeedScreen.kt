@@ -49,6 +49,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
 import java.util.UUID
+import com.sautilink.nativeapp.BuildConfig
 
 /** Explicit environment-isolated read-only feed; production and staging use different auth sessions. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -422,8 +423,10 @@ fun StagingFeedScreen(
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                 if (auth.backend == SautiBackend.PRODUCTION) DropdownMenuItem(
                                     text = { Text("Rooms") }, onClick = { menuOpen = false; onOpenRooms() })
-                                DropdownMenuItem(text = { Text("Demo Home · UI preview") }, onClick = { menuOpen = false; onOpenDemo() })
-                                DropdownMenuItem(text = { Text("Staging test feed") }, onClick = { menuOpen = false; onOpenStaging() })
+                                if (BuildConfig.FLAVOR == "preview") {
+                                    DropdownMenuItem(text = { Text("Demo Home · UI preview") }, onClick = { menuOpen = false; onOpenDemo() })
+                                    DropdownMenuItem(text = { Text("Staging test feed") }, onClick = { menuOpen = false; onOpenStaging() })
+                                }
                                 DropdownMenuItem(text = { Text("Settings") }, onClick = { menuOpen = false; onOpenSettings() })
                             }
                         }
