@@ -217,6 +217,22 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
         }
     }
 
+    suspend fun clearMySentForEveryone(conversationId: String) {
+        if (!conversationId.matches(uuid)) throw AuthRequestException("Invalid conversation.")
+        val token = auth.accessTokenForStagingRead()
+        withContext(Dispatchers.IO) {
+            http.newCall(Request.Builder()
+                .url(auth.restOrigin + "rpc/dm_clear_my_sent_for_everyone_native_phase38")
+                .header("apikey", auth.publicKeyForRead())
+                .header("Authorization", "Bearer $token")
+                .post(JSONObject().put("p_conversation_id", conversationId).toString()
+                    .toRequestBody(jsonType)).build()).execute().use {
+                if (!it.isSuccessful) throw AuthRequestException(
+                    "Clear for everyone is not yet available. Database migration may be pending.")
+            }
+        }
+    }
+
     suspend fun clearForMe(conversationId: String) {
         if (!conversationId.matches(uuid)) throw AuthRequestException("Invalid conversation.")
         val token = auth.accessTokenForStagingRead()
