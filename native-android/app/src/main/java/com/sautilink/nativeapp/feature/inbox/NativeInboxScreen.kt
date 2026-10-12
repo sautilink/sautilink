@@ -347,10 +347,10 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     }
                 } else {
                     IconButton(onClick = {
-                        android.widget.Toast.makeText(context, "Audio calls rolling out soon", 0).show()
+                        android.widget.Toast.makeText(context, "Audio calls rolling out soon", android.widget.Toast.LENGTH_SHORT).show()
                     }) { Icon(Icons.Rounded.Phone, "Audio call") }
                     IconButton(onClick = {
-                        android.widget.Toast.makeText(context, "Video calls rolling out soon", 0).show()
+                        android.widget.Toast.makeText(context, "Video calls rolling out soon", android.widget.Toast.LENGTH_SHORT).show()
                     }) { Icon(Icons.Rounded.Videocam, "Video call") }
                     Box {
                         IconButton(onClick = { chatMenu = true }) {
