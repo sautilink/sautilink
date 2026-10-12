@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.dashboard.NativeDashboardScreen
 import com.sautilink.nativeapp.feature.menu.NativeMenuScreen
 import com.sautilink.nativeapp.feature.verification.NativeVerificationScreen
+import com.sautilink.nativeapp.feature.home.NativePlaybackPreferences
 import com.sautilink.nativeapp.feature.home.StagingFeedScreen
 import com.sautilink.nativeapp.feature.home.NativePostDetailScreen
 import com.sautilink.nativeapp.feature.inbox.InboxScreen
@@ -61,6 +62,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         NativePushManager.createChannel(this)
+        NativePlaybackPreferences.restore(this)
         pendingPushRoute = NativePushManager.routeFromIntent(intent)
         setContent { SautiNativePreview(pendingPushRoute, { pendingPushRoute = null }, appResumeVersion) }
     }
