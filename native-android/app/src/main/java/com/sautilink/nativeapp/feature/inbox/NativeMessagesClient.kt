@@ -204,12 +204,27 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
 
     suspend fun editActivityVisibility(enabled: Boolean) {
         val own = viewer()
-        val rows = rest(
-            "social_member_preferences?on_conflict=user_id&select=user_id,activity_status",
-            "UPSERT", JSONObject().put("user_id", own).put("activity_status", enabled))
+        // Column-scoped Supabase grants deliberately do NOT permit UPDATE on user_id.
+        // PostgREST UPSERT tries to update user_id in conflict and is not suitable here.
+        val exists = rest("social_member_preferences?user_id=eq.$own&select=user_id&limit=1")
+            .length() > 0
+        val payload = JSONObject().put("activity_status", enabled)
+        val rows = if (exists) {
+            rest("social_member_preferences?user_id=eq.$own&select=user_id,activity_status",
+                "PATCH", payload)
+        } else {
+            // The table defines defaults for all other required preference columns.
+            try {
+                rest("social_member_preferences?select=user_id,activity_status",
+                    "POST", payload.put("user_id", own))
+            } catch (initial: AuthRequestException) {
+                // A concurrently inserted preferences row may win: retry update safely.
+                rest("social_member_preferences?user_id=eq.$own&select=user_id,activity_status",
+                    "PATCH", JSONObject().put("activity_status", enabled))
+            }
+        }
         if (rows.length() != 1 || rows.optJSONObject(0)?.optBoolean("activity_status") != enabled)
             throw AuthRequestException("Could not save the online visibility setting.")
-        // Apply the new preference immediately to the server-side activity record.
         touchActivity()
     }
 
