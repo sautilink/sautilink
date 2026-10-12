@@ -29,6 +29,7 @@ data class NativeProfile(
     val joinedAt: String,
     val hasAvatar: Boolean,
     val hasHeader: Boolean,
+    val categorySlug: String,
     val verified: Boolean,
     val badgeType: String
 )
@@ -42,7 +43,7 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
     private val uuid = Regex("^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
     private val handle = Regex("^[a-z0-9][a-z0-9._]{2,29}$")
     private val http = OkHttpClient.Builder().callTimeout(20, TimeUnit.SECONDS).build()
-    private val select = "id,username,display_name,bio,location,website_url,is_discoverable,followers_count,following_count,created_at,avatar_key,header_key,is_verified,verification_badge_type"
+    private val select = "id,username,display_name,bio,location,website_url,is_discoverable,followers_count,following_count,created_at,avatar_key,header_key,professional_category_slug,is_verified,verification_badge_type"
 
     private suspend fun rows(path: String): JSONArray = JSONArray(call(path, "GET"))
 
@@ -85,9 +86,38 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
         joinedAt = row.optString("created_at"),
         hasAvatar = !row.isNull("avatar_key") && row.optString("avatar_key").isNotBlank(),
         hasHeader = !row.isNull("header_key") && row.optString("header_key").isNotBlank(),
+        categorySlug = row.optString("professional_category_slug").takeUnless { it == "null" }.orEmpty(),
         verified = row.optBoolean("is_verified"),
         badgeType = row.optString("verification_badge_type", "standard")
     )
+
+    /** Same professional category taxonomy and column-level ownership policy as SautiLink Web. */
+    suspend fun categoryCatalog(): List<ProfileProfessionalCategory> {
+        val categories = rows("profile_categories?select=slug,label,group_name,description&order=group_name.asc,label.asc&limit=1000")
+        return (0 until categories.length()).mapNotNull {
+            val o = categories.optJSONObject(it) ?: return@mapNotNull null
+            ProfileProfessionalCategory(o.optString("slug"), o.optString("label"),
+                o.optString("group_name"), o.optString("description"))
+        }.filter { it.slug.isNotBlank() && it.label.isNotBlank() }
+    }
+
+    suspend fun saveCategory(slug: String): NativeProfile {
+        if (auth.backend != SautiBackend.PRODUCTION) throw AuthRequestException("Editing is unavailable.")
+        val id = auth.account?.id?.takeIf(uuid::matches)
+            ?: throw AuthRequestException("Sign in to update your category.")
+        if (slug.isNotEmpty() && !Regex("^[a-z0-9-]{2,80}$").matches(slug))
+            throw AuthRequestException("Choose an available category.")
+        val confirmed = if (slug.isNotEmpty()) categoryCatalog().any { it.slug == slug } else true
+        if (!confirmed) throw AuthRequestException("Choose a category from the list.")
+        val payload = JSONObject().put("professional_category_slug",
+            if (slug.isBlank()) JSONObject.NULL else slug)
+        val result = JSONArray(call("social_profiles?id=eq.$id&select=$select", "PATCH", payload,
+            "return=representation"))
+        val updated = result.optJSONObject(0)
+            ?: throw AuthRequestException("Category update was not confirmed.")
+        if (updated.optString("id") != id) throw AuthRequestException("Profile identity did not match.")
+        return parse(updated)
+    }
 
     suspend fun own(): NativeProfile? {
         val id = auth.account?.id ?: throw AuthRequestException("Sign in to view your profile.")
@@ -211,3 +241,6 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
             ?: throw AuthRequestException("Identity change could not be confirmed.")
     }
 }
+
+internal data class ProfileProfessionalCategory(val slug: String, val label: String,
+    val group: String, val description: String)
