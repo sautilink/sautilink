@@ -126,13 +126,15 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
                     item.optString("edited_at").takeIf { !item.isNull("edited_at") },
                     item.optString("reply_to_message_id").takeIf { !item.isNull("reply_to_message_id") })
             }
+        val hidden = runCatching { hiddenForMe(conversationId) }.getOrDefault(emptySet())
         return NativeThread(NativeConversation(conversationId, peerId, handle,
             peer?.optString("display_name")?.takeUnless { it.isBlank() || it == "null" }
                 ?: handle.ifBlank { "SautiLink member" },
             messages.lastOrNull()?.body.orEmpty(), row.optString("last_message_at"), 0, false,
             peer?.optBoolean("is_verified", false) == true,
             peer?.optString("verification_badge_type", "standard") ?: "standard",
-            peer?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null), messages)
+            peer?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null),
+            messages.filterNot { it.id in hidden })
     }
 
     suspend fun markRead(conversationId: String) {
@@ -212,6 +214,22 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
             http.newCall(Request.Builder().url(auth.restOrigin + "rpc/touch_member_activity_phase37")
                 .header("apikey", auth.publicKeyForRead())
                 .header("Authorization", "Bearer $token").post(body).build()).execute().close()
+        }
+    }
+
+    suspend fun clearForMe(conversationId: String) {
+        if (!conversationId.matches(uuid)) throw AuthRequestException("Invalid conversation.")
+        val token = auth.accessTokenForStagingRead()
+        withContext(Dispatchers.IO) {
+            http.newCall(Request.Builder()
+                .url(auth.restOrigin + "rpc/dm_clear_chat_for_me_native_phase38")
+                .header("apikey", auth.publicKeyForRead())
+                .header("Authorization", "Bearer $token")
+                .post(JSONObject().put("p_conversation_id", conversationId).toString()
+                    .toRequestBody(jsonType)).build()).execute().use {
+                if (!it.isSuccessful) throw AuthRequestException(
+                    "Clear chat is not yet available. Database migration may be pending.")
+            }
         }
     }
 
