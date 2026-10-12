@@ -69,7 +69,8 @@ internal class NativeDmMediaClient(private val auth: StagingAuthClient) {
     }.getOrDefault(false)
 
     suspend fun attachments(messages: List<NativeMessage>): Map<String, DmMedia> {
-        val ids = messages.map { it.id }.filter(messageId::matches).distinct().take(200)
+        val ids = messages.filter { it.kind != "text" }.map { it.id }
+            .filter(messageId::matches).distinct().take(200)
         if (ids.isEmpty()) return emptyMap()
         val token = auth.accessTokenForStagingRead()
         val data = sendRequest("/api/dm-media/messages?ids=${ids.joinToString(",")}", "GET", token)
