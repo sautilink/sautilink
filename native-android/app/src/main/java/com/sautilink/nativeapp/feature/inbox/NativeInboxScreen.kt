@@ -604,7 +604,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                         onClick = { refresh++ },
                         modifier = Modifier.padding(horizontal = 10.dp)
                     ) {
-                        Icon(Icons.Rounded.SyncProblem, null, Modifier.size(15.dp))
+                        Icon(Icons.Rounded.Refresh, null, Modifier.size(15.dp))
                         Spacer(Modifier.width(7.dp))
                         Text("Message status unavailable · Retry",
                             style = MaterialTheme.typography.labelSmall)
