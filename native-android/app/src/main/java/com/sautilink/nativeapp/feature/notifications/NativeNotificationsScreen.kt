@@ -181,16 +181,15 @@ fun NativeNotificationsScreen(
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text(buildAnnotatedString {
-                                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold,
-                                    color = bodyTextColor)) { append(actor) }
-                                append(" ")
-                                append(notificationActionCopy(item))
-                            }, style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.weight(1f, fill = false))
+                            Text(actor, style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = bodyTextColor, maxLines = 1)
                             SautiVerificationBadge(item.actorVerified, item.actorBadgeType,
                                 item.actorName, size = 16.dp)
+                            Text(notificationActionCopy(item),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f, fill = false))
                         }
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
