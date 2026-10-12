@@ -402,11 +402,16 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onBack = { detail = postReturn }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle ->
                             viewedProfileHandle = handle; memberProfileReturn = "post"; detail = "member-profile"
-                        })
+                        }, initialComments = postReturn == "videos")
                     "videos" -> ProductionShortVideosScreen(auth = productionAuth,
                         onBack = { detail = null }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle ->
                             viewedProfileHandle = handle; memberProfileReturn = "videos"; detail = "member-profile"
+                        },
+                        onOpenComments = { postId ->
+                            notificationPostId = postId
+                            postReturn = "videos"
+                            detail = "post"
                         })
                     "rooms" -> NativeRoomsScreen(auth = productionAuth,
                         onBack = {
