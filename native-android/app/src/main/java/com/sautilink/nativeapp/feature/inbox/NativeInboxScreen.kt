@@ -351,22 +351,37 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     }
                 }
             }
-            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (searchingThread) {
+                OutlinedTextField(threadQuery, { threadQuery = it.take(120) },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    placeholder = { Text("Search in this conversation") },
+                    leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                    trailingIcon = {
+                        IconButton(onClick = { searchingThread = false; threadQuery = "" }) {
+                            Icon(Icons.Rounded.Close, "Close chat search")
+                        }
+                    }, singleLine = true, shape = RoundedCornerShape(18.dp))
+            }
+            if (loading && active == null) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (active != null) {
                 val ownId = auth.account?.id
+                val shownMessages = if (threadQuery.isBlank()) active.messages
+                    else active.messages.filter { it.body.contains(threadQuery, ignoreCase = true) }
                 val listState = rememberLazyListState()
-                LaunchedEffect(active.messages.size) {
-                    if (active.messages.isNotEmpty()) listState.scrollToItem(active.messages.lastIndex)
+                LaunchedEffect(shownMessages.size, searchingThread) {
+                    if (shownMessages.isNotEmpty()) listState.scrollToItem(shownMessages.lastIndex)
                 }
                 LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth()
                     .background(messageWallpaper(wallpaper)),
                     contentPadding = PaddingValues(12.dp),
                     verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 9.dp)) {
-                    if (active.messages.isEmpty()) item { Text("No messages yet.") }
-                    itemsIndexed(active.messages, key = { _, entry -> entry.id }) { index, message ->
+                    if (shownMessages.isEmpty()) item {
+                        Text(if (threadQuery.isBlank()) "No messages yet." else "No matching messages.")
+                    }
+                    itemsIndexed(shownMessages, key = { _, entry -> entry.id }) { index, message ->
                         val own = message.senderId == ownId
-                        Column {
-                        if (index == 0 || active.messages[index - 1].sentAt.take(10) != message.sentAt.take(10)) {
+                        Column(Modifier.animateItem()) {
+                        if (index == 0 || shownMessages[index - 1].sentAt.take(10) != message.sentAt.take(10)) {
                             Box(Modifier.fillMaxWidth().padding(vertical = 9.dp),
                                 contentAlignment = Alignment.Center) {
                                 Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = .86f),
@@ -386,14 +401,46 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                 tonalElevation = if (own) 0.dp else 1.dp,
                                 shadowElevation = 1.dp,
                                 modifier = Modifier.widthIn(max = 305.dp)
-                                    .combinedClickable(onClick = {},
-                                        onLongClick = { if (!message.deleted) selectedMessage = message })
+                                    .pointerInput(message.id) {
+                                        var movement = 0f
+                                        detectHorizontalDragGestures(
+                                            onHorizontalDrag = { _, distance ->
+                                                if (distance > 0f) movement += distance
+                                            }, onDragEnd = {
+                                                if (movement >= 75f) {
+                                                    replyTo = message
+                                                    draft = ""
+                                                }
+                                                movement = 0f
+                                            }
+                                        )
+                                    }
+                                    .combinedClickable(
+                                        onClick = { if (selectedMessage != null) selectedMessage = message },
+                                        onLongClick = { selectedMessage = message })
                             ) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    Text(if (message.deleted) "Message deleted." else message.body,
-                                        color = if (own && bubble != "neutral") Color.White
-                                            else MaterialTheme.colorScheme.onSurface)
-                                    Text(message.sentAt.take(16).takeLast(5),
+                                    if (message.replyTo != null) {
+                                        val quoted = active.messages.firstOrNull { it.id == message.replyTo }
+                                        Text("↪ " + (quoted?.body?.take(65) ?: "Reply"),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (own && bubble != "neutral") Color.White.copy(alpha = .7f)
+                                                else MaterialTheme.colorScheme.primary)
+                                    }
+                                    if (message.kind != "text") {
+                                        val media = mediaByMessage[message.id]
+                                        if (media != null) NativeDmAttachmentBubble(
+                                            auth, media, onError = { error = it })
+                                        else Text("Attachment unavailable",
+                                            style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    if (message.body.isNotBlank()) {
+                                        Text(message.body,
+                                            color = if (own && bubble != "neutral") Color.White
+                                                else MaterialTheme.colorScheme.onSurface)
+                                    }
+                                    Text(message.sentAt.take(16).takeLast(5) +
+                                        if (message.editedAt != null) " · edited" else "",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = if (own && bubble != "neutral") Color.White.copy(alpha = .78f)
                                             else MaterialTheme.colorScheme.onSurfaceVariant)
@@ -403,15 +450,36 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                         }
                         }
                     }
+                    if (peerTyping) item {
+                        Surface(shape = RoundedCornerShape(18.dp, 18.dp, 18.dp, 5.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.padding(start = 10.dp, top = 4.dp)) {
+                            Text("typing…", modifier = Modifier.padding(horizontal = 15.dp, vertical = 9.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
                 if (error != null) Text(error.orEmpty(), Modifier.padding(horizontal = 16.dp),
                     color = MaterialTheme.colorScheme.error)
                 if (reportNote != null) Text(reportNote.orEmpty(), Modifier.padding(horizontal = 16.dp),
                     color = if (reportNote == "Report submitted.") MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.error)
+                if (replyTo != null) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("Replying to: " + replyTo!!.body.take(70),
+                            modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        IconButton(onClick = { replyTo = null }) {
+                            Icon(Icons.Rounded.Close, "Cancel reply")
+                        }
+                    }
+                }
                 Row(Modifier.fillMaxWidth().imePadding()
-                    .background(MaterialTheme.colorScheme.surface).padding(10.dp),
-                    verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    .background(MaterialTheme.colorScheme.surface).padding(6.dp),
+                    verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    NativeDmMediaControls(auth, active.conversation.id,
+                        onSent = { refresh++ }, onError = { error = it })
                     OutlinedTextField(draft, { draft = it.take(4000) },
                         modifier = Modifier.weight(1f), placeholder = { Text("Message") },
                         shape = RoundedCornerShape(25.dp),
@@ -423,7 +491,8 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                         sending = true; error = null
                         scope.launch {
                             try {
-                                client.send(active.conversation.id, body)
+                                client.send(active.conversation.id, body, replyTo?.id)
+                                replyTo = null
                                 realtime?.typing(false)
                                 if (selectedId == active.conversation.id) {
                                     if (draft.trim() == body) draft = ""
@@ -433,7 +502,11 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                             catch (e: Exception) { error = e.message ?: "Message could not be sent." }
                             finally { sending = false }
                         }
-                    }, enabled = draft.isNotBlank() && !sending) { Text(if (sending) "..." else "Send") }
+                    }, enabled = draft.isNotBlank() && !sending,
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        shape = CircleShape) {
+                        Icon(Icons.Rounded.Send, "Send message")
+                    }
                 }
             }
         }
