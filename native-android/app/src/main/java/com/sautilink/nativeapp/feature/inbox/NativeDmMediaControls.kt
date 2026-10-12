@@ -300,6 +300,7 @@ internal fun NativeDmAttachmentBubble(
     media: DmMedia,
     modifier: Modifier = Modifier,
     autoLoadPhotos: Boolean = true,
+    isOutgoing: Boolean = false,
     onError: (String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -339,16 +340,40 @@ internal fun NativeDmAttachmentBubble(
             }
         }
         "voice" -> NativeVoiceNotePlayer(auth, media.id, media.durationMs)
-        else -> OutlinedButton(
-            onClick = {
-                destinationMedia = media
-                fileSave.launch(media.name.ifBlank { "SautiLink-document" })
-            }, enabled = !download, shape = RoundedCornerShape(17.dp),
-            modifier = modifier.heightIn(min = 48.dp)
-        ) {
-            Icon(Icons.Rounded.InsertDriveFile, null, Modifier.size(19.dp))
-            Spacer(Modifier.width(7.dp))
-            Text(media.name.ifBlank { "Download file" }, maxLines = 2)
+        else -> {
+            val foreground = if (isOutgoing) Color.White else MaterialTheme.colorScheme.onSurface
+            Surface(
+                onClick = {
+                    destinationMedia = media
+                    fileSave.launch(media.name.ifBlank { "SautiLink-document" })
+                },
+                enabled = !download,
+                modifier = modifier.fillMaxWidth().heightIn(min = 60.dp),
+                shape = RoundedCornerShape(14.dp),
+                color = if (isOutgoing) Color.White.copy(alpha = .15f)
+                    else MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = foreground
+            ) {
+                Row(Modifier.padding(horizontal = 11.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Rounded.Description, contentDescription = null,
+                        tint = foreground, modifier = Modifier.size(25.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(media.name.ifBlank { "SautiLink document" },
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold, maxLines = 2,
+                            color = foreground)
+                        Text("${(media.bytes / 1024).coerceAtLeast(1)} KB · Tap to save",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = foreground.copy(alpha = .78f))
+                    }
+                    if (download) CircularProgressIndicator(Modifier.size(17.dp),
+                        strokeWidth = 2.dp, color = foreground)
+                    else Icon(Icons.Rounded.Download, "Save document",
+                        tint = foreground, modifier = Modifier.size(20.dp))
+                }
+            }
         }
     }
 }
