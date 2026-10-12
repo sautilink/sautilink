@@ -58,7 +58,8 @@ import kotlinx.coroutines.awaitCancellation
 fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfile: (String) -> Unit,
     initialConversationId: String? = null, onDeepLinkConsumed: () -> Unit = {},
     initialPeerId: String? = null, onPeerConsumed: () -> Unit = {},
-    onOpenPrivacy: () -> Unit = {}) {
+    onOpenPrivacy: () -> Unit = {},
+    onActivityVisibilityChanged: () -> Unit = {}) {
     val client = remember(auth) { NativeMessagesClient(auth) }
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -252,7 +253,10 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             },
             onPrivacy = onOpenPrivacy,
             onBlocked = onOpenPrivacy,
-            onVisibilityChanged = { visibilityRevision++ }
+            onVisibilityChanged = {
+                visibilityRevision++
+                onActivityVisibilityChanged()
+            }
         )
         return
     }
