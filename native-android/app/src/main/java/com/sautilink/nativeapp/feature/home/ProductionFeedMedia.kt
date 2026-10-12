@@ -143,6 +143,7 @@ private fun stableFeedAspect(media: FeedMedia): Float {
 @Composable
 internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>) {
     if (media.isEmpty()) return
+    var expandedPhoto by remember(auth) { mutableStateOf<FeedMedia?>(null) }
     val pager = androidx.compose.foundation.pager.rememberPagerState(pageCount = { media.size })
     // Use one measured frame across carousel pages, preventing vertical layout jumps on swipe.
     val carouselAspect = media.minOf(::stableFeedAspect)
@@ -163,10 +164,12 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>) {
                     if (item.kind == "video") {
                         InlineFeedVideo(auth, item, Modifier.fillMaxSize(), isCurrent = pager.currentPage == page)
                     } else {
-                        AuthorizedImage(auth, "/api/sauti-media/${item.id}?w=960",
-                            "Photo ${page + 1} of ${media.size}",
-                            modifier = Modifier.fillMaxSize(),
-                            crop = false)
+                        Box(Modifier.fillMaxSize().clickable { expandedPhoto = item }) {
+                            AuthorizedImage(auth, "/api/sauti-media/${item.id}?w=960",
+                                "Photo ${page + 1} of ${media.size}",
+                                modifier = Modifier.fillMaxSize(),
+                                crop = false)
+                        }
                     }
                 }
             }
@@ -198,6 +201,30 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>) {
                                 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .35f)
                             )
                     )
+                }
+            }
+        }
+    }
+    // Images retain the old full-size viewer; videos never open a second player.
+    expandedPhoto?.let { photo ->
+        androidx.compose.ui.window.Dialog(onDismissRequest = { expandedPhoto = null }) {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("Photo", style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.weight(1f))
+                        IconButton(onClick = { expandedPhoto = null }) {
+                            Icon(Icons.Rounded.Close, contentDescription = "Close photo")
+                        }
+                    }
+                    AuthorizedImage(auth, "/api/sauti-media/${photo.id}?w=1280",
+                        "Expanded photo", Modifier.fillMaxWidth()
+                            .aspectRatio(stableFeedAspect(photo)), crop = false)
                 }
             }
         }
