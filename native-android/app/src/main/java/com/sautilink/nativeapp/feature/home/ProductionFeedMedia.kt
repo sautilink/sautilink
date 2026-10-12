@@ -254,17 +254,19 @@ private fun InlineFeedVideo(
     var visibleFraction by remember(auth, media.id) { mutableFloatStateOf(0f) }
     var started by remember(auth, media.id) { mutableStateOf(false) }
     var wantsToPlay by remember(auth, media.id) { mutableStateOf(false) }
+    var manualPaused by remember(auth, media.id) { mutableStateOf(false) }
     var accessToken by remember(auth, media.id) { mutableStateOf<String?>(null) }
     var requestError by remember(auth, media.id) { mutableStateOf<String?>(null) }
     var muted by remember(auth, media.id) { mutableStateOf(true) }
     var firstFrame by remember(auth, media.id) { mutableStateOf(false) }
     LaunchedEffect(visibleFraction, isCurrent, NativePlaybackPreferences.autoplayEnabled) {
         val visible = visibleFraction >= .58f && isCurrent
-        if (NativePlaybackPreferences.autoplayEnabled && visible) {
+        if (NativePlaybackPreferences.autoplayEnabled && visible && !manualPaused) {
             started = true
             wantsToPlay = true
         } else if (!visible) {
             wantsToPlay = false
+            manualPaused = false
         } else if (!NativePlaybackPreferences.autoplayEnabled) {
             wantsToPlay = false
         }
@@ -345,11 +347,12 @@ private fun InlineFeedVideo(
             AuthorizedImage(auth, "/api/sauti-media/${media.id}?poster=1",
                 "Video cover", modifier = Modifier.fillMaxSize(), crop = false)
         }
-        if (!playing && (!NativePlaybackPreferences.autoplayEnabled || requestError != null || !started)) {
+        if (!playing && (firstFrame || !NativePlaybackPreferences.autoplayEnabled || requestError != null || !started)) {
             Surface(
                 onClick = {
                     requestError = null
                     started = true
+                    manualPaused = false
                     wantsToPlay = true
                     if (player?.playerError != null) player.prepare()
                     player?.play()
@@ -367,6 +370,7 @@ private fun InlineFeedVideo(
             Box(
                 Modifier.fillMaxSize().clickable {
                     wantsToPlay = false
+                    manualPaused = true
                     player?.pause()
                 }
             )
