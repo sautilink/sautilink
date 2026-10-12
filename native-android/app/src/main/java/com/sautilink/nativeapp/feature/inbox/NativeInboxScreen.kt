@@ -112,6 +112,8 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var peerOnline by remember { mutableStateOf(false) }
     var peerTyping by remember { mutableStateOf(false) }
     var realtime by remember { mutableStateOf<NativeDmRealtime?>(null) }
+    var durableRealtime by remember { mutableStateOf<NativeDmDurableRealtime?>(null) }
+    var activityAllowed by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
     var foreground by remember { mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) }
     LaunchedEffect(initialConversationId) {
@@ -206,14 +208,17 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     LaunchedEffect(auth.account?.id, selectedId, livePeerId, foreground, visibilityRevision) {
         if (auth.account == null || !foreground) return@LaunchedEffect
         val selected = selectedId
+        val enabled = runCatching { client.activityStatusEnabled() }.getOrDefault(false)
+        activityAllowed = enabled
         val live = NativeDmRealtime(auth, selected, livePeerId,
             onChanged = { refresh++ },
-            onPeerOnline = { peerOnline = it },
-            onPeerTyping = { peerTyping = it })
+            // The web currently uses Cloudflare Durable Objects for activity and typing.
+            // Keep Supabase Realtime only for durable message change notifications.
+            onPeerOnline = {},
+            onPeerTyping = {})
         realtime = live
         try {
-            live.start(this, selected != null && livePeerId != null &&
-                runCatching { client.activityStatusEnabled() }.getOrDefault(false))
+            live.start(this, selected != null && livePeerId != null && enabled)
             awaitCancellation()
         } finally {
             live.close()
@@ -221,14 +226,40 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             peerOnline = false; peerTyping = false
         }
     }
-    LaunchedEffect(draft, selectedId, realtime) {
-        val live = realtime ?: return@LaunchedEffect
-        if (selectedId == null) return@LaunchedEffect
-        if (draft.isBlank()) { live.typing(false); return@LaunchedEffect }
-        delay(250)
-        live.typing(true)
-        delay(1400)
-        live.typing(false)
+    LaunchedEffect(auth.account?.id, selectedId, livePeerId, foreground, visibilityRevision) {
+        val conversationId = selectedId ?: return@LaunchedEffect
+        if (!foreground || auth.account == null) return@LaunchedEffect
+        if (!runCatching { client.activityStatusEnabled() }.getOrDefault(false)) {
+            peerOnline = false; peerTyping = false
+            return@LaunchedEffect
+        }
+        val durable = NativeDmDurableRealtime(auth, conversationId,
+            onOnline = { peerOnline = it },
+            onTyping = { peerTyping = it })
+        durableRealtime = durable
+        try { durable.start(this) }
+        finally {
+            durable.close()
+            if (durableRealtime === durable) durableRealtime = null
+            peerOnline = false; peerTyping = false
+        }
+    }
+    LaunchedEffect(draft, selectedId, realtime, durableRealtime, activityAllowed) {
+        if (selectedId == null || !activityAllowed) return@LaunchedEffect
+        val live = realtime
+        val durable = durableRealtime
+        try {
+            if (draft.isBlank()) {
+                live?.typing(false); durable?.typing(false)
+                return@LaunchedEffect
+            }
+            delay(220)
+            live?.typing(true); durable?.typing(true)
+            // Keep typing visible while the other user is actively composing.
+            delay(2000)
+        } finally {
+            live?.typing(false); durable?.typing(false)
+        }
     }
     LaunchedEffect(auth.account?.id, foreground, visibilityRevision) {
         if (auth.account == null || !foreground) return@LaunchedEffect
@@ -240,9 +271,10 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     LaunchedEffect(livePeerId, foreground, visibilityRevision) {
         val peer = livePeerId ?: return@LaunchedEffect
         if (!foreground) return@LaunchedEffect
+        statusBucket = "hidden"
         while (true) {
             statusBucket = runCatching { client.peerActivityBucket(peer) }.getOrDefault("hidden")
-            delay(180_000)
+            delay(45_000)
         }
     }
     LaunchedEffect(newConversation, newQuery) {
@@ -267,6 +299,9 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             onPrivacy = onOpenPrivacy,
             onBlocked = onOpenPrivacy,
             onVisibilityChanged = {
+                peerOnline = false
+                peerTyping = false
+                statusBucket = "hidden"
                 visibilityRevision++
                 onActivityVisibilityChanged()
             }
@@ -523,6 +558,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                 client.send(active.conversation.id, body, replyTo?.id)
                                 replyTo = null
                                 realtime?.typing(false)
+                                durableRealtime?.typing(false)
                                 if (selectedId == active.conversation.id) {
                                     if (draft.trim() == body) draft = ""
                                     thread = client.thread(active.conversation.id)
