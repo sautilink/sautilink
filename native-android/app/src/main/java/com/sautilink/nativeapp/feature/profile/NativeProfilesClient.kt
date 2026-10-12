@@ -28,6 +28,7 @@ data class NativeProfile(
     val following: Int,
     val joinedAt: String,
     val hasAvatar: Boolean,
+    val hasHeader: Boolean,
     val verified: Boolean,
     val badgeType: String
 )
@@ -41,7 +42,7 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
     private val uuid = Regex("^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
     private val handle = Regex("^[a-z0-9][a-z0-9._]{2,29}$")
     private val http = OkHttpClient.Builder().callTimeout(20, TimeUnit.SECONDS).build()
-    private val select = "id,username,display_name,bio,location,website_url,is_discoverable,followers_count,following_count,created_at,avatar_key,is_verified,verification_badge_type"
+    private val select = "id,username,display_name,bio,location,website_url,is_discoverable,followers_count,following_count,created_at,avatar_key,header_key,is_verified,verification_badge_type"
 
     private suspend fun rows(path: String): JSONArray = JSONArray(call(path, "GET"))
 
@@ -83,6 +84,7 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
         following = row.optInt("following_count").coerceAtLeast(0),
         joinedAt = row.optString("created_at"),
         hasAvatar = !row.isNull("avatar_key") && row.optString("avatar_key").isNotBlank(),
+        hasHeader = !row.isNull("header_key") && row.optString("header_key").isNotBlank(),
         verified = row.optBoolean("is_verified"),
         badgeType = row.optString("verification_badge_type", "standard")
     )
