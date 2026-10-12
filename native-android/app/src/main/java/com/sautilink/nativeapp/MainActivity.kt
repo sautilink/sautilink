@@ -378,7 +378,8 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             onSignIn = { detail = "production-auth" },
                             onOpenProfile = { handle ->
                                 viewedProfileHandle = handle; memberProfileReturn = null; detail = "member-profile"
-                            })
+                            },
+                            onOpenPost = { id -> notificationPostId = id; postReturn = null; detail = "post" })
                         3 -> NativeInboxScreen(auth = productionAuth,
                             onSignIn = { detail = "production-auth" },
                             onOpenProfile = { handle -> viewedProfileHandle = handle; memberProfileReturn = null; detail = "member-profile" },
