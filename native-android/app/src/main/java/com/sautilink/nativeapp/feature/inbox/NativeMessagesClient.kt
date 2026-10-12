@@ -113,7 +113,7 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
         val second = row.optString("member_two_id")
         if (own != first && own != second) throw AuthRequestException("Conversation access denied.")
         val peerId = if (own == first) second else first
-        val peer = rest("social_profiles?id=eq.$peerId&select=id,username,display_name,is_verified,verification_badge_type&limit=1").optJSONObject(0)
+        val peer = rest("social_profiles?id=eq.$peerId&select=id,username,display_name,is_verified,verification_badge_type,avatar_key&limit=1").optJSONObject(0)
         val handle = peer?.optString("username").orEmpty()
         val messages = rest("dm_messages?conversation_id=eq.$conversationId&select=id,sender_id,body,sent_at,deleted_at&order=sent_at.desc,id.desc&limit=200")
             .objects().asReversed().map { item ->
