@@ -51,8 +51,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
 import java.util.UUID
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import java.util.Locale
 import com.sautilink.nativeapp.BuildConfig
 
@@ -644,11 +647,29 @@ private fun feedCount(count: Int): String = when {
     else -> count.toString()
 }
 
-private fun feedDate(isoDate: String): String {
-    val date = runCatching { LocalDate.parse(isoDate.take(10)) }.getOrNull()
+/** Compact elapsed time for native social posts and comments, matching familiar social UI.
+ * Supabase uses ISO-8601 timestamps, usually with a Z or +00:00 offset.
+ * Timezones are honored and future/server-skew timestamps are clamped to 'now'.
+ */
+internal fun relativePostTime(isoDate: String, now: Instant = Instant.now()): String {
+    val timestamp = isoDate.trim().replace(' ', 'T')
+    val postedAt = runCatching { OffsetDateTime.parse(timestamp).toInstant() }.getOrNull()
+        ?: runCatching { Instant.parse(timestamp) }.getOrNull()
+        ?: runCatching { LocalDateTime.parse(timestamp).toInstant(ZoneOffset.UTC) }.getOrNull()
         ?: return isoDate.take(10)
-    val pattern = if (date.year == LocalDate.now().year) "MMM d" else "MMM d, yyyy"
-    return date.format(DateTimeFormatter.ofPattern(pattern, Locale.getDefault()))
+    val seconds = Duration.between(postedAt, now).seconds.coerceAtLeast(0L)
+    val minutes = seconds / 60
+    val hours = seconds / 3_600
+    val days = seconds / 86_400
+    return when {
+        seconds < 60 -> "now"
+        minutes < 60 -> "${minutes}m"
+        hours < 24 -> "${hours}h"
+        days < 7 -> "${days}d"
+        days < 30 -> "${days / 7}w"
+        days < 365 -> "${days / 30}mo"
+        else -> "${days / 365}y"
+    }
 }
 
 /** Compact selection chips with quiet grouped-surface styling and 44dp hit targets. */
@@ -735,7 +756,7 @@ private fun RealPostCard(
                         SautiVerificationBadge(post.verified, post.badgeType,
                             post.authorName, size = 16.dp)
                     }
-                    Text("${if (post.authorHandle.isNotBlank()) "@${post.authorHandle} · " else ""}${feedDate(post.createdAt)}",
+                    Text("${if (post.authorHandle.isNotBlank()) "@${post.authorHandle} · " else ""}${relativePostTime(post.createdAt)}",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 }
                 if (auth.backend == SautiBackend.PRODUCTION && auth.account != null &&
@@ -984,7 +1005,7 @@ private fun PostCommentsSheet(
                                     comment.author, size = 13.dp)
                             }
                             Text(comment.body, style = MaterialTheme.typography.bodyMedium)
-                            Text(comment.createdAt.take(10), style = MaterialTheme.typography.labelSmall,
+                            Text(relativePostTime(comment.createdAt), style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 TextButton(
