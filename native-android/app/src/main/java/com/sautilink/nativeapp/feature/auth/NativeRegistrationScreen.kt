@@ -156,8 +156,6 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
             IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBackIosNew, "Back") }
             Text("Create your SautiLink account", style = MaterialTheme.typography.titleLarge)
         }
-        Text("Production · Native registration", color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium)
         if (checking || client.sessionState == StagingSessionState.CHECKING) {
             LinearProgressIndicator(Modifier.fillMaxWidth())
             Text("Checking your existing session before registration…",
