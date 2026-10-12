@@ -30,6 +30,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import com.sautilink.nativeapp.feature.profile.NativeProfilesClient
+import com.sautilink.nativeapp.feature.profile.NativeProfile
+import com.sautilink.nativeapp.feature.home.AuthorizedImage
+import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.components.SautiAvatar
 import com.sautilink.nativeapp.ui.theme.SautiColors
 import kotlinx.coroutines.delay
@@ -126,6 +130,14 @@ fun NativeMenuScreen(
 ) {
     var visibleCount by remember { mutableIntStateOf(0) }
     var signOutDialog by remember { mutableStateOf(false) }
+    val profileClient = remember(auth) { NativeProfilesClient(auth) }
+    var ownProfile by remember(auth.account?.id) { mutableStateOf<NativeProfile?>(null) }
+    LaunchedEffect(auth.account?.id) {
+        ownProfile = null
+        if (auth.account != null) {
+            ownProfile = runCatching { profileClient.own() }.getOrNull()
+        }
+    }
 
     LaunchedEffect(Unit) {
         menuDestinations.indices.forEach { index ->
@@ -171,18 +183,44 @@ fun NativeMenuScreen(
                 ) {
                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        val display = auth.account?.displayName?.takeIf { it.isNotBlank() }
+                        val display = ownProfile?.displayName?.takeIf { it.isNotBlank() }
+                            ?: auth.account?.suggestedName?.takeIf { it.isNotBlank() && !it.contains('@') }
+                            ?: auth.account?.suggestedUsername?.takeIf { it.isNotBlank() }
                             ?: "SautiLink member"
+                        val handle = ownProfile?.username?.takeIf { it.isNotBlank() }
+                            ?: auth.account?.suggestedUsername?.takeIf { it.isNotBlank() }
                         val initials = display.split(" ").filter { it.isNotBlank() }
                             .take(2).map { it.first().uppercaseChar() }.joinToString("").ifBlank { "SL" }
-                        SautiAvatar(initials, Modifier.size(46.dp), SautiColors.Blue)
+                        if (ownProfile?.hasAvatar == true && handle != null) {
+                            AuthorizedImage(
+                                auth = auth,
+                                route = "/api/profile-media/$handle/avatar",
+                                description = "$display profile picture",
+                                modifier = Modifier.size(46.dp).clip(CircleShape),
+                                fallback = { SautiAvatar(initials, Modifier.size(46.dp), SautiColors.Blue) }
+                            )
+                        } else {
+                            SautiAvatar(initials, Modifier.size(46.dp), SautiColors.Blue)
+                        }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text(display, style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(if (auth.account == null) "Sign in to SautiLink" else "View your profile",
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Text(display, style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                SautiVerificationBadge(
+                                    ownProfile?.verified == true,
+                                    ownProfile?.badgeType ?: "standard",
+                                    display, size = 16.dp, profileOwner = true
+                                )
+                            }
+                            Text(
+                                handle?.let { "@$it" } ?: if (auth.account == null) "Sign in" else "View your profile",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                         Icon(Icons.Rounded.ChevronRight, contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
