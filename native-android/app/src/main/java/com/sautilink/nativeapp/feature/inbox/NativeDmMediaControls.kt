@@ -222,12 +222,14 @@ internal fun NativeDmAttachmentBubble(
     auth: StagingAuthClient,
     media: DmMedia,
     modifier: Modifier = Modifier,
+    autoLoadPhotos: Boolean = true,
     onError: (String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val client = remember(auth) { NativeDmMediaClient(auth) }
     val context = LocalContext.current
     var download by remember { mutableStateOf(false) }
+    var openPhoto by remember(media.id, autoLoadPhotos) { mutableStateOf(autoLoadPhotos) }
     var destinationMedia by remember { mutableStateOf<DmMedia?>(null) }
     val fileSave = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
@@ -248,9 +250,18 @@ internal fun NativeDmAttachmentBubble(
         }
     }
     when (media.kind) {
-        "photo" -> AuthorizedImage(
-            auth = auth, route = "/api/dm-media/${media.id}",
-            description = "Message photo", modifier = modifier.fillMaxWidth().heightIn(max = 300.dp))
+        "photo" -> {
+            if (openPhoto) AuthorizedImage(
+                auth = auth, route = "/api/dm-media/${media.id}",
+                description = "Message photo",
+                modifier = modifier.fillMaxWidth().heightIn(max = 300.dp))
+            else OutlinedButton(onClick = { openPhoto = true },
+                shape = RoundedCornerShape(15.dp)) {
+                Icon(Icons.Rounded.Image, null)
+                Spacer(Modifier.width(6.dp))
+                Text("Show photo")
+            }
+        }
         "voice" -> NativeVoiceNotePlayer(auth, media.id, media.durationMs)
         else -> OutlinedButton(
             onClick = {
