@@ -91,8 +91,9 @@ class NativeDmRealtime(
                     }
                     "broadcast" -> {
                         val body = packet.optJSONObject("payload") ?: return
-                        if (topic == userTopic && body.optString("event") in setOf(
-                                "message_changed", "conversation_state_changed", "read_state_changed")) {
+                        if (topic == userTopic && body.optString("event") == "message_changed") {
+                            // Read receipts are polled separately; reloading every photo
+                            // for a peer's read_state_changed causes a refresh loop.
                             main.post { if (!closed) onChanged() }
                         } else if (topic == conversationTopic && body.optString("event") == "typing") {
                             val payload = body.optJSONObject("payload")
