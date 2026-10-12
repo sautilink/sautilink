@@ -132,7 +132,7 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>) {
                 group.forEach { item ->
                     val route = "/api/sauti-media/${item.id}" + if (item.kind == "video") "?poster=1" else "?w=960"
                     Box(Modifier.weight(1f).aspectRatio(if (media.size == 1) 1.35f else 1.0f)
-                        .clip(RoundedCornerShape(10.dp)).clickable { expanded = item }) {
+                        .clip(RoundedCornerShape(16.dp)).clickable { expanded = item }) {
                         AuthorizedImage(auth, route, "Post ${item.kind}", Modifier.fillMaxSize())
                         if (item.kind == "video") {
                             Surface(color = Color.Black.copy(alpha = .64f), shape = CircleShape,
