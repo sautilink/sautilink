@@ -12,7 +12,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.NotificationsNone
-import androidx.compose.material.icons.rounded.SmartDisplay
+import androidx.compose.material.icons.rounded.Theaters
 import androidx.compose.material.icons.rounded.PersonOutline
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
@@ -50,7 +50,7 @@ val nativeTabs = listOf(
     NativeTab("Explore", Icons.Rounded.Search),
     NativeTab("Messages", Icons.Rounded.ChatBubbleOutline),
     NativeTab("Notifications", Icons.Rounded.NotificationsNone),
-    NativeTab("Short Videos", Icons.Rounded.SmartDisplay),
+    NativeTab("Short Videos", Icons.Rounded.Theaters),
     NativeTab("Profile", Icons.Rounded.PersonOutline)
 )
 
