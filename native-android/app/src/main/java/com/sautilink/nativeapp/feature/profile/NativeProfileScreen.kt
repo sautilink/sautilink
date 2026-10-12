@@ -236,6 +236,8 @@ fun NativeProfileScreen(
                     }?.toString()
                 }
                 if (edit) {
+                    NativeProfileMediaEditor(auth, member, imageRevision = refresh,
+                        onChanged = { refresh++ })
                     ProfileEditor(member, saving = followBusy, onCancel = { edit = false }) { values ->
                         followBusy = true
                         actionError = null
