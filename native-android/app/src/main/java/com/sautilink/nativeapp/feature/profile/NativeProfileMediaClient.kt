@@ -7,6 +7,7 @@ import android.content.Context
 import com.sautilink.nativeapp.feature.auth.AuthRequestException
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -50,7 +51,8 @@ internal class NativeProfileMediaClient(private val auth: StagingAuthClient) {
                 }
                 parsed.optJSONObject("data") ?: JSONObject()
             }
-        } catch (e: AuthRequestException) { throw e }
+        } catch (e: CancellationException) { throw e }
+        catch (e: AuthRequestException) { throw e }
         catch (_: Exception) {
             throw AuthRequestException("Profile media request failed. Check your connection.")
         }
@@ -70,7 +72,12 @@ internal class NativeProfileMediaClient(private val auth: StagingAuthClient) {
             .addFormDataPart("file", "sautilink-${slot}.jpg",
                 jpeg.toRequestBody("image/jpeg".toMediaType()))
             .build()
-        api("/api/profile-media/upload", "POST", multipart)
+        // Do not report success until the Worker confirms the persisted slot and dimensions.
+        val confirmed = api("/api/profile-media/upload", "POST", multipart)
+        if (confirmed.optString("slot") != slot ||
+            confirmed.optInt("width") <= 0 || confirmed.optInt("height") <= 0) {
+            throw AuthRequestException("Photo update could not be confirmed. Refresh your profile.")
+        }
     }
 
     suspend fun remove(slot: String) {
@@ -86,8 +93,8 @@ internal suspend fun decodeProfileCropSource(context: Context, uri: Uri): Bitmap
     withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
         val sourceSize = resolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
-        if (sourceSize > 24L * 1024 * 1024)
-            throw AuthRequestException("Choose an image smaller than 24 MB.")
+        if (sourceSize > 64L * 1024 * 1024)
+            throw AuthRequestException("Choose an image smaller than 64 MB.")
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         resolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null, bounds)
@@ -99,7 +106,7 @@ internal suspend fun decodeProfileCropSource(context: Context, uri: Uri): Bitmap
         while (bounds.outWidth / sample > 2400 || bounds.outHeight / sample > 2400) sample *= 2
         val decoded = resolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null,
-                BitmapFactory.Options().apply { inSampleSize = sample })
+                BitmapFactory.Options().apply { inSampleSize = sample; inPreferredConfig = Bitmap.Config.ARGB_8888 })
         } ?: throw AuthRequestException("Unable to decode selected photo.")
         // Respect camera/gallery EXIF orientation before opening the crop screen.
         val orientation = runCatching {
