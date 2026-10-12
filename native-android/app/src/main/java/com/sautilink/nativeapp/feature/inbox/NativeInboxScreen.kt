@@ -3,6 +3,11 @@ package com.sautilink.nativeapp.feature.inbox
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.material.icons.rounded.Phone
+import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -58,6 +63,20 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     var selectedMessage by remember { mutableStateOf<NativeMessage?>(null) }
+    var deleteConfirm by remember { mutableStateOf(false) }
+    var deleteEverywhere by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
+    var editedText by remember { mutableStateOf("") }
+    var forwarding by remember { mutableStateOf(false) }
+    var clearConfirm by remember { mutableStateOf(false) }
+    var chatMenu by remember { mutableStateOf(false) }
+    var searchingThread by remember { mutableStateOf(false) }
+    var threadQuery by remember { mutableStateOf("") }
+    var replyTo by remember { mutableStateOf<NativeMessage?>(null) }
+    var statusBucket by remember { mutableStateOf("hidden") }
+    var visibilityRevision by remember { mutableIntStateOf(0) }
+    var mediaByMessage by remember { mutableStateOf<Map<String, DmMedia>>(emptyMap()) }
+    val mediaClient = remember(auth) { NativeDmMediaClient(auth) }
     val appearance = remember(context, auth.account?.id) {
         MessageAppearancePrefs(context, auth.account?.id)
     }
@@ -116,7 +135,13 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val scope = rememberCoroutineScope()
-    BackHandler(selectedId != null) { selectedId = null; thread = null; refresh++ }
+    BackHandler(selectedId != null && !chatSettings) {
+        if (selectedMessage != null) selectedMessage = null
+        else {
+            selectedId = null; thread = null; replyTo = null
+            mediaByMessage = emptyMap(); refresh++
+        }
+    }
     BackHandler(newConversation) { newConversation = false; newQuery = ""; accounts = emptyList() }
     LaunchedEffect(auth.account?.id, refresh) {
         if (auth.account == null) { conversations = emptyList(); selectedId = null; return@LaunchedEffect }
@@ -128,9 +153,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     }
     LaunchedEffect(selectedId, refresh) {
         val id = selectedId ?: return@LaunchedEffect
-        loading = true; error = null; thread = null
+        loading = true; error = null
+        if (thread?.conversation?.id != id) { thread = null; mediaByMessage = emptyMap() }
         try {
-            thread = client.thread(id)
+            val updated = client.thread(id)
+            thread = updated
+            mediaByMessage = runCatching { mediaClient.attachments(updated.messages) }.getOrDefault(emptyMap())
             runCatching { client.markRead(id) }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) { error = e.message ?: "Could not open conversation." }
@@ -144,6 +172,8 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 val updated = client.thread(id)
                 if (selectedId == id && updated.messages != thread?.messages) {
                     thread = updated
+                    mediaByMessage = runCatching { mediaClient.attachments(updated.messages) }
+                        .getOrDefault(mediaByMessage)
                     client.markRead(id)
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
@@ -160,7 +190,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         }
     }
     val livePeerId = conversations.firstOrNull { it.id == selectedId }?.peerId ?: thread?.conversation?.peerId
-    LaunchedEffect(auth.account?.id, selectedId, livePeerId, foreground) {
+    LaunchedEffect(auth.account?.id, selectedId, livePeerId, foreground, visibilityRevision) {
         if (auth.account == null || !foreground) return@LaunchedEffect
         val selected = selectedId
         val live = NativeDmRealtime(auth, selected, livePeerId,
@@ -187,6 +217,21 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         delay(1400)
         live.typing(false)
     }
+    LaunchedEffect(auth.account?.id, foreground, visibilityRevision) {
+        if (auth.account == null || !foreground) return@LaunchedEffect
+        while (true) {
+            runCatching { if (client.activityStatusEnabled()) client.touchActivity() }
+            delay(180_000)
+        }
+    }
+    LaunchedEffect(livePeerId, foreground, visibilityRevision) {
+        val peer = livePeerId ?: return@LaunchedEffect
+        if (!foreground) return@LaunchedEffect
+        while (true) {
+            statusBucket = runCatching { client.peerActivityBucket(peer) }.getOrDefault("hidden")
+            delay(180_000)
+        }
+    }
     LaunchedEffect(newConversation, newQuery) {
         if (!newConversation || newQuery.trim().length < 2) { accounts = emptyList(); return@LaunchedEffect }
         delay(350)
@@ -197,14 +242,17 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     if (chatSettings) {
         NativeMessageSettingsScreen(
             preferences = appearance,
+            auth = auth,
+            conversationId = selectedId,
             onBack = {
-                wallpaper = appearance.wallpaper
-                bubble = appearance.bubble
+                wallpaper = appearance.wallpaperFor(selectedId)
+                bubble = appearance.bubbleFor(selectedId)
                 compact = appearance.compact
                 chatSettings = false
             },
             onPrivacy = onOpenPrivacy,
-            onBlocked = onOpenPrivacy
+            onBlocked = onOpenPrivacy,
+            onVisibilityChanged = { visibilityRevision++ }
         )
         return
     }
@@ -237,12 +285,70 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                             SautiVerificationBadge(peer.verified, peer.badgeType, peer.name, size = 17.dp)
                         }
                     }
-                    if (peerTyping || peerOnline) Text(if (peerTyping) "Typing…" else "Online",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val status = when {
+                        peerTyping -> "typing…"
+                        peerOnline -> "online"
+                        statusBucket == "recently" -> "Active recently"
+                        statusBucket == "week" -> "Last seen within a week"
+                        statusBucket == "month" -> "Last seen within a month"
+                        statusBucket == "long_ago" -> "Last seen long time ago"
+                        else -> ""
+                    }
+                    if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodySmall,
+                        color = if (peerOnline || peerTyping) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                IconButton(onClick = { chatSettings = true }) {
-                    Icon(Icons.Rounded.MoreHoriz, "Chat settings")
+                if (selectedMessage != null) {
+                    IconButton(onClick = {
+                        val message = selectedMessage
+                        if (message != null && message.senderId == auth.account?.id && message.kind == "text") {
+                            editing = true; editedText = message.body
+                        }
+                    }, enabled = selectedMessage?.senderId == auth.account?.id &&
+                            selectedMessage?.kind == "text") {
+                        Icon(Icons.Rounded.Edit, "Edit selected message")
+                    }
+                    IconButton(onClick = {
+                        selectedMessage?.let { clipboard.setText(AnnotatedString(it.body)) }
+                        selectedMessage = null
+                    }) { Icon(Icons.Rounded.ContentCopy, "Copy selected message") }
+                    IconButton(onClick = { forwarding = true }) {
+                        Icon(Icons.Rounded.Forward, "Forward selected message")
+                    }
+                    IconButton(onClick = { deleteEverywhere = false; deleteConfirm = true }) {
+                        Icon(Icons.Rounded.DeleteOutline, "Delete selected message")
+                    }
+                } else {
+                    IconButton(onClick = {
+                        android.widget.Toast.makeText(context, "Audio calls rolling out soon", 0).show()
+                    }) { Icon(Icons.Rounded.Phone, "Audio call") }
+                    IconButton(onClick = {
+                        android.widget.Toast.makeText(context, "Video calls rolling out soon", 0).show()
+                    }) { Icon(Icons.Rounded.Videocam, "Video call") }
+                    Box {
+                        IconButton(onClick = { chatMenu = true }) {
+                            Icon(Icons.Rounded.MoreHoriz, "Conversation options")
+                        }
+                        DropdownMenu(expanded = chatMenu, onDismissRequest = { chatMenu = false }) {
+                            DropdownMenuItem(text = { Text("Search in chat") }, onClick = {
+                                searchingThread = true; chatMenu = false
+                            })
+                            DropdownMenuItem(text = { Text("Chat theme") }, onClick = {
+                                chatSettings = true; chatMenu = false
+                            })
+                            DropdownMenuItem(text = { Text("Block account") }, onClick = {
+                                chatMenu = false
+                                val handle = active?.conversation?.handle
+                                if (!handle.isNullOrBlank()) scope.launch {
+                                    try { safety.setBlocked(handle, true); error = "Account blocked." }
+                                    catch (e: Exception) { error = e.message }
+                                }
+                            })
+                            DropdownMenuItem(text = { Text("Clear chat for me") }, onClick = {
+                                clearConfirm = true; chatMenu = false
+                            })
+                        }
+                    }
                 }
             }
             if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
