@@ -85,6 +85,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var wallpaper by remember { mutableStateOf(appearance.wallpaper) }
     var bubble by remember { mutableStateOf(appearance.bubble) }
     var compact by remember { mutableStateOf(appearance.compact) }
+    var autoPhotos by remember { mutableStateOf(appearance.autoPhotos && !appearance.dataSaver) }
     val safety = remember(auth) { NativeSafetyClient(auth) }
     var conversations by remember { mutableStateOf<List<NativeConversation>>(emptyList()) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -249,6 +250,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 wallpaper = appearance.wallpaperFor(selectedId)
                 bubble = appearance.bubbleFor(selectedId)
                 compact = appearance.compact
+                autoPhotos = appearance.autoPhotos && !appearance.dataSaver
                 chatSettings = false
             },
             onPrivacy = onOpenPrivacy,
@@ -434,7 +436,8 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                     if (message.kind != "text") {
                                         val media = mediaByMessage[message.id]
                                         if (media != null) NativeDmAttachmentBubble(
-                                            auth, media, onError = { error = it })
+                                            auth, media, autoLoadPhotos = autoPhotos,
+                                            onError = { error = it })
                                         else Text("Attachment unavailable",
                                             style = MaterialTheme.typography.bodySmall)
                                     }
