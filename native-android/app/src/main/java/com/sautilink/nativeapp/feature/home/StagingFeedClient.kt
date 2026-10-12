@@ -105,7 +105,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
     }
 
     suspend fun load(mode: String, offset: Int): StagingFeedPage {
-        require(mode in setOf("for_you", "following", "short_videos", "saved")) { "Unsupported feed mode" }
+        require(mode in setOf("for_you", "following", "short_videos", "saved", "trending")) { "Unsupported feed mode" }
         require(mode != "saved" || auth.backend == com.sautilink.nativeapp.feature.auth.SautiBackend.PRODUCTION) {
             "Saved posts are available only in the production account."
         }
@@ -118,7 +118,49 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
             // Both paths only resolve post details through social_posts RLS, so vanished / blocked posts are omitted.
             val userId = auth.account?.id?.takeIf { uuid.matches(it) }
             if (mode == "saved" && userId == null) throw AuthRequestException("Sign in to see Saved posts.")
-            val pointers = if (mode == "saved") {
+            val pointers = if (mode == "trending") {
+                // Public posts from the last seven days, ranked by actual reactions/comments.
+                // Collect leading candidates by several metrics, instead of privileging likes alone.
+                // Every candidate remains subject to normal PostgREST RLS and blocks/mutes.
+                val from = java.time.Instant.now().minus(7, java.time.temporal.ChronoUnit.DAYS)
+                    .toString()
+                val base = "social_posts?select=id,author_id,like_count,comment_count,repost_count,created_at" +
+                    "&visibility=eq.public&circle_id=is.null&reply_to_post_id=is.null" +
+                    "&post_status=eq.published&deleted_at=is.null&created_at=gte.$from"
+                val candidates = sequenceOf("like_count", "comment_count", "repost_count")
+                    .flatMap { sort ->
+                        val rows = getJsonArray("$base&order=$sort.desc,created_at.desc&limit=250", token)
+                        (0 until rows.length()).mapNotNull { rows.optJSONObject(it) }.asSequence()
+                    }.distinctBy { it.optString("id") }.toList()
+                val blocked = if (userId != null) {
+                    val rows = getJsonArray(
+                        "social_blocks?blocker_id=eq.$userId&select=blocked_id&limit=1000", token)
+                    (0 until rows.length()).mapNotNull {
+                        rows.optJSONObject(it)?.optString("blocked_id")
+                    }.toSet()
+                } else emptySet()
+                val muted = if (userId != null) {
+                    val rows = getJsonArray(
+                        "social_mutes?muter_id=eq.$userId&select=muted_id&limit=1000", token)
+                    (0 until rows.length()).mapNotNull {
+                        rows.optJSONObject(it)?.optString("muted_id")
+                    }.toSet()
+                } else emptySet()
+                val ranked = candidates.filter { p ->
+                    uuid.matches(p.optString("id")) &&
+                        p.optString("author_id") !in blocked &&
+                        p.optString("author_id") !in muted
+                }.sortedWith(compareByDescending<JSONObject> {
+                    it.optLong("like_count").coerceAtLeast(0) +
+                        2L * it.optLong("comment_count").coerceAtLeast(0) +
+                        it.optLong("repost_count").coerceAtLeast(0)
+                }.thenByDescending { it.optString("created_at") }).take(20)
+                JSONArray().apply {
+                    ranked.drop(offset).take(batchSize).forEach { post ->
+                        put(JSONObject().put("post_id", post.optString("id")))
+                    }
+                }
+            } else if (mode == "saved") {
                 getJsonArray("social_saved_posts?user_id=eq.$userId&select=post_id,saved_at&order=saved_at.desc,post_id.desc&limit=$batchSize&offset=$offset", token)
             } else {
                 getJsonArray("rpc/social_home_feed?p_mode=$mode&p_limit=$batchSize&p_offset=$offset", token)
@@ -127,7 +169,8 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                 pointers.optJSONObject(i)?.optString("post_id")?.takeIf { uuid.matches(it) }
             }.distinct()
             if (ids.isEmpty()) {
-                val page = StagingFeedPage(emptyList(), offset + pointers.length(), pointers.length() == batchSize)
+                val page = StagingFeedPage(emptyList(), offset + pointers.length(),
+                    pointers.length() == batchSize && (mode != "trending" || offset + pointers.length() < 20))
                 rememberPage(mode, offset, page, userId)
                 return@withContext page
             }
@@ -182,7 +225,8 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                     hasAvatar = a?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null
                 )
             }
-            StagingFeedPage(results, offset + pointers.length(), pointers.length() == batchSize).also {
+            StagingFeedPage(results, offset + pointers.length(),
+                pointers.length() == batchSize && (mode != "trending" || offset + pointers.length() < 20)).also {
                 rememberPage(mode, offset, it, userId)
             }
         }
