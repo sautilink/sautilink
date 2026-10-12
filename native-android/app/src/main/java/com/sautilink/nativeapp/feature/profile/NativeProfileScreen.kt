@@ -6,11 +6,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.InfoOutline
+import androidx.compose.material.icons.rounded.Category
+import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,7 +45,8 @@ fun NativeProfileScreen(
     onBack: (() -> Unit)? = null,
     onSignIn: () -> Unit,
     onOpenProfile: (String) -> Unit = {},
-    onOpenPosts: () -> Unit = {}
+    onOpenPosts: () -> Unit = {},
+    onOpenPost: (String) -> Unit = {}
 ) {
     val client = remember(auth) { NativeProfilesClient(auth) }
     val safety = remember(auth) { NativeSafetyClient(auth) }
@@ -64,9 +72,26 @@ fun NativeProfileScreen(
     var reportOpen by remember(username, account?.id) { mutableStateOf(false) }
     var blockConfirm by remember(username, account?.id) { mutableStateOf(false) }
     var safetyNote by remember(username, account?.id) { mutableStateOf<String?>(null) }
+    var categoryCatalog by remember(username, account?.id) {
+        mutableStateOf<List<ProfileProfessionalCategory>>(emptyList())
+    }
+    var categoryEditing by remember(username, account?.id) { mutableStateOf(false) }
+    var categoryInfo by remember(username, account?.id) { mutableStateOf(false) }
+    var categorySaving by remember(username, account?.id) { mutableStateOf(false) }
+    var categoryError by remember(username, account?.id) { mutableStateOf<String?>(null) }
 
-    BackHandler(edit || connectionList != null) {
-        if (edit) edit = false else connectionList = null
+    LaunchedEffect(profile?.id) {
+        if (profile != null) {
+            categoryCatalog = runCatching { client.categoryCatalog() }.getOrDefault(emptyList())
+        }
+    }
+
+    BackHandler(edit || connectionList != null || categoryEditing) {
+        when {
+            edit -> edit = false
+            categoryEditing -> categoryEditing = false
+            else -> connectionList = null
+        }
     }
 
     LaunchedEffect(auth, account?.id, username, refresh) {
@@ -179,67 +204,160 @@ fun NativeProfileScreen(
                     HorizontalDivider()
                     IdentityEditor(client, member, onChanged = { edit = false; refresh++ })
                 } else {
-                    Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
-                        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            ProfileAvatar(auth, member, 72)
-                            Row(verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(member.displayName, style = MaterialTheme.typography.headlineMedium,
-                                    modifier = Modifier.weight(1f, fill = false), maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                SautiVerificationBadge(member.verified, member.badgeType,
-                                    member.displayName, size = 22.dp, profileOwner = ownerRoute)
-                            }
-                            Text("@${member.username}", color = MaterialTheme.colorScheme.primary,
-                                style = MaterialTheme.typography.titleMedium)
-                            Text(member.bio.ifBlank { if (ownerRoute) "Add a bio to introduce yourself." else "No bio yet." })
-                            if (member.location.isNotBlank()) Text("📍 ${member.location}")
-                            if (websiteLink != null) Text(websiteLink,
-                                modifier = Modifier.clickable { runCatching { uriHandler.openUri(websiteLink) } },
-                                color = MaterialTheme.colorScheme.primary)
-                            Text(if (member.discoverable) "Discoverable profile" else "Visible by direct access",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            if (member.joinedAt.isNotBlank()) Text("Joined ${member.joinedAt.take(10)}",
-                                style = MaterialTheme.typography.bodySmall)
-                            HorizontalDivider()
-                            Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                                Column(Modifier.then(if (ownerRoute) Modifier.clickable { connectionList = "followers" } else Modifier)) {
-                                    Text("${member.followers}", fontWeight = FontWeight.Bold)
-                                    Text("Followers", style = MaterialTheme.typography.bodySmall)
+                    val category = categoryCatalog.firstOrNull { it.slug == member.categorySlug }
+                    Surface(shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .3f))) {
+                        Column(Modifier.fillMaxWidth()) {
+                            Box(Modifier.fillMaxWidth().height(192.dp)) {
+                                if (member.hasHeader) {
+                                    AuthorizedImage(
+                                        auth,
+                                        "/api/profile-media/${member.username}/header",
+                                        "${member.displayName}'s profile cover",
+                                        modifier = Modifier.fillMaxWidth().height(155.dp)
+                                            .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+                                    )
+                                } else {
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth().height(155.dp),
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+                                    ) { }
                                 }
-                                Column(Modifier.then(if (ownerRoute) Modifier.clickable { connectionList = "following" } else Modifier)) {
-                                    Text("${member.following}", fontWeight = FontWeight.Bold)
-                                    Text("Following", style = MaterialTheme.typography.bodySmall)
+                                Surface(
+                                    modifier = Modifier.align(Alignment.BottomStart)
+                                        .padding(start = 14.dp),
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surface,
+                                    border = BorderStroke(3.dp, MaterialTheme.colorScheme.surface)
+                                ) {
+                                    ProfileAvatar(auth, member, 96)
                                 }
                             }
-                            if (ownerRoute) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedButton(onClick = { actionError = null; edit = true }, shape = SautiShape.Pill) {
-                                        Icon(Icons.Rounded.Edit, null, Modifier.size(16.dp))
-                                        Spacer(Modifier.width(7.dp)); Text("Edit profile")
-                                    }
-                                    OutlinedButton(onClick = onOpenPosts, shape = SautiShape.Pill) { Text("My posts") }
+                            Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(member.displayName, style = MaterialTheme.typography.headlineMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.weight(1f, fill = false),
+                                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                    SautiVerificationBadge(member.verified, member.badgeType,
+                                        member.displayName, size = 21.dp, profileOwner = ownerRoute)
                                 }
-                            } else if (member.id != account.id) {
-                                Button(onClick = {
-                                    val desired = following != true
-                                    followBusy = true; actionError = null
-                                    scope.launch {
-                                        try {
-                                            client.setFollowing(member, desired)
-                                            following = client.following(member.id)
-                                            refresh++
-                                        } catch (e: Exception) { actionError = e.message ?: "Could not change Follow." }
-                                        finally { followBusy = false }
+                                Text("@${member.username}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (category != null) {
+                                    Row(verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text(category.label,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.SemiBold,
+                                            style = MaterialTheme.typography.labelLarge)
+                                        IconButton(onClick = { categoryInfo = true },
+                                            modifier = Modifier.size(38.dp)) {
+                                            Icon(Icons.Rounded.InfoOutline, "About this profile category",
+                                                modifier = Modifier.size(18.dp))
+                                        }
                                     }
-                                }, enabled = !followBusy && following != null && safetyState?.blocked != true,
-                                    shape = SautiShape.Pill) {
-                                    Text(if (following == true) "Following" else "Follow")
+                                }
+                                if (ownerRoute) {
+                                    TextButton(onClick = { categoryEditing = true },
+                                        modifier = Modifier.heightIn(min = 40.dp)) {
+                                        Icon(Icons.Rounded.Category, null, Modifier.size(16.dp))
+                                        Spacer(Modifier.width(5.dp))
+                                        Text(if (category != null) "Change category" else "Add profile category")
+                                    }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(18.dp),
+                                    verticalAlignment = Alignment.CenterVertically) {
+                                    Row(Modifier.then(if (ownerRoute) Modifier.clickable { connectionList = "followers" } else Modifier),
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                        Text("${member.followers}", fontWeight = FontWeight.Bold)
+                                        Text("Followers", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Row(Modifier.then(if (ownerRoute) Modifier.clickable { connectionList = "following" } else Modifier),
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                        Text("${member.following}", fontWeight = FontWeight.Bold)
+                                        Text("Following", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                                if (member.bio.isNotBlank()) {
+                                    Text(member.bio, style = MaterialTheme.typography.bodyLarge)
+                                } else if (ownerRoute) {
+                                    Text("Add a bio to introduce yourself.",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                if (member.location.isNotBlank() || websiteLink != null) {
+                                    Row(verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                                        if (member.location.isNotBlank()) {
+                                            Icon(Icons.Rounded.LocationOn, null, Modifier.size(18.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(member.location, style = MaterialTheme.typography.bodySmall)
+                                        }
+                                    }
+                                    if (websiteLink != null) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Rounded.Public, null, Modifier.size(18.dp),
+                                                tint = MaterialTheme.colorScheme.primary)
+                                            Spacer(Modifier.width(7.dp))
+                                            Text(websiteLink, style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                maxLines = 1,
+                                                modifier = Modifier.clickable {
+                                                    runCatching { uriHandler.openUri(websiteLink) }
+                                                })
+                                        }
+                                    }
+                                }
+                                if (ownerRoute) {
+                                    Row(Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        OutlinedButton(onClick = { actionError = null; edit = true },
+                                            shape = RoundedCornerShape(14.dp),
+                                            modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                                            Icon(Icons.Rounded.Edit, null, Modifier.size(18.dp))
+                                            Spacer(Modifier.width(5.dp))
+                                            Text("Edit profile")
+                                        }
+                                        OutlinedButton(onClick = onOpenPosts,
+                                            shape = RoundedCornerShape(14.dp),
+                                            modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                                            Icon(Icons.Rounded.Dashboard, null, Modifier.size(18.dp))
+                                            Spacer(Modifier.width(5.dp))
+                                            Text("Manage posts")
+                                        }
+                                    }
+                                } else if (member.id != account.id) {
+                                    Button(onClick = {
+                                        val desired = following != true
+                                        followBusy = true; actionError = null
+                                        scope.launch {
+                                            try {
+                                                client.setFollowing(member, desired)
+                                                following = client.following(member.id)
+                                                refresh++
+                                            } catch (e: Exception) {
+                                                actionError = e.message ?: "Could not change Follow."
+                                            } finally { followBusy = false }
+                                        }
+                                    }, enabled = !followBusy && following != null && safetyState?.blocked != true,
+                                        shape = RoundedCornerShape(14.dp),
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                        Text(if (following == true) "Following" else "Follow")
+                                    }
                                 }
                             }
                         }
                     }
+                    ProfileActivitySection(
+                        auth = auth, profile = member, owner = ownerRoute,
+                        refreshKey = refresh, onOpenPost = onOpenPost,
+                        onManagePosts = onOpenPosts, onOpenProfile = onOpenProfile
+                    )
                     if (!ownerRoute && member.id != account.id) {
                         Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
                             Column(Modifier.fillMaxWidth().padding(16.dp),
@@ -279,6 +397,70 @@ fun NativeProfileScreen(
                 }
             }
         }
+    }
+
+    if (categoryInfo && profile != null) {
+        val category = categoryCatalog.firstOrNull { it.slug == profile?.categorySlug }
+        AlertDialog(onDismissRequest = { categoryInfo = false },
+            title = { Text(category?.label ?: "Profile category") },
+            text = { Text(category?.description ?: "The profile owner chooses their professional category.") },
+            confirmButton = { TextButton(onClick = { categoryInfo = false }) { Text("Close") } })
+    }
+    if (categoryEditing && ownerRoute && profile != null) {
+        var search by remember(categoryEditing) { mutableStateOf("") }
+        var selection by remember(categoryEditing) { mutableStateOf(profile?.categorySlug.orEmpty()) }
+        val matches = remember(search, categoryCatalog) {
+            categoryCatalog.filter { search.isBlank() ||
+                it.label.contains(search.trim(), ignoreCase = true) ||
+                it.group.contains(search.trim(), ignoreCase = true)
+            }.take(35)
+        }
+        AlertDialog(
+            onDismissRequest = { if (!categorySaving) categoryEditing = false },
+            title = { Text("Profile category") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(search, { search = it.take(80) },
+                        label = { Text("Search categories") },
+                        modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
+                        matches.forEach { option ->
+                            Row(Modifier.fillMaxWidth()
+                                .clickable { selection = option.slug }
+                                .padding(vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(selected = selection == option.slug,
+                                    onClick = { selection = option.slug })
+                                Spacer(Modifier.width(6.dp))
+                                Text(option.label, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                        if (matches.isEmpty()) Text("No categories match your search.")
+                    }
+                    if (categoryError != null) Text(categoryError.orEmpty(),
+                        color = MaterialTheme.colorScheme.error)
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = !categorySaving, onClick = {
+                    categorySaving = true; categoryError = null
+                    scope.launch {
+                        try {
+                            profile = client.saveCategory(selection)
+                            categoryEditing = false
+                            refresh++
+                        } catch (e: Exception) {
+                            categoryError = e.message ?: "Could not save category."
+                        } finally { categorySaving = false }
+                    }
+                }) { Text(if (categorySaving) "Saving…" else "Save") }
+            },
+            dismissButton = {
+                TextButton(enabled = !categorySaving, onClick = { categoryEditing = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     if (blockConfirm && profile != null) AlertDialog(onDismissRequest = { blockConfirm = false },
