@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import com.sautilink.nativeapp.feature.home.NativePlaybackPreferences
+import androidx.compose.ui.platform.LocalContext
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
 import com.sautilink.nativeapp.ui.theme.SautiShape
@@ -27,6 +29,8 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
     onOpenRecovery: () -> Unit, onOpenProfile: () -> Unit,
     onOpenNotifications: () -> Unit) {
     val client = remember(auth) { NativeSettingsClient(auth) }
+    val context = LocalContext.current
+    var autoplay by remember { mutableStateOf(NativePlaybackPreferences.autoplayEnabled) }
     val scope = rememberCoroutineScope()
     val settingsListState = rememberLazyListState()
     var settings by remember { mutableStateOf<NativeAccountSettings?>(null) }
@@ -125,6 +129,14 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                 state.activityStatus, !busy) {
                 perform("Online status saved") { client.setPreferenceBoolean("activity_status", it) }
             } }
+            item { SectionTitle("MEDIA PLAYBACK") }
+            item {
+                SettingSwitch("Auto-play videos", "Play Home videos automatically, muted. Pause off-screen.",
+                    autoplay, !busy) { enabled ->
+                    NativePlaybackPreferences.setAutoplay(context, enabled)
+                    autoplay = enabled
+                }
+            }
             item { SectionTitle("NOTIFICATIONS") }
             item { SettingSwitch("Post activity", "Likes, comments and reposts",
                 state.notifyPosts, !busy) {
@@ -138,7 +150,7 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                 state.notifyFollowers, !busy) {
                 perform("Notification preference saved") { client.setPreferenceBoolean("notify_followers", it) }
             } }
-            item { SettingSwitch("Sautify updates", "Updates from SautiLink",
+            item { SettingSwitch("Rooms updates", "Updates from SautiLink",
                 state.notifySautify, !busy) {
                 perform("Notification preference saved") { client.setPreferenceBoolean("notify_sautify", it) }
             } }
