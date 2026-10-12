@@ -316,7 +316,7 @@ private fun ProfileActivityCard(
                         style = MaterialTheme.typography.bodySmall, maxLines = 1,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (owner) {
+                if (owner && item.authorId == auth.account?.id) {
                     if (item.body.isNotBlank()) TextButton(onClick = onManagePosts) {
                         Text("Edit", style = MaterialTheme.typography.labelSmall)
                     }
