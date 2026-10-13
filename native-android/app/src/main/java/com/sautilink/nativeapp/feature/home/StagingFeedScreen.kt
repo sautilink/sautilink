@@ -421,11 +421,11 @@ fun StagingFeedScreen(
                             horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                             androidx.compose.foundation.Image(
                                 painter = androidx.compose.ui.res.painterResource(
-                                    com.sautilink.nativeapp.R.mipmap.ic_launcher),
+                                    com.sautilink.nativeapp.R.drawable.sautilink_logo),
                                 contentDescription = "SautiLink logo",
-                                modifier = Modifier.size(32.dp)
-                                    .clip(androidx.compose.foundation.shape.CircleShape))
-                            Text("SautiLink", style = MaterialTheme.typography.headlineSmall,
+                                modifier = Modifier.width(42.dp).height(28.dp),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                            Text("SautiLink", style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1)
