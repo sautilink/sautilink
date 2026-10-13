@@ -7,24 +7,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ChatBubbleOutline
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.NotificationsNone
-import androidx.compose.material.icons.rounded.Movie
-import androidx.compose.material.icons.rounded.PersonOutline
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,14 +34,14 @@ fun SautiAvatar(initials: String, modifier: Modifier = Modifier, accent: Color =
     }
 }
 
-data class NativeTab(val title: String, val icon: ImageVector)
+data class NativeTab(val title: String)
 val nativeTabs = listOf(
-    NativeTab("Home", Icons.Rounded.Home),
-    NativeTab("Explore", Icons.Rounded.Search),
-    NativeTab("Messages", Icons.Rounded.ChatBubbleOutline),
-    NativeTab("Notifications", Icons.Rounded.NotificationsNone),
-    NativeTab("Short Videos", Icons.Rounded.Movie),
-    NativeTab("Profile", Icons.Rounded.PersonOutline)
+    NativeTab("Home"),
+    NativeTab("Explore"),
+    NativeTab("Messages"),
+    NativeTab("Notifications"),
+    NativeTab("Short Videos"),
+    NativeTab("Profile")
 )
 
 /** Web-inspired six-icon bottom navigation. All destinations have >=48dp touch targets. */
@@ -75,15 +65,8 @@ fun SautiBottomBar(selected: Int, unreadNotifications: Int = 0, onSelect: (Int) 
                     val tint by animateColorAsState(
                         targetValue = if (active) MaterialTheme.colorScheme.onSurface
                             else MaterialTheme.colorScheme.onSurfaceVariant,
-                        animationSpec = androidx.compose.animation.core.tween(180),
+                        animationSpec = androidx.compose.animation.core.tween(120),
                         label = "Navigation color"
-                    )
-                    val scale by androidx.compose.animation.core.animateFloatAsState(
-                        targetValue = if (active) 1.09f else 1f,
-                        animationSpec = androidx.compose.animation.core.spring(
-                            dampingRatio = .65f,
-                            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium),
-                        label = "Navigation icon spring"
                     )
                     Column(
                         Modifier.weight(1f).heightIn(min = 52.dp)
@@ -95,11 +78,10 @@ fun SautiBottomBar(selected: Int, unreadNotifications: Int = 0, onSelect: (Int) 
                     ) {
                         Box(contentAlignment = Alignment.Center,
                             modifier = Modifier.size(34.dp)) {
-                            Icon(tab.icon,
-                                contentDescription = if (index == 3 && unreadNotifications > 0)
+                            SautiNavigationIcon(index = index,
+                                label = if (index == 3 && unreadNotifications > 0)
                                     "Notifications, $unreadNotifications unread" else tab.title,
-                                tint = tint, modifier = Modifier.size(if (index == 4) 29.dp else 27.dp)
-                                    .graphicsLayer { scaleX = scale; scaleY = scale })
+                                selected = active, tint = tint, modifier = Modifier.size(27.dp))
                             if (index == 3 && unreadNotifications > 0) {
                                 Badge(
                                     modifier = Modifier.align(Alignment.TopEnd)

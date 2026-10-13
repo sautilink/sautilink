@@ -1,6 +1,5 @@
 package com.sautilink.nativeapp.feature.menu
 
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -36,44 +35,31 @@ import com.sautilink.nativeapp.feature.home.AuthorizedImage
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.components.SautiAvatar
 import com.sautilink.nativeapp.ui.theme.SautiColors
-import kotlinx.coroutines.delay
 
-/** Two-state native icon, with touch feedback and a short line-to-cross morph. */
+/** Immediate menu action with restrained press feedback. */
 @Composable
 fun AnimatedHamburgerButton(openAtRest: Boolean = false, onClick: () -> Unit) {
-    var toggled by remember { mutableStateOf(false) }
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (pressed) .88f else 1f,
-        animationSpec = tween(140, easing = FastOutSlowInEasing),
+        targetValue = if (pressed) .96f else 1f,
+        animationSpec = tween(90),
         label = "Menu press"
     )
-    val morph by animateFloatAsState(
-        targetValue = if (openAtRest != toggled) 1f else 0f,
-        animationSpec = tween(170, easing = FastOutSlowInEasing),
-        label = "Menu icon morph"
-    )
-    LaunchedEffect(toggled) {
-        if (toggled) {
-            delay(175)
-            onClick()
-        }
-    }
     IconButton(
-        onClick = { if (!toggled) toggled = true },
+        onClick = onClick,
         modifier = Modifier.size(48.dp).graphicsLayer {
             scaleX = scale
             scaleY = scale
         },
-        interactionSource = interaction,
-        enabled = !toggled
+        interactionSource = interaction
     ) {
         val ink = MaterialTheme.colorScheme.onSurface
         Canvas(Modifier.size(25.dp).semantics {
             contentDescription = if (openAtRest) "Close menu" else "Open menu"
         }) {
             val unit = size.width / 24f
+            val morph = if (openAtRest) 1f else 0f
             fun shift(a: Float, b: Float) = (a + (b - a) * morph) * unit
             val stroke = 2.15f * unit
             drawLine(ink,
@@ -130,7 +116,6 @@ fun NativeMenuScreen(
     onToggleTheme: () -> Unit,
     onSignOut: () -> Unit
 ) {
-    var visibleCount by remember { mutableIntStateOf(0) }
     var signOutDialog by remember { mutableStateOf(false) }
     val profileClient = remember(auth) { NativeProfilesClient(auth) }
     var ownProfile by remember(auth.account?.id) { mutableStateOf<NativeProfile?>(null) }
@@ -138,13 +123,6 @@ fun NativeMenuScreen(
         ownProfile = null
         if (auth.account != null) {
             ownProfile = runCatching { profileClient.own() }.getOrNull()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        menuDestinations.indices.forEach { index ->
-            visibleCount = index + 1
-            delay(24)
         }
     }
 
@@ -238,23 +216,10 @@ fun NativeMenuScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            itemsIndexed(menuDestinations, key = { _, item -> item.key }) { index, entry ->
-                // Float animation works in a LazyGrid item without requiring ColumnScope.
-                val reveal by animateFloatAsState(
-                    targetValue = if (index < visibleCount) 1f else 0f,
-                    animationSpec = tween(220, easing = FastOutSlowInEasing),
-                    label = "Menu tile reveal"
-                )
-                Box(
-                    Modifier.fillMaxWidth().height(112.dp).graphicsLayer {
-                        alpha = reveal
-                        translationY = (1f - reveal) * 18f
-                    }
-                ) {
+            itemsIndexed(menuDestinations, key = { _, item -> item.key }) { _, entry ->
+                Box(Modifier.fillMaxWidth().height(112.dp)) {
                     MenuTile(entry, selected = entry.key == "theme" && isDark,
                         disabled = entry.key == "verification" && ownProfile?.verified == true) {
-                        // Prevent invisible tiles from being activated during their entrance.
-                        if (index < visibleCount) {
                             when (entry.key) {
                                 "rooms" -> onRooms()
                                 "saved" -> onSaved()
@@ -267,7 +232,6 @@ fun NativeMenuScreen(
                                 "report" -> onWebsite("contact")
                                 else -> onWebsite(entry.key)
                             }
-                        }
                     }
                 }
             }

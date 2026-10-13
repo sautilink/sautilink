@@ -7,7 +7,6 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
@@ -359,9 +358,9 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
             floatingActionButtonPosition = FabPosition.End
         ) { insets ->
             Box(Modifier.fillMaxSize().padding(insets)) {
-                Crossfade(targetState = detail to root, label = "SautiLink screen transition") { destination ->
-                val (activeDetail, activeRoot) = destination
-                when (activeDetail) {
+                // Crossfade retains the old destination under the next screen and exposes
+                // stale frames on slower devices. Switch destinations in one composition.
+                when (detail) {
                     "settings" -> NativeSettingsScreen(
                         auth = productionAuth,
                         focusPrivacy = settingsPrivacyFocus,
@@ -493,7 +492,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             viewedProfileHandle = handle; memberProfileReturn = "rooms"; detail = "member-profile"
                         }, initialRoomSlug = notificationRoomSlug)
                     "media" -> MediaViewerScreen(startIndex = mediaStartIndex, onBack = ::closeMedia, onNotice = ::notice)
-                    else -> when (activeRoot) {
+                    else -> when (root) {
                         0 -> StagingFeedScreen(
                             auth = productionAuth,
                             onBack = {},
@@ -542,7 +541,6 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             onOpenPost = { id -> notificationPostId = id; postReturn = null; detail = "post" }
                         )
                     }
-                }
                 }
             }
         }

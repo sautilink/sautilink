@@ -90,12 +90,14 @@ fun StagingFeedScreen(
         if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION) mode = "saved"
     }
     var refreshVersion by remember { mutableIntStateOf(0) }
-    var loading by remember { mutableStateOf(false) }
-    var loadingMore by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var posts by remember { mutableStateOf<List<StagingFeedPost>>(emptyList()) }
-    var offset by remember { mutableIntStateOf(0) }
-    var hasMore by remember { mutableStateOf(false) }
+    // A new feed/account must start with its own loading state. Otherwise one frame can
+    // show the previous tab's posts or the empty-state card before LaunchedEffect runs.
+    var loading by remember(account?.id, mode) { mutableStateOf(account != null) }
+    var loadingMore by remember(account?.id, mode) { mutableStateOf(false) }
+    var error by remember(account?.id, mode) { mutableStateOf<String?>(null) }
+    var posts by remember(account?.id, mode) { mutableStateOf<List<StagingFeedPost>>(emptyList()) }
+    var offset by remember(account?.id, mode) { mutableIntStateOf(0) }
+    var hasMore by remember(account?.id, mode) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val online = rememberNetworkAvailable()
