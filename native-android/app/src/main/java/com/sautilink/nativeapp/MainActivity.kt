@@ -51,6 +51,8 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.NativeAuthScreen
+import com.sautilink.nativeapp.feature.auth.SautiStartupSplash
+import com.sautilink.nativeapp.feature.auth.SautiWelcomeOnboarding
 import com.sautilink.nativeapp.feature.auth.NativeRegistrationScreen
 import com.sautilink.nativeapp.feature.auth.NativeRecoveryScreen
 import com.sautilink.nativeapp.ui.components.SautiBottomBar
@@ -101,6 +103,11 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     // Light is the default; explicit in-app choices are persisted.
     val isDark = darkOverride ?: false
     // Retain light UI state on rotation / ordinary activity recreation.
+    var startupSplash by rememberSaveable { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        delay(1_050)
+        startupSplash = false
+    }
     var root by rememberSaveable { mutableStateOf(0) }
     var detail by rememberSaveable { mutableStateOf<String?>(null) }
     var composerOpen by rememberSaveable { mutableStateOf(false) }
@@ -139,6 +146,26 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     val productionAuth = remember(context.applicationContext) {
         StagingAuthClient(BuildConfig.PRODUCTION_SUPABASE_PUBLISHABLE_KEY,
             context.applicationContext, SautiBackend.PRODUCTION)
+    }
+    // A local, per-user welcome choice only. Never persist credentials here.
+    val welcomePreferences = remember(context.applicationContext) {
+        context.applicationContext.getSharedPreferences("sautilink_native_welcome_v1", Context.MODE_PRIVATE)
+    }
+    val activeAccountId = productionAuth.account?.id
+    var welcomeDone by remember(activeAccountId) {
+        mutableStateOf(activeAccountId == null ||
+            welcomePreferences.getBoolean("completed_$activeAccountId", false))
+    }
+    // Don't allow a partially verified registration to bypass its existing server-side gates.
+    var profileGate by remember(activeAccountId) { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(activeAccountId) {
+        if (activeAccountId == null) { profileGate = null; return@LaunchedEffect }
+        profileGate = null
+        profileGate = try { productionAuth.loadOwnProfile() != null }
+        catch (_: Exception) {
+            // A temporary profile lookup error cannot invalidate a legitimate offline session.
+            true
+        }
     }
     LaunchedEffect(productionAuth) {
         productionAuth.restoreSession()
@@ -245,7 +272,48 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     }
 
     SautiTheme(darkTheme = isDark) {
-        Scaffold(
+        when {
+            startupSplash || productionAuth.sessionState == StagingSessionState.CHECKING -> {
+                SautiStartupSplash()
+            }
+            productionAuth.account == null -> {
+                when (detail) {
+                    "production-signup" -> NativeRegistrationScreen(
+                        client = productionAuth,
+                        onBack = { detail = "production-auth" },
+                        onFinished = { detail = null; root = 0 })
+                    "production-recovery" -> NativeRecoveryScreen(client = productionAuth,
+                        onBack = { detail = "production-auth" })
+                    else -> NativeAuthScreen(client = productionAuth,
+                        onBack = { detail = "production-auth" },
+                        onViewProfile = { detail = "production-auth" },
+                        onRegister = { detail = "production-signup" },
+                        onRecovery = { detail = "production-recovery" },
+                        isEntry = true,
+                        onBeforeSignOut = { NativePushManager.unregister(context, productionAuth) })
+                }
+            }
+            detail == "production-signup" -> {
+                NativeRegistrationScreen(client = productionAuth,
+                    onBack = { detail = "production-auth" },
+                    onFinished = { detail = null; root = 0; profileGate = true })
+            }
+            profileGate == null -> SautiStartupSplash()
+            profileGate == false -> {
+                NativeRegistrationScreen(client = productionAuth,
+                    onBack = { detail = "production-auth" },
+                    onFinished = { detail = null; root = 0; profileGate = true })
+            }
+            !welcomeDone -> {
+                SautiWelcomeOnboarding(auth = productionAuth, onComplete = {
+                    activeAccountId?.let { id ->
+                        welcomePreferences.edit().putBoolean("completed_$id", true).apply()
+                    }
+                    welcomeDone = true
+                    if (detail == "production-auth") detail = null
+                })
+            }
+            else -> Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = MaterialTheme.colorScheme.background,
             snackbarHost = { SnackbarHost(snackbar) },
@@ -488,5 +556,6 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                     onUploadActivity = { composerInFlight = it })
             }
         }
+          }
     }
 }
