@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.launch
 
@@ -30,6 +31,7 @@ private enum class LoginMethod(val label: String) {
 @Composable
 fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfile: () -> Unit,
                      onRegister: (() -> Unit)? = null, onRecovery: (() -> Unit)? = null,
+                     isEntry: Boolean = false,
                      onBeforeSignOut: suspend () -> Unit = {}) {
     var method by remember { mutableStateOf(LoginMethod.PASSWORD) }
     var email by remember { mutableStateOf("") }
@@ -63,21 +65,26 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
     Column(
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
             .imePadding().verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(15.dp)
+            .padding(horizontal = 24.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Rounded.ArrowBackIosNew, contentDescription = "Back")
+        if (!isEntry) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Rounded.ArrowBackIosNew, contentDescription = "Back")
+                }
+                Spacer(Modifier.width(6.dp))
+                Text("Sign in", style = MaterialTheme.typography.headlineSmall)
             }
-            Spacer(Modifier.width(6.dp))
-            Text("Login", style = MaterialTheme.typography.headlineMedium)
         }
-
+        Spacer(Modifier.height(12.dp))
         SautiAuthBrand()
         if (account == null) {
-            Text("Log in to your account", style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface)
+            Text("Welcome back", style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold)
+            Text("Sign in to your SautiLink account.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
         if (!client.configured) {
@@ -286,8 +293,9 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
                 }
             }
             if (onRegister != null) {
-                OutlinedButton(onClick = onRegister, modifier = Modifier.fillMaxWidth(),
-                    shape = SautiShape.Pill) { Text("Create a SautiLink account") }
+                OutlinedButton(onClick = onRegister,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(18.dp)) { Text("Create an account") }
             }
             if (codeRequested && !loading) {
                 TextButton(onClick = { codeRequested = false; code = ""; message = null }) {
