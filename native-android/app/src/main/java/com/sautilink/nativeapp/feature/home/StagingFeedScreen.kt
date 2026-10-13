@@ -84,7 +84,10 @@ fun StagingFeedScreen(
 ) {
     val account = auth.account
     val sessionState = auth.sessionState
-    var mode by rememberSaveable(auth.backend.id) { mutableStateOf("for_you") }
+    var mode by rememberSaveable(auth.backend.id) {
+        mutableStateOf(if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION)
+            "saved" else "for_you")
+    }
     LaunchedEffect(savedRequestVersion) {
         if (mode == "short_videos") mode = "for_you" // Retire saved old tab state.
         if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION) mode = "saved"
