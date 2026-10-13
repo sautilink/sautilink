@@ -557,6 +557,8 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                     onUploadActivity = { composerInFlight = it })
             }
         }
-          }
+                // Keep the final branch Unit-valued, even when the composer is closed.
+                Unit
+            }
     }
 }
