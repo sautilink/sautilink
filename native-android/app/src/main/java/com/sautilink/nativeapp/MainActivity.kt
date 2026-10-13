@@ -560,5 +560,6 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                 // Keep the final branch Unit-valued, even when the composer is closed.
                 Unit
             }
+        }
     }
 }
