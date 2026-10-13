@@ -149,8 +149,8 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
     Column(
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
             .imePadding().verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(horizontal = 24.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(15.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBackIosNew, "Back") }
@@ -158,8 +158,11 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
         }
         if (step == SignupStep.DETAILS) {
             SautiAuthBrand()
-            Text("Join SautiLink — completely free",
-                style = MaterialTheme.typography.titleLarge)
+            Text("Create your account",
+                style = MaterialTheme.typography.headlineSmall)
+            Text("Enter your details to get started.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (checking || client.sessionState == StagingSessionState.CHECKING) {
             LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -351,7 +354,7 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                 Text("Your SautiLink account is ready", style = MaterialTheme.typography.titleLarge)
                 Text("Email, signup requirements and your profile have been checked. Welcome to SautiLink.")
                 Button(onClick = onFinished, modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = SautiShape.Pill) { Text("Go to Home") }
+                    shape = SautiShape.Pill) { Text("Continue") }
             }
         }
         if (step in setOf(SignupStep.PHONE, SignupStep.PHONE_CODE, SignupStep.ONBOARDING) && client.account != null) {
