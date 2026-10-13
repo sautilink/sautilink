@@ -313,7 +313,8 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                     if (detail == "production-auth") detail = null
                 })
             }
-            else -> Scaffold(
+            else -> {
+                Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = MaterialTheme.colorScheme.background,
             snackbarHost = { SnackbarHost(snackbar) },
