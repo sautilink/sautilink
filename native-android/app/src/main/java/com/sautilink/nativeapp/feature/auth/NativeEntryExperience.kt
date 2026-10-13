@@ -25,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -52,9 +53,10 @@ fun SautiStartupSplash() {
     )
     Box(Modifier.fillMaxSize().background(Color(0xFF1A1C20)),
         contentAlignment = Alignment.Center) {
-        Image(painter = painterResource(R.mipmap.ic_launcher),
+        Image(painter = painterResource(R.drawable.sautilink_logo),
             contentDescription = "SautiLink",
-            modifier = Modifier.size(108.dp).alpha(opacity))
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.width(176.dp).height(92.dp).alpha(opacity))
     }
 }
 
