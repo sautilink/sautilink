@@ -109,7 +109,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var accounts by remember { mutableStateOf<List<NativeMessageAccount>>(emptyList()) }
     var newLoading by remember { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
-    var loading by remember { mutableStateOf(false) }
+    var loading by remember(auth.account?.id) { mutableStateOf(auth.account != null) }
     var error by remember { mutableStateOf<String?>(null) }
     var draft by rememberSaveable { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }

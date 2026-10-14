@@ -162,7 +162,7 @@ fun NativeOwnPostsScreen(auth: StagingAuthClient, refreshKey: Int, onBack: () ->
     val scope = rememberCoroutineScope()
     var refresh by remember { mutableIntStateOf(0) }
     var posts by remember { mutableStateOf<List<NativeOwnPost>>(emptyList()) }
-    var loading by remember { mutableStateOf(false) }
+    var loading by remember(auth.account?.id) { mutableStateOf(auth.account != null) }
     var error by remember { mutableStateOf<String?>(null) }
     var busyId by remember { mutableStateOf<String?>(null) }
     var editTarget by remember { mutableStateOf<NativeOwnPost?>(null) }

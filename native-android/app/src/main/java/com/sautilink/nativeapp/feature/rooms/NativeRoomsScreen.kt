@@ -34,7 +34,7 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
     var selectedId by remember { mutableStateOf<String?>(null) }
     var deepOpened by remember(initialRoomSlug) { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
-    var loading by remember { mutableStateOf(false) }
+    var loading by remember(auth.account?.id) { mutableStateOf(auth.account != null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var createOpen by remember { mutableStateOf(false) }

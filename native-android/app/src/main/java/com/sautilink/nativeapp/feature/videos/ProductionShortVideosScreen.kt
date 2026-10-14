@@ -87,7 +87,7 @@ fun ProductionShortVideosScreen(
     var clips by remember(auth) { mutableStateOf<List<LiveClip>>(emptyList()) }
     var nextOffset by remember(auth) { mutableIntStateOf(0) }
     var hasMore by remember(auth) { mutableStateOf(false) }
-    var loading by remember(auth) { mutableStateOf(false) }
+    var loading by remember(auth, auth.account?.id) { mutableStateOf(auth.account != null) }
     var error by remember(auth) { mutableStateOf<String?>(null) }
     var reload by remember(auth) { mutableIntStateOf(0) }
     var pageRetry by remember(auth) { mutableIntStateOf(0) }

@@ -58,7 +58,7 @@ fun NativeDashboardScreen(
     var tab by remember { mutableStateOf("insights") }
     var selectedMetric by remember { mutableStateOf("views") }
     var data by remember(auth.account?.id, window) { mutableStateOf<CreatorAnalytics?>(null) }
-    var loading by remember { mutableStateOf(false) }
+    var loading by remember(auth.account?.id) { mutableStateOf(auth.account != null) }
     var error by remember { mutableStateOf<String?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
     LaunchedEffect(auth.account?.id, window, refresh) {
