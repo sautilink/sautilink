@@ -146,6 +146,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         StagingAuthClient(BuildConfig.PRODUCTION_SUPABASE_PUBLISHABLE_KEY,
             context.applicationContext, SautiBackend.PRODUCTION)
     }
+    var initialRestoreFinished by remember(productionAuth) { mutableStateOf(false) }
     // A local, per-user welcome choice only. Never persist credentials here.
     val welcomePreferences = remember(context.applicationContext) {
         context.applicationContext.getSharedPreferences("sautilink_native_welcome_v1", Context.MODE_PRIVATE)
@@ -170,6 +171,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     }
     LaunchedEffect(productionAuth) {
         productionAuth.restoreSession()
+        initialRestoreFinished = true
         if (productionAuth.sessionState == StagingSessionState.RETRYABLE_ERROR) {
             delay(2000); productionAuth.restoreSession()
         }
@@ -274,7 +276,10 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
 
     SautiTheme(darkTheme = isDark) {
         when {
-            startupSplash || productionAuth.sessionState == StagingSessionState.CHECKING -> {
+            // Keep the auth screen mounted during a later Retry session. Replacing it
+            // with splash cancels its remembered coroutine scope and aborts the retry.
+            startupSplash || (!initialRestoreFinished &&
+                productionAuth.sessionState == StagingSessionState.CHECKING) -> {
                 SautiStartupSplash()
             }
             productionAuth.account == null -> {
