@@ -355,6 +355,7 @@ private fun InlineFeedVideo(
                     manualPaused = false
                     wantsToPlay = true
                     if (player?.playerError != null) player.prepare()
+                    if (player?.playbackState == androidx.media3.common.Player.STATE_ENDED) player.seekToDefaultPosition()
                     player?.play()
                 },
                 shape = CircleShape,
