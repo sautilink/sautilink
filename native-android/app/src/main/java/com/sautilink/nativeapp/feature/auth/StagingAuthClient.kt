@@ -495,7 +495,12 @@ class StagingAuthClient(
                     val body = stream?.bufferedReader()?.use { it.readText().take(8192) }.orEmpty()
                     val json = runCatching { JSONObject(body) }.getOrElse { JSONObject() }
                     if (status !in 200..299) {
-                        val message = when (status) {
+                        val expiredCode = status in listOf(400, 401, 403, 422) && route == "/verify" && (
+                            json.optString("error_code") == "otp_expired" ||
+                            json.optString("code") == "otp_expired")
+                        val message = if (expiredCode) {
+                            "This verification code is invalid or has expired. Request a new code and try again."
+                        } else when (status) {
                             400, 401, 403, 422 -> "Verification failed or this account is unavailable. Check your details."
                             429 -> "Too many attempts. Wait a little before trying again."
                             in 500..599 -> "Authentication service is temporarily unavailable."
