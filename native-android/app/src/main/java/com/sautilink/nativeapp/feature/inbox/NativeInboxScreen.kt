@@ -111,7 +111,9 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var newLoading by remember { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
     var loading by remember(auth.account?.id) { mutableStateOf(auth.account != null) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var error by remember(selectedId) { mutableStateOf<String?>(null) }
+    var inboxError by remember(auth.account?.id) { mutableStateOf<String?>(null) }
+    var threadLoading by remember(selectedId) { mutableStateOf(selectedId != null) }
     var draft by rememberSaveable { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     var reportMessageId by remember { mutableStateOf<String?>(null) }
@@ -169,6 +171,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     LaunchedEffect(auth.account?.id, refresh) {
         if (auth.account == null) { conversations = emptyList(); selectedId = null; return@LaunchedEffect }
         loading = conversations.isEmpty() && selectedId == null
+        inboxError = null
         try {
             conversations = client.inbox()
             conversations.filter { it.unread > 0 }.take(15).forEach { c ->
@@ -176,13 +179,13 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             }
         }
         catch (cancelled: CancellationException) { throw cancelled }
-        catch (e: Exception) { error = e.message ?: "Could not load messages." }
+        catch (e: Exception) { inboxError = e.message ?: "Could not load messages." }
         finally { loading = false }
     }
     LaunchedEffect(selectedId, refresh) {
         val id = selectedId ?: return@LaunchedEffect
         val firstOpen = thread?.conversation?.id != id
-        loading = firstOpen
+        threadLoading = firstOpen
         if (firstOpen) { thread = null; mediaByMessage = emptyMap() }
         try {
             val updated = client.thread(id)
@@ -204,7 +207,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             receiptIssue = receipts.isFailure
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) { error = e.message ?: "Could not open conversation." }
-        finally { loading = false }
+        finally { threadLoading = false }
     }
     LaunchedEffect(selectedId, foreground) {
         val id = selectedId?.takeIf { foreground } ?: return@LaunchedEffect
@@ -358,7 +361,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         )
         return
     }
-    val active = thread
+    val active = thread?.takeIf { it.conversation.id == selectedId }
     if (selectedId != null) {
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)
@@ -480,7 +483,11 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                         }
                     }, singleLine = true, shape = RoundedCornerShape(18.dp))
             }
-            if (loading && active == null) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (threadLoading && active == null) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (!threadLoading && active == null && error != null) {
+                Text(error.orEmpty(), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { error = null; refresh++ }) { Text("Retry conversation") }
+            }
             if (active != null) {
                 val ownId = auth.account?.id
                 val bubbleLimit = minOf(LocalConfiguration.current.screenWidthDp.dp * .79f, 320.dp)
@@ -911,7 +918,8 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     Button(onClick = onSignIn) { Text("Sign in") }
             }
         } else {
-            if (error != null) Text(error.orEmpty(), Modifier.padding(18.dp), color = MaterialTheme.colorScheme.error)
+            val inboxIssue = error ?: inboxError
+            if (inboxIssue != null) Text(inboxIssue, Modifier.padding(18.dp), color = MaterialTheme.colorScheme.error)
             LazyColumn(contentPadding = PaddingValues(bottom = 20.dp)) {
                 if (loading && conversations.isEmpty()) items(5) { SautiExploreSkeleton() }
                 if (!loading && shown.isEmpty()) item {
