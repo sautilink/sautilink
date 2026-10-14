@@ -220,6 +220,27 @@ class PostInteractionsClient(private val auth: StagingAuthClient) {
         }
     }
 
+    /** Read only the signed-in viewer's existing comment reactions, under the same RLS as post Likes. */
+    suspend fun getCommentReactionStates(ids: List<String>): Map<String, String?> {
+        val filtered = ids.filter(postIdPattern::matches).distinct()
+        if (filtered.isEmpty()) return emptyMap()
+        val (userId, token) = access()
+        return withContext(Dispatchers.IO) {
+            val states = mutableMapOf<String, String>()
+            for (batch in filtered.chunked(50)) {
+                val rows = readArray("${rest}social_post_reactions?user_id=eq.$userId" +
+                    "&post_id=in.(${batch.joinToString(",")})&select=post_id,reaction_type", token)
+                for (index in 0 until rows.length()) {
+                    val row = rows.optJSONObject(index) ?: continue
+                    val id = row.optString("post_id")
+                    val reaction = row.optString("reaction_type")
+                    if (id in batch && reaction in listOf("like", "dislike")) states[id] = reaction
+                }
+            }
+            filtered.associateWith { states[it] }
+        }
+    }
+
     /** The same validated comment-reaction route used by the web UI.
      * A single user may Like, Dislike, or remove their reaction.
      */
@@ -236,6 +257,9 @@ class PostInteractionsClient(private val auth: StagingAuthClient) {
             val data = result.optJSONObject("data")
             if (!result.optBoolean("ok") || data?.optString("comment_id") != commentId)
                 throw AuthRequestException("Comment reaction was not confirmed.")
+            val confirmedReaction = if (data.isNull("reaction")) null else data.optString("reaction")
+            if (!data.has("reaction") || confirmedReaction != reaction)
+                throw AuthRequestException("Comment reaction was not confirmed. Refresh to check its status.")
             data.optInt("like_count").coerceAtLeast(0) to data.optInt("dislike_count").coerceAtLeast(0)
         }
     }

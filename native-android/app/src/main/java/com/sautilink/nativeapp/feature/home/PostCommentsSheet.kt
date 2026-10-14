@@ -6,9 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material3.*
@@ -21,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
+import com.sautilink.nativeapp.ui.components.SautiCommentActions
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.CancellationException
@@ -71,7 +70,13 @@ internal fun PostCommentsSheet(
     var deletingId by remember(post.id) { mutableStateOf<String?>(null) }
     var confirmDelete by remember(post.id) { mutableStateOf<NativePostComment?>(null) }
     var refresh by remember(post.id) { mutableIntStateOf(0) }
-    val mutating = busySend || deletingId != null
+    var selectedReactions by rememberSaveable(post.id) { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var busyReactionId by remember(post.id) { mutableStateOf<String?>(null) }
+    var busyReactionKind by remember(post.id) { mutableStateOf<String?>(null) }
+    var reactionError by remember(post.id, targetId) { mutableStateOf<String?>(null) }
+    var reactionRetry by remember(post.id) { mutableIntStateOf(0) }
+    var reactionRevision by remember(post.id) { mutableIntStateOf(0) }
+    val mutating = busySend || deletingId != null || busyReactionId != null
 
     LaunchedEffect(post.id, targetId, refresh) {
         loading = true
@@ -87,6 +92,39 @@ internal fun PostCommentsSheet(
             loadError = e.message ?: "Could not load comments."
         } finally {
             loading = false
+        }
+    }
+
+    LaunchedEffect(post.id, targetId, comments.map { it.id }, allowWrite, reactionRetry) {
+        if (!allowWrite || comments.isEmpty()) return@LaunchedEffect
+        val revision = reactionRevision
+        reactionError = null
+        try {
+            val states = withTimeout(18_000L) { actions.getCommentReactionStates(comments.map { it.id }) }
+            if (revision == reactionRevision) selectedReactions = selectedReactions + states.mapValues { it.value.orEmpty() }
+        } catch (_: TimeoutCancellationException) { reactionError = "Comment reaction status took too long. Try again." }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (e: Exception) { reactionError = e.message ?: "Comment reaction status is unavailable." }
+    }
+
+    fun react(comment: NativePostComment, kind: String) {
+        if (!allowWrite || mutating) return
+        val next = if (selectedReactions[comment.id] == kind) null else kind
+        busyReactionId = comment.id; busyReactionKind = kind; reactionRevision++
+        writeError = null
+        scope.launch {
+            try {
+                val counts = withTimeout(20_000L) { actions.setCommentReaction(comment.id, next) }
+                selectedReactions = selectedReactions + (comment.id to next.orEmpty())
+                comments = comments.map { item ->
+                    if (item.id == comment.id) item.copy(likes = counts.first, dislikes = counts.second) else item
+                }
+            } catch (_: TimeoutCancellationException) {
+                selectedReactions = selectedReactions - comment.id
+                writeError = "Reaction timed out. Refresh comments to check its status."
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (e: Exception) { writeError = e.message ?: "Your comment reaction could not be saved." }
+            finally { busyReactionId = null; busyReactionKind = null }
         }
     }
 
@@ -173,30 +211,16 @@ internal fun PostCommentsSheet(
                                 Text(comment.body, style = MaterialTheme.typography.bodyMedium)
                                 Text(relativePostTime(comment.createdAt), style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    TextButton(
-                                        onClick = { trail = trail + comment; writeError = null },
-                                        enabled = !mutating
-                                    ) {
-                                        Icon(Icons.Rounded.ChatBubbleOutline, null, Modifier.size(16.dp))
-                                        Spacer(Modifier.width(5.dp))
-                                        Text(if (comment.replyCount > 0) "Replies (${comment.replyCount})" else "Reply")
-                                    }
-                                    if (allowWrite && signedInUserId != null && comment.authorId == signedInUserId) {
-                                        TextButton(
-                                            onClick = { confirmDelete = comment },
-                                            enabled = !mutating
-                                        ) {
-                                            if (deletingId == comment.id) {
-                                                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                                            } else {
-                                                Icon(Icons.Rounded.DeleteOutline, null, Modifier.size(16.dp))
-                                            }
-                                            Spacer(Modifier.width(5.dp))
-                                            Text("Delete", color = MaterialTheme.colorScheme.error)
-                                        }
-                                    }
-                                }
+                                SautiCommentActions(likes = comment.likes, dislikes = comment.dislikes,
+                                    replyCount = comment.replyCount,
+                                    liked = selectedReactions[comment.id] == "like",
+                                    disliked = selectedReactions[comment.id] == "dislike",
+                                    reactionEnabled = allowWrite && !mutating, replyEnabled = !mutating,
+                                    onLike = { react(comment, "like") }, onDislike = { react(comment, "dislike") },
+                                    onReply = { trail = trail + comment; writeError = null },
+                                    onDelete = if (allowWrite && comment.authorId == signedInUserId)
+                                        ({ confirmDelete = comment }) else null,
+                                    busyReaction = if (busyReactionId == comment.id) busyReactionKind else null)
                             }
                         }
                     }
@@ -204,6 +228,13 @@ internal fun PostCommentsSheet(
                 if (comments.size == 40) {
                     Text("Showing the latest 40 in this thread.", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (reactionError != null) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(reactionError.orEmpty(), Modifier.weight(1f), color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = { reactionRetry++ }, enabled = !mutating) { Text("Retry reactions") }
+                    }
                 }
                 if (writeError != null) {
                     Text(writeError.orEmpty(), color = MaterialTheme.colorScheme.error,

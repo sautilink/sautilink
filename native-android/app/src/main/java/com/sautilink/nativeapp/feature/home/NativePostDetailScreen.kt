@@ -26,6 +26,7 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.safety.NativeReportDialog
 import com.sautilink.nativeapp.feature.safety.NativeSafetyClient
 import com.sautilink.nativeapp.ui.components.SautiAvatar
+import com.sautilink.nativeapp.ui.components.SautiCommentActions
 import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.theme.SautiColors
@@ -68,6 +69,7 @@ fun NativePostDetailScreen(
     val reactionCounts = remember(postId) {
         mutableStateMapOf<String, Pair<Int, Int>>()
     }
+    var commentReactionRevision by remember(postId) { mutableIntStateOf(0) }
     val selectedReactions = remember(postId) { mutableStateMapOf<String, String?>() }
 
     BackHandler(commentsMode) {
@@ -100,6 +102,17 @@ fun NativePostDetailScreen(
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) { error = e.message ?: "Comments unavailable." }
         finally { commentsLoading = false }
+    }
+
+    val shownCommentIds = (comments + replies.values.flatten()).map { it.id }.distinct()
+    LaunchedEffect(postId, commentsMode, shownCommentIds, auth.account?.id) {
+        if (!commentsMode || auth.account == null || shownCommentIds.isEmpty()) return@LaunchedEffect
+        val revision = commentReactionRevision
+        try {
+            val states = actions.getCommentReactionStates(shownCommentIds)
+            if (revision == commentReactionRevision) selectedReactions.putAll(states)
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (e: Exception) { error = e.message ?: "Comment reaction status is unavailable." }
     }
 
     fun toggleExpanded(id: String) {
@@ -163,7 +176,7 @@ fun NativePostDetailScreen(
                     }
                     items(comments, key = { it.id }) { comment ->
                         CommentThreadRow(auth, comment, replies, expanded,
-                            counts = reactionCounts, selected = selectedReactions,
+                            counts = reactionCounts, selected = selectedReactions, reactionsEnabled = !busy,
                             onOpenProfile = onOpenProfile,
                             onReply = { target ->
                                 replyTarget = target
@@ -172,7 +185,7 @@ fun NativePostDetailScreen(
                             onExpand = ::toggleExpanded,
                             onReaction = { target, reaction ->
                                 if (!busy) {
-                                    busy = true; error = null
+                                    busy = true; error = null; commentReactionRevision++
                                     scope.launch {
                                         try {
                                             val next = if (selectedReactions[target.id] == reaction) null else reaction
@@ -356,7 +369,7 @@ fun NativePostDetailScreen(
 private fun CommentThreadRow(
     auth: StagingAuthClient, item: NativePostComment,
     replies: Map<String, List<NativePostComment>>, expanded: Set<String>,
-    counts: Map<String, Pair<Int, Int>>, selected: Map<String, String?>,
+    counts: Map<String, Pair<Int, Int>>, selected: Map<String, String?>, reactionsEnabled: Boolean,
     onOpenProfile: (String) -> Unit,
     onReply: (NativePostComment) -> Unit,
     onExpand: (String) -> Unit,
@@ -392,30 +405,16 @@ private fun CommentThreadRow(
                 }
                 Text(item.body, style = MaterialTheme.typography.bodyLarge)
                 val totals = counts[item.id] ?: (item.likes to item.dislikes)
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    IconButton(onClick = { onReaction(item, "like") }, Modifier.size(40.dp)) {
-                        Icon(Icons.Rounded.ThumbUp, "Like comment", Modifier.size(18.dp),
-                            tint = if (selected[item.id] == "like") MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Text(totals.first.toString(), style = MaterialTheme.typography.labelSmall)
-                    IconButton(onClick = { onReaction(item, "dislike") }, Modifier.size(40.dp)) {
-                        Icon(Icons.Rounded.ThumbDown, "Dislike comment", Modifier.size(18.dp),
-                            tint = if (selected[item.id] == "dislike") SautiColors.Red
-                                else MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    if (totals.second > 0) Text(totals.second.toString(),
-                        style = MaterialTheme.typography.labelSmall)
-                    IconButton(onClick = { onReply(item) }, Modifier.size(40.dp)) {
-                        Icon(Icons.Rounded.ChatBubbleOutline, "Reply to comment",
-                            Modifier.size(18.dp))
-                    }
-                    if (item.replyCount > 0) {
-                        TextButton(onClick = { onExpand(item.id) }) {
-                            Text(if (item.id in expanded) "Hide ${item.replyCount} replies"
-                                else "View ${item.replyCount} replies")
-                        }
+                SautiCommentActions(likes = totals.first, dislikes = totals.second,
+                    replyCount = item.replyCount, liked = selected[item.id] == "like",
+                    disliked = selected[item.id] == "dislike",
+                    reactionEnabled = reactionsEnabled, replyEnabled = reactionsEnabled,
+                    onLike = { onReaction(item, "like") }, onDislike = { onReaction(item, "dislike") },
+                    onReply = { onReply(item) })
+                if (item.replyCount > 0) {
+                    TextButton(onClick = { onExpand(item.id) }) {
+                        Text(if (item.id in expanded) "Hide ${item.replyCount} replies"
+                            else "View ${item.replyCount} replies")
                     }
                 }
             }
@@ -423,7 +422,7 @@ private fun CommentThreadRow(
         // Bound nesting visually; server independently enforces maximum allowed depth.
         if (item.id in expanded && depth < 5) {
             replies[item.id].orEmpty().forEach { child ->
-                CommentThreadRow(auth, child, replies, expanded, counts, selected,
+                CommentThreadRow(auth, child, replies, expanded, counts, selected, reactionsEnabled,
                     onOpenProfile, onReply, onExpand, onReaction, depth + 1)
             }
         }
