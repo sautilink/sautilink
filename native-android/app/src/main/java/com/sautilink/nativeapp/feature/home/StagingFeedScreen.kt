@@ -18,12 +18,10 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.NotificationsNone
 import androidx.compose.material.icons.rounded.ChatBubbleOutline
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.ThumbUp
+import androidx.compose.material.icons.rounded.ThumbUpOffAlt
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkBorder
-import androidx.compose.material.icons.rounded.Send
-import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Repeat
@@ -33,6 +31,8 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import com.sautilink.nativeapp.ui.components.SautiPostIcons
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -46,7 +46,6 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.menu.AnimatedHamburgerButton
-import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
 import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
 import com.sautilink.nativeapp.ui.components.SautiAvatar
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
@@ -57,7 +56,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
-import java.util.UUID
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
@@ -615,33 +613,36 @@ fun StagingFeedScreen(
             }
         }
     }
+    val commentStateHolder = key(auth.backend.id, account?.id) { rememberSaveableStateHolder() }
     val selectedPost = commentsFor
     if (selectedPost != null) {
-        PostCommentsSheet(
-            post = selectedPost, actions = actions,
-            allowWrite = canInteract,
-            signedInUserId = account?.id,
-            onDismiss = { commentsFor = null },
-            onRootPosted = {
-                posts = posts.map { p -> if (p.id == selectedPost.id) p.copy(comments = p.comments + 1) else p }
-            },
-            onRootDeleted = {
-                posts = posts.map { p -> if (p.id == selectedPost.id) p.copy(comments = (p.comments - 1).coerceAtLeast(0)) else p }
-            },
-            onCommentChanged = {
-                val expectedAccountId = auth.account?.id
-                val sequence = ++commentCountSyncVersion
-                scope.launch {
-                    try {
-                        val total = withTimeout(12_000L) { actions.loadCommentCount(selectedPost.id) }
-                        if (auth.account?.id == expectedAccountId && sequence == commentCountSyncVersion) {
-                            posts = posts.map { p -> if (p.id == selectedPost.id) p.copy(comments = total) else p }
-                        }
-                    } catch (cancelled: CancellationException) { throw cancelled }
-                    catch (_: Exception) { /* Optimistic count remains until the next feed refresh. */ }
+        commentStateHolder.SaveableStateProvider(selectedPost.id) {
+            PostCommentsSheet(
+                post = selectedPost, actions = actions,
+                allowWrite = canInteract,
+                signedInUserId = account?.id,
+                onDismiss = { commentsFor = null },
+                onRootPosted = {
+                    posts = posts.map { p -> if (p.id == selectedPost.id) p.copy(comments = p.comments + 1) else p }
+                },
+                onRootDeleted = {
+                    posts = posts.map { p -> if (p.id == selectedPost.id) p.copy(comments = (p.comments - 1).coerceAtLeast(0)) else p }
+                },
+                onCommentChanged = {
+                    val expectedAccountId = auth.account?.id
+                    val sequence = ++commentCountSyncVersion
+                    scope.launch {
+                        try {
+                            val total = withTimeout(12_000L) { actions.loadCommentCount(selectedPost.id) }
+                            if (auth.account?.id == expectedAccountId && sequence == commentCountSyncVersion) {
+                                posts = posts.map { p -> if (p.id == selectedPost.id) p.copy(comments = total) else p }
+                            }
+                        } catch (cancelled: CancellationException) { throw cancelled }
+                        catch (_: Exception) { /* Optimistic count remains until the next feed refresh. */ }
+                    }
                 }
-            }
-        )
+            )
+        }
     }
 }
 
@@ -873,11 +874,11 @@ private fun RealPostCard(
                     }
                     // Four compact web-like actions group on the left; Save stays at the far right.
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        CompactPostAction(Icons.Rounded.FavoriteBorder,
+                        CompactPostAction(Icons.Rounded.ThumbUpOffAlt,
                             if (liked == true) "Unlike post" else "Like post", feedCount(post.likes),
                             Modifier.weight(1f), onLike, online && !busyLike,
                             if (liked == true) SautiColors.Red else MaterialTheme.colorScheme.onSurfaceVariant,
-                            if (liked == true) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder)
+                            if (liked == true) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbUpOffAlt)
                         CompactPostAction(Icons.Rounded.ChatBubbleOutline, "View comments",
                             feedCount(post.comments), Modifier.weight(1f), onComments, online)
                         CompactPostAction(Icons.Rounded.Repeat,
@@ -886,13 +887,13 @@ private fun RealPostCard(
                             online && !busyRepost,
                             if (reposted == true) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant)
-                        CompactPostAction(Icons.Rounded.Share, "Share post", null,
+                        CompactPostAction(SautiPostIcons.Share, "Share post", null,
                             Modifier.weight(1f), onShare)
                         IconButton(onClick = onSave, enabled = online && !busySave,
-                            modifier = Modifier.size(48.dp)) {
+                            modifier = Modifier.size(52.dp)) {
                             Icon(if (saved == true) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                                 if (saved == true) "Remove from saved" else "Save post",
-                                modifier = Modifier.size(23.dp),
+                                modifier = Modifier.size(28.dp),
                                 tint = if (saved == true) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -928,261 +929,17 @@ private fun CompactPostAction(
     activeIcon: ImageVector = icon
 ) {
     Row(
-        modifier = modifier.heightIn(min = 48.dp)
+        modifier = modifier.heightIn(min = 56.dp)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 1.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(activeIcon, contentDescription = label, tint = tint, modifier = Modifier.size(21.dp))
+        Icon(activeIcon, contentDescription = label, tint = tint, modifier = Modifier.size(28.dp))
         if (count != null) {
-            Spacer(Modifier.width(3.dp))
-            Text(count, style = MaterialTheme.typography.labelSmall,
+            Spacer(Modifier.width(4.dp))
+            Text(count, modifier = Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelSmall,
                 color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-    }
-}
-
-
-
-/** Production comments and nested replies share SautiLink's existing guarded APIs.
- * Staging can browse, but may never send or delete content.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PostCommentsSheet(
-    post: StagingFeedPost,
-    actions: PostInteractionsClient,
-    allowWrite: Boolean,
-    signedInUserId: String?,
-    onDismiss: () -> Unit,
-    onRootPosted: () -> Unit,
-    onRootDeleted: () -> Unit,
-    onCommentChanged: () -> Unit
-) {
-    val scope = rememberCoroutineScope()
-    // Each breadcrumb is a real social_posts UUID; navigating up stays inside this sheet.
-    var trail by remember(post.id) { mutableStateOf<List<NativePostComment>>(emptyList()) }
-    val parent = trail.lastOrNull()
-    val targetId = parent?.id ?: post.id
-    var comments by remember(post.id) { mutableStateOf<List<NativePostComment>>(emptyList()) }
-    var loading by remember(post.id) { mutableStateOf(true) }
-    var loadError by remember(post.id) { mutableStateOf<String?>(null) }
-    var writeError by remember(post.id) { mutableStateOf<String?>(null) }
-    var busySend by remember(post.id) { mutableStateOf(false) }
-    var deletingId by remember(post.id) { mutableStateOf<String?>(null) }
-    var confirmDelete by remember(post.id) { mutableStateOf<NativePostComment?>(null) }
-    var refresh by remember(post.id) { mutableIntStateOf(0) }
-    // Draft and idempotency key are scoped to their comment thread.
-    var draft by rememberSaveable(post.id, targetId) { mutableStateOf("") }
-    var requestId by remember(post.id, targetId) { mutableStateOf(UUID.randomUUID().toString()) }
-    val mutating = busySend || deletingId != null
-
-    LaunchedEffect(post.id, targetId, refresh) {
-        loading = true
-        comments = emptyList() // Never show another thread's comments while loading.
-        loadError = null
-        try {
-            comments = withTimeout(18_000L) { actions.loadComments(targetId) }
-        } catch (_: TimeoutCancellationException) {
-            loadError = "Comments took too long to load. Try again."
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (e: Exception) {
-            loadError = e.message ?: "Could not load comments."
-        } finally {
-            loading = false
-        }
-    }
-
-    ModalBottomSheet(onDismissRequest = onDismiss, shape = SautiShape.Sheet) {
-        Column(
-            Modifier.fillMaxWidth().padding(horizontal = 18.dp).padding(bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                if (parent != null) {
-                    IconButton(onClick = { trail = trail.dropLast(1); writeError = null }, enabled = !mutating) {
-                        Icon(Icons.Rounded.ArrowBack, "Back to previous comments")
-                    }
-                }
-                Column(Modifier.weight(1f)) {
-                    Text(if (parent == null) "Comments" else "Replies", style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        if (parent == null) "${post.authorName}'s post" else "Replying to ${parent.author}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                IconButton(onClick = { refresh++ }, enabled = !mutating && !loading) {
-                    Icon(Icons.Rounded.Refresh, "Refresh comments")
-                }
-            }
-            if (parent != null) {
-                Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceVariant) {
-                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text(parent.author + if (parent.handle.isNotBlank()) " · @${parent.handle}" else "",
-                            style = MaterialTheme.typography.labelMedium)
-                        Text(parent.body, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-            }
-            if (loading) repeat(3) { SautiExploreSkeleton() }
-            if (loadError != null) {
-                Text(loadError.orEmpty(), color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = { refresh++ }, enabled = !loading) { Text("Retry comments") }
-            }
-            if (!loading && loadError == null && comments.isEmpty()) {
-                Text(if (parent == null) "No comments yet. Start the conversation." else "No replies yet.",
-                    style = MaterialTheme.typography.bodyMedium)
-            }
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 360.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(comments, key = { it.id }) { comment ->
-                    Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
-                        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                Text(comment.author + if (comment.handle.isNotBlank()) " · @${comment.handle}" else "",
-                                    style = MaterialTheme.typography.labelMedium)
-                                SautiVerificationBadge(comment.verified, comment.badgeType,
-                                    comment.author, size = 13.dp)
-                            }
-                            Text(comment.body, style = MaterialTheme.typography.bodyMedium)
-                            Text(relativePostTime(comment.createdAt), style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                TextButton(
-                                    onClick = { trail = trail + comment; writeError = null },
-                                    enabled = !mutating
-                                ) {
-                                    Icon(Icons.Rounded.ChatBubbleOutline, null, Modifier.size(16.dp))
-                                    Spacer(Modifier.width(5.dp))
-                                    Text(if (comment.replyCount > 0) "Replies (${comment.replyCount})" else "Reply")
-                                }
-                                if (allowWrite && signedInUserId != null && comment.authorId == signedInUserId) {
-                                    TextButton(
-                                        onClick = { confirmDelete = comment },
-                                        enabled = !mutating
-                                    ) {
-                                        if (deletingId == comment.id) {
-                                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                                        } else {
-                                            Icon(Icons.Rounded.DeleteOutline, null, Modifier.size(16.dp))
-                                        }
-                                        Spacer(Modifier.width(5.dp))
-                                        Text("Delete", color = MaterialTheme.colorScheme.error)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if (comments.size == 40) {
-                Text("Showing the latest 40 in this thread.", style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (writeError != null) {
-                Text(writeError.orEmpty(), color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall)
-            }
-            if (allowWrite) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = draft,
-                        onValueChange = { newValue ->
-                            if (newValue.length <= 500 && newValue != draft) {
-                                draft = newValue
-                                requestId = UUID.randomUUID().toString()
-                                writeError = null
-                            }
-                        },
-                        modifier = Modifier.weight(1f), shape = SautiShape.Card,
-                        placeholder = { Text(if (parent == null) "Write a comment..." else "Write a reply...") },
-                        maxLines = 4,
-                        supportingText = { Text("${draft.length}/500") },
-                        enabled = !mutating
-                    )
-                    IconButton(onClick = {
-                        if (mutating || draft.isBlank()) return@IconButton
-                        val destination = targetId
-                        val rootWrite = parent == null
-                        val body = draft
-                        val key = requestId
-                        busySend = true
-                        writeError = null
-                        scope.launch {
-                            try {
-                                withTimeout(20_000L) { actions.sendComment(destination, body, key) }
-                                draft = ""
-                                requestId = UUID.randomUUID().toString()
-                                if (rootWrite) onRootPosted()
-                                else {
-                                    trail = trail.mapIndexed { index, ancestor ->
-                                        if (index == trail.lastIndex) ancestor.copy(replyCount = ancestor.replyCount + 1) else ancestor
-                                    }
-                                }
-                                refresh++
-                                onCommentChanged()
-                            } catch (_: TimeoutCancellationException) {
-                                writeError = "Comment request timed out. Retry with the same text; duplicates are protected."
-                            } catch (cancelled: CancellationException) {
-                                throw cancelled
-                            } catch (e: Exception) {
-                                writeError = e.message ?: "Comment could not be posted."
-                            } finally {
-                                busySend = false
-                            }
-                        }
-                    }, enabled = draft.isNotBlank() && !mutating) {
-                        if (busySend) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                        else Icon(Icons.Rounded.Send, if (parent == null) "Post comment" else "Post reply")
-                    }
-                }
-            } else {
-                Text("Read-only test environment", style = MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
-    val toDelete = confirmDelete
-    if (toDelete != null) {
-        AlertDialog(
-            onDismissRequest = { if (!mutating) confirmDelete = null },
-            title = { Text("Delete your comment?") },
-            text = { Text("This comment and any replies beneath it may be removed from SautiLink. This cannot be undone.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (mutating || toDelete.authorId != signedInUserId || !allowWrite) return@TextButton
-                    confirmDelete = null
-                    val deletedFromRoot = parent == null
-                    deletingId = toDelete.id
-                    writeError = null
-                    scope.launch {
-                        try {
-                            withTimeout(20_000L) { actions.deleteOwnComment(toDelete.id) }
-                            if (deletedFromRoot) onRootDeleted()
-                            else {
-                                trail = trail.mapIndexed { index, ancestor ->
-                                    if (index == trail.lastIndex) ancestor.copy(replyCount = (ancestor.replyCount - 1).coerceAtLeast(0)) else ancestor
-                                }
-                            }
-                            refresh++
-                            onCommentChanged()
-                        } catch (_: TimeoutCancellationException) {
-                            writeError = "Delete timed out. Refresh to check whether it was removed."
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (e: Exception) {
-                            writeError = e.message ?: "Could not delete comment. Refresh and try again."
-                        } finally {
-                            deletingId = null
-                        }
-                    }
-                }, enabled = !mutating) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = { TextButton(onClick = { confirmDelete = null }, enabled = !mutating) { Text("Cancel") } }
-        )
     }
 }

@@ -26,6 +26,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import com.sautilink.nativeapp.feature.home.PostCommentsSheet
+import com.sautilink.nativeapp.ui.components.SautiPostIcons
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -71,8 +74,7 @@ fun ProductionShortVideosScreen(
     auth: StagingAuthClient,
     onBack: () -> Unit,
     onSignIn: () -> Unit,
-    onOpenProfile: (String) -> Unit,
-    onOpenComments: (String) -> Unit
+    onOpenProfile: (String) -> Unit
 ) {
     val context = LocalContext.current
     val online = rememberNetworkAvailable()
@@ -103,6 +105,9 @@ fun ProductionShortVideosScreen(
     var saveStates by remember(auth, auth.account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var repostStates by remember(auth, auth.account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var busyActions by remember(auth, auth.account?.id) { mutableStateOf<Set<String>>(emptySet()) }
+    var commentsFor by remember(auth, auth.account?.id) { mutableStateOf<StagingFeedPost?>(null) }
+    var commentCountSyncVersion by remember(auth, auth.account?.id) { mutableIntStateOf(0) }
+    val commentStateHolder = key(auth.backend.id, auth.account?.id) { rememberSaveableStateHolder() }
     val canInteract = auth.backend == SautiBackend.PRODUCTION && auth.account != null && online
 
     fun togglePostAction(post: StagingFeedPost, kind: String) {
@@ -397,7 +402,7 @@ fun ProductionShortVideosScreen(
                             enabled = canInteract && "like:${post.id}" !in busyActions
                         ) { togglePostAction(post, "like") }
                         VideoRailAction(Icons.Rounded.ChatBubbleOutline, "Comments",
-                            formatVideoCount(post.comments)) { onOpenComments(post.id) }
+                            formatVideoCount(post.comments)) { commentsFor = post }
                         VideoRailAction(if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                             "Save", null, saved,
                             enabled = canInteract && "save:${post.id}" !in busyActions
@@ -405,7 +410,7 @@ fun ProductionShortVideosScreen(
                         VideoRailAction(Icons.Rounded.Repeat, "Repost", formatVideoCount(post.reposts),
                             reposted, enabled = canInteract && "repost:${post.id}" !in busyActions
                         ) { togglePostAction(post, "repost") }
-                        VideoRailAction(Icons.Rounded.Share, "Share") { shareClip(post, false) }
+                        VideoRailAction(SautiPostIcons.Share, "Share") { shareClip(post, false) }
                         VideoRailAction(Icons.Rounded.ContentCopy, "Copy link") { shareClip(post, true) }
                     }
                 }
@@ -424,6 +429,26 @@ fun ProductionShortVideosScreen(
             IconButton(onClick = { muted = !muted }) { Icon(if (muted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
                 if (muted) "Unmute" else "Mute", tint = Color.White) }
         }
+    }
+    val selectedPost = commentsFor
+    if (selectedPost != null) commentStateHolder.SaveableStateProvider(selectedPost.id) {
+        PostCommentsSheet(post = selectedPost, actions = actions, allowWrite = canInteract,
+            signedInUserId = auth.account?.id, onDismiss = { commentsFor = null },
+            onRootPosted = {}, onRootDeleted = {}, onCommentChanged = {
+                val accountId = auth.account?.id
+                val sequence = ++commentCountSyncVersion
+                scope.launch {
+                    try {
+                        val total = withTimeout(12_000L) { actions.loadCommentCount(selectedPost.id) }
+                        if (auth.account?.id == accountId && sequence == commentCountSyncVersion) {
+                            clips = clips.map { item ->
+                                if (item.post.id == selectedPost.id) item.copy(post = item.post.copy(comments = total)) else item
+                            }
+                        }
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { /* Keep the last confirmed count until feed refresh. */ }
+                }
+            })
     }
     if (qualityOpen) ModalBottomSheet(onDismissRequest = { qualityOpen = false }, shape = SautiShape.Sheet) {
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -479,14 +504,14 @@ private fun VideoRailAction(
         animationSpec = spring(dampingRatio = .63f),
         label = "Short video $label press"
     )
-    Column(Modifier.width(66.dp).heightIn(min = 52.dp)
+    Column(Modifier.width(72.dp).heightIn(min = 60.dp)
         .clickable(interactionSource = interaction, indication = null,
             enabled = enabled, role = Role.Button, onClick = onClick)
         .padding(vertical = 3.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center) {
         Icon(icon, contentDescription = label,
-            modifier = Modifier.size(28.dp).graphicsLayer {
+            modifier = Modifier.size(32.dp).graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             },
