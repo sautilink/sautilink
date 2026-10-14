@@ -2,6 +2,14 @@ package com.sautilink.nativeapp.feature.menu
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import com.sautilink.nativeapp.feature.home.AuthorizedImage
+import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
+import com.sautilink.nativeapp.ui.components.SautiAvatar
+import com.sautilink.nativeapp.ui.theme.SautiColors
+import kotlinx.coroutines.CancellationException
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -97,6 +105,8 @@ private val menuDestinations = listOf(
 fun NativeMenuScreen(
     auth: StagingAuthClient,
     isDark: Boolean,
+    confirmedProfile: NativeProfile? = null,
+    onProfileConfirmed: (NativeProfile?) -> Unit = {},
     onBack: () -> Unit,
     onProfile: () -> Unit,
     onRooms: () -> Unit,
@@ -112,11 +122,25 @@ fun NativeMenuScreen(
 ) {
     var signOutDialog by remember { mutableStateOf(false) }
     val profileClient = remember(auth) { NativeProfilesClient(auth) }
-    var ownProfile by remember(auth.account?.id) { mutableStateOf<NativeProfile?>(null) }
-    LaunchedEffect(auth.account?.id) {
-        ownProfile = null
-        if (auth.account != null) {
-            ownProfile = runCatching { profileClient.own() }.getOrNull()
+    val accountId = auth.account?.id
+    var ownProfile by remember(accountId) {
+        mutableStateOf(confirmedProfile?.takeIf { it.id == accountId })
+    }
+    var profileLoading by remember(accountId) { mutableStateOf(accountId != null) }
+    LaunchedEffect(accountId) {
+        if (accountId == null) return@LaunchedEffect
+        try {
+            val loaded = profileClient.own()?.takeIf { it.id == accountId }
+            if (auth.account?.id == accountId) {
+                ownProfile = loaded
+                onProfileConfirmed(loaded)
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Keep a confirmed same-account profile during a temporary read failure.
+        } finally {
+            profileLoading = false
         }
     }
 
@@ -143,6 +167,70 @@ fun NativeMenuScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Surface(
+                    onClick = onProfile,
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 1.dp,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .4f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(Modifier.padding(14.dp).heightIn(min = 46.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // Auth metadata can retain an old name/handle after an identity update.
+                        // Render only this account's confirmed profile; never invent an identity.
+                        val display = ownProfile?.displayName?.takeIf { it.isNotBlank() }
+                            ?: if (auth.account == null) "Sign in" else if (profileLoading) "Loading profile…" else "View your profile"
+                        val handle = ownProfile?.username?.takeIf { it.isNotBlank() }
+                        val initials = display.split(" ").filter { it.isNotBlank() }
+                            .take(2).map { it.first().uppercaseChar() }.joinToString("").ifBlank { "SL" }
+                        if (ownProfile?.hasAvatar == true && handle != null) {
+                            AuthorizedImage(
+                                auth = auth,
+                                route = "/api/profile-media/$handle/avatar?v=${ownProfile?.avatarRevision}",
+                                description = "$display profile picture",
+                                modifier = Modifier.size(46.dp).clip(CircleShape),
+                                fallback = { SautiAvatar(initials, Modifier.size(46.dp), SautiColors.Blue) }
+                            )
+                        } else if (ownProfile != null) {
+                            SautiAvatar(initials, Modifier.size(46.dp), SautiColors.Blue)
+                        } else {
+                            Box(Modifier.size(46.dp).clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                                contentAlignment = Alignment.Center) {
+                                Icon(Icons.Rounded.PersonOutline, null, Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Text(display, style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                SautiVerificationBadge(
+                                    ownProfile?.verified == true,
+                                    ownProfile?.badgeType ?: "standard",
+                                    display, size = 16.dp, profileOwner = true
+                                )
+                            }
+                            Text(
+                                handle?.let { "@$it" } ?: if (auth.account == null) "Open your account" else "Tap to open",
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(Icons.Rounded.ChevronRight, contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
                     "Discover and manage",

@@ -33,6 +33,7 @@ import com.sautilink.nativeapp.feature.home.StagingFeedScreen
 import com.sautilink.nativeapp.feature.home.NativePostDetailScreen
 import com.sautilink.nativeapp.feature.inbox.InboxScreen
 import com.sautilink.nativeapp.feature.inbox.NativeInboxScreen
+import com.sautilink.nativeapp.feature.profile.NativeProfile
 import com.sautilink.nativeapp.feature.profile.NativeProfileScreen
 import com.sautilink.nativeapp.feature.posts.NativePostComposer
 import com.sautilink.nativeapp.feature.posts.NativeOwnPostsScreen
@@ -150,6 +151,8 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         context.applicationContext.getSharedPreferences("sautilink_native_welcome_v1", Context.MODE_PRIVATE)
     }
     val activeAccountId = productionAuth.account?.id
+    // Memory-only menu identity, scoped to the active account and cleared on sign-out/switch.
+    var menuProfile by remember(activeAccountId) { mutableStateOf<NativeProfile?>(null) }
     var welcomeDone by remember(activeAccountId) {
         mutableStateOf(activeAccountId == null ||
             welcomePreferences.getBoolean("completed_$activeAccountId", false))
@@ -383,6 +386,8 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                     "menu" -> NativeMenuScreen(
                         auth = productionAuth,
                         isDark = isDark,
+                        confirmedProfile = menuProfile,
+                        onProfileConfirmed = { menuProfile = it },
                         onBack = { detail = null },
                         onProfile = {
                             if (productionAuth.account == null) detail = "production-auth"
