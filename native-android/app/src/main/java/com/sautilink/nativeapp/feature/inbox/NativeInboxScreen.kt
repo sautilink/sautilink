@@ -171,18 +171,24 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         }
     }
     BackHandler(newConversation) { newConversation = false; newQuery = ""; accounts = emptyList() }
-    LaunchedEffect(auth.account?.id, refresh) {
+    LaunchedEffect(auth.account?.id, refresh, foreground) {
         if (auth.account == null) { conversations = emptyList(); selectedId = null; return@LaunchedEffect }
+        if (!foreground) return@LaunchedEffect
         loading = conversations.isEmpty() && selectedId == null
         inboxError = null
         try {
-            conversations = client.inbox()
+            val updated = client.inbox()
+            currentCoroutineContext().ensureActive()
+            conversations = updated
             conversations.filter { it.unread > 0 }.take(15).forEach { c ->
                 runCatching { client.acknowledgeDelivery(c.id) }
             }
         }
         catch (cancelled: CancellationException) { throw cancelled }
-        catch (e: Exception) { inboxError = e.message ?: "Could not load messages." }
+        catch (e: Exception) {
+            currentCoroutineContext().ensureActive()
+            inboxError = e.message ?: "Could not load messages."
+        }
         finally { loading = false }
     }
     // A message may arrive while subscriptions are stopped in the background.
