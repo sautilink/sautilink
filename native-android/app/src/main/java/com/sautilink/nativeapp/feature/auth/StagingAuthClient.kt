@@ -119,11 +119,20 @@ class StagingAuthClient(
         requireProductionRegistration()
         val normalizedPhone = canonicalPhone(phone)
         val token = activeAccessToken()
+        fun matchesVerifiedPhone(user: JSONObject): Boolean =
+            user.optString("phone").removePrefix("+") == normalizedPhone.removePrefix("+") &&
+                !user.isNull("phone_confirmed_at") && user.optString("phone_confirmed_at").isNotBlank()
+        // Auth stores E.164 digits without '+'. Reconcile a previous successful
+        // verification before attempting to consume its one-use code again.
+        val existing = request("/user", "GET", bearer = token)
+        if (matchesVerifiedPhone(existing) && signupRequirements().phoneVerified) {
+            currentUser = currentUser?.copy(phone = normalizedPhone)
+            return
+        }
         request("/verify", "POST", JSONObject().put("phone", normalizedPhone)
             .put("token", code).put("type", "phone_change"), bearer = token)
         val user = request("/user", "GET", bearer = token)
-        if (user.optString("phone") != normalizedPhone ||
-            user.isNull("phone_confirmed_at") || !signupRequirements().phoneVerified) {
+        if (!matchesVerifiedPhone(user) || !signupRequirements().phoneVerified) {
             throw AuthRequestException("Phone verification is still pending. Try again after receiving a valid code.")
         }
         currentUser = currentUser?.copy(phone = normalizedPhone)
