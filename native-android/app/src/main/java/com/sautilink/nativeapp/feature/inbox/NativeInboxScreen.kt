@@ -35,6 +35,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -186,9 +187,13 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         try {
             val updated = client.thread(id)
             if (firstOpen || updated.messages != thread?.messages) {
-                thread = updated
-                mediaByMessage = runCatching { mediaClient.attachments(updated.messages) }
-                    .getOrDefault(mediaByMessage)
+                val updatedMedia = runCatching { mediaClient.attachments(updated.messages) }
+                    .getOrElse { if (it is CancellationException) throw it else mediaByMessage }
+                if (selectedId == id) Snapshot.withMutableSnapshot {
+                    // Publish the rows and their metadata together; loading is not an unavailable attachment.
+                    mediaByMessage = updatedMedia
+                    thread = updated
+                }
             }
             val delivery = runCatching { client.acknowledgeDelivery(id) }
             val reading = runCatching { client.markRead(id) }
@@ -208,9 +213,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             try {
                 val updated = client.thread(id)
                 if (selectedId == id && updated.messages != thread?.messages) {
-                    thread = updated
-                    mediaByMessage = runCatching { mediaClient.attachments(updated.messages) }
-                        .getOrDefault(mediaByMessage)
+                    val updatedMedia = runCatching { mediaClient.attachments(updated.messages) }
+                        .getOrElse { if (it is CancellationException) throw it else mediaByMessage }
+                    if (selectedId == id) Snapshot.withMutableSnapshot {
+                        mediaByMessage = updatedMedia
+                        thread = updated
+                    }
                     client.acknowledgeDelivery(id)
                     client.markRead(id)
                 }
