@@ -341,8 +341,8 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             delay(180_000)
         }
     }
-    // A peer opting out closes presence immediately. Recheck the reciprocal
-    // server permission then, rather than retaining a last-seen bucket for45s.
+    // Presence changes invalidate the reciprocal server permission. An already
+    // offline peer can also opt out, so keep that visible bucket short-lived.
     LaunchedEffect(auth.account?.id, livePeerId, foreground, visibilityRevision, peerOnline) {
         val peer = livePeerId ?: return@LaunchedEffect
         if (!foreground) return@LaunchedEffect
@@ -351,7 +351,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             val updated = runCatching { client.peerActivityBucket(peer) }.getOrDefault("hidden")
             currentCoroutineContext().ensureActive()
             statusBucket = updated
-            delay(45_000)
+            delay(if (peerOnline) 45_000 else 5_000)
         }
     }
     LaunchedEffect(newConversation, newQuery) {
