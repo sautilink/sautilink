@@ -257,7 +257,7 @@ private fun InlineFeedVideo(
     var manualPaused by remember(auth, media.id) { mutableStateOf(false) }
     var accessToken by remember(auth, media.id) { mutableStateOf<String?>(null) }
     var requestError by remember(auth, media.id) { mutableStateOf<String?>(null) }
-    var muted by remember(auth, media.id) { mutableStateOf(true) }
+    val muted = NativePlaybackPreferences.sessionMuted
     var firstFrame by remember(auth, media.id) { mutableStateOf(false) }
     LaunchedEffect(visibleFraction, isCurrent, NativePlaybackPreferences.autoplayEnabled) {
         val visible = visibleFraction >= .58f && isCurrent
@@ -286,7 +286,7 @@ private fun InlineFeedVideo(
             ExoPlayer.Builder(context)
                 .setMediaSourceFactory(DefaultMediaSourceFactory(http))
                 .build().apply {
-                    volume = 0f
+                    volume = if (muted) 0f else 1f
                     setMediaItem(MediaItem.fromUri("${auth.mediaOrigin}/api/sauti-media/${media.id}"))
                     prepare()
                     playWhenReady = false
@@ -314,9 +314,9 @@ private fun InlineFeedVideo(
             player.release()
         }
     }
-    LaunchedEffect(player, isCurrent, wantsToPlay, muted, requestError) {
+    LaunchedEffect(player, muted) { player?.volume = if (muted) 0f else 1f }
+    LaunchedEffect(player, isCurrent, wantsToPlay, requestError) {
         if (player != null) {
-            player.volume = if (muted) 0f else 1f
             if (!isCurrent) player.pause()
             else if (wantsToPlay && requestError == null) player.play()
             else if (!wantsToPlay) player.pause()
@@ -391,7 +391,7 @@ private fun InlineFeedVideo(
         }
         if (player != null && firstFrame) {
             IconButton(
-                onClick = { muted = !muted },
+                onClick = NativePlaybackPreferences::toggleSessionSound,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(7.dp)
                     .background(Color.Black.copy(alpha = .56f), CircleShape)
                     .size(44.dp)

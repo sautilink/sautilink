@@ -12,6 +12,14 @@ object NativePlaybackPreferences {
     var autoplayEnabled by mutableStateOf(true)
         private set
 
+    // Sound follows all videos in the current app session and is never persisted.
+    var sessionMuted by mutableStateOf(true)
+        private set
+
+    fun resetSessionSound() { sessionMuted = true }
+
+    fun toggleSessionSound() { sessionMuted = !sessionMuted }
+
     fun restore(context: Context) {
         autoplayEnabled = context.applicationContext.getSharedPreferences(
             STORAGE, Context.MODE_PRIVATE).getBoolean(KEY, true)

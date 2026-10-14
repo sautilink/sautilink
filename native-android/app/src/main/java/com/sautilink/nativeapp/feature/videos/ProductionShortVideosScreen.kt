@@ -54,6 +54,7 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.home.PostInteractionsClient
 import com.sautilink.nativeapp.feature.home.StagingFeedClient
+import com.sautilink.nativeapp.feature.home.NativePlaybackPreferences
 import com.sautilink.nativeapp.feature.home.StagingFeedPost
 import com.sautilink.nativeapp.feature.home.rememberNetworkAvailable
 import com.sautilink.nativeapp.ui.components.SautiSkeletonBlock
@@ -92,7 +93,7 @@ fun ProductionShortVideosScreen(
     var reload by remember(auth) { mutableIntStateOf(0) }
     var pageRetry by remember(auth) { mutableIntStateOf(0) }
     var token by remember(auth) { mutableStateOf<String?>(null) }
-    var muted by remember { mutableStateOf(true) }
+    val muted = NativePlaybackPreferences.sessionMuted
     var autoplay by remember { mutableStateOf(preferences.getBoolean("autoplay", true)) }
     var quality by remember { mutableStateOf(preferences.getString("quality", "auto") ?: "auto") }
     var qualityOpen by remember { mutableStateOf(false) }
@@ -242,7 +243,7 @@ fun ProductionShortVideosScreen(
             ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(http))
                 .setLoadControl(DefaultLoadControl.Builder()
                     .setBufferDurationsMs(3_000, 15_000, 750, 1_500).build())
-                .build().apply { repeatMode = Player.REPEAT_MODE_ONE; volume = 0f }
+                .build().apply { repeatMode = Player.REPEAT_MODE_ONE; volume = if (muted) 0f else 1f }
         }
     }
     DisposableEffect(player) {
@@ -428,7 +429,7 @@ fun ProductionShortVideosScreen(
             Text("Short Videos", color = Color.White, style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f))
             IconButton(onClick = { qualityOpen = true }) { Icon(Icons.Rounded.HighQuality, "Video quality", tint = Color.White) }
-            IconButton(onClick = { muted = !muted }) { Icon(if (muted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
+            IconButton(onClick = NativePlaybackPreferences::toggleSessionSound) { Icon(if (muted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
                 if (muted) "Unmute" else "Mute", tint = Color.White) }
         }
     }

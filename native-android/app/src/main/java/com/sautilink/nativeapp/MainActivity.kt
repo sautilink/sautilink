@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         NativePushManager.createChannel(this)
         NativePlaybackPreferences.restore(this)
+        if (savedInstanceState == null) NativePlaybackPreferences.resetSessionSound()
         pendingPushRoute = NativePushManager.routeFromIntent(intent)
         setContent { SautiNativePreview(pendingPushRoute, { pendingPushRoute = null }, appResumeVersion) }
     }
