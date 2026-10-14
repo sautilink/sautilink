@@ -26,6 +26,8 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.safety.NativeReportDialog
 import com.sautilink.nativeapp.feature.safety.NativeSafetyClient
 import com.sautilink.nativeapp.ui.components.SautiAvatar
+import com.sautilink.nativeapp.ui.components.SautiActionIconButton
+import com.sautilink.nativeapp.ui.components.SautiPostIcons
 import com.sautilink.nativeapp.ui.components.SautiCommentActions
 import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
@@ -297,47 +299,58 @@ fun NativePostDetailScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            IconButton(onClick = {
-                                if (busy) return@IconButton
+                            SautiActionIconButton(icon = if (liked) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbUpOffAlt,
+                                label = "Like", tint = if (liked) SautiColors.Red else MaterialTheme.colorScheme.onSurface,
+                                enabled = !busy, onClick = {
+                                if (busy) return@SautiActionIconButton
                                 busy = true
                                 scope.launch {
-                                    try { actions.setLike(postId, !liked); liked = !liked; refresh++ }
+                                    try {
+                                        actions.setLike(postId, !liked); liked = !liked
+                                        // Reconcile the count in place; never reload media/action state after a tap.
+                                        val latest = client.loadOne(postId)
+                                        if (latest != null) post = post?.copy(likes = latest.likes)
+                                    }
                                     catch (e: Exception) { error = e.message }
                                     finally { busy = false }
                                 }
-                            }) { Icon(if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                "Like", tint = if (liked) SautiColors.Red else MaterialTheme.colorScheme.onSurface) }
-                            IconButton(onClick = { commentsMode = true }) {
-                                Icon(Icons.Rounded.ChatBubbleOutline, "Comments")
-                            }
-                            IconButton(onClick = {
-                                if (busy) return@IconButton
+                            })
+                            SautiActionIconButton(Icons.Rounded.ChatBubbleOutline, "Comments",
+                                MaterialTheme.colorScheme.onSurface, onClick = { commentsMode = true })
+                            SautiActionIconButton(Icons.Rounded.Repeat, "Repost",
+                                if (reposted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                enabled = !busy, onClick = {
+                                if (busy) return@SautiActionIconButton
                                 busy = true
                                 scope.launch {
-                                    try { actions.setRepost(postId, !reposted); reposted = !reposted; refresh++ }
+                                    try {
+                                        actions.setRepost(postId, !reposted); reposted = !reposted
+                                        val latest = client.loadOne(postId)
+                                        if (latest != null) post = post?.copy(reposts = latest.reposts)
+                                    }
                                     catch (e: Exception) { error = e.message }
                                     finally { busy = false }
                                 }
-                            }) { Icon(Icons.Rounded.Repeat, "Repost",
-                                tint = if (reposted) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurface) }
-                            IconButton(onClick = {
+                            })
+                            SautiActionIconButton(SautiPostIcons.Share, "Share post",
+                                MaterialTheme.colorScheme.onSurface, onClick = {
                                 val send = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
                                     putExtra(Intent.EXTRA_TEXT, actions.postShareUrl(postId))
                                 }
                                 runCatching { context.startActivity(Intent.createChooser(send, "Share post")) }
-                            }) { Icon(Icons.Rounded.Share, "Share post") }
-                            IconButton(onClick = {
-                                if (busy) return@IconButton
+                            })
+                            SautiActionIconButton(if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                                "Save post", if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                enabled = !busy, onClick = {
+                                if (busy) return@SautiActionIconButton
                                 busy = true
                                 scope.launch {
                                     try { actions.setSaved(postId, !saved); saved = !saved }
                                     catch (e: Exception) { error = e.message }
                                     finally { busy = false }
                                 }
-                            }) { Icon(if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                                "Save post") }
+                            })
                         }
                         OutlinedButton(onClick = { commentsMode = true },
                             shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
@@ -394,7 +407,9 @@ private fun CommentThreadRow(
                     onOpenProfile(item.handle)
                 }, verticalAlignment = Alignment.CenterVertically) {
                     Text(item.author, fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.labelLarge)
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.weight(1f, fill = false),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.width(4.dp))
                     SautiVerificationBadge(item.verified, item.badgeType,
                         item.author, size = 14.dp)

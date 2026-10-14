@@ -33,7 +33,6 @@ import com.sautilink.nativeapp.feature.home.StagingFeedScreen
 import com.sautilink.nativeapp.feature.home.NativePostDetailScreen
 import com.sautilink.nativeapp.feature.inbox.InboxScreen
 import com.sautilink.nativeapp.feature.inbox.NativeInboxScreen
-import com.sautilink.nativeapp.feature.profile.PremiumProfileScreen
 import com.sautilink.nativeapp.feature.profile.NativeProfileScreen
 import com.sautilink.nativeapp.feature.posts.NativePostComposer
 import com.sautilink.nativeapp.feature.posts.NativeOwnPostsScreen

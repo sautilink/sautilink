@@ -34,15 +34,16 @@ internal fun SautiNavigationIcon(index: Int, label: String, selected: Boolean, t
                 1 -> { // Explore
                     outline.addOval(androidx.compose.ui.geometry.Rect(3.5f, 3.5f, 16.5f, 16.5f))
                 }
-                2 -> { // Messages
-                    outline.moveTo(4f, 5.5f); outline.lineTo(20f, 5.5f)
-                    outline.quadraticBezierTo(21f, 5.5f, 21f, 6.5f)
-                    outline.lineTo(21f, 17.5f)
-                    outline.quadraticBezierTo(21f, 18.5f, 20f, 18.5f)
-                    outline.lineTo(4f, 18.5f)
-                    outline.quadraticBezierTo(3f, 18.5f, 3f, 17.5f)
-                    outline.lineTo(3f, 6.5f)
-                    outline.quadraticBezierTo(3f, 5.5f, 4f, 5.5f)
+                2 -> { // Messages: rounded conversation bubble, with a reply tail.
+                    outline.moveTo(6f, 4f); outline.lineTo(18f, 4f)
+                    outline.quadraticBezierTo(21f, 4f, 21f, 7f)
+                    outline.lineTo(21f, 15f)
+                    outline.quadraticBezierTo(21f, 18f, 18f, 18f)
+                    outline.lineTo(10f, 18f); outline.lineTo(5f, 21f)
+                    outline.lineTo(5f, 17.8f)
+                    outline.quadraticBezierTo(3f, 17.2f, 3f, 15f)
+                    outline.lineTo(3f, 7f)
+                    outline.quadraticBezierTo(3f, 4f, 6f, 4f)
                     outline.close()
                 }
                 3 -> { // Notifications
@@ -77,10 +78,8 @@ internal fun SautiNavigationIcon(index: Int, label: String, selected: Boolean, t
                 1 -> drawLine(tint, Offset(15.2f, 15.2f), Offset(21f, 21f), line.width,
                     cap = StrokeCap.Round)
                 2 -> {
-                    val flap = Path().apply {
-                        moveTo(3.5f, 7f); lineTo(12f, 13.5f); lineTo(20.5f, 7f)
-                    }
-                    drawPath(flap, tint, style = line)
+                    drawLine(tint, Offset(7f, 9f), Offset(17f, 9f), line.width, cap = StrokeCap.Round)
+                    drawLine(tint, Offset(7f, 13f), Offset(14f, 13f), line.width, cap = StrokeCap.Round)
                 }
                 3 -> drawLine(tint, Offset(10f, 20.5f), Offset(14f, 20.5f), line.width,
                     cap = StrokeCap.Round)

@@ -72,15 +72,15 @@ internal fun PostCommentsSheet(
     var refresh by remember(post.id) { mutableIntStateOf(0) }
     var selectedReactions by rememberSaveable(post.id) { mutableStateOf<Map<String, String>>(emptyMap()) }
     var busyReactionId by remember(post.id) { mutableStateOf<String?>(null) }
-    var busyReactionKind by remember(post.id) { mutableStateOf<String?>(null) }
     var reactionError by remember(post.id, targetId) { mutableStateOf<String?>(null) }
     var reactionRetry by remember(post.id) { mutableIntStateOf(0) }
     var reactionRevision by remember(post.id) { mutableIntStateOf(0) }
+    var reactionStatusLoading by remember(post.id, targetId) { mutableStateOf(allowWrite) }
     val mutating = busySend || deletingId != null || busyReactionId != null
 
     LaunchedEffect(post.id, targetId, refresh) {
         loading = true
-        comments = emptyList() // Never show another thread's comments while loading.
+        // targetId owns a separate remembered list; refresh keeps this thread visible.
         loadError = null
         try {
             comments = withTimeout(18_000L) { actions.loadComments(targetId) }
@@ -95,8 +95,10 @@ internal fun PostCommentsSheet(
         }
     }
 
-    LaunchedEffect(post.id, targetId, comments.map { it.id }, allowWrite, reactionRetry) {
-        if (!allowWrite || comments.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(post.id, targetId, comments.map { it.id }, allowWrite, reactionRetry, loading, refresh) {
+        if (loading) return@LaunchedEffect
+        if (!allowWrite || comments.isEmpty()) { reactionStatusLoading = false; return@LaunchedEffect }
+        reactionStatusLoading = true
         val revision = reactionRevision
         reactionError = null
         try {
@@ -105,12 +107,13 @@ internal fun PostCommentsSheet(
         } catch (_: TimeoutCancellationException) { reactionError = "Comment reaction status took too long. Try again." }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) { reactionError = e.message ?: "Comment reaction status is unavailable." }
+        finally { reactionStatusLoading = false }
     }
 
     fun react(comment: NativePostComment, kind: String) {
-        if (!allowWrite || mutating) return
+        if (!allowWrite || mutating || loading || reactionStatusLoading || !selectedReactions.containsKey(comment.id)) return
         val next = if (selectedReactions[comment.id] == kind) null else kind
-        busyReactionId = comment.id; busyReactionKind = kind; reactionRevision++
+        busyReactionId = comment.id; reactionRevision++
         writeError = null
         scope.launch {
             try {
@@ -120,11 +123,11 @@ internal fun PostCommentsSheet(
                     if (item.id == comment.id) item.copy(likes = counts.first, dislikes = counts.second) else item
                 }
             } catch (_: TimeoutCancellationException) {
-                selectedReactions = selectedReactions - comment.id
-                writeError = "Reaction timed out. Refresh comments to check its status."
+                refresh++
+                writeError = "Reaction timed out. Checking its saved status."
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) { writeError = e.message ?: "Your comment reaction could not be saved." }
-            finally { busyReactionId = null; busyReactionKind = null }
+            finally { busyReactionId = null }
         }
     }
 
@@ -186,7 +189,7 @@ internal fun PostCommentsSheet(
                 }
                 LazyColumn(Modifier.fillMaxWidth().weight(1f), state = listState,
                     verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (loading) items(3) { SautiExploreSkeleton() }
+                    if (loading && comments.isEmpty()) items(3) { SautiExploreSkeleton() }
                     if (loadError != null) item {
                         Column {
                             Text(loadError.orEmpty(), color = MaterialTheme.colorScheme.error,
@@ -204,7 +207,9 @@ internal fun PostCommentsSheet(
                                 Row(verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                     Text(comment.author + if (comment.handle.isNotBlank()) " · @${comment.handle}" else "",
-                                        style = MaterialTheme.typography.labelMedium)
+                                        style = MaterialTheme.typography.labelMedium,
+                                        modifier = Modifier.weight(1f, fill = false),
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     SautiVerificationBadge(comment.verified, comment.badgeType,
                                         comment.author, size = 13.dp)
                                 }
@@ -215,12 +220,12 @@ internal fun PostCommentsSheet(
                                     replyCount = comment.replyCount,
                                     liked = selectedReactions[comment.id] == "like",
                                     disliked = selectedReactions[comment.id] == "dislike",
-                                    reactionEnabled = allowWrite && !mutating, replyEnabled = !mutating,
+                                    reactionEnabled = allowWrite && !mutating && !loading && !reactionStatusLoading &&
+                                        selectedReactions.containsKey(comment.id), replyEnabled = !mutating,
                                     onLike = { react(comment, "like") }, onDislike = { react(comment, "dislike") },
                                     onReply = { trail = trail + comment; writeError = null },
                                     onDelete = if (allowWrite && comment.authorId == signedInUserId)
-                                        ({ confirmDelete = comment }) else null,
-                                    busyReaction = if (busyReactionId == comment.id) busyReactionKind else null)
+                                        ({ confirmDelete = comment }) else null)
                             }
                         }
                     }
@@ -256,7 +261,7 @@ internal fun PostCommentsSheet(
                             placeholder = { Text(if (parent == null) "Write a comment..." else "Write a reply...") },
                             maxLines = 4,
                             supportingText = { Text("${draft.length}/500") },
-                            enabled = !mutating
+                            enabled = !busySend && deletingId == null
                         )
                         IconButton(onClick = {
                             if (mutating || draft.isBlank()) return@IconButton
@@ -322,6 +327,7 @@ internal fun PostCommentsSheet(
                                     if (index == trail.lastIndex) ancestor.copy(replyCount = (ancestor.replyCount - 1).coerceAtLeast(0)) else ancestor
                                 }
                             }
+                            comments = comments.filterNot { it.id == toDelete.id }
                             refresh++
                             onCommentChanged()
                         } catch (_: TimeoutCancellationException) {

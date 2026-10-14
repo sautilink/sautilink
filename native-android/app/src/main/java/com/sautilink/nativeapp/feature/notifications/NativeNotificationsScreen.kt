@@ -52,7 +52,7 @@ fun NativeNotificationsScreen(
     var items by remember(auth.account?.id) { mutableStateOf<List<NativeNotification>>(emptyList()) }
     var unreadOnly by rememberSaveable { mutableStateOf(false) }
     var refresh by remember { mutableIntStateOf(0) }
-    var loading by remember { mutableStateOf(false) }
+    var loading by remember(auth.account?.id) { mutableStateOf(auth.account != null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 

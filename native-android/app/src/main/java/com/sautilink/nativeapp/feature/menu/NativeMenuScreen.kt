@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -19,7 +18,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -31,10 +29,6 @@ import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.profile.NativeProfilesClient
 import com.sautilink.nativeapp.feature.profile.NativeProfile
-import com.sautilink.nativeapp.feature.home.AuthorizedImage
-import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
-import com.sautilink.nativeapp.ui.components.SautiAvatar
-import com.sautilink.nativeapp.ui.theme.SautiColors
 
 /** Immediate menu action with restrained press feedback. */
 @Composable
@@ -149,64 +143,6 @@ fun NativeMenuScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Surface(
-                    onClick = onProfile,
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 0.dp,
-                    shadowElevation = 1.dp,
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .4f)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        val display = ownProfile?.displayName?.takeIf { it.isNotBlank() }
-                            ?: auth.account?.suggestedName?.takeIf { it.isNotBlank() && !it.contains('@') }
-                            ?: auth.account?.suggestedUsername?.takeIf { it.isNotBlank() }
-                            ?: "SautiLink member"
-                        val handle = ownProfile?.username?.takeIf { it.isNotBlank() }
-                            ?: auth.account?.suggestedUsername?.takeIf { it.isNotBlank() }
-                        val initials = display.split(" ").filter { it.isNotBlank() }
-                            .take(2).map { it.first().uppercaseChar() }.joinToString("").ifBlank { "SL" }
-                        if (ownProfile?.hasAvatar == true && handle != null) {
-                            AuthorizedImage(
-                                auth = auth,
-                                route = "/api/profile-media/$handle/avatar",
-                                description = "$display profile picture",
-                                modifier = Modifier.size(46.dp).clip(CircleShape),
-                                fallback = { SautiAvatar(initials, Modifier.size(46.dp), SautiColors.Blue) }
-                            )
-                        } else {
-                            SautiAvatar(initials, Modifier.size(46.dp), SautiColors.Blue)
-                        }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                Text(display, style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.weight(1f, fill = false),
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                SautiVerificationBadge(
-                                    ownProfile?.verified == true,
-                                    ownProfile?.badgeType ?: "standard",
-                                    display, size = 16.dp, profileOwner = true
-                                )
-                            }
-                            Text(
-                                handle?.let { "@$it" } ?: if (auth.account == null) "Sign in" else "View your profile",
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Icon(Icons.Rounded.ChevronRight, contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
                     "Discover and manage",

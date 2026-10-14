@@ -62,8 +62,14 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
             }
         }
     }
+    var loadedRoomKey by remember { mutableStateOf<Pair<String, String?>?>(null) }
     LaunchedEffect(selected?.id, selected?.role, refresh) {
-        posts = emptyList(); members = emptyList(); pending = emptyList()
+        val roomKey = selected?.let { it.id to it.role }
+        if (roomKey != loadedRoomKey) {
+            // Clear when changing rooms/access, but retain the same room during refresh.
+            posts = emptyList(); members = emptyList(); pending = emptyList()
+            loadedRoomKey = roomKey
+        }
         val room = selected ?: return@LaunchedEffect
         if (!room.isOwner && room.role == null) return@LaunchedEffect
         try {

@@ -46,7 +46,7 @@ fun NativeExploreScreen(
     var results by remember(auth.account?.id) {
         mutableStateOf(ExploreResults(emptyList(), emptyList()))
     }
-    var loading by remember { mutableStateOf(false) }
+    var loading by remember(auth.account?.id) { mutableStateOf(auth.account != null) }
     var error by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(auth.account?.id, committedQuery, searchRevision) {
         if (auth.account == null) { results = ExploreResults(emptyList(), emptyList()); return@LaunchedEffect }

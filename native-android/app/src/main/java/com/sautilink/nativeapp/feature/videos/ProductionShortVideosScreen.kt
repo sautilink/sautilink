@@ -7,12 +7,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.net.ConnectivityManager
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -22,7 +21,6 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.*
@@ -30,6 +28,8 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import com.sautilink.nativeapp.feature.home.PostCommentsSheet
 import com.sautilink.nativeapp.ui.components.SautiPostIcons
 import androidx.compose.ui.Alignment
+import com.sautilink.nativeapp.ui.components.sautiActionFeedback
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -372,25 +372,27 @@ fun ProductionShortVideosScreen(
                         Text("Offline. Reconnect to play this video.", color = Color.White,
                             modifier = Modifier.align(Alignment.Center).padding(24.dp))
                     }
-                    Box(Modifier.fillMaxWidth().height(220.dp).align(Alignment.BottomCenter)
+                    Box(Modifier.fillMaxWidth().height(160.dp).align(Alignment.BottomCenter)
                         .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .85f)))))
-                    Column(Modifier.align(Alignment.BottomStart).padding(start = 16.dp, end = 94.dp, bottom = 42.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.align(Alignment.BottomStart).padding(start = 16.dp, end = 76.dp, bottom = 22.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text(item.post.authorName, color = Color.White, style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.clickable(enabled = item.post.authorHandle.isNotBlank()) {
+                            Text(item.post.authorName, color = Color.White, style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false).clickable(enabled = item.post.authorHandle.isNotBlank()) {
                                     onOpenProfile(item.post.authorHandle)
                                 })
                             SautiVerificationBadge(item.post.verified, item.post.badgeType,
-                                item.post.authorName, size = 16.dp, onDarkSurface = true)
+                                item.post.authorName, size = 13.dp, onDarkSurface = true)
                         }
                         if (item.post.body.isNotBlank()) Text(item.post.body, color = Color.White,
-                            maxLines = 3, overflow = TextOverflow.Ellipsis)
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                     Column(Modifier.align(Alignment.BottomEnd)
-                        .padding(end = 8.dp, bottom = 44.dp),
-                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                        .padding(end = 4.dp, bottom = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
                         horizontalAlignment = Alignment.CenterHorizontally) {
                         val post = item.post
                         val liked = likeStates[post.id] == true
@@ -498,30 +500,19 @@ private fun VideoRailAction(
     onClick: () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) .87f else if (active) 1.07f else 1f,
-        animationSpec = spring(dampingRatio = .63f),
-        label = "Short video $label press"
-    )
-    Column(Modifier.width(72.dp).heightIn(min = 60.dp)
+    val tint by animateColorAsState(if (active) Color(0xFFFF5964) else Color.White,
+        tween(150), label = "Video action color")
+    Column(Modifier.width(56.dp).heightIn(min = 48.dp)
         .clickable(interactionSource = interaction, indication = null,
             enabled = enabled, role = Role.Button, onClick = onClick)
-        .padding(vertical = 3.dp),
+        .padding(vertical = 1.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center) {
         Icon(icon, contentDescription = label,
-            modifier = Modifier.size(32.dp).graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            },
-            tint = when {
-                !enabled -> Color.White.copy(alpha = .45f)
-                active -> Color(0xFFFF5964)
-                else -> Color.White
-            })
+            modifier = Modifier.size(24.dp).sautiActionFeedback(interaction),
+            tint = tint)
         Spacer(Modifier.height(2.dp))
-        Text(count ?: label, color = Color.White.copy(alpha = if (enabled) 1f else .55f),
-            style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        Text(count ?: label, color = Color.White,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), maxLines = 1)
     }
 }

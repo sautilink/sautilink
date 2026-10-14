@@ -1,6 +1,10 @@
 package com.sautilink.nativeapp.feature.home
 
 import android.content.Intent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.sautilink.nativeapp.ui.components.sautiActionFeedback
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -889,11 +893,12 @@ private fun RealPostCard(
                                 else MaterialTheme.colorScheme.onSurfaceVariant)
                         CompactPostAction(SautiPostIcons.Share, "Share post", null,
                             Modifier.weight(1f), onShare)
+                        val saveInteraction = remember { MutableInteractionSource() }
                         IconButton(onClick = onSave, enabled = online && !busySave,
-                            modifier = Modifier.size(52.dp)) {
+                            interactionSource = saveInteraction, modifier = Modifier.size(52.dp)) {
                             Icon(if (saved == true) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                                 if (saved == true) "Remove from saved" else "Save post",
-                                modifier = Modifier.size(28.dp),
+                                modifier = Modifier.size(28.dp).sautiActionFeedback(saveInteraction),
                                 tint = if (saved == true) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -928,14 +933,16 @@ private fun CompactPostAction(
     tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     activeIcon: ImageVector = icon
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val animatedTint by animateColorAsState(tint, tween(150), label = "Post action color")
     Row(
         modifier = modifier.heightIn(min = 56.dp)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = ripple(), enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 1.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(activeIcon, contentDescription = label, tint = tint, modifier = Modifier.size(28.dp))
+        Icon(activeIcon, contentDescription = label, tint = animatedTint, modifier = Modifier.size(28.dp).sautiActionFeedback(interaction))
         if (count != null) {
             Spacer(Modifier.width(4.dp))
             Text(count, modifier = Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelSmall,
