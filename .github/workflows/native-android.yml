@@ -19,7 +19,8 @@ jobs:
   preview:
     name: Build and lint native preview
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # Clean assembly passed, but lint was canceled at the former 35-minute limit.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
