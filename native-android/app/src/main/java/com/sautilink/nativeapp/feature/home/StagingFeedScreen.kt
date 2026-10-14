@@ -115,10 +115,7 @@ fun StagingFeedScreen(
     var repostStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var followingStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     // Keep confirmed artwork across refresh/offline; a late GET cannot undo a confirmed tap.
-    var actionStateVersions by remember(auth, account?.id) { mutableStateOf<Map<String, Int>>(emptyMap()) }
-    fun changedActionState(key: String) {
-        actionStateVersions = actionStateVersions + (key to ((actionStateVersions[key] ?: 0) + 1))
-    }
+    val actionStateVersions = remember(auth, account?.id) { FeedActionVersions() }
     var followReadError by remember(auth, account?.id) { mutableStateOf<String?>(null) }
     var followRetryVersion by remember(auth, account?.id) { mutableIntStateOf(0) }
     var likeReadError by remember(auth, account?.id) { mutableStateOf<String?>(null) }
@@ -137,7 +134,7 @@ fun StagingFeedScreen(
     LaunchedEffect(auth, account?.id, shownPostIds, actionRetryVersion, canInteract, refreshVersion, mode) {
         if (!canInteract || shownPostIds.isEmpty()) return@LaunchedEffect
         val expectedId = account?.id
-        val readVersions = actionStateVersions
+        val readVersions = actionStateVersions.snapshot()
         val missingLikes = shownPostIds
         val missingSaved = shownPostIds
         val missingReposts = shownPostIds
@@ -146,9 +143,7 @@ fun StagingFeedScreen(
                 try {
                     val loaded = withTimeout(18_000L) { actions.getLikeStates(missingLikes) }
                     if (auth.account?.id == expectedId) {
-                        likeStates = likeStates + loaded.filterKeys { id ->
-                            actionStateVersions["like:$id"] == readVersions["like:$id"]
-                        }
+                        likeStates = actionStateVersions.reconcile("like", likeStates, loaded, readVersions)
                         likeReadError = null
                     }
                 } catch (_: TimeoutCancellationException) {
@@ -164,9 +159,7 @@ fun StagingFeedScreen(
                 try {
                     val loaded = withTimeout(18_000L) { actions.getSavedStates(missingSaved) }
                     if (auth.account?.id == expectedId) {
-                        savedStates = savedStates + loaded.filterKeys { id ->
-                            actionStateVersions["saved:$id"] == readVersions["saved:$id"]
-                        }
+                        savedStates = actionStateVersions.reconcile("saved", savedStates, loaded, readVersions)
                         savedReadError = null
                     }
                 } catch (_: TimeoutCancellationException) {
@@ -182,9 +175,7 @@ fun StagingFeedScreen(
                 try {
                     val loaded = withTimeout(18_000L) { actions.getRepostStates(missingReposts) }
                     if (auth.account?.id == expectedId) {
-                        repostStates = repostStates + loaded.filterKeys { id ->
-                            actionStateVersions["repost:$id"] == readVersions["repost:$id"]
-                        }
+                        repostStates = actionStateVersions.reconcile("repost", repostStates, loaded, readVersions)
                         repostReadError = null
                     }
                 } catch (_: TimeoutCancellationException) {
@@ -204,16 +195,14 @@ fun StagingFeedScreen(
     LaunchedEffect(auth, account?.id, shownAuthorIds, followRetryVersion, canInteract, refreshVersion, mode) {
         if (!canInteract || shownAuthorIds.isEmpty()) return@LaunchedEffect
         val expectedAccountId = account?.id
-        val readVersions = actionStateVersions
+        val readVersions = actionStateVersions.snapshot()
         val missing = shownAuthorIds
         if (missing.isEmpty()) return@LaunchedEffect
         try {
             val loaded = withTimeout(18_000L) { actions.getFollowingStates(missing) }
             if (auth.account?.id == expectedAccountId) {
                 // A confirmed tap made while loading takes precedence over a late GET.
-                followingStates = followingStates + loaded.filterKeys { id ->
-                    actionStateVersions["follow:$id"] == readVersions["follow:$id"]
-                }
+                followingStates = actionStateVersions.reconcile("follow", followingStates, loaded, readVersions)
                 followReadError = null
             }
         } catch (_: TimeoutCancellationException) {
@@ -258,13 +247,13 @@ fun StagingFeedScreen(
                 else actions.setSaved(post.id, desired)
                 if (auth.account?.id != expectedUser) return@launch
                 if (kind == "like") {
-                    changedActionState("like:${post.id}")
+                    actionStateVersions.changed("like:${post.id}")
                     likeStates = likeStates + (post.id to desired)
                     // An unknown prior state may already be liked: do not invent a count.
                     if (previous != null) posts = posts.map { item -> if (item.id == post.id) item.copy(likes =
                         (item.likes + if (previous) -1 else 1).coerceAtLeast(0)) else item }
                 } else {
-                    changedActionState("saved:${post.id}")
+                    actionStateVersions.changed("saved:${post.id}")
                     savedStates = savedStates + (post.id to desired)
                     if (mode == "saved" && !desired) {
                         // The server confirmed deletion. Remove only that item; no feed write is involved.
@@ -298,7 +287,7 @@ fun StagingFeedScreen(
             try {
                 withTimeout(20_000L) { actions.setRepost(post.id, desired) }
                 if (auth.account?.id != expectedUser) return@launch
-                changedActionState("repost:${post.id}")
+                actionStateVersions.changed("repost:${post.id}")
                 repostStates = repostStates + (post.id to desired)
                 if (previous != null) {
                     posts = posts.map { p -> if (p.id == post.id)
@@ -318,7 +307,7 @@ fun StagingFeedScreen(
                 if (auth.account?.id == expectedUser) {
                     actionError = "Repost took too long. Refresh to check its status before trying again."
                     actionErrorPostId = post.id
-                    changedActionState("repost:${post.id}")
+                    actionStateVersions.changed("repost:${post.id}")
                     repostStates = repostStates - post.id
                     repostReadError = "Repost status is uncertain. Tap Retry."
                 }
@@ -350,14 +339,14 @@ fun StagingFeedScreen(
             try {
                 withTimeout(20_000L) { actions.setFollow(post.authorHandle, desired) }
                 if (auth.account?.id != expectedUserId) return@launch
-                changedActionState("follow:${post.authorId}")
+                actionStateVersions.changed("follow:${post.authorId}")
                 followingStates = followingStates + (post.authorId to desired)
                 followReadError = null
                 // Following must not continue showing an author the user has just unfollowed.
                 if (mode == "following" && !desired) refreshVersion++
             } catch (_: TimeoutCancellationException) {
                 if (auth.account?.id == expectedUserId) {
-                    changedActionState("follow:${post.authorId}")
+                    actionStateVersions.changed("follow:${post.authorId}")
                     followingStates = followingStates - post.authorId
                     actionError = "Follow request timed out. Check current status before trying again."
                     actionErrorPostId = post.id
@@ -572,19 +561,19 @@ fun StagingFeedScreen(
                         mutationError = if (actionErrorPostId == post.id) actionError else null,
                         onRetryLike = {
                             likeReadError = null
-                            changedActionState("like:${post.id}")
+                            actionStateVersions.changed("like:${post.id}")
                             likeStates = likeStates - post.id
                             actionRetryVersion++
                         },
                         onRetrySaved = {
                             savedReadError = null
-                            changedActionState("saved:${post.id}")
+                            actionStateVersions.changed("saved:${post.id}")
                             savedStates = savedStates - post.id
                             actionRetryVersion++
                         },
                         onRetryRepost = {
                             repostReadError = null
-                            changedActionState("repost:${post.id}")
+                            actionStateVersions.changed("repost:${post.id}")
                             repostStates = repostStates - post.id
                             actionRetryVersion++
                         },
@@ -598,7 +587,7 @@ fun StagingFeedScreen(
                         onFollow = { changeFollow(post) },
                         onRetryFollow = {
                             followReadError = null
-                            changedActionState("follow:${post.authorId}")
+                            actionStateVersions.changed("follow:${post.authorId}")
                             followingStates = followingStates - post.authorId
                             followRetryVersion++
                         }
