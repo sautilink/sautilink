@@ -919,10 +919,15 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             }
         } else {
             val inboxIssue = error ?: inboxError
-            if (inboxIssue != null) Text(inboxIssue, Modifier.padding(18.dp), color = MaterialTheme.colorScheme.error)
+            if (inboxIssue != null) Column(Modifier.fillMaxWidth().padding(18.dp)) {
+                Text(inboxIssue, color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { error = null; refresh++ }, enabled = !loading) {
+                    Text("Retry messages")
+                }
+            }
             LazyColumn(contentPadding = PaddingValues(bottom = 20.dp)) {
                 if (loading && conversations.isEmpty()) items(5) { SautiExploreSkeleton() }
-                if (!loading && shown.isEmpty()) item {
+                if (!loading && inboxIssue == null && shown.isEmpty()) item {
                     Text(if (query.isBlank() && !unreadOnly) "No conversations yet."
                         else "No matching conversations.", Modifier.padding(22.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
