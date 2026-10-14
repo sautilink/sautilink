@@ -132,8 +132,14 @@ internal fun PostCommentsSheet(
     }
 
     val threadStateHolder = rememberSaveableStateHolder()
+    val currentMutation = rememberUpdatedState(mutating)
+    // SheetState remembers this callback as an input. A new callback for each busy-state
+    // change recreates it and replays the opening animation twice for a single reaction.
+    val confirmSheetChange = remember {
+        { value: SheetValue -> !currentMutation.value || value != SheetValue.Hidden }
+    }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true,
-        confirmValueChange = { !mutating || it != SheetValue.Hidden })
+        confirmValueChange = confirmSheetChange)
     ModalBottomSheet(onDismissRequest = { if (!mutating) onDismiss() },
         sheetState = sheetState, shape = SautiShape.Sheet) {
         threadStateHolder.SaveableStateProvider(targetId) {
