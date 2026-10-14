@@ -392,7 +392,7 @@ private fun InlineFeedVideo(
         if (player != null && firstFrame) {
             IconButton(
                 onClick = NativePlaybackPreferences::toggleSessionSound,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(7.dp)
+                modifier = Modifier.align(Alignment.BottomStart).padding(7.dp)
                     .background(Color.Black.copy(alpha = .56f), CircleShape)
                     .size(44.dp)
             ) {
