@@ -30,6 +30,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.home.AuthorizedImage
 import kotlinx.coroutines.CancellationException
@@ -164,6 +167,16 @@ internal fun NativeDmMediaControls(
     ) { granted ->
         if (granted) startVoice()
         else onError("Microphone permission is required for voice notes.")
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            // Leaving the app must not leave a live microphone draft that can
+            // later auto-send at the one-minute limit.
+            if (event == Lifecycle.Event.ON_STOP) stopVoice(cancel = true)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     LaunchedEffect(recording) {
         while (recording) {
