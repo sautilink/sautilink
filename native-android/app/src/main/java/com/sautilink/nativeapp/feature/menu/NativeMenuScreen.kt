@@ -1,5 +1,7 @@
 package com.sautilink.nativeapp.feature.menu
 
+import com.sautilink.nativeapp.ui.components.SautiCopyrightFooter
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -278,10 +280,7 @@ fun NativeMenuScreen(
                 }
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
-                Text("SautiLink · Create · Share · Connect",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp))
+                SautiCopyrightFooter()
             }
         }
     }

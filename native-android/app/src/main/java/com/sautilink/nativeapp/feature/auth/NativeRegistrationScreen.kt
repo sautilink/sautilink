@@ -1,5 +1,7 @@
 package com.sautilink.nativeapp.feature.auth
 
+import com.sautilink.nativeapp.ui.components.SautiCopyrightFooter
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -381,6 +383,7 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
             Text("SautiLink never asks you to share your password or verification code with support.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
+        SautiCopyrightFooter()
         Spacer(Modifier.height(20.dp))
     }
 }

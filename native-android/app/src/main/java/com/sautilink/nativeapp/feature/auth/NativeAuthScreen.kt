@@ -1,5 +1,7 @@
 package com.sautilink.nativeapp.feature.auth
 
+import com.sautilink.nativeapp.ui.components.SautiCopyrightFooter
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -309,6 +311,7 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
                 }
             }
         }
+        SautiCopyrightFooter()
         Spacer(Modifier.height(20.dp))
     }
 }
