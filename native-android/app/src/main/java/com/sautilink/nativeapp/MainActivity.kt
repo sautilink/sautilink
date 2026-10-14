@@ -83,12 +83,6 @@ class MainActivity : ComponentActivity() {
     override fun onResume() { super.onResume(); appResumeVersion++ }
 }
 
-// Keep startup policy outside the large renderer's data-flow scope. A retry uses
-// the mounted auth screen; only the initial restoration belongs to splash.
-private fun needsStartupSplash(showSplash: Boolean, restoreFinished: Boolean,
-                              sessionState: StagingSessionState): Boolean =
-    showSplash || (!restoreFinished && sessionState == StagingSessionState.CHECKING)
-
 /** Live production feed is the main Home; demo content remains an explicit design sandbox. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -284,7 +278,8 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         when {
             // Keep the auth screen mounted during a later Retry session. Replacing it
             // with splash cancels its remembered coroutine scope and aborts the retry.
-            needsStartupSplash(startupSplash, initialRestoreFinished, productionAuth.sessionState) -> {
+            startupSplash || (!initialRestoreFinished &&
+                productionAuth.sessionState == StagingSessionState.CHECKING) -> {
                 SautiStartupSplash()
             }
             productionAuth.account == null -> {
