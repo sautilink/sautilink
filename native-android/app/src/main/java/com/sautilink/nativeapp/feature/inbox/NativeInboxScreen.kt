@@ -55,6 +55,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -112,6 +114,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var refresh by remember { mutableIntStateOf(0) }
     var loading by remember(auth.account?.id) { mutableStateOf(auth.account != null) }
     var error by remember(selectedId) { mutableStateOf<String?>(null) }
+    var threadReadIssue by remember(auth.account?.id, selectedId) { mutableStateOf<String?>(null) }
     var inboxError by remember(auth.account?.id) { mutableStateOf<String?>(null) }
     var threadLoading by remember(selectedId) { mutableStateOf(selectedId != null) }
     var draft by rememberSaveable { mutableStateOf("") }
@@ -188,10 +191,11 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         if (!foreground) return@LaunchedEffect
         val id = selectedId ?: return@LaunchedEffect
         val firstOpen = thread?.conversation?.id != id
-        threadLoading = firstOpen
+        threadLoading = true
         if (firstOpen) { thread = null; mediaByMessage = emptyMap() }
         try {
             val updated = client.thread(id)
+            currentCoroutineContext().ensureActive()
             if (firstOpen || updated.messages != thread?.messages) {
                 val updatedMedia = runCatching { mediaClient.attachments(updated.messages) }
                     .getOrElse { if (it is CancellationException) throw it else mediaByMessage }
@@ -201,6 +205,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     thread = updated
                 }
             }
+            if (selectedId == id) threadReadIssue = null
             val delivery = runCatching { client.acknowledgeDelivery(id) }
             val reading = runCatching { client.markRead(id) }
             val receipts = runCatching { client.peerReceipts(id) }
@@ -209,7 +214,11 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             // The status-specific retry UI represents peer status loading only.
             receiptIssue = receipts.isFailure
         } catch (cancelled: CancellationException) { throw cancelled }
-        catch (e: Exception) { error = e.message ?: "Could not open conversation." }
+        catch (e: Exception) {
+            // Blocking transports can wrap cancellation as a connection error.
+            currentCoroutineContext().ensureActive()
+            if (selectedId == id) threadReadIssue = e.message ?: "Could not open conversation."
+        }
         finally { threadLoading = false }
     }
     LaunchedEffect(selectedId, foreground) {
@@ -218,6 +227,8 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             delay(25_000)
             try {
                 val updated = client.thread(id)
+                currentCoroutineContext().ensureActive()
+                if (selectedId == id) threadReadIssue = null
                 if (selectedId == id && updated.messages != thread?.messages) {
                     val updatedMedia = runCatching { mediaClient.attachments(updated.messages) }
                         .getOrElse { if (it is CancellationException) throw it else mediaByMessage }
@@ -487,9 +498,9 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     }, singleLine = true, shape = RoundedCornerShape(18.dp))
             }
             if (threadLoading && active == null) LinearProgressIndicator(Modifier.fillMaxWidth())
-            if (!threadLoading && active == null && error != null) {
-                Text(error.orEmpty(), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = { error = null; refresh++ }) { Text("Retry conversation") }
+            if (threadReadIssue != null) {
+                Text(threadReadIssue.orEmpty(), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { refresh++ }, enabled = !threadLoading) { Text("Retry conversation") }
             }
             if (active != null) {
                 val ownId = auth.account?.id
