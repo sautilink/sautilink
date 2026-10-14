@@ -31,7 +31,11 @@ jobs:
           gradle-version: "8.13"
       - name: Build and lint preview
         working-directory: native-android
-        run: gradle :app:assemblePreviewDebug :app:lintPreviewDebug --no-daemon
+        # Match the successful local build; K2 lint analysis exceeds the previous 3 GiB heap.
+        run: >-
+          gradle :app:assemblePreviewDebug :app:lintPreviewDebug --no-daemon
+          --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process
+          '-Dorg.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8'
       - uses: actions/upload-artifact@v4
         with:
           name: SautiLink-Native-Preview-${{ github.sha }}
