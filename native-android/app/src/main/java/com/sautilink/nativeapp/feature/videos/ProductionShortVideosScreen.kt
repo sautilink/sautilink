@@ -69,7 +69,7 @@ private data class LiveClip(val post: StagingFeedPost, val mediaId: String)
 
 /** RLS-backed short-video feed. One authorized decoder is shared by all visible pages. */
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ProductionShortVideosScreen(
     auth: StagingAuthClient,
@@ -329,7 +329,9 @@ fun ProductionShortVideosScreen(
         player.playWhenReady = autoplay && online && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
     }
 
-    Box(Modifier.fillMaxSize().background(Color(0xFF07101B))) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF07101B))) {
+        // Keep full-sized actions below the toolbar when landscape reduces height.
+        val compactRail = maxHeight < 380.dp
         if (auth.account == null) {
             Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -375,7 +377,8 @@ fun ProductionShortVideosScreen(
                     }
                     Box(Modifier.fillMaxWidth().height(160.dp).align(Alignment.BottomCenter)
                         .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .85f)))))
-                    Column(Modifier.align(Alignment.BottomStart).padding(start = 16.dp, end = 76.dp, bottom = 22.dp),
+                    Column(Modifier.align(Alignment.BottomStart).padding(start = 16.dp,
+                        end = if (compactRail) 132.dp else 76.dp, bottom = 22.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -391,10 +394,7 @@ fun ProductionShortVideosScreen(
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
-                    Column(Modifier.align(Alignment.BottomEnd)
-                        .padding(end = 4.dp, bottom = 20.dp),
-                        verticalArrangement = Arrangement.spacedBy(0.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally) {
+                    val railActions: @Composable () -> Unit = {
                         val post = item.post
                         val liked = likeStates[post.id] == true
                         val saved = saveStates[post.id] == true
@@ -415,6 +415,22 @@ fun ProductionShortVideosScreen(
                         ) { togglePostAction(post, "repost") }
                         VideoRailAction(SautiPostIcons.Share, "Share") { shareClip(post, false) }
                         VideoRailAction(Icons.Rounded.ContentCopy, "Copy link") { shareClip(post, true) }
+                    }
+                    if (compactRail) {
+                        FlowRow(Modifier.align(Alignment.BottomEnd)
+                            .padding(end = 4.dp, bottom = 20.dp).width(113.dp),
+                            maxItemsInEachRow = 2,
+                            horizontalArrangement = Arrangement.spacedBy(0.dp),
+                            verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                            railActions()
+                        }
+                    } else {
+                        Column(Modifier.align(Alignment.BottomEnd)
+                            .padding(end = 4.dp, bottom = 20.dp),
+                            verticalArrangement = Arrangement.spacedBy(0.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally) {
+                            railActions()
+                        }
                     }
                 }
             }
