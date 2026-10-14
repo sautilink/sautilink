@@ -182,7 +182,10 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         catch (e: Exception) { inboxError = e.message ?: "Could not load messages." }
         finally { loading = false }
     }
-    LaunchedEffect(selectedId, refresh) {
+    // A message may arrive while subscriptions are stopped in the background.
+    // Reconcile immediately on resume, retaining the current thread and composer.
+    LaunchedEffect(selectedId, refresh, foreground) {
+        if (!foreground) return@LaunchedEffect
         val id = selectedId ?: return@LaunchedEffect
         val firstOpen = thread?.conversation?.id != id
         threadLoading = firstOpen
