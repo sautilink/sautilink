@@ -13,6 +13,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.core.*
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
@@ -27,6 +29,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -307,6 +310,7 @@ internal fun NativeDmMediaControls(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun NativeDmAttachmentBubble(
     auth: StagingAuthClient,
@@ -314,6 +318,7 @@ internal fun NativeDmAttachmentBubble(
     modifier: Modifier = Modifier,
     autoLoadPhotos: Boolean = true,
     isOutgoing: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
     onError: (String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -343,7 +348,7 @@ internal fun NativeDmAttachmentBubble(
     when (media.kind) {
         "photo" -> {
             if (openPhoto) NativeDmCachedPhoto(
-                auth = auth, media = media, modifier = modifier,
+                auth = auth, media = media, modifier = modifier, onLongClick = onLongClick,
                 onError = onError)
             else OutlinedButton(onClick = { openPhoto = true },
                 shape = RoundedCornerShape(15.dp)) {
@@ -356,12 +361,14 @@ internal fun NativeDmAttachmentBubble(
         else -> {
             val foreground = if (isOutgoing) Color.White else MaterialTheme.colorScheme.onSurface
             Surface(
-                onClick = {
-                    destinationMedia = media
-                    fileSave.launch(media.name.ifBlank { "SautiLink-document" })
-                },
-                enabled = !download,
-                modifier = modifier.fillMaxWidth().heightIn(min = 60.dp),
+                modifier = modifier.fillMaxWidth().heightIn(min = 60.dp)
+                    .combinedClickable(enabled = !download, role = Role.Button,
+                        onLongClick = onLongClick,
+                        onLongClickLabel = if (onLongClick != null) "Select message" else null,
+                        onClick = {
+                            destinationMedia = media
+                            fileSave.launch(media.name.ifBlank { "SautiLink-document" })
+                        }),
                 shape = RoundedCornerShape(14.dp),
                 color = if (isOutgoing) Color.White.copy(alpha = .15f)
                     else MaterialTheme.colorScheme.surfaceVariant,

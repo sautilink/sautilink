@@ -6,6 +6,8 @@ import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -64,11 +66,13 @@ private fun decodeDmThumbnail(bytes: ByteArray): Bitmap {
 }
 
 /** Stable thumbnail even when the LazyColumn recycles cells or read receipts change. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun NativeDmCachedPhoto(
     auth: StagingAuthClient,
     media: DmMedia,
     modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
     onError: (String) -> Unit
 ) {
     val account = auth.account?.id.orEmpty()
@@ -100,7 +104,10 @@ internal fun NativeDmCachedPhoto(
 
     Box(modifier.fillMaxWidth().height(218.dp).clip(RoundedCornerShape(12.dp))
         .background(MaterialTheme.colorScheme.surfaceVariant)
-        .clickable(enabled = photo != null) { enlarged = true },
+        .combinedClickable(enabled = photo != null,
+            onLongClick = onLongClick,
+            onLongClickLabel = if (onLongClick != null) "Select message" else null,
+            onClick = { enlarged = true }),
         contentAlignment = Alignment.Center) {
         val image = photo
         when {
