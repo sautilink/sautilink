@@ -183,7 +183,9 @@ fun NativeOwnPostsScreen(auth: StagingAuthClient, refreshKey: Int, onBack: () ->
             Text("My posts", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
             IconButton(onClick = { refresh++ }, enabled = !loading) { Icon(Icons.Rounded.Refresh, "Refresh posts") }
         }
-        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        Box(Modifier.fillMaxWidth().height(4.dp)) {
+            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        }
         LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (error != null) item { Text(error.orEmpty(), color = MaterialTheme.colorScheme.error) }
             item { Button(onClick = onCreate, shape = SautiShape.Pill) { Text("Create a post") } }

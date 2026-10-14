@@ -106,7 +106,9 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
                 Icon(Icons.Rounded.Add, "Create Room")
             }
         }
-        if (loading || busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        Box(Modifier.fillMaxWidth().height(4.dp)) {
+            if (loading || busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        }
         if (error != null) Text(error.orEmpty(), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
         if (auth.account == null) {
             Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
