@@ -13,8 +13,7 @@ function json(status, payload) {
 const error = (status, code, message) => json(status, { ok: false, error: { code, message } });
 const headers = (auth) => ({ apikey: KEY, Authorization: auth, Accept: 'application/json', 'Content-Type': 'application/json' });
 
-async function readRoomActionBody(request) {
-  const limit = 4096;
+export async function readRoomActionBody(request, { limit = 4096 } = {}) {
   if (Number(request.headers.get('Content-Length') || 0) > limit) {
     void request.body?.cancel().catch(() => {});
     return { response: error(413, 'BODY_TOO_LARGE', 'This Room action is too large.') };
@@ -74,7 +73,7 @@ function rpcError(result) {
   return error(400, 'INVALID_ROOM_REQUEST', 'Check the Room submission details and try again.');
 }
 
-async function authenticate(request) {
+export async function authenticate(request) {
   const auth = request.headers.get('Authorization') || '';
   if (!/^Bearer\s+[^\s]+$/i.test(auth)) return null;
   const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: headers(auth) });
@@ -181,9 +180,34 @@ export async function handleRoomPostApprovalRequest(request, env) {
   if (!session) return error(401, 'AUTH_REQUIRED', 'Sign in to use Room post review.');
   if (capability) {
     if (request.method !== 'GET') return error(405, 'METHOD_NOT_ALLOWED', 'Use GET.');
-    const result = await roomApprovalRpc(session, 'room_post_approval_capabilities');
-    if (result.missing) return json(200, { ok: true, data: { post_approval: false, version: 0 } });
-    return result.ok ? json(200, { ok: true, data: result.value }) : rpcError(result);
+    const result = await roomApprovalRpc(session, 'room_post_approval_capabilities').catch(() => null);
+    if (!result) return error(503, 'ROOM_CAPABILITIES_UNAVAILABLE', 'Room capabilities are temporarily unavailable.');
+    if (!result.ok && !result.missing) {
+      if ([401, 403].includes(result.status)) return error(result.status,
+        result.status === 401 ? 'AUTH_REQUIRED' : 'ROOM_CAPABILITY_FORBIDDEN', 'Room capabilities could not be confirmed.');
+      return rpcError(result);
+    }
+    // Management is an independent, additive capability. Older databases and
+    // explicitly missing probes keep old behavior. A transient or invalid reply
+    // remains unresolved so clients cannot mistake it for a legacy server.
+    if (!result.missing && (typeof result.value?.post_approval !== 'boolean' ||
+        ![0, 1].includes(result.value?.version) || result.value.version === 0 && result.value.post_approval !== false)) {
+      return error(503, 'ROOM_CAPABILITY_RESPONSE_INVALID', 'Room capabilities could not be confirmed.');
+    }
+    const management = await roomApprovalRpc(session, 'room_management_capabilities').catch(() => null);
+    if (!management || !management.ok && !management.missing) {
+      const status = [401, 403].includes(management?.status) ? management.status : 503;
+      return error(status, status === 401 ? 'AUTH_REQUIRED' : 'ROOM_CAPABILITIES_UNAVAILABLE', 'Room capabilities are temporarily unavailable.');
+    }
+    if (!management.missing && (typeof management.value?.room_management !== 'boolean' ||
+        management.value.management_version !== (management.value.room_management ? 1 : 0))) {
+      return error(503, 'ROOM_CAPABILITY_RESPONSE_INVALID', 'Room capabilities could not be confirmed.');
+    }
+    const enabled = !management.missing && management.value.room_management;
+    return json(200, { ok: true, data: {
+      ...(result.missing ? { post_approval: false, version: 0 } : result.value),
+      room_management: enabled, management_version: enabled ? 1 : 0,
+    } });
   }
   const [, rawRoomId, resource, rawSubmissionId, operation, rawMediaId] = match;
   const roomId = roomUuid(rawRoomId);

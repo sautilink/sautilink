@@ -338,7 +338,12 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
             try {
                 val created = client.create(settings)
                 if (!current()) return@launch
-                if (navigation == navigationVersion) { select(created); onCreated() }
+                if (navigation == navigationVersion) {
+                    select(created); onCreated()
+                    // INSERT RETURNING predates the owner-membership count trigger.
+                    // Re-read canonical metadata independently of the confirmed create ACK.
+                    refreshRoom()
+                }
                 loadLanding()
                 if (cover != null) {
                     try { coverClient.upload(created, cover); if (current(created.id)) refreshRoom() }
@@ -395,6 +400,12 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
 
     fun commentCount(postId: String, delta: Int) {
         if (current()) posts = posts.map { if (it.id == postId) it.copy(comments = (it.comments + delta).coerceAtLeast(0)) else it }
+    }
+
+    fun confirmedPostRemoval(roomId: String, postId: String) {
+        if (!current(roomId)) return
+        posts = posts.filterNot { it.id == postId }
+        loadPosts(); refreshRoom()
     }
 
     fun refreshPost(postId: String) {

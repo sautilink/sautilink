@@ -131,12 +131,16 @@ internal fun RoomSettingsSheet(accountId: String?, room: NativeRoom?, approvalAv
 @Composable
 internal fun RoomManageSheet(room: NativeRoom, state: RoomsState, onDismiss: () -> Unit,
     onSettings: () -> Unit, onPeople: () -> Unit, onInvites: () -> Unit, onApprovals: () -> Unit,
-    onDelete: () -> Unit) {
+    onDelete: () -> Unit, onCommunity: (() -> Unit)? = null, onOutgoing: (() -> Unit)? = null) {
     RoomSheet("Manage ${room.name}", onDismiss) {
         Text(roomRoleLabel(if (room.isOwner) "owner" else room.role), style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary)
         if (room.canManageSettings) RoomManageRow("Room settings", "Name, category, access and cover",
             Icons.Rounded.Settings, onSettings)
+        if (onCommunity != null) RoomManageRow("Community settings", "Rules and membership questions",
+            Icons.Rounded.Rule, onCommunity)
+        if (onOutgoing != null && room.isMember) RoomManageRow("Outgoing invitations", "Review and revoke pending invitations",
+            Icons.Rounded.Send, onOutgoing)
         if (room.canManagePeople) RoomManageRow("People and requests", "Members, roles and join requests",
             Icons.Rounded.People, onPeople)
         if (room.canInvite) RoomManageRow("Invite someone", "Invite a SautiLink account by username",
@@ -166,10 +170,11 @@ private fun RoomManageRow(title: String, detail: String, icon: androidx.compose.
 }
 
 @Composable
-internal fun RoomInviteSheet(room: NativeRoom, state: RoomsState, onDismiss: () -> Unit) {
+internal fun RoomInviteSheet(room: NativeRoom, state: RoomsState, onDismiss: () -> Unit, onOutgoing: () -> Unit) {
     var handle by remember(state.accountId, room.id) { mutableStateOf("") }
     RoomSheet("Invite to ${room.name}", onDismiss) {
         Text("They can accept or decline from their Rooms invitations.", style = MaterialTheme.typography.bodyMedium)
+        TextButton(onClick = onOutgoing) { Text("Outgoing invitations") }
         OutlinedTextField(handle, { handle = it.take(31) }, label = { Text("Username") },
             prefix = { Text("@") }, singleLine = true, enabled = !state.busy("invite"), modifier = Modifier.fillMaxWidth())
         if (state.roomError != null) RoomNotice(state.roomError.orEmpty(), true)
@@ -180,7 +185,8 @@ internal fun RoomInviteSheet(room: NativeRoom, state: RoomsState, onDismiss: () 
 }
 
 @Composable
-internal fun RoomPeopleContent(room: NativeRoom, state: RoomsState, onOpenProfile: (String) -> Unit) {
+internal fun RoomPeopleContent(room: NativeRoom, state: RoomsState, onOpenProfile: (String) -> Unit,
+    onAnswers: ((String) -> Unit)? = null) {
     var memberOptions by remember(state.accountId, room.id, room.role) { mutableStateOf<NativeRoomMember?>(null) }
     var removeConfirm by remember(state.accountId, room.id, room.role) { mutableStateOf<NativeRoomMember?>(null) }
     val height = (LocalConfiguration.current.screenHeightDp * .65f).dp
@@ -193,6 +199,9 @@ internal fun RoomPeopleContent(room: NativeRoom, state: RoomsState, onOpenProfil
             items(state.requests, key = { "request:${it.requesterId}" }) { request ->
                 RoomPerson(state.auth, request.name, request.handle, null, request.verified, request.badgeType,
                     request.hasAvatar, { onOpenProfile(request.handle) }) {
+                    if (onAnswers != null) IconButton(onClick = { onAnswers(request.requesterId) }) {
+                        Icon(Icons.Rounded.QuestionAnswer, "View membership answers")
+                    }
                     TextButton(onClick = { state.mutate("request:${request.requesterId}", room,
                         { state.client.decide(room, request.requesterId, true) }) }, enabled = !state.busy("request:${request.requesterId}")) {
                         Text(if (state.busy("request:${request.requesterId}")) "Saving…" else "Approve")

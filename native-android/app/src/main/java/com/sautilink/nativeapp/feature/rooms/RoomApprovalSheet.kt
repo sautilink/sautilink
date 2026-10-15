@@ -22,8 +22,8 @@ internal fun RoomApprovalSheet(room: NativeRoom, state: RoomsState, onDismiss: (
     LaunchedEffect(state.accountId, room.id) { state.loadSubmissions() }
     RoomSheet(if (room.isStaff) "Post approvals" else "Your submissions", onDismiss) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(state.submissionFilter == "pending", { state.submissionFilter = "pending"; state.loadSubmissions() }, label = { Text("Pending") })
-            FilterChip(state.submissionFilter == "all", { state.submissionFilter = "all"; state.loadSubmissions() }, label = { Text("History") })
+            FilterChip(state.submissionFilter == "pending", { state.submissionFilter = "pending"; state.loadSubmissions() }, label = { Text("Pending") }, colors = roomFilterChipColors())
+            FilterChip(state.submissionFilter == "all", { state.submissionFilter = "all"; state.loadSubmissions() }, label = { Text("History") }, colors = roomFilterChipColors())
             TextButton(onClick = { state.loadSubmissions() }, enabled = !state.submissionsLoading) { Text("Refresh") }
         }
         if (state.submissionError != null) RoomNotice(state.submissionError.orEmpty(), true,

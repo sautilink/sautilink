@@ -65,10 +65,17 @@ internal fun RoomsTabs(selected: RoomsTab, invites: Int, onSelect: (RoomsTab) ->
             FilterChip(selected = tab == selected, onClick = { onSelect(tab) },
                 label = { Text(if (tab == RoomsTab.INVITES && invites > 0) "Invites ($invites)" else tab.title,
                     style = MaterialTheme.typography.labelMedium, maxLines = 1) },
-                modifier = Modifier.weight(1f), shape = SautiShape.Pill)
+                modifier = Modifier.weight(1f), shape = SautiShape.Pill, colors = roomFilterChipColors())
         }
     }
 }
+
+@Composable
+internal fun roomFilterChipColors() = FilterChipDefaults.filterChipColors(
+    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = .12f),
+    selectedLabelColor = MaterialTheme.colorScheme.primary,
+    selectedLeadingIconColor = MaterialTheme.colorScheme.primary
+)
 
 @Composable
 internal fun RoomContentTabs(selected: RoomTab, onSelect: (RoomTab) -> Unit) {
@@ -216,7 +223,7 @@ internal data class RoomPostUi(val liked: Boolean? = null, val saved: Boolean? =
 internal fun RoomPostCard(auth: StagingAuthClient, post: NativeRoomPost, state: RoomPostUi,
     onOpenProfile: () -> Unit, onOpenPost: () -> Unit, onComments: () -> Unit,
     onLike: (Boolean) -> Unit, onSave: () -> Unit, onRepost: () -> Unit, onShare: () -> Unit,
-    onRetry: () -> Unit) {
+    onRetry: () -> Unit, onManagePost: (() -> Unit)? = null) {
     Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f))) {
         Column(Modifier.fillMaxWidth()) {
@@ -225,7 +232,9 @@ internal fun RoomPostCard(auth: StagingAuthClient, post: NativeRoomPost, state: 
                     RoomPerson(auth, post.authorName, post.authorHandle, null, post.verified, post.badgeType,
                         post.hasAvatar, onOpenProfile)
                 }
-                IconButton(onClick = onOpenPost) { Icon(Icons.Rounded.MoreHoriz, "Open post") }
+                IconButton(onClick = onManagePost ?: onOpenPost) {
+                    Icon(Icons.Rounded.MoreHoriz, if (onManagePost != null) "Manage Room post" else "Open post")
+                }
             }
             Text(relativePostTime(post.createdAt), Modifier.padding(horizontal = 14.dp),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

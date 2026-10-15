@@ -18,7 +18,7 @@ import com.sautilink.nativeapp.feature.home.NativePostDetailScreen
 import com.sautilink.nativeapp.feature.home.PostCommentsSheet
 import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
 
-private enum class RoomsSheet { CREATE, SETTINGS, MANAGE, INVITE, PEOPLE, COMPOSE, APPROVALS }
+private enum class RoomsSheet { CREATE, SETTINGS, MANAGE, INVITE, PEOPLE, COMPOSE, APPROVALS, COMMUNITY, OUTGOING, MEMBERSHIP, ANSWERS, POST }
 
 @Composable
 fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () -> Unit,
@@ -28,14 +28,45 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val state = remember(auth, accountId) { RoomsState(auth, accountId, context, scope) }
+    val community = remember(auth, accountId) { RoomManagementState(auth, accountId, scope) }
     val entry = remember(state, initialRoomSlug) { state.restoreEntry(initialRoomSlug) }
     var sheet by remember(accountId) { mutableStateOf<RoomsSheet?>(null) }
     var detailPost by remember(accountId) { mutableStateOf(entry.postId) }
     var commentPost by remember(accountId, state.selected?.id) { mutableStateOf<NativeRoomPost?>(null) }
     var confirmation by remember(accountId, state.selected?.id) { mutableStateOf<String?>(null) }
     val room = state.selected
+    var membershipAction by remember(accountId) { mutableStateOf("join") }
+    var pendingMembership by remember(accountId) { mutableStateOf<Pair<String, String>?>(null) }
+    var answersRequester by remember(accountId, room?.id) { mutableStateOf<String?>(null) }
+    var managedPost by remember(accountId, room?.id) { mutableStateOf<NativeRoomPost?>(null) }
     val listState = remember(accountId, room?.id) { LazyListState() }
-    DisposableEffect(state) { onDispose { state.dispose() } }
+    DisposableEffect(state, community) { onDispose { state.dispose(); community.dispose() } }
+    LaunchedEffect(community, room?.id, room?.role, room?.privacy, room?.viewerId) { community.open(room) }
+    val beginMembership: (NativeRoom, String) -> Unit = { target, action ->
+        pendingMembership = target.id to action
+        if (room?.id != target.id) state.openRoom(target)
+    }
+    LaunchedEffect(pendingMembership, room, community.capabilityResolved, community.capabilityLoading,
+        community.available, community.configuration, community.configurationLoading, community.configurationError) {
+        val pending = pendingMembership
+        if (pending != null && room?.id == pending.first && community.membershipReady(room)) {
+            pendingMembership = null
+            membershipAction = pending.second
+            if (community.available) sheet = RoomsSheet.MEMBERSHIP
+            else when (pending.second) {
+                "accept_invitation" -> {
+                    val invitation = state.invitations.firstOrNull { it.room.id == room.id }
+                    if (invitation != null) state.respond(invitation, true)
+                    else state.reportError("This invitation changed. Refresh invitations and try again.")
+                }
+                "request" -> state.mutate("join", room, { state.client.requestJoin(room) })
+                else -> state.mutate("join", room, { state.client.join(room) })
+            }
+        }
+    }
+    val showAnswers: ((String) -> Unit)? = if (community.available) ({ requester ->
+        answersRequester = requester; sheet = RoomsSheet.ANSWERS
+    }) else null
     LaunchedEffect(state, initialRoomSlug) {
         if (accountId != null) { state.loadLanding(); entry.slug?.let(state::openSlug) }
     }
@@ -50,21 +81,23 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
             onSignIn = onSignIn, onOpenProfile = openProfile)
         return
     }
-    BackHandler(room != null || state.openingSlug) { state.closeRoom(); sheet = null }
+    BackHandler(room != null || state.openingSlug) { state.closeRoom(); sheet = null; pendingMembership = null }
     Column(Modifier.fillMaxSize()) {
         RoomsTopBar(room?.name ?: "Rooms", state.discoverLoading || state.postsLoading,
-            onBack = { if (room != null || state.openingSlug) state.closeRoom() else onBack() },
-            onRefresh = { if (room != null) state.refreshRoom() else state.loadLanding() },
+            onBack = { if (room != null || state.openingSlug) state.closeRoom() else onBack(); pendingMembership = null; sheet = null },
+            onRefresh = { if (room != null) { state.refreshRoom(); community.open(room, force = true) } else state.loadLanding() },
             onCreate = if (room == null && accountId != null) ({ sheet = RoomsSheet.CREATE }) else null)
         when {
             accountId == null -> RoomEmpty("Your communities on SautiLink", "Sign in to discover, join and create Rooms.",
                 actionLabel = "Sign in", onAction = onSignIn)
             state.openingSlug && room == null -> Column(Modifier.padding(16.dp)) { repeat(2) { RoomCardSkeleton() } }
-            room == null -> RoomsLanding(state, { sheet = RoomsSheet.CREATE })
-            else -> RoomDetail(state, room, listState, openProfile, openPost,
+            room == null -> RoomsLanding(state, { sheet = RoomsSheet.CREATE }, { beginMembership(it.room, "accept_invitation") })
+            else -> RoomDetail(state, community, room, listState, openProfile, openPost,
                 onComments = { commentPost = it }, onCompose = { sheet = RoomsSheet.COMPOSE },
                 onManage = { sheet = RoomsSheet.MANAGE }, onInvite = { sheet = RoomsSheet.INVITE },
-                onLeave = { confirmation = "leave" }, onApprovals = { sheet = RoomsSheet.APPROVALS })
+                onLeave = { confirmation = "leave" }, onApprovals = { sheet = RoomsSheet.APPROVALS },
+                onMembership = { beginMembership(room, it) }, onAnswers = showAnswers,
+                onManagePost = { managedPost = it; sheet = RoomsSheet.POST })
         }
     }
     val closeSheet = { sheet = null }
@@ -77,14 +110,30 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
         }
         RoomsSheet.MANAGE -> if (room != null) RoomManageSheet(room, state, closeSheet,
             { sheet = RoomsSheet.SETTINGS }, { state.loadPeople(); sheet = RoomsSheet.PEOPLE }, { sheet = RoomsSheet.INVITE },
-            { sheet = RoomsSheet.APPROVALS }, { sheet = null; confirmation = "delete" })
-        RoomsSheet.INVITE -> if (room?.canInvite == true) RoomInviteSheet(room, state, closeSheet)
+            { sheet = RoomsSheet.APPROVALS }, { sheet = null; confirmation = "delete" },
+            onCommunity = if (community.available && room.canManageSettings) ({ sheet = RoomsSheet.COMMUNITY }) else null,
+            onOutgoing = { sheet = RoomsSheet.OUTGOING })
+        RoomsSheet.INVITE -> if (room?.canInvite == true) RoomInviteSheet(room, state, closeSheet, { sheet = RoomsSheet.OUTGOING })
         RoomsSheet.PEOPLE -> if (room?.canSeeMembers == true) RoomSheet("People in ${room.name}", closeSheet) {
-            RoomPeopleContent(room, state, openProfile)
+            RoomPeopleContent(room, state, openProfile, showAnswers)
         }
         RoomsSheet.COMPOSE -> if (room?.canPost == true) RoomComposerSheet(room, state, closeSheet)
         RoomsSheet.APPROVALS -> if (room?.supportsPostApproval == true) RoomApprovalSheet(room, state,
             closeSheet, openProfile, openPost)
+        RoomsSheet.COMMUNITY -> if (room?.canManageSettings == true && community.available)
+            RoomCommunitySettingsSheet(room, community, closeSheet)
+        RoomsSheet.OUTGOING -> if (room?.isMember == true)
+            RoomOutgoingInvitationsSheet(room, community, closeSheet, openProfile)
+        RoomsSheet.MEMBERSHIP -> if (room != null && community.available)
+            RoomMembershipQuestionsSheet(room, community, closeSheet, membershipAction) {
+                state.loadLanding(); if (state.selected?.id == room.id) state.refreshRoom()
+            }
+        RoomsSheet.ANSWERS -> if (room != null && answersRequester != null && community.available)
+            RoomMembershipAnswersSheet(room, community, answersRequester!!, closeSheet)
+        RoomsSheet.POST -> if (room?.isStaff == true && community.available && managedPost != null)
+            RoomPublishedPostManagementSheet(room, community, managedPost!!, closeSheet, openPost) {
+                state.confirmedPostRemoval(room.id, it)
+            }
         null -> Unit
     }
     commentPost?.let { post ->
@@ -98,7 +147,7 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
 }
 
 @Composable
-private fun RoomsLanding(state: RoomsState, onCreate: () -> Unit) {
+private fun RoomsLanding(state: RoomsState, onCreate: () -> Unit, onAccept: (NativeRoomInvitation) -> Unit) {
     RoomsTabs(state.tab, state.invitations.size) { state.tab = it }
     val loading = when (state.tab) { RoomsTab.DISCOVER -> state.discoverLoading
         RoomsTab.YOURS -> state.yoursLoading; RoomsTab.INVITES -> state.invitesLoading }
@@ -125,7 +174,7 @@ private fun RoomsLanding(state: RoomsState, onCreate: () -> Unit) {
         if (error != null) item { RoomNotice(error, true, state::loadLanding) }
         if (state.tab == RoomsTab.INVITES) {
             items(state.invitations, key = { it.room.id }) { invitation ->
-                RoomInvitationCard(state, invitation)
+                RoomInvitationCard(state, invitation, { onAccept(invitation) })
             }
             if (!loading && error == null && state.invitations.isEmpty()) item {
                 RoomEmpty("No invitations yet", "Invitations from your communities will appear here.", Icons.Rounded.MailOutline)
@@ -147,12 +196,12 @@ private fun RoomsLanding(state: RoomsState, onCreate: () -> Unit) {
 }
 
 @Composable
-private fun RoomInvitationCard(state: RoomsState, invitation: NativeRoomInvitation) {
+private fun RoomInvitationCard(state: RoomsState, invitation: NativeRoomInvitation, onAccept: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         RoomCard(state.auth, invitation.room) { state.openRoom(invitation.room) }
         Text("Invited by ${invitation.invitedByName}", style = MaterialTheme.typography.bodySmall)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { state.respond(invitation, true) }, enabled = !state.busy("invite:${invitation.room.id}"),
+            Button(onClick = onAccept, enabled = !state.busy("invite:${invitation.room.id}"),
                 modifier = Modifier.weight(1f)) { Text("Accept") }
             OutlinedButton(onClick = { state.respond(invitation, false) }, enabled = !state.busy("invite:${invitation.room.id}"),
                 modifier = Modifier.weight(1f)) { Text("Decline") }
@@ -162,15 +211,20 @@ private fun RoomInvitationCard(state: RoomsState, invitation: NativeRoomInvitati
 }
 
 @Composable
-private fun RoomDetail(state: RoomsState, room: NativeRoom, listState: LazyListState,
+private fun RoomDetail(state: RoomsState, community: RoomManagementState, room: NativeRoom, listState: LazyListState,
     onOpenProfile: (String) -> Unit, onOpenPost: (String) -> Unit, onComments: (NativeRoomPost) -> Unit,
-    onCompose: () -> Unit, onManage: () -> Unit, onInvite: () -> Unit, onLeave: () -> Unit, onApprovals: () -> Unit) {
+    onCompose: () -> Unit, onManage: () -> Unit, onInvite: () -> Unit, onLeave: () -> Unit, onApprovals: () -> Unit,
+    onMembership: (String) -> Unit, onAnswers: ((String) -> Unit)?, onManagePost: (NativeRoomPost) -> Unit) {
     val context = LocalContext.current
     LazyColumn(state = listState, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { RoomDetailHeading(state.auth, room) }
-        item { RoomMembershipActions(state, room, onCompose, onManage) }
+        item { RoomMembershipActions(state, community, room, onCompose, onManage, onMembership) }
         if (state.roomError != null) item { RoomNotice(state.roomError.orEmpty(), true, state::refreshRoom) }
         if (state.notice != null) item { RoomNotice(state.notice.orEmpty()) }
+        if (community.notice != null) item { RoomNotice(community.notice.orEmpty()) }
+        if (community.capabilityError != null || community.configurationError != null) item {
+            RoomManagementAvailabilityNotice(room, community)
+        }
         item { RoomContentTabs(state.roomTab) { state.roomTab = it; if (it == RoomTab.PEOPLE) state.loadPeople() } }
         when (state.roomTab) {
             RoomTab.ABOUT -> item {
@@ -179,9 +233,10 @@ private fun RoomDetail(state: RoomsState, room: NativeRoom, listState: LazyListS
                         type = "text/plain"; putExtra(Intent.EXTRA_TEXT, "${state.auth.backend.siteOrigin}/rooms/${room.slug}")
                     }, "Share Room")) }.onFailure { state.reportError("No sharing app is available.") }
                 }
+                RoomRulesPanel(room, community)
             }
             RoomTab.PEOPLE -> item {
-                if (room.canSeeMembers) RoomPeopleContent(room, state, onOpenProfile)
+                if (room.canSeeMembers) RoomPeopleContent(room, state, onOpenProfile, onAnswers)
                 else RoomEmpty("Meet this community", "Join this Room to see its members.", Icons.Rounded.People)
             }
             RoomTab.DISCUSSION, RoomTab.MEDIA -> {
@@ -190,6 +245,9 @@ private fun RoomDetail(state: RoomsState, room: NativeRoom, listState: LazyListS
                 }
                 if (!room.canReadPosts) item { RoomEmpty("Join the conversation", "Join this Room to read its discussion and media.") }
                 else {
+                    if (state.roomTab == RoomTab.DISCUSSION) item {
+                        RoomFeaturedPosts(room, community, onOpenPost, onOpenProfile)
+                    }
                     val rows = if (state.roomTab == RoomTab.MEDIA) state.posts.filter { it.media.isNotEmpty() } else state.posts
                     items(rows, key = { it.id }) { post ->
                         RoomPostCard(state.auth, post, state.postUi(post.id), { onOpenProfile(post.authorHandle) },
@@ -198,7 +256,8 @@ private fun RoomDetail(state: RoomsState, room: NativeRoom, listState: LazyListS
                             { runCatching { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"; putExtra(Intent.EXTRA_TEXT, state.interactions.postShareUrl(post.id))
                             }, "Share post")) }.onFailure { state.reportError("No sharing app is available.") } },
-                            { state.retryActions(post.id) })
+                            { state.retryActions(post.id) },
+                            onManagePost = if (room.isStaff && community.available) ({ onManagePost(post) }) else null)
                     }
                     if (state.postsLoading) item { SautiPostSkeleton() }
                     if (!state.postsLoading && rows.isEmpty() && state.roomError == null) item {
@@ -214,7 +273,8 @@ private fun RoomDetail(state: RoomsState, room: NativeRoom, listState: LazyListS
 }
 
 @Composable
-private fun RoomMembershipActions(state: RoomsState, room: NativeRoom, onCompose: () -> Unit, onManage: () -> Unit) {
+private fun RoomMembershipActions(state: RoomsState, community: RoomManagementState, room: NativeRoom,
+    onCompose: () -> Unit, onManage: () -> Unit, onMembership: (String) -> Unit) {
     when {
         room.isMember -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (room.canPost) Button(onClick = onCompose, modifier = Modifier.weight(1f)) { Text("Write a post") }
@@ -223,18 +283,18 @@ private fun RoomMembershipActions(state: RoomsState, room: NativeRoom, onCompose
             }
         }
         state.invitations.any { it.room.id == room.id } -> {
-            val invitation = state.invitations.first { it.room.id == room.id }
-            Button(onClick = { state.respond(invitation, true) }, enabled = !state.busy("invite:${room.id}")) { Text("Accept invitation") }
+            Button(onClick = { onMembership("accept_invitation") },
+                enabled = community.membershipReady(room) && !state.busy("invite:${room.id}") && !community.joining(room)) { Text("Accept invitation") }
         }
         room.requestStatus == "pending" -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = {}, enabled = false) { Text("Request pending") }
             TextButton(onClick = { state.mutate("join", room, { state.client.cancelJoinRequest(room) }) },
                 enabled = !state.busy("join")) { Text("Cancel request") }
         }
-        room.policy == "open" -> Button(onClick = { state.mutate("join", room, { state.client.join(room) }) },
-            enabled = !state.busy("join")) { Text(if (state.busy("join")) "Joining…" else "Join Room") }
-        room.policy == "approval" -> Button(onClick = { state.mutate("join", room, { state.client.requestJoin(room) }) },
-            enabled = !state.busy("join")) { Text(if (state.busy("join")) "Requesting…" else "Request to join") }
+        room.policy == "open" -> Button(onClick = { onMembership("join") },
+            enabled = community.membershipReady(room) && !state.busy("join") && !community.joining(room)) { Text(if (state.busy("join")) "Joining…" else "Join Room") }
+        room.policy == "approval" -> Button(onClick = { onMembership("request") },
+            enabled = community.membershipReady(room) && !state.busy("join") && !community.joining(room)) { Text(if (state.busy("join")) "Requesting…" else "Request to join") }
         else -> RoomNotice("An invitation is needed to join this Room.")
     }
 }

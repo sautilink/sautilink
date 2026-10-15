@@ -70,8 +70,10 @@ internal class NativeRoomsTransport(private val auth: StagingAuthClient) {
             when (method) {
                 "POST" -> builder.post(content ?: "{}".toRequestBody(jsonType))
                 "PATCH" -> builder.patch(content ?: "{}".toRequestBody(jsonType))
+                "PUT" -> builder.put(content ?: "{}".toRequestBody(jsonType))
                 "DELETE" -> if (content == null) builder.delete() else builder.delete(content)
-                else -> builder.get()
+                "GET" -> builder.get()
+                else -> throw AuthRequestException("Unsupported Room request method.")
             }
             try {
                 http.newCall(builder.build()).execute().use { response ->

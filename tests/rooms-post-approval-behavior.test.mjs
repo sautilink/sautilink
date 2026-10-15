@@ -162,7 +162,7 @@ test('expired upload cleanup deletes bytes only after confirmed DB deletion; hel
 test('capability accurately falls back false only when migration RPC is missing', async () => {
   await withFetch(async () => respond({ code: 'PGRST202' }, 404), async () => {
     const response = await handleRoomPostApprovalRequest(request('/api/rooms/capabilities'), env());
-    assert.deepEqual((await response.json()).data, { post_approval: false, version: 0 });
+    assert.deepEqual((await response.json()).data, { post_approval: false, version: 0, room_management: false, management_version: 0 });
   });
   await withFetch(async () => respond({ message: 'database unavailable' }, 503), async () => {
     const response = await handleRoomPostApprovalRequest(request('/api/rooms/capabilities'), env());
