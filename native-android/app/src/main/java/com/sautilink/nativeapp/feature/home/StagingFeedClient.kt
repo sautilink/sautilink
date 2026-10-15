@@ -91,15 +91,17 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
         if (!uuid.matches(postId)) throw AuthRequestException("Invalid post link.")
         val token = auth.accessTokenForStagingRead()
         return withContext(Dispatchers.IO) {
-            val post = getJsonArray("social_posts?id=eq.$postId&select=id,author_id,body,created_at,like_count,comment_count,repost_count,media_count&limit=1", token)
+            val post = getJsonArray("social_posts?id=eq.$postId&select=id,author_id,circle_id,body,created_at,like_count,comment_count,repost_count,media_count&limit=1", token)
                 .optJSONObject(0) ?: return@withContext null
             val authorId = post.optString("author_id")
             val author = if (uuid.matches(authorId)) getJsonArray(
                 "social_profiles?id=eq.$authorId&select=id,username,display_name,is_verified,verification_badge_type,avatar_key&limit=1", token
             ).optJSONObject(0) else null
             val handle = author?.optString("username").orEmpty()
+            // Rooms already support five images; preserve the existing bound for other posts.
+            val mediaLimit = if (uuid.matches(post.optString("circle_id"))) 5 else 4
             val mediaRows = getJsonArray(
-                "social_post_media?post_id=eq.$postId&upload_status=eq.attached&select=id,media_kind,position,width,height&order=position.asc&limit=4", token
+                "social_post_media?post_id=eq.$postId&upload_status=eq.attached&select=id,media_kind,position,width,height&order=position.asc&limit=$mediaLimit", token
             )
             val media = (0 until mediaRows.length()).mapNotNull { index ->
                 val row = mediaRows.optJSONObject(index) ?: return@mapNotNull null

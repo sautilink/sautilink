@@ -222,6 +222,9 @@ private fun notificationActionCopy(item: NativeNotification): String {
             "request_approved" -> "approved your request to join $room."
             "request_declined" -> "declined your request to join $room."
             "member_removed" -> "removed you from $room."
+            "post_approval_requested" -> "submitted a post for review in $room."
+            "post_approved" -> "approved your post in $room."
+            "post_rejected" -> "declined your post in $room."
             else -> "sent you a Room update."
         }
         "message" -> "sent you a message."

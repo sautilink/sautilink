@@ -151,7 +151,8 @@ private fun stableFeedAspect(media: FeedMedia): Float {
 
 @Composable
 internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
-    onDoubleTapLike: (() -> Unit)? = null) {
+    onDoubleTapLike: (() -> Unit)? = null,
+    mediaPath: ((FeedMedia) -> String)? = null) {
     if (media.isEmpty()) return
     var expandedPhoto by remember(auth) { mutableStateOf<FeedMedia?>(null) }
     val pager = androidx.compose.foundation.pager.rememberPagerState(pageCount = { media.size })
@@ -165,6 +166,7 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
                 key = { index -> media[index].id }
             ) { page ->
                 val item = media[page]
+                    val path = checkedPostMediaPath(item.id, mediaPath?.invoke(item))
                 Box(
                     Modifier.fillMaxSize()
                         .background(Color.Black)
@@ -173,11 +175,11 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
                 ) {
                     if (item.kind == "video") {
                         InlineFeedVideo(auth, item, Modifier.fillMaxSize(), isCurrent = pager.currentPage == page,
-                            onDoubleTapLike = onDoubleTapLike)
+                            onDoubleTapLike = onDoubleTapLike, mediaPath = path)
                     } else {
                         SautiPostGestureSurface(Modifier.fillMaxSize(), onLike = onDoubleTapLike,
                             onTap = { expandedPhoto = item }, feedbackColor = Color.White) {
-                            AuthorizedImage(auth, "/api/sauti-media/${item.id}?w=960",
+                            AuthorizedImage(auth, "$path?w=960",
                                 "Photo ${page + 1} of ${media.size}",
                                 modifier = Modifier.fillMaxSize(),
                                 crop = false)
@@ -234,7 +236,7 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
                             Icon(Icons.Rounded.Close, contentDescription = "Close photo")
                         }
                     }
-                    AuthorizedImage(auth, "/api/sauti-media/${photo.id}?w=1280",
+                    AuthorizedImage(auth, "${checkedPostMediaPath(photo.id, mediaPath?.invoke(photo))}?w=1280",
                         "Expanded photo", Modifier.fillMaxWidth()
                             .aspectRatio(stableFeedAspect(photo)), crop = false)
                 }
@@ -251,7 +253,8 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
 private fun InlineFeedVideo(
     auth: StagingAuthClient, media: FeedMedia, modifier: Modifier = Modifier,
     isCurrent: Boolean,
-    onDoubleTapLike: (() -> Unit)?
+    onDoubleTapLike: (() -> Unit)?,
+    mediaPath: String = "/api/sauti-media/${media.id}"
 ) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
@@ -285,7 +288,7 @@ private fun InlineFeedVideo(
         catch (_: Exception) { requestError = "Video unavailable. Sign in and try again." }
     }
     val token = accessToken
-    val player = remember(auth, media.id, token) {
+    val player = remember(auth, media.id, token, mediaPath) {
         token?.let {
             val http = DefaultHttpDataSource.Factory()
                 .setDefaultRequestProperties(mapOf("Authorization" to "Bearer $it"))
@@ -294,7 +297,7 @@ private fun InlineFeedVideo(
                 .setMediaSourceFactory(DefaultMediaSourceFactory(http))
                 .build().apply {
                     volume = if (muted) 0f else 1f
-                    setMediaItem(MediaItem.fromUri("${auth.mediaOrigin}/api/sauti-media/${media.id}"))
+                    setMediaItem(MediaItem.fromUri("${auth.mediaOrigin}$mediaPath"))
                     prepare()
                     playWhenReady = false
                 }
@@ -351,8 +354,13 @@ private fun InlineFeedVideo(
         }
         // Poster overlays any decoder/player surface until a real frame has arrived.
         if (!firstFrame) {
-            AuthorizedImage(auth, "/api/sauti-media/${media.id}?poster=1",
-                "Video cover", modifier = Modifier.fillMaxSize(), crop = false)
+            if (mediaPath == "/api/sauti-media/${media.id}") {
+                AuthorizedImage(auth, "$mediaPath?poster=1",
+                    "Video cover", modifier = Modifier.fillMaxSize(), crop = false)
+            } else if (started && wantsToPlay && requestError == null) {
+                // Protected submissions expose original bytes, not a generated poster.
+                CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+            }
         }
         val playPrompt = !playing && (firstFrame || !NativePlaybackPreferences.autoplayEnabled || requestError != null || !started)
         val startPlayback = {
