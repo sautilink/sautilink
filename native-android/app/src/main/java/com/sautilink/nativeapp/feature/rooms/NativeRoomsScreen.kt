@@ -185,11 +185,11 @@ private fun RoomDetail(state: RoomsState, room: NativeRoom, listState: LazyListS
                 else RoomEmpty("Meet this community", "Join this Room to see its members.", Icons.Rounded.People)
             }
             RoomTab.DISCUSSION, RoomTab.MEDIA -> {
+                if (state.roomTab == RoomTab.DISCUSSION && room.supportsPostApproval) item {
+                    TextButton(onClick = onApprovals) { Text(if (room.isStaff) "Post approvals" else "Your submissions") }
+                }
                 if (!room.canReadPosts) item { RoomEmpty("Join the conversation", "Join this Room to read its discussion and media.") }
                 else {
-                    if (state.roomTab == RoomTab.DISCUSSION && room.supportsPostApproval) item {
-                        TextButton(onClick = onApprovals) { Text(if (room.isStaff) "Post approvals" else "Your submissions") }
-                    }
                     val rows = if (state.roomTab == RoomTab.MEDIA) state.posts.filter { it.media.isNotEmpty() } else state.posts
                     items(rows, key = { it.id }) { post ->
                         RoomPostCard(state.auth, post, state.postUi(post.id), { onOpenProfile(post.authorHandle) },

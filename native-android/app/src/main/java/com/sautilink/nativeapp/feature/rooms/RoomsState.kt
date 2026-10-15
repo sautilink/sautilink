@@ -239,6 +239,7 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
         RoomsMemory.slug = null
         postsJob?.cancel(); selected = null; openingSlug = false; openError = null
         posts = emptyList(); members = emptyList(); requests = emptyList(); submissions = emptyList()
+        postsLoading = false; peopleLoading = false; submissionsLoading = false
         roomError = null; notice = null
     }
 
@@ -620,10 +621,13 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
                 val result = action(requestId)
                 if (current(room.id)) {
                     decisionIds.remove(attempt)
+                    queueVersion++; queueJob?.cancel(); queueJob = null
+                    submissionsLoading = false; submissionError = null; submissionRetry = null; submissionsCursor = null
                     submissions = if (submissionFilter == "all") submissions.map { if (it.id == result.id) result.copy(media = emptyList()) else it }
                         else submissions.filterNot { it.id == result.id }
                     notice = when (result.state) { "approved" -> "Post approved."; "rejected" -> "Post rejected."; else -> "Submission withdrawn." }
                     loadPosts()
+                    loadSubmissions()
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) { if (current(room.id)) {
