@@ -23,10 +23,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.format.DateTimeParseException
 
-private enum class SignupStep { DETAILS, EMAIL_CODE, PHONE, PHONE_CODE, ONBOARDING, COMPLETE }
+private enum class SignupStep { DETAILS, EMAIL_CODE, REQUIREMENTS, PHONE_CODE, ONBOARDING, COMPLETE }
 
 private val reservedNames = setOf(
     "admin", "administrator", "root", "support", "security", "sautilink", "cloudengine",
@@ -35,19 +33,7 @@ private val reservedNames = setOf(
 )
 
 private fun signupEmail(value: String) = android.util.Patterns.EMAIL_ADDRESS.matcher(value.trim()).matches()
-private fun normalizedSignupPhone(value: String): String =
-    value.trim().replace(Regex("[\\s()\\-]"), "")
-
-private fun signupPhone(value: String): Boolean {
-    val phone = normalizedSignupPhone(value)
-    if (!Regex("^\\+[1-9][0-9]{7,14}$").matches(phone)) return false
-    return !phone.startsWith("+255") || Regex("^\\+255[67][0-9]{8}$").matches(phone)
-}
-
-private fun birthDateOk(value: String): Boolean = try {
-    val date = LocalDate.parse(value.trim())
-    !date.isAfter(LocalDate.now()) && date.year >= 1900
-} catch (_: DateTimeParseException) { false }
+private fun birthDateOk(value: String) = signupBirthDateIso(value) != null
 
 private fun signupValidation(username: String, name: String, email: String, password: String,
                              phone: String, birthDate: String): String? {
@@ -56,8 +42,8 @@ private fun signupValidation(username: String, name: String, email: String, pass
         return "Choose a username with 3–30 lowercase letters, numbers, dots or underscores (not reserved)."
     if (name.trim().length !in 1..80) return "Display name must be 1–80 characters."
     if (!signupEmail(email)) return "Enter a valid email address."
-    if (!signupPhone(phone)) return "Enter your phone with country code (for Tanzania: +255 followed by 9 mobile digits)."
-    if (!birthDateOk(birthDate)) return "Enter a valid date of birth in YYYY-MM-DD format."
+    if (phone.isNotBlank() && !validSignupPhone(phone)) return "Enter a valid phone with country code, or leave phone empty."
+    if (!birthDateOk(birthDate)) return "Enter a valid date of birth in DD/MM/YYYY format."
     if (password.length !in 12..72 || password.none(Char::isLowerCase) || password.none(Char::isUpperCase)
         || password.none(Char::isDigit) || password.none { !it.isLetterOrDigit() })
         return "Password must contain 12–72 characters, uppercase, lowercase, a number and a symbol."
@@ -69,7 +55,7 @@ private fun signupValidation(username: String, name: String, email: String, pass
     return null
 }
 
-/** Real production signup. Existing RLS gates still control consent, verified phone and onboarding. */
+/** Real production signup. The server controls consent, phone policy and verified-email onboarding. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFinished: () -> Unit) {
@@ -88,12 +74,20 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
     var channel by rememberSaveable { mutableStateOf("whatsapp") }
     var consent by rememberSaveable { mutableStateOf(false) }
     var phoneVerified by remember { mutableStateOf(false) }
+    var phoneRequired by remember { mutableStateOf(true) }
     var busy by remember { mutableStateOf(false) }
     var checking by remember { mutableStateOf(false) }
     var progressLoadFailed by remember { mutableStateOf(false) }
     var progressRetry by remember { mutableIntStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
     var info by remember { mutableStateOf<String?>(null) }
+
+    fun applyRequirements(gates: SignupRequirements) {
+        consent = gates.termsAccepted
+        phoneVerified = gates.phoneVerified
+        phoneRequired = gates.phoneRequired
+        step = if (gates.needsSetup(phone.isNotBlank())) SignupStep.REQUIREMENTS else SignupStep.ONBOARDING
+    }
 
     fun action(block: suspend () -> Unit) {
         if (busy) return
@@ -125,18 +119,14 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                 displayName = existing.displayName
                 val savedBirthDate = client.loadOwnBirthDate()
                 if (savedBirthDate != null) {
-                    birthDate = savedBirthDate
+                    birthDate = birthDateDigitsFromIso(savedBirthDate)
                     step = SignupStep.COMPLETE
                 } else {
                     step = SignupStep.ONBOARDING
                     info = "Your profile exists. Add your date of birth to finish registration."
                 }
             } else {
-                val gates = client.signupRequirements()
-                consent = gates.termsAccepted
-                phoneVerified = gates.phoneVerified
-                step = if (gates.required && (!gates.phoneVerified || !gates.termsAccepted))
-                    SignupStep.PHONE else SignupStep.ONBOARDING
+                applyRequirements(client.signupRequirements())
             }
         } catch (e: Exception) {
             error = "Could not load signup progress. Check internet and reopen this page."
@@ -183,14 +173,14 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     label = { Text("Username") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(displayName, { displayName = it },
                     label = { Text("Display name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(email, { email = it }, label = { Text("Email address") },
+                OutlinedTextField(email, { email = it }, label = { Text("Email address (required)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(phone, { phone = it }, label = { Text("Phone number (+255...)") },
+                OutlinedTextField(phone, { phone = it }, label = { Text("Phone number (optional)") },
+                    placeholder = { Text("Include country code, e.g. +255…") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(birthDate, { birthDate = it }, label = { Text("Date of birth (YYYY-MM-DD)") },
-                    singleLine = true, modifier = Modifier.fillMaxWidth())
+                AuthBirthDateField(birthDate, { birthDate = it }, Modifier.fillMaxWidth())
                 OutlinedTextField(password, { password = it }, label = { Text("Password") },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -199,10 +189,12 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true, modifier = Modifier.fillMaxWidth())
-                Text("Send phone verification by", style = MaterialTheme.typography.titleSmall)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    FilterChip(channel == "whatsapp", onClick = { channel = "whatsapp" }, label = { Text("WhatsApp") })
-                    FilterChip(channel == "sms", onClick = { channel = "sms" }, label = { Text("SMS") })
+                if (phone.isNotBlank()) {
+                    Text("Send phone verification by", style = MaterialTheme.typography.titleSmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        FilterChip(channel == "whatsapp", onClick = { channel = "whatsapp" }, label = { Text("WhatsApp") })
+                        FilterChip(channel == "sms", onClick = { channel = "sms" }, label = { Text("SMS") })
+                    }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = consent, onCheckedChange = { consent = it })
@@ -222,7 +214,8 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                         else -> action {
                             phone = normalizedSignupPhone(phone)
                             client.createAccount(email, password, username, displayName, phone)
-                            step = if (client.account != null) SignupStep.PHONE else SignupStep.EMAIL_CODE
+                            if (client.account != null) applyRequirements(client.signupRequirements())
+                            else step = SignupStep.EMAIL_CODE
                             info = if (step == SignupStep.EMAIL_CODE) "Check your email for the 8-digit code." else null
                         }
                     }
@@ -250,11 +243,7 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                         displayName = account.suggestedName.ifBlank { displayName }
                         phone = account.signupPhone.ifBlank { phone }
                     }
-                    val gates = client.signupRequirements()
-                    consent = gates.termsAccepted
-                    phoneVerified = gates.phoneVerified
-                    step = if (gates.required && (!gates.phoneVerified || !gates.termsAccepted))
-                        SignupStep.PHONE else SignupStep.ONBOARDING
+                    applyRequirements(client.signupRequirements())
                 } }, enabled = !busy && signupEmail(email) && code.length == 8,
                     modifier = Modifier.fillMaxWidth().height(52.dp), shape = SautiShape.Pill) { Text("Verify email") }
                 TextButton(onClick = { action {
@@ -262,17 +251,21 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     info = "If this email has a pending signup, a new 8-digit code will arrive."
                 } }, enabled = !busy && signupEmail(email)) { Text("Resend email code") }
             }
-            SignupStep.PHONE -> {
-                Text("3 of 4 · Verify phone", style = MaterialTheme.typography.titleMedium)
+            SignupStep.REQUIREMENTS -> {
+                Text("3 of 4 · Account agreement", style = MaterialTheme.typography.titleMedium)
                 Text(if (phoneVerified) "Your phone is verified. Accept the documents to continue."
-                    else "Before account activation, accept the documents and verify your phone.")
+                    else if (phoneRequired) "Accept the documents. The current account policy also requires phone verification."
+                    else "Accept the documents to continue. You can verify a phone now or leave it empty.")
                 if (!phoneVerified) {
-                    OutlinedTextField(phone, { phone = it }, label = { Text("Phone (+255...)") },
+                    OutlinedTextField(phone, { phone = it },
+                        label = { Text(if (phoneRequired) "Phone with country code" else "Phone number (optional)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         singleLine = true, modifier = Modifier.fillMaxWidth())
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        FilterChip(channel == "whatsapp", onClick = { channel = "whatsapp" }, label = { Text("WhatsApp") })
-                        FilterChip(channel == "sms", onClick = { channel = "sms" }, label = { Text("SMS") })
+                    if (phone.isNotBlank()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            FilterChip(channel == "whatsapp", onClick = { channel = "whatsapp" }, label = { Text("WhatsApp") })
+                            FilterChip(channel == "sms", onClick = { channel = "sms" }, label = { Text("SMS") })
+                        }
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -286,19 +279,23 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                 }
                 Button(onClick = {
                     if (!consent) { error = "Review and accept the account documents first."; return@Button }
-                    if (!phoneVerified && !signupPhone(phone)) {
-                        error = "Enter a valid phone number including country code."; return@Button
+                    if (!phoneVerified && phone.isNotBlank() && !validSignupPhone(phone)) {
+                        error = "Enter a valid phone number including country code, or leave phone empty."; return@Button
                     }
                     action {
                         client.acceptSignupDocuments()
                         val gates = client.signupRequirements()
-                        if (gates.phoneVerified) {
-                            if (!gates.termsAccepted) {
-                                throw AuthRequestException("The agreement could not be confirmed. Try again.")
-                            }
-                            phoneVerified = true
+                        phoneVerified = gates.phoneVerified
+                        phoneRequired = gates.phoneRequired
+                        if (gates.required && !gates.termsAccepted) {
+                            throw AuthRequestException("The agreement could not be confirmed. Try again.")
+                        }
+                        if (!gates.needsSetup(phone.isNotBlank())) {
                             step = SignupStep.ONBOARDING
                         } else {
+                            if (phone.isBlank()) {
+                                throw AuthRequestException("The current account policy requires a verified phone. Enter a phone with country code to continue.")
+                            }
                             phone = normalizedSignupPhone(phone)
                             client.sendSignupPhoneCode(phone, channel)
                             code = ""; step = SignupStep.PHONE_CODE
@@ -306,12 +303,13 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                         }
                     }
                 }, enabled = !busy && !checking, modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = SautiShape.Pill) { Text(if (phoneVerified) "Continue" else "Send phone code") }
+                    shape = SautiShape.Pill) { Text(if (phoneVerified || (!phoneRequired && phone.isBlank())) "Continue" else "Send phone code") }
                 TextButton(onClick = { action {
                     val gates = client.signupRequirements()
                     phoneVerified = gates.phoneVerified
-                    if (gates.phoneVerified && gates.termsAccepted) step = SignupStep.ONBOARDING
-                    else info = if (gates.phoneVerified) "Accept the documents to continue."
+                    phoneRequired = gates.phoneRequired
+                    if (!gates.needsSetup(phone.isNotBlank())) step = SignupStep.ONBOARDING
+                    else info = if (gates.phoneReady(phone.isNotBlank())) "Accept the documents to continue."
                         else "Phone verification is still pending. Enter the code when it arrives."
                 } }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
                     Text("Refresh verification status")
@@ -329,7 +327,7 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     code = ""; phoneVerified = true; step = SignupStep.ONBOARDING
                 } }, enabled = !busy && code.length in 6..10,
                     modifier = Modifier.fillMaxWidth().height(52.dp), shape = SautiShape.Pill) { Text("Verify phone") }
-                TextButton(onClick = { step = SignupStep.PHONE; code = "" }) { Text("Request a new code") }
+                TextButton(onClick = { step = SignupStep.REQUIREMENTS; code = "" }) { Text("Request a new code") }
             }
             SignupStep.ONBOARDING -> {
                 Text("4 of 4 · Finish your account", style = MaterialTheme.typography.titleMedium)
@@ -338,8 +336,7 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     label = { Text("Username") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(displayName, { displayName = it },
                     label = { Text("Display name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(birthDate, { birthDate = it },
-                    label = { Text("Date of birth (YYYY-MM-DD)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                AuthBirthDateField(birthDate, { birthDate = it }, Modifier.fillMaxWidth())
                 Button(onClick = {
                     val handle = username.trim().lowercase()
                     if (!Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(handle) || handle in reservedNames) {
@@ -348,7 +345,8 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     if (displayName.trim().length !in 1..80 || !birthDateOk(birthDate)) {
                         error = "Enter a display name (1–80 characters) and valid date of birth."; return@Button
                     }
-                    action { client.finishSignup(username, displayName, birthDate); step = SignupStep.COMPLETE }
+                    val isoBirthDate = signupBirthDateIso(birthDate) ?: return@Button
+                    action { client.finishSignup(username, displayName, isoBirthDate, phone); step = SignupStep.COMPLETE }
                 }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = SautiShape.Pill) { Text("Finish registration") }
             }
@@ -359,11 +357,11 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     shape = SautiShape.Pill) { Text("Continue") }
             }
         }
-        if (step in setOf(SignupStep.PHONE, SignupStep.PHONE_CODE, SignupStep.ONBOARDING) && client.account != null) {
+        if (step in setOf(SignupStep.REQUIREMENTS, SignupStep.PHONE_CODE, SignupStep.ONBOARDING) && client.account != null) {
             TextButton(onClick = {
                 action {
                     client.signOut()
-                    step = SignupStep.DETAILS; consent = false; phoneVerified = false; code = ""
+                    step = SignupStep.DETAILS; consent = false; phoneVerified = false; phoneRequired = true; code = ""
                     info = "Signed out. You can sign in later to resume signup."
                 }
             }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Decline agreement or sign out") }

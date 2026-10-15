@@ -58,6 +58,8 @@ import com.sautilink.nativeapp.feature.home.NativePlaybackPreferences
 import com.sautilink.nativeapp.feature.home.StagingFeedPost
 import com.sautilink.nativeapp.feature.home.rememberNetworkAvailable
 import com.sautilink.nativeapp.ui.components.SautiSkeletonBlock
+import com.sautilink.nativeapp.ui.components.SautiVideoGestureSurface
+import com.sautilink.nativeapp.ui.components.videoSeekTarget
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
@@ -356,9 +358,18 @@ fun ProductionShortVideosScreen(
                             this.player = player
                         } }, update = { it.player = player; it.keepScreenOn = playing },
                             onRelease = { it.player = null }, modifier = Modifier.fillMaxSize())
-                        Box(Modifier.fillMaxSize().clickable {
-                            if (player.isPlaying) player.pause() else player.play()
-                        }, contentAlignment = Alignment.Center) {
+                        SautiVideoGestureSurface(Modifier.fillMaxSize(),
+                            playbackLabel = if (playing) "Pause video" else "Play video",
+                            onPlayback = { if (player.isPlaying) player.pause() else player.play() },
+                            onTap = { _, _ -> if (player.isPlaying) player.pause() else player.play() },
+                            onSeek = { delta ->
+                                if (player.isCurrentMediaItemSeekable) {
+                                    player.seekTo(videoSeekTarget(player.currentPosition, delta, player.duration)); true
+                                } else false
+                            },
+                            onLike = if (canInteract && "like:${item.post.id}" !in busyActions) ({
+                                if (likeStates[item.post.id] != true) togglePostAction(item.post, "like")
+                            }) else null) {
                             if (buffering && playbackError == null) CircularProgressIndicator(color = Color.White)
                             else if (!playing && playbackError == null) Icon(Icons.Rounded.PlayArrow,
                                 "Play video", Modifier.size(58.dp), tint = Color.White)
@@ -390,7 +401,7 @@ fun ProductionShortVideosScreen(
                             SautiVerificationBadge(item.post.verified, item.post.badgeType,
                                 item.post.authorName, size = 13.dp, onDarkSurface = true)
                         }
-                        if (item.post.body.isNotBlank()) Text(item.post.body, color = Color.White,
+                        if (item.post.body.isNotBlank()) com.sautilink.nativeapp.ui.components.SautiPostText(item.post.body, color = Color.White,
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }

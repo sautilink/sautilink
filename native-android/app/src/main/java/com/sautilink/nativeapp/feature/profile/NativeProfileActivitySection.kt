@@ -294,6 +294,16 @@ private fun ProfileActivityCard(
     var reposted by remember(item.id, item.reposted) { mutableStateOf(item.reposted) }
     var busy by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
+    fun changeLike(likeOnly: Boolean = false) {
+        if (busy || (likeOnly && liked)) return
+        val desired = if (likeOnly) true else !liked
+        busy = true; failure = null
+        scope.launch {
+            try { actions.setLike(item.id, desired); liked = desired }
+            catch (e: Exception) { failure = e.message }
+            finally { busy = false }
+        }
+    }
     val likeTotal = (item.likes + (if (liked) 1 else 0) - (if (item.liked) 1 else 0)).coerceAtLeast(0)
     val repostTotal = (item.reposts + (if (reposted) 1 else 0) - (if (item.reposted) 1 else 0)).coerceAtLeast(0)
     val initials = item.authorName.split(" ").filter { it.isNotBlank() }.take(2)
@@ -347,10 +357,14 @@ private fun ProfileActivityCard(
             if (item.pinned) Text("Pinned", style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 14.dp))
-            if (item.body.isNotBlank()) Text(item.body, style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.fillMaxWidth().clickable { onOpenPost(item.id) }
-                    .padding(horizontal = 14.dp, vertical = 4.dp))
-            if (item.media.isNotEmpty()) PostMediaGallery(auth, item.media)
+            if (item.body.isNotBlank()) com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(
+                Modifier.fillMaxWidth(), onTap = { onOpenPost(item.id) }, tapLabel = "Open post",
+                onLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null) {
+                com.sautilink.nativeapp.ui.components.SautiPostText(item.body, style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp))
+            }
+            if (item.media.isNotEmpty()) PostMediaGallery(auth, item.media,
+                onDoubleTapLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
             if (failure != null) Text(failure.orEmpty(), color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(horizontal = 14.dp), style = MaterialTheme.typography.bodySmall)
             Row(
@@ -375,14 +389,7 @@ private fun ProfileActivityCard(
                     likeTotal.toString(), "Like", Modifier.weight(1f), selected = liked,
                     activeColor = SautiColors.Red
                 ) {
-                    if (!busy) {
-                        busy = true; failure = null
-                        scope.launch {
-                            try { actions.setLike(item.id, !liked); liked = !liked }
-                            catch (e: Exception) { failure = e.message }
-                            finally { busy = false }
-                        }
-                    }
+                    changeLike()
                 }
                 IconButton(onClick = {
                     val send = Intent(Intent.ACTION_SEND).apply {

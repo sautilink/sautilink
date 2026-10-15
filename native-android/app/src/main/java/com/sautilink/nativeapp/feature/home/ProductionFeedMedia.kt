@@ -42,6 +42,9 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.ui.components.SautiSkeletonBlock
+import com.sautilink.nativeapp.ui.components.SautiPostGestureSurface
+import com.sautilink.nativeapp.ui.components.SautiVideoGestureSurface
+import com.sautilink.nativeapp.ui.components.videoSeekTarget
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -147,7 +150,8 @@ private fun stableFeedAspect(media: FeedMedia): Float {
 }
 
 @Composable
-internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>) {
+internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
+    onDoubleTapLike: (() -> Unit)? = null) {
     if (media.isEmpty()) return
     var expandedPhoto by remember(auth) { mutableStateOf<FeedMedia?>(null) }
     val pager = androidx.compose.foundation.pager.rememberPagerState(pageCount = { media.size })
@@ -168,9 +172,11 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>) {
                     contentAlignment = Alignment.Center
                 ) {
                     if (item.kind == "video") {
-                        InlineFeedVideo(auth, item, Modifier.fillMaxSize(), isCurrent = pager.currentPage == page)
+                        InlineFeedVideo(auth, item, Modifier.fillMaxSize(), isCurrent = pager.currentPage == page,
+                            onDoubleTapLike = onDoubleTapLike)
                     } else {
-                        Box(Modifier.fillMaxSize().clickable { expandedPhoto = item }) {
+                        SautiPostGestureSurface(Modifier.fillMaxSize(), onLike = onDoubleTapLike,
+                            onTap = { expandedPhoto = item }, feedbackColor = Color.White) {
                             AuthorizedImage(auth, "/api/sauti-media/${item.id}?w=960",
                                 "Photo ${page + 1} of ${media.size}",
                                 modifier = Modifier.fillMaxSize(),
@@ -244,7 +250,8 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>) {
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 private fun InlineFeedVideo(
     auth: StagingAuthClient, media: FeedMedia, modifier: Modifier = Modifier,
-    isCurrent: Boolean
+    isCurrent: Boolean,
+    onDoubleTapLike: (() -> Unit)?
 ) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
@@ -347,34 +354,43 @@ private fun InlineFeedVideo(
             AuthorizedImage(auth, "/api/sauti-media/${media.id}?poster=1",
                 "Video cover", modifier = Modifier.fillMaxSize(), crop = false)
         }
-        if (!playing && (firstFrame || !NativePlaybackPreferences.autoplayEnabled || requestError != null || !started)) {
-            Surface(
-                onClick = {
-                    requestError = null
-                    started = true
-                    manualPaused = false
-                    wantsToPlay = true
-                    if (player?.playerError != null) player.prepare()
-                    if (player?.playbackState == androidx.media3.common.Player.STATE_ENDED) player.seekToDefaultPosition()
-                    player?.play()
-                },
-                shape = CircleShape,
-                color = Color.Black.copy(alpha = .58f),
-                modifier = Modifier.size(60.dp)
-            ) {
+        val playPrompt = !playing && (firstFrame || !NativePlaybackPreferences.autoplayEnabled || requestError != null || !started)
+        val startPlayback = {
+            requestError = null
+            started = true
+            manualPaused = false
+            wantsToPlay = true
+            if (player?.playerError != null) player.prepare()
+            if (player?.playbackState == androidx.media3.common.Player.STATE_ENDED) player.seekToDefaultPosition()
+            player?.play()
+        }
+        val pausePlayback = {
+            wantsToPlay = false
+            manualPaused = true
+            player?.pause()
+        }
+        val playRadius = with(density) { 30.dp.toPx() }
+        SautiVideoGestureSurface(Modifier.fillMaxSize(),
+            playbackLabel = if (playing) "Pause video in post" else if (playPrompt) "Play video in post" else null,
+            onPlayback = { if (playing) pausePlayback() else if (playPrompt) startPlayback() },
+            onTap = { position, frame ->
+                if (playing) pausePlayback()
+                else if (playPrompt && (position - androidx.compose.ui.geometry.Offset(frame.width / 2f, frame.height / 2f))
+                        .getDistance() <= playRadius) startPlayback()
+            },
+            onSeek = { delta ->
+                if (player?.isCurrentMediaItemSeekable == true) {
+                    player.seekTo(videoSeekTarget(player.currentPosition, delta, player.duration))
+                    true
+                } else false
+            }, onLike = onDoubleTapLike) {
+            if (playPrompt) Surface(shape = CircleShape,
+                color = Color.Black.copy(alpha = .58f), modifier = Modifier.size(60.dp)) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.PlayArrow, contentDescription = "Play video in post",
+                    Icon(Icons.Rounded.PlayArrow, "Play video in post",
                         tint = Color.White, modifier = Modifier.size(32.dp))
                 }
             }
-        } else {
-            Box(
-                Modifier.fillMaxSize().clickable {
-                    wantsToPlay = false
-                    manualPaused = true
-                    player?.pause()
-                }
-            )
         }
         if (started && token == null && requestError == null) {
             CircularProgressIndicator(Modifier.size(30.dp),

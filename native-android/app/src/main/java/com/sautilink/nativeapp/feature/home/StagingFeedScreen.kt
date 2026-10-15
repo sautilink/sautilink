@@ -114,6 +114,8 @@ fun StagingFeedScreen(
     var savedStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var repostStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var followingStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    // Pending intent is separate from the state confirmed by the server.
+    var pendingFollowStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     // Keep confirmed artwork across refresh/offline; a late GET cannot undo a confirmed tap.
     val actionStateVersions = remember(auth, account?.id) { FeedActionVersions() }
     var followReadError by remember(auth, account?.id) { mutableStateOf<String?>(null) }
@@ -229,15 +231,16 @@ fun StagingFeedScreen(
         }
     }
 
-    fun changeAction(post: StagingFeedPost, kind: String) {
+    fun changeAction(post: StagingFeedPost, kind: String, addOnly: Boolean = false) {
         if (!canInteract) return
         val key = "$kind:${post.id}"
         if (key in busyKeys) return
         val expectedUser = auth.account?.id
         val previous = if (kind == "like") likeStates[post.id] else savedStates[post.id]
+        if (addOnly && previous == true) return
         // When state is unknown, a user tap means explicit Like/Save (idempotent POST),
         // NEVER Unlike/Unsave. This avoids a stuck status lookup disabling both buttons.
-        val desired = previous != true
+        val desired = addOnly || previous != true
         busyKeys = busyKeys + key
         actionError = null
         actionErrorPostId = null
@@ -333,12 +336,14 @@ fun StagingFeedScreen(
         val desired = previous != true
         val expectedUserId = auth.account?.id
         busyKeys = busyKeys + key
+        pendingFollowStates = pendingFollowStates + (post.authorId to desired)
         actionError = null
         actionErrorPostId = null
         scope.launch {
             try {
                 withTimeout(20_000L) { actions.setFollow(post.authorHandle, desired) }
                 if (auth.account?.id != expectedUserId) return@launch
+                client.invalidateFollowing()
                 actionStateVersions.changed("follow:${post.authorId}")
                 followingStates = followingStates + (post.authorId to desired)
                 followReadError = null
@@ -359,6 +364,7 @@ fun StagingFeedScreen(
                     actionErrorPostId = post.id
                 }
             } finally {
+                pendingFollowStates = pendingFollowStates - post.authorId
                 busyKeys = busyKeys - key
             }
         }
@@ -547,6 +553,7 @@ fun StagingFeedScreen(
                         trendingRank = if (mode == "trending") index + 1 else null,
                         online = online,
                         following = followingStates[post.authorId],
+                        pendingFollow = pendingFollowStates[post.authorId],
                         busyFollow = "follow:${post.authorId}" in busyKeys,
                         followReadError = if (followingStates[post.authorId] == null) followReadError else null,
                         liked = likeStates[post.id],
@@ -578,6 +585,7 @@ fun StagingFeedScreen(
                             actionRetryVersion++
                         },
                         onLike = { changeAction(post, "like") },
+                        onDoubleTapLike = { changeAction(post, "like", addOnly = true) },
                         onSave = { changeAction(post, "save") },
                         onComments = { commentsFor = post },
                         onRepost = { changeRepost(post) },
@@ -727,6 +735,7 @@ private fun RealPostCard(
     trendingRank: Int?,
     online: Boolean,
     following: Boolean?,
+    pendingFollow: Boolean?,
     busyFollow: Boolean,
     followReadError: String?,
     liked: Boolean?,
@@ -743,6 +752,7 @@ private fun RealPostCard(
     onRetrySaved: () -> Unit,
     onRetryRepost: () -> Unit,
     onLike: () -> Unit,
+    onDoubleTapLike: () -> Unit,
     onSave: () -> Unit,
     onComments: () -> Unit,
     onRepost: () -> Unit,
@@ -754,6 +764,7 @@ private fun RealPostCard(
 ) {
     val initials = post.authorName.split(" ").filter { it.isNotBlank() }.take(2)
         .map { it.first().uppercaseChar() }.joinToString("").ifBlank { "SL" }
+    val canDoubleTapLike = online && !busyLike && auth.account != null && auth.backend == SautiBackend.PRODUCTION
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -807,19 +818,23 @@ private fun RealPostCard(
                 if (auth.backend == SautiBackend.PRODUCTION && auth.account != null &&
                     post.authorId != auth.account?.id &&
                     Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(post.authorHandle)) {
+                    val followInteraction = remember { MutableInteractionSource() }
+                    val followLabel = when (pendingFollow) {
+                        true -> "Following…"
+                        false -> "Unfollowing…"
+                        null -> if (following == true) "Following" else "Follow"
+                    }
                     OutlinedButton(
                         onClick = onFollow, enabled = online && !busyFollow,
+                        interactionSource = followInteraction,
                         modifier = Modifier.heightIn(min = 40.dp),
                         shape = RoundedCornerShape(13.dp),
                         contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp)
                     ) {
-                        if (busyFollow) {
-                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                        } else {
-                            Text(if (following == true) "Following" else "Follow",
-                                style = MaterialTheme.typography.labelMedium,
-                                maxLines = 1)
-                        }
+                        Text(followLabel,
+                            modifier = Modifier.sautiActionFeedback(followInteraction),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1)
                     }
                 }
                 if (auth.backend == SautiBackend.PRODUCTION) {
@@ -840,12 +855,17 @@ private fun RealPostCard(
                 }
             }
             if (post.body.isNotBlank()) {
-                Text(post.body, style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 10.dp))
+                com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(
+                    Modifier.fillMaxWidth(),
+                    onLike = if (canDoubleTapLike) onDoubleTapLike else null) {
+                    com.sautilink.nativeapp.ui.components.SautiPostText(post.body, style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 10.dp))
+                }
             }
             // Gallery is flush with card edges; caption is never overlaid onto the media.
             if (post.media.isNotEmpty()) {
-                PostMediaGallery(auth, post.media)
+                PostMediaGallery(auth, post.media,
+                    onDoubleTapLike = if (canDoubleTapLike) onDoubleTapLike else null)
             } else if (post.mediaCount > 0) {
                 Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
                     Row(Modifier.fillMaxWidth().padding(14.dp),

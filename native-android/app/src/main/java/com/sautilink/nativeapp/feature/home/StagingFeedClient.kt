@@ -36,10 +36,12 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
     private val endpoint = auth.restOrigin
     private val uuid = Regex("^[0-9a-fA-F-]{36}$")
     private val batchSize = 15
-    private data class CachedPage(val owner: String, val page: StagingFeedPage, val at: Long)
+    private data class CachedPage(val owner: String, val page: StagingFeedPage, val at: Long,
+        val generation: Long)
     private companion object {
         val cacheLock = Any()
         val firstPages = mutableMapOf<String, CachedPage>()
+        val cacheGenerations = mutableMapOf<String, Long>()
     }
     private fun key(owner: String, mode: String) = "${auth.backend.id}:$owner:$mode"
 
@@ -52,19 +54,35 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
 
     fun cacheAgeMs(mode: String): Long? = synchronized(cacheLock) {
         val owner = auth.account?.id ?: return@synchronized null
-        firstPages[key(owner, mode)]?.takeIf { it.owner == owner }?.let { System.currentTimeMillis() - it.at }
+        val cacheKey = key(owner, mode)
+        firstPages[cacheKey]?.takeIf { it.owner == owner }?.let {
+            if (it.generation != (cacheGenerations[cacheKey] ?: 0L)) Long.MAX_VALUE
+            else System.currentTimeMillis() - it.at
+        }
+    }
+
+    /** A confirmed relationship change makes only this account's Following page stale.
+     * Keep recent rows for offline fallback while rejecting older in-flight cache writes. */
+    fun invalidateFollowing() = synchronized(cacheLock) {
+        val owner = auth.account?.id ?: return@synchronized
+        val cacheKey = key(owner, "following")
+        cacheGenerations[cacheKey] = (cacheGenerations[cacheKey] ?: 0L) + 1L
     }
 
     fun clearCache() = synchronized(cacheLock) {
         firstPages.keys.removeAll { it.startsWith("${auth.backend.id}:") }
     }
 
-    private fun rememberPage(mode: String, offset: Int, page: StagingFeedPage, owner: String?) {
-        if (offset != 0 || owner == null || auth.account?.id != owner) return
+    private fun rememberPage(mode: String, offset: Int, page: StagingFeedPage, owner: String?,
+        readGeneration: Long) {
+        if (offset != 0 || owner == null) return
         synchronized(cacheLock) {
+            val cacheKey = key(owner, mode)
+            if (auth.account?.id != owner ||
+                readGeneration != (cacheGenerations[cacheKey] ?: 0L)) return@synchronized
             firstPages.keys.removeAll { it.startsWith("${auth.backend.id}:") &&
                 !it.startsWith("${auth.backend.id}:$owner:") }
-            firstPages[key(owner, mode)] = CachedPage(owner, page, System.currentTimeMillis())
+            firstPages[cacheKey] = CachedPage(owner, page, System.currentTimeMillis(), readGeneration)
         }
     }
 
@@ -118,6 +136,9 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
             // Both paths only resolve post details through social_posts RLS, so vanished / blocked posts are omitted.
             val userId = auth.account?.id?.takeIf { uuid.matches(it) }
             if (mode == "saved" && userId == null) throw AuthRequestException("Sign in to see Saved posts.")
+            val readGeneration = synchronized(cacheLock) {
+                if (userId == null) 0L else cacheGenerations[key(userId, mode)] ?: 0L
+            }
             val pointers = if (mode == "trending") {
                 // Public posts from the last seven days, ranked by actual reactions/comments.
                 // Collect leading candidates by several metrics, instead of privileging likes alone.
@@ -171,7 +192,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
             if (ids.isEmpty()) {
                 val page = StagingFeedPage(emptyList(), offset + pointers.length(),
                     pointers.length() == batchSize && (mode != "trending" || offset + pointers.length() < 20))
-                rememberPage(mode, offset, page, userId)
+                rememberPage(mode, offset, page, userId, readGeneration)
                 return@withContext page
             }
 
@@ -227,7 +248,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
             }
             StagingFeedPage(results, offset + pointers.length(),
                 pointers.length() == batchSize && (mode != "trending" || offset + pointers.length() < 20)).also {
-                rememberPage(mode, offset, it, userId)
+                rememberPage(mode, offset, it, userId, readGeneration)
             }
         }
     }

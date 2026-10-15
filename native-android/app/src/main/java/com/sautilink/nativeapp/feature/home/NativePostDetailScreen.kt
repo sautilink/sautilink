@@ -117,6 +117,20 @@ fun NativePostDetailScreen(
         catch (e: Exception) { error = e.message ?: "Comment reaction status is unavailable." }
     }
 
+    fun changeLike(likeOnly: Boolean = false) {
+        if (busy || (likeOnly && liked)) return
+        val desired = if (likeOnly) true else !liked
+        busy = true
+        scope.launch {
+            try {
+                actions.setLike(postId, desired); liked = desired
+                val latest = client.loadOne(postId)
+                if (latest != null) post = post?.copy(likes = latest.likes)
+            } catch (e: Exception) { error = e.message }
+            finally { busy = false }
+        }
+    }
+
     fun toggleExpanded(id: String) {
         if (id in expanded) { expanded = expanded - id; return }
         expanded = expanded + id
@@ -283,10 +297,14 @@ fun NativePostDetailScreen(
                         }
                     }
                     if (item.body.isNotBlank()) item {
-                        Text(item.body, style = MaterialTheme.typography.bodyLarge)
+                        com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(Modifier.fillMaxWidth(),
+                            onLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null) {
+                            com.sautilink.nativeapp.ui.components.SautiPostText(item.body, style = MaterialTheme.typography.bodyLarge)
+                        }
                     }
                     if (item.media.isNotEmpty()) item {
-                        PostMediaGallery(auth, item.media)
+                        PostMediaGallery(auth, item.media,
+                            onDoubleTapLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
                     }
                     item {
                         Text("${item.likes} likes · ${item.comments} comments · ${item.reposts} reposts",
@@ -301,20 +319,7 @@ fun NativePostDetailScreen(
                         ) {
                             SautiActionIconButton(icon = if (liked) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbUpOffAlt,
                                 label = "Like", tint = if (liked) SautiColors.Red else MaterialTheme.colorScheme.onSurface,
-                                enabled = !busy, onClick = {
-                                if (busy) return@SautiActionIconButton
-                                busy = true
-                                scope.launch {
-                                    try {
-                                        actions.setLike(postId, !liked); liked = !liked
-                                        // Reconcile the count in place; never reload media/action state after a tap.
-                                        val latest = client.loadOne(postId)
-                                        if (latest != null) post = post?.copy(likes = latest.likes)
-                                    }
-                                    catch (e: Exception) { error = e.message }
-                                    finally { busy = false }
-                                }
-                            })
+                                enabled = !busy, onClick = { changeLike() })
                             SautiActionIconButton(Icons.Rounded.ChatBubbleOutline, "Comments",
                                 MaterialTheme.colorScheme.onSurface, onClick = { commentsMode = true })
                             SautiActionIconButton(Icons.Rounded.Repeat, "Repost",

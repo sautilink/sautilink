@@ -32,9 +32,8 @@ class StagingAuthClient(
     val backend: SautiBackend = SautiBackend.STAGING
 ) {
     private fun canonicalPhone(value: String): String {
-        val phone = value.trim().replace(Regex("[\\s()\\-]"), "")
-        if (!Regex("^\\+[1-9][0-9]{7,14}$").matches(phone) ||
-            (phone.startsWith("+255") && !Regex("^\\+255[67][0-9]{8}$").matches(phone))) {
+        val phone = normalizedSignupPhone(value)
+        if (!validSignupPhone(phone)) {
             throw AuthRequestException("Enter a valid phone number including country code.")
         }
         return phone
@@ -59,6 +58,24 @@ class StagingAuthClient(
         return consumeSession(response)
     }
 
+    /** Existing server bridge resolves usernames privately; email/password and OTP stay on Auth. */
+    suspend fun signInWithUsername(username: String, password: String): StagingAccount {
+        if (backend != SautiBackend.PRODUCTION) {
+            throw AuthRequestException("Use your staging email to sign in.")
+        }
+        if (!validLoginUsername(username) || password.isEmpty() || password.length > 1024) {
+            throw AuthRequestException("Incorrect email/username or password.")
+        }
+        val response = request("/functions/v1/sautilink-username-login", "POST",
+            JSONObject().put("username", normalizeLoginUsername(username)).put("password", password),
+            origin = backend.supabaseOrigin)
+        val session = response.optJSONObject("data")?.optJSONObject("session")
+        if (!response.optBoolean("ok") || session == null) {
+            throw AuthRequestException("Sign-in did not return a renewable session. Try again.")
+        }
+        return consumeSession(session)
+    }
+
     /** SautiLink signup uses 8-digit EMAIL OTP; the Auth server, not the app, creates the user. */
     suspend fun createAccount(
         email: String, password: String, username: String, displayName: String, phone: String
@@ -67,7 +84,7 @@ class StagingAuthClient(
         val data = JSONObject()
             .put("username", username.trim().lowercase())
             .put("full_name", displayName.trim())
-            .put("sautilink_signup_phone", canonicalPhone(phone))
+        if (phone.isNotBlank()) data.put("sautilink_signup_phone", canonicalPhone(phone))
         val result = request("/signup", "POST", JSONObject()
             .put("email", email.trim().lowercase())
             .put("password", password)
@@ -99,7 +116,8 @@ class StagingAuthClient(
         return SignupRequirements(
             required = data.optBoolean("required", true),
             phoneVerified = data.optBoolean("phoneVerified", false),
-            termsAccepted = data.optBoolean("termsAccepted", false)
+            termsAccepted = data.optBoolean("termsAccepted", false),
+            phoneRequired = data.optBoolean("phoneRequired", true)
         )
     }
 
@@ -138,11 +156,12 @@ class StagingAuthClient(
         currentUser = currentUser?.copy(phone = normalizedPhone)
     }
 
-    suspend fun finishSignup(username: String, displayName: String, birthDate: String) {
+    suspend fun finishSignup(username: String, displayName: String, birthDate: String, phone: String = "") {
         requireProductionRegistration()
         val requirements = signupRequirements()
-        if (requirements.required && (!requirements.phoneVerified || !requirements.termsAccepted)) {
-            throw AuthRequestException("Accept the account terms and verify your phone before finishing signup.")
+        if (requirements.needsSetup(phone.isNotBlank())) {
+            throw AuthRequestException(if (!requirements.termsAccepted) "Accept the account terms before finishing signup."
+                else "Verify your phone before finishing signup.")
         }
         signedInRpc("complete_social_onboarding", JSONObject()
             .put("p_username", username.trim().lowercase())
@@ -470,12 +489,13 @@ class StagingAuthClient(
         route: String,
         method: String,
         payload: JSONObject? = null,
-        bearer: String? = null
+        bearer: String? = null,
+        origin: String = baseUrl
     ): JSONObject = withContext(Dispatchers.IO) {
         if (!configured) throw AuthRequestException("${backend.title} publishable key is not configured.")
         try {
             withTimeout(20000L) {
-                val connection = URL(baseUrl + route).openConnection() as HttpURLConnection
+                val connection = URL(origin + route).openConnection() as HttpURLConnection
                 try {
                     connection.requestMethod = method
                     connection.connectTimeout = 10000
@@ -498,7 +518,9 @@ class StagingAuthClient(
                         val expiredCode = status in listOf(400, 401, 403, 422) && route == "/verify" && (
                             json.optString("error_code") == "otp_expired" ||
                             json.optString("code") == "otp_expired")
-                        val message = if (expiredCode) {
+                        val message = if (route == "/functions/v1/sautilink-username-login" && status in listOf(400, 401, 403, 422)) {
+                            "Incorrect email/username or password."
+                        } else if (expiredCode) {
                             "This verification code is invalid or has expired. Request a new code and try again."
                         } else when (status) {
                             400, 401, 403, 422 -> "Verification failed or this account is unavailable. Check your details."
@@ -520,7 +542,6 @@ class StagingAuthClient(
 }
 
 data class StagingAccount(val id: String, val displayName: String, val email: String, val phone: String, val suggestedUsername: String = "", val suggestedName: String = "", val signupPhone: String = "")
-data class SignupRequirements(val required: Boolean, val phoneVerified: Boolean, val termsAccepted: Boolean)
 data class StagingProfile(
     val displayName: String,
     val username: String,

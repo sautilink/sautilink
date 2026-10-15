@@ -18,9 +18,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import com.sautilink.nativeapp.ui.components.SautiPostText
+import com.sautilink.nativeapp.ui.text.PostTextFormat
+import com.sautilink.nativeapp.ui.text.insertPostFormatting
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -43,6 +56,15 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
     var error by remember { mutableStateOf<String?>(null) }
     var mediaItems by remember { mutableStateOf<List<ComposerMediaItem>>(emptyList()) }
     var previousUploads by remember { mutableStateOf<List<NativeReadyMedia>>(emptyList()) }
+    var editor by remember { mutableStateOf(TextFieldValue(draft, TextRange(draft.length))) }
+    var previewOpen by remember { mutableStateOf(false) }
+    val editorFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(draft) {
+        if (editor.text != draft) editor = editor.copy(text = draft,
+            selection = TextRange(editor.selection.start.coerceIn(0, draft.length),
+                editor.selection.end.coerceIn(0, draft.length)), composition = null)
+    }
     val inFlight = busy || mediaItems.any { it.status == "Preparing" || it.status == "Uploading" }
     SideEffect { onUploadActivity(inFlight) }
     LaunchedEffect(auth.account?.id) {
@@ -78,9 +100,51 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
             Text("Sign in to publish on SautiLink.")
             Button(onClick = onSignIn) { Text("Sign in") }
         } else {
-            OutlinedTextField(draft, { onDraftChange(it.take(2001)) }, label = { Text("What's happening?") },
+            OutlinedTextField(editor, { value ->
+                editor = value.copy(text = value.text.take(2001))
+                onDraftChange(editor.text)
+            }, label = { Text("What's happening?") },
                 supportingText = { Text("${draft.length}/2000") }, minLines = 4,
-                modifier = Modifier.fillMaxWidth(), enabled = !busy)
+                modifier = Modifier.fillMaxWidth().focusRequester(editorFocus), enabled = !busy)
+            Text("Text style", style = MaterialTheme.typography.labelLarge)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                PostTextFormat.entries.forEach { format ->
+                    val insertion = insertPostFormatting(editor.text, editor.selection.start,
+                        editor.selection.end, format)
+                    IconButton(onClick = {
+                        insertPostFormatting(editor.text, editor.selection.start,
+                            editor.selection.end, format)?.let { result ->
+                            editor = TextFieldValue(result.text, TextRange(result.selectionStart, result.selectionEnd))
+                            onDraftChange(result.text)
+                            previewOpen = true
+                            editorFocus.requestFocus()
+                            keyboard?.show()
+                        }
+                    }, enabled = !busy && insertion != null,
+                        modifier = Modifier.semantics { contentDescription = "${format.label} selected text" }) {
+                        Text(format.glyph, style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = if (format == PostTextFormat.BOLD) FontWeight.Bold else null,
+                            fontStyle = if (format == PostTextFormat.ITALIC) FontStyle.Italic else null,
+                            textDecoration = when (format) {
+                                PostTextFormat.UNDERLINE -> TextDecoration.Underline
+                                PostTextFormat.STRIKETHROUGH -> TextDecoration.LineThrough
+                                else -> null
+                            }))
+                    }
+                }
+                TextButton(onClick = { previewOpen = !previewOpen }, enabled = !busy,
+                    modifier = Modifier.weight(1f).semantics {
+                        stateDescription = if (previewOpen) "Expanded" else "Collapsed"
+                    }) { Text("Preview") }
+            }
+            if (previewOpen) Surface(shape = SautiShape.Card,
+                color = MaterialTheme.colorScheme.surfaceContainer) {
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Post preview", style = MaterialTheme.typography.labelSmall)
+                    SautiPostText(editor.text.ifBlank { "Your post will appear here." },
+                        style = MaterialTheme.typography.bodyLarge)
+                }
+            }
             OutlinedButton(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                 enabled = !busy && mediaItems.size < 4) { Text("Add images or video (${mediaItems.size}/4)") }
             if (previousUploads.isNotEmpty()) {
@@ -193,7 +257,7 @@ fun NativeOwnPostsScreen(auth: StagingAuthClient, refreshKey: Int, onBack: () ->
             items(posts, key = { it.id }) { post ->
                 Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(post.body.ifBlank { "Media post" }, style = MaterialTheme.typography.bodyLarge)
+                        SautiPostText(post.body.ifBlank { "Media post" }, style = MaterialTheme.typography.bodyLarge)
                         Text("${post.createdAt.take(10)} · ${post.visibility}" + if (post.editCount > 0) " · Edited" else "",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -220,10 +220,14 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
             when (method) {
                 LoginMethod.PASSWORD, LoginMethod.EMAIL_CODE -> {
                     OutlinedTextField(
-                        value = email, onValueChange = { email = it }, label = { Text("Email address") },
+                        value = email, onValueChange = { email = it },
+                        label = { Text(if (method == LoginMethod.PASSWORD && client.backend == SautiBackend.PRODUCTION)
+                            "Email or username" else "Email address") },
                         modifier = Modifier.fillMaxWidth(), enabled = !loading,
                         singleLine = true, shape = RoundedCornerShape(18.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                        keyboardOptions = KeyboardOptions(keyboardType =
+                            if (method == LoginMethod.PASSWORD && client.backend == SautiBackend.PRODUCTION)
+                                KeyboardType.Text else KeyboardType.Email)
                     )
                 }
                 LoginMethod.PHONE_CODE -> {
@@ -260,7 +264,8 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
             val emailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()
             val phoneValid = Regex("^\\+[1-9][0-9]{7,14}$").matches(phone.trim())
             val canSubmit = when (method) {
-                LoginMethod.PASSWORD -> emailValid && password.isNotEmpty()
+                LoginMethod.PASSWORD -> (emailValid || (client.backend == SautiBackend.PRODUCTION &&
+                    validLoginUsername(email))) && password.isNotEmpty()
                 LoginMethod.EMAIL_CODE -> emailValid && (!codeRequested || code.length == 8)
                 LoginMethod.PHONE_CODE -> phoneValid && (!codeRequested || code.length in 6..10)
             }
@@ -271,7 +276,8 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
                 onClick = {
                     runAction {
                         when (method) {
-                            LoginMethod.PASSWORD -> client.signInWithPassword(email, password)
+                            LoginMethod.PASSWORD -> if (emailValid) client.signInWithPassword(email, password)
+                                else client.signInWithUsername(email, password)
                             LoginMethod.EMAIL_CODE -> if (!codeRequested) {
                                 client.requestEmailCode(email); codeRequested = true
                                 message = "If this account exists, check its email for a code."
