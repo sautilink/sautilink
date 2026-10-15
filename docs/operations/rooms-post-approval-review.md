@@ -10,8 +10,13 @@ remain unauthorized. This patch supersedes the earlier outside-repository design
 Migration generated with installed Supabase CLI 2.121.0:
 `supabase/migrations/20261015031151_room_post_approval.sql`.
 
-SHA256: `C77E22152EF5E6CBAC1F0AB1185E697629CFB32822CDF9368FDA0066CC0339DE`.
-Review the final file/hash again if any follow-up changes are made.
+Repository/downloaded SQL SHA256 (LF):
+`02DA26874DC920F4662593CCBF1A4D8A3DA4F25AEDC363A4E3831BA09B42251B`.
+Windows workspace file SHA256 (CRLF):
+`C77E22152EF5E6CBAC1F0AB1185E697629CFB32822CDF9368FDA0066CC0339DE`.
+These contain identical SQL; Git normalizes the line endings. The actual local
+test hash and final-blank-line normalization are retained in the evidence JSON.
+Review the final file/hash again if any SQL changes are made.
 
 - Add default-false `social_circles.post_approval_required`. Existing settings RLS
   still limits changes to owner/admin; settings changes append audit metadata.
