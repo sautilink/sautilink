@@ -5,10 +5,12 @@ enablement is authorized by this document**. Moderation AI is deferred. No PR
 merge, production deployment or Play publication occurred in this work.
 
 Native checkpoint `979a26a3ce85b5b122cd3e63036e300440b54dd9` built successfully
-in 9m27s. Its capability-handling follow-up,
-`0eab58fccb2106b5dfb87c61e549b4af25688dd1`, is rebuilding; new-source Samsung
-tests remain pending. The installed Samsung QA build is the earlier `4fe4f21`;
-observations on that APK do not certify the new management implementation.
+in 9m27s. Final capability follow-up `0eab58fccb2106b5dfb87c61e549b4af25688dd1`
+built with assembly and lintVital PASS in 9m37s and was installed on Samsung.
+Its entire native tree is identical to reviewed PR source
+`9681588868c85bccd8ff3f5f3a33b07a65633694`. That source also passed full Native
+Android build/lint CI run38817218445. Earlier4fe observations remain a baseline;
+new-source Samsung results and their limits are recorded below.
 The three newly reproduced admission-policy/owner-block races were corrected
 and the final local SQL regressions/races passed as recorded below. These local
 results and bounded source reviews do not certify a hosted rollout.
@@ -221,7 +223,7 @@ as a shortcut to removing membership. No parallel invitation storage is added.
 | Final real two-session SQL races | **7/7 PASS**: prior four rerun + three new admission denials | Workspace `work/outputs/rooms-management-concurrency-final4.log` and `rooms-management-admission-final4.log` |
 | Worker focused HTTP/security tests | **35/35 PASS** (19 management + 16 existing approval) | Workspace `work/outputs/rooms-management-worker-final-20261016.log` |
 | Independent cross-contract source review | No remaining actionable findings in reviewed SQL/Worker/native scope | API reviewer, final `FB8A132E...71ABFB9` SQL and capability correction |
-| Android assembly/lintVital | `979a26a` **PASS**, 9m27s; latest `0eab58f` **PENDING** | Root-owned builds; pure model checks do not compile Compose |
+| Android assembly/lintVital and full CI | Final `0eab58f` **PASS**, 9m37s; matching PR native tree full build/lint **PASS** | CI run38817218445; APK hash below |
 | Samsung new capability-enabled management | **NOT TESTED** | No hosted management rollout |
 
 The following final actual results apply to SQL snapshot `FB8A132E...71ABFB9`.
@@ -314,6 +316,46 @@ Verify the recorded source hashes before treating a replay as the same checkpoin
 The 88 assertions cover Unicode code-point boundaries, config/answer counts and
 identity, membership action values, and staff/owner/former-member/unknown-role
 hierarchy. They do not exercise Compose, HTTP, RLS or Samsung behavior.
+
+## Actual Samsung follow-up (16 October)
+
+Galaxy A05s SM-A057F/Android15, separate QA package `com.sautilink.preview.d2qa`.
+APK SHA256 `97a5d36aa386ca87a6a9cb622675ca4c864e4dbb525167b8bbea3985d8be0b18`;
+stable signer, debuggable=false, minify=false, correct existing QA Firebase client.
+Original preview package version/install times were unchanged. Actual QA identity
+@utaliiplus restored without a new login; no credentials were captured.
+
+- **PASS** canonical member count: a newly created owned Room showed1 both in
+  first and settled captures without manual refresh; read-only server check gave
+  member_count1 and actual membership count1. This retests the earlier4fe defect.
+- **PASS** visual selected chip branding: Sauti primary blue replaces default
+  lavender. Existing global theme/branding files were untouched.
+- **PASS** new outgoing invitation list, confirmed revoke of the exact controlled
+  @drcharlestz pending invitation, empty result and read-only server absence.
+- **PASS** bounded navigation through Discussion/About/People/Media, canonical
+  post detail and Back, Menu profile return and Home. Owner roster and existing
+  post/comment counts loaded correctly. No FATAL EXCEPTION appeared in the
+  current QA process crash buffer; this is not an exhaustive stability claim.
+- **PASS** native cover removal and owned-fixture deletion. Read-only server
+  verification returned0 remaining test Rooms/posts/comments/invites/memberships.
+  Exact agent-owned device JPEG was checked by path/name/hash, then removed;
+  its media record and file were independently absent. Cover_key was null before
+  Room deletion; raw R2 byte deletion was not independently inspected.
+
+Earlier4fe live checks also confirmed cover upload/loaded image, text publishing,
+post Like/Save, comment Like retained after explicit refresh and invitation send.
+The final native change scope does not modify those transport implementations.
+Workspace report `outputs/Rooms-QA-Samsung.md` and fixture manifest
+`outputs/Rooms-QA-16Oct-fixtures.json` retain actual screenshots, source boundaries
+and cleanup. Production preflight still confirms both reviewed capabilities and
+schemas absent. Rules/questions/pins/published-post moderation/post approval
+therefore remain **NOT TESTED live**. Full Rooms completion is not claimed.
+
+[Native full build/lint](https://github.com/sautilink/sautilink/actions/runs/38817218445),
+[Authentication](https://github.com/sautilink/sautilink/actions/runs/38817218512),
+[Brand Guard](https://github.com/sautilink/sautilink/actions/runs/38817218435) and
+[Android APK](https://github.com/sautilink/sautilink/actions/runs/38817218480) all
+completed successfully for reviewed code9681588. No PR merge or publication.
 
 ## Required approval and remaining verification
 
