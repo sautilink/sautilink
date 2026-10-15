@@ -1,8 +1,10 @@
-# Rooms management - local review proposal
+# Rooms management - rollout and follow-up review
 
-Status: **prepared and tested locally; no hosted schema/API deployment or feature
-enablement is authorized by this document**. Moderation AI is deferred. No PR
-merge, production deployment or Play publication occurred in this work.
+Status: **the owner-approved two-migration rollout and matching production Worker
+deployment are complete; owned Samsung QA is in progress**. The separately
+reviewed Room-deletion cascade fix was subsequently approved, applied and its
+function readback verified by root. Moderation AI remains
+deferred. No PR merge or Play publication occurred.
 
 Native checkpoint `979a26a3ce85b5b122cd3e63036e300440b54dd9` built successfully
 in 9m27s. Final capability follow-up `0eab58fccb2106b5dfb87c61e549b4af25688dd1`
@@ -13,7 +15,52 @@ Android build/lint CI run38817218445. Earlier4fe observations remain a baseline;
 new-source Samsung results and their limits are recorded below.
 The three newly reproduced admission-policy/owner-block races were corrected
 and the final local SQL regressions/races passed as recorded below. These local
-results and bounded source reviews do not certify a hosted rollout.
+results and bounded source reviews remain separate from the actual production
+rollout and Samsung evidence below.
+
+## Owner-approved production rollout (16 October)
+
+The owner explicitly approved both exact reviewed SQL files, the matching
+production Worker and feature enablement only in owned QA Rooms. Both migrations
+were actually applied, retaining their reviewed contents/hashes:
+
+| Reviewed source | Actual hosted history version/name |
+| --- | --- |
+| `20261015031151_room_post_approval.sql` | `20261015230733` / `room_post_approval` |
+| `20261015214652_room_management_completion.sql` | `20261015230924` / `room_management_completion` |
+
+Worker source `63c05beb075efb7e6147754f9bd93e5cf420bf0b` was built from a verified
+LF Git archive. The complete suite passed **854/854**, with zero failures/skips;
+staging and production artifact validation and deployment dry run also passed.
+Root then actually deployed production Worker version
+`c1fd4346-35ee-47b8-95b0-6ed53169dcb7`, verified at **100% traffic**. All **27
+bindings were unchanged**, with none added/removed. Artifact tree SHA256:
+`1f64a850a3f5682a5b189d6685dc23e6d4990694551b8aa068d708f4ab0a0e45`.
+
+Production readiness returned **PASS**: existing app/root/www/health/media routes
+responded as expected, protected unauthenticated API access returned 401, and
+asset/media/rate-limit readiness checks passed. This probe does not establish new
+Rooms end-to-end behavior. Evidence is in workspace
+`work/outputs/production-check-63c05be.json`,
+`outputs/Rooms-worker-deploy-63c05be-20261016.json`,
+`outputs/Rooms-worker-deployment-comparison-20261016.json` and
+`outputs/Rooms-production-readiness-63c05be-20261016.log`.
+
+The read-only post-DDL snapshot confirmed all **five preexisting Rooms** retained
+review OFF and empty rules/questions at version 1, before owned QA enablement.
+All **20** saved existing policies were unchanged; **36/36** reviewed function
+bodies matched production. All eight new private tables have FORCE RLS and no
+anon/authenticated direct read/write privileges. The 18 public RPCs are executable
+only by authenticated clients (17 definer, one invoker); reviewed private helpers
+remain nonexecutable by client roles. This is a bounded catalog/source audit,
+not a broad security PASS or a production caller-role test.
+
+Advisor delta: eight expected private deny-all INFO findings and 17 intentional
+authenticated-definer WARN findings; existing six anon-definer warnings and the
+leaked-password-protection warning were unchanged. Full raw and classified
+evidence: `outputs/Rooms-production-post-DDL-audit-20261016.json` and
+`outputs/Rooms-production-security-after-20261016-raw.json`. No blanket policies,
+RPC revocations or unrelated Auth changes were made to silence these notices.
 
 ## Native scope and capability behavior
 
@@ -65,16 +112,16 @@ The previous post-approval migration was not edited. Its existing Windows CRLF
 SHA256 remains `C77E22152EF5E6CBAC1F0AB1185E697629CFB32822CDF9368FDA0066CC0339DE`;
 its repository LF SHA256 is
 `02DA26874DC920F4662593CCBF1A4D8A3DA4F25AEDC363A4E3831BA09B42251B`.
-Existing posts, authentication, APIs and RLS policies are retained. This proposal
+Existing posts, authentication, APIs and RLS policies are retained. This rollout
 adds separate management tables/RPCs and two narrowly demonstrated trigger fixes.
 
 The new management SQL is logically independent of the earlier post-approval
 objects. The local regression fixture loads the earlier approval migration to
-check compatibility; that is not a new SQL prerequisite. Post approval remains
-a separately unapproved hosted rollout described in
-[rooms-post-approval-review.md](rooms-post-approval-review.md). If both proposals
-ship together, review and authorize both exact migrations and the matching Worker
-release; preserve each independent capability when either schema is absent.
+check compatibility; that is not a new SQL prerequisite. The separately reviewed
+post-approval component is described in
+[rooms-post-approval-review.md](rooms-post-approval-review.md). Both components
+were explicitly approved and applied in this rollout. Their independent
+capabilities still preserve behavior when either schema is absent.
 
 ## Data and authority
 
@@ -175,6 +222,46 @@ and revalidate current mode/blocks at the private-proof INSERT boundary. The
 final three lock-wait cases all rejected with no member/request committed. This
 does not add a claim that every possible concurrent database change was tested.
 
+### Additional owner Room-delete cascade fix — approved and applied
+
+Local canonical tests exposed an existing owner Room DELETE failure:
+`ROOM_MEMBER_REMOVAL_FORBIDDEN` after the FK cascade removed the owner's
+membership before other members. It affected a plain multi-member Room, a Room
+with genuinely approved photo/video, and one with pending held media.
+
+The separate migration
+`supabase/migrations/20261015232423_fix_room_member_delete_cascade.sql` has
+workspace and LF SHA256
+`CF5CEF1CDE9B8F8B638C3FE997D9C61CBC5B6C6CE0061744F05321660CF532A1`.
+It adds only a physical-parent-absence return to the existing SECURITY DEFINER
+member-removal guard. Removing that one added branch yields the original body
+exactly. Parent-present hierarchy, null/self behavior, empty search path and
+EXECUTE revokes are retained; there are no new grants, policies, tables, trigger
+recreations or Worker changes. A parent hidden by caller RLS remains physically
+present to the definer and cannot bypass normal authority.
+
+Actual isolated local results: **42/42 checks + one real two-session race PASS**.
+The same behavior test was RED before the fix. Checks include all three owner
+deletion cases, hidden-parent/peer-role denials, self-leave/owner protections,
+trusted account cascades and exact member counts. Pending deletion releases holds
+while preserving two ready unattached uploads for their author; approved attached
+metadata cascades. The concurrency check observes an owner cascade waiting on a
+member row while peer-admin removal is still denied, then succeeds and rolls back
+without deadlock. This tests synthetic media metadata, not R2 byte deletion.
+
+Independent read-only review found no actionable source/test issue and confirmed
+the minimal change. Evidence:
+`outputs/Rooms-delete-cascade-local-QA-20261016.json`; logs
+`work/generatedtestscope/rooms-delete-review/fix-{before,after,race}.log`.
+
+The owner then explicitly approved this exact additional fix. Root applied hosted
+version **`20261015233249` / `fix_room_member_delete_cascade`**, received
+`success:true` and read back the sole physical-absence branch from the deployed
+function. Durable acknowledgment:
+`outputs/Rooms-production-delete-cascade-applied-20261016.json`.
+No Worker redeployment was needed. Actual Samsung cascade cleanup is still a
+separate pending live gate.
+
 ## HTTP/RPC contract
 
 All new API calls retain the caller bearer and existing public project key;
@@ -222,9 +309,11 @@ as a shortcut to removing membership. No parallel invitation storage is added.
 | Final existing quote/decision parity | **18/18 PASS** | Same final4 log |
 | Final real two-session SQL races | **7/7 PASS**: prior four rerun + three new admission denials | Workspace `work/outputs/rooms-management-concurrency-final4.log` and `rooms-management-admission-final4.log` |
 | Worker focused HTTP/security tests | **35/35 PASS** (19 management + 16 existing approval) | Workspace `work/outputs/rooms-management-worker-final-20261016.log` |
+| Complete rollout-source suite/artifacts | **854/854 PASS**, zero failures/skips; staging/production artifact checks and dry run PASS | Workspace `work/outputs/production-check-63c05be.json` |
+| Additional cascade-fix local tests | **42/42 + 1 actual concurrency PASS**; independently reviewed, subsequently owner-approved/applied | Workspace `outputs/Rooms-delete-cascade-local-QA-20261016.json` |
 | Independent cross-contract source review | No remaining actionable findings in reviewed SQL/Worker/native scope | API reviewer, final `FB8A132E...71ABFB9` SQL and capability correction |
 | Android assembly/lintVital and full CI | Final `0eab58f` **PASS**, 9m37s; matching PR native tree full build/lint **PASS** | CI run38817218445; APK hash below |
-| Samsung new capability-enabled management | **NOT TESTED** | No hosted management rollout |
+| Samsung new capability-enabled management | **IN PROGRESS; complete matrix NOT PASSED** | Hosted rollout is now available; bounded observations below |
 
 The following final actual results apply to SQL snapshot `FB8A132E...71ABFB9`.
 PostgreSQL 17.11 at loopback `127.0.0.1:55435`, fresh synthetic database
@@ -279,8 +368,9 @@ post approval can retain its old top-level version 0 while management is true at
 version 1. Explicit missing/false is unsupported; transient/network/invalid probes
 return 503, and auth errors retain 401/403. The prior 32-test run preceded those
 corrections and is superseded by these 35 focused tests. The independent bounded
-cross-contract source review is complete; this is not the full release suite,
-hosted security certification or Samsung validation.
+cross-contract source review is complete. These 35 focused tests are distinct
+from the later complete 854-test rollout suite; neither is hosted security
+certification or Samsung validation.
 
 ### Reproduce the focused native model check
 
@@ -347,9 +437,18 @@ post Like/Save, comment Like retained after explicit refresh and invitation send
 The final native change scope does not modify those transport implementations.
 Workspace report `outputs/Rooms-QA-Samsung.md` and fixture manifest
 `outputs/Rooms-QA-16Oct-fixtures.json` retain actual screenshots, source boundaries
-and cleanup. Production preflight still confirms both reviewed capabilities and
-schemas absent. Rules/questions/pins/published-post moderation/post approval
-therefore remain **NOT TESTED live**. Full Rooms completion is not claimed.
+and cleanup. During that historical block, production preflight confirmed the
+reviewed schemas/capabilities were absent, so it did not test the new enabled
+flows. The owner-approved rollout above subsequently removed that availability
+block; full Rooms completion is still not claimed.
+
+### Capability-enabled Samsung QA now in progress
+
+Root has observed a newly owned Room A created with one member, saved ordered
+rules/questions with required true/false and server-confirmed config version 2,
+an uploaded/attached photo post, and a pinned-post UI showing Unpin. These are
+bounded ongoing observations, **not a completed feature-matrix PASS**. Remaining
+membership/role/queue/pin/removal/failure/cascade-cleanup checks stay pending.
 
 [Native full build/lint](https://github.com/sautilink/sautilink/actions/runs/38817218445),
 [Authentication](https://github.com/sautilink/sautilink/actions/runs/38817218512),
@@ -357,49 +456,53 @@ therefore remain **NOT TESTED live**. Full Rooms completion is not claimed.
 [Android APK](https://github.com/sautilink/sautilink/actions/runs/38817218480) all
 completed successfully for reviewed code9681588. No PR merge or publication.
 
-## Required approval and remaining verification
+## Remaining live verification and future authorization
 
-Hosted application, advisors, full integration, native build/lint and Samsung
-rules/questions/pin/removal/invitation QA remain separate gates. No new
-capability-enabled live test is claimed here. Review the complete
-SQL/Worker/Native diff and these compatibility
-and retention details before explicit authorization to apply/deploy.
+The two reviewed migrations, matching Worker deployment and owned-QA enablement
+received the explicit owner authorization required by Issue #353 and were
+completed. The additional exact cascade fix was separately approved/applied as
+recorded above. Those approvals do not authorize unrelated backend/Auth changes,
+AI moderation, other users' Room configuration, PR merge or Play publication.
 
-Issue #353 requires owner authorization for backend/configuration changes. This
-document is the reviewable proposal for that decision, not authorization to run
-it. The two trigger replacements must be included in that review because they
-also correct existing empty-config admission paths.
+Production caller-role behavior and the full Samsung
+rules/questions/queue/pin/removal/invitation/failure/cleanup matrix remain open.
+The completed deployment, readiness and catalog audit do not establish those
+live results. No new email-only signup success is inferred from an existing
+account session.
 
-The root-owned legacy Samsung fixture has an actual Room/post/cover and pending
-cleanup, recorded in `outputs/Rooms-QA-16Oct-fixtures.json`. On installed `4fe4f21`,
-create showed 0 members although the server had the owner membership/count 1,
-and a selected discovery chip used lavender. Source fixes are in `979a26a`;
-their live retests remain pending. No new email-only signup success is inferred
-from the current account session.
+Historical `4fe4f21` create-count/lavender-chip failures were retested **PASS** on
+`0eab58f`; their earlier owned fixture cleanup also passed. Those completed
+observations stay in `outputs/Rooms-QA-16Oct-fixtures.json`. New capability-enabled
+fixtures require their own exact cleanup, including the newly fixed cascade.
 
 **Enabled-Room backward compatibility:** empty-question Rooms preserve old
 admission paths. Once a manager configures questions, older clients that directly
 join/request/accept without answers receive `ROOM_QUESTIONS_REQUIRED`; they must
 use a question-aware client. Existing members and captured prior pending requests
-are retained. Deploy the new client path and verify it before enabling questions.
+are retained. The deployed question-aware path must be verified on owned QA
+fixtures before enabling questions in any broader rollout.
 
-### Rollout checks requiring approval
+### Post-rollout checks still open
 
-1. Finish independent Worker/native contract review and final HTTP tests; build
-   and lint the exact Android source. Recheck SQL hashes and hosted migration
-   inventory; take the normal recoverable database backup. Apply/deploy only
-   after the owner approves the exact proposal and target environment.
-2. Verify empty-default Rooms, legacy joins/requests/invitations and existing
-   post-approval capability independently. Check RLS/advisors and current staff
-   role changes with caller credentials; never substitute a service-role client.
+1. Finish the authorized owned Samsung/caller-role checks against the exact
+   deployed source. Preserve the original preview session; use a compatible
+   second QA client/private owner sign-in when needed. The practical checklist is
+   `outputs/Rooms-QA-enabled-live-checklist.md`; unavailable identity/race/page
+   fixtures must remain BLOCKED/NOT TESTED rather than inherit local test PASS.
+2. Verify actual empty-default admission, all three question-aware modes and
+   independent approval behavior with caller credentials; never substitute a
+   service-role client. Retain the post-DDL advisor classifications and current
+   staff demotion/permission denial evidence.
 3. On Samsung with owned fixtures, verify rule settings conflicts/retry, required
    answers for all three admissions, staff-only snapshot access, captured old
    requests, hierarchy removal, pin cap/older-post hydration, nullable pinner,
    outgoing revoke/accept races and truthful errors. Exercise offline/lost ACK,
    Room/account changes and Back restoration, plus existing posts/media/actions.
-4. Enable questions only after question-aware admission works. Confirm ordinary
-   and older clients cannot bypass required answers. Remove owned fixtures and
-   verify unchanged unrelated data before recording completion.
+4. Confirm ordinary and older clients cannot bypass configured answers. Complete
+   exact owned fixture/media/cover cleanup through supported workflows, including
+   multi-member/approved-media/pending-media Room deletion; record retained ready
+   uploads and raw R2 cleanup limits honestly. Verify unrelated data/radios and
+   the original session before recording completion.
 
 ### Rollback constraints
 
