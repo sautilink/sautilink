@@ -57,15 +57,11 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
     var error by remember { mutableStateOf<String?>(null) }
     var mediaItems by remember { mutableStateOf<List<ComposerMediaItem>>(emptyList()) }
     var previousUploads by remember { mutableStateOf<List<NativeReadyMedia>>(emptyList()) }
+    // Keep active IME text/selection local; the parent String mirror seeds a reopened composer.
     var editor by remember { mutableStateOf(TextFieldValue(draft, TextRange(draft.length))) }
     var previewOpen by remember { mutableStateOf(false) }
     val editorFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    LaunchedEffect(draft) {
-        if (editor.text != draft) editor = editor.copy(text = draft,
-            selection = TextRange(editor.selection.start.coerceIn(0, draft.length),
-                editor.selection.end.coerceIn(0, draft.length)), composition = null)
-    }
     val inFlight = busy || mediaItems.any { it.status == "Preparing" || it.status == "Uploading" }
     SideEffect { onUploadActivity(inFlight) }
     LaunchedEffect(auth.account?.id) {
