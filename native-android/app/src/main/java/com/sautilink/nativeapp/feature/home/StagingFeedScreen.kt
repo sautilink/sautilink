@@ -85,6 +85,7 @@ fun StagingFeedScreen(
     onOpenPost: (String) -> Unit = {}
 ) {
     val account = auth.account
+    val accountId = account?.id
     val sessionState = auth.sessionState
     var mode by rememberSaveable(auth.backend.id) {
         mutableStateOf(if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION)
@@ -97,12 +98,12 @@ fun StagingFeedScreen(
     var refreshVersion by remember { mutableIntStateOf(0) }
     // A new feed/account must start with its own loading state. Otherwise one frame can
     // show the previous tab's posts or the empty-state card before LaunchedEffect runs.
-    var loading by remember(account?.id, mode) { mutableStateOf(account != null) }
-    var loadingMore by remember(account?.id, mode) { mutableStateOf(false) }
-    var error by remember(account?.id, mode) { mutableStateOf<String?>(null) }
-    var posts by remember(account?.id, mode) { mutableStateOf<List<StagingFeedPost>>(emptyList()) }
-    var offset by remember(account?.id, mode) { mutableIntStateOf(0) }
-    var hasMore by remember(account?.id, mode) { mutableStateOf(false) }
+    var loading by remember(accountId, mode) { mutableStateOf(account != null) }
+    var loadingMore by remember(accountId, mode) { mutableStateOf(false) }
+    var error by remember(accountId, mode) { mutableStateOf<String?>(null) }
+    var posts by remember(accountId, mode) { mutableStateOf<List<StagingFeedPost>>(emptyList()) }
+    var offset by remember(accountId, mode) { mutableIntStateOf(0) }
+    var hasMore by remember(accountId, mode) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val online = rememberNetworkAvailable()
@@ -110,32 +111,32 @@ fun StagingFeedScreen(
     val actions = remember(auth) { PostInteractionsClient(auth) }
     val canInteract = auth.backend == SautiBackend.PRODUCTION && account != null && online
     // Separate Like and Save state: one slow lookup never disables the other.
-    var likeStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
-    var savedStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
-    var repostStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
-    var followingStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var likeStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var savedStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var repostStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var followingStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     // Pending intent is separate from the state confirmed by the server.
-    var pendingFollowStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var pendingFollowStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     // Keep confirmed artwork across refresh/offline; a late GET cannot undo a confirmed tap.
-    val actionStateVersions = remember(auth, account?.id) { FeedActionVersions() }
-    var followReadError by remember(auth, account?.id) { mutableStateOf<String?>(null) }
-    var followRetryVersion by remember(auth, account?.id) { mutableIntStateOf(0) }
-    var likeReadError by remember(auth, account?.id) { mutableStateOf<String?>(null) }
-    var savedReadError by remember(auth, account?.id) { mutableStateOf<String?>(null) }
-    var repostReadError by remember(auth, account?.id) { mutableStateOf<String?>(null) }
-    var repostCountSyncVersion by remember(auth, account?.id) { mutableIntStateOf(0) }
-    var actionError by remember(auth, account?.id) { mutableStateOf<String?>(null) }
-    var actionErrorPostId by remember(auth, account?.id) { mutableStateOf<String?>(null) }
-    var actionRetryVersion by remember(auth, account?.id) { mutableIntStateOf(0) }
-    var busyKeys by remember(auth, account?.id) { mutableStateOf<Set<String>>(emptySet()) }
-    var commentsFor by remember(auth, account?.id) { mutableStateOf<StagingFeedPost?>(null) }
-    var commentCountSyncVersion by remember(auth, account?.id) { mutableIntStateOf(0) }
+    val actionStateVersions = remember(auth, accountId) { FeedActionVersions() }
+    var followReadError by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var followRetryVersion by remember(auth, accountId) { mutableIntStateOf(0) }
+    var likeReadError by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var savedReadError by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var repostReadError by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var repostCountSyncVersion by remember(auth, accountId) { mutableIntStateOf(0) }
+    var actionError by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var actionErrorPostId by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var actionRetryVersion by remember(auth, accountId) { mutableIntStateOf(0) }
+    var busyKeys by remember(auth, accountId) { mutableStateOf<Set<String>>(emptySet()) }
+    var commentsFor by remember(auth, accountId) { mutableStateOf<StagingFeedPost?>(null) }
+    var commentCountSyncVersion by remember(auth, accountId) { mutableIntStateOf(0) }
 
     val shownPostIds = remember(posts) { posts.map { it.id } }
     // Each request has a deadline and its own result/error. No mutation happens here.
-    LaunchedEffect(auth, account?.id, shownPostIds, actionRetryVersion, canInteract, refreshVersion, mode) {
+    LaunchedEffect(auth, accountId, shownPostIds, actionRetryVersion, canInteract, refreshVersion, mode) {
         if (!canInteract || shownPostIds.isEmpty()) return@LaunchedEffect
-        val expectedId = account?.id
+        val expectedId = accountId
         val readVersions = actionStateVersions.snapshot()
         val missingLikes = shownPostIds
         val missingSaved = shownPostIds
@@ -190,13 +191,13 @@ fun StagingFeedScreen(
         }
     }
 
-    val shownAuthorIds = remember(posts, account?.id) {
-        posts.map { it.authorId }.filter { it.isNotBlank() && it != account?.id }.distinct()
+    val shownAuthorIds = remember(posts, accountId) {
+        posts.map { it.authorId }.filter { it.isNotBlank() && it != accountId }.distinct()
     }
     // Independent from Like/Save/Repost: a slow Follow lookup never stalls a post action.
-    LaunchedEffect(auth, account?.id, shownAuthorIds, followRetryVersion, canInteract, refreshVersion, mode) {
+    LaunchedEffect(auth, accountId, shownAuthorIds, followRetryVersion, canInteract, refreshVersion, mode) {
         if (!canInteract || shownAuthorIds.isEmpty()) return@LaunchedEffect
-        val expectedAccountId = account?.id
+        val expectedAccountId = accountId
         val readVersions = actionStateVersions.snapshot()
         val missing = shownAuthorIds
         if (missing.isEmpty()) return@LaunchedEffect
@@ -216,7 +217,7 @@ fun StagingFeedScreen(
     }
 
     // UI watchdog independent from the network calls: never leave a spinner forever.
-    LaunchedEffect(auth, account?.id, shownPostIds, actionRetryVersion, canInteract, refreshVersion, mode) {
+    LaunchedEffect(auth, accountId, shownPostIds, actionRetryVersion, canInteract, refreshVersion, mode) {
         if (canInteract && shownPostIds.isNotEmpty()) {
             delay(25_000L)
             if (shownPostIds.any { it !in likeStates } && likeReadError == null) {
@@ -385,7 +386,7 @@ fun StagingFeedScreen(
         }
     }
 
-    LaunchedEffect(client, account?.id, mode, refreshVersion, online) {
+    LaunchedEffect(client, accountId, mode, refreshVersion, online) {
         val cachedPage = if (account == null) null else client.cached(mode)
         // Existing rows/counts and confirmed viewer states stay visible during revalidation.
         // remember(account.id, mode) supplies an empty list for a genuinely different feed.
@@ -637,14 +638,14 @@ fun StagingFeedScreen(
             }
         }
     }
-    val commentStateHolder = key(auth.backend.id, account?.id) { rememberSaveableStateHolder() }
+    val commentStateHolder = key(auth.backend.id, accountId) { rememberSaveableStateHolder() }
     val selectedPost = commentsFor
     if (selectedPost != null) {
         commentStateHolder.SaveableStateProvider(selectedPost.id) {
             PostCommentsSheet(
                 post = selectedPost, actions = actions,
                 allowWrite = canInteract,
-                signedInUserId = account?.id,
+                signedInUserId = accountId,
                 onDismiss = { commentsFor = null },
                 onRootPosted = {
                     posts = posts.map { p -> if (p.id == selectedPost.id) p.copy(comments = p.comments + 1) else p }
@@ -728,6 +729,63 @@ private fun FeedMessageCard(message: String, footer: @Composable () -> Unit = {}
     }
 }
 
+private fun feedFollowVisible(auth: StagingAuthClient, post: StagingFeedPost): Boolean {
+    if (auth.backend != SautiBackend.PRODUCTION) return false
+    val account = auth.account ?: return false
+    return post.authorId != account.id &&
+        Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(post.authorHandle)
+}
+
+private fun feedLikeGesture(auth: StagingAuthClient, online: Boolean, busy: Boolean,
+    onLike: () -> Unit): (() -> Unit)? {
+    if (!online || busy) return null
+    if (auth.account == null || auth.backend != SautiBackend.PRODUCTION) return null
+    return onLike
+}
+
+@Composable
+private fun FeedFollowButton(following: Boolean?, pending: Boolean?, enabled: Boolean,
+    onFollow: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val label = when (pending) {
+        true -> "Following…"
+        false -> "Unfollowing…"
+        null -> if (following == true) "Following" else "Follow"
+    }
+    OutlinedButton(onClick = onFollow, enabled = enabled, interactionSource = interaction,
+        modifier = Modifier.heightIn(min = 40.dp), shape = RoundedCornerShape(13.dp),
+        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp)) {
+        Text(label, modifier = Modifier.sautiActionFeedback(interaction),
+            style = MaterialTheme.typography.labelMedium, maxLines = 1)
+    }
+}
+
+@Composable
+private fun FeedPostBodyAndMedia(post: StagingFeedPost, auth: StagingAuthClient,
+    onDoubleTapLike: (() -> Unit)?) {
+    if (post.body.isNotBlank()) {
+        com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(
+            Modifier.fillMaxWidth(), onLike = onDoubleTapLike) {
+            com.sautilink.nativeapp.ui.components.SautiPostText(post.body,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 10.dp))
+        }
+    }
+    // Gallery is flush with card edges; caption is never overlaid onto the media.
+    if (post.media.isNotEmpty()) {
+        PostMediaGallery(auth, post.media, onDoubleTapLike = onDoubleTapLike)
+    } else if (post.mediaCount > 0) {
+        Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
+            Row(Modifier.fillMaxWidth().padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Rounded.PhotoLibrary, null, modifier = Modifier.size(19.dp))
+                Text("Media unavailable for this session", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
 @Composable
 private fun RealPostCard(
     post: StagingFeedPost,
@@ -764,7 +822,8 @@ private fun RealPostCard(
 ) {
     val initials = post.authorName.split(" ").filter { it.isNotBlank() }.take(2)
         .map { it.first().uppercaseChar() }.joinToString("").ifBlank { "SL" }
-    val canDoubleTapLike = online && !busyLike && auth.account != null && auth.backend == SautiBackend.PRODUCTION
+    val doubleTapLike = feedLikeGesture(auth, online, busyLike, onDoubleTapLike)
+    val showFollow = feedFollowVisible(auth, post)
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -815,27 +874,8 @@ private fun RealPostCard(
                         maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
-                if (auth.backend == SautiBackend.PRODUCTION && auth.account != null &&
-                    post.authorId != auth.account?.id &&
-                    Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(post.authorHandle)) {
-                    val followInteraction = remember { MutableInteractionSource() }
-                    val followLabel = when (pendingFollow) {
-                        true -> "Following…"
-                        false -> "Unfollowing…"
-                        null -> if (following == true) "Following" else "Follow"
-                    }
-                    OutlinedButton(
-                        onClick = onFollow, enabled = online && !busyFollow,
-                        interactionSource = followInteraction,
-                        modifier = Modifier.heightIn(min = 40.dp),
-                        shape = RoundedCornerShape(13.dp),
-                        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp)
-                    ) {
-                        Text(followLabel,
-                            modifier = Modifier.sautiActionFeedback(followInteraction),
-                            style = MaterialTheme.typography.labelMedium,
-                            maxLines = 1)
-                    }
+                if (showFollow) {
+                    FeedFollowButton(following, pendingFollow, online && !busyFollow, onFollow)
                 }
                 if (auth.backend == SautiBackend.PRODUCTION) {
                     IconButton(onClick = onOpenPost, enabled = online, modifier = Modifier.size(48.dp)) {
@@ -844,9 +884,7 @@ private fun RealPostCard(
                     }
                 }
             }
-            if (auth.backend == SautiBackend.PRODUCTION && auth.account != null &&
-                post.authorId != auth.account?.id &&
-                Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(post.authorHandle) && followReadError != null) {
+            if (showFollow && followReadError != null) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     Text("Follow status unavailable", style = MaterialTheme.typography.bodySmall,
@@ -854,28 +892,7 @@ private fun RealPostCard(
                     TextButton(onClick = onRetryFollow) { Text("Retry Follow") }
                 }
             }
-            if (post.body.isNotBlank()) {
-                com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(
-                    Modifier.fillMaxWidth(),
-                    onLike = if (canDoubleTapLike) onDoubleTapLike else null) {
-                    com.sautilink.nativeapp.ui.components.SautiPostText(post.body, style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 10.dp))
-                }
-            }
-            // Gallery is flush with card edges; caption is never overlaid onto the media.
-            if (post.media.isNotEmpty()) {
-                PostMediaGallery(auth, post.media,
-                    onDoubleTapLike = if (canDoubleTapLike) onDoubleTapLike else null)
-            } else if (post.mediaCount > 0) {
-                Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
-                    Row(Modifier.fillMaxWidth().padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Rounded.PhotoLibrary, null, modifier = Modifier.size(19.dp))
-                        Text("Media unavailable for this session", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
+            FeedPostBodyAndMedia(post, auth, doubleTapLike)
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .55f)

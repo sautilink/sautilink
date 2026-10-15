@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.contentDescription
@@ -100,51 +101,17 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
             Text("Sign in to publish on SautiLink.")
             Button(onClick = onSignIn) { Text("Sign in") }
         } else {
-            OutlinedTextField(editor, { value ->
-                editor = value.copy(text = value.text.take(2001))
-                onDraftChange(editor.text)
-            }, label = { Text("What's happening?") },
-                supportingText = { Text("${draft.length}/2000") }, minLines = 4,
-                modifier = Modifier.fillMaxWidth().focusRequester(editorFocus), enabled = !busy)
-            Text("Text style", style = MaterialTheme.typography.labelLarge)
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                PostTextFormat.entries.forEach { format ->
-                    val insertion = insertPostFormatting(editor.text, editor.selection.start,
-                        editor.selection.end, format)
-                    IconButton(onClick = {
-                        insertPostFormatting(editor.text, editor.selection.start,
-                            editor.selection.end, format)?.let { result ->
-                            editor = TextFieldValue(result.text, TextRange(result.selectionStart, result.selectionEnd))
-                            onDraftChange(result.text)
-                            previewOpen = true
-                            editorFocus.requestFocus()
-                            keyboard?.show()
-                        }
-                    }, enabled = !busy && insertion != null,
-                        modifier = Modifier.semantics { contentDescription = "${format.label} selected text" }) {
-                        Text(format.glyph, style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = if (format == PostTextFormat.BOLD) FontWeight.Bold else null,
-                            fontStyle = if (format == PostTextFormat.ITALIC) FontStyle.Italic else null,
-                            textDecoration = when (format) {
-                                PostTextFormat.UNDERLINE -> TextDecoration.Underline
-                                PostTextFormat.STRIKETHROUGH -> TextDecoration.LineThrough
-                                else -> null
-                            }))
-                    }
-                }
-                TextButton(onClick = { previewOpen = !previewOpen }, enabled = !busy,
-                    modifier = Modifier.weight(1f).semantics {
-                        stateDescription = if (previewOpen) "Expanded" else "Collapsed"
-                    }) { Text("Preview") }
-            }
-            if (previewOpen) Surface(shape = SautiShape.Card,
-                color = MaterialTheme.colorScheme.surfaceContainer) {
-                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Post preview", style = MaterialTheme.typography.labelSmall)
-                    SautiPostText(editor.text.ifBlank { "Your post will appear here." },
-                        style = MaterialTheme.typography.bodyLarge)
-                }
-            }
+            PostComposerTextEditor(editor, draft.length, previewOpen, !busy, editorFocus,
+                onValueChange = { value ->
+                    editor = value.copy(text = value.text.take(2001))
+                    onDraftChange(editor.text)
+                }, onFormat = { format ->
+                    applyComposerFormatting(format, editor, { value ->
+                        editor = value
+                        onDraftChange(value.text)
+                        previewOpen = true
+                    }, editorFocus, keyboard)
+                }, onPreviewToggle = { previewOpen = !previewOpen })
             OutlinedButton(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                 enabled = !busy && mediaItems.size < 4) { Text("Add images or video (${mediaItems.size}/4)") }
             if (previousUploads.isNotEmpty()) {
@@ -217,6 +184,52 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
             }
         }
         Spacer(Modifier.height(20.dp))
+    }
+}
+
+private fun applyComposerFormatting(format: PostTextFormat, editor: TextFieldValue,
+    onFormatted: (TextFieldValue) -> Unit, focus: FocusRequester, keyboard: SoftwareKeyboardController?) {
+    val result = insertPostFormatting(editor.text, editor.selection.start, editor.selection.end, format) ?: return
+    onFormatted(TextFieldValue(result.text, TextRange(result.selectionStart, result.selectionEnd)))
+    focus.requestFocus()
+    keyboard?.show()
+}
+
+/** Stateless editor controls keep formatting analysis separate from the media/upload composer. */
+@Composable
+private fun PostComposerTextEditor(editor: TextFieldValue, draftLength: Int,
+    previewOpen: Boolean, enabled: Boolean, focus: FocusRequester,
+    onValueChange: (TextFieldValue) -> Unit, onFormat: (PostTextFormat) -> Unit,
+    onPreviewToggle: () -> Unit) {
+    OutlinedTextField(editor, onValueChange, label = { Text("What's happening?") },
+        supportingText = { Text("$draftLength/2000") }, minLines = 4,
+        modifier = Modifier.fillMaxWidth().focusRequester(focus), enabled = enabled)
+    Text("Text style", style = MaterialTheme.typography.labelLarge)
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        PostTextFormat.entries.forEach { format ->
+            val insertion = insertPostFormatting(editor.text, editor.selection.start, editor.selection.end, format)
+            IconButton(onClick = { onFormat(format) }, enabled = enabled && insertion != null,
+                modifier = Modifier.semantics { contentDescription = "${format.label} selected text" }) {
+                Text(format.glyph, style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = if (format == PostTextFormat.BOLD) FontWeight.Bold else null,
+                    fontStyle = if (format == PostTextFormat.ITALIC) FontStyle.Italic else null,
+                    textDecoration = when (format) {
+                        PostTextFormat.UNDERLINE -> TextDecoration.Underline
+                        PostTextFormat.STRIKETHROUGH -> TextDecoration.LineThrough
+                        else -> null
+                    }))
+            }
+        }
+        TextButton(onClick = onPreviewToggle, enabled = enabled,
+            modifier = Modifier.weight(1f).semantics {
+                stateDescription = if (previewOpen) "Expanded" else "Collapsed"
+            }) { Text("Preview") }
+    }
+    if (previewOpen) Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Post preview", style = MaterialTheme.typography.labelSmall)
+            SautiPostText(editor.text.ifBlank { "Your post will appear here." }, style = MaterialTheme.typography.bodyLarge)
+        }
     }
 }
 
