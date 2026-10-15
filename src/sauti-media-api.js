@@ -377,8 +377,12 @@ async function insertPending(session, row) {
   return Array.isArray(rows) ? rows[0] || null : null;
 }
 
-async function patchMedia(session, id, patch) {
+async function patchMedia(session, id, patch, expectedStatus = '') {
   const params = new URLSearchParams({ id: `eq.${id}`, owner_id: `eq.${session.user.id}`, select: 'id,upload_status,finalized_at' });
+  if (expectedStatus) {
+    params.set('upload_status', `eq.${expectedStatus}`);
+    params.set('post_id', 'is.null');
+  }
   const response = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${params}`, {
     method: 'PATCH',
     headers: {
@@ -393,8 +397,9 @@ async function patchMedia(session, id, patch) {
   return Array.isArray(rows) ? rows[0] || null : null;
 }
 
-async function deleteMediaRow(session, id) {
+async function deleteMediaRow(session, id, expectedStatus = '') {
   const params = new URLSearchParams({ id: `eq.${id}`, owner_id: `eq.${session.user.id}`, post_id: 'is.null', select: 'id' });
+  if (expectedStatus) params.set('upload_status', `eq.${expectedStatus}`);
   const response = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${params}`, {
     method: 'DELETE',
     headers: { ...supabaseHeaders(session.auth), Prefer: 'return=representation' },
@@ -421,17 +426,23 @@ async function cleanupExpiredOwnerUploads(session, env) {
   if (!Array.isArray(rows) || !rows.length) return;
 
   await Promise.all(rows.map(async (row) => {
-    await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
     if (!row?.id) return;
     const deleteParams = new URLSearchParams({
       id: `eq.${row.id}`,
       owner_id: `eq.${session.user.id}`,
       post_id: 'is.null',
+      select: 'id',
     });
-    await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${deleteParams}`, {
+    const removal = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${deleteParams}`, {
       method: 'DELETE',
-      headers: supabaseHeaders(session.auth),
-    }).catch(() => {});
+      headers: { ...supabaseHeaders(session.auth), Prefer: 'return=representation' },
+    }).catch(() => null);
+    const deleted = removal?.ok ? await removal.json().catch(() => []) : [];
+    // Pending Room holds reject DB deletion. Never delete bytes first: another
+    // transaction can claim an upload after the expired-upload SELECT.
+    if (Array.isArray(deleted) && deleted.some((item) => item.id === row.id)) {
+      await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
+    }
   }));
 }
 
@@ -499,7 +510,10 @@ async function uploadMedia(request, env, id) {
   const contentLength = Number(request.headers.get('Content-Length') || 0);
   if (contentLength && contentLength !== Number(row.size_bytes)) return apiError(400, 'SIZE_MISMATCH', 'The uploaded file size changed.');
 
-  const bytes = new Uint8Array(await request.arrayBuffer());
+  let bytes;
+  try { bytes = new Uint8Array(await request.arrayBuffer()); } catch {
+    return apiError(400, 'UPLOAD_INTERRUPTED', 'The upload was interrupted. Try again.');
+  }
   if (bytes.byteLength !== Number(row.size_bytes) || bytes.byteLength > declared.limit) {
     return apiError(400, 'SIZE_MISMATCH', 'The uploaded file size changed.');
   }
@@ -514,17 +528,21 @@ async function uploadMedia(request, env, id) {
   } else {
     inspected = inspectMp4Bytes(bytes);
     if (!inspected) {
-      await deleteMediaRow(session, id).catch(() => false);
+      await deleteMediaRow(session, id, 'pending').catch(() => false);
       return apiError(415, 'INVALID_VIDEO', 'Use a valid MP4 video no longer than 2 minutes.');
     }
     if (Number(inspected.durationMs || 0) > SHORT_VIDEO_DURATION_MS) {
-      await deleteMediaRow(session, id).catch(() => false);
+      await deleteMediaRow(session, id, 'pending').catch(() => false);
       return apiError(422, 'VIDEO_TOO_LONG', 'This video is longer than 60 seconds. Trim it in the composer before uploading.');
     }
   }
 
   try {
-    await env.SAUTI_MEDIA.put(row.object_key, bytes, {
+    // The pending SELECT precedes body consumption. Another request may have
+    // finalized/queued/published this ID during that await, so only an atomic
+    // first write can protect the existing bytes. A HEAD check alone races.
+    const stored = await env.SAUTI_MEDIA.put(row.object_key, bytes, {
+      onlyIf: { etagDoesNotMatch: '*' },
       httpMetadata: { contentType: row.content_type },
       customMetadata: {
         ownerId: session.user.id,
@@ -536,6 +554,7 @@ async function uploadMedia(request, env, id) {
         durationMs: inspected.durationMs == null ? '' : String(inspected.durationMs),
       },
     });
+    if (!stored) return apiError(409, 'UPLOAD_ALREADY_STORED', 'This media was already stored. Refresh its status or add the file again.');
   } catch {
     return apiError(502, 'R2_UPLOAD_FAILED', 'The media could not be stored. Try again.');
   }
@@ -545,9 +564,13 @@ async function uploadMedia(request, env, id) {
     height: inspected.height,
     duration_ms: inspected.durationMs,
     upload_status: 'uploaded',
-  });
+  }, 'pending').catch(() => null);
   if (!patched) {
-    await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
+    // Only this request's new object may be cleaned, and only after confirmed
+    // deletion of its STILL-pending metadata. A ready/held/attached row, failed
+    // DELETE or zero-row response must preserve its bytes.
+    const removed = await deleteMediaRow(session, id, 'pending').catch(() => false);
+    if (removed) await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
     return apiError(409, 'UPLOAD_METADATA_FAILED', 'The upload could not be recorded.');
   }
 

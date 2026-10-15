@@ -1,5 +1,6 @@
 import { handleProfileMediaRequest } from './profile-media-api.js';
 import { handleRoomMediaRequest } from './room-media-api.js';
+import { handleRoomPostApprovalRequest } from './room-post-approval-api.js';
 import { handleSautiRequest } from './sauti-posts-api.js';
 import { handleSautiMediaRequest } from './sauti-media-api.js';
 import { handlePollRequest } from './polls-api.js';
@@ -257,6 +258,12 @@ async function routeRequest(request, env, url, ctx = null) {
   if (url.pathname.startsWith('/api/room-media/')) {
     const roomMediaResponse = await handleRoomMediaRequest(request, env);
     if (roomMediaResponse) return roomMediaResponse;
+    return new Response('Not found', { status: 404 });
+  }
+
+  if (url.pathname.startsWith('/api/rooms/')) {
+    const reviewResponse = await handleRoomPostApprovalRequest(request, env);
+    if (reviewResponse) return reviewResponse;
     return new Response('Not found', { status: 404 });
   }
 
