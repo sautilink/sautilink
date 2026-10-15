@@ -50,6 +50,7 @@ internal class NativeRoomSubmissionsClient(
         val own = access(room, writing = true)
         checkedMutation(room, submission, requestId)
         if (!room.canManagePeople) throw AuthRequestException("Only Room staff can decide submissions.")
+        if (submission.authorId == own) throw AuthRequestException("You can withdraw your own submission, but cannot approve or reject it.")
         val reason = reasonValue.trim()
         if (reason.length > 500 || !approve && reason.isBlank())
             throw AuthRequestException("Include a rejection reason of 1–500 characters.")

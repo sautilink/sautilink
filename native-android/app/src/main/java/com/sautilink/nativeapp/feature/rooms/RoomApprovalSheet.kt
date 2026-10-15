@@ -80,14 +80,14 @@ private fun RoomSubmissionCard(room: NativeRoom, state: RoomsState, submission: 
             if (submission.state == "approved" && submission.publishedPostId == null)
                 Text("Post unavailable", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (submission.state == "pending") {
-                if (room.isStaff) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (submission.authorId == state.accountId) OutlinedButton(
+                    onClick = { state.withdrawSubmission(submission) }, enabled = !state.busy("submission:${submission.id}")) {
+                    Text("Withdraw submission")
+                } else if (room.isStaff) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { state.decideSubmission(submission, true) }, enabled = !state.busy("submission:${submission.id}"),
                         modifier = Modifier.weight(1f)) { Text("Approve") }
                     OutlinedButton(onClick = onReject, enabled = !state.busy("submission:${submission.id}"),
                         modifier = Modifier.weight(1f)) { Text("Reject") }
-                } else if (submission.authorId == state.accountId) OutlinedButton(
-                    onClick = { state.withdrawSubmission(submission) }, enabled = !state.busy("submission:${submission.id}")) {
-                    Text("Withdraw submission")
                 }
             }
             submission.publishedPostId?.let { id -> TextButton(onClick = { onOpenPost(id) }) { Text("View published post") } }
