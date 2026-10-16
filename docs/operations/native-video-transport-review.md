@@ -81,3 +81,31 @@ The original UTF-8 UI punctuation is retained.
 The obsolete D2 lint was intentionally stopped after assembly for this proven
 runtime correction; its QA configuration was restored. New APK/full lint and
 original-repeat/Home-video/network/seek retests remain pending.
+
+
+## Notification/post preview follow-up
+
+Owner requested the same transparent Lottie while a canonical post-detail video
+fetches/buffers, plus counts beside Like/Comments/Repost as in Home. The notification
+callback in MainActivity already opens NativePostDetailScreen; routing is unchanged.
+The detail gallery now enables the approved overlay. A separate adaptive-playback
+parameter preserves its existing Original-quality policy and all existing Home
+and other-gallery defaults. Pausing an initial fetch hides the overlay and exposes
+Play; errors and lifecycle suppression also hide it.
+
+Detail reuses Home's existing CompactPostAction and compact count formatter
+(only their visibility changes). The standalone count sentence is removed; the
+same four leading actions and separate Save retain their real handlers and state.
+
+Actual a006 Samsung retest completed: two normal Original repeat transitions at
+8,011 -> 0 ms, zero forced native-guard seeks and zero HTTP load errors. Complete
+fixed-metadata evidence is Video-seek-Samsung-20261016T231835322797Z.json.
+Physical Original bandwidth buffering remains possible; Auto uses renditions.
+754 paused seeks observed 3,790 -> 7,999 (end bound) -> 2,999 ms. Android Data Saver
+changed Auto360 ->240 while keeping2,999ms/paused; initial Saver OFF was restored.
+That observer connection ended255 without its COMPLETE marker; those bounded
+samples/UI observations are valid, but the entire diagnostic run is not PASS.
+No matching SautiLink fatal exception was retained by the fixed-class projection.
+
+Latest combined preview APK, lint, loader/count rendering, Home video controls
+and network/replay smoke checks are pending. No merge/publication/backend changes.

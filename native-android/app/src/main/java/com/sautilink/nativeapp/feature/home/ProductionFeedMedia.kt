@@ -165,7 +165,8 @@ private fun stableFeedAspect(media: FeedMedia): Float {
 internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
     onDoubleTapLike: (() -> Unit)? = null,
     mediaPath: ((FeedMedia) -> String)? = null,
-    bufferingOverlayEnabled: Boolean = false) {
+    bufferingOverlayEnabled: Boolean = false,
+    adaptivePlaybackEnabled: Boolean = bufferingOverlayEnabled) {
     if (media.isEmpty()) return
     var expandedPhoto by remember(auth) { mutableStateOf<FeedMedia?>(null) }
     val pager = androidx.compose.foundation.pager.rememberPagerState(pageCount = { media.size })
@@ -189,7 +190,8 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
                     if (item.kind == "video") {
                         InlineFeedVideo(auth, item, Modifier.fillMaxSize(), isCurrent = pager.currentPage == page,
                             onDoubleTapLike = onDoubleTapLike, mediaPath = path,
-                            bufferingOverlayEnabled = bufferingOverlayEnabled)
+                            bufferingOverlayEnabled = bufferingOverlayEnabled,
+                            adaptivePlaybackEnabled = adaptivePlaybackEnabled)
                     } else {
                         SautiPostGestureSurface(Modifier.fillMaxSize(), onLike = onDoubleTapLike,
                             onTap = { expandedPhoto = item }, feedbackColor = Color.White) {
@@ -269,13 +271,14 @@ private fun InlineFeedVideo(
     isCurrent: Boolean,
     onDoubleTapLike: (() -> Unit)?,
     mediaPath: String = "/api/sauti-media/${media.id}",
-    bufferingOverlayEnabled: Boolean = false
+    bufferingOverlayEnabled: Boolean = false,
+    adaptivePlaybackEnabled: Boolean = bufferingOverlayEnabled
 ) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     val lifecycleState by owner.lifecycle.currentStateAsState()
     val accountId = auth.account?.id
-    val adaptive = bufferingOverlayEnabled && mediaPath == "/api/sauti-media/${media.id}"
+    val adaptive = adaptivePlaybackEnabled && mediaPath == "/api/sauti-media/${media.id}"
     val recoveryOnline = if (adaptive) rememberNetworkAvailable() else false
     val metadata = NativeVideoMetadata(media.width, media.height, media.durationMs)
     val network = if (adaptive) com.sautilink.nativeapp.ui.components.rememberNativeVideoNetwork()
@@ -352,7 +355,7 @@ private fun InlineFeedVideo(
             override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                 requestError = "Video could not play. Tap retry."
-                if (bufferingOverlayEnabled) logVideoPlaybackFailure(VideoPlaybackScope.HOME, error, player)
+                if (adaptive) logVideoPlaybackFailure(VideoPlaybackScope.HOME, error, player)
             }
         }
         player.addListener(listener)
@@ -431,7 +434,7 @@ private fun InlineFeedVideo(
                 CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
             }
         }
-        val playPrompt = !playing && (firstFrame || adaptive && manualPaused ||
+        val playPrompt = !playing && (firstFrame || bufferingOverlayEnabled && manualPaused ||
             !NativePlaybackPreferences.autoplayEnabled || requestError != null || !started)
         val startPlayback = {
             requestError = null
@@ -453,7 +456,7 @@ private fun InlineFeedVideo(
             player?.pause()
         }
         val playRadius = with(density) { 30.dp.toPx() }
-        val pauseRequested = playing || adaptive && playbackState != Player.STATE_ENDED && requestError == null &&
+        val pauseRequested = playing || bufferingOverlayEnabled && playbackState != Player.STATE_ENDED && requestError == null &&
             (playbackRequested || started && wantsToPlay && !manualPaused)
         SautiVideoGestureSurface(Modifier.fillMaxSize(),
             playbackLabel = if (pauseRequested) "Pause video in post" else if (playPrompt) "Play video in post" else null,

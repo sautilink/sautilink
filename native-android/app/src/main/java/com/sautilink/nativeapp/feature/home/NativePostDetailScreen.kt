@@ -306,24 +306,22 @@ fun NativePostDetailScreen(
                     }
                     if (item.media.isNotEmpty()) item {
                         PostMediaGallery(auth, item.media,
+                            bufferingOverlayEnabled = true, adaptivePlaybackEnabled = false,
                             onDoubleTapLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
                     }
                     item {
-                        Text("${item.likes} likes · ${item.comments} comments · ${item.reposts} reposts",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(8.dp))
                         HorizontalDivider()
                         SautiPostActionRow(modifier = Modifier.heightIn(min = 56.dp), actions = {
-                            SautiActionIconButton(icon = if (liked) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbUpOffAlt,
-                                label = "Like", tint = if (liked) SautiColors.Red else MaterialTheme.colorScheme.onSurface,
-                                enabled = !busy, iconSize = 20.dp, onClick = { changeLike() })
-                            SautiActionIconButton(Icons.Rounded.ChatBubbleOutline, "Comments",
-                                MaterialTheme.colorScheme.onSurface, iconSize = 20.dp, onClick = { commentsMode = true })
-                            SautiActionIconButton(Icons.Rounded.Repeat, "Repost",
-                                if (reposted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                enabled = !busy, iconSize = 20.dp, onClick = {
-                                if (busy) return@SautiActionIconButton
+                            CompactPostAction(icon = if (liked) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbUpOffAlt,
+                                label = "Like", count = feedCount(item.likes), modifier = Modifier,
+                                tint = if (liked) SautiColors.Red else MaterialTheme.colorScheme.onSurface,
+                                enabled = !busy, onClick = { changeLike() })
+                            CompactPostAction(Icons.Rounded.ChatBubbleOutline, "Comments", feedCount(item.comments), Modifier,
+                                tint = MaterialTheme.colorScheme.onSurface, onClick = { commentsMode = true })
+                            CompactPostAction(Icons.Rounded.Repeat, "Repost", feedCount(item.reposts), Modifier,
+                                tint = if (reposted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                enabled = !busy, onClick = {
+                                if (busy) return@CompactPostAction
                                 busy = true
                                 scope.launch {
                                     try {
@@ -335,8 +333,8 @@ fun NativePostDetailScreen(
                                     finally { busy = false }
                                 }
                             })
-                            SautiActionIconButton(SautiPostIcons.Share, "Share post",
-                                MaterialTheme.colorScheme.onSurface, iconSize = 20.dp, onClick = {
+                            CompactPostAction(SautiPostIcons.Share, "Share post", null, Modifier,
+                                tint = MaterialTheme.colorScheme.onSurface, onClick = {
                                 val send = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
                                     putExtra(Intent.EXTRA_TEXT, actions.postShareUrl(postId))

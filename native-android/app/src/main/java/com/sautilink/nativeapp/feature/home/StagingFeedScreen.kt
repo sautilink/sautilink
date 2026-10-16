@@ -673,7 +673,7 @@ fun StagingFeedScreen(
     }
 }
 
-private fun feedCount(count: Int): String = when {
+internal fun feedCount(count: Int): String = when {
     count >= 1_000_000 -> String.format(Locale.US, "%.1fM", count / 1_000_000.0)
     count >= 1_000 -> String.format(Locale.US, "%.1fK", count / 1_000.0)
     else -> count.toString()
@@ -974,7 +974,7 @@ private fun RealPostCard(
 
 /** Compact accessible touch target; reaction counts stay beside their icons. */
 @Composable
-private fun CompactPostAction(
+internal fun CompactPostAction(
     icon: ImageVector,
     label: String,
     count: String?,
