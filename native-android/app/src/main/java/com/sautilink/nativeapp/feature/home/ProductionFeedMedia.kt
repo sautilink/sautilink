@@ -64,6 +64,7 @@ internal fun AuthorizedImage(
     modifier: Modifier = Modifier,
     crop: Boolean = true,
     naturalAspectRatio: Boolean = false,
+    showFailureFallback: Boolean = true,
     fallback: @Composable () -> Unit = {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
             Icon(Icons.Rounded.ImageNotSupported, contentDescription = null,
@@ -97,7 +98,7 @@ internal fun AuthorizedImage(
                 modifier = Modifier.fillMaxSize())
         } else if (loading) {
             SautiSkeletonBlock(Modifier.fillMaxSize(), 6.dp)
-        } else fallback()
+        } else if (showFailureFallback) fallback()
     }
 }
 
@@ -379,7 +380,10 @@ private fun InlineFeedVideo(
         if (!firstFrame) {
             if (mediaPath == "/api/sauti-media/${media.id}") {
                 AuthorizedImage(auth, "$mediaPath?poster=1",
-                    "Video cover", modifier = Modifier.fillMaxSize(), crop = false)
+                    "Video cover", modifier = Modifier.fillMaxSize(), crop = false,
+                    // A missing poster is not a playback error. Keep its error glyph
+                    // from competing with Home's active video-buffering feedback.
+                    showFailureFallback = !showBufferingOverlay)
             } else if (!bufferingOverlayEnabled && started && wantsToPlay && requestError == null) {
                 // Protected submissions expose original bytes, not a generated poster.
                 CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
