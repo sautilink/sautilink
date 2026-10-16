@@ -42,6 +42,42 @@ function apiError(status, code, message) {
   return json(status, { ok: false, error: { code, message } });
 }
 
+// Preserve the original thrown object; retain only its fatal delivery phase weakly.
+const mediaDeliveryFailures = new WeakMap();
+const mediaDeliveryPhases = new Set(['METADATA_LOOKUP', 'ORIGINAL_R2_HEAD', 'ORIGINAL_R2_GET', 'VARIANT_R2_GET']);
+const mediaDeliveryErrorNames = new Set(['Error', 'TypeError', 'RangeError', 'SyntaxError',
+  'DOMException', 'AbortError', 'TimeoutError', 'NetworkError']);
+async function mediaDeliveryPhase(phase, operation) {
+  try { return await operation(); } catch (error) {
+    if (error !== null && (typeof error === 'object' || typeof error === 'function')) {
+      mediaDeliveryFailures.set(error, phase);
+    }
+    throw error;
+  }
+}
+
+export function mediaDeliveryFailureDiagnostic(error) {
+  const object = error !== null && (typeof error === 'object' || typeof error === 'function');
+  const taggedPhase = object ? mediaDeliveryFailures.get(error) : null;
+  const phase = mediaDeliveryPhases.has(taggedPhase) ? taggedPhase : 'UNCLASSIFIED_MEDIA';
+  let name = object ? 'UNKNOWN' : 'NON_OBJECT', code = null;
+  try {
+    const candidateName = object ? error.name : null;
+    if (mediaDeliveryErrorNames.has(candidateName)) name = candidateName;
+    const value = object ? error.code : null;
+    if (Number.isSafeInteger(value) && value >= 0 && value <= 999999) code = value;
+    // R2 can put its numeric code in this fixed prefix, rather than a code property.
+    const message = object && code === null ? error.message : null;
+    if (typeof message === 'string') {
+      const match = /^R2 (?:GET|HEAD) failed:?\s*\((\d{3,6})\)/.exec(message.slice(0, 160));
+      if (match) code = Number(match[1]);
+    }
+  } catch { /* A diagnostic must not replace the existing failure response. */ }
+  return { delivery_phase: phase, exception_class: name, exception_code: code ?? 'NONE',
+    delivery_reason: phase === 'METADATA_LOOKUP' ? 'METADATA_THROW'
+      : phase === 'UNCLASSIFIED_MEDIA' ? 'UNCLASSIFIED_THROW' : 'R2_THROW' };
+}
+
 function authorization(request) {
   const value = request.headers.get('Authorization') || '';
   return /^Bearer\s+[^\s]+$/i.test(value) ? value : '';
@@ -735,7 +771,7 @@ async function serveOriginalMedia(request, env, row, id) {
   if (!rangeHeader && requestHasEtag(request, etag)) return new Response(null, { status: 304, headers });
 
   if (request.method === 'HEAD') {
-    const object = await env.SAUTI_MEDIA.head(row.object_key);
+    const object = await mediaDeliveryPhase('ORIGINAL_R2_HEAD', () => env.SAUTI_MEDIA.head(row.object_key));
     if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
     object.writeHttpMetadata(headers);
     headers.set('Cache-Control', video ? 'private, max-age=300, must-revalidate' : 'private, no-store, max-age=0');
@@ -745,10 +781,10 @@ async function serveOriginalMedia(request, env, row, id) {
     return new Response(null, { status: 200, headers });
   }
 
-  const object = await env.SAUTI_MEDIA.get(
+  const object = await mediaDeliveryPhase('ORIGINAL_R2_GET', () => env.SAUTI_MEDIA.get(
     row.object_key,
     rangeHeader ? { range: boundedSautiVideoRange(rangeHeader, row.size_bytes) || request.headers } : undefined,
-  );
+  ));
   if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
   object.writeHttpMetadata(headers);
   headers.set('Cache-Control', video ? 'private, max-age=300, must-revalidate' : 'private, no-store, max-age=0');
@@ -812,10 +848,10 @@ async function serveVideoVariant(request, env, row, id, quality, ctx = null) {
     return new Response(null, { status: 200, headers });
   }
 
-  const object = await env.SAUTI_MEDIA.get(
+  const object = await mediaDeliveryPhase('VARIANT_R2_GET', () => env.SAUTI_MEDIA.get(
     objectKey,
     rangeHeader ? { range: boundedSautiVideoRange(rangeHeader, available.size) || request.headers } : undefined,
-  );
+  ));
   if (!object) return serveOriginalMedia(request, env, row, id);
   object.writeHttpMetadata(headers);
   headers.set('Content-Security-Policy', "default-src 'none'");
@@ -955,7 +991,7 @@ export async function servePublicSautiMediaPreview(request, env, media) {
 async function serveMedia(request, env, id, ctx = null) {
   if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
   const deliveryAuth = mediaDeliveryAuthorization(request);
-  const row = await selectVideoMediaForDelivery(request, id, deliveryAuth);
+  const row = await mediaDeliveryPhase('METADATA_LOOKUP', () => selectVideoMediaForDelivery(request, id, deliveryAuth));
   if (!row || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
 
   const url = new URL(request.url);

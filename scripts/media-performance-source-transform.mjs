@@ -73,25 +73,25 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
   output = replaceExactOnce(
     output,
     `  if (request.method === 'HEAD') {
-    const object = await env.SAUTI_MEDIA.head(row.object_key);`,
+    const object = await mediaDeliveryPhase('ORIGINAL_R2_HEAD', () => env.SAUTI_MEDIA.head(row.object_key));`,
     `  if (request.method === 'HEAD') {
     const r2StartedAt = mediaTimingNow();
-    const object = await env.SAUTI_MEDIA.head(row.object_key);
+    const object = await mediaDeliveryPhase('ORIGINAL_R2_HEAD', () => env.SAUTI_MEDIA.head(row.object_key));
     addMediaTiming(timings, 'r2Ms', mediaTimingDuration(r2StartedAt));`,
     'the protected original media HEAD timing',
   );
 
   output = replaceExactOnce(
     output,
-    `  const object = await env.SAUTI_MEDIA.get(
+    `  const object = await mediaDeliveryPhase('ORIGINAL_R2_GET', () => env.SAUTI_MEDIA.get(
     row.object_key,
     rangeHeader ? { range: boundedSautiVideoRange(rangeHeader, row.size_bytes) || request.headers } : undefined,
-  );`,
+  ));`,
     `  const r2StartedAt = mediaTimingNow();
-  const object = await env.SAUTI_MEDIA.get(
+  const object = await mediaDeliveryPhase('ORIGINAL_R2_GET', () => env.SAUTI_MEDIA.get(
     row.object_key,
     rangeHeader ? { range: boundedSautiVideoRange(rangeHeader, row.size_bytes) || request.headers } : undefined,
-  );
+  ));
   addMediaTiming(timings, 'r2Ms', mediaTimingDuration(r2StartedAt));`,
     'the protected original media ranged read timing',
   );
@@ -232,7 +232,7 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
     `async function serveMedia(request, env, id, ctx = null) {
   if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
   const deliveryAuth = mediaDeliveryAuthorization(request);
-  const row = await selectVideoMediaForDelivery(request, id, deliveryAuth);
+  const row = await mediaDeliveryPhase('METADATA_LOOKUP', () => selectVideoMediaForDelivery(request, id, deliveryAuth));
   if (!row || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
 
   const url = new URL(request.url);
@@ -257,7 +257,7 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
 
   const deliveryAuth = mediaDeliveryAuthorization(request);
   const accessStartedAt = mediaTimingNow();
-  const row = await selectVideoMediaForDelivery(request, id, deliveryAuth);
+  const row = await mediaDeliveryPhase('METADATA_LOOKUP', () => selectVideoMediaForDelivery(request, id, deliveryAuth));
   timings.accessMs = mediaTimingDuration(accessStartedAt);
   if (!row || !['ready', 'attached'].includes(row.upload_status)) {
     return withMediaServerTiming(apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.'), timings, totalStartedAt);
