@@ -882,10 +882,7 @@ private fun RealPostCard(
                     FeedFollowButton(following, pendingFollow, online && !busyFollow, onFollow)
                 }
                 if (auth.backend == SautiBackend.PRODUCTION) {
-                    IconButton(onClick = onOpenPost, enabled = online, modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Rounded.MoreHoriz, contentDescription = "Post options",
-                            modifier = Modifier.size(23.dp))
-                    }
+                    FeedPostOptions(post, auth, online, onOpenProfile, onOpenPost, onShare)
                 }
             }
             if (showFollow && followReadError != null) {

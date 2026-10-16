@@ -278,7 +278,10 @@ private fun InlineFeedVideo(
     val adaptive = bufferingOverlayEnabled && mediaPath == "/api/sauti-media/${media.id}"
     val recoveryOnline = if (adaptive) rememberNetworkAvailable() else false
     val metadata = NativeVideoMetadata(media.width, media.height, media.durationMs)
-    val baseQuality = if (adaptive) NativeVideoQualityPolicy.selectQuality("auto", metadata) else "original"
+    val network = if (adaptive) com.sautilink.nativeapp.ui.components.rememberNativeVideoNetwork()
+        else com.sautilink.nativeapp.ui.components.NativeVideoNetwork()
+    val autoQuality = com.sautilink.nativeapp.ui.components.rememberNativeVideoQuality(media.id, "auto", metadata, network)
+    val baseQuality = if (adaptive) autoQuality else "original"
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val windowHeight = with(density) { configuration.screenHeightDp.dp.toPx() }
@@ -315,6 +318,7 @@ private fun InlineFeedVideo(
                 .setDefaultRequestProperties(mapOf("Authorization" to "Bearer $it"))
                 .setAllowCrossProtocolRedirects(false)
             ExoPlayer.Builder(context)
+                .setBandwidthMeter(androidx.media3.exoplayer.upstream.DefaultBandwidthMeter.getSingletonInstance(context))
                 .setMediaSourceFactory(DefaultMediaSourceFactory(com.sautilink.nativeapp.ui.components.NativeVideoDataSourceFactory(http)))
                 .build().apply {
                     volume = if (muted) 0f else 1f

@@ -1,4 +1,4 @@
-# Native video transport — 17 October 2026
+# Native video transport â€” 17 October 2026
 
 Continues PR #352 from `56dbd9c`, preserving approved runtime `688dffe`.
 No merge, backend deployment, schema change or Play publication.
@@ -31,4 +31,25 @@ Focused checks: **43 PASS**, using the actual product adapter and cached Media3 
 
 Reproduce with `native-android/validation/run-video-http-check.ps1` and explicit Java/Android SDK/output paths. Java URI/TextUtils fixtures are validation-only and never shipped.
 
-Full QA assembly/lint and Samsung retest of this changed adapter are **pending** at this source checkpoint. Required: the same Original clip, Auto, pause/±5s seek, quality switching, Home playback, paging and lifecycle/session audio. Record actual results before acceptance. Earlier HTTP500 attribution stays open until matching live evidence or an explicitly bounded resolution is established.
+Full QA assembly/lint and Samsung retest of this changed adapter are **pending** at this source checkpoint. Required: the same Original clip, Auto, pause/Â±5s seek, quality switching, Home playback, paging and lifecycle/session audio. Record actual results before acceptance. Earlier HTTP500 attribution stays open until matching live evidence or an explicitly bounded resolution is established.
+
+
+## Home controls and network follow-up (17 October)
+
+The Home overflow button invoked `onOpenPost` directly. It now opens a dropdown
+anchored in the card (View profile, Copy link, Share, View post, and Report for
+another account). Report uses the existing safety API/dialog. Opening/cancelling
+controls leaves the feed and player mounted. There is no new safety endpoint.
+
+The native Auto policy previously received the default empty network model.
+Both Home and Shorts now observe the existing Media3 transfer meter, validated
+network handoffs, metering and Android Data Saver. Initial bandwidth guesses and
+samples below 512 KiB/200 ms are excluded; measured estimates expire after 30 s
+and reset on network handoff. The existing web quality thresholds remain.
+During a clip Auto can lower quality; upgrades wait for another clip, avoiding
+repeated decoder restarts. Explicit quality, pause, seek and session sound remain.
+
+The initial local build of 886e585 was intentionally stopped during lint so these
+newly requested fixes could be included together. Its runner restored the exact
+QA Gradle/Firebase configuration. It did not produce a certified new APK and is
+not a lint PASS. Latest build, full lint and Samsung checks remain pending here.

@@ -278,7 +278,9 @@ fun ProductionShortVideosScreen(
             val http = DefaultHttpDataSource.Factory()
                 .setDefaultRequestProperties(mapOf("Authorization" to "Bearer $accessToken"))
                 .setAllowCrossProtocolRedirects(false)
-            ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(com.sautilink.nativeapp.ui.components.NativeVideoDataSourceFactory(http)))
+            ExoPlayer.Builder(context)
+                .setBandwidthMeter(androidx.media3.exoplayer.upstream.DefaultBandwidthMeter.getSingletonInstance(context))
+                .setMediaSourceFactory(DefaultMediaSourceFactory(com.sautilink.nativeapp.ui.components.NativeVideoDataSourceFactory(http)))
                 .setLoadControl(DefaultLoadControl.Builder()
                     .setBufferDurationsMs(3_000, 15_000, 750, 1_500).build())
                 .build().apply { repeatMode = Player.REPEAT_MODE_ONE; volume = if (muted) 0f else 1f }
@@ -359,7 +361,8 @@ fun ProductionShortVideosScreen(
         selectedMedia?.durationMs ?: 0L)
     val preference = NativeVideoQualityPolicy.normalizePreference(quality)
     var appliedPreference by remember(player, clip?.mediaId) { mutableStateOf<String?>(null) }
-    val baseQuality = NativeVideoQualityPolicy.selectQuality(preference, metadata)
+    val network = com.sautilink.nativeapp.ui.components.rememberNativeVideoNetwork()
+    val baseQuality = com.sautilink.nativeapp.ui.components.rememberNativeVideoQuality(clip?.mediaId, preference, metadata, network)
     val selectedQuality = rememberVideoRecoveryQuality(player, playbackOwner, clip?.mediaId, metadata, preference, baseQuality,
         enabled = preference == "auto", online = online, eligible = online && wantsPlayback &&
             lifecycleState.isAtLeast(Lifecycle.State.STARTED), requested = playbackRequested,
@@ -567,7 +570,7 @@ fun ProductionShortVideosScreen(
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Playback", style = MaterialTheme.typography.titleLarge)
             Text("Quality", style = MaterialTheme.typography.titleSmall)
-            listOf("auto" to "Auto · adjusts for smoother playback", "240" to "240p", "360" to "360p",
+            listOf("auto" to "Auto Â· adjusts for smoother playback", "240" to "240p", "360" to "360p",
                 "480" to "480p", "720" to "720p", "1080" to "1080p", "original" to "Original").forEach { (key, label) ->
                 Row(Modifier.fillMaxWidth().clickable {
                     quality = key; preferences.edit().putString("quality", key).apply(); qualityOpen = false
@@ -596,7 +599,7 @@ private fun ShortVideosRetryPage(online: Boolean, loading: Boolean, onRetry: () 
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically)) {
         Text(when {
-            loading -> "Loading videos…"
+            loading -> "Loading videosâ€¦"
             !online -> "Reconnect to load videos."
             else -> "Could not load videos."
         }, color = Color.White)
