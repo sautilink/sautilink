@@ -553,6 +553,7 @@ fun StagingFeedScreen(
                         post, auth,
                         trendingRank = if (mode == "trending") index + 1 else null,
                         online = online,
+                        bufferingOverlayEnabled = asHome,
                         following = followingStates[post.authorId],
                         pendingFollow = pendingFollowStates[post.authorId],
                         busyFollow = "follow:${post.authorId}" in busyKeys,
@@ -762,7 +763,7 @@ private fun FeedFollowButton(following: Boolean?, pending: Boolean?, enabled: Bo
 
 @Composable
 private fun FeedPostBodyAndMedia(post: StagingFeedPost, auth: StagingAuthClient,
-    onDoubleTapLike: (() -> Unit)?) {
+    onDoubleTapLike: (() -> Unit)?, bufferingOverlayEnabled: Boolean) {
     if (post.body.isNotBlank()) {
         com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(
             Modifier.fillMaxWidth(), onLike = onDoubleTapLike) {
@@ -773,7 +774,8 @@ private fun FeedPostBodyAndMedia(post: StagingFeedPost, auth: StagingAuthClient,
     }
     // Gallery is flush with card edges; caption is never overlaid onto the media.
     if (post.media.isNotEmpty()) {
-        PostMediaGallery(auth, post.media, onDoubleTapLike = onDoubleTapLike)
+        PostMediaGallery(auth, post.media, onDoubleTapLike = onDoubleTapLike,
+            bufferingOverlayEnabled = bufferingOverlayEnabled)
     } else if (post.mediaCount > 0) {
         Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
             Row(Modifier.fillMaxWidth().padding(14.dp),
@@ -792,6 +794,7 @@ private fun RealPostCard(
     auth: StagingAuthClient,
     trendingRank: Int?,
     online: Boolean,
+    bufferingOverlayEnabled: Boolean,
     following: Boolean?,
     pendingFollow: Boolean?,
     busyFollow: Boolean,
@@ -892,7 +895,7 @@ private fun RealPostCard(
                     TextButton(onClick = onRetryFollow) { Text("Retry Follow") }
                 }
             }
-            FeedPostBodyAndMedia(post, auth, doubleTapLike)
+            FeedPostBodyAndMedia(post, auth, doubleTapLike, bufferingOverlayEnabled)
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .55f)

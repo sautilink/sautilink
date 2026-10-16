@@ -40,6 +40,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
+import com.sautilink.nativeapp.ui.components.VideoBufferingOverlay
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -82,6 +84,7 @@ fun ProductionShortVideosScreen(
     val context = LocalContext.current
     val online = rememberNetworkAvailable()
     val owner = LocalLifecycleOwner.current
+    val lifecycleState by owner.lifecycle.currentStateAsState()
     val client = remember(auth) { StagingFeedClient(auth) }
     val actions = remember(auth) { PostInteractionsClient(auth) }
     val scope = rememberCoroutineScope()
@@ -99,8 +102,6 @@ fun ProductionShortVideosScreen(
     var autoplay by remember { mutableStateOf(preferences.getBoolean("autoplay", true)) }
     var quality by remember { mutableStateOf(preferences.getString("quality", "auto") ?: "auto") }
     var qualityOpen by remember { mutableStateOf(false) }
-    var buffering by remember { mutableStateOf(false) }
-    var playing by remember { mutableStateOf(false) }
     var playbackError by remember { mutableStateOf<String?>(null) }
     var resumeAfterBackground by remember { mutableStateOf(false) }
     // All interaction state is server-confirmed. Unknown state never implies an Unlike/Undo.
@@ -248,14 +249,26 @@ fun ProductionShortVideosScreen(
                 .build().apply { repeatMode = Player.REPEAT_MODE_ONE; volume = if (muted) 0f else 1f }
         }
     }
+    var playing by remember(player) { mutableStateOf(player?.isPlaying == true) }
+    var playbackState by remember(player) { mutableIntStateOf(player?.playbackState ?: Player.STATE_IDLE) }
+    var playbackRequested by remember(player) { mutableStateOf(player?.playWhenReady == true) }
+    var playbackSuppressed by remember(player) {
+        mutableStateOf((player?.playbackSuppressionReason ?: Player.PLAYBACK_SUPPRESSION_REASON_NONE) != Player.PLAYBACK_SUPPRESSION_REASON_NONE)
+    }
+    var currentMediaId by remember(player) { mutableStateOf(player?.currentMediaItem?.mediaId) }
     DisposableEffect(player) {
         if (player == null) onDispose { } else {
             val listener = object : Player.Listener {
-                override fun onPlaybackStateChanged(state: Int) { buffering = state == Player.STATE_BUFFERING }
+                // Include playWhenReady-only pause events and media switches, not just buffering changes.
+                override fun onEvents(player: Player, events: Player.Events) {
+                    playbackState = player.playbackState
+                    playbackRequested = player.playWhenReady
+                    playbackSuppressed = player.playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE
+                    currentMediaId = player.currentMediaItem?.mediaId
+                }
                 override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
                 override fun onPlayerError(e: PlaybackException) {
                     playbackError = "This video could not be played."
-                    buffering = false
                 }
             }
             player.addListener(listener)
@@ -370,7 +383,10 @@ fun ProductionShortVideosScreen(
                             onLike = if (canInteract && "like:${item.post.id}" !in busyActions) ({
                                 if (likeStates[item.post.id] != true) togglePostAction(item.post, "like")
                             }) else null) {
-                            if (buffering && playbackError == null) CircularProgressIndicator(color = Color.White)
+                            val showBuffering = playbackState == Player.STATE_BUFFERING && playbackRequested &&
+                                !playbackSuppressed && currentMediaId == item.mediaId &&
+                                lifecycleState.isAtLeast(Lifecycle.State.STARTED) && playbackError == null
+                            if (showBuffering) VideoBufferingOverlay(true)
                             else if (!playing && playbackError == null) Icon(Icons.Rounded.PlayArrow,
                                 "Play video", Modifier.size(58.dp), tint = Color.White)
                             else if (playbackError != null) Column(horizontalAlignment = Alignment.CenterHorizontally) {

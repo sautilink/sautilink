@@ -34,7 +34,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -45,6 +47,7 @@ import com.sautilink.nativeapp.ui.components.SautiSkeletonBlock
 import com.sautilink.nativeapp.ui.components.SautiPostGestureSurface
 import com.sautilink.nativeapp.ui.components.SautiVideoGestureSurface
 import com.sautilink.nativeapp.ui.components.videoSeekTarget
+import com.sautilink.nativeapp.ui.components.VideoBufferingOverlay
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -152,7 +155,8 @@ private fun stableFeedAspect(media: FeedMedia): Float {
 @Composable
 internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
     onDoubleTapLike: (() -> Unit)? = null,
-    mediaPath: ((FeedMedia) -> String)? = null) {
+    mediaPath: ((FeedMedia) -> String)? = null,
+    bufferingOverlayEnabled: Boolean = false) {
     if (media.isEmpty()) return
     var expandedPhoto by remember(auth) { mutableStateOf<FeedMedia?>(null) }
     val pager = androidx.compose.foundation.pager.rememberPagerState(pageCount = { media.size })
@@ -175,7 +179,8 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
                 ) {
                     if (item.kind == "video") {
                         InlineFeedVideo(auth, item, Modifier.fillMaxSize(), isCurrent = pager.currentPage == page,
-                            onDoubleTapLike = onDoubleTapLike, mediaPath = path)
+                            onDoubleTapLike = onDoubleTapLike, mediaPath = path,
+                            bufferingOverlayEnabled = bufferingOverlayEnabled)
                     } else {
                         SautiPostGestureSurface(Modifier.fillMaxSize(), onLike = onDoubleTapLike,
                             onTap = { expandedPhoto = item }, feedbackColor = Color.White) {
@@ -254,10 +259,12 @@ private fun InlineFeedVideo(
     auth: StagingAuthClient, media: FeedMedia, modifier: Modifier = Modifier,
     isCurrent: Boolean,
     onDoubleTapLike: (() -> Unit)?,
-    mediaPath: String = "/api/sauti-media/${media.id}"
+    mediaPath: String = "/api/sauti-media/${media.id}",
+    bufferingOverlayEnabled: Boolean = false
 ) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
+    val lifecycleState by owner.lifecycle.currentStateAsState()
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val windowHeight = with(density) { configuration.screenHeightDp.dp.toPx() }
@@ -304,9 +311,20 @@ private fun InlineFeedVideo(
         }
     }
     var playing by remember(player) { mutableStateOf(false) }
+    var playbackState by remember(player) { mutableIntStateOf(player?.playbackState ?: Player.STATE_IDLE) }
+    var playbackRequested by remember(player) { mutableStateOf(player?.playWhenReady == true) }
+    var playbackSuppressed by remember(player) {
+        mutableStateOf((player?.playbackSuppressionReason ?: Player.PLAYBACK_SUPPRESSION_REASON_NONE) != Player.PLAYBACK_SUPPRESSION_REASON_NONE)
+    }
     DisposableEffect(player, owner) {
         if (player == null) return@DisposableEffect onDispose { }
         val listener = object : androidx.media3.common.Player.Listener {
+            // Pausing can change only playWhenReady while the player remains BUFFERING.
+            override fun onEvents(player: Player, events: Player.Events) {
+                playbackState = player.playbackState
+                playbackRequested = player.playWhenReady
+                playbackSuppressed = player.playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE
+            }
             override fun onRenderedFirstFrame() { firstFrame = true }
             override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -332,6 +350,11 @@ private fun InlineFeedVideo(
             else if (!wantsToPlay) player.pause()
         }
     }
+    val overlayEligible = bufferingOverlayEnabled && isCurrent && visibleFraction > 0f &&
+        lifecycleState.isAtLeast(Lifecycle.State.STARTED) && started && wantsToPlay &&
+        !manualPaused && requestError == null && !playbackSuppressed
+    val showBufferingOverlay = overlayEligible &&
+        (token == null || playbackRequested && playbackState == Player.STATE_BUFFERING)
     Box(modifier.background(Color.Black).onGloballyPositioned { coordinates ->
         val rect = coordinates.boundsInWindow()
         val shownTop = rect.top.coerceAtLeast(0f)
@@ -357,7 +380,7 @@ private fun InlineFeedVideo(
             if (mediaPath == "/api/sauti-media/${media.id}") {
                 AuthorizedImage(auth, "$mediaPath?poster=1",
                     "Video cover", modifier = Modifier.fillMaxSize(), crop = false)
-            } else if (started && wantsToPlay && requestError == null) {
+            } else if (!bufferingOverlayEnabled && started && wantsToPlay && requestError == null) {
                 // Protected submissions expose original bytes, not a generated poster.
                 CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
             }
@@ -392,7 +415,7 @@ private fun InlineFeedVideo(
                     true
                 } else false
             }, onLike = onDoubleTapLike) {
-            if (playPrompt) Surface(shape = CircleShape,
+            if (playPrompt && !showBufferingOverlay) Surface(shape = CircleShape,
                 color = Color.Black.copy(alpha = .58f), modifier = Modifier.size(60.dp)) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(Icons.Rounded.PlayArrow, "Play video in post",
@@ -400,7 +423,8 @@ private fun InlineFeedVideo(
                 }
             }
         }
-        if (started && token == null && requestError == null) {
+        if (bufferingOverlayEnabled) VideoBufferingOverlay(showBufferingOverlay, Modifier.align(Alignment.Center))
+        if (!bufferingOverlayEnabled && started && token == null && requestError == null) {
             CircularProgressIndicator(Modifier.size(30.dp),
                 color = Color.White, strokeWidth = 2.dp)
         }
