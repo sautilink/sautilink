@@ -74,3 +74,8 @@ After verified downloads, this cleanup checkpoint removes **only** `.github/work
 - Existing bounded native QA: `outputs/Native-actions-688dffe-independent-gate-audit.json`, `outputs/Native-actions-Samsung-20261016.json`, `outputs/Native-entities-Samsung-20261016.json`.
 
 **Remaining external gate:** Google's package review decision. Play app creation/testing-track upload and public release remain separate. Original proposal files keep their historical not-applied status; this receipt records the subsequent authorized actions.
+
+
+## Google package verification result — 17 October
+
+Read-only Play Console inspection now shows **SautiLink / Registered / com.sautilink.app** and the existing certificate **Verified**. This supersedes the historical In review state above. No Play app was created, and no testing-track upload or publication occurred. The previously signed 688 runtime AAB does not contain the later video fixes; a new tested release candidate is still needed. Screenshot: `outputs/Play-package-registered-verified-20261017.png`.

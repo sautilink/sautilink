@@ -3,6 +3,9 @@
 Continues PR #352 from `56dbd9c`, preserving approved runtime `688dffe`.
 No merge, backend deployment, schema change or Play publication.
 
+The latest combined result is recorded in the final section below. Earlier
+pending/build statements describe their individual historical checkpoints.
+
 ## Actual investigation
 
 - Live Worker readback still showed `ba09db25-80c4-49f3-8184-e124becc2680` at 100%.
@@ -109,3 +112,60 @@ No matching SautiLink fatal exception was retained by the fixed-class projection
 
 Latest combined preview APK, lint, loader/count rendering, Home video controls
 and network/replay smoke checks are pending. No merge/publication/backend changes.
+
+## Combined d7b4ef3 result — actual Samsung and build checks
+
+Tested app source: `d7b4ef3fc64b6caa1f5407fe3d9547ffaeff3579`.
+Both existing nondebug QA packages were updated in place, with the established
+signer and exact QA identity/Auth/Firebase configuration preserved. No app data
+was cleared, no account was entered or signed out, and the original preview was
+not replaced. The later documentation commit does not change this app source.
+
+- Both assembly and **full lint PASS**: Rooms 0 errors / 102 warnings / 2 hints;
+  D2 0 / 103 / 2. Temporary build configurations were restored byte for byte.
+- Exact-source CI: Native [38981222780](https://github.com/sautilink/sautilink/actions/runs/38981222780),
+  Brand 38981222781, Auth 38981222759 and APK 38981222705 all **PASS**.
+- Actual Samsung Home video: playback, natural END and one-tap replay passed.
+  The overflow opened in place; Report opened and Cancel returned to the same
+  video card. No report was submitted and no reaction/post data was changed.
+- Canonical video preview: the approved transparent Lottie appeared centered
+  during fetching/buffering, including over the poster, then disappeared during
+  playback. Like/Comments/Repost counts appeared beside their existing icons,
+  with Share at the left and Save alone at the right. A real existing like
+  notification opened its video preview; manual pause remained paused without
+  the loader. The existing counts were 8 / 2 / 4 in that notification case.
+- Latest Shorts observer completed: Original and Auto360 playback, five normal
+  automatic repeats, zero forced duration-guard seeks. Brief authorized Wi-Fi
+  interruptions showed the explicit offline state; playback recovered without
+  tapping Retry. A second interruption retained manual pause after reconnect.
+  Wi-Fi ON / mobile data OFF were restored exactly; Auto was restored in both
+  QA apps. Reconnect can recreate the player at position zero; preservation of
+  the old playback position across a network loss is not claimed.
+- The Home/preview observer completed with zero HTTP load errors. The separate
+  network observer recorded three connection exceptions during the deliberate
+  offline/reconnection exercise; these contained no HTTP response status.
+  **Neither run reproduced HTTP500.** The historical server exception remains
+  unattributed; these native EOF/repeat corrections are demonstrated fixes,
+  not proof of that old server exception's cause or a guarantee of no buffering.
+- D2's additional visual smoke check reached real Shorts playback and manual
+  pause. A controlled Auto selection retained pause and mute. Its observed
+  authenticated profile differs from the historical account
+  note, so retention of that specifically named historical identity is not
+  asserted; the installation itself did not modify account data. No new sign-in
+  or account change was performed to reconcile that stale expectation.
+- Both agent-created instrumentation packages were removed after testing;
+  installed QA APK hashes, network restoration and Data Saver OFF were checked.
+
+Private local receipts: `outputs/Video-preview-d7b4ef3.json`, both target
+handover/install JSON files, `Video-seek-Samsung-20261016T233309319098Z.json`,
+`Video-seek-Samsung-20261016T233833143286Z.json`, and
+`Video-d7-network-live-actions.json`. Visual evidence includes
+`work/Video-d7-preview-frame-3.png` / `-4.png` (loader), `-6.png` (playing),
+the Home video inline-menu/report/cancel captures, notification pause captures,
+and `outputs/Video-d7-preview-loader-counts-Samsung-20261017.mp4`.
+Final local ledger: `outputs/Video-d7-scoped-QA-20261017.json`; cleanup receipt:
+`outputs/Video-d7-final-cleanup-installed-checks.json`.
+
+Google package registration is now independently **Registered / Verified**;
+see the updated Play candidate review. The old signed 688 AAB lacks these
+video changes. Broader Final QA and release preparation remain separate gates.
