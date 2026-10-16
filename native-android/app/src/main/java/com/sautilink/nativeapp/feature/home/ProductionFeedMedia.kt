@@ -48,6 +48,8 @@ import com.sautilink.nativeapp.ui.components.SautiPostGestureSurface
 import com.sautilink.nativeapp.ui.components.SautiVideoGestureSurface
 import com.sautilink.nativeapp.ui.components.videoSeekTarget
 import com.sautilink.nativeapp.ui.components.VideoBufferingOverlay
+import com.sautilink.nativeapp.ui.components.VideoPlaybackScope
+import com.sautilink.nativeapp.ui.components.logVideoPlaybackFailure
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -330,6 +332,7 @@ private fun InlineFeedVideo(
             override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                 requestError = "Video could not play. Tap retry."
+                if (bufferingOverlayEnabled) logVideoPlaybackFailure(VideoPlaybackScope.HOME, error, player)
             }
         }
         player.addListener(listener)
