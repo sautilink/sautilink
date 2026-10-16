@@ -28,6 +28,7 @@ import com.sautilink.nativeapp.feature.home.PostInteractionsClient
 import com.sautilink.nativeapp.feature.home.PostMediaGallery
 import com.sautilink.nativeapp.feature.home.relativePostTime
 import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
+import com.sautilink.nativeapp.ui.components.SautiPostActionRow
 import com.sautilink.nativeapp.ui.components.SautiAvatar
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.theme.SautiColors
@@ -368,14 +369,18 @@ private fun ProfileActivityCard(
                 onDoubleTapLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
             if (failure != null) Text(failure.orEmpty(), color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(horizontal = 14.dp), style = MaterialTheme.typography.bodySmall)
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            SautiPostActionRow(modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp), actions = {
+                ProfileAction(
+                    if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                    likeTotal.toString(), "Like", Modifier, selected = liked,
+                    activeColor = SautiColors.Red
+                ) {
+                    changeLike()
+                }
                 ProfileAction(Icons.Rounded.ChatBubbleOutline, item.comments.toString(), "Comments",
-                    Modifier.weight(1f)) { onOpenPost(item.id) }
+                    Modifier) { onOpenPost(item.id) }
                 ProfileAction(Icons.Rounded.Repeat, repostTotal.toString(), "Repost",
-                    Modifier.weight(1f), selected = reposted) {
+                    Modifier, selected = reposted) {
                     if (!busy) {
                         busy = true; failure = null
                         scope.launch {
@@ -385,13 +390,6 @@ private fun ProfileActivityCard(
                         }
                     }
                 }
-                ProfileAction(
-                    if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    likeTotal.toString(), "Like", Modifier.weight(1f), selected = liked,
-                    activeColor = SautiColors.Red
-                ) {
-                    changeLike()
-                }
                 IconButton(onClick = {
                     val send = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
@@ -400,8 +398,9 @@ private fun ProfileActivityCard(
                     runCatching { context.startActivity(Intent.createChooser(send, "Share post")) }
                         .onFailure { failure = "Could not open sharing." }
                 }, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Rounded.Share, contentDescription = "Share post", modifier = Modifier.size(21.dp))
+                    Icon(Icons.Rounded.Share, contentDescription = "Share post", modifier = Modifier.size(20.dp))
                 }
+            }, trailing = {
                 IconButton(onClick = {
                     if (!busy) {
                         busy = true; failure = null
@@ -418,7 +417,7 @@ private fun ProfileActivityCard(
                         tint = if (saved) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            }
+            })
         }
     }
 }
@@ -429,12 +428,12 @@ private fun ProfileAction(
     modifier: Modifier = Modifier, selected: Boolean = false,
     activeColor: Color = MaterialTheme.colorScheme.primary, onClick: () -> Unit
 ) {
-    Row(modifier.heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onClick),
+    Row(modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).clickable(role = Role.Button, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center) {
         Icon(icon, description, modifier = Modifier.size(20.dp),
             tint = if (selected) activeColor else MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.width(4.dp))
+        Spacer(Modifier.width(2.dp))
         Text(count, style = MaterialTheme.typography.labelSmall)
     }
 }

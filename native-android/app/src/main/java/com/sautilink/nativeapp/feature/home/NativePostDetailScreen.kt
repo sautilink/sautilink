@@ -28,6 +28,7 @@ import com.sautilink.nativeapp.feature.safety.NativeReportDialog
 import com.sautilink.nativeapp.feature.safety.NativeSafetyClient
 import com.sautilink.nativeapp.ui.components.SautiAvatar
 import com.sautilink.nativeapp.ui.components.SautiActionIconButton
+import com.sautilink.nativeapp.ui.components.SautiPostActionRow
 import com.sautilink.nativeapp.ui.components.SautiPostIcons
 import com.sautilink.nativeapp.ui.components.SautiCommentActions
 import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
@@ -313,19 +314,15 @@ fun NativePostDetailScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(8.dp))
                         HorizontalDivider()
-                        Row(
-                            Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
+                        SautiPostActionRow(modifier = Modifier.heightIn(min = 56.dp), actions = {
                             SautiActionIconButton(icon = if (liked) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbUpOffAlt,
                                 label = "Like", tint = if (liked) SautiColors.Red else MaterialTheme.colorScheme.onSurface,
-                                enabled = !busy, onClick = { changeLike() })
+                                enabled = !busy, iconSize = 20.dp, onClick = { changeLike() })
                             SautiActionIconButton(Icons.Rounded.ChatBubbleOutline, "Comments",
-                                MaterialTheme.colorScheme.onSurface, onClick = { commentsMode = true })
+                                MaterialTheme.colorScheme.onSurface, iconSize = 20.dp, onClick = { commentsMode = true })
                             SautiActionIconButton(Icons.Rounded.Repeat, "Repost",
                                 if (reposted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                enabled = !busy, onClick = {
+                                enabled = !busy, iconSize = 20.dp, onClick = {
                                 if (busy) return@SautiActionIconButton
                                 busy = true
                                 scope.launch {
@@ -339,13 +336,14 @@ fun NativePostDetailScreen(
                                 }
                             })
                             SautiActionIconButton(SautiPostIcons.Share, "Share post",
-                                MaterialTheme.colorScheme.onSurface, onClick = {
+                                MaterialTheme.colorScheme.onSurface, iconSize = 20.dp, onClick = {
                                 val send = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
                                     putExtra(Intent.EXTRA_TEXT, actions.postShareUrl(postId))
                                 }
                                 runCatching { context.startActivity(Intent.createChooser(send, "Share post")) }
                             })
+                        }, trailing = {
                             SautiActionIconButton(if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                                 "Save post", if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                 enabled = !busy, onClick = {
@@ -357,7 +355,7 @@ fun NativePostDetailScreen(
                                     finally { busy = false }
                                 }
                             })
-                        }
+                        })
                         OutlinedButton(onClick = { commentsMode = true },
                             shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Rounded.ChatBubbleOutline, null)

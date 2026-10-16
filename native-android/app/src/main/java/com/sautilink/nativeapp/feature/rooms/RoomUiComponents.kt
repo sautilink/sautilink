@@ -10,6 +10,12 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -256,27 +262,34 @@ internal fun RoomPostCard(auth: StagingAuthClient, post: NativeRoomPost, state: 
 @Composable
 private fun RoomPostActions(post: NativeRoomPost, state: RoomPostUi, onLike: () -> Unit,
     onSave: () -> Unit, onRepost: () -> Unit, onComments: () -> Unit, onShare: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+    SautiPostActionRow(modifier = Modifier.padding(horizontal = 5.dp, vertical = 3.dp), actions = {
         RoomCountAction(if (state.liked == true) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbUpOffAlt,
             if (state.liked == true) "Unlike post" else "Like post", post.likes, state.liked != null && "like" !in state.pending,
-            state.liked == true, Modifier.weight(1f), onLike)
+            state.liked == true, Modifier, onLike)
         RoomCountAction(Icons.Rounded.ChatBubbleOutline, "View comments", post.comments, true, false,
-            Modifier.weight(1f), onComments)
+            Modifier, onComments)
         RoomCountAction(Icons.Rounded.Repeat, if (state.reposted == true) "Undo repost" else "Repost", post.reposts,
-            state.reposted != null && "repost" !in state.pending, state.reposted == true, Modifier.weight(1f), onRepost)
-        SautiActionIconButton(SautiPostIcons.Share, "Share post", MaterialTheme.colorScheme.onSurfaceVariant, onClick = onShare)
+            state.reposted != null && "repost" !in state.pending, state.reposted == true, Modifier, onRepost)
+        SautiActionIconButton(SautiPostIcons.Share, "Share post", MaterialTheme.colorScheme.onSurfaceVariant, onClick = onShare, iconSize = 20.dp)
+    }, trailing = {
         SautiActionIconButton(if (state.saved == true) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
             if (state.saved == true) "Remove from saved" else "Save post", if (state.saved == true) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant, state.saved != null && "save" !in state.pending, onSave)
-    }
+                else MaterialTheme.colorScheme.onSurfaceVariant, state.saved != null && "save" !in state.pending, onClick = onSave)
+    })
 }
 
 @Composable
 private fun RoomCountAction(icon: ImageVector, label: String, count: Int, enabled: Boolean,
     active: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        SautiActionIconButton(icon, label, if (active) SautiColors.Red else MaterialTheme.colorScheme.onSurfaceVariant,
-            enabled, onClick)
+    val interaction = remember { MutableInteractionSource() }
+    val tint by animateColorAsState(if (active) SautiColors.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+        tween(150), label = "Room action color")
+    Row(modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+        .clickable(interactionSource = interaction, indication = ripple(), enabled = enabled,
+            role = Role.Button, onClick = onClick), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center) {
+        Icon(icon, label, Modifier.size(20.dp).sautiActionFeedback(interaction), tint = tint)
+        if (count > 0) Spacer(Modifier.width(2.dp))
         Text(if (count <= 0) "" else when { count >= 1_000_000 -> "${count / 1_000_000}m"
             count >= 1000 -> "${count / 1000}k"; else -> count.toString() }, style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)

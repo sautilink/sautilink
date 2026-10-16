@@ -37,6 +37,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import com.sautilink.nativeapp.ui.components.SautiPostIcons
+import com.sautilink.nativeapp.ui.components.SautiPostActionRow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -928,33 +929,34 @@ private fun RealPostCard(
                         Text(mutationError, color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall)
                     }
-                    // Four compact web-like actions group on the left; Save stays at the far right.
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    // The leading actions wrap their content instead of expanding into equal columns.
+                    SautiPostActionRow(actions = {
                         CompactPostAction(Icons.Rounded.ThumbUpOffAlt,
                             if (liked == true) "Unlike post" else "Like post", feedCount(post.likes),
-                            Modifier.weight(1f), onLike, online && !busyLike,
+                            Modifier, onLike, online && !busyLike,
                             if (liked == true) SautiColors.Red else MaterialTheme.colorScheme.onSurfaceVariant,
                             if (liked == true) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbUpOffAlt)
                         CompactPostAction(Icons.Rounded.ChatBubbleOutline, "View comments",
-                            feedCount(post.comments), Modifier.weight(1f), onComments, online)
+                            feedCount(post.comments), Modifier, onComments, online)
                         CompactPostAction(Icons.Rounded.Repeat,
                             if (reposted == true) "Undo repost" else "Repost",
-                            feedCount(post.reposts), Modifier.weight(1f), onRepost,
+                            feedCount(post.reposts), Modifier, onRepost,
                             online && !busyRepost,
                             if (reposted == true) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant)
                         CompactPostAction(SautiPostIcons.Share, "Share post", null,
-                            Modifier.weight(1f), onShare)
+                            Modifier, onShare)
+                    }, trailing = {
                         val saveInteraction = remember { MutableInteractionSource() }
                         IconButton(onClick = onSave, enabled = online && !busySave,
-                            interactionSource = saveInteraction, modifier = Modifier.size(52.dp)) {
+                            interactionSource = saveInteraction, modifier = Modifier.size(48.dp)) {
                             Icon(if (saved == true) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                                 if (saved == true) "Remove from saved" else "Save post",
-                                modifier = Modifier.size(28.dp).sautiActionFeedback(saveInteraction),
+                                modifier = Modifier.size(24.dp).sautiActionFeedback(saveInteraction),
                                 tint = if (saved == true) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    }
+                    })
                 }
             } else {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp),
@@ -988,16 +990,16 @@ private fun CompactPostAction(
     val interaction = remember { MutableInteractionSource() }
     val animatedTint by animateColorAsState(tint, tween(150), label = "Post action color")
     Row(
-        modifier = modifier.heightIn(min = 56.dp)
+        modifier = modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .clickable(interactionSource = interaction, indication = ripple(), enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 1.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(activeIcon, contentDescription = label, tint = animatedTint, modifier = Modifier.size(28.dp).sautiActionFeedback(interaction))
+        Icon(activeIcon, contentDescription = label, tint = animatedTint, modifier = Modifier.size(20.dp).sautiActionFeedback(interaction))
         if (count != null) {
-            Spacer(Modifier.width(4.dp))
-            Text(count, modifier = Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelSmall,
+            Spacer(Modifier.width(2.dp))
+            Text(count, style = MaterialTheme.typography.labelSmall,
                 color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
