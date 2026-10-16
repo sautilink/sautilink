@@ -243,6 +243,9 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
 
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
+  const indexed = !posterOnly && row.media_kind === 'video'
+    ? await servePrecomputedOriginalIndex(request, env, row, mediaDeliveryPhase) : null;
+  if (indexed) return indexed;
   if (posterOnly) return serveVideoPoster(request, env, row, id);
   if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
   if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality, ctx);
@@ -275,6 +278,9 @@ function withMediaServerTiming(response, timings, totalStartedAt) {
 
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
+  const indexed = !posterOnly && row.media_kind === 'video'
+    ? await servePrecomputedOriginalIndex(request, env, row, mediaDeliveryPhase) : null;
+  if (indexed) return withMediaServerTiming(indexed, timings, totalStartedAt);
   const response = posterOnly
     ? await serveVideoPoster(request, env, row, id)
     : width && row.media_kind === 'image'

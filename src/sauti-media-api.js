@@ -1,3 +1,4 @@
+import { originalVideoIndexObjectKey, originalVideoIndexReceiptObjectKey, servePrecomputedOriginalIndex } from './original-video-index-delivery.js';
 import { inspectImageBytes } from './profile-media-api.js';
 import { VIDEO_VARIANT_QUALITIES, videoVariantDimensions, availableVideoQualities } from './video-quality-levels.js';
 
@@ -44,7 +45,7 @@ function apiError(status, code, message) {
 
 // Preserve the original thrown object; retain only its fatal delivery phase weakly.
 const mediaDeliveryFailures = new WeakMap();
-const mediaDeliveryPhases = new Set(['METADATA_LOOKUP', 'ORIGINAL_R2_HEAD', 'ORIGINAL_R2_GET', 'VARIANT_R2_GET']);
+const mediaDeliveryPhases = new Set(['METADATA_LOOKUP', 'ORIGINAL_R2_HEAD', 'ORIGINAL_R2_GET', 'VARIANT_R2_GET', 'ORIGINAL_INDEX_R2_HEAD', 'ORIGINAL_INDEX_RECEIPT_R2_GET', 'ORIGINAL_INDEX_R2_GET']);
 const mediaDeliveryErrorNames = new Set(['Error', 'TypeError', 'RangeError', 'SyntaxError',
   'DOMException', 'AbortError', 'TimeoutError', 'NetworkError']);
 async function mediaDeliveryPhase(phase, operation) {
@@ -181,7 +182,7 @@ export function sautiMediaObjectKeys(row) {
   const original = String(row?.object_key || '');
   if (!original) return [];
   if (row?.media_kind !== 'video') return [original];
-  return [original, sautiVideoPosterObjectKey(original),
+  return [original, originalVideoIndexReceiptObjectKey(original), originalVideoIndexObjectKey(original), sautiVideoPosterObjectKey(original),
     ...VIDEO_VARIANT_QUALITIES.map((quality) => sautiVideoVariantObjectKey(original, quality)),
     ...[360, 720].map((quality) => `${original}.video-v1-q${quality}.mp4`)];
 }
@@ -614,6 +615,9 @@ async function uploadMedia(request, env, id) {
 }
 
 async function createSautiVideoVariant(env, row, id, quality) {
+  // Fragmented originals can expose a partial mdhd duration. Do not produce or
+  // reuse a one-minute transform from suspicious/missing timeline metadata.
+  if (!Number.isFinite(Number(row?.duration_ms)) || Number(row.duration_ms) <= 1000) return '';
   const dimensions = videoVariantDimensions(row, quality);
   const objectKey = sautiVideoVariantObjectKey(row?.object_key, quality);
   if (!dimensions || !objectKey || !env?.MEDIA || !env?.SAUTI_MEDIA) {
@@ -816,7 +820,8 @@ async function serveVideoVariant(request, env, row, id, quality, ctx = null) {
   if (!objectKey || row.media_kind !== 'video') return serveOriginalMedia(request, env, row, id);
   // Media Transformations currently caps output at one minute. A longer
   // variant would silently end before the source video does.
-  if (!videoVariantDimensions(row, quality)) {
+  if (!Number.isFinite(Number(row.duration_ms)) || Number(row.duration_ms) <= 1000
+    || !videoVariantDimensions(row, quality)) {
     return serveOriginalMedia(request, env, row, id);
   }
 
@@ -1002,6 +1007,9 @@ async function serveMedia(request, env, id, ctx = null) {
 
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
+  const indexed = !posterOnly && row.media_kind === 'video'
+    ? await servePrecomputedOriginalIndex(request, env, row, mediaDeliveryPhase) : null;
+  if (indexed) return indexed;
   if (posterOnly) return serveVideoPoster(request, env, row, id);
   if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
   if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality, ctx);
