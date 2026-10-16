@@ -94,7 +94,11 @@ fun ProductionShortVideosScreen(
     var nextOffset by remember(auth) { mutableIntStateOf(0) }
     var hasMore by remember(auth) { mutableStateOf(false) }
     var loading by remember(auth, auth.account?.id) { mutableStateOf(auth.account != null) }
-    var error by remember(auth) { mutableStateOf<String?>(null) }
+    var error by remember(auth, auth.account?.id) { mutableStateOf<String?>(null) }
+    var feedGeneration by remember(auth) { mutableIntStateOf(0) }
+    var paginationError by remember(auth, auth.account?.id) { mutableStateOf<String?>(null) }
+    var paginationLoading by remember(auth, auth.account?.id) { mutableStateOf(false) }
+    var paginationGeneration by remember(auth) { mutableIntStateOf(0) }
     var reload by remember(auth) { mutableIntStateOf(0) }
     var pageRetry by remember(auth) { mutableIntStateOf(0) }
     var token by remember(auth) { mutableStateOf<String?>(null) }
@@ -200,41 +204,63 @@ fun ProductionShortVideosScreen(
     }
 
     LaunchedEffect(auth, auth.account?.id, reload, online) {
+        val generation = ++feedGeneration
         val cached = if (auth.account != null) client.cached("short_videos") else null
         clips = cached?.posts?.toLiveClips().orEmpty()
         nextOffset = cached?.nextOffset ?: 0
         hasMore = cached?.hasMore ?: false
-        error = null; token = null
-        if (auth.account == null) return@LaunchedEffect
-        if (!online) { error = "Offline. Reconnect to play Short Videos."; return@LaunchedEffect }
+        paginationError = null; token = null
+        if (auth.account == null) { error = null; loading = false; return@LaunchedEffect }
+        if (!online) { error = "Offline. Reconnect to play Short Videos."; loading = false; return@LaunchedEffect }
         loading = true
         try {
-            token = auth.accessTokenForStagingRead()
+            val refreshedToken = auth.accessTokenForStagingRead()
+            if (generation != feedGeneration) return@LaunchedEffect
+            token = refreshedToken
             val page = client.load("short_videos", 0)
+            if (generation != feedGeneration) return@LaunchedEffect
             clips = page.posts.toLiveClips()
             nextOffset = page.nextOffset
             hasMore = page.hasMore
-        } catch (e: Exception) { error = e.message ?: "Could not load short videos." }
-        finally { loading = false }
+            error = null
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (e: Exception) {
+            if (generation == feedGeneration) error = e.message ?: "Could not load short videos."
+        } finally {
+            if (generation == feedGeneration) loading = false
+        }
     }
 
-    val pager = rememberPagerState(pageCount = { clips.size })
+    // Load failures own a separate page, never a label over a loaded video.
+    // Retain it during pagination Retry so its index becomes the first new clip on success.
+    val pager = rememberPagerState(pageCount = {
+        clips.size + if (clips.isNotEmpty() && (error != null || paginationError != null)) 1 else 0
+    })
     LaunchedEffect(clips.getOrNull(pager.settledPage)?.mediaId) {
         if (clips.getOrNull(pager.settledPage) != null) {
             try { token = auth.accessTokenForStagingRead() }
+            catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) { error = e.message ?: "Sign in again to watch videos." }
         }
     }
-    LaunchedEffect(pager.settledPage, clips.size, hasMore, pageRetry) {
-        if (!online || clips.isEmpty() || !hasMore || loading || pager.settledPage < clips.lastIndex - 3) return@LaunchedEffect
-        loading = true
+    LaunchedEffect(auth, auth.account?.id, pager.settledPage, clips.size, nextOffset, hasMore, pageRetry, online, loading, error) {
+        val generation = ++paginationGeneration
+        paginationLoading = false
+        if (!online || clips.isEmpty() || !hasMore || loading || error != null || pager.settledPage < clips.lastIndex - 3) return@LaunchedEffect
+        paginationLoading = true
         try {
             val page = client.load("short_videos", nextOffset)
+            if (generation != paginationGeneration) return@LaunchedEffect
             clips = (clips + page.posts.toLiveClips()).distinctBy { it.mediaId }
             nextOffset = page.nextOffset
             hasMore = page.hasMore
-        } catch (e: Exception) { error = e.message ?: "Could not load more videos." }
-        finally { loading = false }
+            paginationError = null
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (e: Exception) {
+            if (generation == paginationGeneration) paginationError = e.message ?: "Could not load more videos."
+        } finally {
+            if (generation == paginationGeneration) paginationLoading = false
+        }
     }
 
     val accessToken = token
@@ -280,7 +306,7 @@ fun ProductionShortVideosScreen(
             if (player != null) when (event) {
                 Lifecycle.Event.ON_STOP -> { resumeAfterBackground = player.playWhenReady; player.pause() }
                 Lifecycle.Event.ON_START -> {
-                    if (resumeAfterBackground && autoplay && online) player.play()
+                    if (resumeAfterBackground && autoplay && online && clips.getOrNull(pager.settledPage) != null) player.play()
                     resumeAfterBackground = false
                 }
                 else -> Unit
@@ -339,15 +365,14 @@ fun ProductionShortVideosScreen(
         if (position > 0) player.seekTo(position)
         player.playWhenReady = autoplay && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
     }
-    LaunchedEffect(player, autoplay, online) {
+    LaunchedEffect(player, autoplay, online, clip?.mediaId) {
         if (player == null) return@LaunchedEffect
-        player.playWhenReady = autoplay && online && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+        player.playWhenReady = autoplay && online && clip != null && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
     }
 
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF07101B))) {
         // Keep full-sized actions below the toolbar when landscape reduces height.
         val compactRail = maxHeight < 380.dp
-        val paginationErrorVisible = auth.account != null && clips.isNotEmpty() && error != null
         if (auth.account == null) {
             Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -363,7 +388,13 @@ fun ProductionShortVideosScreen(
             }
         } else {
             VerticalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
-                val item = clips[page]
+                val item = clips.getOrNull(page)
+                if (item == null) {
+                    if (error != null || paginationError != null) ShortVideosRetryPage(online, loading || paginationLoading) {
+                        if (error != null) reload++ else pageRetry++
+                    }
+                    return@VerticalPager
+                }
                 Box(Modifier.fillMaxSize().background(Color.Black)) {
                     if (page == pager.settledPage && player != null && online) {
                         AndroidView(factory = { viewContext -> PlayerView(viewContext).apply {
@@ -463,13 +494,8 @@ fun ProductionShortVideosScreen(
                 }
             }
         }
-        Column(Modifier.align(Alignment.TopCenter)
-            .padding(top = if (paginationErrorVisible) 64.dp else 54.dp),
-            horizontalAlignment = Alignment.CenterHorizontally) {
-            if (paginationErrorVisible) TextButton(onClick = { error = null; pageRetry++ },
-                modifier = Modifier.padding(horizontal = 16.dp)) { Text("Retry more videos") }
-            SnackbarHost(hostState = feedback)
-        }
+        SnackbarHost(hostState = feedback,
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 54.dp))
         Row(Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back", tint = Color.White) }
@@ -523,6 +549,20 @@ fun ProductionShortVideosScreen(
                 })
             }
         }
+    }
+}
+
+@Composable
+private fun ShortVideosRetryPage(online: Boolean, loading: Boolean, onRetry: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(Color.Black).padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically)) {
+        Text(when {
+            loading -> "Loading videos…"
+            !online -> "Reconnect to load videos."
+            else -> "Could not load videos."
+        }, color = Color.White)
+        Button(onClick = onRetry, enabled = online && !loading) { Text("Retry") }
     }
 }
 
