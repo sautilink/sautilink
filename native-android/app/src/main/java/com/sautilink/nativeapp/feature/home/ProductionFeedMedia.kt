@@ -2,6 +2,9 @@ package com.sautilink.nativeapp.feature.home
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -50,9 +53,12 @@ import com.sautilink.nativeapp.ui.components.videoSeekTarget
 import com.sautilink.nativeapp.ui.components.VideoBufferingOverlay
 import com.sautilink.nativeapp.ui.components.VideoPlaybackScope
 import com.sautilink.nativeapp.ui.components.logVideoPlaybackFailure
+import com.sautilink.nativeapp.ui.components.NativeVideoMetadata
+import com.sautilink.nativeapp.ui.components.NativeVideoQualityPolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -268,6 +274,11 @@ private fun InlineFeedVideo(
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     val lifecycleState by owner.lifecycle.currentStateAsState()
+    val accountId = auth.account?.id
+    val adaptive = bufferingOverlayEnabled && mediaPath == "/api/sauti-media/${media.id}"
+    val recoveryOnline = if (adaptive) rememberNetworkAvailable() else false
+    val metadata = NativeVideoMetadata(media.width, media.height, media.durationMs)
+    val baseQuality = if (adaptive) NativeVideoQualityPolicy.selectQuality("auto", metadata) else "original"
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val windowHeight = with(density) { configuration.screenHeightDp.dp.toPx() }
@@ -307,12 +318,15 @@ private fun InlineFeedVideo(
                 .setMediaSourceFactory(DefaultMediaSourceFactory(http))
                 .build().apply {
                     volume = if (muted) 0f else 1f
-                    setMediaItem(MediaItem.fromUri("${auth.mediaOrigin}$mediaPath"))
+                    setMediaItem(if (adaptive) MediaItem.Builder().setMediaId(media.id)
+                        .setUri(auth.mediaOrigin + videoPlaybackPath(mediaPath, baseQuality)).build()
+                    else MediaItem.fromUri("${auth.mediaOrigin}$mediaPath"))
                     prepare()
                     playWhenReady = false
                 }
         }
     }
+    val playbackOwner = remember(player) { accountId }
     var playing by remember(player) { mutableStateOf(false) }
     var playbackState by remember(player) { mutableIntStateOf(player?.playbackState ?: Player.STATE_IDLE) }
     var playbackRequested by remember(player) { mutableStateOf(player?.playWhenReady == true) }
@@ -327,6 +341,8 @@ private fun InlineFeedVideo(
                 playbackState = player.playbackState
                 playbackRequested = player.playWhenReady
                 playbackSuppressed = player.playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE
+                if (adaptive && player.playbackState == Player.STATE_READY && player.duration > 0 &&
+                    player.currentPosition > player.duration) player.seekTo(player.duration)
             }
             override fun onRenderedFirstFrame() { firstFrame = true }
             override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
@@ -346,10 +362,29 @@ private fun InlineFeedVideo(
             player.release()
         }
     }
+    val selectedQuality = rememberVideoRecoveryQuality(player, playbackOwner, media.id, metadata, "auto", baseQuality,
+        enabled = adaptive, online = recoveryOnline, eligible = isCurrent && visibleFraction >= .58f &&
+            lifecycleState.isAtLeast(Lifecycle.State.STARTED) && wantsToPlay && !manualPaused,
+        requested = playbackRequested, playing = playing, playbackState = playbackState,
+        suppressed = playbackSuppressed, hasError = requestError != null) {
+        auth.account?.id == playbackOwner && isCurrent && visibleFraction >= .58f && wantsToPlay && !manualPaused &&
+            owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+    }
+    LaunchedEffect(player, selectedQuality) {
+        if (!adaptive || player == null || auth.account?.id != playbackOwner ||
+            player.playerError != null || requestError != null) return@LaunchedEffect
+        val uri = auth.mediaOrigin + videoPlaybackPath(mediaPath, selectedQuality)
+        if (player.currentMediaItem?.localConfiguration?.uri?.toString() != uri) {
+            replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(media.id).setUri(uri).build(),
+                keepPosition = true, requested = wantsToPlay && !manualPaused && isCurrent &&
+                    owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+        }
+    }
     LaunchedEffect(player, muted) { player?.volume = if (muted) 0f else 1f }
-    LaunchedEffect(player, isCurrent, wantsToPlay, requestError) {
+    LaunchedEffect(player, isCurrent, wantsToPlay, requestError, if (adaptive) lifecycleState else null) {
         if (player != null) {
             if (!isCurrent) player.pause()
+            else if (adaptive && !lifecycleState.isAtLeast(Lifecycle.State.STARTED)) player.pause()
             else if (wantsToPlay && requestError == null) player.play()
             else if (!wantsToPlay) player.pause()
         }
@@ -398,7 +433,12 @@ private fun InlineFeedVideo(
             started = true
             manualPaused = false
             wantsToPlay = true
-            if (player?.playerError != null) player.prepare()
+            if (player?.playerError != null) {
+                if (adaptive) replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(media.id)
+                    .setUri(auth.mediaOrigin + videoPlaybackPath(mediaPath, selectedQuality)).build(),
+                    keepPosition = true, requested = owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+                else player.prepare()
+            }
             if (player?.playbackState == androidx.media3.common.Player.STATE_ENDED) player.seekToDefaultPosition()
             player?.play()
         }
@@ -408,11 +448,12 @@ private fun InlineFeedVideo(
             player?.pause()
         }
         val playRadius = with(density) { 30.dp.toPx() }
+        val pauseRequested = playing || adaptive && playbackRequested && requestError == null
         SautiVideoGestureSurface(Modifier.fillMaxSize(),
-            playbackLabel = if (playing) "Pause video in post" else if (playPrompt) "Play video in post" else null,
-            onPlayback = { if (playing) pausePlayback() else if (playPrompt) startPlayback() },
+            playbackLabel = if (pauseRequested) "Pause video in post" else if (playPrompt) "Play video in post" else null,
+            onPlayback = { if (pauseRequested) pausePlayback() else if (playPrompt) startPlayback() },
             onTap = { position, frame ->
-                if (playing) pausePlayback()
+                if (pauseRequested) pausePlayback()
                 else if (playPrompt && (position - androidx.compose.ui.geometry.Offset(frame.width / 2f, frame.height / 2f))
                         .getDistance() <= playRadius) startPlayback()
             },
@@ -459,3 +500,91 @@ private fun InlineFeedVideo(
         }
     }
 }
+
+/** Only callers that already validated a published media path may append a rendition. */
+internal fun videoPlaybackPath(path: String, quality: String): String =
+    if (quality in setOf("240", "360", "480", "720", "1080")) "$path?quality=$quality" else path
+
+/** Explicit pause wins over autoplay; connectivity and lifecycle always gate a resume. */
+internal fun videoPlaybackRequested(manualIntent: Boolean?, autoplay: Boolean, online: Boolean,
+    foreground: Boolean, currentMedia: Boolean, hasError: Boolean): Boolean =
+    (manualIntent ?: autoplay) && online && foreground && currentMedia && !hasError
+
+@androidx.annotation.OptIn(markerClass = [UnstableApi::class])
+internal fun replaceVideoPlaybackSource(player: Player, item: MediaItem, keepPosition: Boolean, requested: Boolean) {
+    val position = if (keepPosition) player.currentPosition.coerceAtLeast(0L) else 0L
+    val parameters = player.playbackParameters
+    player.setMediaItem(item, position)
+    player.prepare()
+    player.playbackParameters = parameters
+    player.playWhenReady = requested
+}
+
+/** A bounded, in-memory quality recovery budget; real player errors always remain user-visible. */
+@Composable
+@androidx.annotation.OptIn(markerClass = [UnstableApi::class])
+internal fun rememberVideoRecoveryQuality(
+    player: Player?, ownerId: String?, mediaId: String?, metadata: NativeVideoMetadata,
+    preference: String, baseQuality: String, enabled: Boolean, online: Boolean, eligible: Boolean,
+    requested: Boolean, playing: Boolean, playbackState: Int, suppressed: Boolean, hasError: Boolean,
+    isStillEligible: () -> Boolean
+): String {
+    val context = LocalContext.current.applicationContext
+    val freshEligibility by rememberUpdatedState(isStillEligible)
+    var recoveredQuality by remember(player, ownerId, mediaId, preference) { mutableStateOf<String?>(null) }
+    var recoveries by remember(player, ownerId, mediaId) { mutableIntStateOf(0) }
+    val available = NativeVideoQualityPolicy.availableQualities(metadata)
+    val ceiling = baseQuality.toIntOrNull() ?: minOf(metadata.width, metadata.height)
+    val selected = recoveredQuality?.takeIf { quality ->
+        quality.toIntOrNull()?.let { it in available && it < ceiling } == true
+    } ?: baseQuality
+    LaunchedEffect(player, ownerId, mediaId, metadata, selected, enabled, online, eligible, requested, playing,
+        playbackState, suppressed, hasError) {
+        val current = player ?: return@LaunchedEffect
+        if (!enabled || !online || ownerId == null || mediaId == null || !eligible || !requested || suppressed || hasError) return@LaunchedEffect
+        fun valid() = freshEligibility() && current.currentMediaItem?.mediaId == mediaId &&
+            current.playWhenReady && current.playerError == null &&
+            current.playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_NONE && videoRecoveryOnline(context)
+        if (!valid()) return@LaunchedEffect
+        if (playing) {
+            delay(10_000)
+            if (valid() && current.isPlaying) recoveries = 0
+            return@LaunchedEffect
+        }
+        if (playbackState != Player.STATE_BUFFERING || recoveries >= 2) return@LaunchedEffect
+        var position = current.currentPosition
+        var buffered = current.bufferedPosition
+        while (valid() && current.playbackState == Player.STATE_BUFFERING) {
+            delay(4_000)
+            if (!valid() || current.playbackState != Player.STATE_BUFFERING) return@LaunchedEffect
+            val nextPosition = current.currentPosition
+            val nextBuffered = current.bufferedPosition
+            if (nextPosition != position || nextBuffered > buffered) {
+                position = nextPosition
+                buffered = nextBuffered
+                continue
+            }
+            val rank = selected.toIntOrNull() ?: minOf(metadata.width, metadata.height)
+            recoveries++
+            // Web's first stall targets 360, the second 240. A no-op target does not reload bytes.
+            val lower = NativeVideoQualityPolicy.selectQuality("auto", metadata,
+                stallCount = recoveries).toIntOrNull()?.takeIf { it < rank }
+            if (lower != null) {
+                recoveredQuality = lower.toString()
+                return@LaunchedEffect
+            }
+            if (recoveries >= 2) return@LaunchedEffect
+            position = nextPosition
+            buffered = nextBuffered
+        }
+    }
+    return if (enabled) selected else baseQuality
+}
+
+private fun videoRecoveryOnline(context: Context): Boolean = try {
+    val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    manager.getNetworkCapabilities(manager.activeNetwork)?.let {
+        it.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            it.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    } == true
+} catch (_: SecurityException) { false }

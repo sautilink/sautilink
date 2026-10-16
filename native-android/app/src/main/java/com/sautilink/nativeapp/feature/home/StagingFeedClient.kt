@@ -28,7 +28,7 @@ data class StagingFeedPost(
 )
 
 data class FeedMedia(val id: String, val kind: String, val position: Int,
-    val width: Int = 0, val height: Int = 0)
+    val width: Int = 0, val height: Int = 0, val durationMs: Long = 0L)
 
 data class StagingFeedPage(val posts: List<StagingFeedPost>, val nextOffset: Int, val hasMore: Boolean)
 
@@ -101,7 +101,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
             // Rooms already support five images; preserve the existing bound for other posts.
             val mediaLimit = if (uuid.matches(post.optString("circle_id"))) 5 else 4
             val mediaRows = getJsonArray(
-                "social_post_media?post_id=eq.$postId&upload_status=eq.attached&select=id,media_kind,position,width,height&order=position.asc&limit=$mediaLimit", token
+                "social_post_media?post_id=eq.$postId&upload_status=eq.attached&select=id,media_kind,position,width,height,duration_ms&order=position.asc&limit=$mediaLimit", token
             )
             val media = (0 until mediaRows.length()).mapNotNull { index ->
                 val row = mediaRows.optJSONObject(index) ?: return@mapNotNull null
@@ -109,7 +109,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                 val kind = row.optString("media_kind")
                 if (!uuid.matches(id) || kind !in listOf("image", "video")) null
                 else FeedMedia(id, kind, row.optInt("position"),
-                    row.optInt("width"), row.optInt("height"))
+                    row.optInt("width"), row.optInt("height"), row.optLong("duration_ms", 0L))
             }
             StagingFeedPost(postId, authorId,
                 author?.optString("display_name")?.takeUnless { it.isBlank() || it == "null" }
@@ -214,7 +214,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
             // Resolve only media metadata visible to this user under Supabase RLS.
             val mediaByPost = if (ids.isEmpty()) emptyMap() else {
                 val mediaRows = getJsonArray(
-                    "social_post_media?post_id=in.(${ids.joinToString(",")})&upload_status=eq.attached&select=id,post_id,media_kind,position,width,height&order=position.asc", token
+                    "social_post_media?post_id=in.(${ids.joinToString(",")})&upload_status=eq.attached&select=id,post_id,media_kind,position,width,height,duration_ms&order=position.asc", token
                 )
                 (0 until mediaRows.length()).mapNotNull { mediaRows.optJSONObject(it) }
                     .filter { uuid.matches(it.optString("id")) && uuid.matches(it.optString("post_id")) }
@@ -223,7 +223,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                         val kind = media.optString("media_kind")
                         if (kind !in listOf("image", "video")) null
                         else FeedMedia(media.optString("id"), kind, media.optInt("position", 0),
-                            media.optInt("width"), media.optInt("height"))
+                            media.optInt("width"), media.optInt("height"), media.optLong("duration_ms", 0L))
                     }.sortedBy { it.position }.take(4) }
             }
             val results = ids.mapNotNull { postId ->
