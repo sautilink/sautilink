@@ -4,7 +4,7 @@ import android.util.Log
 import com.sautilink.nativeapp.feature.auth.AuthRequestException
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
-import com.sautilink.nativeapp.network.SautiNetworkPhase
+import com.sautilink.nativeapp.network.RoomNetworkMilestones
 import com.sautilink.nativeapp.network.SautiNetworkSite
 import com.sautilink.nativeapp.network.sautiNetworkFailureDiagnostic
 import kotlinx.coroutines.CancellationException
@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit
 /** No Room cache survives an account change. RLS and the existing API remain authoritative. */
 internal class NativeRoomsTransport(private val auth: StagingAuthClient) {
     private val http = OkHttpClient.Builder().callTimeout(60, TimeUnit.SECONDS)
+        .eventListenerFactory(RoomNetworkMilestones.factory)
         .retryOnConnectionFailure(false).build()
     private val jsonType = "application/json; charset=utf-8".toMediaType()
 
@@ -80,17 +81,16 @@ internal class NativeRoomsTransport(private val auth: StagingAuthClient) {
                 else -> throw AuthRequestException("Unsupported Room request method.")
             }
             val started = System.nanoTime()
-            var phase = SautiNetworkPhase.EXECUTE
-            var seenStatus: Int? = null
+            val milestones = RoomNetworkMilestones()
+            builder.tag(RoomNetworkMilestones::class.java, milestones)
             fun recordFailure(error: Exception) {
                 runCatching { Log.w("SautiRoomsNet", sautiNetworkFailureDiagnostic(error, method,
                     if (isRest) SautiNetworkSite.REST else SautiNetworkSite.SITE,
-                    (System.nanoTime() - started) / 1_000_000, seenStatus, phase)) }
+                    (System.nanoTime() - started) / 1_000_000, milestones.seenStatus, milestones.phase)) }
             }
             try {
                 http.newCall(builder.build()).execute().use { response ->
-                    seenStatus = response.code
-                    phase = SautiNetworkPhase.RESPONSE_BODY
+                    milestones.readingBody(response.code)
                     // Bound network parsing before constructing JSON, rather than truncating an unbounded string.
                     val text = response.body?.source()?.let { source ->
                         source.request(512_001)
@@ -99,7 +99,7 @@ internal class NativeRoomsTransport(private val auth: StagingAuthClient) {
                     }.orEmpty()
                     checkViewer(own)
                     if (!response.isSuccessful) {
-                        phase = SautiNetworkPhase.HTTP_STATUS
+                        milestones.httpStatusFailure()
                         val remote = if (isRest) null else runCatching {
                             JSONObject(text).optJSONObject("error")?.optString("message")
                         }.getOrNull()?.takeIf { it.length in 1..220 }

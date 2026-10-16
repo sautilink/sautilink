@@ -142,8 +142,50 @@ The portable actual-source regression reproduced the old readiness **RED**, then
 passed **11** readiness, **7** membership-notice and **27** diagnostic checks.
 Independent source review found no actionable issue in the scoped correction.
 The boundary fixtures do not substitute for actual HTTP ACK validation or a
-network reproduction. The new combined Android build/full lint and Samsung
-diagnostic/notice retest are **PENDING**. Overall Rooms QA remains **OPEN**.
+network reproduction. This follow-up was committed as
+`500cbbb4f2699cffbea2af06d774ca2ec6660096`; both matching APKs passed assembly
+and full lint (RoomsQA13m46s, D2QA13m54s). Root installed the500 RoomsQA update
+and confirmed Dr identity restoration. At the first typed-failure capture the
+owner package still ran421; the completed500 D2QA artifact was a separate handover.
+These results do not certify the next milestone diagnostic below or complete
+the live notice/Rooms matrix. Overall Rooms QA remains **OPEN**.
+
+### Follow-up: per-call timeout milestones, new build/live pending
+
+The500 Samsung capture recorded three SITE/GET `SocketTimeoutException`
+failures at10011/10002/10006ms with phase=EXECUTE and status=NONE
+(`outputs/Rooms-network500-admin-A-20261016.json`). Timeout is now established;
+DNS, connect, TLS, final request flush and response-header wait are not yet
+distinguished. The original transport retains retryOnConnectionFailure(false),
+60s call timeout and the library's10s connect/read/write defaults. Those settings
+have not been changed to test an unconfirmed cause.
+
+After isolated review, the next scoped source change adds a tagged per-call
+OkHttp EventListener with only two volatile fields: a fixed callback milestone
+and numeric response status. It retains no request, response, address, header,
+body or exception data. Inherited failure callbacks keep the last milestone;
+only the existing sanitized catch logs. Concurrent calls have separate traces,
+and reused connections can correctly omit DNS/connect/TLS callbacks. Auth and
+all retry/timeout/request/error behavior remain as500.
+
+The portable `native-android/validation/run-room-network-milestone-check.ps1`
+compiled the actual new listener/formatter with cached OkHttp4.12.0/Okio3.6.0.
+It passed **24/24** actual callback checks and **27/27** formatter checks,
+including true two-thread isolation, connection reuse, failure preservation and
+privacy. The primary applied files matched the independently reviewed isolated
+proposal. No test executed/enqueued a network call. Workspace logs are in
+`work/generatedtestscope/rooms-network-milestones-primary`.
+
+Milestones describe the last callback, not a guaranteed active operation.
+In4.12, responseHeadersStart signals initial response data, not the start of its
+wait; REQUEST_HEADERS_END/REQUEST_BODY_END still cannot separate final buffered
+flush from first-header wait. Numeric status is retained once headers complete.
+The root capture whitelist must include DNS_START/END, CONNECT_START/END,
+TLS_START/END, CONNECTION_READY, REQUEST_HEADERS_START/END,
+REQUEST_BODY_START/END, RESPONSE_HEADERS_START/END and the existing
+EXECUTE/RESPONSE_BODY/HTTP_STATUS values. The new Android build/full lint and
+bounded Samsung timeout reproduction remain **PENDING**. No connection cause
+or overall Rooms PASS is claimed.
 
 ## Native scope and capability behavior
 

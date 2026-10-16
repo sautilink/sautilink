@@ -11,7 +11,11 @@ import java.net.UnknownHostException
 import java.util.concurrent.CancellationException
 import javax.net.ssl.SSLException
 
-internal enum class SautiNetworkPhase { EXECUTE, RESPONSE_BODY, HTTP_STATUS }
+internal enum class SautiNetworkPhase {
+    EXECUTE, DNS_START, DNS_END, CONNECT_START, CONNECT_END, TLS_START, TLS_END,
+    CONNECTION_READY, REQUEST_HEADERS_START, REQUEST_HEADERS_END, REQUEST_BODY_START,
+    REQUEST_BODY_END, RESPONSE_HEADERS_START, RESPONSE_HEADERS_END, RESPONSE_BODY, HTTP_STATUS
+}
 internal enum class SautiNetworkSite { REST, SITE, AUTH }
 
 /** Fixed transport metadata only: never include Throwable messages or request/response data. */
