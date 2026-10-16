@@ -268,12 +268,22 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
             try {
                 val result = client.findBySlug(room.slug)
                 if (current(room.id) && revision == metadataVersion) {
-                    if (result == null) { closeRoom(); openError = "This Room is no longer available." }
+                    if (result == null) { evictUnavailableRoom(room.id); closeRoom(); openError = "This Room is no longer available." }
                     else { select(result); roomError = null }
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) { if (current(room.id) && revision == metadataVersion) roomError = e.message ?: "Could not refresh Room." }
         }
+    }
+
+    private fun evictUnavailableRoom(roomId: String) {
+        // Older landing reads must not restore a Room the canonical lookup just removed.
+        discoveryVersion++; yoursVersion++; invitesVersion++
+        discoveryJob?.cancel(); yoursJob?.cancel(); invitesJob?.cancel()
+        discoverLoading = false; yoursLoading = false; invitesLoading = false
+        discover = discover.filterNot { it.id == roomId }
+        yours = yours.filterNot { it.id == roomId }
+        invitations = invitations.filterNot { it.room.id == roomId }
     }
 
     fun loadPosts(append: Boolean = false) {
