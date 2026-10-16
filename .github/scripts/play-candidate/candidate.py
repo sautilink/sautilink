@@ -19,6 +19,12 @@ ASSET = APP / 'src/main/assets/adi-registration.properties'
 AAB = APP / 'build/outputs/bundle/productionRelease/app-production-release.aab'
 PROOF = APP / 'build/outputs/apk/production/release/app-production-release.apk'
 HERE = Path(__file__).resolve().parent
+CHECK_GATE = 'ACTION_DISPATCH'
+
+
+def gate(name):
+    global CHECK_GATE
+    CHECK_GATE = name
 
 
 def sha(data): return hashlib.sha256(data).hexdigest()
@@ -71,6 +77,7 @@ def verify_manifest(xml):
 def tools():
     sdk = Path(os.environ.get('ANDROID_HOME') or os.environ['ANDROID_SDK_ROOT'])
     selected = sdk/'build-tools/36.0.0'
+    gate('SDK_BUILD_TOOLS_36_PRESENT')
     assert selected.is_dir(), 'ANDROID_36_BUILD_TOOLS_REQUIRED'
     return selected
 
@@ -145,30 +152,52 @@ def prepare_proof():
 
 
 def seal_proof():
+    gate('PROOF_ZIP_INTEGRITY')
     with safe_zip(PROOF) as archive:
+        gate('PROOF_ACCOUNT_IDENTIFIER_MATCH')
         assert archive.read('assets/adi-registration.properties') == registration_bytes()
-    output = command([tools()/'apksigner', 'verify', '--verbose', '--print-certs', PROOF])
-    fingerprints = re.findall(r'^Signer #\d+ certificate SHA-256 digest: ([0-9a-fA-F]+)$', output, re.M)
+    selected_tools = tools()
+    gate('PROOF_APK_SIGNATURE_COMMAND')
+    output = command([selected_tools/'apksigner', 'verify', '--verbose', '--print-certs', PROOF])
+    gate('PROOF_APK_EXPECTED_CERTIFICATE')
+    fingerprints = re.findall(r'^Signer #\d+ certificate SHA-256 digest: ([0-9a-fA-F]+)\r?$', output, re.M)
     assert [f.lower() for f in fingerprints] == [CERT]
-    badging = command([tools()/'aapt2', 'dump', 'badging', PROOF])
+    gate('PROOF_APK_BADGING_COMMAND')
+    badging = command([selected_tools/'aapt2', 'dump', 'badging', PROOF])
+    gate('PROOF_APK_PACKAGE_AND_VERSION')
     assert re.search(r"^package: name='com\.sautilink\.app' versionCode='41' versionName='0\.9\.0-native-performance'", badging, re.M)
-    assert "sdkVersion:'26'" in badging and "targetSdkVersion:'36'" in badging
-    assert "application-label:'SautiLink'" in badging and 'application-debuggable' not in badging
+    gate('PROOF_APK_MIN_SDK_26')
+    assert "minSdkVersion:'26'" in badging
+    gate('PROOF_APK_TARGET_SDK_36')
+    assert "targetSdkVersion:'36'" in badging
+    gate('PROOF_APK_LABEL')
+    assert "application-label:'SautiLink'" in badging
+    gate('PROOF_APK_NONDEBUGGABLE')
+    assert 'application-debuggable' not in badging
+    gate('CLEAN_AAB_RECEIPT_READ')
     clean = json.loads((OUT/'clean-aab.json').read_text())
+    gate('SEALED_CLEAN_AAB_SHA_UNCHANGED')
     assert sha((OUT/'sautilink-production-clean.aab').read_bytes()) == clean['sha256']
+    gate('ORIGINAL_CLEAN_AAB_SHA_UNCHANGED')
     assert sha(AAB.read_bytes()) == clean['sha256']
+    gate('SEALED_CLEAN_AAB_ZIP_INTEGRITY')
     with safe_zip(OUT/'sautilink-production-clean.aab') as archive:
+        gate('SEALED_CLEAN_AAB_REGISTRATION_ASSET_ABSENT')
         assert not any(n.endswith('/adi-registration.properties') for n in archive.namelist())
+    gate('PROOF_ARTIFACT_COPY')
     shutil.copyfile(PROOF, OUT/'sautilink-registration-proof-only.apk')
+    gate('PROOF_METADATA_WRITE')
     write_json('registration-proof.json', {'status': 'PASS_PROOF_ONLY_NOT_FOR_DISTRIBUTION',
                'sourceSha': SOURCE, 'package': 'com.sautilink.app', 'versionCode': 41,
                'sha256': sha(PROOF.read_bytes()), 'uploadCertificateSha256': CERT,
                'exactAccountAssetVerified': True, 'cleanAabSha256Unchanged': True,
                'identifierValueOrHashEmitted': False, 'installedOrDistributed': False})
+    gate('FINAL_ARTIFACT_ALLOWLIST')
     names = sorted(p.name for p in OUT.iterdir())
     assert set(names) == {'existing-upload-certificate.pem','source-and-signer.json','clean-aab.json',
                          'sautilink-production-clean.aab','lint-results-productionRelease.xml',
                          'sautilink-registration-proof-only.apk','registration-proof.json'}
+    gate('FINAL_ARTIFACT_CHECKSUMS_WRITE')
     with (OUT/'SHA256SUMS').open('x', encoding='ascii') as stream:
         for name in names: stream.write(sha((OUT/name).read_bytes())+'  '+name+'\n')
 
@@ -183,9 +212,10 @@ if __name__ == '__main__':
         actions = {'prepare': prepare, 'seal-aab': seal_aab, 'prepare-proof': prepare_proof,
                    'seal-proof': seal_proof, 'cleanup': cleanup}
         assert len(sys.argv) == 2 and sys.argv[1] in actions
+        gate('ACTION_'+sys.argv[1].upper().replace('-', '_'))
         actions[sys.argv[1]]()
         print('PLAY_CANDIDATE_'+sys.argv[1].upper().replace('-', '_')+'_PASS')
     except Exception:
         # Command output/errors may contain provider/config/keystore material; never echo them.
-        print('::error::PLAY_CANDIDATE_CHECK_FAILED', file=sys.stderr)
+        print('::error::PLAY_CANDIDATE_CHECK_FAILED_GATE_'+CHECK_GATE, file=sys.stderr)
         sys.exit(1)
