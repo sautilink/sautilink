@@ -1,0 +1,95 @@
+name: Approved Play candidate 688dffe
+
+on:
+  push:
+    branches: [design/native-ios-foundation-20261012]
+    paths:
+      - .github/workflows/native-play-candidate.yml
+      - .github/scripts/play-candidate/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: approved-play-candidate-688dffe
+  cancel-in-progress: false
+
+jobs:
+  artifacts:
+    if: >-
+      github.repository == 'sautilink/sautilink' &&
+      github.ref == 'refs/heads/design/native-ios-foundation-20261012' &&
+      github.event_name == 'push' && github.run_attempt == 1 &&
+      github.event.head_commit.message == 'ci: build approved Play candidate 688dffe' &&
+      github.event.forced == false && github.event.deleted == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: automation
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 688dffe0b8da459a54a072522c833df1ff270009
+          path: candidate
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+          cache-disabled: true
+      - name: Prepare pinned source, Firebase, existing signer and official bundletool
+        env:
+          FIREBASE_CONFIG: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON_BASE64 }}
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: python3 automation/.github/scripts/play-candidate/candidate.py prepare
+      - name: Build clean signed production AAB and full production lint
+        working-directory: candidate/native-android
+        env:
+          SAUTILINK_KEYSTORE_PATH: ${{ runner.temp }}/sautilink-play-candidate-upload.jks
+          SAUTILINK_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          SAUTILINK_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          SAUTILINK_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: >-
+          gradle :app:bundleProductionRelease :app:lintProductionRelease --no-daemon
+          --no-configuration-cache --max-workers=1 --no-parallel
+          -Pkotlin.compiler.execution.strategy=in-process
+          '-Dorg.gradle.jvmargs=-Xmx6144m -Dfile.encoding=UTF-8'
+      - name: Verify and seal clean AAB before proof asset exists
+        run: python3 automation/.github/scripts/play-candidate/candidate.py seal-aab
+      - name: Add account proof asset only to ephemeral source
+        env:
+          REGISTRATION_ID: ${{ secrets.ANDROID_DEVELOPER_REGISTRATION_ID }}
+        run: python3 automation/.github/scripts/play-candidate/candidate.py prepare-proof
+      - name: Assemble separately signed ownership proof APK
+        working-directory: candidate/native-android
+        env:
+          SAUTILINK_KEYSTORE_PATH: ${{ runner.temp }}/sautilink-play-candidate-upload.jks
+          SAUTILINK_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          SAUTILINK_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          SAUTILINK_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: >-
+          gradle :app:assembleProductionRelease --no-daemon --no-configuration-cache
+          --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process
+          '-Dorg.gradle.jvmargs=-Xmx6144m -Dfile.encoding=UTF-8'
+      - name: Verify proof APK, same signer, exact secret asset and unchanged clean AAB
+        env:
+          REGISTRATION_ID: ${{ secrets.ANDROID_DEVELOPER_REGISTRATION_ID }}
+        run: python3 automation/.github/scripts/play-candidate/candidate.py seal-proof
+      - name: Remove transient signing, Firebase and registration inputs
+        if: always()
+        run: python3 automation/.github/scripts/play-candidate/candidate.py cleanup
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SautiLink-Play-Candidate-688dffe-${{ github.run_id }}
+          path: ${{ runner.temp }}/sautilink-play-candidate-public/
+          if-no-files-found: error
+          retention-days: 7
