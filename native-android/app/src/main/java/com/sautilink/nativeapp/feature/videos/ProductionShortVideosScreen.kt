@@ -42,6 +42,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import com.sautilink.nativeapp.ui.components.VideoBufferingOverlay
+import com.sautilink.nativeapp.ui.components.VideoPlaybackScope
+import com.sautilink.nativeapp.ui.components.logVideoPlaybackFailure
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -106,7 +108,6 @@ fun ProductionShortVideosScreen(
     var autoplay by remember { mutableStateOf(preferences.getBoolean("autoplay", true)) }
     var quality by remember { mutableStateOf(preferences.getString("quality", "auto") ?: "auto") }
     var qualityOpen by remember { mutableStateOf(false) }
-    var playbackError by remember { mutableStateOf<String?>(null) }
     var resumeAfterBackground by remember { mutableStateOf(false) }
     // All interaction state is server-confirmed. Unknown state never implies an Unlike/Undo.
     var likeStates by remember(auth, auth.account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
@@ -275,6 +276,10 @@ fun ProductionShortVideosScreen(
                 .build().apply { repeatMode = Player.REPEAT_MODE_ONE; volume = if (muted) 0f else 1f }
         }
     }
+    // Error ownership follows this decoder, including Media3's error-clear event after Retry.
+    var playbackError by remember(player) {
+        mutableStateOf(player?.playerError?.let { "This video could not be played." })
+    }
     var playing by remember(player) { mutableStateOf(player?.isPlaying == true) }
     var playbackState by remember(player) { mutableIntStateOf(player?.playbackState ?: Player.STATE_IDLE) }
     var playbackRequested by remember(player) { mutableStateOf(player?.playWhenReady == true) }
@@ -291,10 +296,12 @@ fun ProductionShortVideosScreen(
                     playbackRequested = player.playWhenReady
                     playbackSuppressed = player.playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE
                     currentMediaId = player.currentMediaItem?.mediaId
+                    playbackError = player.playerError?.let { "This video could not be played." }
                 }
                 override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
                 override fun onPlayerError(e: PlaybackException) {
                     playbackError = "This video could not be played."
+                    logVideoPlaybackFailure(VideoPlaybackScope.SHORTS, e, player)
                 }
             }
             player.addListener(listener)
