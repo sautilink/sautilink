@@ -47,6 +47,11 @@ function RunCase([string]$Label,[string]$StateSource){
  $classes=Join-Path $output ($Label+'-classes')
  New-Item -ItemType Directory -Path $classes -Force | Out-Null
  $sources=@($StateSource)+$sharedSources
+ if($Label -eq 'fixed'){
+  $sources+=@((Join-Path $fixtures 'RoomMembershipNoticeCheck.kt'),
+   (Join-Path $nativeRoot 'app/src/main/java/com/sautilink/nativeapp/network/SautiNetworkFailureDiagnostic.kt'),
+   (Join-Path $PSScriptRoot 'SautiNetworkFailureDiagnosticCheck.kt'))
+ }
  & $JavaPath '-Dfile.encoding=UTF-8' -cp ($compiler -join [IO.Path]::PathSeparator) org.jetbrains.kotlin.cli.jvm.K2JVMCompiler `
   -nowarn -no-stdlib -no-reflect -jvm-target 17 -classpath $classpath -d $classes @sources *> (Join-Path $output ($Label+'-compile.log'))
  if($LASTEXITCODE -ne 0){Get-Content (Join-Path $output ($Label+'-compile.log'));throw 'Actual state observer compilation failed.'}
@@ -58,6 +63,15 @@ function RunCase([string]$Label,[string]$StateSource){
   if($code -eq 0 -or $result -notmatch 'opening the Room invalidates initial readiness read before capability response'){throw 'Expected baseline observer failure not reproduced.'}
   Write-Output 'EXPECTED RED: actual tracked baseline did not invalidate initial readiness read.'
  }elseif($code -ne 0){throw 'Patched actual state observer regression failed.'}
+ if($Label -eq 'fixed'){
+  foreach($entry in @('com.sautilink.nativeapp.feature.rooms.RoomMembershipNoticeCheckKt','com.sautilink.nativeapp.network.SautiNetworkFailureDiagnosticCheckKt')){
+   $name=if($entry -match 'Notice'){'notice'}else{'network'}
+   & $JavaPath '-Dfile.encoding=UTF-8' -cp ($classes+[IO.Path]::PathSeparator+$classpath) $entry *> (Join-Path $output ($name+'-result.log'))
+   $extraCode=$LASTEXITCODE
+   Get-Content (Join-Path $output ($name+'-result.log'))
+   if($extraCode -ne 0){throw "Actual $name regression failed."}
+  }
+ }
 }
 RunCase 'baseline' $baselinePath
 RunCase 'fixed' (Join-Path $rooms 'RoomManagementState.kt')

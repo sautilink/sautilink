@@ -82,11 +82,68 @@ passes **11/11** observation/readiness/lifecycle checks. Independent review foun
 no actionable issue. Evidence: workspace
 `outputs/Rooms-Join-readiness-regression-20261016.json`.
 
-Two matching-package APKs are building from this frozen one-field correction.
-First-entry Samsung Join after installation is still **PENDING**; the metadata
-refresh workaround is not counted as the fix passing live QA. The old preview
-actually denied a direct join without configured answers, with no server
-membership/request/answer effect, and its Dr session remains intact.
+The frozen one-field correction is committed as
+`4210fd4fcb7636b5939ee3bbc5f8e642240c2d08`. Both matching-package APKs passed
+assembly and **full lint**: RoomsQA in 14m53s and D2QA in 14m08s. The immutable
+handover hashes are `6ed4e09a...00eb90` and `b3ab92d4...f0db57`, respectively;
+the full hashes and source/configuration parity are recorded in workspace
+`outputs/Rooms-join-fix-4210fd4-build.json` and the two package handover records.
+The builder did not install or control the device.
+
+Root installed the RoomsQA update with `-r` and confirmed the existing Dr
+Home/Menu session. **PASS:** fresh Room entry opened the configured
+rules/questions without manual Refresh or a metadata workaround; the initial
+disabled loading frame is not an enabled-state proof. Blank required answers
+were rejected. A valid required answer with the optional answer blank received
+the real ACK, settled automatically to Joined/two members and exposed the three
+Featured posts without member Unpin controls. The fixed-Room server boundary
+confirmed stored/actual counts **2=2**, Dr membership and source=open/config-v2
+answers with required20/optional0 characters. Leave then settled to one member,
+with historical answer data retained. These are bounded admission checks, not
+the completed staff-role/post-approval/removal/cleanup matrix. The reported
+2.7s was an XML-read operation duration, not Room-open latency.
+
+The old preview actually denied a direct join without configured answers, with
+no server membership/request/answer effect, and its Dr session remains intact.
+After the D2QA `-r` update, encrypted session restoration failed twice with the
+retryable error; the third explicit Retry restored @utaliiplus Home/Menu. This
+does not establish Keystore loss or a network root cause. Evidence and per-case
+source/package boundaries are in `outputs/Rooms-enabled-20261016-live-results.json`
+and `outputs/Rooms-QA-current-verification.json`.
+
+For exact commit4210fd4, root's commit-scoped GitHub query confirmed **PASS** for
+[Native full build/lint](https://github.com/sautilink/sautilink/actions/runs/38829208266),
+[Authentication](https://github.com/sautilink/sautilink/actions/runs/38829208015),
+[Brand Guard](https://github.com/sautilink/sautilink/actions/runs/38829208056) and
+[Android APK](https://github.com/sautilink/sautilink/actions/runs/38829208026).
+The earlier9681588 CI links below remain historical evidence.
+
+### Follow-up: passive network diagnostics and stale membership notice
+
+Actual Samsung QA also encountered recurring generic connection failures on
+Room reads/writes and the two retryable Auth restore failures above. The generic
+catches discarded exception types; those messages alone cannot distinguish DNS,
+TLS, timeout, body-read failure, HTTP error or another runtime exception.
+Successful shell DNS/ICMP at another moment and server HTTP200 refresh records
+do not identify a particular failed client call.
+
+The prepared follow-up adds local `SautiRoomsNet`/`SautiAuthNet` warning metadata
+only: fixed site/method/phase enums, monotonic elapsed milliseconds, seen numeric
+HTTP status, exception category and class. It logs no route/query, URL, IDs,
+exception message/stack, header, token, address, account or body, sends no telemetry
+and changes no retry, timeout, vault, HTTP/error or cancellation behavior. It
+does not claim to fix the as-yet-unidentified connection cause.
+
+After Cancel request actually succeeded, the old community-owned “Join request
+sent.” notice remained visible. The scoped correction clears only that exact
+notice after the existing validated cancel ACK and current account/Room guard;
+it does not clear success before a server result or affect unrelated notices.
+The portable actual-source regression reproduced the old readiness **RED**, then
+passed **11** readiness, **7** membership-notice and **27** diagnostic checks.
+Independent source review found no actionable issue in the scoped correction.
+The boundary fixtures do not substitute for actual HTTP ACK validation or a
+network reproduction. The new combined Android build/full lint and Samsung
+diagnostic/notice retest are **PENDING**. Overall Rooms QA remains **OPEN**.
 
 ## Native scope and capability behavior
 
@@ -460,7 +517,8 @@ Original preview package version/install times were unchanged. Actual QA identit
 
 Earlier4fe live checks also confirmed cover upload/loaded image, text publishing,
 post Like/Save, comment Like retained after explicit refresh and invitation send.
-The final native change scope does not modify those transport implementations.
+These historical observations preceded the passive catch diagnostics above;
+those diagnostics change no HTTP flow, retry or timeout behavior.
 Workspace report `outputs/Rooms-QA-Samsung.md` and fixture manifest
 `outputs/Rooms-QA-16Oct-fixtures.json` retain actual screenshots, source boundaries
 and cleanup. During that historical block, production preflight confirmed the

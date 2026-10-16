@@ -1,8 +1,12 @@
 package com.sautilink.nativeapp.feature.rooms
 
+import android.util.Log
 import com.sautilink.nativeapp.feature.auth.AuthRequestException
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import com.sautilink.nativeapp.network.SautiNetworkPhase
+import com.sautilink.nativeapp.network.SautiNetworkSite
+import com.sautilink.nativeapp.network.sautiNetworkFailureDiagnostic
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -75,8 +79,18 @@ internal class NativeRoomsTransport(private val auth: StagingAuthClient) {
                 "GET" -> builder.get()
                 else -> throw AuthRequestException("Unsupported Room request method.")
             }
+            val started = System.nanoTime()
+            var phase = SautiNetworkPhase.EXECUTE
+            var seenStatus: Int? = null
+            fun recordFailure(error: Exception) {
+                runCatching { Log.w("SautiRoomsNet", sautiNetworkFailureDiagnostic(error, method,
+                    if (isRest) SautiNetworkSite.REST else SautiNetworkSite.SITE,
+                    (System.nanoTime() - started) / 1_000_000, seenStatus, phase)) }
+            }
             try {
                 http.newCall(builder.build()).execute().use { response ->
+                    seenStatus = response.code
+                    phase = SautiNetworkPhase.RESPONSE_BODY
                     // Bound network parsing before constructing JSON, rather than truncating an unbounded string.
                     val text = response.body?.source()?.let { source ->
                         source.request(512_001)
@@ -85,6 +99,7 @@ internal class NativeRoomsTransport(private val auth: StagingAuthClient) {
                     }.orEmpty()
                     checkViewer(own)
                     if (!response.isSuccessful) {
+                        phase = SautiNetworkPhase.HTTP_STATUS
                         val remote = if (isRest) null else runCatching {
                             JSONObject(text).optJSONObject("error")?.optString("message")
                         }.getOrNull()?.takeIf { it.length in 1..220 }
@@ -100,8 +115,11 @@ internal class NativeRoomsTransport(private val auth: StagingAuthClient) {
                     text
                 }
             } catch (e: CancellationException) { throw e }
-            catch (e: AuthRequestException) { throw e }
-            catch (_: Exception) { throw AuthRequestException("Could not connect to Rooms. Check your connection.") }
+            catch (e: AuthRequestException) { if (e.httpStatus != null) recordFailure(e); throw e }
+            catch (e: Exception) {
+                recordFailure(e)
+                throw AuthRequestException("Could not connect to Rooms. Check your connection.")
+            }
         }
     }
 }

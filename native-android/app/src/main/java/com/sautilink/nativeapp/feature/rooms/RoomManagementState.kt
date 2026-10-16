@@ -60,6 +60,9 @@ internal class RoomManagementState(val auth: StagingAuthClient, val accountId: S
     fun isPinned(postId: String): Boolean? = pinAcknowledgements[postId] ?: if (pinsLoaded) pins.any { it.postId == postId } else null
     fun savingConfiguration(room: NativeRoom) = busy("configuration-save:${room.id}")
     fun joining(room: NativeRoom) = busy("membership:${room.id}")
+    fun membershipRequestCancelled(room: NativeRoom) {
+        if (current(room) && notice == "Join request sent.") notice = null
+    }
     fun revoking(room: NativeRoom, invitation: NativeRoomOutgoingInvitation) = busy("revoke:${room.id}:${invitation.invitedUserId}")
     fun membershipReady(room: NativeRoom) = current(room) && capabilityResolved && !capabilityLoading &&
         (!available || configuration?.roomId == room.id && !configurationLoading && configurationError == null)

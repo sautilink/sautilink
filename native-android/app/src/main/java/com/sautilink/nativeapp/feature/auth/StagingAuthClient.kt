@@ -1,6 +1,10 @@
 package com.sautilink.nativeapp.feature.auth
 
 import android.content.Context
+import android.util.Log
+import com.sautilink.nativeapp.network.SautiNetworkPhase
+import com.sautilink.nativeapp.network.SautiNetworkSite
+import com.sautilink.nativeapp.network.sautiNetworkFailureDiagnostic
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -493,6 +497,13 @@ class StagingAuthClient(
         origin: String = baseUrl
     ): JSONObject = withContext(Dispatchers.IO) {
         if (!configured) throw AuthRequestException("${backend.title} publishable key is not configured.")
+        val started = System.nanoTime()
+        var phase = SautiNetworkPhase.EXECUTE
+        var seenStatus: Int? = null
+        fun recordFailure(error: Exception) {
+            runCatching { Log.w("SautiAuthNet", sautiNetworkFailureDiagnostic(error, method, SautiNetworkSite.AUTH,
+                (System.nanoTime() - started) / 1_000_000, seenStatus, phase)) }
+        }
         try {
             withTimeout(20000L) {
                 val connection = URL(origin + route).openConnection() as HttpURLConnection
@@ -511,10 +522,13 @@ class StagingAuthClient(
                         connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
                     }
                     val status = connection.responseCode
+                    seenStatus = status
+                    phase = SautiNetworkPhase.RESPONSE_BODY
                     val stream = if (status in 200..299) connection.inputStream else connection.errorStream
                     val body = stream?.bufferedReader()?.use { it.readText().take(8192) }.orEmpty()
                     val json = runCatching { JSONObject(body) }.getOrElse { JSONObject() }
                     if (status !in 200..299) {
+                        phase = SautiNetworkPhase.HTTP_STATUS
                         val expiredCode = status in listOf(400, 401, 403, 422) && route == "/verify" && (
                             json.optString("error_code") == "otp_expired" ||
                             json.optString("code") == "otp_expired")
@@ -534,8 +548,10 @@ class StagingAuthClient(
                 } finally { connection.disconnect() }
             }
         } catch (e: AuthRequestException) {
+            if (e.httpStatus != null) recordFailure(e)
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            recordFailure(e)
             throw AuthRequestException("Connection failed. Check internet and ${backend.title.lowercase()} availability.")
         }
     }

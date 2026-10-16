@@ -288,7 +288,8 @@ private fun RoomMembershipActions(state: RoomsState, community: RoomManagementSt
         }
         room.requestStatus == "pending" -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = {}, enabled = false) { Text("Request pending") }
-            TextButton(onClick = { state.mutate("join", room, { state.client.cancelJoinRequest(room) }) },
+            TextButton(onClick = { state.mutate("join", room, { state.client.cancelJoinRequest(room) },
+                { community.membershipRequestCancelled(room) }) },
                 enabled = !state.busy("join")) { Text("Cancel request") }
         }
         room.policy == "open" -> Button(onClick = { onMembership("join") },
