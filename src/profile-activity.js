@@ -1,4 +1,5 @@
 import { createInlineVerificationSvg } from './verification-inline-svg.js';
+import { renderCaptionEntities } from './caption-entities.js';
 const PROFILE_ACTIVITY_STYLESHEET = '/app/assets/profile-activity.css?v=20261007-stable-media1';
 const PROFILE_ACTIVITY_SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const PROFILE_ACTIVITY_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
@@ -278,28 +279,8 @@ function createProfileActivityMetric(kind, count, active = false) {
 }
 
 function appendProfileActivityBody(body, text) {
-  const source = String(text || '');
-  const pattern = /(https?:\/\/[^\s]+|@[a-z0-9][a-z0-9._]{2,29}|#[\p{L}\p{N}_]{1,64})/giu;
-  let cursor = 0;
-  for (const match of source.matchAll(pattern)) {
-    const index = match.index ?? 0;
-    if (index > cursor) body.append(document.createTextNode(source.slice(cursor, index)));
-    const token = match[0];
-    const link = document.createElement('a');
-    link.textContent = token;
-    if (token.startsWith('@')) {
-      link.href = `/u/${encodeURIComponent(token.slice(1).toLowerCase())}`;
-    } else if (token.startsWith('#')) {
-      link.href = `/discover?q=${encodeURIComponent(token)}`;
-    } else {
-      link.href = token;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-    }
-    body.append(link);
-    cursor = index + token.length;
-  }
-  if (cursor < source.length) body.append(document.createTextNode(source.slice(cursor)));
+  body.textContent = String(text || '');
+  renderCaptionEntities(body);
 }
 
 function revealProfileActivityMedia(element, placeholder, requestId) {

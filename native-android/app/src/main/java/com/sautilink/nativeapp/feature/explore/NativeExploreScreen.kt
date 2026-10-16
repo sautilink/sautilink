@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -28,6 +29,10 @@ import com.sautilink.nativeapp.feature.home.relativePostTime
 import com.sautilink.nativeapp.ui.components.SautiAvatar
 import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
+import com.sautilink.nativeapp.ui.components.SautiEntityText
+import com.sautilink.nativeapp.ui.components.SautiPostText
+import com.sautilink.nativeapp.ui.text.normalizeExploreQuery
+import com.sautilink.nativeapp.ui.text.limitExploreQueryInput
 import com.sautilink.nativeapp.ui.theme.SautiColors
 import kotlinx.coroutines.CancellationException
 
@@ -37,11 +42,13 @@ fun NativeExploreScreen(
     auth: StagingAuthClient,
     onSignIn: () -> Unit,
     onOpenProfile: (String) -> Unit,
-    onOpenPost: (String) -> Unit = {}
+    onOpenPost: (String) -> Unit = {},
+    initialQuery: String = "",
+    onBack: (() -> Unit)? = null
 ) {
     val client = remember(auth) { NativeExploreClient(auth) }
-    var query by rememberSaveable { mutableStateOf("") }
-    var committedQuery by rememberSaveable { mutableStateOf("") }
+    var query by rememberSaveable(initialQuery) { mutableStateOf(normalizeExploreQuery(initialQuery)) }
+    var committedQuery by rememberSaveable(initialQuery) { mutableStateOf(normalizeExploreQuery(initialQuery)) }
     var searchRevision by remember { mutableIntStateOf(0) }
     var results by remember(auth.account?.id) {
         mutableStateOf(ExploreResults(emptyList(), emptyList()))
@@ -68,11 +75,14 @@ fun NativeExploreScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (onBack != null) IconButton(onClick = onBack) {
+                        Icon(Icons.Rounded.ArrowBack, "Back")
+                    }
                     Icon(Icons.Rounded.Search, contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(25.dp))
                     OutlinedTextField(
-                        query, { query = it.take(64) },
+                        query, { query = limitExploreQueryInput(it) },
                         modifier = Modifier.weight(1f),
                         placeholder = { Text("Search people or posts") },
                         singleLine = true,
@@ -161,7 +171,7 @@ fun NativeExploreScreen(
                         }
                         Text("@${person.username}", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (person.bio.isNotBlank()) Text(person.bio, maxLines = 2,
+                        if (person.bio.isNotBlank()) SautiEntityText(person.bio, maxLines = 2,
                             style = MaterialTheme.typography.bodySmall,
                             overflow = TextOverflow.Ellipsis)
                         Text("${person.followers} followers",
@@ -215,7 +225,7 @@ fun NativeExploreScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall)
                         }
-                        Text(post.body.ifBlank { "Media post" },
+                        SautiPostText(post.body.ifBlank { "Media post" },
                             maxLines = 5, overflow = TextOverflow.Ellipsis)
                         Text("${post.likes} likes · ${post.comments} comments" +
                             if (post.mediaCount > 0) " · ${post.mediaCount} media" else "",

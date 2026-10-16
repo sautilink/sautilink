@@ -59,7 +59,7 @@ internal fun RoomComposerSheet(room: NativeRoom, state: RoomsState, onDismiss: (
         if (preview) Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = MaterialTheme.shapes.medium) {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("Post preview", style = MaterialTheme.typography.labelLarge)
-                SautiPostText(draft.editor.text, style = MaterialTheme.typography.bodyLarge)
+                SautiPostText(draft.editor.text, style = MaterialTheme.typography.bodyLarge, linkEntities = false)
             }
         }
         val limit = NativeRoomRules.mediaLimit(draft.media.map { it.kind })

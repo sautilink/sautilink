@@ -19,19 +19,28 @@ private data class FormatMatch(val format: PostTextFormat, val open: Int, val cl
 
 // Match the existing web grammar in src/post-text-formatting.js, including its
 // delimiter order, literal unmatched markers and bounded inline nesting.
-private fun nextFormat(source: String, start: Int): FormatMatch? {
+private fun nextFormat(source: String, start: Int, protectedEntities: List<IntRange>): FormatMatch? {
     var match: FormatMatch? = null
     for (format in listOf(PostTextFormat.BOLD, PostTextFormat.UNDERLINE,
         PostTextFormat.STRIKETHROUGH, PostTextFormat.ITALIC)) {
         var open = source.indexOf(format.marker, start)
         while (open != -1) {
+            if (protectedEntities.any { open in it }) {
+                open = source.indexOf(format.marker, open + 1)
+                continue
+            }
             if (format == PostTextFormat.ITALIC &&
                 ((open > 0 && source[open - 1] == '*') ||
                     (open + 1 < source.length && source[open + 1] == '*'))) {
                 open = source.indexOf(format.marker, open + 1)
                 continue
             }
-            val close = source.indexOf(format.marker, open + format.marker.length)
+            var close = source.indexOf(format.marker, open + format.marker.length)
+            while (close != -1 && protectedEntities.any { close in it &&
+                    (it.first != open + format.marker.length || close + format.marker.length != it.last + 1) }) {
+                // The final pair may close an outer underline; internal identifier underscores cannot.
+                close = source.indexOf(format.marker, close + 1)
+            }
             if (close > open + format.marker.length && !source.substring(open, close).contains('\n')) {
                 val previous = match
                 if (previous == null || open < previous.open ||
@@ -46,19 +55,26 @@ private fun nextFormat(source: String, start: Int): FormatMatch? {
     return match
 }
 
-fun parsePostFormatting(source: String, depth: Int = 0): List<PostFormatNode> {
+fun parsePostFormatting(source: String, depth: Int = 0,
+    protectedEntities: List<IntRange> = emptyList()): List<PostFormatNode> {
     if (depth > 4) return listOf(PostFormatNode(text = source))
     val nodes = mutableListOf<PostFormatNode>()
     var cursor = 0
     while (cursor < source.length) {
-        val match = nextFormat(source, cursor)
+        val match = nextFormat(source, cursor, protectedEntities)
         if (match == null) {
             nodes += PostFormatNode(text = source.substring(cursor))
             break
         }
         if (match.open > cursor) nodes += PostFormatNode(text = source.substring(cursor, match.open))
-        val inner = source.substring(match.open + match.format.marker.length, match.close)
-        nodes += PostFormatNode(format = match.format, children = parsePostFormatting(inner, depth + 1))
+        val innerStart = match.open + match.format.marker.length
+        val inner = source.substring(innerStart, match.close)
+        val innerProtected = protectedEntities.mapNotNull { range ->
+            val start = maxOf(range.first, innerStart)
+            val end = minOf(range.last, match.close - 1)
+            if (start <= end) (start - innerStart)..(end - innerStart) else null
+        }
+        nodes += PostFormatNode(format = match.format, children = parsePostFormatting(inner, depth + 1, innerProtected))
         cursor = match.close + match.format.marker.length
     }
     return nodes

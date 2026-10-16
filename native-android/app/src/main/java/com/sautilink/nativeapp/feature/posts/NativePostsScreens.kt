@@ -224,7 +224,7 @@ private fun PostComposerTextEditor(editor: TextFieldValue, draftLength: Int,
     if (previewOpen) Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Post preview", style = MaterialTheme.typography.labelSmall)
-            SautiPostText(editor.text.ifBlank { "Your post will appear here." }, style = MaterialTheme.typography.bodyLarge)
+            SautiPostText(editor.text.ifBlank { "Your post will appear here." }, style = MaterialTheme.typography.bodyLarge, linkEntities = false)
         }
     }
 }

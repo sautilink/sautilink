@@ -1,5 +1,6 @@
 package com.sautilink.nativeapp.feature.home
 
+import com.sautilink.nativeapp.ui.components.SautiEntityText
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -423,7 +424,7 @@ private fun CommentThreadRow(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text(item.body, style = MaterialTheme.typography.bodyLarge)
+                SautiEntityText(item.body, style = MaterialTheme.typography.bodyLarge)
                 val totals = counts[item.id] ?: (item.likes to item.dislikes)
                 SautiCommentActions(likes = totals.first, dislikes = totals.second,
                     replyCount = item.replyCount, liked = selected[item.id] == "like",

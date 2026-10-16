@@ -1,5 +1,6 @@
 package com.sautilink.nativeapp.feature.profile
 
+import com.sautilink.nativeapp.ui.components.SautiEntityText
 import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -178,7 +179,7 @@ internal fun ProfileActivitySection(
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                         Row(Modifier.fillMaxWidth().padding(16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("#${tag.label}", style = MaterialTheme.typography.titleMedium)
+                            SautiEntityText("#${tag.label}", style = MaterialTheme.typography.titleMedium)
                             Text("${tag.count} uses",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }

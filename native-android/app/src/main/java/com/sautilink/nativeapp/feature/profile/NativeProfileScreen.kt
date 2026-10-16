@@ -1,5 +1,6 @@
 package com.sautilink.nativeapp.feature.profile
 
+import com.sautilink.nativeapp.ui.components.SautiEntityText
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -353,7 +354,7 @@ fun NativeProfileScreen(
                                     }
                                 }
                                 if (member.bio.isNotBlank()) {
-                                    Text(member.bio, style = MaterialTheme.typography.bodyLarge)
+                                    SautiEntityText(member.bio, style = MaterialTheme.typography.bodyLarge)
                                 } else if (ownerRoute) {
                                     Text("Add a bio to introduce yourself.",
                                         color = MaterialTheme.colorScheme.onSurfaceVariant)

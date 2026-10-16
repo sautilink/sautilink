@@ -24,6 +24,7 @@ import com.sautilink.nativeapp.feature.inbox.NativeDmRealtime
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.dashboard.NativeDashboardScreen
 import com.sautilink.nativeapp.feature.menu.NativeMenuScreen
@@ -55,6 +56,11 @@ import com.sautilink.nativeapp.feature.auth.SautiWelcomeOnboarding
 import com.sautilink.nativeapp.feature.auth.NativeRegistrationScreen
 import com.sautilink.nativeapp.feature.auth.NativeRecoveryScreen
 import com.sautilink.nativeapp.ui.components.SautiBottomBar
+import com.sautilink.nativeapp.ui.components.LocalSautiTextNavigation
+import com.sautilink.nativeapp.ui.components.SautiTextNavigation
+import com.sautilink.nativeapp.ui.text.parseTextEntities
+import com.sautilink.nativeapp.ui.text.TextEntityKind
+import com.sautilink.nativeapp.ui.theme.SautiColors
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import com.sautilink.nativeapp.ui.theme.SautiTheme
 import kotlinx.coroutines.launch
@@ -136,6 +142,14 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     var profileReturn by rememberSaveable { mutableStateOf<String?>(null) }
     var memberProfileReturn by rememberSaveable { mutableStateOf<String?>(null) }
     var viewedProfileHandle by rememberSaveable { mutableStateOf("") }
+    var entityExploreActive by rememberSaveable { mutableStateOf(false) }
+    var entityExploreQuery by rememberSaveable { mutableStateOf("") }
+    var entityExploreReturn by rememberSaveable { mutableStateOf<String?>(null) }
+    var entityExploreProfile by rememberSaveable { mutableStateOf("") }
+    var entityExploreMemberReturn by rememberSaveable { mutableStateOf<String?>(null) }
+    var entityExplorePostId by rememberSaveable { mutableStateOf("") }
+    var entityExplorePostReturn by rememberSaveable { mutableStateOf<String?>(null) }
+    var entityExploreAccount by rememberSaveable { mutableStateOf<String?>(null) }
     var notificationPostId by rememberSaveable { mutableStateOf("") }
     var postReturn by rememberSaveable { mutableStateOf<String?>(null) }
     var dashboardReturn by rememberSaveable { mutableStateOf<String?>(null) }
@@ -153,6 +167,15 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         context.applicationContext.getSharedPreferences("sautilink_native_welcome_v1", Context.MODE_PRIVATE)
     }
     val activeAccountId = productionAuth.account?.id
+    LaunchedEffect(activeAccountId) {
+        if (entityExploreActive && entityExploreAccount != activeAccountId) {
+            entityExploreActive = false
+            if (detail == "entity-explore") detail = null
+        }
+    }
+    LaunchedEffect(detail) {
+        if (detail !in setOf("entity-explore", "member-profile", "post", "media")) entityExploreActive = false
+    }
     // Memory-only menu identity, scoped to the active account and cleared on sign-out/switch.
     var menuProfile by remember(activeAccountId) { mutableStateOf<NativeProfile?>(null) }
     var welcomeDone by remember(activeAccountId) {
@@ -252,9 +275,42 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         themePrefs.edit().putBoolean("dark_theme_override", nextDark).apply()
     }
 
+    fun openEntityProfile(handle: String) {
+        val entity = parseTextEntities("@$handle").singleOrNull()
+        if (entity?.kind != TextEntityKind.MENTION || entity.end != handle.length + 1) return
+        // A mention inside a profile must not replace its Back destination with itself.
+        if (detail != "member-profile") memberProfileReturn = detail
+        viewedProfileHandle = entity.target
+        detail = "member-profile"
+    }
+    fun openEntityHashtag(hashtag: String) {
+        val entity = parseTextEntities(hashtag).singleOrNull()
+        if (entity?.kind != TextEntityKind.HASHTAG || entity.end != hashtag.length) return
+        if (!entityExploreActive) {
+            entityExploreReturn = detail
+            entityExploreProfile = viewedProfileHandle
+            entityExploreMemberReturn = memberProfileReturn
+            entityExplorePostId = notificationPostId
+            entityExplorePostReturn = postReturn
+            entityExploreAccount = activeAccountId
+            entityExploreActive = true
+        }
+        entityExploreQuery = entity.target
+        detail = "entity-explore"
+    }
+    fun closeEntityExplore() {
+        viewedProfileHandle = entityExploreProfile
+        memberProfileReturn = entityExploreMemberReturn
+        notificationPostId = entityExplorePostId
+        postReturn = entityExplorePostReturn
+        detail = entityExploreReturn
+        entityExploreActive = false
+    }
+
     BackHandler(detail != null || composerOpen || root != 0) {
         when {
             composerOpen -> if (!composerInFlight) composerOpen = false else notice("Wait for upload to finish")
+            detail == "entity-explore" -> closeEntityExplore()
             detail == "media" -> closeMedia()
             detail == "menu" -> detail = null
             detail == menuEntryDestination && menuEntryDestination != null -> {
@@ -275,7 +331,13 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         }
     }
 
+    val currentEntityProfile by rememberUpdatedState<(String) -> Unit>(::openEntityProfile)
+    val currentEntityHashtag by rememberUpdatedState<(String) -> Unit>(::openEntityHashtag)
+    val textNavigation = remember {
+        SautiTextNavigation(onProfile = { currentEntityProfile(it) }, onHashtag = { currentEntityHashtag(it) })
+    }
     SautiTheme(darkTheme = isDark) {
+      CompositionLocalProvider(LocalSautiTextNavigation provides textNavigation) {
         when {
             // Keep the auth screen mounted during a later Retry session. Replacing it
             // with splash cancels its remembered coroutine scope and aborts the retry.
@@ -334,6 +396,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         else -> when (root) { 0 -> 0; 1 -> 1; 3 -> 2; 4 -> 5; else -> 0 }
                     }
                     SautiBottomBar(selectedTab, unreadNotifications) { tab ->
+                        entityExploreActive = false
                         menuEntryDestination = null
                         when (tab) {
                             0 -> { detail = null; root = 0 }
@@ -352,14 +415,18 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                     FloatingActionButton(
                         onClick = { composerOpen = true },
                         shape = androidx.compose.foundation.shape.CircleShape,
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = Color.Transparent,
+                        contentColor = Color.White,
                         modifier = Modifier.size(58.dp),
                         elevation = FloatingActionButtonDefaults.elevation(
                             defaultElevation = 6.dp, pressedElevation = 10.dp
                         )
                     ) {
-                        Icon(Icons.Rounded.Add, "Create a post", Modifier.size(28.dp))
+                        Box(Modifier.fillMaxSize().background(Brush.linearGradient(
+                            listOf(SautiColors.LogoOrange, SautiColors.LogoPink)),
+                            androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Rounded.Add, "Create a post", Modifier.size(28.dp))
+                        }
                     }
                 }
             },
@@ -369,6 +436,11 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                 // Crossfade retains the old destination under the next screen and exposes
                 // stale frames on slower devices. Switch destinations in one composition.
                 when (detail) {
+                    "entity-explore" -> NativeExploreScreen(auth = productionAuth,
+                        initialQuery = entityExploreQuery, onBack = ::closeEntityExplore,
+                        onSignIn = { detail = "production-auth" },
+                        onOpenProfile = ::openEntityProfile,
+                        onOpenPost = { id -> notificationPostId = id; postReturn = "entity-explore"; detail = "post" })
                     "settings" -> NativeSettingsScreen(
                         auth = productionAuth,
                         focusPrivacy = settingsPrivacyFocus,
@@ -564,5 +636,6 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                 Unit
             }
         }
+      }
     }
 }

@@ -6322,7 +6322,7 @@ function normalizeDiscoverQuery(value) {
   return String(value || '')
     .trim()
     .replace(/\s+/g, ' ')
-    .replace(/[%_]/g, '')
+    .replace(/%/g, '')
     .slice(0, 80);
 }
 
@@ -6369,6 +6369,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
   if (!currentMemberId) return;
   const requestId = ++discoverRequest;
   const query = normalizeDiscoverQuery(queryValue);
+  const pattern = `%${query.replace(/[\\%_]/g, '\\$&')}%`;
   const loading = byId('discover-loading');
   const errorState = byId('discover-error');
   const profileList = byId('discover-profile-list');
@@ -6405,7 +6406,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
           .select(profileSelect)
           .eq('is_discoverable', true)
           .neq('id', currentMemberId)
-          .ilike('username', `%${query}%`)
+          .ilike('username', pattern)
           .order('followers_count', { ascending: false })
           .limit(12),
         supabase
@@ -6413,7 +6414,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
           .select(profileSelect)
           .eq('is_discoverable', true)
           .neq('id', currentMemberId)
-          .ilike('display_name', `%${query}%`)
+          .ilike('display_name', pattern)
           .order('followers_count', { ascending: false })
           .limit(12),
       ]);
@@ -6439,7 +6440,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
       .order('created_at', { ascending: false })
       .limit(30);
 
-    if (query) postQuery = postQuery.ilike('body', `%${query}%`);
+    if (query) postQuery = postQuery.ilike('body', pattern);
 
     const [blockedResult, mutedResult, profileResults, postResult] = await Promise.all([
       blockedPromise,

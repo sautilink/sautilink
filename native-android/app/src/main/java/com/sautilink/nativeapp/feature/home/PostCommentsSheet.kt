@@ -1,5 +1,6 @@
 package com.sautilink.nativeapp.feature.home
 
+import com.sautilink.nativeapp.ui.components.SautiEntityText
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -189,7 +190,7 @@ internal fun PostCommentsSheet(
                         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Text(parent.author + if (parent.handle.isNotBlank()) " · @${parent.handle}" else "",
                                 style = MaterialTheme.typography.labelMedium)
-                            Text(parent.body, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            SautiEntityText(parent.body, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
@@ -219,7 +220,7 @@ internal fun PostCommentsSheet(
                                     SautiVerificationBadge(comment.verified, comment.badgeType,
                                         comment.author, size = 13.dp)
                                 }
-                                Text(comment.body, style = MaterialTheme.typography.bodyMedium)
+                                SautiEntityText(comment.body, style = MaterialTheme.typography.bodyMedium)
                                 Text(relativePostTime(comment.createdAt), style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 SautiCommentActions(likes = comment.likes, dislikes = comment.dislikes,
