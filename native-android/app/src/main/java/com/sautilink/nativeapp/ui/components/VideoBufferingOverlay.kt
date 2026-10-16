@@ -11,7 +11,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
@@ -35,7 +36,12 @@ internal fun VideoBufferingOverlay(visible: Boolean, modifier: Modifier = Modifi
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.sauti_buffering))
     if (!graceElapsed || composition == null) return
 
-    Box(modifier.size(48.dp).clipToBounds().semantics {
+    Box(modifier.size(48.dp).graphicsLayer {
+        // Isolate the artwork's Multiply layers from the video/poster destination.
+        // The layer stays transparent; only the animation's own circles blend together.
+        compositingStrategy = CompositingStrategy.Offscreen
+        clip = true
+    }.semantics {
         contentDescription = "Video buffering"
         progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
     }, contentAlignment = Alignment.Center) {
