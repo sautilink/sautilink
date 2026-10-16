@@ -225,7 +225,7 @@ private fun RoomDetail(state: RoomsState, community: RoomManagementState, room: 
         if (community.capabilityError != null || community.configurationError != null) item {
             RoomManagementAvailabilityNotice(room, community)
         }
-        item { RoomContentTabs(state.roomTab) { state.roomTab = it; if (it == RoomTab.PEOPLE) state.loadPeople() } }
+        item { RoomContentTabs(state.roomTab, state::selectRoomTab) }
         when (state.roomTab) {
             RoomTab.ABOUT -> item {
                 RoomAbout(room, onInvite, onLeave) {

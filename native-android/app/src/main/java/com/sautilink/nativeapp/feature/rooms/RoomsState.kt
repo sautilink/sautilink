@@ -29,6 +29,10 @@ internal data class RoomDraftMedia(val localId: String, val label: String, val k
     val status: String = "Preparing", val progress: Int = 0,
     val ready: NativeReadyMedia? = null, val alt: String = "", val error: String? = null)
 
+private data class RoomNavigationBookmark(val roomId: String, val role: String?, val privacy: String, val tab: RoomTab) {
+    fun matches(room: NativeRoom) = roomId == room.id && role == room.role && privacy == room.privacy
+}
+
 /** Only the viewer's drafts/navigation survive a Profile round trip; server content is re-read. */
 private object RoomsMemory {
     private var account: String? = null
@@ -37,9 +41,11 @@ private object RoomsMemory {
     var returningFromProfile = false
     var profileEntrySlug: String? = null
     var profilePostId: String? = null
+    var navigation: RoomNavigationBookmark? = null
     fun account(value: String?) {
         if (account != value) {
-            drafts.clear(); slug = null; returningFromProfile = false; profileEntrySlug = null; profilePostId = null; account = value
+            drafts.clear(); slug = null; returningFromProfile = false; profileEntrySlug = null; profilePostId = null
+            navigation = null; account = value
         }
     }
 }
@@ -79,7 +85,7 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
     private var metadataVersion = 0
     private var peopleRequested = false
     var tab by mutableStateOf(RoomsTab.DISCOVER)
-    var roomTab by mutableStateOf(RoomTab.DISCUSSION)
+    var roomTab by mutableStateOf(RoomTab.DISCUSSION); private set
     var search by mutableStateOf("")
     var category by mutableStateOf<String?>(null)
     var approvalAvailable by mutableStateOf(false); private set
@@ -200,7 +206,7 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
                 val result = client.findBySlug(slug)
                 if (current() && navigation == navigationVersion) {
                     if (result == null) openError = "This Room is unavailable or you no longer have access."
-                    else select(result)
+                    else select(result, restoreNavigation = true)
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) { if (current() && navigation == navigationVersion) openError = e.message ?: "Could not open Room." }
@@ -210,19 +216,31 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
 
     fun openRoom(room: NativeRoom) { select(room, loadDetails = false); refreshRoom() }
 
-    fun select(room: NativeRoom, loadDetails: Boolean = true) {
+    fun selectRoomTab(tab: RoomTab) {
+        val room = selected ?: return
+        if (!current(room.id)) return
+        roomTab = tab
+        RoomsMemory.navigation = RoomNavigationBookmark(room.id, room.role, room.privacy, tab)
+        if (tab == RoomTab.PEOPLE) loadPeople()
+    }
+
+    fun select(room: NativeRoom, loadDetails: Boolean = true, restoreNavigation: Boolean = false) {
         if (!current()) return
         navigationVersion++; openingSlug = false
         RoomsMemory.slug = room.slug
         if (selected?.id != room.id || selected?.role != room.role || selected?.privacy != room.privacy) {
             posts = emptyList(); members = emptyList(); requests = emptyList(); submissions = emptyList()
-            roomTab = RoomTab.DISCUSSION; notice = null; roomError = null; peopleError = null
+            // Restore presentation only after a fresh slug lookup confirms the same viewer context.
+            roomTab = RoomsMemory.navigation?.takeIf { restoreNavigation && selected == null && it.matches(room) }
+                ?.tab ?: RoomTab.DISCUSSION
+            notice = null; roomError = null; peopleError = null
             submissionError = null; submissionsCursor = null
             postsLoading = false; peopleLoading = false; submissionsLoading = false
             membersMore = false; requestsMore = false
             peopleRequested = false
         }
         selected = room
+        RoomsMemory.navigation = RoomNavigationBookmark(room.id, room.role, room.privacy, roomTab)
         if (!room.canReadPosts) posts = emptyList()
         if (!room.canSeeMembers) members = emptyList()
         if (!room.canManagePeople) requests = emptyList()
@@ -236,7 +254,7 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
         navigationVersion++; metadataVersion++
         postsVersion++; peopleVersion++; queueVersion++
         peopleJob?.cancel(); queueJob?.cancel()
-        RoomsMemory.slug = null
+        RoomsMemory.slug = null; RoomsMemory.navigation = null
         postsJob?.cancel(); selected = null; openingSlug = false; openError = null
         posts = emptyList(); members = emptyList(); requests = emptyList(); submissions = emptyList()
         postsLoading = false; peopleLoading = false; submissionsLoading = false
