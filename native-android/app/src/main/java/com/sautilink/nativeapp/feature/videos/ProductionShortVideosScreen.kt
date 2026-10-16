@@ -347,6 +347,7 @@ fun ProductionShortVideosScreen(
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF07101B))) {
         // Keep full-sized actions below the toolbar when landscape reduces height.
         val compactRail = maxHeight < 380.dp
+        val paginationErrorVisible = auth.account != null && clips.isNotEmpty() && error != null
         if (auth.account == null) {
             Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -461,11 +462,14 @@ fun ProductionShortVideosScreen(
                     }
                 }
             }
-            if (error != null) TextButton(onClick = { error = null; pageRetry++ },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)) { Text("Retry more videos") }
         }
-        SnackbarHost(hostState = feedback,
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = 54.dp))
+        Column(Modifier.align(Alignment.TopCenter)
+            .padding(top = if (paginationErrorVisible) 64.dp else 54.dp),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            if (paginationErrorVisible) TextButton(onClick = { error = null; pageRetry++ },
+                modifier = Modifier.padding(horizontal = 16.dp)) { Text("Retry more videos") }
+            SnackbarHost(hostState = feedback)
+        }
         Row(Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back", tint = Color.White) }
