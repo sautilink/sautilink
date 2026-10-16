@@ -308,8 +308,8 @@ fun ProductionShortVideosScreen(
                     playbackSuppressed = player.playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE
                     currentMediaId = player.currentMediaItem?.mediaId
                     playbackError = player.playerError?.let { "This video could not be played." }
-                    if (player.playbackState == Player.STATE_READY && player.duration > 0 &&
-                        player.currentPosition > player.duration) player.seekTo(player.duration)
+                    // Let Media3 drain the final samples and repeat. Playback may briefly
+                    // pass the rounded timeline end; only explicit seek commands are clamped.
                 }
                 override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
                 override fun onPlayerError(e: PlaybackException) {
@@ -570,7 +570,7 @@ fun ProductionShortVideosScreen(
         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Playback", style = MaterialTheme.typography.titleLarge)
             Text("Quality", style = MaterialTheme.typography.titleSmall)
-            listOf("auto" to "Auto Â· adjusts for smoother playback", "240" to "240p", "360" to "360p",
+            listOf("auto" to "Auto · adjusts for smoother playback", "240" to "240p", "360" to "360p",
                 "480" to "480p", "720" to "720p", "1080" to "1080p", "original" to "Original").forEach { (key, label) ->
                 Row(Modifier.fillMaxWidth().clickable {
                     quality = key; preferences.edit().putString("quality", key).apply(); qualityOpen = false
@@ -599,7 +599,7 @@ private fun ShortVideosRetryPage(online: Boolean, loading: Boolean, onRetry: () 
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically)) {
         Text(when {
-            loading -> "Loading videosâ€¦"
+            loading -> "Loading videos…"
             !online -> "Reconnect to load videos."
             else -> "Could not load videos."
         }, color = Color.White)

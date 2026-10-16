@@ -1,4 +1,4 @@
-# Native video transport â€” 17 October 2026
+# Native video transport — 17 October 2026
 
 Continues PR #352 from `56dbd9c`, preserving approved runtime `688dffe`.
 No merge, backend deployment, schema change or Play publication.
@@ -31,7 +31,7 @@ Focused checks: **43 PASS**, using the actual product adapter and cached Media3 
 
 Reproduce with `native-android/validation/run-video-http-check.ps1` and explicit Java/Android SDK/output paths. Java URI/TextUtils fixtures are validation-only and never shipped.
 
-Full QA assembly/lint and Samsung retest of this changed adapter are **pending** at this source checkpoint. Required: the same Original clip, Auto, pause/Â±5s seek, quality switching, Home playback, paging and lifecycle/session audio. Record actual results before acceptance. Earlier HTTP500 attribution stays open until matching live evidence or an explicitly bounded resolution is established.
+Full QA assembly/lint and Samsung retest of this changed adapter are **pending** at this source checkpoint. Required: the same Original clip, Auto, pause/±5s seek, quality switching, Home playback, paging and lifecycle/session audio. Record actual results before acceptance. Earlier HTTP500 attribution stays open until matching live evidence or an explicitly bounded resolution is established.
 
 
 ## Home controls and network follow-up (17 October)
@@ -53,3 +53,31 @@ The initial local build of 886e585 was intentionally stopped during lint so thes
 newly requested fixes could be included together. Its runner restored the exact
 QA Gradle/Firebase configuration. It did not produce a certified new APK and is
 not a lint PASS. Latest build, full lint and Samsung checks remain pending here.
+
+
+## Proven end-of-video loop (Samsung, 17 October)
+
+Installed 754 RoomsQA transport passed 43 actual Android fixture checks. Five
+real clips played; Coco Original advanced to 17,785 / 17,832 ms without load
+errors. The 10,510,333-byte Cheka Original completed as one logical load with
+zero EOFException, but exposed a separate native duration-clamp failure.
+
+Metadata-only AnalyticsListener instrumentation captured two automatic SEEKs:
+8,045 -> 8,010 ms and 8,091 -> 8,010 ms, with the native Shorts onEvents
+listener present on the calling stack. Those seeks canceled loading of the next
+repeat and repeatedly fetched the tail. Auto 720 completed three normal 8-second
+repeats before the deliberately selected Original comparison. No HTTP500 was
+captured; this does not explain the historical server exception.
+
+The two matching onEvents duration clamps are removed from Home and Shorts.
+Media3 now owns end-of-stream draining/repeat. User seek commands still use the
+existing bounds and source changes retain their position/pause policy. This is
+a demonstrated technical reason to change that earlier guard; no backend,
+metadata, original media, routes, audio preference or reaction API is changed.
+The original UTF-8 UI punctuation is retained.
+
+754 Home overflow -> Report -> Cancel actually passed without preview navigation
+(on a photo card; the video-card case is still pending). Rooms full lint passed.
+The obsolete D2 lint was intentionally stopped after assembly for this proven
+runtime correction; its QA configuration was restored. New APK/full lint and
+original-repeat/Home-video/network/seek retests remain pending.

@@ -345,8 +345,8 @@ private fun InlineFeedVideo(
                 playbackState = player.playbackState
                 playbackRequested = player.playWhenReady
                 playbackSuppressed = player.playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE
-                if (adaptive && player.playbackState == Player.STATE_READY && player.duration > 0 &&
-                    player.currentPosition > player.duration) player.seekTo(player.duration)
+                // Let Media3 drain the final samples and repeat. Playback may briefly
+                // pass the rounded timeline end; only explicit seek commands are clamped.
             }
             override fun onRenderedFirstFrame() { firstFrame = true }
             override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
