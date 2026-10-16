@@ -1,10 +1,17 @@
 # Rooms management - rollout and follow-up review
 
 Status: **the owner-approved two-migration rollout and matching production Worker
-deployment are complete; owned Samsung QA is in progress**. The separately
-reviewed Room-deletion cascade fix was subsequently approved, applied and its
-function readback verified by root. Moderation AI remains
-deferred. No PR merge or Play publication occurred.
+deployment are complete; bounded owned Samsung cases have passed, with remaining
+gates OPEN**. The separately reviewed Room-deletion cascade and business-conflict
+SQLSTATE fixes were subsequently approved/applied and read back by root. Actual
+multi-member/media Room deletion and final native Discard have database absence
+proofs. Separate exact-key R2 QA cleanup subsequently passed for all 21 allowlisted
+keys, with the limited storage proof recorded below. Native `ddd36b7`
+deleted-Room cache builds/full lint and actual Samsung retest passed. Both ddd
+packages are installed with expected identities; owner cold restoration failed
+before one explicit Retry recovered it. Network/Final QA remain OPEN.
+Moderation AI remains deferred. No PR merge or Play publication
+occurred.
 
 Native checkpoint `979a26a3ce85b5b122cd3e63036e300440b54dd9` built successfully
 in 9m27s. Final capability follow-up `0eab58fccb2106b5dfb87c61e549b4af25688dd1`
@@ -150,7 +157,7 @@ owner package still ran421; the completed500 D2QA artifact was a separate handov
 These results do not certify the next milestone diagnostic below or complete
 the live notice/Rooms matrix. Overall Rooms QA remains **OPEN**.
 
-### Follow-up: per-call timeout milestones, new build/live pending
+### Follow-up: per-call timeout milestones and subsequent live findings
 
 The500 Samsung capture recorded three SITE/GET `SocketTimeoutException`
 failures at10011/10002/10006ms with phase=EXECUTE and status=NONE
@@ -183,9 +190,135 @@ flush from first-header wait. Numeric status is retained once headers complete.
 The root capture whitelist must include DNS_START/END, CONNECT_START/END,
 TLS_START/END, CONNECTION_READY, REQUEST_HEADERS_START/END,
 REQUEST_BODY_START/END, RESPONSE_HEADERS_START/END and the existing
-EXECUTE/RESPONSE_BODY/HTTP_STATUS values. The new Android build/full lint and
-bounded Samsung timeout reproduction remain **PENDING**. No connection cause
-or overall Rooms PASS is claimed.
+EXECUTE/RESPONSE_BODY/HTTP_STATUS values. Both exact `d1ec266` APKs subsequently
+passed assembly/full lint and were installed with the expected identities
+restored. Live stale-v4 PUTs then failed after `REQUEST_BODY_END` around 10s and
+GETs after `REQUEST_HEADERS_END`; none returned 409. These historical observations
+remain failures, distinct from the later corrected business-conflict path.
+No general connection cause or overall Rooms PASS is claimed.
+
+### Approved business-conflict correction and Samsung 501 retest
+
+Production logs established the separate custom 40001/PostgREST 14 retry pathology.
+After explicit owner approval at `05:20:01 UTC`, root applied the exact reviewed
+six-function/eleven-literal correction as hosted migration
+**`20261016052113` / `rooms_business_conflicts_http409`** at `05:21 UTC`.
+Readbacks confirmed all predicted bodies/authority metadata, zero explicit 40001
+and eleven PT409 literals. At `05:21:53 UTC`, all five allowlisted old backends
+were absent; a bounded recent log window had zero matching old-process errors.
+**Conditional recovery was not executed; no process was killed or restarted.**
+These are scoped readbacks, not a claim about unseen processes/global health.
+Exact hashes, backup, drain evidence and local test boundaries are in
+[the business-conflict review](rooms-business-conflict-http409-review.md).
+
+Both exact 501 matching-package APKs passed assembly/full lint and were installed
+with Dr/Utalii identities restored. Dr admin held configuration v5 while the owner
+saved v6. The actual stale Save returned **HTTP409 in 616ms**, displayed the specific
+Room-changed message and retained the exact unsaved `OwnedStaleAfterFix16` draft.
+Server v6/`OwnedFinalRule16` remained unchanged, with no new Dr save receipt.
+The bounded server check found one PT409/no 40001. This supersedes the missing
+conflict-response proof; it does not erase the earlier timeouts.
+
+The first explicit Reload failed after `REQUEST_HEADERS_END`,10015ms,statusNONE.
+One explicit Retry Reload then displayed the current v6 rule. First cold Auth
+attempts also failed (Dr UnknownHostException 17ms; Utalii SocketTimeout 10509ms)
+before the existing recovery restored the actor Menus. Thus conflict/draft and
+Reload recovery have bounded PASS, while unexpected cold Auth/GET stability stays
+OPEN. No key/configuration, authentication, retry or timeout change was made.
+Evidence: `outputs/Rooms-followup-50100df-build.json`,
+`outputs/Rooms-network-501-stale-v5-conflict-20261016.json`,
+`outputs/Rooms-enabled-boundary-stale-v5-conflict-no-overwrite-20261016.json`,
+`outputs/Rooms-enabled-stale-v5-conflict-log-counts-20261016.json`,
+`outputs/Rooms-network-501-reload-failure-20261016.json` and
+`work/rooms-501-dr-reloaded-v6-after-retry.{png,xml}`.
+
+501 also passed bounded About-tab retention across portrait/landscape and fresh
+canonical reload, A/B context reset and role-change reset. These do not certify
+all tabs, arbitrary long content, cross-account races or full process death.
+The underlying d1 rotation failure remains historical evidence.
+
+### Deleted-Room landing-cache correction: local and actual Samsung PASS
+
+After actual Room deletion, refreshing the member's already open detail correctly
+returned unavailable and closed it, but the old card remained in the landing cache. The scoped
+`ddd36b7` correction evicts only that confirmed unavailable Room UUID from
+discovery/yours/invitations in the existing guarded null-result branch. It
+cancels/advances those read generations so late old results cannot reinsert it;
+transport errors do not evict entries. Existing close/unavailable behavior stays.
+
+The portable actual-state/Compose-runtime regression reproduced five failures
+among 13 baseline assertions, then **13/13 PASS** on the correction. Evidence:
+`outputs/Rooms-unavailable-cache-regression-20261016.json` and
+`work/generatedtestscope/rooms-unavailable-cache/{baseline,fixed}-result.log`.
+RoomsQA assembly and FULL lint passed in12m34s; immutable APK SHA256 is
+`f1b5efc56d77757e4fa85c96a6e0e995279cf48b89ff09a7a9b87db768311391`.
+Exact113app-file parity, package/signer/auth/configuration preservation and the
+compiled eviction method were validated. Actual replacement installation restored
+Dr Home/Menu without a new login. D2QA assembly/FULL lint subsequently passed11m57s;
+its immutable SHA256 is
+`9295a615dd8730b223eb86b87ddfee0aff805a8438e0b59a2446106aa2981955`.
+Both builds have zero lint errors,102/103 existing warnings and2hints each.
+Exact source/signer/auth/Firebase/label/config checks and prior501 APK hashes passed.
+Exact ddd CI Native38858180445/Auth38858180450/Brand38858180456/APK38858180453 passed.
+
+For the actual retest, Dr opened separate text-only owned RoomsFinalCache16 while
+the owner then deleted it from the existing501 package. **One** Dr Refresh closed
+the unavailable detail, removed its card and retained the unrelated MchongoDigital
+card. Without another Refresh, filtering the same name in Discover and Your rooms
+both showed No matching Rooms here; clearing the filter again retained other cards.
+Root visually reviewed the settled screenshot. The first capture's PNG precedes
+its XML during the asynchronous transition and is not used as settled image proof.
+The two current-process HTTP404 GET diagnostics are expected deleted-Room responses,
+not transport failures. The earlier restored-session snapshot had zero warnings.
+
+Evidence: `outputs/Rooms-followup-ddd36b7-roomsqa-handover.json`, its install receipt,
+`work/rooms-ddd-dr-restored-identity.{png,xml}`,
+`work/rooms-ddd-dr-C-discover-filter-absent.{png,xml}`,
+`work/rooms-ddd-dr-C-yours-filter-absent.{png,xml}`,
+`work/rooms-ddd-dr-C-other-card-retained.{png,xml}` and
+`outputs/Rooms-network-ddd-dr-cache-retest.json`. Server06:10:12 boundary confirms
+C and all scoped domain rows absent; it had no posts/media or R2 objects.
+
+### Final owner startup failure, recovery and bounded smoke
+
+The actual D2QA replacement installation succeeded and left the other package
+metadata unchanged. Its first cold restoration **FAILED**: AUTH POST timed out
+11209ms, then the existing automatic recovery reached AUTH GET and timed out10007ms.
+The visible Retry session screen retained encrypted credentials. **One explicit
+Retry recovered Home/Menu as @utaliiplus**, without new login, logout or vault reset.
+Rooms Discover loaded actual cards; Your rooms and Invites showed expected empty
+states after fixture cleanup; Back/Menu/Home navigation passed. Both QA sessions
+and the original preview identity remain preserved. This recovery does not turn
+the failed cold startup into a PASS.
+
+Read-only provider correlation matched four edge/Auth-origin request IDs at200.
+The authenticated `/user` GET is now attributed to the QA JWT at edge. Its raw
+provider timing field was15828 versus271 on successful retry, with upstream raw7
+versus17 and nominally separated edge/origin log timestamps. This supports an
+unusually slow provider request-path observation; **raw units/timestamp semantics,
+precise gateway/transit/client-delivery cause and attribution of the first POST
+timeout remain unproven**. Origin/edge200 is not proof the app received a response
+before its deadline. An idle Auth DB snapshot is only a point-in-time observation.
+Independent source/evidence review found no demonstrated Auth code defect or
+justification to change retries, timeouts, IP family, authentication or settings.
+
+Evidence: `outputs/Rooms-followup-ddd36b7-build.json`, both install receipts,
+`work/rooms-ddd-owner-restoration-retry-settled.{png,xml}`,
+`work/rooms-ddd-owner-restored-identity.{png,xml}`,
+`work/rooms-ddd-owner-{yours-smoke,invites-smoke,discover-smoke,final-home}.{png,xml}`,
+`outputs/Rooms-network-ddd-owner-after-one-retry.json`,
+`outputs/Rooms-ddd-auth-edge-origin-projection-20261016.json` and the adjacent
+sanitized Auth-origin/DB-wait snapshots. Current-process snapshots are cumulative;
+the same two timeout entries are not counted repeatedly as new failures.
+
+At06:24:25, final read-only device observations passed: Wi-Fi1/mobile0/airplane0,
+rotation1/0,font1.0,density450; original package install/update times unchanged;
+zero FATAL EXCEPTION entries in each of the three current PIDs' crash buffers.
+This is not global crash/ANR/performance/security certification. The device was
+returned to Dr's new QA Home. A/B/C fixture cleanup is complete in its recorded
+database/object/device scopes; there are no active exact QA fixtures.
+Evidence: `outputs/Rooms-final-device-observation-20261016.json` and
+`work/rooms-ddd-final-device-home.{png,xml}`.
 
 ## Native scope and capability behavior
 
@@ -384,8 +517,9 @@ version **`20261015233249` / `fix_room_member_delete_cascade`**, received
 `success:true` and read back the sole physical-absence branch from the deployed
 function. Durable acknowledgment:
 `outputs/Rooms-production-delete-cascade-applied-20261016.json`.
-No Worker redeployment was needed. Actual Samsung cascade cleanup is still a
-separate pending live gate.
+No Worker redeployment was needed. Later actual Samsung owner deletion of both
+registered multi-member/media Rooms and final native Discard passed the scoped
+database absence checks recorded below; this does not prove raw R2 byte removal.
 
 ## HTTP/RPC contract
 
@@ -532,7 +666,7 @@ The 88 assertions cover Unicode code-point boundaries, config/answer counts and
 identity, membership action values, and staff/owner/former-member/unknown-role
 hierarchy. They do not exercise Compose, HTTP, RLS or Samsung behavior.
 
-## Actual Samsung follow-up (16 October)
+## Historical Samsung follow-up before capability-enabled rollout (16 October)
 
 Galaxy A05s SM-A057F/Android15, separate QA package `com.sautilink.preview.d2qa`.
 APK SHA256 `97a5d36aa386ca87a6a9cb622675ca4c864e4dbb525167b8bbea3985d8be0b18`;
@@ -568,13 +702,73 @@ reviewed schemas/capabilities were absent, so it did not test the new enabled
 flows. The owner-approved rollout above subsequently removed that availability
 block; full Rooms completion is still not claimed.
 
-### Capability-enabled Samsung QA now in progress
+### Capability-enabled Samsung QA: actual bounded outcomes
 
-Root has observed a newly owned Room A created with one member, saved ordered
-rules/questions with required true/false and server-confirmed config version 2,
-an uploaded/attached photo post, and a pinned-post UI showing Unpin. These are
-bounded ongoing observations, **not a completed feature-matrix PASS**. Remaining
-membership/role/queue/pin/removal/failure/cascade-cleanup checks stay pending.
+Root used the two preserved matching QA packages for owned U/Dr fixtures;
+individual source/package boundaries remain in
+`outputs/Rooms-enabled-20261016-live-results.json`. The following are observed
+native actions plus their fixed-scope server readbacks, not a blanket caller-role,
+security or performance certification:
+
+| Observed flow | Actual result and limits |
+| --- | --- |
+| Rules/questions and admission | PASS ordered save; required/optional configuration; open Join/Leave; approval Request/Cancel and owner approval; historical answer snapshot after current question edit; invitation question-aware Accept. Initial disabled Join and stale Cancel notice failed, were separately fixed and Samsung retested. |
+| Invitations/private Room | PASS exact outgoing revoke plus stale Accept denial, duplicate denial, Decline after transport retry, re-invite and required-answer Accept; private post hidden from observed nonmember, visible after actual membership. |
+| Posts/media/review | PASS ordinary owner image/video upload and publish, member photo Pending with protected owner preview, Approve/one canonical post/attached original/released hold, text Reject/Withdraw and marked pending-video preview/replay/Withdraw. This is not an all-media/audio-quality certification. |
+| Roles/pins/removal | PASS owner promotion and admin settings save, moderator pin/unpin, real three-pin cap/fourth denial, stale staff action HTTP403 after demotion with unchanged pins, member controls after refresh, owner soft-removal of pinned member photo and stale canonical-detail denial. Third-identity hierarchy cases remain untested live. |
+| Failure/lifecycle | PASS retained offline Ready-image draft, zero server effect while offline, restored radio flags and one explicit online Retry yielding exactly one pending/held submission; 501 conflict and bounded rotation results above. This is not a demonstrated lost-ACK or all-account-race test. |
+
+### Actual native Room deletion and final Discard
+
+At `05:47:06 UTC`, root had deleted owned Room A through the native owner control.
+The readback found A absent, its members/invitations/questions/answers/receipts/
+pins and Room-linked posts/submissions absent, while B still existed with two
+members and its private post. A had included published photo/video metadata,
+an approved member-photo submission, soft-removed content and a pending held image;
+all five registered submissions and holds were gone. The pending image correctly remained ready, unattached and
+unheld after the cascade rather than being silently claimed deleted.
+
+Root then deleted B through its native owner control. At `05:48:03 UTC`, **both
+Rooms, all seven registered posts, five submissions and their holds were absent**;
+the scoped active Room-linked configuration, membership, invitation, request,
+answer, receipt, pin and removal rows were zero. The only tracked media row still
+present was that recoverable ready image. Root used the existing native
+Unfinished uploads → Discard workflow; at `05:49:33 UTC`, **all five registered
+media IDs were absent**, with no tracked hold/post/submission rows remaining.
+Private audit history may intentionally retain null Room/submission links.
+
+Evidence: `outputs/Rooms-enabled-boundary-A-deleted-20261016.json`,
+`outputs/Rooms-enabled-boundary-both-deleted-before-discard-20261016.json` and
+`outputs/Rooms-enabled-boundary-final-discard-db-absent-20261016.json`.
+The two copied, hash-identified Samsung media fixtures and their MediaStore rows
+were separately confirmed absent at `05:50:23 UTC`
+(`outputs/Rooms-enabled-device-fixture-cleanup-20261016.json`). Original workspace
+assets were preserved.
+
+### Separate exact-key R2 QA cleanup: bounded PASS
+
+The initial database/Discard proofs above did not establish bucket-byte absence.
+Root subsequently performed the separately scoped exact-key operator cleanup,
+completed at `05:55:46 UTC`. **Native Room DELETE itself does not delete object
+bytes.** This cleanup is not a product fix or a claim that Room deletion now
+cleans storage automatically.
+
+The bucket catalog read returned disabled at `05:53:59 UTC`, before any object
+deletion. Of exactly **21 frozen allowlisted keys**, six were found, deleted and
+separately verified by GET404; 15 were already absent on the initial GET and were
+skipped without a redundant second GET. All six found objects were in the
+Room-cascaded attached-media group: two JPEG originals, one video original,
+its poster and two generated video variants. The older withdrawn `597444d9`
+video original/variants and the newly native-discarded `00999466` image original
+were already absent; this operation did not delete them.
+
+**PASS applies only to those 21 exact keys.** GET/download was used, not HEAD.
+There was no bucket listing, prefix or wildcard deletion, and no proof of global
+edge-cache erasure. Later text-only cache Room C is outside this A/B manifest.
+Evidence: `outputs/Rooms-R2-bucket-catalog-status-20261016.json`,
+`outputs/Rooms-R2-exact-cleanup-20261016T055423Z/results.json` and
+`outputs/Rooms-R2-exact-cleanup-review-20261016.json`. The frozen manifest and
+database-proof hashes remain in those reports.
 
 [Native full build/lint](https://github.com/sautilink/sautilink/actions/runs/38817218445),
 [Authentication](https://github.com/sautilink/sautilink/actions/runs/38817218512),
@@ -586,20 +780,25 @@ completed successfully for reviewed code9681588. No PR merge or publication.
 
 The two reviewed migrations, matching Worker deployment and owned-QA enablement
 received the explicit owner authorization required by Issue #353 and were
-completed. The additional exact cascade fix was separately approved/applied as
-recorded above. Those approvals do not authorize unrelated backend/Auth changes,
+completed. The additional exact cascade and business-conflict fixes were
+separately approved/applied as recorded above. Those approvals do not authorize
+unrelated backend/Auth changes,
 AI moderation, other users' Room configuration, PR merge or Play publication.
 
-Production caller-role behavior and the full Samsung
-rules/questions/queue/pin/removal/invitation/failure/cleanup matrix remain open.
-The completed deployment, readiness and catalog audit do not establish those
-live results. No new email-only signup success is inferred from an existing
-account session.
+The bounded Samsung cases above have actual evidence; the complete caller-role,
+hierarchy, race, pagination and network-stability matrix remains open. The latest
+`ddd36b7` both builds/full lint, actual Samsung cache retest and bounded actor
+smoke checks passed. The owner cold-start failures remain OPEN with the limited
+provider timing correlation above; successful recovery is recorded separately.
+The exact A/B R2 cleanup passed only within the key boundary above. Deployment, readiness and catalog audits
+do not substitute for those remaining live checks. No new email-only signup
+success is inferred from an existing account session.
 
 Historical `4fe4f21` create-count/lavender-chip failures were retested **PASS** on
 `0eab58f`; their earlier owned fixture cleanup also passed. Those completed
-observations stay in `outputs/Rooms-QA-16Oct-fixtures.json`. New capability-enabled
-fixtures require their own exact cleanup, including the newly fixed cascade.
+observations stay in `outputs/Rooms-QA-16Oct-fixtures.json`. The new
+capability-enabled A/B fixture database cleanup and subsequent exact-key R2
+operator cleanup are separately verified above; neither covers later fixtures.
 
 **Enabled-Room backward compatibility:** empty-question Rooms preserve old
 admission paths. Once a manager configures questions, older clients that directly
@@ -610,25 +809,23 @@ fixtures before enabling questions in any broader rollout.
 
 ### Post-rollout checks still open
 
-1. Finish the authorized owned Samsung/caller-role checks against the exact
-   deployed source. Preserve the original preview session; use a compatible
-   second QA client/private owner sign-in when needed. The practical checklist is
-   `outputs/Rooms-QA-enabled-live-checklist.md`; unavailable identity/race/page
-   fixtures must remain BLOCKED/NOT TESTED rather than inherit local test PASS.
-2. Verify actual empty-default admission, all three question-aware modes and
-   independent approval behavior with caller credentials; never substitute a
-   service-role client. Retain the post-DDL advisor classifications and current
-   staff demotion/permission denial evidence.
-3. On Samsung with owned fixtures, verify rule settings conflicts/retry, required
-   answers for all three admissions, staff-only snapshot access, captured old
-   requests, hierarchy removal, pin cap/older-post hydration, nullable pinner,
-   outgoing revoke/accept races and truthful errors. Exercise offline/lost ACK,
-   Room/account changes and Back restoration, plus existing posts/media/actions.
-4. Confirm ordinary and older clients cannot bypass configured answers. Complete
-   exact owned fixture/media/cover cleanup through supported workflows, including
-   multi-member/approved-media/pending-media Room deletion; record retained ready
-   uploads and raw R2 cleanup limits honestly. Verify unrelated data/radios and
-   the original session before recording completion.
+1. Diagnose the unresolved cold Auth/GET transport failures without guessing at
+   timeout/retry/Auth/security changes. Both exact ddd builds/full lint and bounded
+   Samsung cache/actor smoke checks are complete; preserve their failure/recovery
+   boundaries and the limited provider correlation above.
+2. Preserve the separate completed native A/B cascade, Discard and 21-key R2
+   evidence. Clean any later cache-retest fixture independently; do not expand the
+   A/B cleanup PASS or infer global edge-cache erasure. Verify final unrelated-data/
+   radio/session boundaries.
+3. Keep unavailable third-identity hierarchy/private-answer tests, older-than-page
+   Featured/queue pagination, null-pinner lifecycle, actual lost ACK and controlled
+   account-switch/upload races BLOCKED/NOT TESTED unless executed. Do not substitute
+   a service-role snapshot or local SQL PASS for caller-role live evidence.
+4. The planning checklist `outputs/Rooms-QA-enabled-live-checklist.md` is not a
+   result ledger. Preserve actual result/source boundaries and the bounded legacy
+   configured-answer denial, three admission-mode results, conflict, pin-cap,
+   stale-authority and offline Retry evidence recorded above. No broader feature
+   matrix or general network-stability PASS is implied.
 
 ### Rollback constraints
 
