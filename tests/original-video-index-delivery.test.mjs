@@ -58,7 +58,10 @@ function setup(fixture = fixtures[0], change = () => {}) {
     httpMetadata: { contentType: 'video/mp4' } };
   const calls = [], state = { row, key, receipt, source, candidate, allow: true, mismatch: false,
     missing: false, error: null, errorAt: 'source', bodyRangeMismatch: false, cancelled: false,
-    receiptMissing: false, receiptThrows: false, receiptContent: null, receiptSize: null, receiptStream: null };
+    receiptMissing: false, receiptThrows: false, receiptContent: null, receiptSize: null, receiptStream: null,
+    legacyVariant: false, legacyBytes: new Uint8Array([7, 6, 5, 4]) };
+  const legacyObject = () => ({ body: state.legacyBytes, size: state.legacyBytes.length,
+    etag: 'synthetic-existing-variant', writeHttpMetadata(headers) { headers.set('Content-Type', 'video/mp4'); } });
   const env = { SAUTI_MEDIA: {
     async head(wanted) {
       calls.push({ op: 'head', key: wanted });
@@ -66,6 +69,7 @@ function setup(fixture = fixtures[0], change = () => {}) {
         || (state.errorAt === 'source' && wanted === row.object_key))) throw state.error;
       if (wanted === key) return state.missing ? null : candidate;
       if (wanted === row.object_key) return source;
+      if (wanted === `${row.object_key}.video-v2-q360.mp4`) return state.legacyVariant ? legacyObject() : null;
       throw new Error('Unexpected transform/other object lookup');
     },
     async get(wanted, options) {
@@ -79,6 +83,7 @@ function setup(fixture = fixtures[0], change = () => {}) {
       }
       if (wanted === row.object_key) return { body: fixture.sourceBytes, size: fixture.sourceSize,
         writeHttpMetadata(h) { h.set('Content-Type', 'video/mp4'); } };
+      if (wanted === `${row.object_key}.video-v2-q360.mp4`) return state.legacyVariant ? legacyObject() : null;
       assert.equal(wanted, key);
       if (state.error && state.errorAt === 'derivedGet') throw state.error;
       assert.deepEqual(options.onlyIf, { etagMatches: 'test-derived-etag' });
@@ -200,9 +205,9 @@ for (const [kind, api] of [['raw', raw], ['production-transformed', transformed]
     ['wrong derived size', s => { s.candidate.size++; }],
     ['wrong content type', s => { s.candidate.httpMetadata.contentType = 'text/html'; }],
   ]) {
-    test(`${kind}: ${name} candidate falls back to unchanged original, never a stale short rendition`, async () => {
+    test(`${kind}: ${name} candidate cannot replace an original request`, async () => {
       await run(api, null, change, async (c, handle) => {
-        const response = await handle(request({}, { query: '?quality=360' }));
+        const response = await handle(request());
         assert.equal(response.status, 200);
         assert.equal(response.headers.get('X-Sauti-Media-Variant'), 'original');
         assert.deepEqual(new Uint8Array(await response.arrayBuffer()), c.sourceBytes);
@@ -211,12 +216,31 @@ for (const [kind, api] of [['raw', raw], ['production-transformed', transformed]
     });
   }
 
-  for (const duration of [0, null, 115, 1000, 'not-numeric']) {
-    test(`${kind}: suspicious duration ${duration} does not use/generate existing transform`, async () => {
-      await run(api, null, s => { s.missing = true; s.row.duration_ms = duration; }, async (c, handle) => {
+  for (const [duration, expectedVariant] of [[0, 'original'], [null, 'original'],
+    [115, 'video-v2;q=360'], [1000, 'video-v2;q=360'], ['not-numeric', 'original']]) {
+    test(`${kind}: absent index preserves legacy quality eligibility for metadata duration ${duration}`, async () => {
+      await run(api, null, s => { s.missing = true; s.row.duration_ms = duration; s.legacyVariant = true; }, async (c, handle) => {
         const response = await handle(request({}, { query: '?quality=360' }));
         assert.equal(response.status, 200);
-        assert.equal(c.calls.some(x => /video-v\d-q/.test(x.key)), false);
+        assert.equal(response.headers.get('X-Sauti-Media-Variant'), expectedVariant);
+      });
+    });
+  }
+
+  for (const missing of [true, false]) {
+    test(`${kind}: 478x850/114ms existing360 survives ${missing ? 'missing index' : 'invalid receipt'}`, async () => {
+      await run(api, null, s => {
+        s.row.width = 478; s.row.height = 850; s.row.duration_ms = 114;
+        s.missing = missing; s.legacyVariant = true;
+        if (!missing) s.receiptContent = '{"originalIndexVersion":"unsupported"}';
+      }, async (c, handle) => {
+        const response = await handle(request({}, { query: '?quality=360' }));
+        assert.equal(response.status, 200);
+        assert.equal(response.headers.get('X-Sauti-Media-Variant'), 'video-v2;q=360');
+        assert.equal(response.headers.get('X-Sauti-Video-Quality'), '360p');
+        assert.deepEqual(new Uint8Array(await response.arrayBuffer()), c.state.legacyBytes);
+        assert.equal(c.calls.some(x => x.op === 'get' && x.key === c.row.object_key), false);
+        assert.ok(c.calls.some(x => x.op === 'get' && x.key === `${c.row.object_key}.video-v2-q360.mp4`));
       });
     });
   }
@@ -268,7 +292,7 @@ for (const [kind, api] of [['raw', raw], ['production-transformed', transformed]
   ]) {
     test(`${kind}: ${name} sidecar cannot activate derived playback`, async () => {
       await run(api, null, change, async (c, handle) => {
-        const response = await handle(request({}, { query: '?quality=360' }));
+        const response = await handle(request());
         assert.equal(response.status, 200);
         assert.equal(response.headers.get('X-Sauti-Media-Variant'), 'original');
         assert.equal(c.calls.some(x => x.op === 'get' && x.key === c.key), false);
@@ -303,7 +327,7 @@ for (const [kind, api] of [['raw', raw], ['production-transformed', transformed]
 
   test(`${kind}: optional derivative probe failure cannot break the original path`, async () => {
     await run(api, null, s => { s.error = new Error('optional cache unavailable'); s.errorAt = 'candidate'; }, async (c, handle) => {
-      const response = await handle(request({}, { query: '?quality=360' }));
+      const response = await handle(request());
       assert.equal(response.status, 200);
       assert.equal(response.headers.get('X-Sauti-Media-Variant'), 'original');
       assert.deepEqual(new Uint8Array(await response.arrayBuffer()), c.sourceBytes);

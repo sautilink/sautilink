@@ -615,9 +615,6 @@ async function uploadMedia(request, env, id) {
 }
 
 async function createSautiVideoVariant(env, row, id, quality) {
-  // Fragmented originals can expose a partial mdhd duration. Do not produce or
-  // reuse a one-minute transform from suspicious/missing timeline metadata.
-  if (!Number.isFinite(Number(row?.duration_ms)) || Number(row.duration_ms) <= 1000) return '';
   const dimensions = videoVariantDimensions(row, quality);
   const objectKey = sautiVideoVariantObjectKey(row?.object_key, quality);
   if (!dimensions || !objectKey || !env?.MEDIA || !env?.SAUTI_MEDIA) {
@@ -820,8 +817,7 @@ async function serveVideoVariant(request, env, row, id, quality, ctx = null) {
   if (!objectKey || row.media_kind !== 'video') return serveOriginalMedia(request, env, row, id);
   // Media Transformations currently caps output at one minute. A longer
   // variant would silently end before the source video does.
-  if (!Number.isFinite(Number(row.duration_ms)) || Number(row.duration_ms) <= 1000
-    || !videoVariantDimensions(row, quality)) {
+  if (!videoVariantDimensions(row, quality)) {
     return serveOriginalMedia(request, env, row, id);
   }
 
