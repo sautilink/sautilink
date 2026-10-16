@@ -102,5 +102,13 @@ fun main() {
         "media child and repeated hashtag restore original A")
     mediaRoute.openEntityHashtag("#Again"); mediaRoute.detail = "menu"; mediaRoute.synchronizeDetail()
     verify(!mediaRoute.entityExploreActive, "menu abandons prior entity context")
+    val canonicalRoute = EntityRoutesFixture()
+    canonicalRoute.detail = "entity-explore"
+    canonicalRoute.openEntityProfile("FOO.")
+    verify(canonicalRoute.detail == "member-profile" && canonicalRoute.viewedProfileHandle == "foo." &&
+        canonicalRoute.memberProfileReturn == "entity-explore", "canonical registered terminal-dot target preserved")
+    canonicalRoute.openEntityProfile("CLOUD__ENGINE__")
+    verify(canonicalRoute.viewedProfileHandle == "cloud__engine__" && canonicalRoute.memberProfileReturn == "entity-explore",
+        "canonical underscore target and prior Back destination preserved")
     println("PASS $checks native text entity/format/query/actual-route checks")
 }

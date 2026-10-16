@@ -276,11 +276,12 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     }
 
     fun openEntityProfile(handle: String) {
-        val entity = parseTextEntities("@$handle").singleOrNull()
-        if (entity?.kind != TextEntityKind.MENTION || entity.end != handle.length + 1) return
+        // A canonical card target can legitimately end in a dot; prose punctuation rules do not apply.
+        val normalized = handle.trim().lowercase()
+        if (!Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(normalized)) return
         // A mention inside a profile must not replace its Back destination with itself.
         if (detail != "member-profile") memberProfileReturn = detail
-        viewedProfileHandle = entity.target
+        viewedProfileHandle = normalized
         detail = "member-profile"
     }
     fun openEntityHashtag(hashtag: String) {
