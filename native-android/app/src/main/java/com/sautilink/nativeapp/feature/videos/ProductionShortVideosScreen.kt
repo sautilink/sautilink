@@ -278,7 +278,7 @@ fun ProductionShortVideosScreen(
             val http = DefaultHttpDataSource.Factory()
                 .setDefaultRequestProperties(mapOf("Authorization" to "Bearer $accessToken"))
                 .setAllowCrossProtocolRedirects(false)
-            ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(http))
+            ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(com.sautilink.nativeapp.ui.components.NativeVideoDataSourceFactory(http)))
                 .setLoadControl(DefaultLoadControl.Builder()
                     .setBufferDurationsMs(3_000, 15_000, 750, 1_500).build())
                 .build().apply { repeatMode = Player.REPEAT_MODE_ONE; volume = if (muted) 0f else 1f }

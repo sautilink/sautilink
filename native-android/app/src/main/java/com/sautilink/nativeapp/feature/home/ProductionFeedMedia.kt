@@ -315,7 +315,7 @@ private fun InlineFeedVideo(
                 .setDefaultRequestProperties(mapOf("Authorization" to "Bearer $it"))
                 .setAllowCrossProtocolRedirects(false)
             ExoPlayer.Builder(context)
-                .setMediaSourceFactory(DefaultMediaSourceFactory(http))
+                .setMediaSourceFactory(DefaultMediaSourceFactory(com.sautilink.nativeapp.ui.components.NativeVideoDataSourceFactory(http)))
                 .build().apply {
                     volume = if (muted) 0f else 1f
                     setMediaItem(if (adaptive) MediaItem.Builder().setMediaId(media.id)
