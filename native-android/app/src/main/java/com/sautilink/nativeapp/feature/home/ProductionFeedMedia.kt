@@ -449,7 +449,7 @@ private fun InlineFeedVideo(
             player?.pause()
         }
         val playRadius = with(density) { 30.dp.toPx() }
-        val pauseRequested = playing || adaptive && requestError == null &&
+        val pauseRequested = playing || adaptive && playbackState != Player.STATE_ENDED && requestError == null &&
             (playbackRequested || started && wantsToPlay && !manualPaused)
         SautiVideoGestureSurface(Modifier.fillMaxSize(),
             playbackLabel = if (pauseRequested) "Pause video in post" else if (playPrompt) "Play video in post" else null,
