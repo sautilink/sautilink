@@ -427,7 +427,8 @@ private fun InlineFeedVideo(
                 CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
             }
         }
-        val playPrompt = !playing && (firstFrame || !NativePlaybackPreferences.autoplayEnabled || requestError != null || !started)
+        val playPrompt = !playing && (firstFrame || adaptive && manualPaused ||
+            !NativePlaybackPreferences.autoplayEnabled || requestError != null || !started)
         val startPlayback = {
             requestError = null
             started = true
@@ -448,7 +449,8 @@ private fun InlineFeedVideo(
             player?.pause()
         }
         val playRadius = with(density) { 30.dp.toPx() }
-        val pauseRequested = playing || adaptive && playbackRequested && requestError == null
+        val pauseRequested = playing || adaptive && requestError == null &&
+            (playbackRequested || started && wantsToPlay && !manualPaused)
         SautiVideoGestureSurface(Modifier.fillMaxSize(),
             playbackLabel = if (pauseRequested) "Pause video in post" else if (playPrompt) "Play video in post" else null,
             onPlayback = { if (pauseRequested) pausePlayback() else if (playPrompt) startPlayback() },
