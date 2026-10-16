@@ -13,7 +13,8 @@ internal class RoomManagementState(val auth: StagingAuthClient, val accountId: S
     private val feedClient = StagingFeedClient(auth)
     private val lifetime = SupervisorJob(parentScope.coroutineContext[Job])
     private val scope = CoroutineScope(parentScope.coroutineContext + lifetime)
-    private var active: NativeRoom? = null
+    // Readiness can be observed before open(); publishing the Room must invalidate that first read.
+    private var active by mutableStateOf<NativeRoom?>(null)
     private var generation = 0
     private var capabilityVersion = 0
     private var configVersion = 0

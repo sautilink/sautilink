@@ -62,6 +62,32 @@ evidence: `outputs/Rooms-production-post-DDL-audit-20261016.json` and
 `outputs/Rooms-production-security-after-20261016-raw.json`. No blanket policies,
 RPC revocations or unrelated Auth changes were made to silence these notices.
 
+## Samsung follow-up: initial Join readiness
+
+Two-account Samsung QA exposed a native defect after private Dr login: the
+nonmember Join button stayed disabled without an error even while About showed
+the successfully loaded rules. Changing only the owned QA Room's description
+and refreshing caused Join to become enabled and open the correct questions.
+No membership was submitted during this diagnostic probe.
+
+`RoomManagementState.active` was a plain field. The first readiness observation
+short-circuited before reading the other Compose state, so an unchanged child
+could remain skipped after activation. The correction makes only that field
+observable with `mutableStateOf`; it changes no backend or approved feature.
+
+The portable `native-android/validation/run-room-readiness-check.ps1` compiles
+the actual state/models with cached Compose runtime and test-only network/Android
+boundaries. The exact tracked pre-fix source reproduces RED; the patched state
+passes **11/11** observation/readiness/lifecycle checks. Independent review found
+no actionable issue. Evidence: workspace
+`outputs/Rooms-Join-readiness-regression-20261016.json`.
+
+Two matching-package APKs are building from this frozen one-field correction.
+First-entry Samsung Join after installation is still **PENDING**; the metadata
+refresh workaround is not counted as the fix passing live QA. The old preview
+actually denied a direct join without configured answers, with no server
+membership/request/answer effect, and its Dr session remains intact.
+
 ## Native scope and capability behavior
 
 | Feature | Native implementation | Backend boundary |
