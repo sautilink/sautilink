@@ -64,7 +64,8 @@ test('signup website is code-only and keeps invalid OTP errors on the verificati
 
 test('current password recovery website instructions are recovery-link based', () => {
   const recoveryPanel = html.match(/<section id="recovery-panel"[\s\S]*?<\/section>/)?.[0] || '';
-  assert.match(recoveryPanel, /secure recovery link/i);
+  assert.match(recoveryPanel, /recovery link/i);
+  assert.match(recoveryPanel, /Enter your account email/i);
   assert.match(recoveryPanel, /Send recovery link/i);
   assert.doesNotMatch(recoveryPanel, /\b\d+[- ]digit\b/i);
 
