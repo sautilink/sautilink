@@ -76,7 +76,6 @@ test('production gate verifies apex and www roots without changing login or sign
 test('signed-out public post view shows public content but gates interaction and video playback', async () => {
   const gate = await read('src/guest-entry-gate.js');
   const css = await read('app/assets/guest-entry-gate.css');
-  const authCss = await read('app/assets/auth-entry-polish.css');
 
   assert.match(gate, /function postRoute\(\)/);
   assert.match(gate, /\/api\/public-post\/\$\{encodeURIComponent\(postId\)\}/);
@@ -103,5 +102,46 @@ test('signed-out public post view shows public content but gates interaction and
   assert.match(css, /\.guest-action-dialog/);
   assert.match(css, /\.guest-post-actions/);
   assert.match(css, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
-  assert.match(authCss, /body\.auth-entry main:not\(\.guest-profile-gate\)/);
+});
+
+test('account layout resets leave the actual guest profile and public-post roots isolated', async () => {
+  const [gate, guestCss, authCss, appHtml] = await Promise.all([
+    read('src/guest-entry-gate.js'),
+    read('app/assets/guest-entry-gate.css'),
+    read('app/assets/auth-entry-polish.css'),
+    read('app/index.html'),
+  ]);
+
+  // The old reset targeted every main except a guest gate. Its replacement
+  // names only the real app containers, so guest roots need no exclusion.
+  const reset = authCss.match(/([^{}]*body\.auth-entry \.stream-column[^{}]*)\{([^{}]+)\}/);
+  assert.ok(reset, 'The account shell must retain its explicit container reset');
+  const selectors = reset[1].trim().split(/\s*,\s*/);
+  assert.deepEqual(selectors, ['body.auth-entry .app-layout', 'body.auth-entry .stream-column']);
+  assert.match(reset[2], /padding:\s*0 !important/);
+  assert.match(reset[2], /background:\s*transparent !important/);
+  assert.match(appHtml, /<div class="app-layout">/);
+  assert.match(appHtml, /<main class="stream-column" id="stream">/);
+  assert.doesNotMatch(authCss, /body\.auth-entry\s+main\b/);
+
+  const shells = [...gate.matchAll(/function (createGateShell|createPostGateShell)\(route\) \{([\s\S]*?)\n\}/g)];
+  assert.equal(shells.length, 2, 'Both actual guest constructors must be checked');
+  for (const [, name, source] of shells) {
+    const classes = source.match(/const gate = node\('main', '([^']+)'\)/)?.[1].split(/\s+/);
+    assert.ok(classes?.includes('guest-profile-gate'), `${name} must use the isolated guest surface`);
+    assert.ok(!classes.includes('app-layout') && !classes.includes('stream-column'), `${name} must not adopt an account container class`);
+    assert.match(source, /document\.body\.append\(gate\)/, `${name} must remain a sibling of the app shell`);
+    assert.match(source, /lockUnderlyingApp\(\)/);
+  }
+  assert.match(gate, /surface\.setAttribute\('aria-hidden', 'true'\);\s*surface\.inert = true/);
+
+  const guestSurface = guestCss.match(/\.guest-profile-gate\s*\{([^}]+)\}/)?.[1] || '';
+  for (const property of [
+    /position:\s*fixed/,
+    /inset:\s*0/,
+    /display:\s*grid/,
+    /overflow-y:\s*auto/,
+    /padding:\s*[1-9][^;]+;/,
+    /background:\s*var\(--guest-gate-bg\)/,
+  ]) assert.match(guestSurface, property);
 });

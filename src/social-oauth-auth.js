@@ -1,6 +1,8 @@
+import { installAuthEntryPresentation } from './auth-entry-presentation.js';
+
 const SOCIAL_OAUTH_REDIRECT = 'https://sautilink.com/home';
 const SOCIAL_OAUTH_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20260920-authui2';
-const AUTH_ENTRY_POLISH_STYLESHEET = '/app/assets/auth-entry-polish.css?v=20261002-signup1';
+const AUTH_ENTRY_POLISH_STYLESHEET = '/app/assets/auth-entry-polish.css?v=20261017-ios1';
 const USERNAME_PREFIX_FIX_STYLESHEET = '/app/assets/username-prefix-fix.css?v=20260920-authui3';
 
 let client = null;
@@ -77,33 +79,6 @@ function ensureStylesheet() {
   ensureStylesheetLink('username-prefix-fix-styles', USERNAME_PREFIX_FIX_STYLESHEET);
 }
 
-function syncAuthEntryPresentationCopy() {
-  const intro = document.querySelector('#auth-view .auth-intro');
-  const title = intro?.querySelector('h2');
-  const copy = intro?.querySelector('p');
-  const tabs = id('auth-tabs');
-  const loginTab = id('login-tab');
-  const signupTab = id('signup-tab');
-  if (!intro || !title || !copy) return;
-
-  const sync = () => {
-    const signingUp = signupTab?.getAttribute('aria-selected') === 'true';
-    title.textContent = signingUp ? 'Create your SautiLink account' : 'Welcome back to SautiLink';
-    copy.textContent = signingUp
-      ? 'Join SautiLink and set up your account.'
-      : 'Sign in to continue to your account.';
-    if (loginTab) loginTab.textContent = 'Login';
-    if (signupTab) signupTab.textContent = 'Register';
-  };
-
-  sync();
-  if (!tabs || tabs.dataset.authPresentationBound === 'true') return;
-  tabs.dataset.authPresentationBound = 'true';
-  const observer = new MutationObserver(sync);
-  if (loginTab) observer.observe(loginTab, { attributes: true, attributeFilter: ['aria-selected'] });
-  if (signupTab) observer.observe(signupTab, { attributes: true, attributeFilter: ['aria-selected'] });
-}
-
 function setProviderButtonsBusy(block, busy) {
   block?.querySelectorAll('[data-social-oauth-provider]').forEach((button) => {
     button.disabled = busy;
@@ -135,7 +110,7 @@ function createBlock(panelId, formId, context) {
   const separator = document.createElement('div');
   separator.className = 'social-oauth-separator';
   separator.setAttribute('aria-hidden', 'true');
-  separator.textContent = context === 'login' ? 'Or login with' : 'Or register with';
+  separator.textContent = 'Or continue with';
   block.append(separator);
 
   SOCIAL_OAUTH_PROVIDERS.forEach((provider) => {
@@ -192,12 +167,12 @@ function install() {
   if (installed || !client) return;
   installed = true;
   ensureStylesheet();
-  syncAuthEntryPresentationCopy();
+  installAuthEntryPresentation();
   createBlock('login-panel', 'login-form', 'login');
   createBlock('signup-panel', 'signup-form', 'signup');
 }
 
-syncAuthEntryPresentationCopy();
+installAuthEntryPresentation();
 
 window.addEventListener('sautilink:auth-client-ready', (event) => {
   client = event.detail || null;

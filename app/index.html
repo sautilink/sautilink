@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="/app/assets/app.css?v=20260927-page-headers1&amp;menu=20261007-page1">
   <!-- First-paint UI: keep the final Auth and Home presentation render-blocking so refresh never shows the legacy shell. -->
   <link id="social-oauth-auth-styles" rel="stylesheet" href="/app/assets/guest-entry-gate.css?v=20261006-publicpost1">
-  <link id="auth-entry-polish-styles" rel="stylesheet" href="/app/assets/auth-entry-polish.css?v=20261002-signup1">
+  <link id="auth-entry-polish-styles" rel="stylesheet" href="/app/assets/auth-entry-polish.css?v=20261017-ios1">
   <link id="username-prefix-fix-styles" rel="stylesheet" href="/app/assets/username-prefix-fix.css?v=20260920-authui3">
   <link id="sautilink-mobile-nav-style" rel="stylesheet" href="/app/assets/mobile-nav-icon-style.css?v=20260907-nav1">
   <link id="sautilink-mobile-more-drawer-style" rel="stylesheet" href="/app/assets/mobile-more-drawer.css?v=20260921-sidebar-systems1">
@@ -200,25 +200,52 @@
       </section>
 
       <section class="auth-view" id="auth-view" hidden>
+        <header class="auth-entry-header">
+          <a class="auth-entry-brand" href="/" aria-label="SautiLink home">
+            <img class="auth-entry-logo" src="/logo.png" alt="" width="238" height="115">
+            <span>SautiLink</span>
+          </a>
+          <div class="auth-header-actions">
+            <a href="/help">Account help</a>
+            <button class="theme-toggle auth-theme-toggle" type="button" data-theme-toggle aria-label="Change appearance" title="Change appearance">
+              <svg class="theme-toggle-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>
+              <svg class="theme-toggle-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.2A8.4 8.4 0 0 1 8.8 3.8 8.5 8.5 0 1 0 20.2 15.2Z"></path></svg>
+            </button>
+          </div>
+        </header>
+
         <div class="auth-intro">
-          <img class="auth-entry-logo" src="/logo.png" alt="SautiLink" width="238" height="115">
+          <h1 class="auth-eyebrow">Your SautiLink account</h1>
           <h2>Welcome back to SautiLink</h2>
           <p>Sign in to continue to your account.</p>
+          <div class="auth-intro-art" aria-hidden="true">
+            <span class="auth-art-orbit"></span>
+            <div class="auth-art-tile auth-art-tile-back"><svg viewBox="0 0 48 48"><rect x="9" y="9" width="30" height="30" rx="9"></rect><path d="m15 30 7-8 6 6 4-4 7 7"></path><circle cx="31" cy="17" r="3"></circle></svg></div>
+            <div class="auth-art-tile auth-art-tile-front"><svg viewBox="0 0 48 48"><path d="M39 23c0 8-7 14-16 14h-6l-8 5 2-10c-2-3-3-5-3-9C8 15 15 9 24 9s15 6 15 14Z"></path><path d="M17 21h14M17 27h9"></path></svg></div>
+            <span class="auth-art-detail"></span>
+          </div>
+          <div class="auth-intro-note"><strong>Keep the conversation going.</strong><span>Share updates, discover Rooms and connect with your people.</span></div>
+          <ol class="auth-signup-steps" aria-label="Account setup">
+            <li data-auth-step="details"><span class="auth-step-number" aria-hidden="true">1</span><span><strong>Your details</strong><small>Create your account.</small></span></li>
+            <li data-auth-step="verification"><span class="auth-step-number" aria-hidden="true">2</span><span><strong>Email &amp; phone</strong><small>Verify your contact details.</small></span></li>
+            <li data-auth-step="profile"><span class="auth-step-number" aria-hidden="true">3</span><span><strong>Profile details</strong><small>Confirm your profile, if requested.</small></span></li>
+          </ol>
+          <a class="auth-intro-help" href="/help">A little help, whenever you need it.<span aria-hidden="true">↗</span></a>
         </div>
 
         <div class="auth-card">
           <div class="auth-tabs" id="auth-tabs" role="tablist" aria-label="Account access">
-            <button type="button" role="tab" aria-selected="true" aria-controls="login-panel" id="login-tab" data-auth-mode="login">Login</button>
-            <button type="button" role="tab" aria-selected="false" aria-controls="signup-panel" id="signup-tab" data-auth-mode="signup">Register</button>
+            <button type="button" role="tab" aria-selected="true" aria-controls="login-panel" id="login-tab" data-auth-mode="login">Log in</button>
+            <button type="button" role="tab" aria-selected="false" aria-controls="signup-panel" id="signup-tab" data-auth-mode="signup">Sign up</button>
           </div>
 
           <section id="login-panel" role="tabpanel" aria-labelledby="login-tab">
-            <div class="form-heading auth-login-heading"><h2>Log in to SautiLink</h2></div>
+            <div class="form-heading auth-login-heading"><h2>Log in</h2><p>Use your email or username to pick up where you left off.</p></div>
             <form id="login-form" class="auth-form" novalidate>
-              <label class="sr-only" for="login-email">Email address</label>
+              <label for="login-email">Email or username</label>
               <input id="login-email" name="email" type="email" inputmode="email" autocomplete="email" required placeholder="Email address">
-              <label class="sr-only" for="login-password">Password</label>
-              <div class="password-field"><input id="login-password" name="password" type="password" autocomplete="current-password" required placeholder="Password"><button type="button" data-password-toggle="login-password">Show</button></div>
+              <label for="login-password">Password</label>
+              <div class="password-field"><input id="login-password" name="password" type="password" autocomplete="current-password" required placeholder="Password"><button type="button" data-password-toggle="login-password" aria-controls="login-password" aria-pressed="false" aria-label="Show password">Show</button></div>
               <div class="form-message" id="login-message" role="alert" hidden></div>
               <button class="text-action auth-forgot-action" type="button" id="show-recovery">Forgot password?</button>
               <button class="form-submit auth-login-submit" type="submit"><span>Log in</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
@@ -229,28 +256,46 @@
           </section>
 
           <section id="signup-panel" role="tabpanel" aria-labelledby="signup-tab" hidden>
-            <div class="form-heading"><h2>Claim your place</h2><p>Create one identity for the SautiLink ecosystem.</p></div>
+            <div class="form-heading"><h2>Create your account</h2><p>A few details, then we’ll help you verify your email and phone.</p></div>
             <form id="signup-form" class="auth-form" novalidate>
-              <label for="signup-username">Username</label>
-              <div class="username-field"><span aria-hidden="true">@</span><input id="signup-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="30" required placeholder="yourname"></div>
-              <small class="field-hint" id="username-state" aria-live="polite">3–30 lowercase letters, numbers, dots or underscores.</small>
-              <label for="signup-name">Display name</label>
-              <input id="signup-name" name="displayName" type="text" autocomplete="name" maxlength="80" required placeholder="How people will know you">
-              <label for="signup-email">Email address</label>
-              <input id="signup-email" name="email" type="email" inputmode="email" autocomplete="email" required placeholder="you@example.com">
-              <label for="signup-phone">Phone number</label>
-              <input id="signup-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="+2557XXXXXXXX">
-              <small class="field-hint">After verifying your email, you will verify this number to finish signup.</small>
-              <label for="signup-phone-channel">Send phone code by</label>
-              <select id="signup-phone-channel" name="phoneChannel" required>
-                <option value="whatsapp" selected>WhatsApp</option>
-                <option value="sms">SMS</option>
-              </select>
-              <label for="signup-password">Password</label>
-              <div class="password-field"><input id="signup-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="12+ strong characters"><button type="button" data-password-toggle="signup-password">Show</button></div>
-              <small class="field-hint">Use uppercase, lowercase, a number and a symbol.</small>
-              <label for="signup-password-confirm">Confirm password</label>
-              <input id="signup-password-confirm" name="passwordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="Repeat your password">
+              <fieldset class="auth-form-group auth-details-group">
+                <legend>Your details</legend>
+                <div class="auth-details-fields">
+                  <div class="auth-field">
+                    <label for="signup-username">Username</label>
+                    <div class="username-field"><span aria-hidden="true">@</span><input id="signup-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="30" required placeholder="yourname" aria-describedby="username-state"></div>
+                    <small class="field-hint" id="username-state" aria-live="polite">3–30 lowercase letters, numbers, dots or underscores.</small>
+                  </div>
+                  <div class="auth-field">
+                    <label for="signup-name">Display name</label>
+                    <input id="signup-name" name="displayName" type="text" autocomplete="name" maxlength="80" required placeholder="How people will know you">
+                  </div>
+                  <div class="auth-field auth-field-wide">
+                    <label for="signup-email">Email address</label>
+                    <input id="signup-email" name="email" type="email" inputmode="email" autocomplete="email" required placeholder="you@example.com">
+                  </div>
+                  <div class="auth-field">
+                    <label for="signup-phone">Phone number</label>
+                    <input id="signup-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="Include country code" aria-describedby="signup-phone-hint">
+                    <small class="field-hint" id="signup-phone-hint">Include the + country code. You’ll verify this number after your email.</small>
+                  </div>
+                  <div class="auth-field">
+                    <label for="signup-phone-channel">Send phone code by</label>
+                    <select id="signup-phone-channel" name="phoneChannel" required>
+                      <option value="whatsapp" selected>WhatsApp</option>
+                      <option value="sms">SMS</option>
+                    </select>
+                  </div>
+                </div>
+              </fieldset>
+              <fieldset class="auth-form-group auth-security-group">
+                <legend>Your password</legend>
+                <label for="signup-password">Password</label>
+                <div class="password-field"><input id="signup-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="At least 12 characters" aria-describedby="signup-password-hint"><button type="button" data-password-toggle="signup-password" aria-controls="signup-password" aria-pressed="false" aria-label="Show password">Show</button></div>
+                <small class="field-hint" id="signup-password-hint">Use at least 12 characters, with uppercase, lowercase, a number and a symbol.</small>
+                <label for="signup-password-confirm">Confirm password</label>
+                <input id="signup-password-confirm" name="passwordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="Repeat your password">
+              </fieldset>
               <label class="signup-agreement" for="signup-terms-consent"><input id="signup-terms-consent" name="termsConsent" type="checkbox" required><span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and acknowledge the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
               <div class="form-message" id="signup-message" role="alert" hidden></div>
               <button class="form-submit" type="submit"><span>Create account</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
@@ -259,12 +304,13 @@
           </section>
 
           <section id="signup-phone-panel" hidden>
-            <div class="form-heading"><p class="section-label">Finish signup</p><h2>Verify your phone</h2><p>Your email is verified. Choose how to receive a code and link your number before entering SautiLink.</p></div>
+            <div class="form-heading"><span class="auth-panel-symbol" aria-hidden="true"><svg viewBox="0 0 32 32"><rect x="9" y="3" width="14" height="26" rx="4"></rect><path d="M13 7h6M15 25h2"></path></svg></span><p class="section-label">Finish signup</p><h2>Verify your phone</h2><p>Your email is verified. Choose where to receive the code for your phone number.</p></div>
             <details class="signup-documents"><summary>Review the account agreement</summary><p>Read the documents that explain how SautiLink works and how your information is handled.</p><p><a href="/terms" target="_blank" rel="noopener">Terms of Service</a> · <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a></p></details>
             <form id="signup-phone-form" class="auth-form" novalidate>
               <label class="signup-agreement" id="signup-phone-terms-label" for="signup-phone-terms-consent"><input id="signup-phone-terms-consent" name="termsConsent" type="checkbox"><span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and acknowledge the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
               <label for="signup-phone-number">Phone number</label>
-              <input id="signup-phone-number" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="+2557XXXXXXXX">
+              <input id="signup-phone-number" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="Include country code" aria-describedby="signup-phone-number-hint">
+              <small class="field-hint" id="signup-phone-number-hint">Use international format, including the + country code.</small>
               <label for="signup-phone-method">Send code by</label>
               <select id="signup-phone-method" name="method" required><option value="whatsapp" selected>WhatsApp</option><option value="sms">SMS</option></select>
               <div class="form-message" id="signup-phone-message" role="alert" hidden></div>
@@ -282,10 +328,10 @@
 
           <section id="verify-panel" hidden>
             <button class="back-action" type="button" id="cancel-verification">Back</button>
-            <div class="form-heading"><p class="section-label">Check your inbox</p><h2>Verify your email</h2><p>Enter the 8-digit verification code sent to <strong id="verify-email">your email</strong>.</p></div>
+            <div class="form-heading"><span class="auth-panel-symbol" aria-hidden="true"><svg viewBox="0 0 32 32"><rect x="4" y="7" width="24" height="18" rx="4"></rect><path d="m5 9 11 8L27 9"></path></svg></span><p class="section-label">Check your inbox</p><h2>Verify your email</h2><p>Enter the 8-digit verification code sent to <strong id="verify-email">your email</strong>.</p></div>
             <form id="signup-verify-form" class="auth-form" novalidate>
               <label for="signup-verify-code">Verification code</label>
-              <input class="otp-input" id="signup-verify-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" data-email-otp required placeholder="••••••••">
+              <input class="otp-input" id="signup-verify-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" data-email-otp required placeholder="••••••••" aria-describedby="verify-code-hint">
               <small class="field-hint" id="verify-code-hint">Enter the code from your SautiLink email.</small>
               <div class="form-message" id="verify-message" role="alert" hidden></div>
               <button class="form-submit" type="submit"><span>Verify account</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg></button>
@@ -295,7 +341,7 @@
 
           <section id="passwordless-panel" hidden>
             <button class="back-action" type="button" data-auth-mode="login">Back to sign in</button>
-            <div class="form-heading"><p class="section-label">Passwordless access</p><h2>Sign in by email</h2><p>We will send an 8-digit verification code to your email.</p></div>
+            <div class="form-heading"><span class="auth-panel-symbol" aria-hidden="true"><svg viewBox="0 0 32 32"><rect x="4" y="7" width="24" height="18" rx="4"></rect><path d="m5 9 11 8L27 9"></path></svg></span><p class="section-label">An email. One code.</p><h2>Log in by email</h2><p>We will send an 8-digit verification code to your email.</p></div>
             <form id="passwordless-request-form" class="auth-form" novalidate>
               <label for="passwordless-email">Email address</label>
               <input id="passwordless-email" name="email" type="email" inputmode="email" autocomplete="email" required placeholder="you@example.com">
@@ -304,7 +350,7 @@
             </form>
             <form id="passwordless-verify-form" class="auth-form auth-secondary-form" novalidate hidden>
               <label for="passwordless-code">Verification code</label>
-              <input class="otp-input" id="passwordless-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" data-email-otp required placeholder="••••••••">
+              <input class="otp-input" id="passwordless-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" data-email-otp required placeholder="••••••••" aria-describedby="passwordless-code-hint">
               <small class="field-hint" id="passwordless-code-hint">Enter the code from your SautiLink email.</small>
               <div class="form-message" id="passwordless-verify-message" role="alert" hidden></div>
               <button class="form-submit" type="submit"><span>Verify and sign in</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg></button>
@@ -313,7 +359,7 @@
 
           <section id="recovery-panel" hidden>
             <button class="back-action" type="button" data-auth-mode="login">Back to sign in</button>
-            <div class="form-heading"><h2>Recover your account</h2><p>We will email a secure recovery link to help you regain access to your SautiLink account.</p></div>
+            <div class="form-heading"><span class="auth-panel-symbol" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="11" cy="12" r="6"></circle><path d="m15 17 11 11M21 23l3-3M24 26l3-3"></path></svg></span><h2>Forgot your password?</h2><p>Enter your account email. We’ll send a recovery link to help you get back in.</p></div>
             <form id="recovery-form" class="auth-form" novalidate>
               <label for="recovery-email">Email address</label>
               <input id="recovery-email" name="email" type="email" inputmode="email" autocomplete="email" required placeholder="you@example.com">
@@ -323,10 +369,11 @@
           </section>
 
           <section id="password-panel" hidden>
-            <div class="form-heading"><p class="section-label">Secure your account</p><h2>Choose a new password</h2><p>Your recovery link has been verified.</p></div>
+            <div class="form-heading"><span class="auth-panel-symbol" aria-hidden="true"><svg viewBox="0 0 32 32"><rect x="6" y="14" width="20" height="14" rx="4"></rect><path d="M10 14V9a6 6 0 0 1 12 0v5M16 20v3"></path></svg></span><p class="section-label">Secure your account</p><h2>Choose a new password</h2><p>Your recovery link is verified. Set a new password to continue.</p></div>
             <form id="password-form" class="auth-form" novalidate>
               <label for="new-password">New password</label>
-              <div class="password-field"><input id="new-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="12+ strong characters"><button type="button" data-password-toggle="new-password">Show</button></div>
+              <div class="password-field"><input id="new-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="At least 12 characters" aria-describedby="new-password-hint"><button type="button" data-password-toggle="new-password" aria-controls="new-password" aria-pressed="false" aria-label="Show new password">Show</button></div>
+              <small class="field-hint" id="new-password-hint">Use at least 12 characters, with uppercase, lowercase, a number and a symbol.</small>
               <label for="new-password-confirm">Confirm new password</label>
               <input id="new-password-confirm" name="passwordConfirm" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="Repeat your password">
               <div class="form-message" id="password-message" role="alert" hidden></div>
@@ -335,10 +382,10 @@
           </section>
 
           <section id="onboarding-panel" hidden>
-            <div class="form-heading"><p class="section-label">One last step</p><h2>Set up your social identity</h2><p>Your email is verified. Confirm how you will appear on SautiLink.</p></div>
+            <div class="form-heading"><span class="auth-panel-symbol" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="16" cy="11" r="6"></circle><path d="M5 28c1-7 5-10 11-10s10 3 11 10"></path></svg></span><p class="section-label">One last step</p><h2>Make yourself at home.</h2><p>Choose the name and username people will see on SautiLink.</p></div>
             <form id="onboarding-form" class="auth-form" novalidate>
               <label for="onboarding-username">Username</label>
-              <div class="username-field"><span>@</span><input id="onboarding-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="30" required></div>
+              <div class="username-field"><span aria-hidden="true">@</span><input id="onboarding-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="30" required></div>
               <label for="onboarding-name">Display name</label>
               <input id="onboarding-name" name="displayName" type="text" autocomplete="name" maxlength="80" required>
               <div class="form-message" id="onboarding-message" role="alert" hidden></div>
@@ -349,9 +396,9 @@
 
         <footer class="auth-entry-footer" aria-label="SautiLink account links">
           <a href="/about">About</a>
-          <a href="/help">Help</a>
-          <a href="/privacy">Privacy</a>
-          <a href="/terms">Terms</a>
+          <a href="/help">Account help</a>
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/terms">Terms of Service</a>
           <a href="/contact">Contact</a>
           <span>&copy; 2026 SautiLink Corporation</span>
         </footer>
