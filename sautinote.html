@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SautiNote — Independent African Journalism</title>
-    <meta name="description" content="SautiNote is SautiLink Corporation's independent media and storytelling platform, committed to truth, transparency and African voices.">
+    <title>SautiNote — Stories Worth Understanding</title>
+    <meta name="description" content="Explore SautiNote, SautiLink’s media and storytelling platform. Independent journalism, African perspectives and the context behind the story.">
     <link rel="canonical" href="https://sautilink.com/sautinote">
-    <meta property="og:title" content="SautiNote — Independent African Journalism"><meta property="og:description" content="Truthful journalism and meaningful storytelling with African voices at the centre."><meta property="og:type" content="website"><meta property="og:url" content="https://sautilink.com/sautinote"><meta property="og:site_name" content="SautiLink"><meta property="og:image" content="https://sautilink.com/assets/logo.png">
-    <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="SautiNote"><meta name="twitter:description" content="Independent journalism. African voices first."><meta name="twitter:image" content="https://sautilink.com/assets/logo.png"><meta name="twitter:site" content="@sautilink">
-    <meta name="theme-color" content="#060a12">
+    <meta property="og:title" content="SautiNote — Stories Worth Understanding"><meta property="og:description" content="Reporting, storytelling and the context behind the story, with African perspectives at the centre."><meta property="og:type" content="website"><meta property="og:url" content="https://sautilink.com/sautinote"><meta property="og:site_name" content="SautiLink"><meta property="og:image" content="https://sautilink.com/assets/logo.png">
+    <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="SautiNote"><meta name="twitter:description" content="Stories worth understanding. Explore reporting and storytelling with SautiNote."><meta name="twitter:image" content="https://sautilink.com/assets/logo.png"><meta name="twitter:site" content="@sautilink">
+    <meta name="theme-color" content="#ffffff"><script src="/assets/public-theme.js?v=20261017-1"></script>
     <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512"><link rel="shortcut icon" href="/assets/favicon.png" type="image/png"><link rel="apple-touch-icon" href="/assets/favicon.png">
     <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/assets/brand/system.css"><link rel="stylesheet" href="/assets/legal.css"><link rel="stylesheet" href="/assets/site-pages.css">
@@ -20,84 +20,99 @@
   <link rel="manifest" href="/manifest.json?v=1">
   <link rel="stylesheet" href="/assets/launch-splash.css?v=1">
   <script src="/assets/launch-splash.js?v=1" data-product="sautilink" data-version="1" data-register-sw="true"></script>
+    <link rel="stylesheet" href="/assets/public-pages.css?v=20261017-1">
+    <link rel="stylesheet" href="/assets/sautinote.css?v=20261017-1">
 </head>
-<body class="legal-page content-page sautinote-page">
-  <div class="sl-launch-splash sl-launch-splash--sautilink" id="sl-launch-splash" aria-hidden="true">
-    <div class="sl-launch-center">
-      <div class="sl-launch-logo-stage">
-        <span class="sl-launch-orbit"></span>
-        <img class="sl-launch-logo" src="/logo.png" alt="" width="146" height="71">
-      </div>
-      <p class="sl-launch-product">SautiLink</p>
-    </div>
-    <p class="sl-launch-signature"><span>FROM</span><strong>SAUTILINK CORPORATION<sup>™</sup></strong></p>
-  </div>
-
-    <a class="skip-link" href="#main-content">Skip to SautiNote</a>
-    <header class="site-header">
+<body class="legal-page content-page sautinote-page" data-public-design="ios">
+  <a class="skip-link" href="#main-content">Skip to SautiNote</a>
+  <header class="site-header">
         <nav class="site-nav" aria-label="Primary navigation">
             <a class="brand" href="/" aria-label="SautiLink home"><img class="brand-logo" src="/logo.png" alt="" width="48" height="23"><span>SautiLink</span></a>
-            <div class="nav-cluster" data-nav-cluster><div class="nav-links"><a href="/">Home</a><a href="/about">About</a><a href="/sautinote" aria-current="page">SautiNote</a><a href="/help">Help</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a></div></div>
-            <div class="nav-actions"><button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Use light theme" aria-pressed="false"><svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg><svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg></button><button class="icon-button menu-toggle" type="button" data-menu-toggle aria-label="Open navigation" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button></div>
+            <div class="nav-cluster" id="public-navigation" data-nav-cluster><div class="nav-links"><a href="/">Home</a><a href="/about">About</a><a href="/sautinote" aria-current="page">SautiNote</a><a href="/help">Support</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a></div></div>
+            <div class="nav-actions">
+                <button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Use dark theme" aria-pressed="true" hidden><svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg><svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg></button>
+                <button class="icon-button menu-toggle" type="button" data-menu-toggle aria-controls="public-navigation" aria-label="Open navigation" aria-expanded="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 8h14M5 16h14"></path></svg></button>
+            </div>
         </nav>
     </header>
 
+    <nav class="page-local-nav" aria-label="SautiNote navigation">
+      <div class="page-local-inner"><a class="page-local-title" href="/sautinote">SautiNote</a><div class="page-local-links"><a class="local-secondary" href="#principles-title">Our approach</a><a class="local-secondary" href="#find-title">Contact editorial</a><a class="local-cta" href="https://www.sautinote.com" target="_blank" rel="noopener noreferrer">Visit SautiNote</a></div></div>
+    </nav>
+
     <main class="content-main" id="main-content">
-        <section class="page-hero">
-            <div class="page-shell hero-grid">
-                <div>
-                    <div class="eyebrow"><span class="eyebrow-dot"></span>SautiLink Corporation Media</div>
-                    <h1>African stories. Reported with <span>independence.</span></h1>
-                    <p class="hero-lede">SautiNote is our media and storytelling platform—committed to truthful journalism, useful context and African perspectives that deserve the full frame.</p>
-                    <div class="hero-actions"><a class="primary-cta" href="https://www.sautinote.com" target="_blank" rel="noopener noreferrer">Visit SautiNote <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5h5v5M10 14 19 5M19 14v5H5V5h5"></path></svg></a><a class="secondary-cta" href="mailto:note@sautinote.com">Share a story tip</a></div>
-                </div>
-                <div class="hero-visual" aria-label="SautiNote editorial identity">
-                    <div class="note-wordmark">Sauti<span>Note</span></div>
-                    <div class="editorial-lines" aria-hidden="true"><span class="editorial-line"></span><span class="editorial-line"></span><span class="editorial-line"></span><span class="editorial-line"></span></div>
-                    <span class="editorial-badge">Unbiased · Independent · African voices first</span>
-                </div>
-            </div>
-        </section>
+      <section class="ios-hero note-hero" aria-labelledby="note-title">
+        <div class="page-shell hero-grid">
+          <div class="ios-hero-copy">
+            <h1 class="ios-hero-title" id="note-title">Stories worth<br><span>understanding.</span></h1>
+            <p class="ios-hero-lede">SautiNote brings reporting and storytelling together, with African perspectives and space for the context behind the headline.</p>
+            <div class="ios-link-row"><a class="primary-cta" href="https://www.sautinote.com" target="_blank" rel="noopener noreferrer">Explore SautiNote <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M14 5h5v5M10 14 19 5M19 14v5H5V5h5"></path></svg></a><a class="ios-inline-link" href="mailto:note@sautinote.com">Share a story tip</a></div>
+          </div>
+          <div class="note-identity" aria-hidden="true"><div class="note-paper note-paper-back"></div><div class="note-paper note-paper-front"><span class="note-identity-name">SautiNote</span><svg viewBox="0 0 240 128" fill="none"><path d="M0 12h200M0 36h240M0 60h180M0 84h215M0 108h135" stroke="currentColor" stroke-width="3"/></svg><span class="note-identity-words">Reporting.<br>Context.<br>Perspective.</span></div></div>
+        </div>
+      </section>
 
-        <section class="section-shell" aria-labelledby="mission-title">
-            <div class="split-panel">
-                <div class="split-copy"><span class="section-label">Our mission</span><h2 id="mission-title">Truth without fear or favour.</h2><p>SautiNote exists to inform, educate and empower people with accurate information and meaningful storytelling, free from political or corporate influence.</p></div>
-                <div class="statement-card"><blockquote>Context over outrage. Evidence over noise. People over power.</blockquote><footer>The editorial standard SautiNote works toward</footer></div>
-            </div>
-        </section>
+      <section class="section-shell note-purpose" aria-labelledby="mission-title">
+        <div class="split-panel">
+          <div class="split-copy"><h2 id="mission-title">More context.<br>A clearer picture.</h2><p>Our purpose is to help readers understand the people, events and ideas that shape everyday life.</p></div>
+          <div class="split-copy note-purpose-copy"><p>A story deserves attention to what happened, why it matters and who it affects. That means listening closely, asking useful questions and making room for perspectives that can be overlooked.</p><p>SautiNote’s approach puts evidence, thoughtful context and independent editorial judgement at the centre of the work.</p></div>
+        </div>
+      </section>
 
-        <section class="section-shell" aria-labelledby="principles-title">
-            <div class="section-heading"><span class="section-label">Editorial principles</span><h2 id="principles-title">What readers should expect.</h2><p>Independent judgement sits at the centre of every format and every platform.</p></div>
-            <div class="card-grid">
-                <article class="feature-card"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m4 17 5-5 4 4 7-8"></path><path d="M15 8h5v5"></path></svg></span><h3>Accuracy before speed</h3><p>Verification and useful context matter more than winning a moment in the news cycle.</p></article>
-                <article class="feature-card"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span><h3>Independent judgement</h3><p>Editorial decisions remain independent even as SautiNote shares SautiLink's values of privacy and community empowerment.</p></article>
-                <article class="feature-card"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h11M4 17h8"></path></svg></span><h3>African voices in full</h3><p>We centre local knowledge, lived experience and perspectives too often flattened by outside narratives.</p></article>
-            </div>
-        </section>
+      <section class="section-shell" aria-labelledby="principles-title">
+        <div class="ios-section-heading"><h2 id="principles-title">The story matters.<br>So does how it’s told.</h2><p>The principles that guide SautiNote’s reporting and storytelling.</p></div>
+        <div class="card-grid note-principles">
+          <article class="feature-card"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 3h10l4 4v14H5V3Z"></path><path d="M14 3v5h5M8 12h8M8 16h5"></path></svg></span><h3>Accuracy before speed.</h3><p>Verification and useful context matter more than being first. Careful reporting starts with questions, evidence and attention to detail.</p></article>
+          <article class="feature-card"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3 5 6v5c0 4 2.5 8 7 10 4.5-2 7-6 7-10V6l-7-3Z"></path><path d="m9 12 2 2 4-4"></path></svg></span><h3>Independent judgement.</h3><p>Editorial decisions should follow the evidence and the public interest. That principle gives the reporting its purpose.</p></article>
+          <article class="feature-card"><span class="icon-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5h16v12H8l-4 4V5Z"></path><path d="M8 9h8M8 13h5"></path></svg></span><h3>People in context.</h3><p>African perspectives, local knowledge and lived experience deserve the space to be understood in their own terms.</p></article>
+        </div>
+      </section>
 
-        <section class="section-shell" aria-labelledby="find-title">
-            <div class="section-heading"><span class="section-label">Find SautiNote</span><h2 id="find-title">Follow the reporting.</h2><p>Read on the web, follow on social platforms or contact the editorial team directly.</p></div>
-            <div class="channel-grid">
-                <article class="channel-card"><small>Website</small><h3><a href="https://www.sautinote.com" target="_blank" rel="noopener noreferrer">sautinote.com ↗</a></h3><p>The home for SautiNote reporting and storytelling.</p></article>
-                <article class="channel-card"><small>Social</small><h3>@sautinote</h3><p>Instagram, X, TikTok, Facebook, LinkedIn and YouTube.</p></article>
-                <article class="channel-card"><small>Editorial</small><h3><a href="mailto:note@sautinote.com">note@sautinote.com</a></h3><p>Media inquiries, story tips and collaborations.</p></article>
-            </div>
-        </section>
+      <section class="section-shell" aria-labelledby="find-title">
+        <div class="ios-section-heading"><h2 id="find-title">Follow the story.<br>Or help us find it.</h2><p>Explore SautiNote, share a story idea or get in touch with the editorial team.</p></div>
+        <div class="note-channel-grid">
+          <article class="note-channel"><span class="note-channel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="M3 9h18M7 6.5h.01M10 6.5h.01M7 13h10M7 16h6"></path></svg></span><h3>Read on the web.</h3><p>Visit the SautiNote website for its reporting and storytelling.</p><a class="ios-inline-link" href="https://www.sautinote.com" target="_blank" rel="noopener noreferrer">Visit sautinote.com</a></article>
+          <article class="note-channel"><span class="note-channel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m15 4 5 5M4 20l5-1L20 8a2.2 2.2 0 0 0-5-3L4 16v4Z"></path></svg></span><h3>Share a story idea.</h3><p>Have a tip, a perspective or a story worth a closer look? Send the editorial team a clear outline.</p><a class="ios-inline-link" href="mailto:note@sautinote.com">Share a story tip</a></article>
+          <article class="note-channel"><span class="note-channel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="m3 7 9 6 9-6"></path></svg></span><h3>Talk to editorial.</h3><p>For questions, corrections, media inquiries and collaboration, contact the SautiNote team.</p><a class="ios-inline-link" href="mailto:note@sautinote.com">note@sautinote.com</a></article>
+        </div>
+      </section>
 
-        <section class="section-shell" aria-labelledby="family-title">
-            <div class="split-panel">
-                <div class="statement-card"><div><span class="section-label">Part of the ecosystem</span><blockquote>Independent in editorial judgement. Connected by purpose.</blockquote></div><footer>SautiNote · A SautiLink Corporation company</footer></div>
-                <div class="split-copy"><span class="section-label">Who we are</span><h2 id="family-title">The media arm of SautiLink Corporation.</h2><p>SautiNote operates independently in its editorial decisions while sharing the wider SautiLink commitment to privacy, freedom and community empowerment.</p><div class="hero-actions"><a class="secondary-cta" href="/about">About SautiLink</a><a class="secondary-cta" href="/contact">Contact the corporation</a></div></div>
-            </div>
-        </section>
+      <section class="section-shell" aria-labelledby="family-title">
+        <div class="note-family">
+          <div class="note-family-mark" aria-hidden="true"><img src="/logo.png" alt="" width="146" height="71"><span>SautiLink <span>×</span> SautiNote</span></div>
+          <div class="split-copy"><h2 id="family-title">Connected by purpose.</h2><p>SautiNote is the media and storytelling platform of SautiLink Corporation. It shares SautiLink’s commitment to privacy, open expression and community, with independent editorial judgement at its core.</p><div class="ios-link-row"><a class="ios-inline-link" href="/about">About SautiLink</a><a class="ios-inline-link" href="/contact">Contact SautiLink</a></div></div>
+        </div>
+      </section>
 
-        <section class="section-shell"><div class="cta-band"><div><span class="section-label">Read differently</span><h2>See what SautiNote is covering.</h2><p>Independent reporting and African storytelling are available now at sautinote.com.</p></div><a class="primary-cta" href="https://www.sautinote.com" target="_blank" rel="noopener noreferrer">Open SautiNote <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5h5v5M10 14 19 5M19 14v5H5V5h5"></path></svg></a></div></section>
+      <section class="section-shell" aria-labelledby="questions-title">
+        <div class="note-faq-grid">
+          <div class="ios-section-heading"><h2 id="questions-title">A few helpful<br>answers.</h2><p>Finding SautiNote and reaching the right team.</p></div>
+          <div class="note-faq-list">
+            <details><summary>Where can I read SautiNote?<span aria-hidden="true"></span></summary><div><p>Visit <a href="https://www.sautinote.com" target="_blank" rel="noopener noreferrer">sautinote.com</a> to explore the publication. The links on this page open the SautiNote website in a new tab.</p></div></details>
+            <details><summary>How can I share a story tip?<span aria-hidden="true"></span></summary><div><p>Email <a href="mailto:note@sautinote.com">note@sautinote.com</a> with an outline of the story, why it matters and any useful background or source links.</p></div></details>
+            <details><summary>Who should I contact about a correction?<span aria-hidden="true"></span></summary><div><p>Contact the editorial team at <a href="mailto:note@sautinote.com">note@sautinote.com</a>. Include the article link and explain the information you believe needs attention.</p></div></details>
+            <details><summary>Where can I get help with my SautiLink account?<span aria-hidden="true"></span></summary><div><p>Visit the <a href="/help">SautiLink Help Centre</a> for account, sign-in and product support. For SautiNote reporting or editorial inquiries, use the editorial email above.</p></div></details>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-shell note-reading-section" aria-labelledby="read-title">
+        <div class="note-reading"><h2 id="read-title">There’s more to the story.</h2><p>Take a closer look with SautiNote.</p><a class="primary-cta" href="https://www.sautinote.com" target="_blank" rel="noopener noreferrer">Open SautiNote <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M14 5h5v5M10 14 19 5M19 14v5H5V5h5"></path></svg></a></div>
+      </section>
     </main>
 
-    <footer class="site-footer">
-        <div class="footer-inner"><div class="footer-brand"><a class="brand" href="/" aria-label="SautiLink home"><img class="brand-logo" src="/logo.png" alt="" width="48" height="23"><span>SautiLink</span></a><p>A privacy-first social network for open, responsible expression.</p><div class="footer-socials" aria-label="Follow SautiLink"><a class="footer-social-link" href="https://www.facebook.com/sautilink/" target="_blank" rel="noopener noreferrer" aria-label="SautiLink on Facebook"><svg viewBox="0 0 24 24"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073c0 6.027 4.388 11.02 10.125 11.927v-8.437H7.078v-3.49h3.047V9.414c0-3.025 1.792-4.696 4.533-4.696 1.312 0 2.686.236 2.686.236v2.97H15.83c-1.491 0-1.956.93-1.956 1.885v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.093 24 18.1 24 12.073Z"></path></svg></a><a class="footer-social-link" href="https://x.com/sautilink" target="_blank" rel="noopener noreferrer" aria-label="SautiLink on X"><svg viewBox="0 0 24 24"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932 6.064-6.933Zm-1.291 19.491h2.039L6.486 3.24H4.298L17.61 20.644Z"></path></svg></a><a class="footer-social-link" href="https://www.tiktok.com/@sautilink" target="_blank" rel="noopener noreferrer" aria-label="SautiLink on TikTok"><svg viewBox="0 0 24 24"><path d="M19.589 6.686a4.793 4.793 0 0 1-3.77-4.245V2h-3.445v13.672a2.896 2.896 0 0 1-5.201 1.743 2.895 2.895 0 0 1 3.183-4.51v-3.5a6.329 6.329 0 0 0-5.394 9.2 6.33 6.33 0 0 0 10.857-4.424V8.687a8.182 8.182 0 0 0 4.773 1.526V6.686Z"></path></svg></a></div></div><nav class="footer-links" aria-label="Footer navigation"><a href="/about">About</a><a href="/help">Help Centre</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/account-deletion">Account &amp; Data Deletion</a><a href="/contact">Contact</a><a href="https://cloudengine.sautilink.com" target="_blank" rel="noopener noreferrer">Cloud Engine</a><a href="/sautinote">SautiNote</a></nav></div>
-        <div class="footer-bottom"><span>&copy; <span data-current-year>2026</span> SautiLink Corporation. All rights reserved.</span></div>
+  <footer class="site-footer">
+        <div class="public-footer-shell">
+            <nav class="footer-breadcrumbs" aria-label="Breadcrumb"><a href="/">SautiLink</a><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" aria-hidden="true"><path d="m3 1 4 4-4 4"></path></svg><span aria-current="page">SautiNote</span></nav>
+            <div class="footer-directory">
+                <div class="footer-brand"><a class="brand" href="/" aria-label="SautiLink home"><img class="brand-logo" src="/logo.png" alt="" width="48" height="23"><span>SautiLink</span></a><p>Your voice.<br>Your community.</p></div>
+                <div><h2 id="footer-support-title">Support</h2><nav aria-labelledby="footer-support-title"><a href="/help">Help Centre</a><a href="/contact">Contact SautiLink</a><a href="/verify">Verification</a><a href="/upload-guidelines">Upload Guidelines</a><a href="https://wa.me/255629145502" target="_blank" rel="noopener noreferrer">WhatsApp Support · 24/7</a></nav></div>
+                <div><h2 id="footer-legal-title">Privacy &amp; Legal</h2><nav aria-labelledby="footer-legal-title"><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/community-guidelines">Community Guidelines</a><a href="/account-deletion">Account &amp; Data Deletion</a></nav></div>
+                <div><h2 id="footer-company-title">SautiLink</h2><nav aria-labelledby="footer-company-title"><a href="/about">About us</a><a href="/sautinote">SautiNote</a><a href="https://cloudengine.sautilink.com" target="_blank" rel="noopener noreferrer">Cloud Engine</a><a href="/signup">Create an account</a><a href="/login">Sign in</a></nav></div>
+            </div>
+            <div class="footer-bottom"><span>&copy; <span data-current-year>2026</span> SautiLink Corporation. All rights reserved.</span></div>
+        </div>
     </footer>
-    <script src="/assets/legal.js" defer></script>
+  <script src="/assets/legal.js?v=20261017-1" defer></script>
 </body>
 </html>
