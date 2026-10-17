@@ -69,13 +69,13 @@ jobs:
               && [ "$www_code" = "200" ] \
               && grep -Fqi 'content-type: text/html' "$apex_headers" \
               && grep -Fq '<html lang="en" data-theme="light">' "$apex_body" \
-              && grep -Fq '<title>SautiLink Verification — Public Ownership Signal</title>' "$apex_body" \
+              && grep -Fq '<title>How to Get Verified on SautiLink — Verification</title>' "$apex_body" \
               && grep -Fq 'rel="canonical" href="https://sautilink.com/verify"' "$apex_body" \
               && grep -Fqi 'public ownership signal' "$apex_body" \
               && grep -Fq 'sautilink.com/verify' "$apex_body" \
               && grep -Fqi 'not a guarantee of verification' "$apex_body" \
               && grep -Fqi 'usually completed within 14 days' "$apex_body" \
-              && grep -Fq '<title>SautiLink Verification — Public Ownership Signal</title>' "$www_body" \
+              && grep -Fq '<title>How to Get Verified on SautiLink — Verification</title>' "$www_body" \
               && grep -Fq 'rel="canonical" href="https://sautilink.com/verify"' "$www_body"; then
               ready=1
               break
