@@ -1,6 +1,46 @@
 # Play candidate and package-review handoff
 
-**Final status, 17 October 2026 (EAT): CI/artifact gates PASS; package SUBMITTED / IN REVIEW. Google approval remains pending.** CI completed 16 October (UTC). This receipt grants no release approval.
+**Current status, 17 October 2026 (EAT): release 42 / version 1.0.0 signed AAB and full production lint PASS; downloaded artifact independently verified.** The latest recorded Console observation shows the package **Registered** and its existing certificate **Verified**. Play app creation, testing-track upload and public release have not been performed in this continuation.
+
+## Release 42 — continuation after the Codex usage-limit checkpoint
+
+This section supersedes older pending build/lint and version-41 candidate instructions below. The user asked to continue from a screenshot stating that compilation/assembly and a Store Listing draft were complete, while full production lint and downloaded-AAB verification remained pending.
+
+| Item | Verified release 42 checkpoint |
+| --- | --- |
+| Native working branch | `design/native-ios-foundation-20261012`, Draft PR #352, stacked on Draft PR #351 |
+| Automation commit | `66d74253bd11d396511cacab038ac7f84aae77e7` |
+| Pinned build source | `43fd28fee5ecb7efd62a0f17fc5e702db2015a42` |
+| App source tree | `989d2bb52155abf6dad400231f22e82805713616` |
+| Successful production CI | [Run 38984055928](https://github.com/sautilink/sautilink/actions/runs/38984055928), job `117251280001` |
+| CI completed | `2026-10-17T00:16:08Z` / 03:16:08 EAT |
+| Downloaded artifact | `12083285602` / `SautiLink-Play-Release42-38984055928`, exactly six allowlisted files |
+| Archive size / SHA256 | 20,590,818 bytes / `b25a63fb0b47d69cffb25f2c6476bf384c94f3bc3a8eeec4eebf307609c6e3b7` |
+| AAB | `sautilink-production-clean.aab`, 20,831,568 bytes |
+| AAB SHA256 | `e136e023421b5c36defb869b360faf40d3a50ec8ad7c48739a7e2dd20daf0e15` |
+| Identity | `com.sautilink.app`, versionCode **42**, versionName **1.0.0**, minSdk **26**, targetSdk **36**, nondebuggable |
+| Full production lint | **0 Error/Fatal, 109 Warnings, 2 Hints** |
+| Existing upload certificate SHA256 | `31c773a7229a563d92f7047a56735ad7b02027d27a6e020d8923dd5418f4b50f` |
+
+Independent local verification completed at `2026-10-17T00:22:14Z`: downloaded ZIP SHA256 matched GitHub's artifact digest; all five entries in `SHA256SUMS` matched; archive paths, duplicate-entry checks and CRC passed. OpenSSL verified the CMS signature, the signer matched the expected existing certificate and was valid at verification time, the signed signature-file digest covered the full JAR manifest, and all **575 payload-entry SHA256 digests** matched. This independently verifies the payload signatures without reading a private signing key.
+
+Official Google bundletool **1.18.3**, downloaded from its upstream release and pinned to SHA256 `a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29`, independently validated the downloaded AAB and decoded its production manifest/config successfully. This is a local rerun, not merely repetition of the CI receipt.
+
+Static 16 KB packaging checks also passed: all eight native `.so` files across four ABIs have correctly aligned ELF LOAD segments; the manifest has `extractNativeLibs=false`; and BundleConfig enables uncompressed native libraries with `PAGE_ALIGNMENT_16K`. These static checks do **not** claim a 16 KB device/emulator runtime test or Google-generated APK validation. No registration-proof asset exists in this AAB; the exact archive contains the AAB, public certificate, two JSON receipts, full lint XML and `SHA256SUMS`.
+
+The [comparison from Samsung-tested d7b4ef3 to pinned release source 43fd28f](https://github.com/sautilink/sautilink/compare/d7b4ef3fc64b6caa1f5407fe3d9547ffaeff3579...43fd28fee5ecb7efd62a0f17fc5e702db2015a42) changes only two review documents and the version fields in `native-android/app/build.gradle.kts`. No `app/src` changes separate that bounded Samsung QA evidence from release 42. The four other CI runs on automation commit `66d7425` (Native Android preview, Android APK, Phase 1 Authentication and Brand Guard) were successful when checked.
+
+### Remaining release work
+
+- Preserve/use **version 1.0.0 (42)** above. The older version-41 candidate below predates the later video fixes.
+- The screenshot's previous Store Listing draft was not located in the repository or current accessible saved files. A fresh English/Kiswahili review draft was reconstructed from verified native features and provided with the release files; it is not represented as the recovered original. Actual approved store graphics/screenshots and Console declarations remain pending.
+- Complete actual Play app setup, listing assets/declarations and the appropriate test-track flow. The registered package/certificate alone does not establish that an app listing or testing release exists.
+- Validate Google-generated installation behavior, Play signing/API/App Links/FCM behavior, and remaining final QA including a 16 KB runtime test as applicable. The historical HTTP 500 remains unattributed; the latest bounded Samsung video results are recorded in `native-video-transport-review.md` and are not a blanket final-QA pass.
+- This continuation changes the handoff record only. Both stacked PRs remain draft/unmerged; no signing key rotation, backend deployment, Play upload, public publication or new phone test was performed.
+
+## Historical version-41 package-review receipt (superseded where noted)
+
+**Historical status at the first 17 October checkpoint: CI/artifact gates PASS; package SUBMITTED / IN REVIEW.** The later registered/verified package result and release-42 receipt above supersede that state. This historical receipt grants no release approval.
 
 ## Exact checkpoint
 
