@@ -35,10 +35,10 @@
   "orientation": "any",
   "background_color": "#0b0c0f",
   "theme_color": "#0b0c0f",
-  "description": "A privacy-first social network built in Tanzania for the world.",
+  "description": "A privacy-first social network for sharing ideas and connecting with people.",
   "description_localized": {
-    "sw": "Mtandao wa kijamii unaotanguliza faragha, uliobuniwa Tanzania kwa ajili ya dunia.",
-    "fr": "Un réseau social qui privilégie la confidentialité, créé en Tanzanie pour le monde."
+    "sw": "Mtandao wa kijamii wa kushiriki mawazo na kuungana na watu, unaotanguliza faragha.",
+    "fr": "Un réseau social qui privilégie la confidentialité pour partager des idées et échanger."
   },
   "categories": ["social", "communication"],
   "shortcuts": [
