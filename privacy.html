@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,10 +23,11 @@
     <meta name="twitter:image" content="https://sautilink.com/assets/privacy-preview.png">
     <meta name="twitter:image:alt" content="SautiLink Privacy Policy">
     <meta name="twitter:site" content="@sautilink">
-    <meta name="theme-color" content="#060a12">
+    <meta name="theme-color" content="#ffffff">
     <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512">
     <link rel="shortcut icon" href="/assets/favicon.png" type="image/png">
     <link rel="apple-touch-icon" href="/assets/favicon.png">
+    <script src="/assets/public-theme.js?v=20261017-1"></script>
     <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/assets/brand/system.css">
     <link rel="stylesheet" href="/assets/legal.css">
@@ -39,55 +40,52 @@
     <link rel="manifest" href="/manifest.json?v=1">
     <link rel="stylesheet" href="/assets/launch-splash.css?v=1">
     <script src="/assets/launch-splash.js?v=1" data-product="sautilink" data-version="1" data-register-sw="true"></script>
+    <link rel="stylesheet" href="/assets/public-pages.css?v=20261017-1">
 </head>
-<body class="legal-page legal-policy-page">
-    <div class="sl-launch-splash sl-launch-splash--sautilink" id="sl-launch-splash" aria-hidden="true">
-        <div class="sl-launch-center">
-            <div class="sl-launch-logo-stage"><span class="sl-launch-orbit"></span><img class="sl-launch-logo" src="/logo.png" alt="" width="146" height="71"></div>
-            <p class="sl-launch-product">SautiLink</p>
-        </div>
-        <p class="sl-launch-signature"><span>FROM</span><strong>SAUTILINK CORPORATION<sup>™</sup></strong></p>
-    </div>
-
+<body class="legal-page legal-policy-page" data-public-design="ios">
     <a class="skip-link" href="#main-content">Skip to policy</a>
 
     <header class="site-header">
         <nav class="site-nav" aria-label="Primary navigation">
             <a class="brand" href="/" aria-label="SautiLink home"><img class="brand-logo" src="/logo.png" alt="" width="48" height="23"><span>SautiLink</span></a>
-            <div class="nav-cluster" data-nav-cluster>
-                <div class="nav-links"><a href="/">Home</a><a href="/about">About</a><a href="/help">Help</a><a href="/privacy" aria-current="page">Privacy</a><a href="/terms">Terms</a><a href="/community-guidelines">Community</a><a href="/upload-guidelines">Uploads</a><a href="/contact">Contact</a></div>
-            </div>
+            <div class="nav-cluster" id="public-navigation" data-nav-cluster><div class="nav-links"><a href="/">Home</a><a href="/about">About</a><a href="/help">Support</a><a href="/privacy" aria-current="page">Privacy</a><a href="/terms">Terms</a><a href="/contact">Contact</a></div></div>
             <div class="nav-actions">
-                <button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Use light theme" aria-pressed="false">
-                    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>
-                    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
-                </button>
-                <button class="icon-button menu-toggle" type="button" data-menu-toggle aria-label="Open navigation" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+                <button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Use dark theme" aria-pressed="true" hidden><svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg><svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg></button>
+                <button class="icon-button menu-toggle" type="button" data-menu-toggle aria-controls="public-navigation" aria-label="Open navigation" aria-expanded="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 8h14M5 16h14"></path></svg></button>
             </div>
         </nav>
     </header>
+    <nav class="page-local-nav" aria-label="Privacy navigation">
+        <div class="page-local-inner"><a class="page-local-title" href="/privacy">Privacy</a><div class="page-local-links"><a class="local-secondary" href="#page-contents">On this page</a><a class="local-cta" href="#introduction">Read the policy</a></div></div>
+    </nav>
 
     <main class="legal-main" id="main-content">
-        <section class="legal-hero" aria-labelledby="page-title">
-            <h1 id="page-title">Privacy, without the mystery.</h1>
-            <p class="lede">SautiLink is designed with privacy in mind, but running a social network still requires data. This policy explains what we process for the service you can use today, how it moves through our systems, when it may be shared, and the choices you have.</p>
-            <div class="hero-meta">
-                <span class="meta-pill"><strong>Effective</strong> October 6, 2026</span>
-                <span class="meta-pill"><strong>Applies to</strong> SautiLink services</span>
-                <span class="meta-pill"><strong>Responsible entity</strong> SautiLink Corporation</span>
+        <section class="ios-hero" aria-labelledby="page-title">
+            <div class="page-shell hero-grid">
+                <div class="ios-hero-copy">
+                    <h1 class="ios-hero-title" id="page-title">Your privacy.<br>Your choices.</h1>
+                    <p class="ios-hero-lede">Understand the information you share, how SautiLink uses it, and the controls available to you.</p>
+                    <div class="ios-link-row"><a class="ios-inline-link" href="#introduction">Read the Privacy Policy</a><a class="ios-inline-link" href="#rights">Explore your controls</a></div>
+                </div>
+                <div class="ios-hero-art"><img src="/assets/public-pages/privacy-hero.webp" srcset="/assets/public-pages/privacy-hero-768.webp 768w, /assets/public-pages/privacy-hero.webp 1536w" sizes="(max-width: 700px) calc(100vw - 40px), (max-width: 1184px) 48vw, 550px" width="1536" height="1024" alt="" fetchpriority="high" decoding="async"></div>
             </div>
         </section>
 
-        <section class="trust-grid" aria-label="Privacy commitments">
-            <article class="trust-card"><span class="trust-number">01</span><h2>We do not sell your personal data</h2><p>We do not treat your account, private communications or activity as a data-broker product.</p></article>
-            <article class="trust-card"><span class="trust-number">02</span><h2>Privacy depends on context</h2><p>Public posts are meant to travel; private features receive tighter access controls. Your audience choices matter.</p></article>
-            <article class="trust-card"><span class="trust-number">03</span><h2>You have practical controls</h2><p>Settings, blocking, muting, exports, moderation appeals and account deletion are part of the live product.</p></article>
+        <section class="trust-grid" aria-label="Privacy at a glance">
+            <article class="trust-card"><h2>We do not sell your personal data</h2><p>We do not sell or rent personal data to data brokers, or purchase consumer dossiers to build hidden profiles.</p><a class="ios-inline-link" href="#sharing">How information is shared</a></article>
+            <article class="trust-card"><h2>Know who can see what</h2><p>Your audience settings and the features you use affect who can access your profile, posts, Rooms and messages.</p><a class="ios-inline-link" href="#public">Understand your audience</a></article>
+            <article class="trust-card"><h2>Make choices that suit you</h2><p>Manage visibility, blocks and mutes. Request an export, review eligible decisions or start account deletion.</p><a class="ios-inline-link" href="#rights">Review your choices</a></article>
+        </section>
+
+        <section class="ios-section-heading" id="introduction" aria-labelledby="policy-title">
+            <h2 id="policy-title">Privacy Policy</h2>
+            <p>This policy explains what information SautiLink processes, why we use it, when it may be shared and the rights and choices available to you. It applies to the SautiLink services described below.</p>
+            <div class="hero-meta"><span class="meta-pill"><strong>Effective</strong> October 6, 2026</span><span class="meta-pill"><strong>Responsible entity</strong> SautiLink Corporation</span></div>
         </section>
 
         <div class="legal-layout">
-            <aside class="legal-toc" aria-label="Privacy Policy sections">
-                <p class="toc-label">On this page</p>
-                <nav>
+            <aside class="legal-toc" aria-label="Privacy Policy sections" id="page-contents">
+                <details class="toc-disclosure" data-toc-disclosure open><summary>On this page</summary><div class="toc-content"><nav>
                     <a href="#scope" data-toc-link>Scope &amp; responsibility</a>
                     <a href="#collect" data-toc-link>What we collect</a>
                     <a href="#sources" data-toc-link>Where data comes from</a>
@@ -105,20 +103,19 @@
                     <a href="#changes" data-toc-link>Policy changes</a>
                     <a href="#contact" data-toc-link>Contact</a>
                 </nav>
-                <p class="toc-help">Privacy request? <a href="mailto:support@sautilink.com">support@sautilink.com</a></p>
+                <p class="toc-help">Privacy request? <a href="mailto:support@sautilink.com">support@sautilink.com</a></p></div></details>
             </aside>
 
             <article class="legal-document">
-                <section class="legal-section" id="scope">
-                    <span class="section-kicker">01 · Scope</span>
-                    <h2>Who is responsible for your data</h2>
+                <div class="document-tools"><p>SautiLink Privacy Policy</p><button class="ios-inline-link" type="button" data-print-document hidden>Print this page</button></div>
+                <section class="legal-section" id="scope" tabindex="-1">
+                    <h2>Who is responsible for your information</h2>
                     <p><strong>SautiLink Corporation</strong> operates SautiLink and decides the principal purposes and means of processing personal data through the service, subject to any separate rules that apply when you deliberately leave SautiLink or use a connected-account feature. This policy applies to sautilink.com, SautiLink account features, profiles, feeds, posts, replies, Rooms, messages, notifications, search, saved content, moderation, verification, support and official applications that link to this policy.</p>
                     <p>Our contact address is <strong>Uhuru Street, Mwanza, United Republic of Tanzania</strong>. This policy is intended to work alongside applicable privacy and data-protection laws, including Tanzania's data-protection framework and mandatory rights that may apply where you live.</p>
-                    <div class="callout"><p><strong>Privacy-first does not mean data-free.</strong> We minimize unnecessary collection, but we still process information required to authenticate accounts, deliver content, store media, operate messages and Rooms, prevent abuse, maintain security and comply with lawful obligations.</p></div>
+                    <div class="callout"><p><strong>The information needed to provide SautiLink.</strong> We minimize unnecessary collection and process the information required to authenticate accounts, deliver content, store media, operate messages and Rooms, prevent abuse, maintain security and comply with lawful obligations.</p></div>
                 </section>
 
-                <section class="legal-section" id="collect">
-                    <span class="section-kicker">02 · Information</span>
+                <section class="legal-section" id="collect" tabindex="-1">
                     <h2>What we collect and process</h2>
                     <p>The information involved depends on the features you use.</p>
                     <div class="table-wrap" role="region" aria-label="Personal data categories" tabindex="0">
@@ -136,12 +133,11 @@
                             </tbody>
                         </table>
                     </div>
-                    <h3>Information you choose to make sensitive</h3>
+                    <h3>Sensitive information you choose to share</h3>
                     <p>SautiLink does not require you to publish sensitive personal information. If you place health information, precise location, political or religious beliefs, identity documents or other sensitive details in a post, Room, message or profile, those details become part of the content you chose to provide. Use the audience and privacy controls available to you and avoid posting information you do not want others to receive.</p>
                 </section>
 
-                <section class="legal-section" id="sources">
-                    <span class="section-kicker">03 · Sources</span>
+                <section class="legal-section" id="sources" tabindex="-1">
                     <h2>Where information comes from</h2>
                     <ul>
                         <li><strong>From you:</strong> when you register, update a profile, create content, join or manage a Room, send a message, submit a report, request verification, change settings or contact us.</li>
@@ -153,9 +149,8 @@
                     <p>We do not purchase consumer dossiers from data brokers to build hidden personal profiles about SautiLink members.</p>
                 </section>
 
-                <section class="legal-section" id="use">
-                    <span class="section-kicker">04 · Purpose</span>
-                    <h2>How and why we use information</h2>
+                <section class="legal-section" id="use" tabindex="-1">
+                    <h2>How we use your information</h2>
                     <p>We use personal data for purposes reasonably connected to providing and protecting SautiLink, including to:</p>
                     <ul>
                         <li>create, authenticate, recover and secure accounts;</li>
@@ -175,10 +170,9 @@
                     <p>SautiLink does not currently use your off-platform browsing activity to build cross-site behavioural advertising profiles. If we introduce a materially different advertising or personalization use that requires new disclosure, consent or opt-out controls, we will update this policy and provide the required choices before applying that use.</p>
                 </section>
 
-                <section class="legal-section" id="public">
-                    <span class="section-kicker">05 · Visibility</span>
+                <section class="legal-section" id="public" tabindex="-1">
                     <h2>Public content, audiences and Rooms</h2>
-                    <p>Social networks work because information can be shared. The privacy treatment of content therefore depends heavily on the audience you choose and the feature you use.</p>
+                    <p>Who can access your information depends on the audience you choose and the feature you use. The following explains how those choices affect your content.</p>
                     <ul>
                         <li><strong>Public profiles and posts:</strong> may be visible to other SautiLink members and, where the product permits public access, people outside SautiLink. Public content can be copied, quoted, linked, reshared or captured by others.</li>
                         <li><strong>Audience-restricted content:</strong> is delivered according to the relevant product setting, but recipients can still copy, screenshot or disclose what they receive.</li>
@@ -188,18 +182,16 @@
                     <p>Removing content from SautiLink cannot erase copies that other people lawfully made outside our systems, screenshots, downstream shares, or records we must preserve for a limited legal or safety purpose.</p>
                 </section>
 
-                <section class="legal-section" id="messages">
-                    <span class="section-kicker">06 · Communications</span>
-                    <h2>Direct messages are private from the public, not magically invisible</h2>
+                <section class="legal-section" id="messages" tabindex="-1">
+                    <h2>Direct messages are private from the public</h2>
                     <p>Direct messages are designed for the participants in a conversation and are not published as ordinary public posts. We process message content and related metadata as needed to transmit, synchronize, store and secure conversations, operate user controls, investigate valid reports and comply with applicable law.</p>
                     <div class="callout warning"><p><strong>Do not assume end-to-end encryption unless a feature expressly says so.</strong> SautiLink's current direct-message service should not be treated as end-to-end encrypted. Recipients can also save, forward, screenshot or otherwise disclose messages they receive.</p></div>
                     <p>Blocking, muting, deleting or hiding a conversation can change what appears in your account without necessarily deleting a copy held by another participant or a limited record retained for safety, security or legal reasons.</p>
                 </section>
 
-                <section class="legal-section" id="operations">
-                    <span class="section-kicker">07 · Operations</span>
-                    <h2>Operational processing and technology partner</h2>
-                    <p>SautiLink uses technical and communications systems needed to authenticate accounts, store and deliver content, operate messages and notifications, secure requests, diagnose incidents and provide support. We describe the purposes and safeguards that matter to members without publishing a vendor inventory in this policy.</p>
+                <section class="legal-section" id="operations" tabindex="-1">
+                    <h2>Operating the service and our technology partner</h2>
+                    <p>SautiLink uses technical and communications systems to authenticate accounts, store and deliver content, operate messages and notifications, secure requests, diagnose incidents and provide support. Information processed through these systems remains subject to the purposes and safeguards described in this policy.</p>
                     <div class="partner-note">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 12h8M12 8v8"></path><circle cx="12" cy="12" r="9"></circle></svg>
                         <p>SautiLink works with technology and infrastructure partner <a href="https://www.ivynetwork.co.uk/" target="_blank" rel="noopener noreferrer"><strong>Ivy Network PLC</strong></a>. Partnership does not give Ivy Network PLC unrestricted rights to member data. Any access or processing must be tied to an agreed operational purpose, appropriate authorization and applicable safeguards.</p>
@@ -207,8 +199,7 @@
                     <p>When you intentionally use a connected-account sign-in method or follow a link that leaves SautiLink, information you choose to send outside SautiLink may be handled under the rules shown by that destination.</p>
                 </section>
 
-                <section class="legal-section" id="sharing">
-                    <span class="section-kicker">08 · Disclosure</span>
+                <section class="legal-section" id="sharing" tabindex="-1">
                     <h2>When information may be shared</h2>
                     <p>We may disclose information in the following circumstances, limited to what is reasonably necessary:</p>
                     <ul>
@@ -222,17 +213,15 @@
                     <p>We do not sell or rent personal data to data brokers. We also do not give external applications blanket access to SautiLink accounts merely because they request it.</p>
                 </section>
 
-                <section class="legal-section" id="storage">
-                    <span class="section-kicker">09 · Browser &amp; device</span>
+                <section class="legal-section" id="storage" tabindex="-1">
                     <h2>Sessions, local storage, cookies and similar technology</h2>
                     <p>SautiLink uses browser and device storage where needed to keep you signed in, remember theme and preferences, preserve certain drafts or temporary workflow state, protect account flows and make features responsive. Depending on the browser or device, these mechanisms can include cookies, local storage, session storage, authentication tokens and comparable technologies.</p>
                     <p>Some local information remains on your device rather than being sent to SautiLink. Clearing browser data, signing out or changing devices can remove local state. Essential authentication and security storage may be required for signed-in features to work correctly.</p>
                     <p>We may also use server logs, request metadata and security signals to detect attacks, enforce rate limits, diagnose incidents and prevent unauthorized access.</p>
                 </section>
 
-                <section class="legal-section" id="retention">
-                    <span class="section-kicker">10 · Lifecycle</span>
-                    <h2>How long we keep information and what deletion does</h2>
+                <section class="legal-section" id="retention" tabindex="-1">
+                    <h2>Retention and account deletion</h2>
                     <p>We retain information for as long as reasonably necessary for the feature or purpose involved, taking account of account status, user choices, security, dispute resolution, legal obligations and technical backup cycles. Different records therefore have different lifetimes.</p>
                     <ul>
                         <li>Active account and profile information generally remains while the account is active or until it is changed or deletion is completed.</li>
@@ -241,57 +230,51 @@
                         <li>Support and privacy-request records may be retained long enough to resolve the request and document the outcome.</li>
                     </ul>
                     <h3>Account deletion is available now</h3>
-                    <p>You can initiate account deletion through SautiLink account settings. When a deletion request enters a recovery period, the product shows the applicable deadline and may hide the profile while cancellation remains available. After the recovery period expires, privileged deletion processing can permanently remove or irreversibly anonymize eligible account data from active systems.</p>
+                    <p>You can initiate account deletion through SautiLink account settings. When a deletion request enters a recovery period, the product shows the applicable deadline and may hide the profile while cancellation remains available. After the recovery period expires, final deletion processing can permanently remove or irreversibly anonymize eligible account data from active systems.</p>
                     <p>Backups, legal records, anti-abuse evidence and copies belonging to other participants may persist for a limited period where technically or legally necessary. We restrict retained data and do not restore it to ordinary product use merely to avoid a valid deletion request. See <a href="/account-deletion">Account &amp; Data Deletion</a> for additional guidance.</p>
                 </section>
 
-                <section class="legal-section" id="rights">
-                    <span class="section-kicker">11 · Controls</span>
+                <section class="legal-section" id="rights" tabindex="-1">
                     <h2>Your privacy rights and choices</h2>
                     <p>Depending on applicable law and the type of information involved, you may have rights to access, correct, export or delete personal data; object to or restrict certain processing; withdraw consent; and complain to a competent regulator.</p>
-                    <div class="rights-grid">
-                        <div class="right-card"><h3>Access &amp; export</h3><p>Review account information and request eligible account data in a usable format.</p></div>
-                        <div class="right-card"><h3>Correction</h3><p>Update eligible profile or account details, subject to identity and anti-abuse limits.</p></div>
-                        <div class="right-card"><h3>Delete</h3><p>Delete individual content where available or request permanent account deletion.</p></div>
-                        <div class="right-card"><h3>Audience controls</h3><p>Choose available visibility settings and manage Room memberships, blocks and mutes.</p></div>
-                        <div class="right-card"><h3>Consent choices</h3><p>Withdraw consent where consent is the legal basis, subject to processing already lawfully completed.</p></div>
-                        <div class="right-card"><h3>Appeal &amp; complain</h3><p>Use available moderation appeals and contact a competent data-protection authority where applicable.</p></div>
-                    </div>
+                    <ul>
+                        <li><strong>Access and export.</strong> Review account information and request eligible account data in a usable format.</li>
+                        <li><strong>Correction.</strong> Update eligible profile or account details, subject to identity and anti-abuse limits.</li>
+                        <li><strong>Deletion.</strong> Delete individual content where available or request permanent account deletion.</li>
+                        <li><strong>Audience controls.</strong> Choose available visibility settings and manage Room memberships, blocks and mutes.</li>
+                        <li><strong>Consent choices.</strong> Withdraw consent where consent is the legal basis, subject to processing already lawfully completed.</li>
+                        <li><strong>Appeals and complaints.</strong> Use available moderation appeals and contact a competent data-protection authority where applicable.</li>
+                    </ul>
                     <p>We may need to verify identity before acting on a request, especially where disclosure or deletion could expose another person's data or compromise an account. We may refuse or limit a request where permitted by law and will provide an explanation when required.</p>
                     <p>Requests can be sent to <a href="mailto:support@sautilink.com?subject=Privacy%20rights%20request">support@sautilink.com</a>. In Tanzania, you may also contact the <a href="https://pdpc.go.tz/" target="_blank" rel="noopener noreferrer">Personal Data Protection Commission</a>.</p>
                 </section>
 
-                <section class="legal-section" id="safety">
-                    <span class="section-kicker">12 · Integrity</span>
+                <section class="legal-section" id="safety" tabindex="-1">
                     <h2>Moderation, recommendations and automated signals</h2>
                     <p>SautiLink uses product rules, member reports, account history, technical signals and, where appropriate, automated detection to help rank content, identify spam, protect accounts and surface possible policy violations. Human review may be used for moderation, appeals, verification and complex safety decisions.</p>
                     <p>Automated systems can make mistakes. Where SautiLink offers an appeal or review mechanism, members can challenge eligible decisions. We may preserve the minimum evidence needed to explain enforcement, prevent repeated severe abuse and protect the integrity of the appeals process.</p>
-                    <p>We do not promise that every harmful post will be detected immediately or that automated ranking will always reflect your preferences perfectly.</p>
+                    <p>Harmful posts may not always be detected immediately, and automated ranking may not always reflect your preferences.</p>
                 </section>
 
-                <section class="legal-section" id="transfers">
-                    <span class="section-kicker">13 · Global service</span>
+                <section class="legal-section" id="transfers" tabindex="-1">
                     <h2>International processing and transfers</h2>
                     <p>SautiLink is operated from Tanzania, while some operational systems can process information in other countries. That means personal data may be transferred to, stored in or processed outside the country where you live.</p>
                     <p>Where cross-border safeguards are required, we use measures appropriate to the data, processing purpose and applicable law, such as contractual restrictions, access controls, encryption, data minimization or another lawful transfer mechanism. The fact that SautiLink can be accessed globally does not remove mandatory privacy rights that apply to you.</p>
                 </section>
 
-                <section class="legal-section" id="children">
-                    <span class="section-kicker">14 · Age</span>
+                <section class="legal-section" id="children" tabindex="-1">
                     <h2>Children and teenagers</h2>
                     <p>SautiLink is not intended for children under <strong>13 years old</strong>, and a higher minimum age applies where local law requires it. We may take reasonable steps to estimate, request or verify age when required for safety or legal compliance.</p>
                     <p>If we learn that an account belongs to someone below the applicable minimum age, we may restrict or close the account and delete information as required. Parents or guardians who believe a child has provided information improperly can contact <a href="mailto:support@sautilink.com?subject=Child%20privacy%20request">support@sautilink.com</a>.</p>
                 </section>
 
-                <section class="legal-section" id="changes">
-                    <span class="section-kicker">15 · Updates</span>
+                <section class="legal-section" id="changes" tabindex="-1">
                     <h2>Changes to this policy</h2>
-                    <p>Products, laws and infrastructure change. We may update this policy to reflect new features, operational changes, legal requirements or data practices. We will change the effective date and provide additional notice for material changes where appropriate or required.</p>
+                    <p>We may update this policy as features, operations, legal requirements or data practices change. We will change the effective date and provide additional notice for material changes where appropriate or required.</p>
                     <p>If a new use requires consent under applicable law, merely changing this document will not replace that consent. Earlier versions may be retained where legally or operationally appropriate.</p>
                 </section>
 
-                <section class="legal-section" id="contact">
-                    <span class="section-kicker">16 · Contact</span>
+                <section class="legal-section" id="contact" tabindex="-1">
                     <h2>Questions, requests and complaints</h2>
                     <div class="contact-panel">
                         <p><strong>SautiLink Corporation</strong></p>
@@ -308,15 +291,17 @@
     </main>
 
     <footer class="site-footer">
-        <div class="footer-inner">
-            <div class="footer-brand">
-                <a class="brand" href="/"><img class="brand-logo" src="/logo.png" alt="" width="48" height="23"><span>SautiLink</span></a>
-                <p>Privacy-first social networking for open, responsible expression.</p>
+        <div class="public-footer-shell">
+            <nav class="footer-breadcrumbs" aria-label="Breadcrumb"><a href="/">SautiLink</a><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" aria-hidden="true"><path d="m3 1 4 4-4 4"></path></svg><span aria-current="page">Privacy</span></nav>
+            <div class="footer-directory">
+                <div class="footer-brand"><a class="brand" href="/" aria-label="SautiLink home"><img class="brand-logo" src="/logo.png" alt="" width="48" height="23"><span>SautiLink</span></a><p>Built in Tanzania.<br>For conversations everywhere.</p></div>
+                <div><h2 id="footer-support-title">Support</h2><nav aria-labelledby="footer-support-title"><a href="/help">Help Centre</a><a href="/contact">Contact SautiLink</a><a href="/verify">Verification</a><a href="/upload-guidelines">Upload Guidelines</a><a href="https://wa.me/255629145502" target="_blank" rel="noopener noreferrer">WhatsApp Support · 24/7</a></nav></div>
+                <div><h2 id="footer-legal-title">Privacy &amp; Legal</h2><nav aria-labelledby="footer-legal-title"><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/community-guidelines">Community Guidelines</a><a href="/account-deletion">Account &amp; Data Deletion</a></nav></div>
+                <div><h2 id="footer-company-title">SautiLink</h2><nav aria-labelledby="footer-company-title"><a href="/about">About us</a><a href="/sautinote">SautiNote</a><a href="https://cloudengine.sautilink.com" target="_blank" rel="noopener noreferrer">Cloud Engine</a><a href="/signup">Create an account</a><a href="/login">Sign in</a></nav></div>
             </div>
-            <nav class="footer-links" aria-label="Footer navigation"><a href="/about">About</a><a href="/help">Help Center</a><a href="/community-guidelines">Community Guidelines</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/upload-guidelines">Upload Guidelines</a><a href="/account-deletion">Account Deletion</a><a href="/contact">Contact</a></nav>
+            <div class="footer-bottom"><span>&copy; <span data-current-year>2026</span> SautiLink Corporation. All rights reserved.</span><span>Uhuru Street, Mwanza, Tanzania</span></div>
         </div>
-        <div class="footer-bottom"><span>&copy; <span data-current-year>2026</span> SautiLink Corporation. All rights reserved.</span><span>Privacy first · Freedom with responsibility</span></div>
     </footer>
-    <script src="/assets/legal.js" defer></script>
+    <script src="/assets/legal.js?v=20261017-1" defer></script>
 </body>
 </html>

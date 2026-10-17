@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,10 +16,11 @@
     <meta name="twitter:title" content="Community Guidelines — SautiLink">
     <meta name="twitter:description" content="The official rules for expression, safety, political and regional discussion, identity, moderation and community conduct on SautiLink.">
     <meta name="twitter:image" content="https://sautilink.com/logo.png">
-    <meta name="theme-color" content="#060a12">
+    <meta name="theme-color" content="#ffffff">
     <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="512x512">
     <link rel="shortcut icon" href="/assets/favicon.png" type="image/png">
     <link rel="apple-touch-icon" href="/assets/favicon.png">
+    <script src="/assets/public-theme.js?v=20261017-1"></script>
     <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/assets/brand/system.css">
     <link rel="stylesheet" href="/assets/legal.css">
@@ -72,53 +73,44 @@
       ]
     }
     </script>
+    <link rel="stylesheet" href="/assets/public-pages.css?v=20261017-1">
 </head>
-<body class="legal-page legal-policy-page">
-    <div class="sl-launch-splash sl-launch-splash--sautilink" id="sl-launch-splash" aria-hidden="true">
-        <div class="sl-launch-center">
-            <div class="sl-launch-logo-stage"><span class="sl-launch-orbit"></span><img class="sl-launch-logo" src="/logo.png" alt="" width="146" height="71"></div>
-            <p class="sl-launch-product">SautiLink</p>
-        </div>
-        <p class="sl-launch-signature"><span>FROM</span><strong>SAUTILINK CORPORATION<sup>™</sup></strong></p>
-    </div>
-
+<body class="legal-page legal-policy-page" data-public-design="ios">
     <a class="skip-link" href="#main-content">Skip to Community Guidelines</a>
 
     <header class="site-header">
         <nav class="site-nav" aria-label="Primary navigation">
             <a class="brand" href="/" aria-label="SautiLink home"><img class="brand-logo" src="/logo.png" alt="" width="48" height="23"><span>SautiLink</span></a>
-            <div class="nav-cluster" data-nav-cluster><div class="nav-links"><a href="/">Home</a><a href="/about">About</a><a href="/help">Help</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/community-guidelines" aria-current="page">Community</a><a href="/contact">Contact</a></div></div>
+            <div class="nav-cluster" id="public-navigation" data-nav-cluster><div class="nav-links"><a href="/">Home</a><a href="/about">About</a><a href="/help">Support</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/contact">Contact</a></div></div>
             <div class="nav-actions">
-                <button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Use light theme" aria-pressed="false">
-                    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>
-                    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
-                </button>
-                <button class="icon-button menu-toggle" type="button" data-menu-toggle aria-label="Open navigation" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+                <button class="icon-button theme-toggle" type="button" data-theme-toggle aria-label="Use dark theme" aria-pressed="true" hidden><svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg><svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg></button>
+                <button class="icon-button menu-toggle" type="button" data-menu-toggle aria-controls="public-navigation" aria-label="Open navigation" aria-expanded="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 8h14M5 16h14"></path></svg></button>
             </div>
         </nav>
     </header>
+    <nav class="page-local-nav" aria-label="Community Guidelines navigation">
+        <div class="page-local-inner"><a class="page-local-title" href="/community-guidelines">Community Guidelines</a><div class="page-local-links"><a class="local-secondary" href="#page-contents">On this page</a><a class="local-cta" href="#report-appeal">Report &amp; appeal</a></div></div>
+    </nav>
 
     <main class="legal-main" id="main-content">
         <section class="legal-hero" aria-labelledby="page-title">
-            <h1 id="page-title">Your voice is welcome. Harm is not.</h1>
-            <p class="lede">SautiLink is built for open expression. You can criticize leaders, institutions and ideas, report news, debate politics, discuss regions and communities, use satire, advocate for change and disagree strongly. These Guidelines draw the line at threats, exploitation, targeted abuse, deception that creates serious risk, coordinated manipulation and conduct that prevents other people from speaking safely.</p>
+            <h1 id="page-title">Community Guidelines</h1>
+            <p class="lede"><strong>Your voice is welcome. Harm is not.</strong> Share ideas, discuss public issues and disagree peacefully. These Guidelines explain the boundaries for threats, exploitation, targeted abuse, harmful deception and manipulation, so others can participate safely.</p>
             <div class="hero-meta">
                 <span class="meta-pill"><strong>Effective</strong> October 6, 2026</span>
-                <span class="meta-pill"><strong>Applies across</strong> SautiLink</span>
-                <span class="meta-pill"><strong>Principle</strong> Freedom with responsibility</span>
             </div>
+            <div class="ios-link-row"><a class="ios-inline-link" href="#scope">Read the Guidelines</a><a class="ios-inline-link" href="#report-appeal">Reporting and appeals</a></div>
         </section>
 
         <section class="trust-grid" aria-label="Community principles">
-            <article class="trust-card"><span class="trust-number">01</span><h2>Opinion is not a violation</h2><p>Being critical, unpopular, political, regional, satirical or controversial does not by itself break SautiLink rules.</p></article>
-            <article class="trust-card"><span class="trust-number">02</span><h2>Context matters</h2><p>News reporting, documentary evidence, counterspeech, education, public-interest discussion and condemnation of harmful conduct can be treated differently from endorsement or coordination.</p></article>
-            <article class="trust-card"><span class="trust-number">03</span><h2>Safety has a hard boundary</h2><p>We act more strictly when expression becomes a credible threat, incitement, intimidation, exploitation, targeted hate, doxxing, fraud or organized manipulation.</p></article>
+            <article class="trust-card"><h2>Opinion is not a violation</h2><p>Critical, unpopular, political, regional, satirical or controversial views do not by themselves break the rules.</p><a class="ios-inline-link" href="#expression">Freedom of expression</a></article>
+            <article class="trust-card"><h2>Context matters</h2><p>Reporting, education, documentary evidence and public-interest discussion may be treated differently from promoting or coordinating harm.</p><a class="ios-inline-link" href="#moderation">How decisions are made</a></article>
+            <article class="trust-card"><h2>Safety sets the boundary</h2><p>Threats, incitement, intimidation, exploitation, targeted hate, doxxing, fraud and organized manipulation receive stricter action.</p><a class="ios-inline-link" href="#violence">Understand the safety rules</a></article>
         </section>
 
         <div class="legal-layout">
-            <aside class="legal-toc" aria-label="Community Guidelines sections">
-                <p class="toc-label">On this page</p>
-                <nav>
+            <aside class="legal-toc" aria-label="Community Guidelines sections" id="page-contents">
+                <details class="toc-disclosure" data-toc-disclosure open><summary>On this page</summary><div class="toc-content"><nav>
                     <a href="#scope" data-toc-link>Scope &amp; approach</a>
                     <a href="#expression" data-toc-link>Freedom of expression</a>
                     <a href="#politics-regions" data-toc-link>Politics &amp; regional integrity</a>
@@ -138,28 +130,26 @@
                     <a href="#faq" data-toc-link>Quick answers</a>
                     <a href="#contact" data-toc-link>Contact</a>
                 </nav>
-                <p class="toc-help">Safety question? <a href="/help#reporting">Open Help Centre</a></p>
+                <p class="toc-help">Safety question? <a href="/help#reporting">Open Help Centre</a></p></div></details>
             </aside>
 
             <article class="legal-document">
-                <section class="legal-section" id="scope">
-                    <span class="section-kicker">01 · Scope</span>
-                    <h2>These rules follow the content, not just the feature</h2>
+                <div class="document-tools"><p>SautiLink Community Guidelines</p><button class="ios-inline-link" type="button" data-print-document hidden>Print this page</button></div>
+                <section class="legal-section" id="scope" tabindex="-1">
+                    <h2>Where these Guidelines apply</h2>
                     <p>These Community Guidelines apply to profiles, usernames, bios, posts, photos, videos, polls, comments, replies, reposts, quotes, Rooms, direct messages, notifications, verification submissions and other member activity on SautiLink.</p>
                     <p>Room owners and moderators can set additional local rules, but local rules cannot authorize conduct that violates SautiLink-wide safety requirements. Private or audience-restricted spaces are not exempt from these Guidelines.</p>
                     <p>These Guidelines work alongside the <a href="/terms">Terms of Service</a>, <a href="/privacy">Privacy Policy</a> and <a href="/upload-guidelines">Upload Guidelines</a>.</p>
                 </section>
 
-                <section class="legal-section" id="expression">
-                    <span class="section-kicker">02 · Expression</span>
-                    <h2>We protect strong opinions and peaceful disagreement</h2>
+                <section class="legal-section" id="expression" tabindex="-1">
+                    <h2>Open expression and peaceful disagreement</h2>
                     <p>SautiLink permits criticism, journalism, investigation, political discussion, advocacy, parody, satire, religious and non-religious viewpoints, artistic expression, peaceful organizing and disagreement about public issues. Criticism of a government, political party, public institution, company, ideology, region or public figure is not prohibited merely because it is harsh or unpopular.</p>
                     <p>You may challenge claims, quote public statements, document misconduct, discuss historical conflict and argue for lawful political or social change. You may also criticize SautiLink itself.</p>
                     <div class="callout"><p><strong>We moderate conduct and risk, not political loyalty.</strong> SautiLink does not require members to support a party, politician, government, region, ideology or official position in order to participate.</p></div>
                 </section>
 
-                <section class="legal-section" id="politics-regions">
-                    <span class="section-kicker">03 · Heightened integrity</span>
+                <section class="legal-section" id="politics-regions" tabindex="-1">
                     <h2>Political and regional discussion receives stricter safety review</h2>
                     <p>Political and regional speech can affect public safety and social trust quickly. We therefore apply heightened review to content involving elections, government authority, political movements, regional identity, ethnicity, tribe, nationality, borders, communal conflict and calls for collective action.</p>
                     <h3>Allowed</h3>
@@ -184,74 +174,64 @@
                     <p>We may act faster or apply stronger restrictions where political or regional content creates a credible risk of offline harm, coordinated intimidation or communal violence. Context, intent, reach, target, immediacy and public-interest value can affect the response.</p>
                 </section>
 
-                <section class="legal-section" id="violence">
-                    <span class="section-kicker">04 · Safety</span>
+                <section class="legal-section" id="violence" tabindex="-1">
                     <h2>Violence, threats and serious wrongdoing</h2>
                     <p>Do not threaten, encourage, celebrate or coordinate serious physical harm. This includes credible threats, targeted incitement, instructions designed to enable an imminent violent attack, trafficking, kidnapping, extortion, terrorism support or recruitment, and coordination of violent criminal activity.</p>
                     <p>Documentary, journalistic, educational or condemnatory discussion of violence may be allowed when the context does not promote or facilitate harm. Graphic material may be limited in visibility or removed when necessary to protect people or comply with law.</p>
                 </section>
 
-                <section class="legal-section" id="hate-harassment">
-                    <span class="section-kicker">05 · Dignity</span>
+                <section class="legal-section" id="hate-harassment" tabindex="-1">
                     <h2>Hate, harassment and targeted abuse</h2>
                     <p>Disagreement is allowed. Persistent targeted abuse designed to intimidate, silence or endanger someone is not. We can act on stalking, repeated unwanted targeting, sexual harassment, threats, coordinated pile-ons, malicious exposure of private information and severe bullying.</p>
                     <p>Do not attack or dehumanize people because of race, ethnicity, tribe, nationality, regional origin, religion, sex, gender, disability or another protected characteristic. Do not call for violence, exclusion or collective punishment against a protected group.</p>
                     <p>Criticism of beliefs, institutions, governments, ideologies, political parties or public conduct is generally allowed when it targets ideas or actions rather than calling for harm against people because of who they are.</p>
                 </section>
 
-                <section class="legal-section" id="identity">
-                    <span class="section-kicker">06 · Authenticity</span>
+                <section class="legal-section" id="identity" tabindex="-1">
                     <h2>Identity, impersonation and verification</h2>
                     <p>You may use a public name, creator identity, brand identity or pseudonym where the account does not deceptively impersonate another person or organization. Do not create accounts designed to mislead people about who is speaking, especially when pretending to be SautiLink staff, a public authority, journalist, business, political organization or public figure.</p>
                     <p><a href="/verify"><strong>Verification</strong></a> is an identity and authenticity signal, not an endorsement of a member's opinions, politics, products or conduct. Verified members must follow the same Community Guidelines and can lose verification when eligibility is lost or serious violations occur.</p>
                     <p>To apply, open <a href="/settings"><strong>Settings → Account → Verification</strong></a>. The official <a href="/verify">SautiLink Verification page</a> explains how to get verified, what public evidence can help and the optional public ownership signal. Verification requests are usually reviewed within 14 days, and a rejected request can be subject to the current reapplication period shown in the product.</p>
                 </section>
 
-                <section class="legal-section" id="integrity">
-                    <span class="section-kicker">07 · Integrity</span>
-                    <h2>Spam, fake engagement, manipulation, scams and fraud</h2>
+                <section class="legal-section" id="integrity" tabindex="-1">
+                    <h2>Spam, manipulation, scams and fraud</h2>
                     <p>Do not use SautiLink to run phishing, credential theft, impersonation scams, deceptive fundraising, fraudulent sales, advance-fee schemes, malicious investment claims or other conduct intended to obtain money, accounts or sensitive information through deception.</p>
                     <p>Do not operate coordinated fake identities, bot-like spam, repetitive unsolicited messaging, artificial likes/follows/reposts, engagement rings or deceptive networks intended to manipulate ranking, popularity, political discussion or public perception.</p>
                     <p>Normal promotion, campaigning, community organizing and coordinated lawful advocacy are not prohibited merely because multiple people share the same message. The violation is deceptive or abusive coordination, not genuine collective participation.</p>
                 </section>
 
-                <section class="legal-section" id="privacy">
-                    <span class="section-kicker">08 · Privacy</span>
-                    <h2>Doxxing, intimate privacy and personal information</h2>
+                <section class="legal-section" id="privacy" tabindex="-1">
+                    <h2>Personal information and intimate privacy</h2>
                     <p>Do not publish highly sensitive personal information to facilitate harassment, theft, stalking or physical harm. This can include private home addresses, private phone numbers, passwords, authentication codes, private financial credentials, identity documents or precise real-time location when disclosure creates a serious safety risk.</p>
                     <p>Do not share non-consensual intimate images, sexual deepfakes or private sexual material without the depicted person's permission. Report urgent privacy or account-safety concerns through the available reporting tools or <a href="/contact">contact support</a>. See the <a href="/privacy">Privacy Policy</a> for SautiLink data practices.</p>
                 </section>
 
-                <section class="legal-section" id="children-sexual">
-                    <span class="section-kicker">09 · Protection</span>
+                <section class="legal-section" id="children-sexual" tabindex="-1">
                     <h2>Child safety and sexual exploitation</h2>
                     <p>SautiLink has zero tolerance for child sexual exploitation, grooming, sextortion, sexualization of minors or sexual abuse material involving children. We may remove content, restrict accounts, preserve necessary evidence and make legally required reports where applicable.</p>
                     <p>Sexual coercion, trafficking, non-consensual sexual content and threats to share intimate material are prohibited. Explicit sexual content or solicitation can also be restricted where it is incompatible with the feature, audience safety or applicable law. Health, breastfeeding, educational, documentary and artistic context may be treated differently when it is not exploitative.</p>
                 </section>
 
-                <section class="legal-section" id="self-harm">
-                    <span class="section-kicker">10 · Wellbeing</span>
+                <section class="legal-section" id="self-harm" tabindex="-1">
                     <h2>Self-harm, suicide and dangerous acts</h2>
                     <p>People may talk about mental health, recovery, lived experience and seeking support. Do not encourage, pressure or celebrate suicide or self-harm, target a vulnerable person with encouragement to harm themselves, or use SautiLink to coordinate dangerous acts likely to cause serious injury.</p>
                     <p>Graphic or instructional material may be restricted when it creates a meaningful risk of imitation or immediate harm. Context such as prevention, journalism, education and recovery support matters.</p>
                 </section>
 
-                <section class="legal-section" id="cyber-illegal">
-                    <span class="section-kicker">11 · Security</span>
+                <section class="legal-section" id="cyber-illegal" tabindex="-1">
                     <h2>Malware, cyber abuse and illegal transactions</h2>
                     <p>Do not use SautiLink to distribute malware, steal credentials, coordinate unauthorized access, attack systems, bypass security controls, disrupt services or provide material assistance clearly intended for unlawful cyber abuse.</p>
                     <p>Do not use the platform to facilitate trafficking, exploitation, unlawful weapons transactions, illegal drugs, stolen goods or other prohibited transactions. Discussion, reporting, harm-reduction information, policy debate and lawful educational content can be treated differently from a transaction or operational facilitation.</p>
                 </section>
 
-                <section class="legal-section" id="ip">
-                    <span class="section-kicker">12 · Rights</span>
+                <section class="legal-section" id="ip" tabindex="-1">
                     <h2>Copyright, trademarks and content ownership</h2>
                     <p>Upload or share content only when you own it, have permission, or otherwise have a lawful basis to use it. Do not use SautiLink to knowingly distribute infringing material or impersonate a brand in a deceptive way.</p>
                     <p>Copyright and intellectual-property complaints can be sent through <a href="/contact">SautiLink support</a> with enough information to identify the work, the disputed material and the complainant's authority to act.</p>
                 </section>
 
-                <section class="legal-section" id="features">
-                    <span class="section-kicker">13 · Product surfaces</span>
+                <section class="legal-section" id="features" tabindex="-1">
                     <h2>Posts, comments, Rooms and Messages</h2>
                     <h3>Posts, comments, replies and reposts</h3>
                     <p>These Guidelines apply to captions, media, polls, comments, replies, quotes, repost commentary, hashtags and mentions. A repost does not automatically mean endorsement, but adding praise, instructions or targeted harassment can create responsibility for the added context.</p>
@@ -261,15 +241,13 @@
                     <p><a href="/messages">Messages</a> are intended for conversation participants rather than the public feed, but private messaging is not a loophole for threats, harassment, scams, sexual exploitation, illegal transactions or malicious files. Recipients can report eligible messages or conversations.</p>
                 </section>
 
-                <section class="legal-section" id="uploads">
-                    <span class="section-kicker">14 · Media &amp; files</span>
-                    <h2>Uploads must satisfy both safety and technical rules</h2>
+                <section class="legal-section" id="uploads" tabindex="-1">
+                    <h2>Safety and technical requirements for uploads</h2>
                     <p>Media and files must follow these Community Guidelines and the current <a href="/upload-guidelines"><strong>Upload Guidelines</strong></a>. File type, size, duration, dimensions, attachment count and validation rules are documented there.</p>
                     <p>A technically valid upload can still be removed if the content violates safety rules. A lawful and safe file can still fail if it exceeds a technical upload limit or is corrupt.</p>
                 </section>
 
-                <section class="legal-section" id="moderation">
-                    <span class="section-kicker">15 · Enforcement</span>
+                <section class="legal-section" id="moderation" tabindex="-1">
                     <h2>How SautiLink responds to violations</h2>
                     <p>Our response depends on severity, context, likelihood of harm, account history, target, reach and whether a less restrictive action can address the risk. Actions can include:</p>
                     <ul>
@@ -285,17 +263,15 @@
                     <p>Moderation does not cancel your account privacy controls. You can review the <a href="/account-deletion">Account &amp; Data Deletion</a> process even if an account is restricted, subject to limited lawful retention of safety or legal records.</p>
                 </section>
 
-                <section class="legal-section" id="report-appeal">
-                    <span class="section-kicker">16 · Review</span>
+                <section class="legal-section" id="report-appeal" tabindex="-1">
                     <h2>Reporting and appeals</h2>
                     <p>Use the <strong>Report</strong> option available from eligible posts, comments, profiles or conversations when you believe something violates these Guidelines. See <a href="/help#reporting">how reporting, blocking and muting work</a>.</p>
                     <p>If SautiLink takes an eligible moderation action against your content or account, you can use the <a href="/appeals"><strong>Appeals</strong></a> area to request review. Appeals can result in the original action being upheld or reversed. Additional context, public interest and the applicable rule may be considered.</p>
                     <p>Do not submit knowingly false reports, mass-report someone merely because you disagree with them, or coordinate reporting to silence lawful political, regional or personal expression.</p>
                 </section>
 
-                <section class="legal-section" id="faq">
-                    <span class="section-kicker">17 · Quick answers</span>
-                    <h2>Common Community Guidelines questions</h2>
+                <section class="legal-section" id="faq" tabindex="-1">
+                    <h2>Frequently asked questions</h2>
                     <h3>Does SautiLink allow political opinions and criticism?</h3>
                     <p>Yes. Peaceful political opinions, criticism, reporting, debate, satire and advocacy are allowed. We become stricter when political or regional content involves threats, incitement, intimidation, dangerous deceptive civic instructions, impersonation, coordinated manipulation, doxxing or hate against communities.</p>
                     <h3>How do I get verified on SautiLink?</h3>
@@ -306,9 +282,8 @@
                     <p>Open <a href="/appeals">Appeals</a> while signed in. Eligible actions can be reviewed and may be upheld or reversed.</p>
                 </section>
 
-                <section class="legal-section" id="contact">
-                    <span class="section-kicker">18 · Contact</span>
-                    <h2>Need help with a safety or policy issue?</h2>
+                <section class="legal-section" id="contact" tabindex="-1">
+                    <h2>Help with safety and policy questions</h2>
                     <div class="contact-panel">
                         <p><strong>SautiLink Corporation</strong></p>
                         <p>Uhuru Street, Mwanza, United Republic of Tanzania</p>
@@ -323,12 +298,17 @@
     </main>
 
     <footer class="site-footer">
-        <div class="footer-inner">
-            <div class="footer-brand"><a class="brand" href="/"><img class="brand-logo" src="/logo.png" alt="" width="48" height="23"><span>SautiLink</span></a><p>A privacy-first social network built in Tanzania for open, responsible expression everywhere.</p></div>
-            <nav class="footer-links" aria-label="Footer navigation"><a href="/about">About</a><a href="/help">Help Centre</a><a href="/community-guidelines">Community Guidelines</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/upload-guidelines">Upload Guidelines</a><a href="/account-deletion">Account &amp; Data Deletion</a><a href="/contact">Contact</a></nav>
+        <div class="public-footer-shell">
+            <nav class="footer-breadcrumbs" aria-label="Breadcrumb"><a href="/">SautiLink</a><svg viewBox="0 0 10 10" fill="none" stroke="currentColor" aria-hidden="true"><path d="m3 1 4 4-4 4"></path></svg><span aria-current="page">Community Guidelines</span></nav>
+            <div class="footer-directory">
+                <div class="footer-brand"><a class="brand" href="/" aria-label="SautiLink home"><img class="brand-logo" src="/logo.png" alt="" width="48" height="23"><span>SautiLink</span></a><p>Built in Tanzania.<br>For conversations everywhere.</p></div>
+                <div><h2 id="footer-support-title">Support</h2><nav aria-labelledby="footer-support-title"><a href="/help">Help Centre</a><a href="/contact">Contact SautiLink</a><a href="/verify">Verification</a><a href="/upload-guidelines">Upload Guidelines</a><a href="https://wa.me/255629145502" target="_blank" rel="noopener noreferrer">WhatsApp Support · 24/7</a></nav></div>
+                <div><h2 id="footer-legal-title">Privacy &amp; Legal</h2><nav aria-labelledby="footer-legal-title"><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/community-guidelines">Community Guidelines</a><a href="/account-deletion">Account &amp; Data Deletion</a></nav></div>
+                <div><h2 id="footer-company-title">SautiLink</h2><nav aria-labelledby="footer-company-title"><a href="/about">About us</a><a href="/sautinote">SautiNote</a><a href="https://cloudengine.sautilink.com" target="_blank" rel="noopener noreferrer">Cloud Engine</a><a href="/signup">Create an account</a><a href="/login">Sign in</a></nav></div>
+            </div>
+            <div class="footer-bottom"><span>&copy; <span data-current-year>2026</span> SautiLink Corporation. All rights reserved.</span><span>Uhuru Street, Mwanza, Tanzania</span></div>
         </div>
-        <div class="footer-bottom"><span>&copy; <span data-current-year>2026</span> SautiLink Corporation. All rights reserved.</span><span>Freedom of expression · Safety with accountability</span></div>
     </footer>
-    <script src="/assets/legal.js" defer></script>
+    <script src="/assets/legal.js?v=20261017-1" defer></script>
 </body>
 </html>
