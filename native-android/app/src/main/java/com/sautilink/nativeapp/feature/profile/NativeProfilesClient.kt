@@ -28,8 +28,15 @@ data class NativeProfile(
     val following: Int,
     val joinedAt: String,
     val hasAvatar: Boolean,
+    val hasHeader: Boolean,
+    val categorySlug: String,
     val verified: Boolean,
-    val badgeType: String
+    val badgeType: String,
+    val dmAccess: String = "none",
+    val verifiedSince: String = "",
+    // A non-reversible key fingerprint forces Compose media reload when the R2 object changes.
+    val avatarRevision: String = "",
+    val headerRevision: String = ""
 )
 
 data class ProfileEdit(val bio: String, val location: String, val website: String, val discoverable: Boolean)
@@ -41,7 +48,7 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
     private val uuid = Regex("^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
     private val handle = Regex("^[a-z0-9][a-z0-9._]{2,29}$")
     private val http = OkHttpClient.Builder().callTimeout(20, TimeUnit.SECONDS).build()
-    private val select = "id,username,display_name,bio,location,website_url,is_discoverable,followers_count,following_count,created_at,avatar_key,is_verified,verification_badge_type"
+    private val select = "id,username,display_name,bio,location,website_url,is_discoverable,followers_count,following_count,created_at,avatar_key,header_key,professional_category_slug,is_verified,verification_badge_type,dm_access,username_locked_at"
 
     private suspend fun rows(path: String): JSONArray = JSONArray(call(path, "GET"))
 
@@ -58,7 +65,8 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
             else builder.get()
             try {
                 http.newCall(builder.build()).execute().use { response ->
-                    val content = response.body?.string()?.take(65_536).orEmpty()
+                    // The public professional-category catalog is larger than the profile payload.
+                    val content = response.body?.string()?.take(300_000).orEmpty()
                     if (!response.isSuccessful) throw AuthRequestException(when (response.code) {
                         401, 403 -> "Profile access denied. Check your session and try again."
                         429 -> "Too many requests. Try again shortly."
@@ -83,9 +91,46 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
         following = row.optInt("following_count").coerceAtLeast(0),
         joinedAt = row.optString("created_at"),
         hasAvatar = !row.isNull("avatar_key") && row.optString("avatar_key").isNotBlank(),
+        hasHeader = !row.isNull("header_key") && row.optString("header_key").isNotBlank(),
+        categorySlug = row.optString("professional_category_slug").takeUnless { it == "null" }.orEmpty(),
         verified = row.optBoolean("is_verified"),
-        badgeType = row.optString("verification_badge_type", "standard")
+        badgeType = row.optString("verification_badge_type", "standard"),
+        dmAccess = row.optString("dm_access", "none"),
+        verifiedSince = if (row.optBoolean("is_verified"))
+            row.optString("username_locked_at").takeUnless { it == "null" }.orEmpty() else "",
+        avatarRevision = row.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" }
+            ?.hashCode()?.toUInt()?.toString(16).orEmpty(),
+        headerRevision = row.optString("header_key").takeIf { it.isNotBlank() && it != "null" }
+            ?.hashCode()?.toUInt()?.toString(16).orEmpty()
     )
+
+    /** Same professional category taxonomy and column-level ownership policy as SautiLink Web. */
+    internal suspend fun categoryCatalog(): List<ProfileProfessionalCategory> {
+        val categories = rows("profile_categories?select=slug,label,group_name,description&order=group_name.asc,label.asc&limit=1000")
+        return (0 until categories.length()).mapNotNull {
+            val o = categories.optJSONObject(it) ?: return@mapNotNull null
+            ProfileProfessionalCategory(o.optString("slug"), o.optString("label"),
+                o.optString("group_name"), o.optString("description"))
+        }.filter { it.slug.isNotBlank() && it.label.isNotBlank() }
+    }
+
+    suspend fun saveCategory(slug: String): NativeProfile {
+        if (auth.backend != SautiBackend.PRODUCTION) throw AuthRequestException("Editing is unavailable.")
+        val id = auth.account?.id?.takeIf(uuid::matches)
+            ?: throw AuthRequestException("Sign in to update your category.")
+        if (slug.isNotEmpty() && !Regex("^[a-z0-9-]{2,80}$").matches(slug))
+            throw AuthRequestException("Choose an available category.")
+        val confirmed = if (slug.isNotEmpty()) categoryCatalog().any { it.slug == slug } else true
+        if (!confirmed) throw AuthRequestException("Choose a category from the list.")
+        val payload = JSONObject().put("professional_category_slug",
+            if (slug.isBlank()) JSONObject.NULL else slug)
+        val result = JSONArray(call("social_profiles?id=eq.$id&select=$select", "PATCH", payload,
+            "return=representation"))
+        val updated = result.optJSONObject(0)
+            ?: throw AuthRequestException("Category update was not confirmed.")
+        if (updated.optString("id") != id) throw AuthRequestException("Profile identity did not match.")
+        return parse(updated)
+    }
 
     suspend fun own(): NativeProfile? {
         val id = auth.account?.id ?: throw AuthRequestException("Sign in to view your profile.")
@@ -101,6 +146,20 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
         if (!handle.matches(normalized)) throw AuthRequestException("Invalid profile address.")
         val result = rows("social_profiles?username=eq.$normalized&is_discoverable=eq.true&select=$select&limit=1")
         return result.optJSONObject(0)?.let(::parse)
+    }
+
+    /** Conservative visibility check; backend RPC still enforces the actual DM policy. */
+    suspend fun canMessage(profile: NativeProfile): Boolean {
+        val ownId = auth.account?.id?.takeIf(uuid::matches) ?: return false
+        if (ownId == profile.id) return false
+        return when (profile.dmAccess) {
+            "everyone" -> true
+            "following" -> {
+                // "Following" means a member the recipient follows, not any follower.
+                rows("social_follows?follower_id=eq.${profile.id}&followed_id=eq.$ownId&select=followed_id&limit=1").length() > 0
+            }
+            else -> false
+        }
     }
 
     suspend fun following(profileId: String): Boolean {
@@ -209,3 +268,6 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
             ?: throw AuthRequestException("Identity change could not be confirmed.")
     }
 }
+
+internal data class ProfileProfessionalCategory(val slug: String, val label: String,
+    val group: String, val description: String)

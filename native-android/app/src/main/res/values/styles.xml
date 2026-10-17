@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the Compose startup surface so no white window is exposed at launch. -->
+    <color name="sautilink_launch_charcoal">#1A1C20</color>
+    <style name="Theme.SautiLink.Launch" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/sautilink_launch_charcoal</item>
+    </style>
+</resources>

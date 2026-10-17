@@ -1,3 +1,4 @@
+import { originalVideoIndexObjectKey, originalVideoIndexReceiptObjectKey, servePrecomputedOriginalIndex } from './original-video-index-delivery.js';
 import { inspectImageBytes } from './profile-media-api.js';
 import { VIDEO_VARIANT_QUALITIES, videoVariantDimensions, availableVideoQualities } from './video-quality-levels.js';
 
@@ -40,6 +41,42 @@ function json(status, payload) {
 
 function apiError(status, code, message) {
   return json(status, { ok: false, error: { code, message } });
+}
+
+// Preserve the original thrown object; retain only its fatal delivery phase weakly.
+const mediaDeliveryFailures = new WeakMap();
+const mediaDeliveryPhases = new Set(['METADATA_LOOKUP', 'ORIGINAL_R2_HEAD', 'ORIGINAL_R2_GET', 'VARIANT_R2_GET', 'ORIGINAL_INDEX_R2_HEAD', 'ORIGINAL_INDEX_RECEIPT_R2_GET', 'ORIGINAL_INDEX_R2_GET']);
+const mediaDeliveryErrorNames = new Set(['Error', 'TypeError', 'RangeError', 'SyntaxError',
+  'DOMException', 'AbortError', 'TimeoutError', 'NetworkError']);
+async function mediaDeliveryPhase(phase, operation) {
+  try { return await operation(); } catch (error) {
+    if (error !== null && (typeof error === 'object' || typeof error === 'function')) {
+      mediaDeliveryFailures.set(error, phase);
+    }
+    throw error;
+  }
+}
+
+export function mediaDeliveryFailureDiagnostic(error) {
+  const object = error !== null && (typeof error === 'object' || typeof error === 'function');
+  const taggedPhase = object ? mediaDeliveryFailures.get(error) : null;
+  const phase = mediaDeliveryPhases.has(taggedPhase) ? taggedPhase : 'UNCLASSIFIED_MEDIA';
+  let name = object ? 'UNKNOWN' : 'NON_OBJECT', code = null;
+  try {
+    const candidateName = object ? error.name : null;
+    if (mediaDeliveryErrorNames.has(candidateName)) name = candidateName;
+    const value = object ? error.code : null;
+    if (Number.isSafeInteger(value) && value >= 0 && value <= 999999) code = value;
+    // R2 can put its numeric code in this fixed prefix, rather than a code property.
+    const message = object && code === null ? error.message : null;
+    if (typeof message === 'string') {
+      const match = /^R2 (?:GET|HEAD) failed:?\s*\((\d{3,6})\)/.exec(message.slice(0, 160));
+      if (match) code = Number(match[1]);
+    }
+  } catch { /* A diagnostic must not replace the existing failure response. */ }
+  return { delivery_phase: phase, exception_class: name, exception_code: code ?? 'NONE',
+    delivery_reason: phase === 'METADATA_LOOKUP' ? 'METADATA_THROW'
+      : phase === 'UNCLASSIFIED_MEDIA' ? 'UNCLASSIFIED_THROW' : 'R2_THROW' };
 }
 
 function authorization(request) {
@@ -145,7 +182,7 @@ export function sautiMediaObjectKeys(row) {
   const original = String(row?.object_key || '');
   if (!original) return [];
   if (row?.media_kind !== 'video') return [original];
-  return [original, sautiVideoPosterObjectKey(original),
+  return [original, originalVideoIndexReceiptObjectKey(original), originalVideoIndexObjectKey(original), sautiVideoPosterObjectKey(original),
     ...VIDEO_VARIANT_QUALITIES.map((quality) => sautiVideoVariantObjectKey(original, quality)),
     ...[360, 720].map((quality) => `${original}.video-v1-q${quality}.mp4`)];
 }
@@ -377,8 +414,12 @@ async function insertPending(session, row) {
   return Array.isArray(rows) ? rows[0] || null : null;
 }
 
-async function patchMedia(session, id, patch) {
+async function patchMedia(session, id, patch, expectedStatus = '') {
   const params = new URLSearchParams({ id: `eq.${id}`, owner_id: `eq.${session.user.id}`, select: 'id,upload_status,finalized_at' });
+  if (expectedStatus) {
+    params.set('upload_status', `eq.${expectedStatus}`);
+    params.set('post_id', 'is.null');
+  }
   const response = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${params}`, {
     method: 'PATCH',
     headers: {
@@ -393,8 +434,9 @@ async function patchMedia(session, id, patch) {
   return Array.isArray(rows) ? rows[0] || null : null;
 }
 
-async function deleteMediaRow(session, id) {
+async function deleteMediaRow(session, id, expectedStatus = '') {
   const params = new URLSearchParams({ id: `eq.${id}`, owner_id: `eq.${session.user.id}`, post_id: 'is.null', select: 'id' });
+  if (expectedStatus) params.set('upload_status', `eq.${expectedStatus}`);
   const response = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${params}`, {
     method: 'DELETE',
     headers: { ...supabaseHeaders(session.auth), Prefer: 'return=representation' },
@@ -421,17 +463,23 @@ async function cleanupExpiredOwnerUploads(session, env) {
   if (!Array.isArray(rows) || !rows.length) return;
 
   await Promise.all(rows.map(async (row) => {
-    await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
     if (!row?.id) return;
     const deleteParams = new URLSearchParams({
       id: `eq.${row.id}`,
       owner_id: `eq.${session.user.id}`,
       post_id: 'is.null',
+      select: 'id',
     });
-    await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${deleteParams}`, {
+    const removal = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${deleteParams}`, {
       method: 'DELETE',
-      headers: supabaseHeaders(session.auth),
-    }).catch(() => {});
+      headers: { ...supabaseHeaders(session.auth), Prefer: 'return=representation' },
+    }).catch(() => null);
+    const deleted = removal?.ok ? await removal.json().catch(() => []) : [];
+    // Pending Room holds reject DB deletion. Never delete bytes first: another
+    // transaction can claim an upload after the expired-upload SELECT.
+    if (Array.isArray(deleted) && deleted.some((item) => item.id === row.id)) {
+      await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
+    }
   }));
 }
 
@@ -499,7 +547,10 @@ async function uploadMedia(request, env, id) {
   const contentLength = Number(request.headers.get('Content-Length') || 0);
   if (contentLength && contentLength !== Number(row.size_bytes)) return apiError(400, 'SIZE_MISMATCH', 'The uploaded file size changed.');
 
-  const bytes = new Uint8Array(await request.arrayBuffer());
+  let bytes;
+  try { bytes = new Uint8Array(await request.arrayBuffer()); } catch {
+    return apiError(400, 'UPLOAD_INTERRUPTED', 'The upload was interrupted. Try again.');
+  }
   if (bytes.byteLength !== Number(row.size_bytes) || bytes.byteLength > declared.limit) {
     return apiError(400, 'SIZE_MISMATCH', 'The uploaded file size changed.');
   }
@@ -514,17 +565,21 @@ async function uploadMedia(request, env, id) {
   } else {
     inspected = inspectMp4Bytes(bytes);
     if (!inspected) {
-      await deleteMediaRow(session, id).catch(() => false);
+      await deleteMediaRow(session, id, 'pending').catch(() => false);
       return apiError(415, 'INVALID_VIDEO', 'Use a valid MP4 video no longer than 2 minutes.');
     }
     if (Number(inspected.durationMs || 0) > SHORT_VIDEO_DURATION_MS) {
-      await deleteMediaRow(session, id).catch(() => false);
+      await deleteMediaRow(session, id, 'pending').catch(() => false);
       return apiError(422, 'VIDEO_TOO_LONG', 'This video is longer than 60 seconds. Trim it in the composer before uploading.');
     }
   }
 
   try {
-    await env.SAUTI_MEDIA.put(row.object_key, bytes, {
+    // The pending SELECT precedes body consumption. Another request may have
+    // finalized/queued/published this ID during that await, so only an atomic
+    // first write can protect the existing bytes. A HEAD check alone races.
+    const stored = await env.SAUTI_MEDIA.put(row.object_key, bytes, {
+      onlyIf: { etagDoesNotMatch: '*' },
       httpMetadata: { contentType: row.content_type },
       customMetadata: {
         ownerId: session.user.id,
@@ -536,6 +591,7 @@ async function uploadMedia(request, env, id) {
         durationMs: inspected.durationMs == null ? '' : String(inspected.durationMs),
       },
     });
+    if (!stored) return apiError(409, 'UPLOAD_ALREADY_STORED', 'This media was already stored. Refresh its status or add the file again.');
   } catch {
     return apiError(502, 'R2_UPLOAD_FAILED', 'The media could not be stored. Try again.');
   }
@@ -545,9 +601,13 @@ async function uploadMedia(request, env, id) {
     height: inspected.height,
     duration_ms: inspected.durationMs,
     upload_status: 'uploaded',
-  });
+  }, 'pending').catch(() => null);
   if (!patched) {
-    await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
+    // Only this request's new object may be cleaned, and only after confirmed
+    // deletion of its STILL-pending metadata. A ready/held/attached row, failed
+    // DELETE or zero-row response must preserve its bytes.
+    const removed = await deleteMediaRow(session, id, 'pending').catch(() => false);
+    if (removed) await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
     return apiError(409, 'UPLOAD_METADATA_FAILED', 'The upload could not be recorded.');
   }
 
@@ -712,7 +772,7 @@ async function serveOriginalMedia(request, env, row, id) {
   if (!rangeHeader && requestHasEtag(request, etag)) return new Response(null, { status: 304, headers });
 
   if (request.method === 'HEAD') {
-    const object = await env.SAUTI_MEDIA.head(row.object_key);
+    const object = await mediaDeliveryPhase('ORIGINAL_R2_HEAD', () => env.SAUTI_MEDIA.head(row.object_key));
     if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
     object.writeHttpMetadata(headers);
     headers.set('Cache-Control', video ? 'private, max-age=300, must-revalidate' : 'private, no-store, max-age=0');
@@ -722,10 +782,10 @@ async function serveOriginalMedia(request, env, row, id) {
     return new Response(null, { status: 200, headers });
   }
 
-  const object = await env.SAUTI_MEDIA.get(
+  const object = await mediaDeliveryPhase('ORIGINAL_R2_GET', () => env.SAUTI_MEDIA.get(
     row.object_key,
     rangeHeader ? { range: boundedSautiVideoRange(rangeHeader, row.size_bytes) || request.headers } : undefined,
-  );
+  ));
   if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
   object.writeHttpMetadata(headers);
   headers.set('Cache-Control', video ? 'private, max-age=300, must-revalidate' : 'private, no-store, max-age=0');
@@ -789,10 +849,10 @@ async function serveVideoVariant(request, env, row, id, quality, ctx = null) {
     return new Response(null, { status: 200, headers });
   }
 
-  const object = await env.SAUTI_MEDIA.get(
+  const object = await mediaDeliveryPhase('VARIANT_R2_GET', () => env.SAUTI_MEDIA.get(
     objectKey,
     rangeHeader ? { range: boundedSautiVideoRange(rangeHeader, available.size) || request.headers } : undefined,
-  );
+  ));
   if (!object) return serveOriginalMedia(request, env, row, id);
   object.writeHttpMetadata(headers);
   headers.set('Content-Security-Policy', "default-src 'none'");
@@ -932,7 +992,7 @@ export async function servePublicSautiMediaPreview(request, env, media) {
 async function serveMedia(request, env, id, ctx = null) {
   if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
   const deliveryAuth = mediaDeliveryAuthorization(request);
-  const row = await selectVideoMediaForDelivery(request, id, deliveryAuth);
+  const row = await mediaDeliveryPhase('METADATA_LOOKUP', () => selectVideoMediaForDelivery(request, id, deliveryAuth));
   if (!row || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
 
   const url = new URL(request.url);
@@ -943,6 +1003,9 @@ async function serveMedia(request, env, id, ctx = null) {
 
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
+  const indexed = !posterOnly && row.media_kind === 'video'
+    ? await servePrecomputedOriginalIndex(request, env, row, mediaDeliveryPhase) : null;
+  if (indexed) return indexed;
   if (posterOnly) return serveVideoPoster(request, env, row, id);
   if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
   if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality, ctx);

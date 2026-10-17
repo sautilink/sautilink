@@ -47,8 +47,8 @@ android {
         targetSdk = 36
         buildConfigField("String", "STAGING_SUPABASE_PUBLISHABLE_KEY", "\"${stagingPublishableKey}\"")
         buildConfigField("String", "PRODUCTION_SUPABASE_PUBLISHABLE_KEY", "\"${productionPublishableKey}\"")
-        versionCode = 41
-        versionName = "0.9.0-native-performance"
+        versionCode = 42
+        versionName = "1.0.0"
     }
     flavorDimensions += "distribution"
     productFlavors {
@@ -103,6 +103,8 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui-tooling-preview")
+    // Bundled, cached vector buffering overlay for Home and Short Videos.
+    implementation("com.airbnb.android:lottie-compose:6.7.1")
     // Downloads Inter from the Google Play services fonts provider when available.
     implementation("androidx.compose.ui:ui-text-google-fonts:1.10.0")
     // Tested on-device after Android Studio sync. Keep all Media3 modules on one version.

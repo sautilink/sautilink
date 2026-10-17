@@ -19,7 +19,8 @@ jobs:
   preview:
     name: Build and lint native preview
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # Clean assembly passed, but lint was canceled at the former 35-minute limit.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -29,9 +30,28 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.13"
+      - name: Restore Firebase preview client
+        shell: bash
+        env:
+          FIREBASE_CONFIG: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          test -n "$FIREBASE_CONFIG" || { echo "::error::Firebase Android config secret is missing"; exit 1; }
+          printf '%s' "$FIREBASE_CONFIG" | base64 --decode > native-android/app/google-services.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const config = JSON.parse(fs.readFileSync('native-android/app/google-services.json', 'utf8'));
+          const packages = (config.client || []).map(client => client?.client_info?.android_client_info?.package_name);
+          if (config.project_info?.project_id !== 'sautilink' || !packages.includes('com.sautilink.preview.nativeapp')) {
+            throw new Error('Firebase config does not contain the sautilink native preview Android client');
+          }
+          NODE
       - name: Build and lint preview
         working-directory: native-android
-        run: gradle :app:assemblePreviewDebug :app:lintPreviewDebug --no-daemon
+        # K2 data-flow analysis of the large feed exceeds 4 GiB; public runners have 16 GiB RAM.
+        run: >-
+          gradle :app:assemblePreviewDebug :app:lintPreviewDebug --no-daemon
+          --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process
+          '-Dorg.gradle.jvmargs=-Xmx6144m -Dfile.encoding=UTF-8'
       - uses: actions/upload-artifact@v4
         with:
           name: SautiLink-Native-Preview-${{ github.sha }}

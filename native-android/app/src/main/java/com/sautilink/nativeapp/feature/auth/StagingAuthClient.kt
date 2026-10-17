@@ -1,6 +1,10 @@
 package com.sautilink.nativeapp.feature.auth
 
 import android.content.Context
+import android.util.Log
+import com.sautilink.nativeapp.network.SautiNetworkPhase
+import com.sautilink.nativeapp.network.SautiNetworkSite
+import com.sautilink.nativeapp.network.sautiNetworkFailureDiagnostic
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -32,9 +36,8 @@ class StagingAuthClient(
     val backend: SautiBackend = SautiBackend.STAGING
 ) {
     private fun canonicalPhone(value: String): String {
-        val phone = value.trim().replace(Regex("[\\s()\\-]"), "")
-        if (!Regex("^\\+[1-9][0-9]{7,14}$").matches(phone) ||
-            (phone.startsWith("+255") && !Regex("^\\+255[67][0-9]{8}$").matches(phone))) {
+        val phone = normalizedSignupPhone(value)
+        if (!validSignupPhone(phone)) {
             throw AuthRequestException("Enter a valid phone number including country code.")
         }
         return phone
@@ -59,6 +62,24 @@ class StagingAuthClient(
         return consumeSession(response)
     }
 
+    /** Existing server bridge resolves usernames privately; email/password and OTP stay on Auth. */
+    suspend fun signInWithUsername(username: String, password: String): StagingAccount {
+        if (backend != SautiBackend.PRODUCTION) {
+            throw AuthRequestException("Use your staging email to sign in.")
+        }
+        if (!validLoginUsername(username) || password.isEmpty() || password.length > 1024) {
+            throw AuthRequestException("Incorrect email/username or password.")
+        }
+        val response = request("/functions/v1/sautilink-username-login", "POST",
+            JSONObject().put("username", normalizeLoginUsername(username)).put("password", password),
+            origin = backend.supabaseOrigin)
+        val session = response.optJSONObject("data")?.optJSONObject("session")
+        if (!response.optBoolean("ok") || session == null) {
+            throw AuthRequestException("Sign-in did not return a renewable session. Try again.")
+        }
+        return consumeSession(session)
+    }
+
     /** SautiLink signup uses 8-digit EMAIL OTP; the Auth server, not the app, creates the user. */
     suspend fun createAccount(
         email: String, password: String, username: String, displayName: String, phone: String
@@ -67,7 +88,7 @@ class StagingAuthClient(
         val data = JSONObject()
             .put("username", username.trim().lowercase())
             .put("full_name", displayName.trim())
-            .put("sautilink_signup_phone", canonicalPhone(phone))
+        if (phone.isNotBlank()) data.put("sautilink_signup_phone", canonicalPhone(phone))
         val result = request("/signup", "POST", JSONObject()
             .put("email", email.trim().lowercase())
             .put("password", password)
@@ -99,7 +120,8 @@ class StagingAuthClient(
         return SignupRequirements(
             required = data.optBoolean("required", true),
             phoneVerified = data.optBoolean("phoneVerified", false),
-            termsAccepted = data.optBoolean("termsAccepted", false)
+            termsAccepted = data.optBoolean("termsAccepted", false),
+            phoneRequired = data.optBoolean("phoneRequired", true)
         )
     }
 
@@ -119,21 +141,31 @@ class StagingAuthClient(
         requireProductionRegistration()
         val normalizedPhone = canonicalPhone(phone)
         val token = activeAccessToken()
+        fun matchesVerifiedPhone(user: JSONObject): Boolean =
+            user.optString("phone").removePrefix("+") == normalizedPhone.removePrefix("+") &&
+                !user.isNull("phone_confirmed_at") && user.optString("phone_confirmed_at").isNotBlank()
+        // Auth stores E.164 digits without '+'. Reconcile a previous successful
+        // verification before attempting to consume its one-use code again.
+        val existing = request("/user", "GET", bearer = token)
+        if (matchesVerifiedPhone(existing) && signupRequirements().phoneVerified) {
+            currentUser = currentUser?.copy(phone = normalizedPhone)
+            return
+        }
         request("/verify", "POST", JSONObject().put("phone", normalizedPhone)
             .put("token", code).put("type", "phone_change"), bearer = token)
         val user = request("/user", "GET", bearer = token)
-        if (user.optString("phone") != normalizedPhone ||
-            user.isNull("phone_confirmed_at") || !signupRequirements().phoneVerified) {
+        if (!matchesVerifiedPhone(user) || !signupRequirements().phoneVerified) {
             throw AuthRequestException("Phone verification is still pending. Try again after receiving a valid code.")
         }
         currentUser = currentUser?.copy(phone = normalizedPhone)
     }
 
-    suspend fun finishSignup(username: String, displayName: String, birthDate: String) {
+    suspend fun finishSignup(username: String, displayName: String, birthDate: String, phone: String = "") {
         requireProductionRegistration()
         val requirements = signupRequirements()
-        if (requirements.required && (!requirements.phoneVerified || !requirements.termsAccepted)) {
-            throw AuthRequestException("Accept the account terms and verify your phone before finishing signup.")
+        if (requirements.needsSetup(phone.isNotBlank())) {
+            throw AuthRequestException(if (!requirements.termsAccepted) "Accept the account terms before finishing signup."
+                else "Verify your phone before finishing signup.")
         }
         signedInRpc("complete_social_onboarding", JSONObject()
             .put("p_username", username.trim().lowercase())
@@ -461,12 +493,20 @@ class StagingAuthClient(
         route: String,
         method: String,
         payload: JSONObject? = null,
-        bearer: String? = null
+        bearer: String? = null,
+        origin: String = baseUrl
     ): JSONObject = withContext(Dispatchers.IO) {
         if (!configured) throw AuthRequestException("${backend.title} publishable key is not configured.")
+        val started = System.nanoTime()
+        var phase = SautiNetworkPhase.EXECUTE
+        var seenStatus: Int? = null
+        fun recordFailure(error: Exception) {
+            runCatching { Log.w("SautiAuthNet", sautiNetworkFailureDiagnostic(error, method, SautiNetworkSite.AUTH,
+                (System.nanoTime() - started) / 1_000_000, seenStatus, phase)) }
+        }
         try {
             withTimeout(20000L) {
-                val connection = URL(baseUrl + route).openConnection() as HttpURLConnection
+                val connection = URL(origin + route).openConnection() as HttpURLConnection
                 try {
                     connection.requestMethod = method
                     connection.connectTimeout = 10000
@@ -482,11 +522,21 @@ class StagingAuthClient(
                         connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
                     }
                     val status = connection.responseCode
+                    seenStatus = status
+                    phase = SautiNetworkPhase.RESPONSE_BODY
                     val stream = if (status in 200..299) connection.inputStream else connection.errorStream
                     val body = stream?.bufferedReader()?.use { it.readText().take(8192) }.orEmpty()
                     val json = runCatching { JSONObject(body) }.getOrElse { JSONObject() }
                     if (status !in 200..299) {
-                        val message = when (status) {
+                        phase = SautiNetworkPhase.HTTP_STATUS
+                        val expiredCode = status in listOf(400, 401, 403, 422) && route == "/verify" && (
+                            json.optString("error_code") == "otp_expired" ||
+                            json.optString("code") == "otp_expired")
+                        val message = if (route == "/functions/v1/sautilink-username-login" && status in listOf(400, 401, 403, 422)) {
+                            "Incorrect email/username or password."
+                        } else if (expiredCode) {
+                            "This verification code is invalid or has expired. Request a new code and try again."
+                        } else when (status) {
                             400, 401, 403, 422 -> "Verification failed or this account is unavailable. Check your details."
                             429 -> "Too many attempts. Wait a little before trying again."
                             in 500..599 -> "Authentication service is temporarily unavailable."
@@ -498,15 +548,16 @@ class StagingAuthClient(
                 } finally { connection.disconnect() }
             }
         } catch (e: AuthRequestException) {
+            if (e.httpStatus != null) recordFailure(e)
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            recordFailure(e)
             throw AuthRequestException("Connection failed. Check internet and ${backend.title.lowercase()} availability.")
         }
     }
 }
 
 data class StagingAccount(val id: String, val displayName: String, val email: String, val phone: String, val suggestedUsername: String = "", val suggestedName: String = "", val signupPhone: String = "")
-data class SignupRequirements(val required: Boolean, val phoneVerified: Boolean, val termsAccepted: Boolean)
 data class StagingProfile(
     val displayName: String,
     val username: String,

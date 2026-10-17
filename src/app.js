@@ -4,6 +4,7 @@ import { getVideoAutoplayPreference, setVideoAutoplayPreference, VIDEO_AUTOPLAY_
 import { installVideoPlaybackCoordinator } from './video-playback-coordinator.js';
 import { applyHomeVideoAudio, resetHomeVideoAudio } from './home-video-audio-session.js';
 import { POST_BODY_LIMIT, hasPostFormatting } from './post-text-formatting.js';
+import { roomPublishRequestId, confirmRoomPublishRequest, roomPublishOutcome } from './room-publish-outcome.js';
 import { notificationPostDestination } from './notification-destinations.js';
 import { normalizeOtpPhone, otpPhoneError } from './phone-number-validation.js';
 import {
@@ -5387,6 +5388,8 @@ async function shareSauti() {
     const headers = await currentAuthorizationHeader();
     if (!headers.Authorization) throw new Error('Sign in again before publishing a post.');
 
+    const roomSnapshot = circleId ? { body, visibility, circle_id: circleId, reply_access: replyAccess, quote_post_id: quotePostId || null,
+      media: composerMedia.map((item) => ({ id: item.id, alt_text: String(item.altText || '').trim() })) } : null;
     const response = await fetch('/api/sauti', {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
@@ -5400,6 +5403,7 @@ async function shareSauti() {
           id: item.id,
           alt_text: String(item.altText || '').trim(),
         })),
+        ...(roomSnapshot ? { client_request_id: roomPublishRequestId(roomSnapshot) } : {}),
       }),
     });
     const payload = await response.json().catch(() => null);
@@ -5407,12 +5411,14 @@ async function shareSauti() {
       throw new Error(payload?.error?.message || 'Your post could not be published.');
     }
 
+    const roomOutcome = circleId ? roomPublishOutcome(response, payload) : null;
+    if (roomSnapshot) confirmRoomPublishRequest(roomSnapshot);
     const audienceLabel = byId('sauti-audience').selectedOptions[0]?.textContent || 'SautiLink';
     clearComposerCurrent({ resetControls: true });
-    setMessage(message, circleId ? `Post published in ${audienceLabel}.` : 'Post published.', 'success');
+    setMessage(message, roomOutcome?.pending ? 'Submitted to Room admins for approval.' : circleId ? `Post published in ${audienceLabel}.` : 'Post published.', 'success');
     await loadStream({ reset: true });
     closeSautiComposer({ restoreFocus: false });
-    showToast(circleId ? `Shared in ${audienceLabel}.` : visibility === 'followers' ? 'Followers-only post is live.' : 'Your post is live.');
+    showToast(roomOutcome?.pending ? 'Room post is awaiting approval.' : circleId ? `Shared in ${audienceLabel}.` : visibility === 'followers' ? 'Followers-only post is live.' : 'Your post is live.');
   } catch (error) {
     setMessage(message, error?.message || 'Your post could not be published. Try again.');
   } finally {
@@ -6122,6 +6128,9 @@ function notificationCopy(notification, actorName, circleName = '') {
       request_approved: [actor, circleName ? ` approved your request to join ${circleName}.` : ' approved your Room join request.'],
       request_declined: [actor, circleName ? ` declined your request to join ${circleName}.` : ' declined your Room join request.'],
       member_removed: [actor, circleName ? ` removed you from ${circleName}.` : ' removed you from a Room.'],
+      post_approval_requested: [actor, circleName ? ` submitted a post for review in ${circleName}.` : ' submitted a Room post for review.'],
+      post_approved: [actor, ' approved your Room post.'],
+      post_rejected: [actor, ' declined your Room post.'],
     };
     return circleCopy[notification.circle_event] || [actorName ? actor : 'SautiLink', ' sent you a Room update.'];
   }
@@ -6313,7 +6322,7 @@ function normalizeDiscoverQuery(value) {
   return String(value || '')
     .trim()
     .replace(/\s+/g, ' ')
-    .replace(/[%_]/g, '')
+    .replace(/%/g, '')
     .slice(0, 80);
 }
 
@@ -6360,6 +6369,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
   if (!currentMemberId) return;
   const requestId = ++discoverRequest;
   const query = normalizeDiscoverQuery(queryValue);
+  const pattern = `%${query.replace(/[\\%_]/g, '\\$&')}%`;
   const loading = byId('discover-loading');
   const errorState = byId('discover-error');
   const profileList = byId('discover-profile-list');
@@ -6396,7 +6406,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
           .select(profileSelect)
           .eq('is_discoverable', true)
           .neq('id', currentMemberId)
-          .ilike('username', `%${query}%`)
+          .ilike('username', pattern)
           .order('followers_count', { ascending: false })
           .limit(12),
         supabase
@@ -6404,7 +6414,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
           .select(profileSelect)
           .eq('is_discoverable', true)
           .neq('id', currentMemberId)
-          .ilike('display_name', `%${query}%`)
+          .ilike('display_name', pattern)
           .order('followers_count', { ascending: false })
           .limit(12),
       ]);
@@ -6430,7 +6440,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
       .order('created_at', { ascending: false })
       .limit(30);
 
-    if (query) postQuery = postQuery.ilike('body', `%${query}%`);
+    if (query) postQuery = postQuery.ilike('body', pattern);
 
     const [blockedResult, mutedResult, profileResults, postResult] = await Promise.all([
       blockedPromise,
@@ -8337,18 +8347,21 @@ async function shareCircleSauti() {
     const response = await fetch('/api/sauti', {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body, circle_id: circle.id, reply_access: replyAccess }),
+      body: JSON.stringify({ body, circle_id: circle.id, reply_access: replyAccess,
+        client_request_id: roomPublishRequestId({ body, circle_id: circle.id, reply_access: replyAccess }) }),
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok || payload?.ok === false) {
       throw new Error(payload?.error?.message || 'This Room post could not be published.');
     }
 
+    const outcome = roomPublishOutcome(response, payload);
+    confirmRoomPublishRequest({ body, circle_id: circle.id, reply_access: replyAccess });
     textarea.value = '';
     updateCircleComposerState();
-    setMessage(message, 'Post published in this Room.', 'success');
+    setMessage(message, outcome.pending ? 'Submitted to Room admins for approval.' : 'Post published in this Room.', 'success');
     await loadCircleStream(circle.id);
-    showToast('Posted in Room.');
+    showToast(outcome.pending ? 'Room post is awaiting approval.' : 'Posted in Room.');
   } catch (error) {
     setMessage(message, error?.message || 'This Room post could not be published.');
   } finally {

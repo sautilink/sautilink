@@ -83,3 +83,18 @@ test('unsupported protocols are not linkified', () => {
   assert.equal(externalUrlHref('javascript:alert(1)'), '');
   assert.deepEqual(findCaptionEntities('javascript:alert(1)'), []);
 });
+
+test('underscores stay in entity routes without matching email or URL fragments', () => {
+  assert.deepEqual(findCaptionEntities('Email cloud_engine@example.com; @cloud_engine #Habari_Leo https://example.com/@path#fragment.')
+    .map(({ type, text, href }) => ({ type, text, href })), [
+    { type: 'mention', text: '@cloud_engine', href: '/u/cloud_engine' },
+    { type: 'hashtag', text: '#Habari_Leo', href: '/discover?q=%23Habari_Leo' },
+    { type: 'url', text: 'https://example.com/@path#fragment', href: 'https://example.com/@path#fragment' },
+  ]);
+});
+
+test('overlong identifiers and Unicode email boundaries never become partial entity links', () => {
+  assert.deepEqual(findCaptionEntities(`@${'a'.repeat(31)} #${'b'.repeat(65)} josé@example.com e\u0301@example.com 中@example.com 𐐀@example.com @cloud_engineé @cloud_engine𐐀 𐐀#tag`), []);
+  const entities = findCaptionEntities(`@${'a'.repeat(30)}. #${'b'.repeat(64)}! @cloud_engine...`);
+  assert.deepEqual(entities.map((entity) => entity.text), [`@${'a'.repeat(30)}`, `#${'b'.repeat(64)}`, '@cloud_engine']);
+});

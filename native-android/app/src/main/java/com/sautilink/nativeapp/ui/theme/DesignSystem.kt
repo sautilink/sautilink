@@ -40,6 +40,11 @@ object SautiColors {
     val BlueDark = Color(0xFF3188FF)
     val Red = Color(0xFFED344B)
     val Yellow = Color(0xFFFFC83D)
+    // Endpoints sampled from the approved transparent sautilink_logo.png, scoped to entities/Create.
+    val LogoOrange = Color(0xFFFE682C)
+    val LogoPink = Color(0xFFFD3B45)
+    val EntityOrangeLight = Color(0xFFB84216)
+    val EntityOrangeDark = Color(0xFFFF9B70)
     val LightSurface = Color(0xFFF3F6FB)
     val DarkSurface = Color(0xFF141A24)
     val DarkCard = Color(0xFF1E2735)

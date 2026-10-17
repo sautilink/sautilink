@@ -23,7 +23,10 @@ data class NativePostComment(
     val authorId: String,
     val replyCount: Int,
     val verified: Boolean,
-    val badgeType: String
+    val badgeType: String,
+    val likes: Int = 0,
+    val dislikes: Int = 0,
+    val hasAvatar: Boolean = false
 )
 
 class PostInteractionsClient(private val auth: StagingAuthClient) {
@@ -186,12 +189,12 @@ class PostInteractionsClient(private val auth: StagingAuthClient) {
         val (_, token) = access()
         return withContext(Dispatchers.IO) {
             val rows = readArray(
-                "${rest}social_posts?parent_post_id=eq.$postId&select=id,author_id,body,created_at,comment_count&order=created_at.desc&limit=40", token
+                "${rest}social_posts?parent_post_id=eq.$postId&select=id,author_id,body,created_at,comment_count,like_count,dislike_count&order=created_at.asc&limit=80", token
             )
             val comments = (0 until rows.length()).mapNotNull { rows.optJSONObject(it) }
             val users = comments.map { it.optString("author_id") }.filter { userIdPattern.matches(it) }.distinct()
             val profiles = if (users.isEmpty()) emptyMap() else {
-                val names = readArray("${rest}social_profiles?id=in.(${users.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type", token)
+                val names = readArray("${rest}social_profiles?id=in.(${users.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type,avatar_key", token)
                 (0 until names.length()).mapNotNull { names.optJSONObject(it) }.associateBy { it.optString("id") }
             }
             comments.mapNotNull { c ->
@@ -208,9 +211,56 @@ class PostInteractionsClient(private val auth: StagingAuthClient) {
                     c.optString("author_id"),
                     c.optInt("comment_count").coerceAtLeast(0),
                     profile?.optBoolean("is_verified", false) == true,
-                    profile?.optString("verification_badge_type", "standard") ?: "standard"
+                    profile?.optString("verification_badge_type", "standard") ?: "standard",
+                    c.optInt("like_count").coerceAtLeast(0),
+                    c.optInt("dislike_count").coerceAtLeast(0),
+                    profile?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null
                 )
             }
+        }
+    }
+
+    /** Read only the signed-in viewer's existing comment reactions, under the same RLS as post Likes. */
+    suspend fun getCommentReactionStates(ids: List<String>): Map<String, String?> {
+        val filtered = ids.filter(postIdPattern::matches).distinct()
+        if (filtered.isEmpty()) return emptyMap()
+        val (userId, token) = access()
+        return withContext(Dispatchers.IO) {
+            val states = mutableMapOf<String, String>()
+            for (batch in filtered.chunked(50)) {
+                val rows = readArray("${rest}social_post_reactions?user_id=eq.$userId" +
+                    "&post_id=in.(${batch.joinToString(",")})&select=post_id,reaction_type", token)
+                for (index in 0 until rows.length()) {
+                    val row = rows.optJSONObject(index) ?: continue
+                    val id = row.optString("post_id")
+                    val reaction = row.optString("reaction_type")
+                    if (id in batch && reaction in listOf("like", "dislike")) states[id] = reaction
+                }
+            }
+            filtered.associateWith { states[it] }
+        }
+    }
+
+    /** The same validated comment-reaction route used by the web UI.
+     * A single user may Like, Dislike, or remove their reaction.
+     */
+    suspend fun setCommentReaction(commentId: String, reaction: String?): Pair<Int, Int> {
+        checkedPostId(commentId)
+        require(reaction == null || reaction in listOf("like", "dislike"))
+        val (_, token) = writingAccess()
+        return withContext(Dispatchers.IO) {
+            val body = JSONObject().put("reaction", reaction ?: JSONObject.NULL)
+            val result = JSONObject(request(
+                "${auth.backend.siteOrigin}/api/social/comments/$commentId/reaction",
+                "POST", token, body.toString()
+            ))
+            val data = result.optJSONObject("data")
+            if (!result.optBoolean("ok") || data?.optString("comment_id") != commentId)
+                throw AuthRequestException("Comment reaction was not confirmed.")
+            val confirmedReaction = if (data.isNull("reaction")) null else data.optString("reaction")
+            if (!data.has("reaction") || confirmedReaction != reaction)
+                throw AuthRequestException("Comment reaction was not confirmed. Refresh to check its status.")
+            data.optInt("like_count").coerceAtLeast(0) to data.optInt("dislike_count").coerceAtLeast(0)
         }
     }
 

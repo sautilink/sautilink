@@ -1,282 +1,327 @@
 package com.sautilink.nativeapp.feature.rooms
 
+import android.content.Intent
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
-import com.sautilink.nativeapp.ui.theme.SautiShape
-import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
+import com.sautilink.nativeapp.feature.home.NativePostDetailScreen
+import com.sautilink.nativeapp.feature.home.PostCommentsSheet
+import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
 
-@OptIn(ExperimentalMaterial3Api::class)
+private enum class RoomsSheet { CREATE, SETTINGS, MANAGE, INVITE, PEOPLE, COMPOSE, APPROVALS, COMMUNITY, OUTGOING, MEMBERSHIP, ANSWERS, POST }
+
 @Composable
 fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () -> Unit,
-    onOpenProfile: (String) -> Unit, initialRoomSlug: String? = null) {
-    val client = remember(auth) { NativeRoomsClient(auth) }
+    onOpenProfile: (String) -> Unit, initialRoomSlug: String? = null,
+    onOpenPost: ((String) -> Unit)? = null) {
+    val accountId = auth.account?.id
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var rooms by remember { mutableStateOf<List<NativeRoom>>(emptyList()) }
-    var selectedId by remember { mutableStateOf<String?>(null) }
-    var deepOpened by remember(initialRoomSlug) { mutableStateOf(false) }
-    var refresh by remember { mutableIntStateOf(0) }
-    var loading by remember { mutableStateOf(false) }
-    var busy by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var createOpen by remember { mutableStateOf(false) }
-    var confirmLeave by remember { mutableStateOf(false) }
-    var confirmDelete by remember { mutableStateOf(false) }
-    var posts by remember { mutableStateOf<List<NativeRoomPost>>(emptyList()) }
-    var members by remember { mutableStateOf<List<NativeRoomMember>>(emptyList()) }
-    var pending by remember { mutableStateOf<List<NativeJoinRequest>>(emptyList()) }
-    var draft by remember { mutableStateOf("") }
-    val selected = rooms.firstOrNull { it.id == selectedId }
-    BackHandler(selectedId != null) { selectedId = null }
-
-    LaunchedEffect(auth.account?.id, refresh) {
-        if (auth.account == null) { rooms = emptyList(); selectedId = null; return@LaunchedEffect }
-        loading = true; error = null
-        try { rooms = client.list() }
-        catch (cancelled: CancellationException) { throw cancelled }
-        catch (e: Exception) { error = e.message ?: "Could not load Rooms." }
-        finally { loading = false }
+    val state = remember(auth, accountId) { RoomsState(auth, accountId, context, scope) }
+    val community = remember(auth, accountId) { RoomManagementState(auth, accountId, scope) }
+    val entry = remember(state, initialRoomSlug) { state.restoreEntry(initialRoomSlug) }
+    var sheet by remember(accountId) { mutableStateOf<RoomsSheet?>(null) }
+    var detailPost by remember(accountId) { mutableStateOf(entry.postId) }
+    var commentPost by remember(accountId, state.selected?.id) { mutableStateOf<NativeRoomPost?>(null) }
+    var confirmation by remember(accountId, state.selected?.id) { mutableStateOf<String?>(null) }
+    val room = state.selected
+    var membershipAction by remember(accountId) { mutableStateOf("join") }
+    var pendingMembership by remember(accountId) { mutableStateOf<Pair<String, String>?>(null) }
+    var answersRequester by remember(accountId, room?.id) { mutableStateOf<String?>(null) }
+    var managedPost by remember(accountId, room?.id) { mutableStateOf<NativeRoomPost?>(null) }
+    val listState = remember(accountId, room?.id) { LazyListState() }
+    DisposableEffect(state, community) { onDispose { state.dispose(); community.dispose() } }
+    LaunchedEffect(community, room?.id, room?.role, room?.privacy, room?.viewerId) { community.open(room) }
+    val beginMembership: (NativeRoom, String) -> Unit = { target, action ->
+        pendingMembership = target.id to action
+        if (room?.id != target.id) state.openRoom(target)
     }
-    LaunchedEffect(initialRoomSlug, rooms) {
-        if (!initialRoomSlug.isNullOrBlank() && !deepOpened) {
-            rooms.firstOrNull { it.slug == initialRoomSlug }?.let { room ->
-                selectedId = room.id; deepOpened = true
-            }
-        }
-    }
-    LaunchedEffect(selected?.id, selected?.role, refresh) {
-        posts = emptyList(); members = emptyList(); pending = emptyList()
-        val room = selected ?: return@LaunchedEffect
-        if (!room.isOwner && room.role == null) return@LaunchedEffect
-        try {
-            posts = client.posts(room)
-            if (room.isOwner) {
-                members = client.members(room)
-                pending = client.pendingRequests(room)
-            }
-        } catch (cancelled: CancellationException) { throw cancelled }
-        catch (e: Exception) { error = e.message ?: "Could not load Room details." }
-    }
-    fun perform(action: suspend () -> Unit) {
-        if (busy) return
-        busy = true; error = null
-        scope.launch {
-            try { action(); refresh++ }
-            catch (cancelled: CancellationException) { throw cancelled }
-            catch (e: Exception) { error = e.message ?: "Room action failed." }
-            finally { busy = false }
-        }
-    }
-
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { if (selectedId != null) selectedId = null else onBack() }) {
-                Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
-            }
-            Text(selected?.name ?: "Rooms", style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.weight(1f))
-            IconButton(onClick = { refresh++ }, enabled = !loading && !busy) {
-                Icon(Icons.Rounded.Refresh, "Refresh Rooms")
-            }
-            if (selected == null && auth.account != null) IconButton(onClick = { createOpen = true }) {
-                Icon(Icons.Rounded.Add, "Create Room")
-            }
-        }
-        if (loading || busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-        if (error != null) Text(error.orEmpty(), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
-        if (auth.account == null) {
-            Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Sign in to see SautiLink Rooms.")
-                Spacer(Modifier.height(12.dp))
-                Button(onClick = onSignIn) { Text("Sign in") }
-            }
-        } else if (selected == null) {
-            LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (!loading && rooms.isEmpty()) item { Text("No Rooms available yet.") }
-                items(rooms, key = { it.id }) { room ->
-                    Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainer,
-                        shape = SautiShape.Card) {
-                        Column(Modifier.fillMaxWidth().clickable { selectedId = room.id }.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text(room.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("/rooms/${room.slug} · ${room.policy.replaceFirstChar { it.uppercase() }}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            if (room.description.isNotBlank()) Text(room.description, maxLines = 3)
-                            Text(when {
-                                room.isOwner -> "Owner"
-                                room.role != null -> "Joined"
-                                room.requestStatus == "pending" -> "Request pending"
-                                room.policy == "open" -> "Open to join"
-                                room.policy == "approval" -> "Approval required"
-                                else -> "Private Room"
-                            }, color = MaterialTheme.colorScheme.primary)
-                        }
-                    }
+    LaunchedEffect(pendingMembership, room, community.capabilityResolved, community.capabilityLoading,
+        community.available, community.configuration, community.configurationLoading, community.configurationError) {
+        val pending = pendingMembership
+        if (pending != null && room?.id == pending.first && community.membershipReady(room)) {
+            pendingMembership = null
+            membershipAction = pending.second
+            if (community.available) sheet = RoomsSheet.MEMBERSHIP
+            else when (pending.second) {
+                "accept_invitation" -> {
+                    val invitation = state.invitations.firstOrNull { it.room.id == room.id }
+                    if (invitation != null) state.respond(invitation, true)
+                    else state.reportError("This invitation changed. Refresh invitations and try again.")
                 }
+                "request" -> state.mutate("join", room, { state.client.requestJoin(room) })
+                else -> state.mutate("join", room, { state.client.join(room) })
+            }
+        }
+    }
+    val showAnswers: ((String) -> Unit)? = if (community.available) ({ requester ->
+        answersRequester = requester; sheet = RoomsSheet.ANSWERS
+    }) else null
+    LaunchedEffect(state, initialRoomSlug) {
+        if (accountId != null) { state.loadLanding(); entry.slug?.let(state::openSlug) }
+    }
+    val openProfile: (String) -> Unit = { handle ->
+        state.rememberProfileReturn(initialRoomSlug, detailPost); onOpenProfile(handle)
+    }
+    val openPost: (String) -> Unit = { id -> if (onOpenPost != null) onOpenPost(id) else detailPost = id }
+    val postId = detailPost
+    BackHandler(postId != null) { detailPost = null; postId?.let(state::refreshPost) }
+    if (postId != null) {
+        NativePostDetailScreen(auth, postId, onBack = { detailPost = null; state.refreshPost(postId) },
+            onSignIn = onSignIn, onOpenProfile = openProfile)
+        return
+    }
+    BackHandler(room != null || state.openingSlug) { state.closeRoom(); sheet = null; pendingMembership = null }
+    Column(Modifier.fillMaxSize()) {
+        RoomsTopBar(room?.name ?: "Rooms", state.discoverLoading || state.postsLoading,
+            onBack = { if (room != null || state.openingSlug) state.closeRoom() else onBack(); pendingMembership = null; sheet = null },
+            onRefresh = { if (room != null) { state.refreshRoom(); community.open(room, force = true) } else state.loadLanding() },
+            onCreate = if (room == null && accountId != null) ({ sheet = RoomsSheet.CREATE }) else null)
+        when {
+            accountId == null -> RoomEmpty("Your communities on SautiLink", "Sign in to discover, join and create Rooms.",
+                actionLabel = "Sign in", onAction = onSignIn)
+            state.openingSlug && room == null -> Column(Modifier.padding(16.dp)) { repeat(2) { RoomCardSkeleton() } }
+            room == null -> RoomsLanding(state, { sheet = RoomsSheet.CREATE }, { beginMembership(it.room, "accept_invitation") })
+            else -> RoomDetail(state, community, room, listState, openProfile, openPost,
+                onComments = { commentPost = it }, onCompose = { sheet = RoomsSheet.COMPOSE },
+                onManage = { sheet = RoomsSheet.MANAGE }, onInvite = { sheet = RoomsSheet.INVITE },
+                onLeave = { confirmation = "leave" }, onApprovals = { sheet = RoomsSheet.APPROVALS },
+                onMembership = { beginMembership(room, it) }, onAnswers = showAnswers,
+                onManagePost = { managedPost = it; sheet = RoomsSheet.POST })
+        }
+    }
+    val closeSheet = { sheet = null }
+    when (sheet) {
+        RoomsSheet.CREATE -> RoomSettingsSheet(accountId, null, state.approvalAvailable,
+            state.busy("create"), state.roomError, closeSheet) { _, settings, cover -> state.create(settings, cover, closeSheet) }
+        RoomsSheet.SETTINGS -> if (room?.canManageSettings == true) RoomSettingsSheet(accountId, room,
+            room.supportsPostApproval, state.busy("settings"), state.roomError, closeSheet) { snapshot, settings, cover ->
+            if (snapshot != null) state.saveSettings(snapshot, settings, cover, closeSheet)
+        }
+        RoomsSheet.MANAGE -> if (room != null) RoomManageSheet(room, state, closeSheet,
+            { sheet = RoomsSheet.SETTINGS }, { state.loadPeople(); sheet = RoomsSheet.PEOPLE }, { sheet = RoomsSheet.INVITE },
+            { sheet = RoomsSheet.APPROVALS }, { sheet = null; confirmation = "delete" },
+            onCommunity = if (community.available && room.canManageSettings) ({ sheet = RoomsSheet.COMMUNITY }) else null,
+            onOutgoing = { sheet = RoomsSheet.OUTGOING })
+        RoomsSheet.INVITE -> if (room?.canInvite == true) RoomInviteSheet(room, state, closeSheet, { sheet = RoomsSheet.OUTGOING })
+        RoomsSheet.PEOPLE -> if (room?.canSeeMembers == true) RoomSheet("People in ${room.name}", closeSheet) {
+            RoomPeopleContent(room, state, openProfile, showAnswers)
+        }
+        RoomsSheet.COMPOSE -> if (room?.canPost == true) RoomComposerSheet(room, state, closeSheet)
+        RoomsSheet.APPROVALS -> if (room?.supportsPostApproval == true) RoomApprovalSheet(room, state,
+            closeSheet, openProfile, openPost)
+        RoomsSheet.COMMUNITY -> if (room?.canManageSettings == true && community.available)
+            RoomCommunitySettingsSheet(room, community, closeSheet)
+        RoomsSheet.OUTGOING -> if (room?.isMember == true)
+            RoomOutgoingInvitationsSheet(room, community, closeSheet, openProfile)
+        RoomsSheet.MEMBERSHIP -> if (room != null && community.available)
+            RoomMembershipQuestionsSheet(room, community, closeSheet, membershipAction) {
+                state.loadLanding(); if (state.selected?.id == room.id) state.refreshRoom()
+            }
+        RoomsSheet.ANSWERS -> if (room != null && answersRequester != null && community.available)
+            RoomMembershipAnswersSheet(room, community, answersRequester!!, closeSheet)
+        RoomsSheet.POST -> if (room?.isStaff == true && community.available && managedPost != null)
+            RoomPublishedPostManagementSheet(room, community, managedPost!!, closeSheet, openPost) {
+                state.confirmedPostRemoval(room.id, it)
+            }
+        null -> Unit
+    }
+    commentPost?.let { post ->
+        if (room?.canReadPosts == true) PostCommentsSheet(post.asFeedPost(), state.interactions,
+            allowWrite = accountId != null && auth.account?.id == accountId, signedInUserId = accountId,
+            onDismiss = { commentPost = null }, onRootPosted = { state.commentCount(post.id, 1) },
+            onRootDeleted = { state.commentCount(post.id, -1) }, onCommentChanged = {})
+    }
+    if (confirmation != null && room != null) RoomDestructiveConfirmation(room, state,
+        confirmation == "delete", { confirmation = null })
+}
+
+@Composable
+private fun RoomsLanding(state: RoomsState, onCreate: () -> Unit, onAccept: (NativeRoomInvitation) -> Unit) {
+    RoomsTabs(state.tab, state.invitations.size) { state.tab = it }
+    val loading = when (state.tab) { RoomsTab.DISCOVER -> state.discoverLoading
+        RoomsTab.YOURS -> state.yoursLoading; RoomsTab.INVITES -> state.invitesLoading }
+    val error = when (state.tab) { RoomsTab.DISCOVER -> state.discoverError
+        RoomsTab.YOURS -> state.yoursError; RoomsTab.INVITES -> state.invitesError }
+    val source = if (state.tab == RoomsTab.YOURS) state.yours else state.discover
+    val query = state.search.trim()
+    val rooms = source.filter { query.isBlank() || it.name.contains(query, true) || it.description.contains(query, true) }
+    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        item { Text("Communities, conversations and shared interests.", style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (state.openError != null) item { RoomNotice(state.openError.orEmpty(), true) }
+        if (state.notice != null) item { RoomNotice(state.notice.orEmpty()) }
+        if (state.tab != RoomsTab.INVITES) {
+            item { OutlinedTextField(state.search, { state.search = it }, label = { Text("Search these Rooms") },
+                leadingIcon = { Icon(Icons.Rounded.Search, null) }, singleLine = true, modifier = Modifier.fillMaxWidth()) }
+            if (state.tab == RoomsTab.DISCOVER) item {
+                RoomSelectField("Category", state.category ?: "all",
+                    listOf("all" to "All categories") + NativeRoomRules.categories.toList()) {
+                    state.category = it.takeUnless { value -> value == "all" }; state.loadDiscover()
+                }
+            }
+        }
+        if (error != null) item { RoomNotice(error, true, state::loadLanding) }
+        if (state.tab == RoomsTab.INVITES) {
+            items(state.invitations, key = { it.room.id }) { invitation ->
+                RoomInvitationCard(state, invitation, { onAccept(invitation) })
+            }
+            if (!loading && error == null && state.invitations.isEmpty()) item {
+                RoomEmpty("No invitations yet", "Invitations from your communities will appear here.", Icons.Rounded.MailOutline)
             }
         } else {
-            val room = selected
-            LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                item {
-                    Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = SautiShape.Card) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("/rooms/${room.slug} · ${room.policy}",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(room.description.ifBlank { "No description yet." })
-                            Text(when {
-                                room.isOwner -> "You own this Room"
-                                room.role != null -> "You joined this Room"
-                                room.requestStatus == "pending" -> "Join request pending"
-                                else -> "You are not a member"
-                            }, style = MaterialTheme.typography.bodySmall)
-                            when {
-                                room.isOwner -> OutlinedButton(onClick = { confirmDelete = true }, enabled = !busy) {
-                                    Text("Delete Room")
-                                }
-                                room.role != null -> OutlinedButton(onClick = { confirmLeave = true }, enabled = !busy) {
-                                    Text("Leave Room")
-                                }
-                                room.policy == "open" -> Button(onClick = { perform { client.join(room) } }, enabled = !busy) {
-                                    Text("Join Room")
-                                }
-                                room.policy == "approval" && room.requestStatus != "pending" ->
-                                    Button(onClick = { perform { client.requestJoin(room) } }, enabled = !busy) {
-                                        Text(if (room.requestStatus == "declined") "Request again" else "Request to join")
-                                    }
-                            }
-                        }
-                    }
+            items(rooms, key = { it.id }) { room -> RoomCard(state.auth, room) { state.openRoom(room) } }
+            if (!loading && error == null && rooms.isEmpty()) item {
+                RoomEmpty(if (query.isNotBlank()) "No matching Rooms here" else if (state.tab == RoomsTab.YOURS) "Find your first Room" else "No Rooms here yet",
+                    if (query.isNotBlank()) "Try another name or load more results." else "Explore a community or create a space for your people.",
+                    actionLabel = "Create Room", onAction = onCreate)
+            }
+            if (state.tab == RoomsTab.DISCOVER && state.discoverMore) item {
+                OutlinedButton(onClick = { state.loadDiscover(true) }, enabled = !loading,
+                    modifier = Modifier.fillMaxWidth()) { Text("Load more Rooms") }
+            }
+        }
+        if (loading) items(if (source.isEmpty()) 3 else 1) { RoomCardSkeleton() }
+    }
+}
+
+@Composable
+private fun RoomInvitationCard(state: RoomsState, invitation: NativeRoomInvitation, onAccept: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        RoomCard(state.auth, invitation.room) { state.openRoom(invitation.room) }
+        Text("Invited by ${invitation.invitedByName}", style = MaterialTheme.typography.bodySmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onAccept, enabled = !state.busy("invite:${invitation.room.id}"),
+                modifier = Modifier.weight(1f)) { Text("Accept") }
+            OutlinedButton(onClick = { state.respond(invitation, false) }, enabled = !state.busy("invite:${invitation.room.id}"),
+                modifier = Modifier.weight(1f)) { Text("Decline") }
+        }
+        if (state.roomError != null) RoomNotice(state.roomError.orEmpty(), true)
+    }
+}
+
+@Composable
+private fun RoomDetail(state: RoomsState, community: RoomManagementState, room: NativeRoom, listState: LazyListState,
+    onOpenProfile: (String) -> Unit, onOpenPost: (String) -> Unit, onComments: (NativeRoomPost) -> Unit,
+    onCompose: () -> Unit, onManage: () -> Unit, onInvite: () -> Unit, onLeave: () -> Unit, onApprovals: () -> Unit,
+    onMembership: (String) -> Unit, onAnswers: ((String) -> Unit)?, onManagePost: (NativeRoomPost) -> Unit) {
+    val context = LocalContext.current
+    LazyColumn(state = listState, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        item { RoomDetailHeading(state.auth, room) }
+        item { RoomMembershipActions(state, community, room, onCompose, onManage, onMembership) }
+        if (state.roomError != null) item { RoomNotice(state.roomError.orEmpty(), true, state::refreshRoom) }
+        if (state.notice != null) item { RoomNotice(state.notice.orEmpty()) }
+        if (community.notice != null) item { RoomNotice(community.notice.orEmpty()) }
+        if (community.capabilityError != null || community.configurationError != null) item {
+            RoomManagementAvailabilityNotice(room, community)
+        }
+        item { RoomContentTabs(state.roomTab, state::selectRoomTab) }
+        when (state.roomTab) {
+            RoomTab.ABOUT -> item {
+                RoomAbout(room, onInvite, onLeave) {
+                    runCatching { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"; putExtra(Intent.EXTRA_TEXT, "${state.auth.backend.siteOrigin}/rooms/${room.slug}")
+                    }, "Share Room")) }.onFailure { state.reportError("No sharing app is available.") }
                 }
-                if (room.isOwner) {
-                    item { Text("Members (${members.size})", style = MaterialTheme.typography.titleLarge) }
-                    items(members, key = { "member:${it.id}" }) { member ->
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically) {
-                            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                Text(member.name, modifier = Modifier.clickable(enabled = member.handle.isNotBlank()) {
-                                    onOpenProfile(member.handle)
-                                })
-                                SautiVerificationBadge(member.verified, member.badgeType,
-                                    member.name, size = 15.dp)
-                            }
-                            Text(member.role, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    if (pending.isNotEmpty()) item { Text("Join requests", style = MaterialTheme.typography.titleLarge) }
-                    items(pending, key = { "request:${it.requesterId}" }) { request ->
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                Text(request.name)
-                                SautiVerificationBadge(request.verified, request.badgeType,
-                                    request.name, size = 15.dp)
-                            }
-                            TextButton(onClick = { perform { client.decide(room, request.requesterId, true) } }, enabled = !busy) {
-                                Text("Approve")
-                            }
-                            TextButton(onClick = { perform { client.decide(room, request.requesterId, false) } }, enabled = !busy) {
-                                Text("Decline")
-                            }
-                        }
-                    }
+                RoomRulesPanel(room, community)
+            }
+            RoomTab.PEOPLE -> item {
+                if (room.canSeeMembers) RoomPeopleContent(room, state, onOpenProfile, onAnswers)
+                else RoomEmpty("Meet this community", "Join this Room to see its members.", Icons.Rounded.People)
+            }
+            RoomTab.DISCUSSION, RoomTab.MEDIA -> {
+                if (state.roomTab == RoomTab.DISCUSSION && room.supportsPostApproval) item {
+                    TextButton(onClick = onApprovals) { Text(if (room.isStaff) "Post approvals" else "Your submissions") }
                 }
-                if (room.isOwner || room.role != null) {
-                    item { Text("Room posts", style = MaterialTheme.typography.titleLarge) }
-                    item {
-                        Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = SautiShape.Card) {
-                            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedTextField(draft, { draft = it.take(501) }, label = { Text("Write in this Room") },
-                                    supportingText = { Text("${draft.length}/500") }, minLines = 2,
-                                    modifier = Modifier.fillMaxWidth())
-                                Button(onClick = { perform { client.publish(room, draft); draft = "" } },
-                                    enabled = !busy && draft.trim().isNotEmpty() && draft.trim().length <= 500) {
-                                    Text("Post to Room")
-                                }
-                            }
-                        }
+                if (!room.canReadPosts) item { RoomEmpty("Join the conversation", "Join this Room to read its discussion and media.") }
+                else {
+                    if (state.roomTab == RoomTab.DISCUSSION) item {
+                        RoomFeaturedPosts(room, community, onOpenPost, onOpenProfile)
                     }
-                    if (posts.isEmpty() && !loading) item { Text("No Room posts yet.") }
-                    items(posts, key = { "post:${it.id}" }) { post ->
-                        Surface(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainer,
-                            shape = SautiShape.Card) {
-                            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    Text(post.authorName, fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier.clickable(enabled = post.authorHandle.isNotBlank()) {
-                                            onOpenProfile(post.authorHandle)
-                                        })
-                                    SautiVerificationBadge(post.verified, post.badgeType,
-                                        post.authorName, size = 15.dp)
-                                }
-                                Text(post.body)
-                                Text(post.createdAt.take(10), color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
+                    val rows = if (state.roomTab == RoomTab.MEDIA) state.posts.filter { it.media.isNotEmpty() } else state.posts
+                    items(rows, key = { it.id }) { post ->
+                        RoomPostCard(state.auth, post, state.postUi(post.id), { onOpenProfile(post.authorHandle) },
+                            { onOpenPost(post.id) }, { onComments(post) }, { only -> state.postAction(post, "like", only) },
+                            { state.postAction(post, "save") }, { state.postAction(post, "repost") },
+                            { runCatching { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"; putExtra(Intent.EXTRA_TEXT, state.interactions.postShareUrl(post.id))
+                            }, "Share post")) }.onFailure { state.reportError("No sharing app is available.") } },
+                            { state.retryActions(post.id) },
+                            onManagePost = if (room.isStaff && community.available) ({ onManagePost(post) }) else null)
                     }
-                } else item {
-                    Text(if (room.policy == "approval") "Approved members can read and post in this Room."
-                        else "Join to read and post in this Room.")
+                    if (state.postsLoading) item { SautiPostSkeleton() }
+                    if (!state.postsLoading && rows.isEmpty() && state.roomError == null) item {
+                        RoomEmpty(if (state.roomTab == RoomTab.MEDIA) "No media in these posts" else "Start a conversation",
+                            if (state.postsMore) "Load more posts to continue." else "Posts from this community will appear here.")
+                    }
+                    if (state.postsMore) item { OutlinedButton(onClick = { state.loadPosts(true) },
+                        enabled = !state.postsLoading, modifier = Modifier.fillMaxWidth()) { Text("Load more posts") } }
                 }
             }
         }
     }
-    if (createOpen) {
-        var name by remember { mutableStateOf("") }
-        var slug by remember { mutableStateOf("") }
-        var description by remember { mutableStateOf("") }
-        var policy by remember { mutableStateOf("open") }
-        ModalBottomSheet(onDismissRequest = { createOpen = false }, shape = SautiShape.Sheet,
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Create Room", style = MaterialTheme.typography.titleLarge)
-                OutlinedTextField(name, { name = it.take(81) }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(slug, { slug = it.lowercase().filter { ch -> ch.isLetterOrDigit() || ch == '-' }.take(50) },
-                    label = { Text("Address · lowercase, numbers, hyphens") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(description, { description = it.take(1001) }, label = { Text("Description") },
-                    modifier = Modifier.fillMaxWidth(), minLines = 2)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("open", "approval", "private").forEach { option ->
-                        FilterChip(selected = policy == option, onClick = { policy = option },
-                            label = { Text(option.replaceFirstChar { it.uppercase() }) })
-                    }
-                }
-                Button(onClick = { perform {
-                    val created = client.create(name, slug, description, policy)
-                    createOpen = false; selectedId = created.id
-                } }, enabled = !busy && name.trim().isNotEmpty() && slug.length >= 3,
-                    modifier = Modifier.fillMaxWidth()) { Text("Create Room") }
+}
+
+@Composable
+private fun RoomMembershipActions(state: RoomsState, community: RoomManagementState, room: NativeRoom,
+    onCompose: () -> Unit, onManage: () -> Unit, onMembership: (String) -> Unit) {
+    when {
+        room.isMember -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (room.canPost) Button(onClick = onCompose, modifier = Modifier.weight(1f)) { Text("Write a post") }
+            OutlinedButton(onClick = onManage, modifier = Modifier.weight(1f)) {
+                Text(if (room.canManagePeople || room.canManageSettings) "Manage" else "Joined")
             }
         }
+        state.invitations.any { it.room.id == room.id } -> {
+            Button(onClick = { onMembership("accept_invitation") },
+                enabled = community.membershipReady(room) && !state.busy("invite:${room.id}") && !community.joining(room)) { Text("Accept invitation") }
+        }
+        room.requestStatus == "pending" -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = {}, enabled = false) { Text("Request pending") }
+            TextButton(onClick = { state.mutate("join", room, { state.client.cancelJoinRequest(room) },
+                { community.membershipRequestCancelled(room) }) },
+                enabled = !state.busy("join")) { Text("Cancel request") }
+        }
+        room.policy == "open" -> Button(onClick = { onMembership("join") },
+            enabled = community.membershipReady(room) && !state.busy("join") && !community.joining(room)) { Text(if (state.busy("join")) "Joining…" else "Join Room") }
+        room.policy == "approval" -> Button(onClick = { onMembership("request") },
+            enabled = community.membershipReady(room) && !state.busy("join") && !community.joining(room)) { Text(if (state.busy("join")) "Requesting…" else "Request to join") }
+        else -> RoomNotice("An invitation is needed to join this Room.")
     }
-    if (confirmLeave && selected != null) AlertDialog(onDismissRequest = { confirmLeave = false },
-        title = { Text("Leave Room?") }, text = { Text("You will lose access to member posts.") },
-        confirmButton = { TextButton(onClick = { confirmLeave = false; perform { client.leave(selected) } }) { Text("Leave") } },
-        dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Cancel") } })
-    if (confirmDelete && selected != null) AlertDialog(onDismissRequest = { confirmDelete = false },
-        title = { Text("Delete Room?") }, text = { Text("All Room posts and membership will be removed. This cannot be undone.") },
-        confirmButton = { TextButton(onClick = { confirmDelete = false; perform { client.delete(selected); selectedId = null } }) {
-            Text("Delete")
-        } }, dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } })
+}
+
+@Composable
+private fun RoomAbout(room: NativeRoom, onInvite: () -> Unit, onLeave: () -> Unit, onShare: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("About this Room", style = MaterialTheme.typography.titleMedium)
+        Text(room.description.ifBlank { "No description yet." }, style = MaterialTheme.typography.bodyLarge)
+        Text("/rooms/${room.slug}", style = MaterialTheme.typography.bodySmall)
+        Text("Posting: ${if (room.postPermission == "staff_only") "admins and moderators" else "all members"}", style = MaterialTheme.typography.bodyMedium)
+        Text("Invitations: ${if (room.invitePermission == "staff_only") "admins and moderators" else "all members"}", style = MaterialTheme.typography.bodyMedium)
+        if (room.canInvite) OutlinedButton(onClick = onInvite) { Text("Invite someone") }
+        OutlinedButton(onClick = onShare) { Text("Share Room") }
+        if (room.isMember && !room.isOwner) TextButton(onClick = onLeave) { Text("Leave Room", color = MaterialTheme.colorScheme.error) }
+    }
+}
+
+@Composable
+private fun RoomDestructiveConfirmation(room: NativeRoom, state: RoomsState, delete: Boolean, onDismiss: () -> Unit) {
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (delete) "Delete ${room.name}?" else "Leave ${room.name}?") },
+        text = { Text(if (delete) "This permanently removes the Room, its posts and membership."
+            else "You will lose member access to this Room.") },
+        confirmButton = { TextButton(onClick = {
+            onDismiss(); state.mutate(if (delete) "delete" else "leave", room,
+                { if (delete) state.client.delete(room) else state.client.leave(room) }, { state.closeRoom() })
+        }) { Text(if (delete) "Delete Room" else "Leave Room", color = MaterialTheme.colorScheme.error) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
 }
