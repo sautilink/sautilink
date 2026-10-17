@@ -7,7 +7,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('Privacy Policy describes the live SautiLink product rather than pre-launch plans', async () => {
   const privacy = await read('privacy.html');
 
-  assert.match(privacy, /Effective<\/strong> October 6, 2026/);
+  assert.match(privacy, /Effective<\/strong> October 17, 2026/);
   assert.match(privacy, /Account deletion is available now/);
   assert.match(privacy, /Direct messages are private from the public/);
   assert.match(privacy, /Private Rooms/);
@@ -22,7 +22,7 @@ test('Privacy Policy describes the live SautiLink product rather than pre-launch
 test('Terms cover current Rooms, identity, moderation and platform safety', async () => {
   const [terms, privacy] = await Promise.all([read('terms.html'), read('privacy.html')]);
 
-  assert.match(terms, /Effective<\/strong> October 6, 2026/);
+  assert.match(terms, /Effective<\/strong> October 17, 2026/);
   assert.match(terms, /SautiLink calls its group-style community spaces <strong>Rooms<\/strong>/);
   assert.match(terms, /verification badge or other identity signal/i);
   assert.match(terms, /Moderation, visibility actions and appeals/);
