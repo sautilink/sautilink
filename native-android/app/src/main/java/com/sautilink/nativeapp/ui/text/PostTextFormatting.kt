@@ -19,13 +19,14 @@ private data class FormatMatch(val format: PostTextFormat, val open: Int, val cl
 
 // Match the existing web grammar in src/post-text-formatting.js, including its
 // delimiter order, literal unmatched markers and bounded inline nesting.
-private fun nextFormat(source: String, start: Int, protectedEntities: List<IntRange>): FormatMatch? {
+private fun nextFormat(source: String, start: Int, protectedEntities: List<IntRange>,
+    protectedUrls: List<IntRange>): FormatMatch? {
     var match: FormatMatch? = null
     for (format in listOf(PostTextFormat.BOLD, PostTextFormat.UNDERLINE,
         PostTextFormat.STRIKETHROUGH, PostTextFormat.ITALIC)) {
         var open = source.indexOf(format.marker, start)
         while (open != -1) {
-            if (protectedEntities.any { open in it }) {
+            if (protectedEntities.any { open in it } || protectedUrls.any { open in it }) {
                 open = source.indexOf(format.marker, open + 1)
                 continue
             }
@@ -36,9 +37,10 @@ private fun nextFormat(source: String, start: Int, protectedEntities: List<IntRa
                 continue
             }
             var close = source.indexOf(format.marker, open + format.marker.length)
-            while (close != -1 && protectedEntities.any { close in it &&
-                    (it.first != open + format.marker.length || close + format.marker.length != it.last + 1) }) {
-                // The final pair may close an outer underline; internal identifier underscores cannot.
+            while (close != -1 && (protectedEntities.any { close in it &&
+                    (it.first != open + format.marker.length || close + format.marker.length != it.last + 1) } ||
+                    protectedUrls.any { close in it && close + format.marker.length != it.last + 1 })) {
+                // A final marker can close formatting opened outside a URL. Its internal markers stay literal.
                 close = source.indexOf(format.marker, close + 1)
             }
             if (close > open + format.marker.length && !source.substring(open, close).contains('\n')) {
@@ -56,12 +58,13 @@ private fun nextFormat(source: String, start: Int, protectedEntities: List<IntRa
 }
 
 fun parsePostFormatting(source: String, depth: Int = 0,
-    protectedEntities: List<IntRange> = emptyList()): List<PostFormatNode> {
+    protectedEntities: List<IntRange> = emptyList(),
+    protectedUrls: List<IntRange> = emptyList()): List<PostFormatNode> {
     if (depth > 4) return listOf(PostFormatNode(text = source))
     val nodes = mutableListOf<PostFormatNode>()
     var cursor = 0
     while (cursor < source.length) {
-        val match = nextFormat(source, cursor, protectedEntities)
+        val match = nextFormat(source, cursor, protectedEntities, protectedUrls)
         if (match == null) {
             nodes += PostFormatNode(text = source.substring(cursor))
             break
@@ -74,7 +77,13 @@ fun parsePostFormatting(source: String, depth: Int = 0,
             val end = minOf(range.last, match.close - 1)
             if (start <= end) (start - innerStart)..(end - innerStart) else null
         }
-        nodes += PostFormatNode(format = match.format, children = parsePostFormatting(inner, depth + 1, innerProtected))
+        val innerUrls = protectedUrls.mapNotNull { range ->
+            val start = maxOf(range.first, innerStart)
+            val end = minOf(range.last, match.close - 1)
+            if (start <= end) (start - innerStart)..(end - innerStart) else null
+        }
+        nodes += PostFormatNode(format = match.format,
+            children = parsePostFormatting(inner, depth + 1, innerProtected, innerUrls))
         cursor = match.close + match.format.marker.length
     }
     return nodes

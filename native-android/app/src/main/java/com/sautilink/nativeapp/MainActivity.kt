@@ -59,6 +59,7 @@ import com.sautilink.nativeapp.ui.components.SautiBottomBar
 import com.sautilink.nativeapp.ui.components.LocalSautiTextNavigation
 import com.sautilink.nativeapp.ui.components.SautiTextNavigation
 import com.sautilink.nativeapp.ui.text.parseTextEntities
+import com.sautilink.nativeapp.ui.text.normalizeExternalUrl
 import com.sautilink.nativeapp.ui.text.TextEntityKind
 import com.sautilink.nativeapp.ui.theme.SautiColors
 import com.sautilink.nativeapp.ui.theme.SautiShape
@@ -269,6 +270,14 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         }.onFailure { notice("Language settings are unavailable on this device.") }
     }
 
+    fun openEntityUrl(value: String) {
+        val destination = normalizeExternalUrl(value) ?: return
+        runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(destination))
+                .addCategory(Intent.CATEGORY_BROWSABLE))
+        }.onFailure { notice("Unable to open this link on this device.") }
+    }
+
     fun toggleTheme() {
         val nextDark = !isDark
         darkOverride = nextDark
@@ -334,8 +343,10 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
 
     val currentEntityProfile by rememberUpdatedState<(String) -> Unit>(::openEntityProfile)
     val currentEntityHashtag by rememberUpdatedState<(String) -> Unit>(::openEntityHashtag)
+    val currentEntityUrl by rememberUpdatedState<(String) -> Unit>(::openEntityUrl)
     val textNavigation = remember {
-        SautiTextNavigation(onProfile = { currentEntityProfile(it) }, onHashtag = { currentEntityHashtag(it) })
+        SautiTextNavigation(onProfile = { currentEntityProfile(it) }, onHashtag = { currentEntityHashtag(it) },
+            onUrl = { currentEntityUrl(it) })
     }
     SautiTheme(darkTheme = isDark) {
       CompositionLocalProvider(LocalSautiTextNavigation provides textNavigation) {

@@ -28,7 +28,8 @@ import com.sautilink.nativeapp.ui.text.TextEntityKind
 import com.sautilink.nativeapp.ui.theme.SautiColors
 
 /** Supplied by the existing app destinations; previews remain noninteractive without navigation. */
-data class SautiTextNavigation(val onProfile: (String) -> Unit, val onHashtag: (String) -> Unit)
+data class SautiTextNavigation(val onProfile: (String) -> Unit, val onHashtag: (String) -> Unit,
+    val onUrl: (String) -> Unit)
 val LocalSautiTextNavigation = staticCompositionLocalOf<SautiTextNavigation?> { null }
 
 /** Existing post-body markers rendered as safe native spans, with the caller's layout and typography. */
@@ -61,7 +62,7 @@ fun SautiPostText(text: String, modifier: Modifier = Modifier,
             appendNodes(parseEntityPostFormatting(text), emptySet())
         }
     }
-    SautiEntityTextContent(formatted, modifier, color, style, maxLines, overflow, linkEntities)
+    SautiEntityTextContent(formatted, modifier, color, style, maxLines, overflow, linkEntities, true)
 }
 
 /** Bio/comment text stays literal: formatting markers in these fields are never removed. */
@@ -70,23 +71,24 @@ fun SautiEntityText(text: String, modifier: Modifier = Modifier,
     color: Color = Color.Unspecified, style: TextStyle = LocalTextStyle.current,
     maxLines: Int = Int.MAX_VALUE, overflow: TextOverflow = TextOverflow.Clip) {
     val literal = remember(text) { buildAnnotatedString { append(text) } }
-    SautiEntityTextContent(literal, modifier, color, style, maxLines, overflow, true)
+    SautiEntityTextContent(literal, modifier, color, style, maxLines, overflow, true, false)
 }
 
 @Composable
 private fun SautiEntityTextContent(formatted: androidx.compose.ui.text.AnnotatedString,
     modifier: Modifier, color: Color, style: TextStyle, maxLines: Int,
-    overflow: TextOverflow, linkEntities: Boolean) {
+    overflow: TextOverflow, linkEntities: Boolean, linkUrls: Boolean) {
     val navigation = LocalSautiTextNavigation.current
     val currentNavigation by rememberUpdatedState(navigation)
     val lightTextOnMedia = color != Color.Unspecified && color.luminance() > .7f
     val darkSurface = MaterialTheme.colorScheme.surface.luminance() < .5f
     val entityColor = if (lightTextOnMedia || darkSurface) SautiColors.EntityOrangeDark
         else SautiColors.EntityOrangeLight
-    val linked = remember(formatted, linkEntities, navigation != null, entityColor) {
+    val linked = remember(formatted, linkEntities, linkUrls, navigation != null, entityColor) {
         buildAnnotatedString {
             append(formatted)
             if (linkEntities && navigation != null) parseTextEntities(formatted.text).forEach { entity ->
+                if (entity.kind == TextEntityKind.URL && !linkUrls) return@forEach
                 addLink(LinkAnnotation.Clickable(
                     tag = "${entity.kind}:${entity.target}",
                     styles = TextLinkStyles(style = SpanStyle(color = entityColor),
@@ -95,6 +97,7 @@ private fun SautiEntityTextContent(formatted: androidx.compose.ui.text.Annotated
                         when (entity.kind) {
                             TextEntityKind.MENTION -> currentNavigation?.onProfile?.invoke(entity.target)
                             TextEntityKind.HASHTAG -> currentNavigation?.onHashtag?.invoke(entity.target)
+                            TextEntityKind.URL -> currentNavigation?.onUrl?.invoke(entity.target)
                         }
                     }), entity.start, entity.end)
             }

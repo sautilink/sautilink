@@ -47,8 +47,8 @@ android {
         targetSdk = 36
         buildConfigField("String", "STAGING_SUPABASE_PUBLISHABLE_KEY", "\"${stagingPublishableKey}\"")
         buildConfigField("String", "PRODUCTION_SUPABASE_PUBLISHABLE_KEY", "\"${productionPublishableKey}\"")
-        versionCode = 42
-        versionName = "1.0.0"
+        versionCode = 43
+        versionName = "1.0.1"
     }
     flavorDimensions += "distribution"
     productFlavors {
