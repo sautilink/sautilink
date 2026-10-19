@@ -41,7 +41,9 @@ test('real comment deletion waits for approval and cancellation never disables o
     const button = { disabled: false, closest: () => ({ dataset: { rootPostId: 'root-7' } }) };
     let answer;
     const context = {
-      currentMember: { id: 'member' }, activeSautiConversation: null,
+      currentMember: { id: 'member' }, currentMemberId: 'member',
+      activeSautiConversation: { rootId: 'root-7' }, sautiConversationRequest: 1,
+      conversationSurface: { hidden: false },
       window: { SautiMemberDialogs: { confirm: () => new Promise(resolve => { answer = resolve; }) } },
       socialMutation: async (...args) => mutations.push(args),
       loadConversation: async id => refreshed.push(id), showToast() {},

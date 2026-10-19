@@ -113,7 +113,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/messages-media.css'));
   assert.ok(files.includes('app/assets/messages-reply.css'));
   assert.ok(files.includes('app/assets/messages-whatsapp.css'));
-  for (const asset of ['member-ios.css', 'member-ios-surfaces.css', 'member-ios-icons.css', 'member-animated-icons.css', 'member-animated-icons.js', 'member-profile-tabs.css']) {
+  for (const asset of ['member-ios.css', 'member-ios-surfaces.css', 'member-ios-icons.css', 'member-animated-icons.css', 'member-animated-icons.js', 'member-profile-tabs.css', 'member-comment-sheet.css']) {
     assert.ok(files.includes(`app/assets/${asset}`));
   }
   for (const asset of memberAnimatedIconAssets) assert.ok(files.includes(asset), `staged animated icon asset is missing: ${asset}`);
@@ -203,6 +203,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/member-animated-icons.css',
     'app/assets/member-animated-icons.js',
     'app/assets/member-profile-tabs.css',
+    'app/assets/member-comment-sheet.css',
     'app/assets/mobile-nav-icon-style.css',
     'app/assets/mobile-more-drawer.css',
     'app/assets/post-edit.css',

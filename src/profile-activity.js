@@ -244,9 +244,17 @@ function profileActivityCommentsPath(postId) {
   return `/post/${encodeURIComponent(postId)}`;
 }
 
-function navigateProfileActivityCard(card, { comments = false } = {}) {
+function navigateProfileActivityCard(card, { comments = false, trigger = null } = {}) {
   const postId = card?.dataset.postId;
-  if (postId) window.location.assign(comments ? profileActivityCommentsPath(postId) : profileActivityPostPath(postId));
+  if (!postId) return;
+  if (comments) {
+    const request = new CustomEvent('sautilink:open-comments', {
+      cancelable: true,
+      detail: { postId, trigger: trigger || card },
+    });
+    if (!document.dispatchEvent(request)) return;
+  }
+  window.location.assign(comments ? profileActivityCommentsPath(postId) : profileActivityPostPath(postId));
 }
 
 function createProfileActivityMetric(kind, count, active = false) {
@@ -978,7 +986,7 @@ function installProfileActivity() {
       const card = action.closest('.profile-activity-card');
       if (!card) return;
       const kind = action.dataset.profileActivityAction;
-      if (kind === 'reply') navigateProfileActivityCard(card, { comments: true });
+      if (kind === 'reply') navigateProfileActivityCard(card, { comments: true, trigger: action });
       if (kind === 'like' || kind === 'repost') void toggleProfileActivityMetric(action, card, kind);
       return;
     }

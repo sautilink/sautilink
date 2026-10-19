@@ -117,7 +117,8 @@ test('Phase 26 browser supports direct Sauti routes, bounded branches, reply dra
   assert.ok(source.includes('\\/app\\/sauti'), 'legacy /app/sauti conversation routes remain readable');
   assert.match(html, /<header class="conversation-toolbar">[\s\S]*?<h2>Comments<\/h2>/);
   assert.doesNotMatch(html, /id="conversation-root"|id="conversation-sort"|id="conversation-reply-target"/);
-  assert.match(source, /client_request_id: threadReplyRequestId/);
+  assert.match(source, /const clientRequestId = ensureThreadReplyRequestId\(\)/);
+  assert.match(source, /client_request_id: clientRequestId/);
   assert.match(source, /window\.localStorage/);
   assert.match(source, /navigator\.onLine/);
   assert.match(source, /item\.dataset\.notificationRoute/);

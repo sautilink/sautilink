@@ -1,0 +1,138 @@
+/* Canonical comments in a half-height member sheet; the source page stays put. */
+body.member-comment-sheet-open:not(.auth-entry):has(#member-view:not([hidden])) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet {
+  position: fixed;
+  inset: auto 0 var(--comment-sheet-keyboard-offset, 0px);
+  box-sizing: border-box;
+  width: min(680px, 100%);
+  max-width: 100%;
+  height: min(56dvh, var(--comment-sheet-available-height, 100dvh));
+  max-height: calc(var(--comment-sheet-available-height, 100dvh) - 12px);
+  margin: 0 auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--ios-line);
+  border-bottom: 0;
+  border-radius: 25px 25px 0 0;
+  background: var(--ios-surface);
+  color: var(--ios-ink);
+  box-shadow: 0 -12px 60px #10182820;
+  font: inherit;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet:not([open]) { display: none; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet[open] {
+  display: flex;
+  flex-direction: column;
+  animation: sauti-comment-sheet-in 240ms cubic-bezier(.2, .75, .25, 1) both;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet::backdrop { background: #10141d66; }
+body.member-comment-sheet-open:not(.auth-entry):has(#member-view:not([hidden])) .stream-header { display: flex; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .member-comment-sheet-grip {
+  display: flex;
+  flex: 0 0 19px;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  cursor: grab;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .member-comment-sheet-grip::before {
+  width: 34px;
+  height: 4px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--ios-muted) 35%, transparent);
+  content: '';
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet #conversation-surface {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: var(--ios-surface);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .conversation-toolbar {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 49px;
+  padding: 0 12px 5px;
+  border-color: var(--ios-line);
+  background: var(--ios-surface);
+  backdrop-filter: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .conversation-toolbar-title { min-height: 44px; padding-inline: 44px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .conversation-toolbar h2 { display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 16px; line-height: 1.3; font-weight: 650; letter-spacing: -.02em; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .conversation-back { display: none; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .member-comment-sheet-close {
+  position: absolute;
+  top: 0;
+  right: 10px;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ios-muted);
+  cursor: pointer;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .member-comment-sheet-close:hover { background: var(--ios-secondary); color: var(--ios-ink); }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .member-comment-sheet-close:focus-visible { outline: 2px solid var(--ios-blue); outline-offset: -4px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet :is(.member-comment-sheet-close, .conversation-toolbar h2) > svg { width: 20px; height: 20px; flex: 0 0 20px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet #conversation-thread {
+  flex: 1 1 0;
+  min-height: 0;
+  padding-bottom: 8px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  background: var(--ios-surface);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet #conversation-thread:empty { display: none; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet #conversation-thread .comment-card {
+  margin: 0;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--ios-line);
+  border-radius: 0;
+  background: var(--ios-surface);
+  box-shadow: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-author .verified-name { font-size: 13px; line-height: 1.3; font-weight: 650; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-author .verified-name > strong { font-weight: inherit; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-menu { max-height: var(--comment-menu-max-height, 180px); overflow: auto; transform: translateY(var(--comment-menu-offset-y, 0px)); }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet :is(#conversation-loading, #conversation-error, #conversation-empty) {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: 0;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet :is(#conversation-error, #conversation-empty) { padding: 24px 18px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .conversation-reply-form {
+  position: relative;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 10px 12px max(10px, env(safe-area-inset-bottom));
+  margin-top: auto;
+  border-color: var(--ios-line);
+  background: var(--ios-surface);
+  backdrop-filter: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .conversation-reply-form textarea { min-height: 44px; max-height: 96px; padding: 10px 13px; border-radius: 18px; background: var(--ios-secondary); font-size: 16px; line-height: 1.4; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .conversation-reply-compose > button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 6px; font-size: 12px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .conversation-reply-compose > button > svg { width: 18px; height: 18px; flex: 0 0 18px; }
+@keyframes sauti-comment-sheet-in { from { transform: translateY(100%); opacity: .5; } to { transform: translateY(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet[open] { animation: none; }
+}
