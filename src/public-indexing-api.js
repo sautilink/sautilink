@@ -70,8 +70,9 @@ function jsonLd(value) {
 
 function plainText(value, limit = 160) {
   const text = String(value ?? '').replace(/\s+/g, ' ').trim();
-  if (text.length <= limit) return text;
-  return `${text.slice(0, Math.max(1, limit - 1)).trimEnd()}…`;
+  const characters = Array.from(text);
+  if (characters.length <= limit) return text;
+  return `${characters.slice(0, Math.max(1, limit - 1)).join('').trimEnd()}…`;
 }
 
 function formattedPostHtml(value) {
@@ -116,8 +117,8 @@ function publicPostMediaUrl(postId, mediaId, kind = 'image') {
 
 function publicPostCardUrl(postId, updatedAt = '') {
   const stamp = encodeURIComponent(isoDate(updatedAt) || '1');
-  // New presentation key avoids reusing previously cached delimiter-filled cards.
-  return `${PRIMARY_ORIGIN}/api/public-post-card/${postId}.png?v=2-${stamp}`;
+  // Refresh external caches after the raster background/font renderer repair.
+  return `${PRIMARY_ORIGIN}/api/public-post-card/${postId}.png?v=3-${stamp}`;
 }
 
 function normalizePostMedia(post) {
@@ -525,11 +526,26 @@ function previewLines(value, maxChars = 34, maxLines = 4) {
   return lines.slice(0, maxLines);
 }
 
-async function textCardFallback(request, env) {
+const POST_CARD_BASE_PATH = '/app/assets/post-share-base.png';
+const POST_CARD_FONT_URL = `${PRIMARY_ORIGIN}/app/assets/fonts/post-preview/SautiLinkPostPreview-Regular.woff2`;
+
+async function postCardBaseAsset(request, env) {
+  if (!env.ASSETS) return null;
+  // The raster source is staged with the member app. Root /logo.png belongs
+  // to the separate public-site assets and is absent from this binding.
+  const asset = await env.ASSETS.fetch(new Request(new URL(POST_CARD_BASE_PATH, request.url), { method: 'GET' }));
+  return asset.ok && asset.body && String(asset.headers.get('Content-Type') || '').toLowerCase().startsWith('image/png')
+    ? asset : null;
+}
+
+async function textCardFallback(request, env, post) {
   if (!env.ASSETS) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
-  const asset = await env.ASSETS.fetch(new Request(new URL('/logo.png', request.url), request));
+  const asset = await postCardBaseAsset(request, env);
+  if (!asset) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
   const headers = new Headers(asset.headers);
   headers.set('Cache-Control', 'public, max-age=300');
+  headers.set('X-Robots-Tag', post.search_indexable ? 'index, noarchive' : PRIVATE_ROBOTS);
+  headers.delete('Set-Cookie');
   return new Response(request.method === 'HEAD' ? null : asset.body, { status: asset.status, headers });
 }
 
@@ -538,7 +554,7 @@ async function publicPostCardResponse(request, env, postId) {
   if (isStaging(url)) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
   const post = await publicSharePost(env, postId);
   if (!post) return textResponse('Not found\n', 'text/plain; charset=utf-8', 404, PRIVATE_ROBOTS);
-  if (!env.IMAGES) return textCardFallback(request, env);
+  if (!env.IMAGES) return textCardFallback(request, env, post);
 
   const cache = globalThis.caches?.default;
   const cacheKey = new Request(url.toString(), { method: 'GET' });
@@ -551,17 +567,17 @@ async function publicPostCardResponse(request, env, postId) {
   const username = plainText(post.author_username, 40);
   const body = postTextPlainText(post.body).trim() || `Public post by ${displayName}`;
   const lines = previewLines(body);
-  const baseSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07101f"/><stop offset="1" stop-color="#101c31"/></linearGradient></defs><rect width="1200" height="630" fill="url(#g)"/><circle cx="1080" cy="90" r="210" fill="#e6205a" opacity=".12"/><circle cx="1120" cy="520" r="280" fill="#246bfe" opacity=".12"/><rect x="70" y="62" width="1060" height="506" rx="32" fill="#0b1525" stroke="#33415a" stroke-width="2"/></svg>';
-
   try {
-    let canvas = env.IMAGES.input(new Response(baseSvg, { headers: { 'Content-Type': 'image/svg+xml' } }).body);
-    canvas = canvas.draw(env.IMAGES.text('SautiLink', { color: '#f7f9fc', size: 42 }), { left: 112, top: 100 });
-    canvas = canvas.draw(env.IMAGES.text(`${displayName}${post.author_is_verified ? '  ✓' : ''}`, { color: '#f7f9fc', size: 32 }), { left: 112, top: 168 });
-    canvas = canvas.draw(env.IMAGES.text(`@${username}`, { color: '#aeb8c8', size: 24 }), { left: 112, top: 214 });
+    const base = await postCardBaseAsset(request, env);
+    if (!base) return textCardFallback(request, env, post);
+    let canvas = env.IMAGES.input(base.body);
+    canvas = canvas.draw(env.IMAGES.text('SautiLink', { font: { url: POST_CARD_FONT_URL }, color: '#f7f9fc', size: 42 }), { left: 112, top: 100 });
+    canvas = canvas.draw(env.IMAGES.text(`${displayName}${post.author_is_verified ? '  ✓' : ''}`, { font: { url: POST_CARD_FONT_URL }, color: '#f7f9fc', size: 32 }), { left: 112, top: 168 });
+    canvas = canvas.draw(env.IMAGES.text(`@${username}`, { font: { url: POST_CARD_FONT_URL }, color: '#aeb8c8', size: 24 }), { left: 112, top: 214 });
     lines.forEach((line, index) => {
-      canvas = canvas.draw(env.IMAGES.text(line, { color: '#f7f9fc', size: 52 }), { left: 112, top: 286 + (index * 66) });
+      canvas = canvas.draw(env.IMAGES.text(line, { font: { url: POST_CARD_FONT_URL }, color: '#f7f9fc', size: 46 }), { left: 112, top: 276 + (index * 60) });
     });
-    canvas = canvas.draw(env.IMAGES.text('sautilink.com', { color: '#aeb8c8', size: 24 }), { left: 112, bottom: 92 });
+    canvas = canvas.draw(env.IMAGES.text('sautilink.com', { font: { url: POST_CARD_FONT_URL }, color: '#aeb8c8', size: 24 }), { left: 112, bottom: 80 });
     const generated = (await canvas.output({ format: 'image/png' })).response({
       headers: {
         'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
@@ -572,7 +588,7 @@ async function publicPostCardResponse(request, env, postId) {
     if (cache) await cache.put(cacheKey, generated.clone()).catch(() => {});
     return generated;
   } catch {
-    return textCardFallback(request, env);
+    return textCardFallback(request, env, post);
   }
 }
 

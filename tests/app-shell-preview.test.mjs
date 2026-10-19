@@ -9,6 +9,10 @@ const memberAnimatedIconAssets = [
 ].map((name) => `app/assets/huge-icons/${name}`);
 const memberBuiltinAssets = ['controls', 'dialogs', 'color', 'files', 'media']
   .flatMap((name) => ['css', 'js'].map((extension) => `app/assets/member-builtin-${name}.${extension}`));
+const postPreviewFontAssets = [
+  'SautiLinkPostPreview-Regular.woff2', 'OFL-Inter.txt', 'OFL-NotoEmoji.txt',
+  'NOTICE.md', 'provenance.json',
+].map((name) => `app/assets/fonts/post-preview/${name}`);
 
 test('preview is isolated, noindex and cannot connect to production services', async () => {
   const sourceHtml = await read('preview-src/app-shell/index.html');
@@ -107,6 +111,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/composer-formats.css'));
   assert.ok(files.includes('app/assets/conversation-replies-ui.css'));
   assert.ok(files.includes('app/assets/guest-entry-gate.css'));
+  assert.ok(files.includes('app/assets/post-share-base.png'));
   assert.ok(files.includes('app/assets/messages-composer.css'));
   assert.ok(files.includes('app/assets/messages-header-polish.css'));
   assert.ok(files.includes('app/assets/messages-appearance.css'));
@@ -118,6 +123,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   }
   for (const asset of memberAnimatedIconAssets) assert.ok(files.includes(asset), `staged animated icon asset is missing: ${asset}`);
   for (const asset of memberBuiltinAssets) assert.ok(files.includes(asset), `staged member control asset is missing: ${asset}`);
+  for (const asset of postPreviewFontAssets) assert.ok(files.includes(asset), `staged post preview font asset is missing: ${asset}`);
   assert.ok(files.includes('app/assets/mobile-nav-icon-style.css'));
   assert.ok(files.includes('app/assets/mobile-more-drawer.css'));
   assert.ok(files.includes('app/assets/post-edit.css'));
@@ -176,6 +182,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   const exactAllowed = new Set([
     ...memberAnimatedIconAssets,
     ...memberBuiltinAssets,
+    ...postPreviewFontAssets,
     '_headers',
     '_redirects',
     'sw.js',
@@ -191,6 +198,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/composer-formats.css',
     'app/assets/conversation-replies-ui.css',
     'app/assets/guest-entry-gate.css',
+    'app/assets/post-share-base.png',
     'app/assets/messages-composer.css',
     'app/assets/messages-header-polish.css',
     'app/assets/messages-appearance.css',

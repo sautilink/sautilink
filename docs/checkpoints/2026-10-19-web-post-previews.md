@@ -26,3 +26,23 @@ Browser QA covers the user's public post at 320px dark, 390px light and desktop,
 all six Huge icons, formatting and links, no overflow, and the gated comment
 dialog. Runtime regressions cover signed-in notification navigation, session
 restoration, anonymous-profile isolation and reduced motion.
+
+Live share-preview follow-up: metadata truncates by Unicode code point, so an
+emoji at the title/description boundary cannot become replacement characters.
+The existing text-card renderer now consumes a staged 1200×630 PNG rather than
+an unsupported SVG and supplies the font required by Cloudflare Images. A
+renamed, self-hosted static Inter/Noto Emoji face covers caption emoji; both OFL
+licenses, pinned source hashes and a deterministic rebuild script are included.
+The font is used only for server-rendered share cards, with no application-wide
+font or browser runtime change. The version-3 card URL refreshes external image
+caches. Public visibility is still checked before cache or fallback access.
+
+The real Images binding produced a valid 79,640-byte caption PNG in an isolated
+diagnostic Worker with public fixture data and no application/data bindings.
+Visual inspection confirmed the sample caption and emoji without delimiters or
+missing-glyph boxes. Regression coverage validates raster input, explicit font,
+GET/HEAD fallback, missing/private post denial, Unicode boundaries and the exact
+staged font/image/license assets.
+
+Follow-up validation: all 963 tests pass, with 134 staged files, 172 production
+artifact files, 49 stylesheet hashes and the production Wrangler dry run.
