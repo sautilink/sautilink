@@ -271,15 +271,20 @@ const accountBase64 = (value) => Buffer.from(JSON.stringify(value)).toString('ba
 const configuredEnv = { ...databaseEnv, PLAY_INTEGRITY_MODE: 'monitor', PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER: '93555813548',
   PLAY_INTEGRITY_ALLOWED_CERTIFICATE_SHA256: certificate, FIREBASE_SERVICE_ACCOUNT_JSON_BASE64: accountBase64(serviceAccount) };
 
-test('runtime defaults off and only accepts the expected Google project and a valid app certificate', () => {
+test('runtime defaults to monitoring with the public Play certificate and respects disabling overrides and invalid configuration', () => {
   const configured = (values) => createRuntime((key) => values[key], async () => { throw new Error('network forbidden in config test'); }, () => now).config();
-  assert.equal(configured({ ...configuredEnv, PLAY_INTEGRITY_MODE: undefined }), null);
+  const defaults = configured({ ...configuredEnv, PLAY_INTEGRITY_MODE: undefined,
+    PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER: undefined, PLAY_INTEGRITY_ALLOWED_CERTIFICATE_SHA256: undefined });
+  assert.equal(defaults.cloudProjectNumber, '93555813548');
+  assert.deepEqual([...defaults.allowedCertificates], [normalizeCertificate('5E:2C:6C:AD:1B:37:E6:FC:B5:C4:73:87:38:4F:D4:6D:2D:D0:68:6C:D3:45:66:4D:10:81:11:8B:96:B6:62:9D')]);
+  assert.equal(configured({ ...configuredEnv, PLAY_INTEGRITY_MODE: 'off' }), null);
   assert.equal(configured({ ...configuredEnv, PLAY_INTEGRITY_MODE: 'enforce' }), null);
   assert.equal(configured({ ...configuredEnv, PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER: '123456789' }), null);
   assert.equal(configured({ ...configuredEnv, PLAY_INTEGRITY_ALLOWED_CERTIFICATE_SHA256: 'invalid' }), null);
   assert.equal(configured({ ...configuredEnv, FIREBASE_SERVICE_ACCOUNT_JSON_BASE64: accountBase64({ ...serviceAccount, project_id: 'another-project' }) }), null);
   assert.equal(configured({ ...configuredEnv, PLAY_INTEGRITY_SERVICE_ACCOUNT_JSON_BASE64: 'bad base64' }), null);
   assert.equal(configured({ ...configuredEnv, FIREBASE_SERVICE_ACCOUNT_JSON_BASE64: accountBase64({ ...serviceAccount, client_email: 'test@another-project.iam.gserviceaccount.com' }) }), null);
+  assert.equal(configured({ ...configuredEnv, PLAY_INTEGRITY_MODE: undefined, FIREBASE_SERVICE_ACCOUNT_JSON_BASE64: undefined }), null);
   assert.equal(configured(configuredEnv).cloudProjectNumber, '93555813548');
 });
 

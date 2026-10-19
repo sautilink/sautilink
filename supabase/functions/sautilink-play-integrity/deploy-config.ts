@@ -2,9 +2,9 @@
 export const EXPECTED_GOOGLE_PROJECT_ID = "sautilink";
 export const DEFAULT_CLOUD_PROJECT_NUMBER = "93555813548";
 
-// Remains off until the project link/terms, backend schema and Play signing
-// certificate have been verified. PLAY_INTEGRITY_MODE=monitor enables sampling.
-export const DEFAULT_MONITOR_ENABLED = false;
+// Monitor-only default. PLAY_INTEGRITY_MODE=off disables sampling.
+// Runtime configuration and authentication remain required.
+export const DEFAULT_MONITOR_ENABLED = true;
 
 // Use the Play APP SIGNING certificate, not the upload-key certificate.
 // Verified in Play Console's generated Digital Asset Links JSON on 2026-10-19.
