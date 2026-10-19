@@ -7,29 +7,32 @@ The Android caller runs independently of those actions.
 
 ## Deployment status and prerequisites
 
-The repository defaults to **off**. Code being present is not evidence that Play
-Integrity is linked, enabled, receiving verdicts, or enforcing a policy.
+The repository defaults to **monitor mode** when its required configuration is
+valid. Code being present does not establish deployment status or a successful
+live verdict. No enforcement mode exists.
 
-Before enabling the function:
+Deployment and activation sequence:
 
 1. Confirm the Google Play project link and the required Google terms acceptance.
 2. Confirm Google Cloud project `sautilink`, project number `93555813548`, has the
-   Play Integrity API available and the server identity can decode its tokens.
+   Play Integrity API available. Configure a server identity in that project;
+   the first real device sample must verify its OAuth and decoding capability.
 3. Configure the SHA-256 digest of the Google Play **app signing** certificate.
    The AAB upload certificate is a different identity and must not be used.
 4. Apply and verify the monitoring schema and its retention job.
 5. Deploy `sautilink-play-integrity` with platform `verify_jwt=true` and all four
    TypeScript files in its directory.
-6. Enable monitor mode only after the above checks and review of the privacy and
-   Play Data safety disclosures. Publish an Android release containing the client
-   integration, then verify a real Google Play installation during testing.
+6. Enable monitor mode after the configuration, schema and disclosure steps.
+   Publish an Android testing release containing the client integration, then
+   verify a real Google Play installation. Configuration readiness alone is not
+   evidence of successful Google decoding or a valid device verdict.
 
 There are no new client secrets. `deploy-config.ts` contains only public project
-and certificate information. Its default mode is off. Environment configuration:
+and certificate information. Its default mode is monitor. Environment configuration:
 
 | Name | Purpose |
 | --- | --- |
-| `PLAY_INTEGRITY_MODE` | `monitor` enables sampling; absent, `off`, or any other value disables it. No enforcement mode exists. |
+| `PLAY_INTEGRITY_MODE` | `monitor`, absent, or blank uses monitor mode when required configuration is valid; `off` or any other nonempty value disables sampling. No enforcement mode exists. |
 | `PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER` | Optional override, which must match the verified project number above. |
 | `PLAY_INTEGRITY_ALLOWED_CERTIFICATE_SHA256` | Comma-separated app signing SHA-256 digests, hex/colon-hex or base64url; public defaults may also be verified in `deploy-config.ts`. |
 | `PLAY_INTEGRITY_SERVICE_ACCOUNT_JSON_BASE64` | Optional dedicated server credential, read only in the Edge Function. |
@@ -39,7 +42,8 @@ The normal Supabase server URL and server key come from the deployment environme
 Never put service-account JSON, a private key, access tokens, session JWTs, or
 encrypted integrity tokens in source, a client configuration, logs, or this guide.
 Do not broaden the existing Firebase identity's permissions as a routine fallback;
-verify its actual ability to decode after the project link is accepted.
+verify its actual ability to decode through the first real testing sample after
+the project link is accepted.
 
 ## Client contract
 
@@ -164,7 +168,7 @@ retention, and account deletion using synthetic fixtures, then rolls back.
 Execution of this file and a real device verdict are separate validation steps;
 the JavaScript tests do not establish either result.
 
-## Prepared deployment and activation record — 19 October 2026
+## Initial preparation record — 19 October 2026
 
 The initial Android source is commit
 `f82cfe1b3c5ed4e376a3ed125007fb599acaf042`, with app source tree
@@ -189,8 +193,8 @@ decoded with the pinned official bundletool. The verified candidate is
 `SautiLink-1.0.2-44.aab`, package `com.sautilink.app`, version 44, min SDK 26,
 target SDK 36, non-debuggable, 20,872,339 bytes, SHA-256
 `ea395e54a68bd84b7664567ef2a8b05bd9f1d39b0dd15011a86fa2765cb95c7d`.
-The AAB has been retained for the next testing release. Version 44 has not yet
-been uploaded to Play Console. The machine-readable checks are in
+This exact AAB was retained and subsequently uploaded for testing as recorded
+below. The machine-readable checks are in
 `play-integrity-release44-verification.json` beside this document.
 
 The production migration was applied as server-recorded version
@@ -217,19 +221,22 @@ Existing project-wide warnings were not changed by this integration. See the
 and [unused-index advisory](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index)
 for their definitions.
 
-The Google Cloud project link and Google Play Integrity terms acceptance remain
-pending. No live Google OAuth/decode request or real-device verdict has been
-verified. Completing these checks is required before claiming the integration
-is active or publishing the accompanying privacy text in the present tense.
+The initial deployment remained off while the Google Cloud project link and
+terms acceptance awaited the user's approval. The subsequent activation is
+recorded below. A successful live Google OAuth/decode request and real-device
+verdict still require the first testing sample.
 
-### Data safety draft
+### Data safety update
 
 The existing Play Console declaration was inspected before editing. User IDs
 were already collected, required, non-ephemeral, and used for fraud prevention,
 security and compliance. Device or other IDs had the same collection and
 retention answers but only the app-functionality purpose. A draft was saved
 adding **Fraud prevention, security and compliance** to Device or other IDs.
-The draft has not been submitted as part of this activation.
+After the approved project link, the saved questionnaire was submitted through
+Publishing overview on 19 October. The Console then showed Changes in review.
+Submission 3 subsequently showed **Published** at 06:28 East Africa Time on
+19 October. Its details identify the sole change as the Data safety questionnaire.
 
 No extra Diagnostics, Crash logs, Other app performance data, or Installed apps
 declaration was added for this feature. This is a code-based mapping: the
@@ -238,14 +245,16 @@ crashes, performance traces, or latency measurements. Reassess the mapping if
 those practices change. Existing unrelated declarations remain subject to their
 own review.
 
-### Privacy wording prepared for activation
+### Published privacy wording
 
-Apply the following addition to the **current** published privacy policy, in its
-storage/security section, after checking its current revision. The default
-branch policy inspected on 19 October has an effective date of 17 October 2026
-and a minimum age of 16. Do not replace it with this development branch's older
-privacy page. Advance the effective date to the actual publication date when
-the addition is released.
+The following addition was published through focused privacy-only
+[PR 360](https://github.com/sautilink/sautilink/pull/360), based on the current
+`main` policy with a minimum age of 16. Merge commit
+`64c386c1bc1cda3e5de3cc754ea752dcaee2c4db` passed the brand check and the existing
+Cloudflare `Workers Builds: sautilink` deployment. Worker version
+`e1d3d79c-6983-4b8f-94ae-a1064aae6694` serves the updated policy, effective
+19 October 2026. The live page's new text, retention wording and 16+ minimum
+were verified. This development branch's older privacy page was not published.
 
 **Android app integrity**
 
@@ -258,17 +267,78 @@ abuse and improve protection. Google's handling of information for these checks
 is described in its
 [Play Integrity data-safety information](https://developer.android.com/google/play/integrity/terms#data-safety).
 
-Add this sentence to the retention section:
+The retention section also states:
 
 We replace the account-linked integrity result when a newer check completes.
 Results expire after 30 days and are removed by daily cleanup within 31 days;
 short-lived counters limit how often checks run. Account-linked integrity
 records are removed when the account is deleted.
 
+## Activation and testing release — 19 October 2026
+
+The user approved Google Play Integrity terms acceptance at the linking step.
+Play Console confirms SautiLink project `93555813548` is linked, with a displayed
+daily usage limit of 10,000. App licensing, application integrity and device
+integrity responses are on. Optional recent-device activity, device attributes,
+Play Protect environment signals and app-access-risk responses remain off.
+Linking automatically enables the API according to Google's setup guidance.
+
+Backend activation source is commit
+`daf3814552586294f6425b7b00c6b08134e37cc9`. The existing configuration test now
+checks the enabled default, exact public Play signing certificate, explicit
+disabling overrides and unavailable behavior for invalid or missing credentials.
+All 23 backend cases and Deno type checking passed. The activation commit's
+backend CI checks also succeeded.
+
+Production Edge Function version 2 is active with `verify_jwt=true` and the
+monitor default enabled. All four deployed files matched the reviewed source.
+A fresh request without a user JWT returned HTTP 401. No environment override,
+new credential or IAM permission was created. Existing credentials remain in
+their server environment and are used only through the reviewed runtime path.
+
+The first aggregate-only production check after activation found zero state
+rows and zero retained summaries. At 03:39:27 UTC, a later aggregate found one
+state row, zero retained summaries and zero observed verdicts. A state row by
+itself does not establish a completed Google check. Runtime credential validity,
+Google OAuth, decoding and request binding are not established by deployment
+readback. A
+fresh `last_summary.outcome = 'observed'` from an ordinary signed-in release 44
+installation is required for that live verification. A `recorded` response
+alone is insufficient because failure outcomes can also be recorded.
+
+Play Console accepted the verified AAB as version `44 (1.0.2)`, API 26+, target
+SDK 36, with no loss of supported devices. Internal release 3,
+`1.0.2 (44) - Internal testing`, became **Available to internal testers** at
+06:34 East Africa Time. The same uploaded bundle is used for the Closed Alpha
+release; it did not require a second binary upload. Closed release 3,
+`1.0.2 (44) - Closed testing`, was submitted for a full rollout to the Alpha
+testing group at 06:38 East Africa Time. Submission 4 is **In review** at the
+final Console inspection. This is not a production release or production access.
+
+Console reported two non-blocking warnings for version 44: no deobfuscation
+file and no native debug symbols. These limit crash/ANR diagnosis and remain
+follow-up build work; the Console permitted this testing release.
+
+### Store category investigation
+
+The user reported seeing "Libraries & Demo" on the Play Store. A direct Console
+inspection found **App**, category **Social**, and the tags Communication,
+Lifestyle and Social. The default listing is live, its app name is **SautiLink**,
+and its description covers posts, short videos, Rooms and direct messages.
+
+Submission 1 explicitly records "Select app category (Social app)" and a
+**Published** timestamp of 18 October 2026 at 17:32 East Africa Time. The category
+is therefore already published as Social; no category mutation was made during
+this investigation. Google documents that category changes can take up to
+24 hours to appear on the Play Store page. Propagation or an older testing
+listing is a possible explanation for the reported label, not an observed cause.
+The exact Play Store screen reported by the user was not available to verify.
+
 ## Official references
 
 - [Google: Standard requests and server-side token decoding](https://developer.android.com/google/play/integrity/standard)
 - [Google: Integrity verdict fields](https://developer.android.com/google/play/integrity/verdicts)
+- [Google: Choose a category and tags](https://support.google.com/googleplay/android-developer/answer/9859673?hl=en)
 - [Supabase: Edge Function authorization headers](https://supabase.com/docs/guides/functions/auth-headers)
 - [Supabase: Auth sessions and session revocation checks](https://supabase.com/docs/guides/auth/sessions)
 - [Supabase: Row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security)
