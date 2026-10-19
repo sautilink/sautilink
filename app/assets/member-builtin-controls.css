@@ -116,6 +116,110 @@ body:not(.auth-entry):has(#member-view:not([hidden])) .settings-select > .sl-sel
 body:not(.auth-entry):has(#member-view:not([hidden])) .birth-date-control > .sl-select { width: 100%; }
 body:not(.auth-entry):has(#member-view:not([hidden])) .birth-date-control .sl-select-trigger { min-height: 44px; gap: 2px; padding: 0 6px; border: 0; border-radius: 0; background: transparent; font-size: 12px; box-shadow: none; }
 body:not(.auth-entry):has(#member-view:not([hidden])) .birth-date-control .sl-select-trigger > svg { flex-basis: 12px; width: 12px; height: 12px; }
+/* The shared DOB module injects inline styles, which production CSP blocks.
+   Keep the member layout in this external stylesheet; auth retains its own UI. */
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-card {
+  gap: 12px;
+  padding: 16px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-card .settings-card-title strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-card :is(.settings-card-title small, .birth-date-settings-copy, .birth-date-separator) { display: none; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-fields { flex: 1 1 260px; min-width: 0; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-fieldset {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-fieldset :is(legend, .birth-date-control > label) {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-card .birth-date-fields {
+  display: grid;
+  grid-template-columns: minmax(0, .78fr) minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-card .birth-date-control {
+  min-width: 0;
+  border: 1px solid var(--ios-line);
+  border-radius: 12px;
+  background: var(--ios-secondary);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-card :is(.sl-select-trigger, .birth-date-control > select:not([data-sl-native-select])) {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 6px;
+  gap: 2px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--ios-ink);
+  font: inherit;
+  font-size: 12px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-card .field-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  color: var(--ios-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-card .birth-date-settings-actions { display: flex; flex: 0 1 auto; flex-direction: column; align-items: flex-start; gap: 8px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-card .birth-date-settings-actions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--ios-blue) 15%, var(--ios-line));
+  border-radius: 12px;
+  background: var(--ios-blue-soft);
+  color: var(--ios-blue);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 600;
+  white-space: nowrap;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-card .birth-date-settings-actions > .form-message { flex: 0 1 auto; max-width: 260px; margin: 0; font-size: 12px; line-height: 1.5; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-card :is(.settings-card-title strong, .birth-date-settings-actions > button) > svg { width: 18px; height: 18px; flex: 0 0 18px; color: var(--ios-blue); }
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-birth-date-card .field-hint > svg { width: 14px; height: 14px; flex: 0 0 14px; margin-top: 1px; }
 body:not(.auth-entry):has(#member-view:not([hidden])) .professional-insights-controls > .sl-select { width: auto; min-width: 140px; }
 body:not(.auth-entry):has(#member-view:not([hidden])) .moderation-filter-row > .sl-select { width: auto; min-width: 150px; }
 @media (max-width: 600px) {

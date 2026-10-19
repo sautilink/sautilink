@@ -33,7 +33,7 @@ original resting geometry and animation player. Its renderer applies the
 upstream resting styles with `CSSStyleDeclaration.setProperty()` instead of
 `setAttribute('style', ...)`, so it works with SautiLink's Content Security Policy.
 No upstream animation definitions or geometry have been altered. Huge is the
-primary family (66 selected definitions). Five narrow functional exceptions use
+primary family (67 selected definitions). Five narrow functional exceptions use
 the exact `cloud`, `router`, `hash`, `pin` and `picture-in-picture` icons from the
 same AnimateIcons release's Lucide collection, because its 501-icon Huge
 collection does not provide these symbols. Their application keys are prefixed

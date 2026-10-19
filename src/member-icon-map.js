@@ -288,6 +288,9 @@ export const iconRules = Object.freeze([
  * suppressed while the adapter adds an aria-hidden icon in the same position.
  */
 export const textIconRules = Object.freeze([
+  { selector: '#settings-birth-date-card .settings-card-title strong', glyph: '', decorative: true, icon: 'calendar-0-1' },
+  { selector: '#settings-birth-date-fieldset .field-hint', glyph: '', decorative: true, icon: 'lock-keyhole' },
+  { selector: '#settings-birth-date-form .birth-date-settings-actions > button', glyph: '', decorative: true, icon: 'check' },
   { selector: '.messages-wa-app-back-chevron, .message-thread-back-chevron', glyph: '‹', icon: 'chevron-left' },
   { selector: '.messages-wa-thread-menu > summary', glyph: '⋮', icon: 'more-vertical' },
   { selector: '.messages-appearance-close, .message-reply-cancel, .composer-trim-close, .post-edit-close, .profile-media-editor-close, .room-post-image-remove', glyph: '×', icon: 'cancel-0-1' },
