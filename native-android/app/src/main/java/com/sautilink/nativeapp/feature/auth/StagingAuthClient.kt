@@ -418,6 +418,18 @@ class StagingAuthClient(
     /** Short-lived token for environment-scoped RLS reads/writes; never log or persist it. */
     suspend fun accessTokenForStagingRead(): String = activeAccessToken()
 
+    /**
+     * Read-only snapshot for optional monitoring. This never refreshes credentials, reads
+     * the session vault, or changes auth state. Normal app requests own session renewal.
+     */
+    fun cachedAccessTokenForObservation(expectedAccountId: String): String? {
+        if (sessionState != StagingSessionState.SIGNED_IN || currentUser?.id != expectedAccountId) return null
+        val nowMillis = System.currentTimeMillis()
+        if (nowMillis <= 0L || tokenExpiresAtMillis <= nowMillis ||
+            tokenExpiresAtMillis - nowMillis <= 180_000L) return null
+        return accessToken?.takeIf { it.isNotBlank() }
+    }
+
     /** Public (non-secret) staging publishable key, for API request headers only. */
     fun stagingPublishableKeyForRead(): String = publishableKey
 

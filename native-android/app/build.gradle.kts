@@ -47,8 +47,8 @@ android {
         targetSdk = 36
         buildConfigField("String", "STAGING_SUPABASE_PUBLISHABLE_KEY", "\"${stagingPublishableKey}\"")
         buildConfigField("String", "PRODUCTION_SUPABASE_PUBLISHABLE_KEY", "\"${productionPublishableKey}\"")
-        versionCode = 43
-        versionName = "1.0.1"
+        versionCode = 44
+        versionName = "1.0.2"
     }
     flavorDimensions += "distribution"
     productFlavors {
@@ -113,6 +113,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
     // Phase 8M: Android HttpURLConnection does not reliably support PATCH.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Standard Play Integrity observations; server monitoring never gates app access.
+    implementation("com.google.android.play:integrity:1.6.0")
     implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
     implementation("com.google.firebase:firebase-messaging")
     debugImplementation("androidx.compose.ui:ui-tooling")

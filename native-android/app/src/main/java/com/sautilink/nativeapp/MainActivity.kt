@@ -43,6 +43,7 @@ import com.sautilink.nativeapp.feature.other.NotificationsScreen
 import com.sautilink.nativeapp.feature.notifications.NativeNotificationsScreen
 import com.sautilink.nativeapp.feature.notifications.NativeNotificationsClient
 import com.sautilink.nativeapp.feature.notifications.NativePushManager
+import com.sautilink.nativeapp.feature.integrity.NativePlayIntegrityMonitor
 import com.sautilink.nativeapp.feature.videos.ProductionShortVideosScreen
 import com.sautilink.nativeapp.feature.explore.NativeExploreScreen
 import com.sautilink.nativeapp.feature.rooms.NativeRoomsScreen
@@ -207,6 +208,12 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
             runCatching { NativeNotificationsClient(productionAuth).load() }
                 .onSuccess { notices -> unreadNotifications = notices.count { !it.isRead } }
         } else unreadNotifications = 0
+    }
+    // A sampled background observation only; auth, navigation, and content never wait for it.
+    LaunchedEffect(activeAccountId, visibleOnScreen, appResumeVersion) {
+        if (activeAccountId == null || !visibleOnScreen) return@LaunchedEffect
+        delay(2_000)
+        NativePlayIntegrityMonitor.syncIfDue(context.applicationContext, productionAuth)
     }
     // Platform-wide activity is ephemeral, opt-in, reciprocal and foreground-only.
     LaunchedEffect(productionAuth.account?.id, visibleOnScreen, activityRevision, appResumeVersion) {
