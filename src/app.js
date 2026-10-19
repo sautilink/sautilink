@@ -9657,7 +9657,12 @@ byId('notifications-list').addEventListener('click', (event) => {
   void (async () => {
     await markNotificationRead(item.dataset.notificationId, item);
     if (item.dataset.notificationRoute) {
-      window.location.assign(item.dataset.notificationRoute);
+      if (currentMemberId) {
+        window.history.pushState({}, '', item.dataset.notificationRoute);
+        await applyLocationRoute();
+      } else {
+        window.location.assign(item.dataset.notificationRoute);
+      }
       return;
     }
     if (item.dataset.circleSlug) window.location.assign(circlePath(item.dataset.circleSlug));

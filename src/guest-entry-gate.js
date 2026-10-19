@@ -1,11 +1,14 @@
 import { createInlineVerificationSvg } from './verification-inline-svg.js';
 import { createLoadingSkeleton } from './non-home-skeleton.js';
+import { appendFormattedPostText } from './caption-entities.js';
 
 const GUEST_GATE_SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const GUEST_GATE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
 const AUTH_STORAGE_KEY = 'sautilink.auth.session';
 const RETURN_STORAGE_KEY = 'sautilink.auth.return-target';
-const GUEST_GATE_STYLESHEET = '/app/assets/guest-entry-gate.css';
+const GUEST_GATE_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20261019-post2';
+const guestLockedSurfaces = new Map();
+let guestMemberObserver;
 
 function parseStoredSession() {
   try {
@@ -14,6 +17,7 @@ function parseStoredSession() {
     const value = JSON.parse(raw);
     if (value?.access_token && value?.user?.id) return value;
     if (value?.currentSession?.access_token && value?.currentSession?.user?.id) return value.currentSession;
+    if (value?.session?.access_token && value?.session?.user?.id) return value.session;
     return null;
   } catch {
     return null;
@@ -138,9 +142,47 @@ function lockUnderlyingApp() {
   for (const id of ['auth-view', 'member-view']) {
     const surface = document.getElementById(id);
     if (!surface) continue;
+    if (!guestLockedSurfaces.has(surface)) {
+      guestLockedSurfaces.set(surface, { ariaHidden: surface.getAttribute('aria-hidden'), inert: surface.inert });
+    }
     surface.setAttribute('aria-hidden', 'true');
     surface.inert = true;
   }
+}
+
+function memberSurfaceReady() {
+  const member = document.getElementById('member-view');
+  const memberId = window.__sautilinkMessagesUserId?.();
+  return Boolean(memberId && member && !member.hidden && !document.body.classList.contains('auth-entry'));
+}
+
+function releaseGuestEntryGate() {
+  for (const id of ['sautilink-guest-post-gate', 'sautilink-guest-action-dialog']) {
+    document.getElementById(id)?.remove();
+  }
+  document.documentElement.classList.remove('sautilink-guest-profile-locked');
+  for (const [surface, previous] of guestLockedSurfaces) {
+    if (surface.getAttribute('aria-hidden') === 'true') {
+      if (previous.ariaHidden === null) surface.removeAttribute('aria-hidden');
+      else surface.setAttribute('aria-hidden', previous.ariaHidden);
+    }
+    surface.inert = previous.inert;
+  }
+  guestLockedSurfaces.clear();
+  guestMemberObserver?.disconnect();
+  guestMemberObserver = null;
+}
+
+function watchGuestMemberSurface() {
+  if (guestMemberObserver) return;
+  // This only removes a presentation overlay once the existing app has made
+  // its member surface ready; it never authenticates a stored session itself.
+  guestMemberObserver = new MutationObserver(() => {
+    if (memberSurfaceReady()) releaseGuestEntryGate();
+  });
+  guestMemberObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  const member = document.getElementById('member-view');
+  if (member) guestMemberObserver.observe(member, { attributes: true, attributeFilter: ['hidden'] });
 }
 
 function createGateShell(route) {
@@ -301,13 +343,20 @@ function createPostGateShell(route) {
   gate.dataset.postId = route.postId;
   gate.setAttribute('aria-label', 'Public SautiLink post');
 
+  const topbar = node('header', 'guest-post-topbar');
+  const home = node('a', 'guest-post-back');
+  home.href = '/home';
+  home.setAttribute('aria-label', 'Open SautiLink home');
+  home.append(guestPostActionIcon('back'));
   const brand = node('a', 'guest-profile-brand guest-post-brand');
   brand.href = '/';
   brand.setAttribute('aria-label', 'SautiLink home');
   const brandLogo = document.createElement('img');
   brandLogo.src = '/logo.png';
   brandLogo.alt = 'SautiLink';
-  brand.append(brandLogo);
+  brand.append(brandLogo, node('span', 'guest-post-wordmark', 'SautiLink'));
+  const heading = node('h1', 'guest-post-page-title', 'Post');
+  topbar.append(home, brand, heading);
 
   const card = node('article', 'guest-profile-card guest-post-card');
   card.setAttribute('aria-live', 'polite');
@@ -315,8 +364,9 @@ function createPostGateShell(route) {
   loading.append(createLoadingSkeleton({ label: 'Loading post…', rows: 2 }));
   card.append(loading);
 
-  gate.append(brand, card);
+  gate.append(topbar, card);
   document.body.append(gate);
+  watchGuestMemberSurface();
   return gate;
 }
 
@@ -369,7 +419,9 @@ function showGuestAction(route, title, copy) {
 }
 
 function guestPostActionIcon(action) {
+  const names = { like: 'heart', comments: 'message-0-1', repost: 'repeat', share: 'share-0-1', save: 'bookmark', back: 'arrow-left-0-2' };
   const paths = {
+    back: ['m14 6-6 6 6 6'],
     comments: ['M21 12a8 8 0 0 1-8 8H7l-4 3v-6.5A8 8 0 1 1 21 12Z'],
     repost: ['M7 7h10l-2.5-2.5', 'M17 17H7l2.5 2.5', 'M17 7v4', 'M7 17v-4'],
     like: ['M20.8 8.2c0 5-8.8 10.3-8.8 10.3S3.2 13.2 3.2 8.2A4.3 4.3 0 0 1 12 6.8a4.3 4.3 0 0 1 8.8 1.4Z'],
@@ -379,6 +431,8 @@ function guestPostActionIcon(action) {
   const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   icon.setAttribute('viewBox', '0 0 24 24');
   icon.setAttribute('aria-hidden', 'true');
+  icon.setAttribute('focusable', 'false');
+  icon.dataset.slIconName = names[action];
   for (const d of paths[action] || []) {
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', d);
@@ -495,7 +549,8 @@ function renderGuestPost(card, post, route) {
 
   const body = String(post.body || '').trim();
   if (body) {
-    const caption = node('p', 'guest-post-body', body);
+    const caption = node('p', 'guest-post-body');
+    appendFormattedPostText(caption, body);
     card.append(header, caption);
   } else {
     card.append(header);
@@ -530,13 +585,18 @@ function renderGuestPost(card, post, route) {
 
 async function installGuestPostGate() {
   const route = postRoute();
-  if (!route || parseStoredSession()) return;
+  if (!route || parseStoredSession() || memberSurfaceReady()) return;
 
   const gate = createPostGateShell(route);
   const card = gate.querySelector('.guest-post-card');
   if (!card) return;
 
   const post = await readGuestPost(route.postId).catch(() => null);
+  if (!gate.isConnected) return;
+  if (memberSurfaceReady()) {
+    releaseGuestEntryGate();
+    return;
+  }
   if (!post) {
     renderPostUnavailable(card);
     return;

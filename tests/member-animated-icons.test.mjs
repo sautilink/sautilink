@@ -8,13 +8,14 @@ import { excludedIconSelector, glyphIcons, glyphSignature, iconRules, textIconRu
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const source = await read('app/assets/member-animated-icons.js');
+const adapterSource = (await read('src/member-animated-icons.js')).replace(/^import[^\n]*\r?\n/m, '');
 const hugeRuntime = await read('app/assets/huge-icons/runtime.js');
 const hugeManifest = JSON.parse(await read('app/assets/huge-icons/manifest.json'));
 
 // This DOM harness runs the actual presentation script. Mutation callbacks and
 // bubbling are shared with the production send function below, so the tests
 // exercise the integration rather than a second implementation of icon state.
-function harness({ reduced = false, auth = false, hidden = false, runtimeAvailable = true } = {}) {
+function harness({ reduced = false, auth = false, hidden = false, runtimeAvailable = true, adapter = source } = {}) {
   const observers = new Set();
   const players = [];
   const requests = [];
@@ -371,6 +372,7 @@ function harness({ reduced = false, auth = false, hidden = false, runtimeAvailab
     };
   }
   context = {
+    iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignature,
     window, document, Element, HTMLElement: Element, SVGElement: Element, Event, CustomEvent: Event,
     Node: { ELEMENT_NODE: 1, TEXT_NODE: 3, DOCUMENT_NODE: 9 },
     queueMicrotask: enqueueMicrotask, structuredClone, URL, performance: { now: () => clock },
@@ -413,7 +415,7 @@ function harness({ reduced = false, auth = false, hidden = false, runtimeAvailab
       if (target === button || button.contains(target)) observer.callback([{ target, isIntersecting: visible, intersectionRatio: visible ? 1 : 0 }], observer);
     }
   }
-  const start = () => runInNewContext(source, context);
+  const start = () => runInNewContext(adapter, context);
   return { context, document, window, node, Event, member, rail, nav, feed, card, like, save, bell, badge, mic, send, composer, body, error, preview, requests, players, playerFor, media, mediaListeners, start, flush, intersect };
 }
 
@@ -539,6 +541,112 @@ test('a failed Huge runtime load retains the original control icons and does not
 
 const plays = (player) => player?.calls.filter(([kind]) => kind === 'start') || [];
 const startedFor = (state, button) => state.players.filter(player => button.contains(player.svg)).reduce((sum, player) => sum + plays(player).length, 0);
+
+function guestPostIcons(state) {
+  const gate = state.node('main', { id: 'sautilink-guest-post-gate' });
+  const controls = ['heart', 'message-0-1', 'repeat', 'share-0-1', 'bookmark', 'arrow-left-0-2'].map((name) => {
+    const button = state.node('a', { href: '/login', 'aria-label': name }, gate);
+    const svg = state.node('svg', { 'data-sl-icon-name': name, 'aria-hidden': 'true', viewBox: '0 0 24 24' }, button);
+    state.node('path', { d: 'M2 3h4' }, svg);
+    return { name, button, svg };
+  });
+  return { gate, controls };
+}
+
+test('a late public post gate uses Huge icons without enhancing hidden member, profile, or account-entry surfaces', async () => {
+  const state = harness({ auth: true, hidden: true, adapter: adapterSource });
+  const auth = state.node('section', { id: 'auth-view' });
+  const authIcon = state.node('svg', { 'data-sl-icon-name': 'heart' }, auth);
+  const profile = state.node('main', { id: 'sautilink-guest-profile-gate' });
+  const profileIcon = state.node('svg', { 'data-sl-icon-name': 'bookmark' }, profile);
+  state.start();
+  await state.flush();
+  assert.equal(state.requests.length, 0, 'guest profiles and account entry do not enable the member runtime');
+  const { controls } = guestPostIcons(state);
+  const brand = state.node('svg', {}, controls[0].button.parentElement);
+  state.node('path', { d: 'M2 3h4' }, brand);
+  let clicks = 0;
+  controls[0].button.addEventListener('click', () => clicks++);
+  await state.flush();
+  assert.equal(state.requests.length, 1, 'the public gate shares the existing local Huge catalog');
+  for (const { name, button, svg } of controls) {
+    assert.equal(svg.getAttribute('data-sl-huge-icon'), name);
+    assert.equal(button.querySelector('svg'), svg, 'enhancement preserves the original SVG node');
+    assert.equal(button.getAttribute('href'), '/login');
+    assert.equal(button.getAttribute('aria-label'), name);
+    button.dispatchEvent(new state.Event('pointerover'));
+  }
+  controls[0].button.dispatchEvent(new state.Event('click'));
+  await state.flush();
+  assert.equal(clicks, 1, 'existing guest interaction handlers remain responsible for navigation');
+  assert.ok(controls.every(({ button }) => startedFor(state, button) > 0));
+  for (const svg of [authIcon, profileIcon, state.like.querySelector('svg'), state.bell.querySelector('svg'), brand]) {
+    assert.equal(svg.getAttribute('data-sl-huge-icon'), null, 'only explicitly marked icons inside the public post gate are enhanced');
+  }
+});
+
+test('switching between member and public post surfaces restores old icons and stops offscreen or hidden-document motion', async () => {
+  const state = harness({ adapter: adapterSource });
+  state.start();
+  await state.flush();
+  state.bell.dispatchEvent(new state.Event('pointerover'));
+  await state.flush();
+  const memberPlayer = state.playerFor(state.bell);
+  assert.ok(memberPlayer, 'member navigation outside #member-view keeps its existing animation');
+  const { gate, controls } = guestPostIcons(state);
+  await state.flush();
+  assert.ok(memberPlayer.destroyed);
+  assert.equal(state.bell.querySelector('svg').getAttribute('data-sl-huge-icon'), null);
+  assert.equal(state.like.querySelector('svg').getAttribute('data-sl-huge-icon'), null);
+  const { button, svg } = controls[1];
+  button.dispatchEvent(new state.Event('pointerover'));
+  await state.flush();
+  const first = state.playerFor(button);
+  assert.ok(first);
+  state.intersect(button, false);
+  await state.flush();
+  assert.ok(first.destroyed, 'offscreen guest controls release their animation controller');
+  assert.equal(svg.getAttribute('data-sl-huge-icon'), 'message-0-1');
+  state.intersect(button, true);
+  button.dispatchEvent(new state.Event('focusin'));
+  await state.flush();
+  const second = state.playerFor(button);
+  assert.ok(second);
+  state.document.visibilityState = 'hidden';
+  state.document.dispatchEvent(new state.Event('visibilitychange'));
+  await state.flush();
+  assert.ok(second.destroyed, 'document visibility applies equally to public previews');
+  state.document.visibilityState = 'visible';
+  state.document.body.classList.add('auth-entry');
+  state.member.hidden = true;
+  gate.remove();
+  await state.flush();
+  assert.equal(state.document.querySelectorAll('[data-sl-huge-icon]').length, 0);
+  state.member.hidden = false;
+  state.document.body.classList.remove('auth-entry');
+  await state.flush();
+  assert.equal(state.bell.querySelector('svg').getAttribute('data-sl-huge-icon'), 'notification');
+  assert.equal(state.like.querySelector('svg').getAttribute('data-sl-huge-icon'), 'heart');
+  assert.equal(state.requests.length, 1, 'surface changes reuse the runtime without another download');
+});
+
+test('a standalone public post gate respects Reduce Motion without requiring a member root', async () => {
+  const state = harness({ reduced: true, auth: true, adapter: adapterSource });
+  state.member.remove();
+  const { controls } = guestPostIcons(state);
+  state.start();
+  await state.flush();
+  for (const { button, svg, name } of controls) {
+    assert.equal(svg.getAttribute('data-sl-huge-icon'), name);
+    button.dispatchEvent(new state.Event('pointerover'));
+    button.dispatchEvent(new state.Event('focusin'));
+    button.dispatchEvent(new state.Event('click'));
+  }
+  await state.flush();
+  assert.equal(state.players.length, 0);
+  assert.equal(state.requests.length, 1);
+  assert.equal(state.bell.querySelector('svg').getAttribute('data-sl-huge-icon'), null);
+});
 
 test('initial Reduce Motion keeps the Huge icon family static and creates no animation controllers', async () => {
   const state = harness({ reduced: true });
