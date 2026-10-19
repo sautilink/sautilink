@@ -100,14 +100,23 @@ class NativeHomeMarketplaceTest {
             .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         assertTrue("$label needs a real text layout", layouts.isNotEmpty())
         layouts.forEach { result ->
-            assertTrue("$label may wrap over at most two complete lines", result.lineCount in 1..2)
-            assertFalse("$label must not clip vertically", result.didOverflowHeight)
-            for (line in 0 until result.lineCount) {
-                assertFalse("$label must not ellipsize line $line", result.isLineEllipsized(line))
-                assertTrue("$label must fit its available width", result.getLineRight(line) <= result.size.width + 1f)
-                assertTrue("$label must keep its leading characters", result.getLineLeft(line) >= -1f)
+            val lines = (0 until result.lineCount).joinToString("; ") { line ->
+                "$line:${result.getLineLeft(line)}..${result.getLineRight(line)} " +
+                    "bottom=${result.getLineBottom(line)} end=${result.getLineEnd(line, visibleEnd = true)} " +
+                    "ellipsis=${result.isLineEllipsized(line)}"
             }
-            assertEquals("Every character of $label must be visible", label.length,
+            val details = "$label size=${result.size} paragraph=${result.multiParagraph.width}x${result.multiParagraph.height} " +
+                "constraints=${result.layoutInput.constraints} lines=${result.lineCount} " +
+                "widthOverflow=${result.didOverflowWidth} heightOverflow=${result.didOverflowHeight} [$lines]"
+            Log.i("SautiHomeTabLayout", details)
+            assertTrue("$label may wrap over at most two complete lines: $details", result.lineCount in 1..2)
+            assertFalse("$label must not clip vertically: $details", result.didOverflowHeight)
+            for (line in 0 until result.lineCount) {
+                assertFalse("$label must not ellipsize line $line: $details", result.isLineEllipsized(line))
+                assertTrue("$label must fit its available width: $details", result.getLineRight(line) <= result.size.width + 1f)
+                assertTrue("$label must keep its leading characters: $details", result.getLineLeft(line) >= -1f)
+            }
+            assertEquals("Every character of $label must be visible: $details", label.length,
                 result.getLineEnd(result.lineCount - 1, visibleEnd = true))
         }
     }
@@ -125,6 +134,10 @@ class NativeHomeMarketplaceTest {
         val trending = compose.onNodeWithText("Trending").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
         assertTrue("Tabs follow Following, For You, Trending left to right", following.center.x < forYou.center.x && forYou.center.x < trending.center.x)
         compose.onNodeWithText("For You").assertIsSelected()
+        screenshot("home-tabs-light-320-font150-before-layout-check")
+        listOf("Following", "For You", "Trending").forEach { label ->
+            compose.onNodeWithText(label).assertHeightIsAtLeast(46.dp)
+        }
         listOf("Following", "For You", "Trending").forEach(::assertTabTextFits)
         compose.onNodeWithText("Following").performTouchInput { click(center) }.assertIsSelected()
         compose.onNodeWithText("For You").assertIsNotSelected()

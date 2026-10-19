@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A notification small icon uses only alpha. Tint the approved transparent
-     brand artwork white; keep the two links and speech tail instead of an
-     unrelated equalizer glyph. The 24dp canvas includes vertical breathing room. -->
+<!-- A notification small icon uses only alpha. The raster keeps the approved
+     brand geometry and original alpha, with actual white RGB pixels. Some OEMs
+     ignore bitmap XML tint. The 24dp canvas includes vertical breathing room. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:width="24dp" android:height="24dp" android:gravity="center">
         <inset android:insetTop="5.5dp" android:insetBottom="5.5dp">
-            <bitmap android:src="@drawable/sautilink_logo" android:gravity="fill"
-                android:filter="true" android:tint="#FFFFFFFF"/>
+            <bitmap android:src="@drawable/sautilink_notification_mark" android:gravity="fill"
+                android:filter="true"/>
         </inset>
     </item>
 </layer-list>

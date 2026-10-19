@@ -34,7 +34,7 @@ internal fun HomeFeedTabs(mode: String, onSelect: (String) -> Unit, modifier: Mo
                     .background(background).selectable(selected = active, role = Role.Tab,
                         onClick = { onSelect(key) }).padding(horizontal = 4.dp, vertical = 10.dp),
                     contentAlignment = Alignment.Center) {
-                    Text(title, style = MaterialTheme.typography.labelLarge,
+                    Text(title, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelLarge,
                         fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
                         textAlign = TextAlign.Center, maxLines = 2,
                         color = if (active) MaterialTheme.colorScheme.onSurface
