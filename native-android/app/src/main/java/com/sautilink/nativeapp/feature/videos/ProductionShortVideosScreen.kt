@@ -553,7 +553,7 @@ fun ProductionShortVideosScreen(
     }
     val selectedPost = commentsFor
     if (selectedPost != null) commentStateHolder.SaveableStateProvider(selectedPost.id) {
-        PostCommentsSheet(post = selectedPost, actions = actions, allowWrite = canInteract,
+        PostCommentsSheet(post = selectedPost, actions = actions, auth = auth, allowWrite = canInteract,
             signedInUserId = auth.account?.id, onDismiss = { commentsFor = null },
             onRootPosted = {}, onRootDeleted = {}, onCommentChanged = {
                 val accountId = auth.account?.id

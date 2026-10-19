@@ -263,7 +263,7 @@ class NativeUiRegressionTest {
         val fixture = InstrumentationRegistry.getInstrumentation().context.assets
             .open("source.json").bufferedReader().use { JSONObject(it.readText()) }
         val names = fixture.getJSONObject("definitions").keys().asSequence().toList().sorted()
-        assertEquals("Cover every licensed source definition", 84, names.size)
+        assertEquals("Cover every licensed source definition", 85, names.size)
         val vectors = names.map { name ->
             val vector = requireNotNull(SautiHugeVectors.get(name)) { "Missing vector $name" }
             assertEquals(name, vector.name)
@@ -275,7 +275,7 @@ class NativeUiRegressionTest {
         compose.setContent { Frame {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text("SautiLink · Licensed icon rendering", style = MaterialTheme.typography.titleMedium)
-                Text("All 84 local vectors · motion disabled", style = MaterialTheme.typography.bodySmall)
+                Text("All 85 local vectors · motion disabled", style = MaterialTheme.typography.bodySmall)
                 FlowRow(maxItemsInEachRow = 7, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     vectors.forEach { vector ->
                         Box(Modifier.size(45.dp), contentAlignment = Alignment.Center) {
