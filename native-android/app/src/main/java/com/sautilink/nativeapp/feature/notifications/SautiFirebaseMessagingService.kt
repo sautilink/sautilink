@@ -26,11 +26,7 @@ class SautiFirebaseMessagingService : FirebaseMessagingService() {
         if (!NativePushManager.permissionGranted(this)) return
         NativePushManager.createChannel(this)
         val route = NativePushManager.safeRoute(message.data["route"]) ?: "/notifications"
-        val isMessage = message.data["type"] == "message"
-        val title = message.notification?.title?.take(90).orEmpty().ifBlank { "SautiLink" }
-        // Message bodies stay private on the lock screen, even if a server payload changes.
-        val body = if (isMessage) "You have a new message."
-            else message.notification?.body?.take(180).orEmpty().ifBlank { "New activity on SautiLink." }
+        val copy = nativePushCopy(message.data, message.notification?.title, message.notification?.body)
         val intent = Intent(this, MainActivity::class.java)
             .putExtra(MainActivity.EXTRA_PUSH_ROUTE, route)
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -39,7 +35,7 @@ class SautiFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(this, NativePushManager.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_sautilink)
-            .setContentTitle(title).setContentText(body)
+            .setContentTitle(copy.title).setContentText(copy.body)
             .setContentIntent(pending).setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

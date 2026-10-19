@@ -1,0 +1,13 @@
+media-editor-62s.mp4 is a deterministic local test pattern, not user media.
+128x128 H.264 baseline, 4 fps, silent mono AAC: red for 60 seconds, blue for 2.
+Generated with the existing ffmpeg 9.0.2 task tool, no downloaded media.
+It belongs only to androidTest assets and must never be packaged in the app AAB.
+
+Reproduction (ffmpeg):
+-f lavfi -i color=c=red:s=128x128:r=4:d=60
+-f lavfi -i color=c=blue:s=128x128:r=4:d=2
+-f lavfi -i anullsrc=r=8000:cl=mono
+-filter_complex [0:v][1:v]concat=n=2:v=1:a=0[v]
+-map [v] -map 2:a -t 62 -c:v libx264 -profile:v baseline
+-pix_fmt yuv420p -preset veryfast -crf 35 -g 4 -c:a aac -b:a 8k
+-movflags +faststart -metadata creation_time=2026-10-19T00:00:00Z

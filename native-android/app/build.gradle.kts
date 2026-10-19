@@ -48,8 +48,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "STAGING_SUPABASE_PUBLISHABLE_KEY", "\"${stagingPublishableKey}\"")
         buildConfigField("String", "PRODUCTION_SUPABASE_PUBLISHABLE_KEY", "\"${productionPublishableKey}\"")
-        versionCode = 45
-        versionName = "1.1.0"
+        versionCode = 46
+        versionName = "1.1.1"
     }
     flavorDimensions += "distribution"
     productFlavors {
@@ -113,6 +113,7 @@ dependencies {
     // Tested on-device after Android Studio sync. Keep all Media3 modules on one version.
     implementation("androidx.media3:media3-exoplayer:1.11.1")
     implementation("androidx.media3:media3-ui:1.11.1")
+    implementation("androidx.media3:media3-transformer:1.11.1")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
     // Phase 8M: Android HttpURLConnection does not reliably support PATCH.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

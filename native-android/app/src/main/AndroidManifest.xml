@@ -12,6 +12,12 @@
         android:label="@string/app_name"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:supportsRtl="true">
+        <!-- FCM renders notification payloads itself while the app is in the
+             background. Match the foreground/data notification icon and channel. -->
+        <meta-data android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_sautilink"/>
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="sautilink_updates"/>
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop"
             android:theme="@style/Theme.SautiLink.Launch"
             android:windowSoftInputMode="adjustResize">

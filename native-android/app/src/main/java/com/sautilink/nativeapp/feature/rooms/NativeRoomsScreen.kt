@@ -84,7 +84,7 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
     }
     BackHandler(room != null || state.openingSlug) { state.closeRoom(); sheet = null; pendingMembership = null }
     Column(Modifier.fillMaxSize()) {
-        RoomsTopBar(room?.name ?: "Rooms", state.discoverLoading || state.postsLoading,
+        RoomsTopBar(if (room != null || state.openingSlug) "Room" else "Rooms", state.discoverLoading || state.postsLoading,
             onBack = { if (room != null || state.openingSlug) state.closeRoom() else onBack(); pendingMembership = null; sheet = null },
             onRefresh = { if (room != null) { state.refreshRoom(); community.open(room, force = true) } else state.loadLanding() },
             onCreate = if (room == null && accountId != null) ({ sheet = RoomsSheet.CREATE }) else null)
@@ -138,7 +138,7 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
         null -> Unit
     }
     commentPost?.let { post ->
-        if (room?.canReadPosts == true) PostCommentsSheet(post.asFeedPost(), state.interactions,
+        if (room?.canReadPosts == true) PostCommentsSheet(post.asFeedPost(), state.interactions, auth = auth,
             allowWrite = accountId != null && auth.account?.id == accountId, signedInUserId = accountId,
             onDismiss = { commentPost = null }, onRootPosted = { state.commentCount(post.id, 1) },
             onRootDeleted = { state.commentCount(post.id, -1) }, onCommentChanged = {})

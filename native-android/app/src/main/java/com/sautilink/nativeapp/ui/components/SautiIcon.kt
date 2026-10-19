@@ -79,6 +79,7 @@ internal fun nativeHugeIconName(vectorName: String): String? = when (vectorName.
     "Home" -> "home-0-1"
     "Search", "ZoomIn" -> "search"
     "Explore" -> "compass-0-1"
+    "Storefront", "Store" -> "store-0-1"
     "ChatBubbleOutline", "QuestionAnswer", "MarkChatUnread" -> "message-0-1"
     "NotificationsNone", "NotificationsActive", "Notifications" -> "notification"
     "PersonOutline", "Person", "AccountCircle" -> "user"

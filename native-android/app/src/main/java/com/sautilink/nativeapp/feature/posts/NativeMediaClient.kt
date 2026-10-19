@@ -118,7 +118,7 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
 
     private fun prepareVideo(uri: Uri): PreparedMedia {
         val resolver = context.contentResolver
-        if (resolver.getType(uri)?.lowercase() != "video/mp4")
+        if (mediaType(uri) != "video/mp4")
             throw AuthRequestException("Choose an MP4 video.")
         val retriever = MediaMetadataRetriever()
         try {
@@ -148,12 +148,22 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
     }
 
     private fun prepare(uri: Uri): PreparedMedia {
-        val type = context.contentResolver.getType(uri)?.lowercase().orEmpty()
+        val type = mediaType(uri)
         return when {
             type.startsWith("image/") -> prepareImage(uri)
             type == "video/mp4" -> prepareVideo(uri)
             else -> throw AuthRequestException("Choose a JPEG, PNG, WebP image or MP4 video.")
         }
+    }
+
+    // Only this app's local editor exports may supply a file-extension MIME hint.
+    // Picker content URIs retain their provider MIME and existing validation.
+    private fun mediaType(uri: Uri): String {
+        context.contentResolver.getType(uri)?.lowercase()?.let { return it }
+        if (uri.scheme != "file") return ""
+        val file = File(uri.path ?: return "").canonicalFile
+        if (file.parentFile != context.cacheDir.canonicalFile || !file.name.startsWith("sauti-edit-")) return ""
+        return when (file.extension.lowercase()) { "jpg" -> "image/jpeg"; "png" -> "image/png"; "mp4" -> "video/mp4"; else -> "" }
     }
 
     suspend fun upload(uri: Uri, onProgress: (Int) -> Unit): NativeReadyMedia {

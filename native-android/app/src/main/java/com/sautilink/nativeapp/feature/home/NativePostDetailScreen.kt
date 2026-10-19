@@ -352,7 +352,7 @@ fun NativePostDetailScreen(
                 if (replyTarget != null) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        Text("Replying to @${replyTarget?.handle.orEmpty()}",
+                        Text("Replying to ${replyTarget?.author.orEmpty()}",
                             modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
                         IconButton(onClick = { replyTarget = null; draft = "" }) {
                             Icon(Icons.Rounded.Close, "Cancel reply")
@@ -416,49 +416,23 @@ private fun CommentThreadRow(
     onReaction: (NativePostComment, String) -> Unit,
     depth: Int = 0
 ) {
-    Column(Modifier.fillMaxWidth().padding(start = (depth * 16).dp),
+    Column(Modifier.fillMaxWidth().padding(start = if (depth > 0) 12.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Row(
+        PostCommentContent(auth, item,
             Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            enabled = reactionsEnabled, onOpenProfile = onOpenProfile
         ) {
-            val initials = item.author.split(" ").filter { it.isNotBlank() }.take(2)
-                .joinToString("") { it.take(1).uppercase() }.ifBlank { "SL" }
-            if (item.hasAvatar && item.handle.isNotBlank()) {
-                AuthorizedImage(auth, "/api/profile-media/${item.handle}/avatar",
-                    "Comment author", Modifier.size(38.dp).clip(CircleShape),
-                    fallback = { SautiAvatar(initials, Modifier.size(38.dp), SautiColors.Blue) })
-            } else SautiAvatar(initials, Modifier.size(38.dp), SautiColors.Blue)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Row(Modifier.clickable(enabled = item.handle.isNotBlank()) {
-                    onOpenProfile(item.handle)
-                }, verticalAlignment = Alignment.CenterVertically) {
-                    Text(item.author, fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.weight(1f, fill = false),
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Spacer(Modifier.width(4.dp))
-                    SautiVerificationBadge(item.verified, item.badgeType,
-                        item.author, size = 14.dp)
-                    Spacer(Modifier.width(5.dp))
-                    Text(relativePostTime(item.createdAt),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                SautiEntityText(item.body,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp))
-                val totals = counts[item.id] ?: (item.likes to item.dislikes)
-                SautiCommentActions(likes = totals.first, dislikes = totals.second,
-                    replyCount = item.replyCount, liked = selected[item.id] == "like",
-                    disliked = selected[item.id] == "dislike",
-                    reactionEnabled = reactionsEnabled, replyEnabled = reactionsEnabled,
-                    onLike = { onReaction(item, "like") }, onDislike = { onReaction(item, "dislike") },
-                    onReply = { onReply(item) })
-                if (item.replyCount > 0) {
-                    TextButton(onClick = { onExpand(item.id) }) {
-                        Text(if (item.id in expanded) "Hide ${item.replyCount} replies"
-                            else "View ${item.replyCount} replies")
-                    }
+            val totals = counts[item.id] ?: (item.likes to item.dislikes)
+            SautiCommentActions(likes = totals.first, dislikes = totals.second,
+                replyCount = item.replyCount, liked = selected[item.id] == "like",
+                disliked = selected[item.id] == "dislike",
+                reactionEnabled = reactionsEnabled, replyEnabled = reactionsEnabled,
+                onLike = { onReaction(item, "like") }, onDislike = { onReaction(item, "dislike") },
+                onReply = { onReply(item) })
+            if (item.replyCount > 0) {
+                TextButton(onClick = { onExpand(item.id) }) {
+                    Text(if (item.id in expanded) "Hide ${item.replyCount} replies"
+                        else "View ${item.replyCount} replies")
                 }
             }
         }

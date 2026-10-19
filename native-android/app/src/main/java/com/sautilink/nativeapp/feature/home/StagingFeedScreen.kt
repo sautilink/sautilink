@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -56,6 +57,7 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.menu.AnimatedHamburgerButton
+import com.sautilink.nativeapp.feature.marketplace.MarketplaceButton
 import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
 import com.sautilink.nativeapp.ui.components.SautiAvatar
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
@@ -85,6 +87,7 @@ fun StagingFeedScreen(
     onOpenNotifications: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenMenu: () -> Unit = {},
+    onOpenMarketplace: () -> Unit = {},
     onOpenVideos: () -> Unit = {},
     onOpenRooms: () -> Unit = {},
     onOpenProfile: (String) -> Unit = {},
@@ -438,10 +441,13 @@ fun StagingFeedScreen(
     }
 
     // The activity owns system-bar insets. Avoid doubling the status-bar spacer.
+    val feedListState = rememberLazyListState()
+    LaunchedEffect(mode) { feedListState.scrollToItem(0) }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
+          Column {
             TopAppBar(
                 title = {
                     if (asHome) {
@@ -478,27 +484,24 @@ fun StagingFeedScreen(
                         }
                     } else {
                         // Notifications already has a dedicated bottom-navigation destination.
+                        MarketplaceButton(onClick = onOpenMarketplace)
                         AnimatedHamburgerButton(onClick = onOpenMenu)
                     }
                 },
                 windowInsets = WindowInsets(0, 0, 0, 0)
             )
+            HomeFeedTabs(mode, onSelect = { mode = it },
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+          }
         }
     ) { insets ->
         LazyColumn(
             Modifier.fillMaxSize().padding(insets),
+            state = feedListState,
             contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp,
                 bottom = if (asHome) 90.dp else 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
-                Row(modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FeedModePill("For You", mode == "for_you") { mode = "for_you" }
-                    FeedModePill("Following", mode == "following") { mode = "following" }
-                    FeedModePill("Trending", mode == "trending") { mode = "trending" }
-                }
-            }
             if (mode == "saved" && auth.backend == SautiBackend.PRODUCTION) item {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Saved posts", modifier = Modifier.weight(1f),
@@ -650,6 +653,7 @@ fun StagingFeedScreen(
     if (selectedPost != null) {
         commentStateHolder.SaveableStateProvider(selectedPost.id) {
             PostCommentsSheet(
+                auth = auth,
                 post = selectedPost, actions = actions,
                 allowWrite = canInteract,
                 signedInUserId = accountId,
@@ -706,30 +710,6 @@ internal fun relativePostTime(isoDate: String, now: Instant = Instant.now()): St
         days < 30 -> "${days / 7}w"
         days < 365 -> "${days / 30}mo"
         else -> "${days / 365}y"
-    }
-}
-
-/** Compact selection chips with quiet grouped-surface styling and 44dp hit targets. */
-@Composable
-private fun FeedModePill(label: String, selected: Boolean, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = SautiShape.Pill,
-        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = .12f)
-                else MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.heightIn(min = 44.dp)) {
-        Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            Icon(when (label) {
-                "Following" -> Icons.Rounded.PeopleOutline
-                "Trending" -> Icons.Rounded.TrendingUp
-                else -> Icons.Rounded.AutoAwesome
-            }, contentDescription = null, modifier = Modifier.size(18.dp), selected = selected,
-                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(label, style = MaterialTheme.typography.labelLarge,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                color = if (selected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant)
-        }
     }
 }
 

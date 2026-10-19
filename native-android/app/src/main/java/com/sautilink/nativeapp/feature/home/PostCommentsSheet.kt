@@ -1,6 +1,5 @@
 package com.sautilink.nativeapp.feature.home
 
-import com.sautilink.nativeapp.ui.components.SautiEntityText
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,8 +26,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
 import com.sautilink.nativeapp.ui.components.SautiCommentActions
-import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.theme.SautiShape
+import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
@@ -41,11 +40,13 @@ private val commentTrailSaver = listSaver<List<NativePostComment>, String>(
         put("id", comment.id); put("author", comment.author); put("handle", comment.handle)
         put("body", comment.body); put("createdAt", comment.createdAt); put("authorId", comment.authorId)
         put("replyCount", comment.replyCount); put("verified", comment.verified); put("badgeType", comment.badgeType)
+        put("likes", comment.likes); put("dislikes", comment.dislikes); put("hasAvatar", comment.hasAvatar)
     }.toString() } },
     restore = { saved -> saved.map { text -> val item = JSONObject(text)
         NativePostComment(item.getString("id"), item.getString("author"), item.getString("handle"),
             item.getString("body"), item.getString("createdAt"), item.getString("authorId"),
-            item.getInt("replyCount"), item.getBoolean("verified"), item.getString("badgeType"))
+            item.getInt("replyCount"), item.getBoolean("verified"), item.getString("badgeType"),
+            item.optInt("likes"), item.optInt("dislikes"), item.optBoolean("hasAvatar"))
     } }
 )
 
@@ -67,6 +68,7 @@ internal fun commentSheetHeightFraction(): Float {
 internal fun PostCommentsSheet(
     post: StagingFeedPost,
     actions: PostInteractionsClient,
+    auth: StagingAuthClient,
     allowWrite: Boolean,
     signedInUserId: String?,
     onDismiss: () -> Unit,
@@ -213,11 +215,8 @@ internal fun PostCommentsSheet(
                 }
                 if (parent != null) {
                     Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.primaryContainer) {
-                        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text(parent.author + if (parent.handle.isNotBlank()) " · @${parent.handle}" else "",
-                                style = MaterialTheme.typography.labelMedium)
-                            SautiEntityText(parent.body, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        }
+                        PostCommentContent(auth, parent, Modifier.padding(12.dp),
+                            enabled = !mutating, maxBodyLines = 2)
                     }
                 }
                 LazyColumn(Modifier.fillMaxWidth().weight(1f), state = listState,
@@ -237,20 +236,10 @@ internal fun PostCommentsSheet(
                     }
                     items(comments, key = { it.id }) { comment ->
                         Surface(color = MaterialTheme.colorScheme.surface) {
-                            Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    Text(comment.author + if (comment.handle.isNotBlank()) " · @${comment.handle}" else "",
-                                        style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier.weight(1f, fill = false),
-                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    SautiVerificationBadge(comment.verified, comment.badgeType,
-                                        comment.author, size = 13.dp)
-                                }
-                                SautiEntityText(comment.body, style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontSize = 15.sp, lineHeight = 21.sp))
-                                Text(relativePostTime(comment.createdAt), style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            PostCommentContent(auth, comment, Modifier.padding(vertical = 8.dp),
+                                enabled = !mutating,
+                                onDelete = if (allowWrite && comment.authorId == signedInUserId)
+                                    ({ confirmDelete = comment }) else null) {
                                 SautiCommentActions(likes = comment.likes, dislikes = comment.dislikes,
                                     replyCount = comment.replyCount,
                                     liked = selectedReactions[comment.id] == "like",
@@ -258,9 +247,7 @@ internal fun PostCommentsSheet(
                                     reactionEnabled = allowWrite && !mutating && !loading && !reactionStatusLoading &&
                                         selectedReactions.containsKey(comment.id), replyEnabled = !mutating,
                                     onLike = { react(comment, "like") }, onDislike = { react(comment, "dislike") },
-                                    onReply = { trail = trail + comment; writeError = null },
-                                    onDelete = if (allowWrite && comment.authorId == signedInUserId)
-                                        ({ confirmDelete = comment }) else null)
+                                    onReply = { trail = trail + comment; writeError = null })
                             }
                         }
                     }

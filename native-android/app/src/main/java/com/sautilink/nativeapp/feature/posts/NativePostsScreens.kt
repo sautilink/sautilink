@@ -40,11 +40,15 @@ import com.sautilink.nativeapp.ui.text.PostTextFormat
 import com.sautilink.nativeapp.ui.text.insertPostFormatting
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import java.io.File
 import java.util.UUID
 
 private data class ComposerMediaItem(val localId: String, val uri: Uri, val label: String,
-    val status: String = "Preparing", val progress: Int = 0, val ready: NativeReadyMedia? = null,
-    val altText: String = "", val error: String? = null)
+    val status: String = "Edit", val progress: Int = 0, val ready: NativeReadyMedia? = null,
+    val altText: String = "", val error: String? = null, val video: Boolean = false,
+    val previewUri: Uri = uri, val localExport: File? = null)
 
 @Composable
 fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (String) -> Unit,
@@ -60,12 +64,22 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
     var error by remember { mutableStateOf<String?>(null) }
     var mediaItems by remember { mutableStateOf<List<ComposerMediaItem>>(emptyList()) }
     var previousUploads by remember { mutableStateOf<List<NativeReadyMedia>>(emptyList()) }
+    var editingId by remember { mutableStateOf<String?>(null) }
+    val uploadJobs = remember { mutableMapOf<String, Job>() }
+    val localExports = remember { mutableSetOf<File>() }
+    DisposableEffect(Unit) {
+        onDispose {
+            uploadJobs.values.toList().forEach { it.cancel() }
+            localExports.forEach { it.delete() }
+            // Ready remote objects remain recoverable through the existing pending-upload flow.
+        }
+    }
     // Keep active IME text/selection local; the parent String mirror seeds a reopened composer.
     var editor by remember { mutableStateOf(TextFieldValue(draft, TextRange(draft.length))) }
     var previewOpen by remember { mutableStateOf(false) }
     val editorFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    val inFlight = busy || mediaItems.any { it.status == "Preparing" || it.status == "Uploading" }
+    val inFlight = busy || mediaItems.any { it.status in setOf("Preparing", "Uploading", "Exporting") }
     SideEffect { onUploadActivity(inFlight) }
     LaunchedEffect(auth.account?.id) {
         if (auth.account != null) previousUploads = runCatching { mediaClient.pendingReady() }.getOrDefault(emptyList())
@@ -73,21 +87,43 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
     fun updateItem(id: String, change: (ComposerMediaItem) -> ComposerMediaItem) {
         mediaItems = mediaItems.map { if (it.localId == id) change(it) else it }
     }
+    fun removeItem(item: ComposerMediaItem) {
+        uploadJobs.remove(item.localId)?.cancel()
+        mediaItems = mediaItems.filterNot { it.localId == item.localId }
+        item.localExport?.let { it.delete(); localExports.remove(it) }
+        item.ready?.let { ready -> scope.launch { mediaClient.remove(ready.id) } }
+        if (editingId == item.localId) editingId = null
+    }
+    fun uploadEdited(id: String, edited: NativeEditedMedia) {
+        edited.ownedFile?.let(localExports::add)
+        updateItem(id) { it.copy(status = "Preparing", progress = 0, error = null, previewUri = edited.uri, localExport = edited.ownedFile) }
+        uploadJobs[id] = scope.launch {
+            try {
+                val ready = mediaClient.upload(edited.uri) { value -> updateItem(id) { it.copy(status = "Uploading", progress = value) } }
+                if (mediaItems.none { it.localId == id }) mediaClient.remove(ready.id)
+                else updateItem(id) { it.copy(status = "Ready", progress = 100, ready = ready) }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { updateItem(id) { it.copy(status = "Failed", error = error.message ?: "Upload failed.") } }
+            finally { uploadJobs.remove(id) }
+        }
+    }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(4)) { selected ->
         val available = (4 - mediaItems.size).coerceAtLeast(0)
         selected.take(available).forEach { uri ->
             val localId = UUID.randomUUID().toString()
-            val kind = if (context.contentResolver.getType(uri)?.startsWith("video/") == true) "Video" else "Image"
-            mediaItems = mediaItems + ComposerMediaItem(localId, uri, "$kind ${mediaItems.size + 1}")
-            scope.launch {
-                try {
-                    val ready = mediaClient.upload(uri) { value -> updateItem(localId) { it.copy(status = "Uploading", progress = value) } }
-                    if (mediaItems.none { it.localId == localId }) mediaClient.remove(ready.id)
-                    else updateItem(localId) { it.copy(status = "Ready", progress = 100, ready = ready) }
-                } catch (e: Exception) {
-                    updateItem(localId) { it.copy(status = "Failed", error = e.message ?: "Upload failed.") }
-                }
-            }
+            val video = context.contentResolver.getType(uri)?.startsWith("video/") == true
+            val kind = if (video) "Video" else "Image"
+            mediaItems = mediaItems + ComposerMediaItem(localId, uri, "$kind ${mediaItems.size + 1}", video = video)
+        }
+    }
+    LaunchedEffect(mediaItems.map { it.localId to it.status }, editingId) {
+        if (editingId == null) editingId = mediaItems.firstOrNull { it.status == "Edit" }?.localId
+    }
+    mediaItems.firstOrNull { it.localId == editingId }?.let { item ->
+        key(item.localId) {
+            NativeMediaEditor(item.uri, item.video, onCancel = { removeItem(item) },
+                onExportActivity = { exporting -> updateItem(item.localId) { it.copy(status = if (exporting) "Exporting" else if (it.status == "Exporting") "Edit" else it.status) } },
+                onUse = { edited -> editingId = null; uploadEdited(item.localId, edited) })
         }
     }
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding()
@@ -148,15 +184,18 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(item.label, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                             TextButton(onClick = {
-                                mediaItems = mediaItems.filterNot { it.localId == item.localId }
-                                item.ready?.let { ready -> scope.launch { mediaClient.remove(ready.id) } }
+                                removeItem(item)
                             }, enabled = !busy) { Text("Remove") }
                         }
+                        NativeComposerMediaPreview(item.previewUri, item.video || item.ready?.kind == "video", item.label)
                         Text("${item.status}${if (item.status == "Uploading") " ${item.progress}%" else ""}",
                             style = MaterialTheme.typography.bodySmall)
                         if (item.status == "Uploading") LinearProgressIndicator(progress = { item.progress / 100f },
                             modifier = Modifier.fillMaxWidth())
                         if (item.error != null) Text(item.error, color = MaterialTheme.colorScheme.error)
+                        if (item.status == "Failed") TextButton(onClick = { uploadEdited(item.localId, NativeEditedMedia(item.previewUri, item.localExport)) }) {
+                            Icon(Icons.Rounded.Refresh, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Retry upload")
+                        }
                         if (item.ready != null) OutlinedTextField(item.altText,
                             { value -> updateItem(item.localId) { it.copy(altText = value.take(1001)) } },
                             label = { Text("Alt text (optional)") }, modifier = Modifier.fillMaxWidth(),

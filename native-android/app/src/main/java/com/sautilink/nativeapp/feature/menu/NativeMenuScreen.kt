@@ -97,6 +97,7 @@ fun NativeMenuScreen(
     onVerification: () -> Unit,
     onPrivacy: () -> Unit,
     onLanguage: () -> Unit,
+    onAppeals: () -> Unit = {},
     onWebsite: (String) -> Unit,
     onToggleTheme: () -> Unit,
     onSignOut: () -> Unit
@@ -232,6 +233,7 @@ fun NativeMenuScreen(
                                 "verification" -> onVerification()
                                 "privacy" -> onPrivacy()
                                 "language" -> onLanguage()
+                                "appeals" -> onAppeals()
                                 "theme" -> onToggleTheme()
                                 "report" -> onWebsite("contact")
                                 else -> onWebsite(entry.key)
@@ -241,6 +243,26 @@ fun NativeMenuScreen(
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Spacer(Modifier.height(8.dp))
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Row(Modifier.padding(horizontal = 3.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Rounded.CloudQueue, null, Modifier.size(21.dp),
+                        tint = MaterialTheme.colorScheme.primary)
+                    Text("Other SautiLink Products", style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold)
+                }
+            }
+            item {
+                MenuTile(MenuDestination("Cloud Engine", Icons.Rounded.CloudQueue, "cloud-engine"), false) {
+                    onWebsite("cloud-engine")
+                }
+            }
+            item {
+                MenuTile(MenuDestination("Router Setup", Icons.Rounded.Router, "router-setup"), false) {
+                    onWebsite("router-setup")
+                }
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 OutlinedButton(

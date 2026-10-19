@@ -1,12 +1,29 @@
 # SautiLink platform roadmap
 
 **Status:** Active  
-**Last updated:** 2026-09-11  
+**Last updated:** 2026-10-19  
 **Next delivery window:** Soon
 
 This roadmap records the near-term platform plan for improving SautiLink's
 performance and adding reliable mobile/web operational services without
 splitting the product's source of truth across multiple databases.
+
+## Marketplace — coming soon
+
+**Status:** Planned; the Android entry is an announcement only. Marketplace is
+in testing and is not open for seller registration, product listings or sales.
+
+The upcoming Marketplace will support buying and selling products from
+businesses verified by SautiLink. Business accounts must pass the platform's
+verification process and receive certification from SautiLink Corporation before
+selling products or advertising their business. Business registration and all
+registration steps on the platform will always be free.
+
+Future delivery includes the seller verification/certification journey, product
+listings and discovery, buyer/seller contact, and appropriate safety/moderation
+controls. Detailed implementation and launch dates remain to be planned. The
+current native announcement introduces no commerce endpoints, verification
+policy changes, payments, registration forms or database changes.
 
 ## Approved service boundaries
 

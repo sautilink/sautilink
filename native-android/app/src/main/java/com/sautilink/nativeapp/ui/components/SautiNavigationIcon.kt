@@ -10,7 +10,7 @@ internal fun SautiNavigationIcon(index: Int, label: String, selected: Boolean, t
     modifier: Modifier = Modifier) {
     val name = when (index) {
         0 -> "home-0-1"
-        1 -> "compass-0-1"
+        1 -> "search"
         2 -> "message-0-1"
         3 -> "notification"
         4 -> "video-0-1"

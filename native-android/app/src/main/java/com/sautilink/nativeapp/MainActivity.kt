@@ -29,6 +29,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.dashboard.NativeDashboardScreen
 import com.sautilink.nativeapp.feature.menu.NativeMenuScreen
+import com.sautilink.nativeapp.feature.marketplace.NativeMarketplaceScreen
+import com.sautilink.nativeapp.feature.safety.NativeAppealsScreen
 import com.sautilink.nativeapp.feature.verification.NativeVerificationScreen
 import com.sautilink.nativeapp.feature.home.NativePlaybackPreferences
 import com.sautilink.nativeapp.feature.home.StagingFeedScreen
@@ -266,8 +268,13 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     fun closeMedia() { detail = previousDetail; previousDetail = null }
     fun openWebsite(section: String) {
         // Only allow official, verified destinations; no arbitrary URL input from content.
-        if (section !in setOf("terms", "community-guidelines", "appeals", "help", "about", "contact", "privacy")) return
-        val url = android.net.Uri.parse("https://sautilink.com/$section")
+        val destination = when (section) {
+            "cloud-engine" -> "https://cloudengine.sautilink.com/"
+            "router-setup" -> "https://router.sautilink.com/"
+            in setOf("terms", "community-guidelines", "help", "about", "contact", "privacy") -> "https://sautilink.com/$section"
+            else -> return
+        }
+        val url = android.net.Uri.parse(destination)
         runCatching {
             context.startActivity(Intent(Intent.ACTION_VIEW, url).addCategory(Intent.CATEGORY_BROWSABLE))
         }.onFailure { notice("Unable to open this page. Try again later.") }
@@ -481,6 +488,10 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         auth = productionAuth,
                         onBack = { detail = "menu" }
                     )
+                    "marketplace" -> NativeMarketplaceScreen(onBack = { detail = null })
+                    "appeals" -> NativeAppealsScreen(auth = productionAuth,
+                        onBack = { menuEntryDestination = null; detail = "menu" },
+                        onSignIn = { detail = "production-auth" })
                     "menu" -> NativeMenuScreen(
                         auth = productionAuth,
                         isDark = isDark,
@@ -517,6 +528,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             detail = "settings"
                         },
                         onLanguage = ::openDeviceLanguage,
+                        onAppeals = { menuEntryDestination = "appeals"; detail = "appeals" },
                         onWebsite = ::openWebsite,
                         onToggleTheme = ::toggleTheme,
                         onSignOut = {
@@ -597,6 +609,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             asHome = true,
                             savedRequestVersion = savedRequestVersion,
                             onOpenMenu = { detail = "menu" },
+                            onOpenMarketplace = { detail = "marketplace" },
                             onOpenNotifications = { menuEntryDestination = null; detail = "notifications" },
                             onOpenSettings = { detail = "settings" },
                             onOpenVideos = { detail = "videos" },
@@ -630,6 +643,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             asHome = true,
                             savedRequestVersion = savedRequestVersion,
                             onOpenMenu = { detail = "menu" },
+                            onOpenMarketplace = { detail = "marketplace" },
                             onOpenNotifications = { menuEntryDestination = null; detail = "notifications" },
                             onOpenSettings = { detail = "settings" },
                             onOpenVideos = { detail = "videos" },
