@@ -3,7 +3,10 @@ package com.sautilink.nativeapp.feature.rooms
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -22,9 +25,15 @@ internal fun RoomApprovalSheet(room: NativeRoom, state: RoomsState, onDismiss: (
     LaunchedEffect(state.accountId, room.id) { state.loadSubmissions() }
     RoomSheet(if (room.isStaff) "Post approvals" else "Your submissions", onDismiss) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(state.submissionFilter == "pending", { state.submissionFilter = "pending"; state.loadSubmissions() }, label = { Text("Pending") }, colors = roomFilterChipColors())
-            FilterChip(state.submissionFilter == "all", { state.submissionFilter = "all"; state.loadSubmissions() }, label = { Text("History") }, colors = roomFilterChipColors())
-            TextButton(onClick = { state.loadSubmissions() }, enabled = !state.submissionsLoading) { Text("Refresh") }
+            FilterChip(state.submissionFilter == "pending", { state.submissionFilter = "pending"; state.loadSubmissions() },
+                label = { Text("Pending") }, leadingIcon = { Icon(Icons.Rounded.Schedule, null, Modifier.size(18.dp),
+                    selected = state.submissionFilter == "pending") }, colors = roomFilterChipColors())
+            FilterChip(state.submissionFilter == "all", { state.submissionFilter = "all"; state.loadSubmissions() },
+                label = { Text("History") }, leadingIcon = { Icon(Icons.Rounded.History, null, Modifier.size(18.dp),
+                    selected = state.submissionFilter == "all") }, colors = roomFilterChipColors())
+            IconButton(onClick = { state.loadSubmissions() }, enabled = !state.submissionsLoading) {
+                Icon(Icons.Rounded.Refresh, "Refresh submissions")
+            }
         }
         if (state.submissionError != null) RoomNotice(state.submissionError.orEmpty(), true,
             if (state.canRetrySubmission) state::retrySubmission else ({ state.loadSubmissions() }))
@@ -64,7 +73,7 @@ private fun RoomSubmissionCard(room: NativeRoom, state: RoomsState, submission: 
                 submission.verified, submission.badgeType, submission.hasAvatar, { onOpenProfile(submission.authorHandle) })
             Text(submission.state.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary)
-            SautiPostText(submission.body, style = MaterialTheme.typography.bodyLarge)
+            SautiPostText(submission.body, style = MaterialTheme.typography.bodyMedium)
             val feeds = remember(submission.media, submission.state) { (if (submission.state == "pending") submission.media else emptyList()).map {
                 FeedMedia(it.id, it.kind, it.position, it.width, it.height)
             } }
@@ -85,9 +94,9 @@ private fun RoomSubmissionCard(room: NativeRoom, state: RoomsState, submission: 
                     Text("Withdraw submission")
                 } else if (room.isStaff) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { state.decideSubmission(submission, true) }, enabled = !state.busy("submission:${submission.id}"),
-                        modifier = Modifier.weight(1f)) { Text("Approve") }
+                        modifier = Modifier.weight(1f)) { RoomActionLabel("Approve", Icons.Rounded.Check) }
                     OutlinedButton(onClick = onReject, enabled = !state.busy("submission:${submission.id}"),
-                        modifier = Modifier.weight(1f)) { Text("Reject") }
+                        modifier = Modifier.weight(1f)) { RoomActionLabel("Reject", Icons.Rounded.Close) }
                 }
             }
             submission.publishedPostId?.let { id -> TextButton(onClick = { onOpenPost(id) }) { Text("View published post") } }

@@ -1,6 +1,10 @@
 package com.sautilink.nativeapp.feature.profile
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -53,7 +57,7 @@ fun PremiumProfileScreen(
                 Surface(Modifier.fillMaxWidth().padding(14.dp),
                     shape = SautiShape.Card, color = MaterialTheme.colorScheme.primaryContainer) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("PRODUCTION ACCOUNT CONNECTED", style = MaterialTheme.typography.labelMedium,
+                        Text("Production account connected", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer)
                         Text(connectedAccount.displayName, style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer)
@@ -74,7 +78,7 @@ fun PremiumProfileScreen(
                 Surface(Modifier.fillMaxWidth().padding(14.dp), shape = SautiShape.Card,
                     color = MaterialTheme.colorScheme.surfaceContainer) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("PROFILE DESIGN PREVIEW", style = MaterialTheme.typography.labelMedium,
+                        Text("Profile design preview", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary)
                         Text("Sign in to SautiLink to view your real account. The profile below is sample UI only.",
                             style = MaterialTheme.typography.bodySmall)
@@ -155,9 +159,18 @@ fun PremiumProfileScreen(
                     FilterChip(
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
-                        label = { Text(tab) },
+                        label = {
+                            AnimatedVisibility(visible = selectedTab == tab) { Text(tab) }
+                        },
+                        leadingIcon = {
+                            Icon(when (tab) {
+                                "Posts" -> Icons.Rounded.Article
+                                "Media" -> Icons.Rounded.PhotoLibrary
+                                else -> Icons.Rounded.Info
+                            }, null, Modifier.size(21.dp), selected = selectedTab == tab)
+                        },
                         shape = SautiShape.Pill,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).semantics { contentDescription = tab }
                     )
                 }
             }

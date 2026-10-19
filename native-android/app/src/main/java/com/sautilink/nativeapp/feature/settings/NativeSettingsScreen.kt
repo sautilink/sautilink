@@ -1,11 +1,18 @@
 package com.sautilink.nativeapp.feature.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.sp
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,7 +24,6 @@ import com.sautilink.nativeapp.feature.home.NativePlaybackPreferences
 import androidx.compose.ui.platform.LocalContext
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
-import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -65,10 +71,11 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
     LaunchedEffect(focusPrivacy, state != null) {
         if (focusPrivacy && state != null) settingsListState.scrollToItem(3)
     }
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
-            Text("Settings", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+            Text("Settings", style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             IconButton(onClick = { refresh++ }, enabled = !loading && !busy) {
                 Icon(Icons.Rounded.Refresh, "Refresh settings")
             }
@@ -90,23 +97,37 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
         } else if (state != null) LazyColumn(
             state = settingsListState,
             contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            verticalArrangement = Arrangement.spacedBy(9.dp)) {
             item {
-                Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
-                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(state.displayName.ifBlank { "SautiLink member" },
-                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                        Text("@${state.handle}", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(auth.account?.email.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        TextButton(onClick = onOpenProfile) { Text("View profile") }
+                Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+                    Row(Modifier.fillMaxWidth().clickable(onClick = onOpenProfile).padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+                        Surface(Modifier.size(52.dp), shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Rounded.PersonOutline, null, Modifier.size(25.dp),
+                                    tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(state.displayName.ifBlank { "SautiLink member" },
+                                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("@${state.handle}", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(auth.account?.email.orEmpty(), style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Icon(Icons.Rounded.ChevronRight, "View profile", Modifier.size(21.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
-            item { SectionTitle("APPEARANCE") }
+            item { SectionTitle("Appearance") }
             item { SettingSwitch("Dark appearance", "Use the dark native theme", isDark, !busy) {
                 onToggleTheme()
             } }
-            item { SectionTitle("PRIVACY") }
+            item { SectionTitle("Privacy") }
             item { SettingSwitch("Discoverable profile", "Let members find your profile",
                 state.discoverable, !busy) {
                 perform("Privacy saved") { client.setProfileBoolean("is_discoverable", it) }
@@ -129,7 +150,7 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                 state.activityStatus, !busy) {
                 perform("Online status saved") { client.setPreferenceBoolean("activity_status", it) }
             } }
-            item { SectionTitle("MEDIA PLAYBACK") }
+            item { SectionTitle("Media playback") }
             item {
                 SettingSwitch("Auto-play videos", "Play Home videos automatically, muted. Pause off-screen.",
                     autoplay, !busy) { enabled ->
@@ -137,7 +158,7 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                     autoplay = enabled
                 }
             }
-            item { SectionTitle("NOTIFICATIONS") }
+            item { SectionTitle("Notifications") }
             item { SettingSwitch("Post activity", "Likes, comments and reposts",
                 state.notifyPosts, !busy) {
                 perform("Notification preference saved") { client.setPreferenceBoolean("notify_post_activity", it) }
@@ -160,9 +181,10 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                     perform("Email digest saved") { client.setEmailDigest(it) }
                 }
             }
-            item { TextButton(onClick = onOpenNotifications) { Text("View notifications and device alerts") } }
-            item { SectionTitle("SAFETY") }
-            item { Text("Blocked accounts", style = MaterialTheme.typography.titleMedium) }
+            item { SettingNavigationRow("Notifications & device alerts", Icons.Rounded.NotificationsNone,
+                onOpenNotifications) }
+            item { SectionTitle("Safety") }
+            item { SettingLabel("Blocked accounts", Icons.Rounded.Block) }
             if (state.blocked.isEmpty()) item { Text("No blocked accounts.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant) }
             state.blocked.forEach { account -> item(key = "block-${account.id}") {
@@ -170,7 +192,7 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                     perform("Account unblocked") { client.removeSafetyTarget(true, account.id) }
                 }
             } }
-            item { Text("Muted accounts", style = MaterialTheme.typography.titleMedium) }
+            item { SettingLabel("Muted accounts", Icons.Rounded.VolumeOff) }
             if (state.muted.isEmpty()) item { Text("No muted accounts.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant) }
             state.muted.forEach { account -> item(key = "mute-${account.id}") {
@@ -178,17 +200,17 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                     perform("Account unmuted") { client.removeSafetyTarget(false, account.id) }
                 }
             } }
-            item { SectionTitle("SECURITY") }
+            item { SectionTitle("Security") }
             item { Text("Your sign-in is protected by an encrypted device session.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant) }
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onOpenAuth) { Text("Sign-in & phone") }
-                    OutlinedButton(onClick = onOpenRecovery) { Text("Password recovery") }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SettingNavigationRow("Sign-in & phone", Icons.Rounded.Lock, onOpenAuth)
+                    SettingNavigationRow("Password recovery", Icons.Rounded.LockReset, onOpenRecovery)
                 }
             }
-            item { SectionTitle("YOUR DATA") }
+            item { SectionTitle("Your data") }
             item { Text("Data export: ${state.exportStatus.ifBlank { "No active request" }}") }
             item {
                 if (state.exportStatus in setOf("pending", "processing", "ready"))
@@ -199,7 +221,7 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                     Text("Request data export")
                 }
             }
-            item { SectionTitle("ACCOUNT DELETION") }
+            item { SectionTitle("Account deletion") }
             item {
                 Text(if (state.deletionStatus == "pending")
                     "Deletion requested. You can cancel before ${state.deletionDeadline.take(10)}."
@@ -240,7 +262,7 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
 @Composable
 private fun SafetyAccountRow(account: SafetyAccount, action: String, enabled: Boolean,
     onAction: () -> Unit) {
-    Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
+    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(account.label, modifier = Modifier.weight(1f))
             TextButton(onClick = onAction, enabled = enabled) { Text(action) }
@@ -250,19 +272,75 @@ private fun SafetyAccountRow(account: SafetyAccount, action: String, enabled: Bo
 
 @Composable
 private fun SectionTitle(value: String) {
-    Text(value, modifier = Modifier.padding(top = 10.dp),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val icon = when (value) {
+        "Appearance" -> Icons.Rounded.Palette
+        "Privacy" -> Icons.Rounded.Shield
+        "Media playback" -> Icons.Rounded.PlayCircleOutline
+        "Notifications" -> Icons.Rounded.NotificationsNone
+        "Safety" -> Icons.Rounded.HealthAndSafety
+        "Security" -> Icons.Rounded.Lock
+        "Your data" -> Icons.Rounded.FolderOpen
+        else -> Icons.Rounded.PersonRemove
+    }
+    Row(Modifier.padding(top = 16.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(icon, null, Modifier.size(21.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+private fun settingIcon(title: String): ImageVector = when (title) {
+    "Dark appearance" -> Icons.Rounded.DarkMode
+    "Discoverable profile" -> Icons.Rounded.PersonSearch
+    "External search indexing" -> Icons.Rounded.Public
+    "Who can message you", "Messages" -> Icons.Rounded.ChatBubbleOutline
+    "Read receipts" -> Icons.Rounded.DoneAll
+    "Online status" -> Icons.Rounded.Circle
+    "Auto-play videos" -> Icons.Rounded.PlayCircleOutline
+    "Post activity" -> Icons.Rounded.FavoriteBorder
+    "Followers" -> Icons.Rounded.PeopleOutline
+    "Rooms updates" -> Icons.Rounded.Forum
+    "Email digest" -> Icons.Rounded.AlternateEmail
+    else -> Icons.Rounded.Settings
+}
+
+@Composable
+private fun SettingLabel(title: String, icon: ImageVector) {
+    Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(title, style = MaterialTheme.typography.titleSmall)
+    }
+}
+
+@Composable
+private fun SettingNavigationRow(title: String, icon: ImageVector, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(icon, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+            Text(title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            Icon(Icons.Rounded.ChevronRight, null, Modifier.size(19.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }
 
 @Composable
 private fun SettingSwitch(title: String, description: String, checked: Boolean,
     enabled: Boolean, onChange: (Boolean) -> Unit) {
-    Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
-        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(settingIcon(title), null, Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.primary, selected = checked)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(title, fontWeight = FontWeight.SemiBold)
-                Text(description, style = MaterialTheme.typography.bodySmall,
+                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                Text(description, style = MaterialTheme.typography.bodySmall.copy(lineHeight = 17.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
@@ -273,13 +351,28 @@ private fun SettingSwitch(title: String, description: String, checked: Boolean,
 @Composable
 private fun ChoiceSetting(title: String, selected: String, choices: List<Pair<String, String>>,
     enabled: Boolean, onSelect: (String) -> Unit) {
-    Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
-        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, fontWeight = FontWeight.SemiBold)
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                choices.forEach { (value, label) ->
-                    FilterChip(selected = selected == value, onClick = { onSelect(value) },
-                        enabled = enabled, label = { Text(label) })
+    var expanded by remember { mutableStateOf(false) }
+    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
+        Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 6.dp, top = 9.dp, bottom = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(settingIcon(title), null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+            Text(title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            Box {
+                TextButton(onClick = { expanded = true }, enabled = enabled) {
+                    Text(choices.firstOrNull { it.first == selected }?.second.orEmpty(),
+                        style = MaterialTheme.typography.labelLarge)
+                    Spacer(Modifier.width(4.dp))
+                    Icon(Icons.Rounded.KeyboardArrowDown, null, Modifier.size(18.dp))
+                }
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    choices.forEach { (value, label) ->
+                        DropdownMenuItem(text = { Text(label) }, enabled = enabled,
+                            leadingIcon = {
+                                Icon(if (selected == value) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
+                                    null, Modifier.size(20.dp), selected = selected == value)
+                            }, onClick = { onSelect(value); expanded = false })
+                    }
                 }
             }
         }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,12 +26,13 @@ import java.util.Locale
 @Composable
 internal fun RoomSheet(title: String, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, shape = SautiShape.Sheet,
+        containerColor = MaterialTheme.colorScheme.surface,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding()
-            .padding(horizontal = 20.dp).padding(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            .padding(horizontal = 18.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                TextButton(onClick = onDismiss) { Text("Close") }
+                RoomSectionHeading(title, modifier = Modifier.weight(1f))
+                IconButton(onClick = onDismiss) { Icon(Icons.Rounded.Close, "Close $title") }
             }
             content()
         }
@@ -51,7 +53,10 @@ internal fun RoomSelectField(title: String, value: String, options: List<Pair<St
             }
             DropdownMenu(expanded, { expanded = false }, modifier = Modifier.heightIn(max = 350.dp)) {
                 options.forEach { (key, label) ->
-                    DropdownMenuItem(text = { Text(label) }, onClick = { expanded = false; onSelect(key) })
+                    DropdownMenuItem(text = { Text(label) }, onClick = { expanded = false; onSelect(key) },
+                        leadingIcon = { Icon(if (key == value) Icons.Rounded.CheckCircle else Icons.Rounded.RadioButtonUnchecked,
+                            null, Modifier.size(20.dp), tint = if (key == value) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant, selected = key == value) })
                 }
             }
         }
@@ -73,13 +78,16 @@ internal fun RoomSettingsSheet(accountId: String?, room: NativeRoom?, approvalAv
             else "Update the details and access settings for this Room.",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(value.name, { value = value.copy(name = it.take(81)) }, enabled = !busy,
-            label = { Text("Room name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            label = { Text("Room name") }, leadingIcon = { Icon(Icons.Rounded.Groups, null) },
+            singleLine = true, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(value.slug, { input -> value = value.copy(slug = input.lowercase(Locale.ROOT)
             .filter { it in 'a'..'z' || it in '0'..'9' || it == '-' }.take(50)) },
-            label = { Text("Room address") }, supportingText = { Text("sautilink.com/rooms/${value.slug}") },
+            label = { Text("Room address") }, leadingIcon = { Icon(Icons.Rounded.Link, null) },
+            supportingText = { Text("sautilink.com/rooms/${value.slug}") },
             enabled = !busy, singleLine = true, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(value.description, { value = value.copy(description = it.take(1001)) },
-            label = { Text("About this Room") }, supportingText = { Text("${value.description.length}/1000") },
+            label = { Text("About this Room") }, leadingIcon = { Icon(Icons.Rounded.Info, null) },
+            supportingText = { Text("${value.description.length}/1000") },
             minLines = 3, enabled = !busy, modifier = Modifier.fillMaxWidth())
         RoomSelectField("Category", value.category, NativeRoomRules.categories.toList(), !busy) {
             value = value.copy(category = it)
@@ -195,7 +203,7 @@ internal fun RoomPeopleContent(room: NativeRoom, state: RoomsState, onOpenProfil
         if (state.peopleError != null) item { RoomNotice(state.peopleError.orEmpty(), true, { state.loadPeople() }) }
         if (state.roomError != null) item { RoomNotice(state.roomError.orEmpty(), true) }
         if (room.canManagePeople && state.requests.isNotEmpty()) {
-            item { Text("Join requests", style = MaterialTheme.typography.titleMedium) }
+            item { RoomSectionHeading("Join requests", modifier = Modifier.padding(vertical = 8.dp)) }
             items(state.requests, key = { "request:${it.requesterId}" }) { request ->
                 RoomPerson(state.auth, request.name, request.handle, null, request.verified, request.badgeType,
                     request.hasAvatar, { onOpenProfile(request.handle) }) {
@@ -215,7 +223,7 @@ internal fun RoomPeopleContent(room: NativeRoom, state: RoomsState, onOpenProfil
             if (state.requestsMore) item { OutlinedButton(onClick = { state.loadPeople(appendRequests = true) },
                 enabled = !state.peopleLoading) { Text("Load more requests") } }
         }
-        item { Text("Members", style = MaterialTheme.typography.titleMedium) }
+        item { RoomSectionHeading("Members", modifier = Modifier.padding(vertical = 8.dp)) }
         items(state.members, key = { "member:${it.id}" }) { member ->
             RoomPerson(state.auth, member.name, member.handle, member.role, member.verified, member.badgeType,
                 member.hasAvatar, { onOpenProfile(member.handle) }) {

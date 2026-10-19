@@ -18,6 +18,8 @@ import androidx.compose.material.icons.rounded.AddAPhoto
 import androidx.compose.material.icons.rounded.Crop
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.PhotoLibrary
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -88,63 +90,88 @@ internal fun NativeProfileMediaEditor(
         }
     }
 
-    Text("Profile photo and cover", style = MaterialTheme.typography.titleMedium)
+    Row(verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(Icons.Rounded.PhotoLibrary, null, Modifier.size(22.dp),
+            tint = MaterialTheme.colorScheme.primary)
+        Text("Profile media", style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold)
+    }
     Text("Choose a photo, adjust the crop, and preview it before saving.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant)
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (profile.hasAvatar) {
-            AuthorizedImage(auth, "/api/profile-media/${profile.username}/avatar?v=$imageRevision",
-                "Current profile photo", Modifier.size(76.dp).clip(CircleShape))
-        } else {
-            Surface(Modifier.size(76.dp), shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.AddAPhoto, "No profile picture")
+    Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.fillMaxWidth().padding(12.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (profile.hasAvatar) {
+                    AuthorizedImage(auth, "/api/profile-media/${profile.username}/avatar?v=$imageRevision",
+                        "Current profile photo", Modifier.size(54.dp).clip(CircleShape))
+                } else {
+                    Surface(Modifier.size(54.dp), shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Rounded.AddAPhoto, "No profile picture", Modifier.size(23.dp))
+                        }
+                    }
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("Profile photo", style = MaterialTheme.typography.titleSmall)
+                    Text("Your public identity", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(
+                    onClick = { editingSlot = "avatar"; gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    enabled = ready && !busy && !preparing && !checking
+                ) {
+                    Icon(Icons.Rounded.AddAPhoto,
+                        if (profile.hasAvatar) "Change profile photo" else "Upload profile photo",
+                        Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+                }
+                if (profile.hasAvatar) IconButton(
+                    onClick = { removeSlot = "avatar" }, enabled = ready && !busy
+                ) {
+                    Icon(Icons.Rounded.DeleteOutline, "Remove profile photo", Modifier.size(22.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            HorizontalDivider(Modifier.padding(vertical = 12.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (profile.hasHeader) {
+                    AuthorizedImage(auth, "/api/profile-media/${profile.username}/header?v=$imageRevision",
+                        "Current cover image", Modifier.size(width = 54.dp, height = 42.dp)
+                            .clip(RoundedCornerShape(12.dp)))
+                } else {
+                    Surface(Modifier.size(width = 54.dp, height = 42.dp),
+                        shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Rounded.PhotoLibrary, "No cover photo", Modifier.size(23.dp))
+                        }
+                    }
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("Cover photo", style = MaterialTheme.typography.titleSmall)
+                    Text("Make it your own", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                IconButton(onClick = {
+                    editingSlot = "header"
+                    gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                }, enabled = ready && !busy && !preparing && !checking) {
+                    Icon(Icons.Rounded.AddAPhoto,
+                        if (profile.hasHeader) "Change cover photo" else "Upload cover photo",
+                        Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+                }
+                if (profile.hasHeader) IconButton(
+                    onClick = { removeSlot = "header" }, enabled = ready && !busy
+                ) {
+                    Icon(Icons.Rounded.DeleteOutline, "Remove cover photo", Modifier.size(22.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text("Profile picture", style = MaterialTheme.typography.bodyMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                OutlinedButton(
-                    onClick = { editingSlot = "avatar"; gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                    enabled = ready && !busy && !preparing && !checking,
-                    shape = RoundedCornerShape(13.dp)
-                ) { Text(if (profile.hasAvatar) "Change" else "Add") }
-                if (profile.hasAvatar) TextButton(
-                    onClick = { removeSlot = "avatar" }, enabled = ready && !busy
-                ) { Text("Remove") }
-            }
-        }
-    }
-    if (profile.hasHeader) {
-        AuthorizedImage(auth, "/api/profile-media/${profile.username}/header?v=$imageRevision",
-            "Current cover image", Modifier.fillMaxWidth().height(108.dp)
-                .clip(RoundedCornerShape(13.dp)))
-    } else {
-        Surface(Modifier.fillMaxWidth().height(80.dp), shape = RoundedCornerShape(13.dp),
-            color = MaterialTheme.colorScheme.primaryContainer) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.PhotoLibrary, "No cover photo")
-            }
-        }
-    }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        OutlinedButton(onClick = {
-            editingSlot = "header"
-            gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-        }, enabled = ready && !busy && !preparing && !checking,
-            shape = RoundedCornerShape(13.dp)) {
-            Icon(Icons.Rounded.Crop, null, Modifier.size(18.dp))
-            Spacer(Modifier.width(5.dp))
-            Text(if (profile.hasHeader) "Change cover" else "Add cover")
-        }
-        if (profile.hasHeader) TextButton(
-            onClick = { removeSlot = "header" }, enabled = ready && !busy
-        ) { Text("Remove") }
     }
     if (checking || preparing || busy) LinearProgressIndicator(Modifier.fillMaxWidth())
     if (error != null) Text(error.orEmpty(),
@@ -230,8 +257,13 @@ private fun ProfileCropDialog(
         ) {
             Column(Modifier.padding(18.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(13.dp)) {
-                Text(if (slot == "avatar") "Crop profile picture" else "Crop cover",
-                    style = MaterialTheme.typography.titleLarge)
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Rounded.Crop, null, Modifier.size(22.dp),
+                        tint = MaterialTheme.colorScheme.primary)
+                    Text(if (slot == "avatar") "Crop profile picture" else "Crop cover",
+                        style = MaterialTheme.typography.titleLarge)
+                }
                 Text("Drag the picture to position it. Pinch or slide to zoom.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)

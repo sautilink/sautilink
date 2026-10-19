@@ -5,7 +5,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,7 +49,7 @@ internal fun RoomCommunitySettingsSheet(room: NativeRoom, state: RoomManagementS
     RoomSheet("Community settings", onDismiss) {
         Text("Help people understand your Room before they join.", style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("Room rules", style = MaterialTheme.typography.titleMedium)
+        RoomSectionHeading("Room rules")
         Text("Up to ten rules, in the order members will see them.", style = MaterialTheme.typography.bodySmall)
         rules.forEachIndexed { index, rule ->
             RoomRuleEditor(rule, index, rules.size, !busy && !reload,
@@ -56,9 +59,9 @@ internal fun RoomCommunitySettingsSheet(room: NativeRoom, state: RoomManagementS
         }
         OutlinedButton(onClick = { rules = rules + NativeRoomRule(UUID.randomUUID().toString(), "") },
             enabled = !busy && !reload && rules.size < NativeRoomCommunityRules.MAX_RULES,
-            modifier = Modifier.fillMaxWidth()) { Text("Add rule (${rules.size}/10)") }
+            modifier = Modifier.fillMaxWidth()) { RoomActionLabel("Add rule (${rules.size}/10)", Icons.Rounded.Add) }
         HorizontalDivider()
-        Text("Membership questions", style = MaterialTheme.typography.titleMedium)
+        RoomSectionHeading("Membership questions")
         Text("Up to three questions. Answers are visible to the applicant and current Room staff.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         questions.forEachIndexed { index, question ->
@@ -69,7 +72,7 @@ internal fun RoomCommunitySettingsSheet(room: NativeRoom, state: RoomManagementS
         }
         OutlinedButton(onClick = { questions = questions + NativeRoomQuestion(UUID.randomUUID().toString(), "") },
             enabled = !busy && !reload && questions.size < NativeRoomCommunityRules.MAX_QUESTIONS,
-            modifier = Modifier.fillMaxWidth()) { Text("Add question (${questions.size}/3)") }
+            modifier = Modifier.fillMaxWidth()) { RoomActionLabel("Add question (${questions.size}/3)", Icons.Rounded.Add) }
         if (attempted && error != null) RoomNotice(error, true)
         state.configurationError?.let { RoomNotice(it, true) }
         Button(onClick = {
@@ -78,7 +81,7 @@ internal fun RoomCommunitySettingsSheet(room: NativeRoom, state: RoomManagementS
                 if (attached.get()) onDismiss()
             }
         }, enabled = !busy && !reload, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            Text(if (busy) "Saving…" else "Save community settings")
+            RoomActionLabel(if (busy) "Saving…" else "Save community settings", Icons.Rounded.Check)
         }
         if (state.configurationError != null) TextButton(onClick = {
             state.loadConfiguration(room); reload = true

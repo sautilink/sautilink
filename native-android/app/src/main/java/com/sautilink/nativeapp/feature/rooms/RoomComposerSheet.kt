@@ -6,7 +6,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,12 +57,14 @@ internal fun RoomComposerSheet(room: NativeRoom, state: RoomsState, onDismiss: (
                             PostTextFormat.STRIKETHROUGH -> TextDecoration.LineThrough; else -> TextDecoration.None })
                 }
             }
-            TextButton(onClick = { preview = !preview }) { Text("Preview") }
+            IconButton(onClick = { preview = !preview }) {
+                Icon(Icons.Rounded.Visibility, if (preview) "Hide post preview" else "Preview post", selected = preview)
+            }
         }
         if (preview) Surface(color = MaterialTheme.colorScheme.surfaceContainer, shape = MaterialTheme.shapes.medium) {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text("Post preview", style = MaterialTheme.typography.labelLarge)
-                SautiPostText(draft.editor.text, style = MaterialTheme.typography.bodyLarge, linkEntities = false)
+                RoomSectionHeading("Post preview")
+                SautiPostText(draft.editor.text, style = MaterialTheme.typography.bodyMedium, linkEntities = false)
             }
         }
         val limit = NativeRoomRules.mediaLimit(draft.media.map { it.kind })
@@ -106,7 +111,9 @@ private fun RoomDraftMediaRow(room: NativeRoom, state: RoomsState, item: RoomDra
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("${item.kind.replaceFirstChar { it.uppercase() }} · ${item.status}", modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleSmall)
-                TextButton(onClick = { state.removeMedia(room, item) }, enabled = !publishing) { Text("Remove") }
+                IconButton(onClick = { state.removeMedia(room, item) }, enabled = !publishing) {
+                    Icon(Icons.Rounded.Close, "Remove ${item.kind}")
+                }
             }
             if (item.status == "Uploading") LinearProgressIndicator(progress = { item.progress / 100f }, modifier = Modifier.fillMaxWidth())
             if (item.error != null) Text(item.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)

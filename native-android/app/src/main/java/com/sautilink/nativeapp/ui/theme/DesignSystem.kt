@@ -3,10 +3,12 @@ package com.sautilink.nativeapp.ui.theme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
@@ -36,8 +38,8 @@ private val interFamily = FontFamily(
 )
 
 object SautiColors {
-    val Blue = Color(0xFF0866FF)
-    val BlueDark = Color(0xFF3188FF)
+    val Blue = Color(0xFF0068DF)
+    val BlueDark = Color(0xFF64A7FF)
     val Red = Color(0xFFED344B)
     val Yellow = Color(0xFFFFC83D)
     // Endpoints sampled from the approved transparent sautilink_logo.png, scoped to entities/Create.
@@ -45,16 +47,16 @@ object SautiColors {
     val LogoPink = Color(0xFFFD3B45)
     val EntityOrangeLight = Color(0xFFB84216)
     val EntityOrangeDark = Color(0xFFFF9B70)
-    val LightSurface = Color(0xFFF3F6FB)
-    val DarkSurface = Color(0xFF141A24)
-    val DarkCard = Color(0xFF1E2735)
-    val LightInk = Color(0xFF141D2E)
+    val LightSurface = Color(0xFFF0F2F6)
+    val DarkSurface = Color(0xFF111214)
+    val DarkCard = Color(0xFF1C1D21)
+    val LightInk = Color(0xFF1C1C1E)
 }
 
 object SautiShape {
     val Card = RoundedCornerShape(24.dp)
-    val Sheet = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
-    val Button = RoundedCornerShape(22.dp)
+    val Sheet = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
+    val Button = RoundedCornerShape(16.dp)
     val Pill = RoundedCornerShape(50)
     val IncomingBubble = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp, bottomEnd = 22.dp, bottomStart = 7.dp)
     val OutgoingBubble = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp, bottomEnd = 7.dp, bottomStart = 22.dp)
@@ -62,23 +64,47 @@ object SautiShape {
 
 private val LightColors = lightColorScheme(
     primary = SautiColors.Blue,
-    background = Color(0xFFFFFFFF),
+    secondary = Color(0xFF686873),
+    secondaryContainer = SautiColors.LightSurface,
+    onSecondaryContainer = SautiColors.LightInk,
+    background = Color(0xFFF5F6F8),
     surface = Color(0xFFFFFFFF),
     surfaceContainer = SautiColors.LightSurface,
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = Color.White,
+    surfaceContainerHigh = SautiColors.LightSurface,
+    surfaceContainerHighest = Color(0xFFE8EAF0),
     onBackground = SautiColors.LightInk,
     onSurface = SautiColors.LightInk,
-    onSurfaceVariant = Color(0xFF68758A),
-    outline = Color(0xFFE2E8F0)
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFEAF3FF),
+    onPrimaryContainer = Color(0xFF0068DF),
+    surfaceVariant = SautiColors.LightSurface,
+    onSurfaceVariant = Color(0xFF686873),
+    outline = Color(0xFFDADBE0),
+    outlineVariant = Color(0xFFE8E9ED)
 )
 private val DarkColors = darkColorScheme(
     primary = SautiColors.BlueDark,
-    background = Color(0xFF0E141E),
-    surface = Color(0xFF0E141E),
+    secondary = Color(0xFFA6A6B1),
+    secondaryContainer = Color(0xFF27282E),
+    onSecondaryContainer = Color(0xFFF5F5F7),
+    background = SautiColors.DarkSurface,
+    surface = SautiColors.DarkCard,
     surfaceContainer = SautiColors.DarkCard,
-    onBackground = Color(0xFFF1F5FC),
-    onSurface = Color(0xFFF1F5FC),
-    onSurfaceVariant = Color(0xFF98A9C2),
-    outline = Color(0xFF303B4C)
+    surfaceContainerLowest = SautiColors.DarkSurface,
+    surfaceContainerLow = SautiColors.DarkCard,
+    surfaceContainerHigh = Color(0xFF27282E),
+    surfaceContainerHighest = Color(0xFF303138),
+    onPrimary = Color(0xFF082343),
+    primaryContainer = Color(0xFF20334D),
+    onPrimaryContainer = SautiColors.BlueDark,
+    surfaceVariant = Color(0xFF27282E),
+    onBackground = Color(0xFFF5F5F7),
+    onSurface = Color(0xFFF5F5F7),
+    onSurfaceVariant = Color(0xFFA6A6B1),
+    outline = Color(0xFF3B3C43),
+    outlineVariant = Color(0xFF303138)
 )
 
 private val defaultType = Typography()
@@ -89,11 +115,11 @@ private fun appTypography(family: FontFamily) = Typography(
     headlineLarge = defaultType.headlineLarge.copy(fontFamily = family),
     headlineMedium = TextStyle(fontFamily = family, fontSize = 27.sp, fontWeight = FontWeight.Bold, lineHeight = 33.sp),
     headlineSmall = defaultType.headlineSmall.copy(fontFamily = family),
-    titleLarge = TextStyle(fontFamily = family, fontSize = 22.sp, fontWeight = FontWeight.Bold, lineHeight = 28.sp),
+    titleLarge = TextStyle(fontFamily = family, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, lineHeight = 28.sp),
     titleMedium = TextStyle(fontFamily = family, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, lineHeight = 22.sp),
     titleSmall = defaultType.titleSmall.copy(fontFamily = family),
-    bodyLarge = TextStyle(fontFamily = family, fontSize = 16.sp, fontWeight = FontWeight.Normal, lineHeight = 24.sp),
-    bodyMedium = TextStyle(fontFamily = family, fontSize = 14.sp, fontWeight = FontWeight.Normal, lineHeight = 21.sp),
+    bodyLarge = TextStyle(fontFamily = family, fontSize = 15.sp, fontWeight = FontWeight.Normal, lineHeight = 21.sp),
+    bodyMedium = TextStyle(fontFamily = family, fontSize = 14.sp, fontWeight = FontWeight.Normal, lineHeight = 20.sp),
     bodySmall = TextStyle(fontFamily = family, fontSize = 12.sp, fontWeight = FontWeight.Normal, lineHeight = 17.sp),
     labelLarge = TextStyle(fontFamily = family, fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
     labelMedium = defaultType.labelMedium.copy(fontFamily = family),
@@ -115,6 +141,11 @@ fun SautiTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable 
             medium = RoundedCornerShape(18.dp),
             large = SautiShape.Card
         ),
-        content = content
+        content = {
+            // Auth and onboarding can be mounted directly without a Scaffold/Surface.
+            // Supply the matching foreground as well as the background tokens.
+            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground,
+                content = content)
+        }
     )
 }

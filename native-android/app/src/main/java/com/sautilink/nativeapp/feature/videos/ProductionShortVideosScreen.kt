@@ -10,6 +10,8 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.VerticalPager
@@ -20,6 +22,7 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.*
@@ -34,6 +37,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -481,7 +485,8 @@ fun ProductionShortVideosScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text(item.post.authorName, color = Color.White, style = MaterialTheme.typography.labelLarge,
+                            Text(item.post.authorName, color = Color.White,
+                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f, fill = false).clickable(enabled = item.post.authorHandle.isNotBlank()) {
                                     onOpenProfile(item.post.authorHandle)
@@ -490,7 +495,7 @@ fun ProductionShortVideosScreen(
                                 item.post.authorName, size = 13.dp, onDarkSurface = true)
                         }
                         if (item.post.body.isNotBlank()) com.sautilink.nativeapp.ui.components.SautiPostText(item.post.body, color = Color.White,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
                             maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                     val railActions: @Composable () -> Unit = {
@@ -566,9 +571,14 @@ fun ProductionShortVideosScreen(
                 }
             })
     }
-    if (qualityOpen) ModalBottomSheet(onDismissRequest = { qualityOpen = false }, shape = SautiShape.Sheet) {
-        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Playback", style = MaterialTheme.typography.titleLarge)
+    if (qualityOpen) ModalBottomSheet(onDismissRequest = { qualityOpen = false }, shape = SautiShape.Sheet,
+        containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)
+            .padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Icon(Icons.Rounded.HighQuality, null, tint = MaterialTheme.colorScheme.primary)
+                Text("Playback", style = MaterialTheme.typography.titleLarge)
+            }
             Text("Quality", style = MaterialTheme.typography.titleSmall)
             listOf("auto" to "Auto · adjusts for smoother playback", "240" to "240p", "360" to "360p",
                 "480" to "480p", "720" to "720p", "1080" to "1080p", "original" to "Original").forEach { (key, label) ->
@@ -582,6 +592,8 @@ fun ProductionShortVideosScreen(
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.PlayCircleOutline, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(10.dp))
                 Text("Autoplay", modifier = Modifier.weight(1f))
                 Switch(checked = autoplay, onCheckedChange = {
                     playbackIntent = null
@@ -639,7 +651,7 @@ private fun VideoRailAction(
         verticalArrangement = Arrangement.Center) {
         Icon(icon, contentDescription = label,
             modifier = Modifier.size(24.dp).sautiActionFeedback(interaction),
-            tint = tint)
+            tint = tint, selected = active)
         Spacer(Modifier.height(2.dp))
         Text(count ?: label, color = Color.White,
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), maxLines = 1)

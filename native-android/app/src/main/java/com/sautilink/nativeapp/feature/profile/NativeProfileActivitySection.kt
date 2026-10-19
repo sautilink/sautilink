@@ -2,6 +2,19 @@ package com.sautilink.nativeapp.feature.profile
 
 import com.sautilink.nativeapp.ui.components.SautiEntityText
 import android.content.Intent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.sp
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -36,7 +49,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 private val activityTabs = listOf(
-    "posts" to "Posts", "reposts" to "Reposts", "replies" to "Comments",
+    "posts" to "Posts", "reposts" to "Reposts", "replies" to "Replies",
     "likes" to "Likes", "saves" to "Saves", "hashtags" to "Hashtags"
 )
 
@@ -97,23 +110,22 @@ internal fun ProfileActivitySection(
 
     val permissions = state
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (owner && permissions?.owner == true) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                OutlinedButton(
-                    onClick = { privacyDialog = true },
-                    modifier = Modifier.heightIn(min = 44.dp),
-                    shape = RoundedCornerShape(24.dp)
-                ) {
-                    Icon(Icons.Rounded.AdminPanelSettings, contentDescription = null,
-                        modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Activity privacy")
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.BarChart, null, Modifier.size(21.dp),
+                tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(8.dp))
+            Text("Profile activity", style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+            if (owner && permissions?.owner == true) {
+                IconButton(onClick = { privacyDialog = true }) {
+                    Icon(Icons.Rounded.AdminPanelSettings, "Activity privacy",
+                        modifier = Modifier.size(22.dp))
                 }
             }
         }
         if (permissions != null) {
             Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup(),
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 activityTabs.filter { permissions.allowed[it.first] == true }.forEach { (tab, title) ->
@@ -126,26 +138,32 @@ internal fun ProfileActivitySection(
                         else -> Icons.Rounded.Tag
                     }
                     val active = selected == tab
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        TextButton(onClick = { selected = tab; pageIndex = 0; pinned = emptyList(); entries = emptyList() },
-                            modifier = Modifier.heightIn(min = 48.dp),
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = if (active) MaterialTheme.colorScheme.onSurface
-                                    else MaterialTheme.colorScheme.onSurfaceVariant
-                            )) {
-                            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(5.dp))
-                            Text(title, style = MaterialTheme.typography.labelMedium, maxLines = 1)
-                        }
-                        Box(Modifier.width(65.dp).height(3.dp).clip(RoundedCornerShape(3.dp))
-                            .then(if (active) Modifier.then(
-                                Modifier
-                            ) else Modifier)) {
-                            if (active) Surface(
-                                modifier = Modifier.fillMaxSize(),
-                                color = SautiColors.Red,
-                                shape = RoundedCornerShape(3.dp)
-                            ) {}
+                    TextButton(
+                        onClick = { selected = tab; pageIndex = 0; pinned = emptyList(); entries = emptyList() },
+                        modifier = Modifier.heightIn(min = 48.dp).animateContentSize()
+                            .semantics {
+                                contentDescription = title
+                                this.selected = active
+                                role = Role.Tab
+                            },
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = if (active) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                            containerColor = if (active) MaterialTheme.colorScheme.primaryContainer
+                                else Color.Transparent
+                        )
+                    ) {
+                        Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp),
+                            selected = active)
+                        AnimatedVisibility(visible = active,
+                            enter = expandHorizontally() + fadeIn(),
+                            exit = shrinkHorizontally() + fadeOut()) {
+                            Row {
+                                Spacer(Modifier.width(7.dp))
+                                Text(title, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                            }
                         }
                     }
                 }
@@ -313,7 +331,7 @@ private fun ProfileActivityCard(
 
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(22.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .4f)),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -333,7 +351,8 @@ private fun ProfileActivityCard(
                     onOpenProfile(item.authorHandle)
                 }) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(item.authorName, style = MaterialTheme.typography.labelLarge,
+                        Text(item.authorName, style = MaterialTheme.typography.titleSmall.copy(
+                            fontSize = 15.sp, lineHeight = 21.sp),
                             fontWeight = FontWeight.SemiBold, maxLines = 1,
                             overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.width(4.dp))
@@ -362,7 +381,8 @@ private fun ProfileActivityCard(
             if (item.body.isNotBlank()) com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(
                 Modifier.fillMaxWidth(), onTap = { onOpenPost(item.id) }, tapLabel = "Open post",
                 onLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null) {
-                com.sautilink.nativeapp.ui.components.SautiPostText(item.body, style = MaterialTheme.typography.bodyLarge,
+                com.sautilink.nativeapp.ui.components.SautiPostText(item.body, style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 15.sp, lineHeight = 21.sp),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp))
             }
             if (item.media.isNotEmpty()) PostMediaGallery(auth, item.media,
@@ -413,7 +433,7 @@ private fun ProfileActivityCard(
                 }, enabled = !busy, modifier = Modifier.size(48.dp)) {
                     Icon(if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                         contentDescription = if (saved) "Remove from saved" else "Save post",
-                        modifier = Modifier.size(21.dp),
+                        modifier = Modifier.size(21.dp), selected = saved,
                         tint = if (saved) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -431,7 +451,7 @@ private fun ProfileAction(
     Row(modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).clickable(role = Role.Button, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center) {
-        Icon(icon, description, modifier = Modifier.size(20.dp),
+        Icon(icon, description, modifier = Modifier.size(21.dp), selected = selected,
             tint = if (selected) activeColor else MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(2.dp))
         Text(count, style = MaterialTheme.typography.labelSmall)

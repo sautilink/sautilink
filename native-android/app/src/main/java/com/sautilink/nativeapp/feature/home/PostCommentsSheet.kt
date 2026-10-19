@@ -9,16 +9,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
 import com.sautilink.nativeapp.ui.components.SautiCommentActions
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
@@ -42,6 +48,16 @@ private val commentTrailSaver = listSaver<List<NativePostComment>, String>(
             item.getInt("replyCount"), item.getBoolean("verified"), item.getString("badgeType"))
     } }
 )
+
+/** Keep a useful thread above the composer when the keyboard or a short window reduces space. */
+@Composable
+internal fun commentSheetHeightFraction(): Float {
+    val configuration = LocalConfiguration.current
+    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val compactWindow = configuration.screenHeightDp < 480 ||
+        configuration.screenWidthDp > configuration.screenHeightDp
+    return if (keyboardVisible || compactWindow) 1f else .56f
+}
 
 /** Production comments and nested replies share SautiLink's existing guarded APIs.
  * Staging can browse, but may never send or delete content.
@@ -142,7 +158,10 @@ internal fun PostCommentsSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true,
         confirmValueChange = confirmSheetChange)
     ModalBottomSheet(onDismissRequest = { if (!mutating) onDismiss() },
-        sheetState = sheetState, shape = SautiShape.Sheet) {
+        sheetState = sheetState, shape = SautiShape.Sheet,
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp) {
+        val heightFraction = commentSheetHeightFraction()
         threadStateHolder.SaveableStateProvider(targetId) {
             // Retain each thread's draft, retry key and scroll position when navigating or reopening.
             var draft by rememberSaveable { mutableStateOf("") }
@@ -159,8 +178,9 @@ internal fun PostCommentsSheet(
                 }
             }
             Column(
-                Modifier.fillMaxWidth().fillMaxHeight(.9f).padding(horizontal = 18.dp).padding(bottom = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                Modifier.fillMaxWidth().imePadding().heightIn(min = 280.dp).fillMaxHeight(heightFraction)
+                    .padding(horizontal = 16.dp).padding(bottom = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     if (parent != null) {
@@ -168,8 +188,14 @@ internal fun PostCommentsSheet(
                             Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to previous comments")
                         }
                     }
+                    if (parent == null) {
+                        Icon(Icons.Rounded.ChatBubbleOutline, null, Modifier.size(21.dp),
+                            tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(9.dp))
+                    }
                     Column(Modifier.weight(1f)) {
-                        Text(if (parent == null) "Comments" else "Replies", style = MaterialTheme.typography.titleLarge)
+                        Text(if (parent == null) "Comments" else "Replies",
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Text(
                             if (parent == null) "${post.authorName}'s post" else "Replying to ${parent.author}",
                             style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -195,7 +221,8 @@ internal fun PostCommentsSheet(
                     }
                 }
                 LazyColumn(Modifier.fillMaxWidth().weight(1f), state = listState,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    contentPadding = PaddingValues(bottom = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     if (loading && comments.isEmpty()) items(3) { SautiExploreSkeleton() }
                     if (loadError != null) item {
                         Column {
@@ -209,18 +236,19 @@ internal fun PostCommentsSheet(
                             style = MaterialTheme.typography.bodyMedium)
                     }
                     items(comments, key = { it.id }) { comment ->
-                        Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
-                            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Surface(color = MaterialTheme.colorScheme.surface) {
+                            Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                     Text(comment.author + if (comment.handle.isNotBlank()) " · @${comment.handle}" else "",
-                                        style = MaterialTheme.typography.labelMedium,
+                                        style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold,
                                         modifier = Modifier.weight(1f, fill = false),
                                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     SautiVerificationBadge(comment.verified, comment.badgeType,
                                         comment.author, size = 13.dp)
                                 }
-                                SautiEntityText(comment.body, style = MaterialTheme.typography.bodyMedium)
+                                SautiEntityText(comment.body, style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontSize = 15.sp, lineHeight = 21.sp))
                                 Text(relativePostTime(comment.createdAt), style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 SautiCommentActions(likes = comment.likes, dislikes = comment.dislikes,
@@ -253,6 +281,7 @@ internal fun PostCommentsSheet(
                         style = MaterialTheme.typography.bodySmall)
                 }
                 if (allowWrite) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .6f))
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
@@ -264,10 +293,11 @@ internal fun PostCommentsSheet(
                                     writeError = null
                                 }
                             },
-                            modifier = Modifier.weight(1f), shape = SautiShape.Card,
+                            modifier = Modifier.weight(1f), shape = SautiShape.Pill,
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp, lineHeight = 22.sp),
                             placeholder = { Text(if (parent == null) "Write a comment..." else "Write a reply...") },
-                            maxLines = 4,
-                            supportingText = { Text("${draft.length}/500") },
+                            maxLines = 3,
+                            supportingText = if (draft.length >= 400) ({ Text("${draft.length}/500") }) else null,
                             enabled = !busySend && deletingId == null
                         )
                         IconButton(onClick = {

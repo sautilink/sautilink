@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,7 +74,7 @@ fun NativeDashboardScreen(
             error = e.message ?: "Dashboard analytics could not be loaded."
         } finally { loading = false }
     }
-    val lightBackground = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .3f)
+    val lightBackground = MaterialTheme.colorScheme.background
     val today = LocalDate.now()
     val daily = remember(data, window, today) {
         val byDay = data?.days.orEmpty().associateBy { it.day }
@@ -116,23 +119,27 @@ fun NativeDashboardScreen(
         }
         Row(
             Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                .horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             listOf("insights" to "Insights", "monetisation" to "Monetisation").forEach { (key, label) ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     TextButton(onClick = { tab = key }) {
+                        Icon(if (key == "insights") Icons.Rounded.TrendingUp else Icons.Rounded.AttachMoney,
+                            null, Modifier.size(19.dp), tint = if (tab == key) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant, selected = tab == key)
+                        Spacer(Modifier.width(7.dp))
                         Text(label, color = if (tab == key) MaterialTheme.colorScheme.onSurface
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.titleSmall)
                         if (key == "monetisation") {
                             Spacer(Modifier.width(5.dp))
-                            Text("Coming soon", color = SautiColors.Red,
+                            Text("Coming soon", color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelSmall)
                         }
                     }
                     Spacer(Modifier.width(80.dp).height(3.dp)
-                        .background(if (tab == key) SautiColors.Red else
+                        .background(if (tab == key) MaterialTheme.colorScheme.primary else
                             MaterialTheme.colorScheme.surface))
                 }
             }
@@ -140,26 +147,26 @@ fun NativeDashboardScreen(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (tab == "monetisation") {
                 item {
                     Column(
-                        Modifier.fillMaxWidth().padding(top = 80.dp),
+                        Modifier.fillMaxWidth().padding(top = 32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Surface(shape = RoundedCornerShape(22.dp),
-                            color = SautiColors.Red.copy(alpha = .1f),
-                            modifier = Modifier.size(88.dp)) {
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = .1f),
+                            modifier = Modifier.size(72.dp)) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(Icons.Rounded.AttachMoney, null,
-                                    tint = SautiColors.Red, modifier = Modifier.size(43.dp))
+                                    tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(34.dp))
                             }
                         }
                         Text("Monetisation is coming soon",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold)
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold)
                         Text("We are preparing creator monetisation for SautiLink. " +
                             "Eligibility, payouts and earning tools are not active yet.",
                             style = MaterialTheme.typography.bodyLarge,
@@ -184,15 +191,17 @@ fun NativeDashboardScreen(
                 }
             } else {
                 item {
-                    Text("Analytics", fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.headlineSmall)
+                    DashboardSectionHeading("Analytics", Icons.Rounded.TrendingUp)
                     Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(28 to "28 days", 7 to "7 days", 90 to "90 days").forEach { (days, title) ->
                             FilterChip(
                                 selected = window == days,
                                 onClick = { window = days },
                                 label = { Text(title) },
+                                leadingIcon = { Icon(Icons.Rounded.CalendarToday, null, Modifier.size(17.dp),
+                                    selected = window == days) },
                                 shape = RoundedCornerShape(25.dp)
                             )
                         }
@@ -210,8 +219,7 @@ fun NativeDashboardScreen(
                 if (data != null) {
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Insights", style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold)
+                            DashboardSectionHeading("Insights", Icons.Rounded.Visibility)
                             Text("See how your profile and content are performing with live SautiLink data.",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text("Profile visits and follow-change history start from this analytics dashboard's launch; older values are not estimated.",
@@ -249,9 +257,10 @@ fun NativeDashboardScreen(
                         ) {
                             Column(Modifier.padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Text(metrics.firstOrNull { it.id == selectedMetric }?.title ?: "Views",
-                                    fontWeight = FontWeight.SemiBold)
-                                Canvas(Modifier.fillMaxWidth().height(145.dp)) {
+                                val currentMetric = metrics.firstOrNull { it.id == selectedMetric }
+                                DashboardSectionHeading(currentMetric?.title ?: "Views",
+                                    currentMetric?.icon ?: Icons.Rounded.Visibility)
+                                Canvas(Modifier.fillMaxWidth().height(132.dp)) {
                                     if (values.size > 1) {
                                         val min = minOf(0L, values.minOrNull() ?: 0L)
                                         val max = maxOf(1L, values.maxOrNull() ?: 0L)
@@ -273,8 +282,7 @@ fun NativeDashboardScreen(
                         }
                     }
                     item {
-                        Text("Content", style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold)
+                        DashboardSectionHeading("Content", Icons.Rounded.Article)
                         Text("Top posts ranked by real views and engagement",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -319,20 +327,23 @@ private fun DashboardMetricTile(
         (if (pct > 0) "+" else "") + "$pct%"
     }
     Surface(
-        modifier = modifier.heightIn(min = 158.dp),
+        modifier = modifier.heightIn(min = 142.dp),
         onClick = onSelect,
         shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = .45f)
+            else MaterialTheme.colorScheme.surface,
         border = BorderStroke(if (selected) 1.5.dp else 1.dp,
             if (selected) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Icon(metric.icon, contentDescription = null, modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    selected = selected)
                 Text(metric.title, style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.weight(1f),
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text(NumberFormat.getIntegerInstance(Locale.getDefault()).format(metric.value),
@@ -346,5 +357,13 @@ private fun DashboardMetricTile(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
+    }
+}
+
+@Composable
+private fun DashboardSectionHeading(title: String, icon: ImageVector) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(icon, null, Modifier.size(21.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
     }
 }

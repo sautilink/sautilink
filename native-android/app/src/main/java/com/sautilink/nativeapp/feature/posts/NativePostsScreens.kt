@@ -7,13 +7,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.ui.components.SautiPostText
 import com.sautilink.nativeapp.ui.text.PostTextFormat
@@ -88,10 +91,13 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
         }
     }
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding()
-        .padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        .padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Create a post", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-            TextButton(onClick = onDismiss, enabled = !inFlight) { Text("Close") }
+            Icon(Icons.Rounded.EditNote, null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(10.dp))
+            Text("Create a post", style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            IconButton(onClick = onDismiss, enabled = !inFlight) { Icon(Icons.Rounded.Close, "Close composer") }
         }
         if (auth.account == null) {
             Text("Sign in to publish on SautiLink.")
@@ -109,7 +115,11 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
                     }, editorFocus, keyboard)
                 }, onPreviewToggle = { previewOpen = !previewOpen })
             OutlinedButton(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
-                enabled = !busy && mediaItems.size < 4) { Text("Add images or video (${mediaItems.size}/4)") }
+                shape = SautiShape.Pill, enabled = !busy && mediaItems.size < 4) {
+                Icon(Icons.Rounded.PhotoLibrary, null, Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Add images or video (${mediaItems.size}/4)")
+            }
             if (previousUploads.isNotEmpty()) {
                 Text("Unfinished uploads", style = MaterialTheme.typography.titleSmall)
                 Text("Use or discard media uploaded earlier. Unattached uploads expire after one hour.",
@@ -154,15 +164,23 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
                     }
                 }
             }
-            Text("Audience", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = visibility == "public", onClick = { visibility = "public" }, label = { Text("Public") })
-                FilterChip(selected = visibility == "followers", onClick = { visibility = "followers" }, label = { Text("Followers") })
+            ComposerSectionTitle("Audience", Icons.Rounded.Public)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = visibility == "public", onClick = { visibility = "public" },
+                    shape = SautiShape.Pill, label = { Text("Public") },
+                    leadingIcon = { Icon(Icons.Rounded.Public, null, Modifier.size(18.dp), selected = visibility == "public") })
+                FilterChip(selected = visibility == "followers", onClick = { visibility = "followers" },
+                    shape = SautiShape.Pill, label = { Text("Followers") },
+                    leadingIcon = { Icon(Icons.Rounded.PeopleOutline, null, Modifier.size(18.dp), selected = visibility == "followers") })
             }
-            Text("Who can comment?", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = replyAccess == "everyone", onClick = { replyAccess = "everyone" }, label = { Text("Everyone") })
-                FilterChip(selected = replyAccess == "following", onClick = { replyAccess = "following" }, label = { Text("Following") })
+            ComposerSectionTitle("Who can comment?", Icons.Rounded.ChatBubbleOutline)
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = replyAccess == "everyone", onClick = { replyAccess = "everyone" },
+                    shape = SautiShape.Pill, label = { Text("Everyone") },
+                    leadingIcon = { Icon(Icons.Rounded.Public, null, Modifier.size(18.dp), selected = replyAccess == "everyone") })
+                FilterChip(selected = replyAccess == "following", onClick = { replyAccess = "following" },
+                    shape = SautiShape.Pill, label = { Text("Following") },
+                    leadingIcon = { Icon(Icons.Rounded.PeopleOutline, null, Modifier.size(18.dp), selected = replyAccess == "following") })
             }
             if (error != null) Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
             Button(onClick = {
@@ -176,10 +194,20 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
             }, enabled = !busy && (draft.trim().isNotEmpty() || mediaItems.any { it.ready != null }) &&
                 draft.trim().length <= 2000 && mediaItems.all { it.ready != null && it.altText.length <= 1000 },
                 modifier = Modifier.fillMaxWidth().height(50.dp), shape = SautiShape.Pill) {
+                Icon(Icons.Rounded.Send, null, Modifier.size(19.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(if (busy) "Publishing…" else "Publish post")
             }
         }
         Spacer(Modifier.height(20.dp))
+    }
+}
+
+@Composable
+private fun ComposerSectionTitle(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(icon, null, Modifier.size(19.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(label, style = MaterialTheme.typography.labelLarge)
     }
 }
 
@@ -199,8 +227,10 @@ private fun PostComposerTextEditor(editor: TextFieldValue, draftLength: Int,
     onPreviewToggle: () -> Unit) {
     OutlinedTextField(editor, onValueChange, label = { Text("What's happening?") },
         supportingText = { Text("$draftLength/2000") }, minLines = 4,
+        shape = SautiShape.Card,
+        textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp, lineHeight = 22.sp),
         modifier = Modifier.fillMaxWidth().focusRequester(focus), enabled = enabled)
-    Text("Text style", style = MaterialTheme.typography.labelLarge)
+    ComposerSectionTitle("Text style", Icons.Rounded.TextFields)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         PostTextFormat.entries.forEach { format ->
             val insertion = insertPostFormatting(editor.text, editor.selection.start, editor.selection.end, format)

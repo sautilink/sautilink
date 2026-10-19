@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -202,9 +203,9 @@ private fun RoomInvitationCard(state: RoomsState, invitation: NativeRoomInvitati
         Text("Invited by ${invitation.invitedByName}", style = MaterialTheme.typography.bodySmall)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onAccept, enabled = !state.busy("invite:${invitation.room.id}"),
-                modifier = Modifier.weight(1f)) { Text("Accept") }
+                modifier = Modifier.weight(1f)) { RoomActionLabel("Accept", Icons.Rounded.Check) }
             OutlinedButton(onClick = { state.respond(invitation, false) }, enabled = !state.busy("invite:${invitation.room.id}"),
-                modifier = Modifier.weight(1f)) { Text("Decline") }
+                modifier = Modifier.weight(1f)) { RoomActionLabel("Decline", Icons.Rounded.Close) }
         }
         if (state.roomError != null) RoomNotice(state.roomError.orEmpty(), true)
     }
@@ -241,7 +242,9 @@ private fun RoomDetail(state: RoomsState, community: RoomManagementState, room: 
             }
             RoomTab.DISCUSSION, RoomTab.MEDIA -> {
                 if (state.roomTab == RoomTab.DISCUSSION && room.supportsPostApproval) item {
-                    TextButton(onClick = onApprovals) { Text(if (room.isStaff) "Post approvals" else "Your submissions") }
+                    TextButton(onClick = onApprovals) {
+                        RoomActionLabel(if (room.isStaff) "Post approvals" else "Your submissions", Icons.Rounded.FactCheck)
+                    }
                 }
                 if (!room.canReadPosts) item { RoomEmpty("Join the conversation", "Join this Room to read its discussion and media.") }
                 else {
@@ -277,9 +280,12 @@ private fun RoomMembershipActions(state: RoomsState, community: RoomManagementSt
     onCompose: () -> Unit, onManage: () -> Unit, onMembership: (String) -> Unit) {
     when {
         room.isMember -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (room.canPost) Button(onClick = onCompose, modifier = Modifier.weight(1f)) { Text("Write a post") }
+            if (room.canPost) Button(onClick = onCompose, modifier = Modifier.weight(1f)) {
+                RoomActionLabel("Write a post", Icons.Rounded.Edit)
+            }
             OutlinedButton(onClick = onManage, modifier = Modifier.weight(1f)) {
-                Text(if (room.canManagePeople || room.canManageSettings) "Manage" else "Joined")
+                RoomActionLabel(if (room.canManagePeople || room.canManageSettings) "Manage" else "Joined",
+                    if (room.canManagePeople || room.canManageSettings) Icons.Rounded.Settings else Icons.Rounded.CheckCircle)
             }
         }
         state.invitations.any { it.room.id == room.id } -> {
@@ -303,14 +309,17 @@ private fun RoomMembershipActions(state: RoomsState, community: RoomManagementSt
 @Composable
 private fun RoomAbout(room: NativeRoom, onInvite: () -> Unit, onLeave: () -> Unit, onShare: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("About this Room", style = MaterialTheme.typography.titleMedium)
-        Text(room.description.ifBlank { "No description yet." }, style = MaterialTheme.typography.bodyLarge)
+        RoomSectionHeading("About this Room")
+        Text(room.description.ifBlank { "No description yet." }, style = MaterialTheme.typography.bodyMedium)
         Text("/rooms/${room.slug}", style = MaterialTheme.typography.bodySmall)
         Text("Posting: ${if (room.postPermission == "staff_only") "admins and moderators" else "all members"}", style = MaterialTheme.typography.bodyMedium)
         Text("Invitations: ${if (room.invitePermission == "staff_only") "admins and moderators" else "all members"}", style = MaterialTheme.typography.bodyMedium)
-        if (room.canInvite) OutlinedButton(onClick = onInvite) { Text("Invite someone") }
-        OutlinedButton(onClick = onShare) { Text("Share Room") }
-        if (room.isMember && !room.isOwner) TextButton(onClick = onLeave) { Text("Leave Room", color = MaterialTheme.colorScheme.error) }
+        if (room.canInvite) OutlinedButton(onClick = onInvite) { RoomActionLabel("Invite someone", Icons.Rounded.PersonAdd) }
+        OutlinedButton(onClick = onShare) { RoomActionLabel("Share Room", Icons.Rounded.IosShare) }
+        if (room.isMember && !room.isOwner) TextButton(onClick = onLeave,
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+            RoomActionLabel("Leave Room", Icons.Rounded.Logout)
+        }
     }
 }
 

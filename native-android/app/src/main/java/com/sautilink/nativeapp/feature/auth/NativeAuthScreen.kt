@@ -2,17 +2,25 @@ package com.sautilink.nativeapp.feature.auth
 
 import com.sautilink.nativeapp.ui.components.SautiCopyrightFooter
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MarkEmailRead
 import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.PersonOutline
+import androidx.compose.material.icons.rounded.AlternateEmail
+import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.ui.text.input.VisualTransformation
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +46,7 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
     var method by remember { mutableStateOf(LoginMethod.PASSWORD) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var phone by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var codeRequested by remember { mutableStateOf(false) }
@@ -64,12 +73,7 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
         }
     }
 
-    Column(
-        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-            .imePadding().verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    SautiAuthPage {
         if (!isEntry) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
@@ -79,12 +83,12 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
                 Text("Sign in", style = MaterialTheme.typography.headlineSmall)
             }
         }
-        Spacer(Modifier.height(12.dp))
         SautiAuthBrand()
         if (account == null) {
-            Text("Welcome back", style = MaterialTheme.typography.headlineMedium,
+            Text("Welcome back", style = MaterialTheme.typography.headlineLarge.copy(
+                fontSize = 32.sp, lineHeight = 38.sp, letterSpacing = (-1).sp),
                 fontWeight = FontWeight.Bold)
-            Text("Sign in to your SautiLink account.",
+            Text("Your people. Your moments. Your SautiLink.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -206,14 +210,24 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
                 }
             }
         } else {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                LoginMethod.entries.forEachIndexed { index, option ->
-                    SegmentedButton(
+            Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LoginMethod.entries.forEach { option ->
+                    FilterChip(
                         selected = method == option,
                         onClick = { method = option; message = null; code = ""; codeRequested = false },
                         enabled = !loading,
-                        shape = SegmentedButtonDefaults.itemShape(index, LoginMethod.entries.size)
-                    ) { Text(option.label, style = MaterialTheme.typography.labelSmall) }
+                        modifier = Modifier.heightIn(min = 48.dp),
+                        shape = SautiShape.Pill,
+                        leadingIcon = {
+                            Icon(when (option) {
+                                LoginMethod.PASSWORD -> Icons.Rounded.Lock
+                                LoginMethod.EMAIL_CODE -> Icons.Rounded.AlternateEmail
+                                LoginMethod.PHONE_CODE -> Icons.Rounded.PhoneAndroid
+                            }, null, Modifier.size(18.dp), selected = method == option)
+                        },
+                        label = { Text(option.label, style = MaterialTheme.typography.labelSmall, maxLines = 1) }
+                    )
                 }
             }
 
@@ -223,8 +237,9 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
                         value = email, onValueChange = { email = it },
                         label = { Text(if (method == LoginMethod.PASSWORD && client.backend == SautiBackend.PRODUCTION)
                             "Email or username" else "Email address") },
+                        leadingIcon = { Icon(Icons.Rounded.AlternateEmail, null, Modifier.size(21.dp)) },
                         modifier = Modifier.fillMaxWidth(), enabled = !loading,
-                        singleLine = true, shape = RoundedCornerShape(18.dp),
+                        singleLine = true, shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
                         keyboardOptions = KeyboardOptions(keyboardType =
                             if (method == LoginMethod.PASSWORD && client.backend == SautiBackend.PRODUCTION)
                                 KeyboardType.Text else KeyboardType.Email)
@@ -233,9 +248,11 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
                 LoginMethod.PHONE_CODE -> {
                     OutlinedTextField(
                         value = phone, onValueChange = { phone = it },
-                        label = { Text("Phone (+255...)") }, modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Phone (+255...)") },
+                        leadingIcon = { Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(21.dp)) },
+                        modifier = Modifier.fillMaxWidth(),
                         enabled = !loading, singleLine = true,
-                        shape = RoundedCornerShape(18.dp),
+                        shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                     )
                     Text("Delivery uses the WhatsApp/SMS channel already configured on your SautiLink account.",
@@ -247,17 +264,25 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
             if (method == LoginMethod.PASSWORD) {
                 OutlinedTextField(
                     value = password, onValueChange = { password = it },
-                    label = { Text("Password") }, modifier = Modifier.fillMaxWidth(),
-                    visualTransformation = PasswordVisualTransformation(),
+                    label = { Text("Password") },
+                    leadingIcon = { Icon(Icons.Rounded.Lock, null, Modifier.size(21.dp)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = { IconButton(onClick = { passwordVisible = !passwordVisible }, enabled = !loading) {
+                        Icon(if (passwordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                            if (passwordVisible) "Hide password" else "Show password", Modifier.size(21.dp))
+                    } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    singleLine = true, enabled = !loading, shape = RoundedCornerShape(18.dp)
+                    singleLine = true, enabled = !loading, shape = RoundedCornerShape(16.dp),
+                    colors = authFieldColors()
                 )
             } else if (codeRequested) {
                 OutlinedTextField(
                     value = code, onValueChange = { if (it.length <= 10) code = it.filter(Char::isDigit) },
                     label = { Text(if (method == LoginMethod.EMAIL_CODE) "8-digit email code" else "Verification code") },
+                    leadingIcon = { Icon(Icons.Rounded.Key, null, Modifier.size(21.dp)) },
                     modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !loading,
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
                 )
             }
@@ -272,7 +297,7 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
             Button(
                 modifier = Modifier.fillMaxWidth().height(54.dp),
                 enabled = !loading && canSubmit && client.configured,
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(16.dp),
                 onClick = {
                     runAction {
                         when (method) {
@@ -303,7 +328,11 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
             if (onRegister != null) {
                 OutlinedButton(onClick = onRegister,
                     modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(18.dp)) { Text("Create an account") }
+                    shape = RoundedCornerShape(16.dp)) {
+                    Icon(Icons.Rounded.PersonOutline, null, Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Create an account")
+                }
             }
             if (codeRequested && !loading) {
                 TextButton(onClick = { codeRequested = false; code = ""; message = null }) {

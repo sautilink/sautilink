@@ -23,6 +23,15 @@ import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Dashboard
+import androidx.compose.material.icons.rounded.PersonOutline
+import androidx.compose.material.icons.rounded.AlternateEmail
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.VolumeOff
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,6 +65,7 @@ private val PROFILE_CATEGORY_PREVIEW_SLUGS = listOf(
 )
 
 /** Live profile for the owner or a discoverable member. Other users' connection lists stay private. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun NativeProfileScreen(
     auth: StagingAuthClient,
@@ -152,7 +162,7 @@ fun NativeProfileScreen(
     }
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-        .verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 10.dp),
+        .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(15.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null || edit || connectionList != null) {
@@ -181,7 +191,8 @@ fun NativeProfileScreen(
                             Icon(Icons.Rounded.MoreHoriz, "More profile options")
                         }
                         DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
-                            DropdownMenuItem(text = { Text("Share profile") }, onClick = {
+                            DropdownMenuItem(text = { Text("Share profile") },
+                                leadingIcon = { Icon(Icons.Rounded.Share, null, Modifier.size(20.dp)) }, onClick = {
                                 moreOpen = false
                                 val handle = profile?.username ?: return@DropdownMenuItem
                                 val share = Intent(Intent.ACTION_SEND).apply {
@@ -190,15 +201,18 @@ fun NativeProfileScreen(
                                 }
                                 runCatching { context.startActivity(Intent.createChooser(share, "Share profile")) }
                             })
-                            DropdownMenuItem(text = { Text("Report profile") }, onClick = {
+                            DropdownMenuItem(text = { Text("Report profile") },
+                                leadingIcon = { Icon(Icons.Rounded.Flag, null, Modifier.size(20.dp)) }, onClick = {
                                 moreOpen = false; reportOpen = true
                             })
                             DropdownMenuItem(text = { Text(
                                 if (safetyState?.blocked == true) "Unblock account" else "Block account"
-                            ) }, onClick = { moreOpen = false; blockConfirm = true })
+                            ) }, leadingIcon = { Icon(Icons.Rounded.Block, null, Modifier.size(20.dp)) },
+                                onClick = { moreOpen = false; blockConfirm = true })
                             DropdownMenuItem(text = { Text("Restrict (not available yet)") },
                                 enabled = false, onClick = {})
                             DropdownMenuItem(text = { Text("About this account") },
+                                leadingIcon = { Icon(Icons.Rounded.Info, null, Modifier.size(20.dp)) },
                                 onClick = { moreOpen = false; aboutOpen = true })
                         }
                     }
@@ -253,7 +267,7 @@ fun NativeProfileScreen(
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Profile category", style = MaterialTheme.typography.titleMedium)
+                            ProfileSectionTitle("Profile category", Icons.Rounded.Category)
                             Text(categoryCatalog.firstOrNull { it.slug == member.categorySlug }?.label
                                     ?: "Not selected",
                                 style = MaterialTheme.typography.bodySmall,
@@ -280,24 +294,24 @@ fun NativeProfileScreen(
                     IdentityEditor(client, member, onChanged = { edit = false; refresh++ })
                 } else {
                     val category = categoryCatalog.firstOrNull { it.slug == member.categorySlug }
-                    Surface(shape = RoundedCornerShape(18.dp),
+                    Surface(shape = RoundedCornerShape(24.dp),
                         color = MaterialTheme.colorScheme.surface,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .3f))) {
                         Column(Modifier.fillMaxWidth()) {
-                            Box(Modifier.fillMaxWidth().height(192.dp)) {
+                            Box(Modifier.fillMaxWidth().height(176.dp)) {
                                 if (member.hasHeader) {
                                     AuthorizedImage(
                                         auth,
                                         "/api/profile-media/${member.username}/header?v=${member.headerRevision}-$refresh",
                                         "${member.displayName}'s profile cover",
-                                        modifier = Modifier.fillMaxWidth().height(155.dp)
-                                            .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+                                        modifier = Modifier.fillMaxWidth().height(140.dp)
+                                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                                     )
                                 } else {
                                     Surface(
-                                        modifier = Modifier.fillMaxWidth().height(155.dp),
+                                        modifier = Modifier.fillMaxWidth().height(140.dp),
                                         color = MaterialTheme.colorScheme.primaryContainer,
-                                        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+                                        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
                                     ) { }
                                 }
                                 Surface(
@@ -307,7 +321,7 @@ fun NativeProfileScreen(
                                     color = MaterialTheme.colorScheme.surface,
                                     border = BorderStroke(3.dp, MaterialTheme.colorScheme.surface)
                                 ) {
-                                    ProfileAvatar(auth, member, 96, revision = refresh)
+                                    ProfileAvatar(auth, member, 86, revision = refresh)
                                 }
                             }
                             Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
@@ -316,8 +330,8 @@ fun NativeProfileScreen(
                                     horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                     Text(member.displayName,
                                         style = MaterialTheme.typography.titleLarge.copy(
-                                            fontSize = 21.sp, lineHeight = 25.sp),
-                                        fontWeight = FontWeight.Bold,
+                                            fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = (-.5).sp),
+                                        fontWeight = FontWeight.SemiBold,
                                         modifier = Modifier.weight(1f, fill = false),
                                         maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                                     SautiVerificationBadge(member.verified, member.badgeType,
@@ -354,7 +368,8 @@ fun NativeProfileScreen(
                                     }
                                 }
                                 if (member.bio.isNotBlank()) {
-                                    SautiEntityText(member.bio, style = MaterialTheme.typography.bodyLarge)
+                                    SautiEntityText(member.bio, style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontSize = 15.sp, lineHeight = 21.sp))
                                 } else if (ownerRoute) {
                                     Text("Add a bio to introduce yourself.",
                                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -443,11 +458,12 @@ fun NativeProfileScreen(
                         Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
                             Column(Modifier.fillMaxWidth().padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Safety controls", style = MaterialTheme.typography.titleMedium)
+                                ProfileSectionTitle("Safety controls", Icons.Rounded.Shield)
                                 Text("Mute hides this member's activity. Block prevents interaction.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     OutlinedButton(onClick = {
                                         val desired = safetyState?.muted != true
                                         safetyBusy = true; actionError = null; safetyNote = null
@@ -460,13 +476,19 @@ fun NativeProfileScreen(
                                             finally { safetyBusy = false }
                                         }
                                     }, enabled = !safetyBusy && safetyState != null && safetyState?.blocked != true) {
+                                        Icon(Icons.Rounded.VolumeOff, null, Modifier.size(18.dp))
+                                        Spacer(Modifier.width(5.dp))
                                         Text(if (safetyState?.muted == true) "Unmute" else "Mute")
                                     }
                                     OutlinedButton(onClick = { blockConfirm = true },
                                         enabled = !safetyBusy && safetyState != null) {
+                                        Icon(Icons.Rounded.Block, null, Modifier.size(18.dp))
+                                        Spacer(Modifier.width(5.dp))
                                         Text(if (safetyState?.blocked == true) "Unblock" else "Block")
                                     }
                                     TextButton(onClick = { actionError = null; reportOpen = true }, enabled = !safetyBusy) {
+                                        Icon(Icons.Rounded.Flag, null, Modifier.size(18.dp))
+                                        Spacer(Modifier.width(5.dp))
                                         Text("Report")
                                     }
                                 }
@@ -534,6 +556,8 @@ fun NativeProfileScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(search, { search = it.take(80) },
                         label = { Text("Search all categories") },
+        leadingIcon = { Icon(Icons.Rounded.Category, null, Modifier.size(21.dp)) },
+        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth(), singleLine = true)
                     Text(if (search.isBlank()) "Popular categories · 20 suggestions"
                          else "Matching categories",
@@ -624,13 +648,20 @@ private fun ProfileEditor(profile: NativeProfile, saving: Boolean, onCancel: () 
     var website by remember(profile.id) { mutableStateOf(profile.website) }
     var discoverable by remember(profile.id) { mutableStateOf(profile.discoverable) }
     var validation by remember(profile.id) { mutableStateOf<String?>(null) }
-    Text("@${profile.username} · Profile details",
+    ProfileSectionTitle("Profile details", Icons.Rounded.Edit)
+    Text("@${profile.username}",
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     OutlinedTextField(bio, { bio = it.take(501) }, label = { Text("Bio") },
+        leadingIcon = { Icon(Icons.Rounded.Description, null, Modifier.size(21.dp)) },
+        shape = RoundedCornerShape(16.dp),
         supportingText = { Text("${bio.length}/500") }, minLines = 3, maxLines = 6, modifier = Modifier.fillMaxWidth())
     OutlinedTextField(location, { location = it.take(101) }, label = { Text("Location") },
+        leadingIcon = { Icon(Icons.Rounded.LocationOn, null, Modifier.size(21.dp)) },
+        shape = RoundedCornerShape(16.dp),
         supportingText = { Text("${location.length}/100") }, modifier = Modifier.fillMaxWidth())
     OutlinedTextField(website, { website = it.take(2049) }, label = { Text("Website (http:// or https://)") },
+        leadingIcon = { Icon(Icons.Rounded.Public, null, Modifier.size(21.dp)) },
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth())
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("Discoverable", modifier = Modifier.weight(1f))
@@ -665,12 +696,14 @@ private fun IdentityEditor(client: NativeProfilesClient, profile: NativeProfile,
         try { controls = client.identityControls() }
         catch (e: Exception) { message = e.message ?: "Identity controls are unavailable." }
     }
-    Text("Name and username", style = MaterialTheme.typography.titleLarge)
+    ProfileSectionTitle("Name and username", Icons.Rounded.PersonOutline)
     Text("Changes are limited by your account's identity policy.", style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant)
     if (controls == null && message == null) LinearProgressIndicator(Modifier.fillMaxWidth())
     controls?.let { state ->
         OutlinedTextField(name, { name = it.take(81) }, label = { Text("Display name") },
+        leadingIcon = { Icon(Icons.Rounded.PersonOutline, null, Modifier.size(21.dp)) },
+        shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth(), enabled = !busy)
         Text(if (state.verified) "${state.nameRemaining} name changes left this month."
             else "${state.nameRemaining} name changes left in 14 days.", style = MaterialTheme.typography.bodySmall)
@@ -694,6 +727,8 @@ private fun IdentityEditor(client: NativeProfilesClient, profile: NativeProfile,
         }
         HorizontalDivider()
         OutlinedTextField(username, { username = it.take(31).lowercase() }, label = { Text("Username") },
+        leadingIcon = { Icon(Icons.Rounded.AlternateEmail, null, Modifier.size(21.dp)) },
+        shape = RoundedCornerShape(16.dp),
             prefix = { Text("@") }, modifier = Modifier.fillMaxWidth(), enabled = !busy && !state.usernameLocked)
         Text(if (state.usernameLocked) "This username is locked for this account."
             else "${state.usernameRemaining} username changes left in 30 days.",
@@ -741,5 +776,14 @@ private fun ProfileAvatarFallback(name: String, modifier: Modifier) {
 private fun ProfileNotice(message: String) {
     Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
         Text(message, Modifier.fillMaxWidth().padding(16.dp), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun ProfileSectionTitle(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Row(verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(icon, null, Modifier.size(21.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
     }
 }
