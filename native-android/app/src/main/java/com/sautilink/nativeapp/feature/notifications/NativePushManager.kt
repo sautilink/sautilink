@@ -68,7 +68,12 @@ object NativePushManager {
     /** Accept only SautiLink web links and the app's own scheme. Never trust arbitrary URL hosts. */
     fun routeFromIntent(intent: Intent?): String? {
         if (intent == null) return null
-        if (intent.action != Intent.ACTION_VIEW) return safeRoute(intent.getStringExtra("sautilink_push_route"))
+        if (intent.action != Intent.ACTION_VIEW) {
+            // Background notification + data messages launch the Activity with FCM's
+            // data keys as extras. Foreground notifications use our own pending intent.
+            return safeRoute(intent.getStringExtra("sautilink_push_route"))
+                ?: safeRoute(intent.getStringExtra("route"))
+        }
         val uri = intent.data ?: return null
         if (uri.fragment != null || uri.userInfo != null) return null
         val validOrigin = when (uri.scheme?.lowercase()) {

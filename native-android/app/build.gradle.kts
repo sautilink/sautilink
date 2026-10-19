@@ -47,8 +47,8 @@ android {
         targetSdk = 36
         buildConfigField("String", "STAGING_SUPABASE_PUBLISHABLE_KEY", "\"${stagingPublishableKey}\"")
         buildConfigField("String", "PRODUCTION_SUPABASE_PUBLISHABLE_KEY", "\"${productionPublishableKey}\"")
-        versionCode = 41
-        versionName = "0.9.0-native-performance"
+        versionCode = 44
+        versionName = "1.0.2"
     }
     flavorDimensions += "distribution"
     productFlavors {
@@ -103,6 +103,8 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui-tooling-preview")
+    // Bundled, cached vector buffering overlay for Home and Short Videos.
+    implementation("com.airbnb.android:lottie-compose:6.7.1")
     // Downloads Inter from the Google Play services fonts provider when available.
     implementation("androidx.compose.ui:ui-text-google-fonts:1.10.0")
     // Tested on-device after Android Studio sync. Keep all Media3 modules on one version.
@@ -111,6 +113,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
     // Phase 8M: Android HttpURLConnection does not reliably support PATCH.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Standard Play Integrity observations; server monitoring never gates app access.
+    implementation("com.google.android.play:integrity:1.6.0")
     implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
     implementation("com.google.firebase:firebase-messaging")
     debugImplementation("androidx.compose.ui:ui-tooling")

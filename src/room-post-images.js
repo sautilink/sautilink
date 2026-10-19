@@ -1,3 +1,5 @@
+import { roomPublishRequestId, confirmRoomPublishRequest, roomPublishOutcome } from './room-publish-outcome.js';
+
 const ROOM_POST_IMAGE_LIMIT = 5;
 const ROOM_POST_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const ROOM_POST_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -335,25 +337,25 @@ async function publishRoomPostWithImages(event) {
   roomPostMessage('');
 
   try {
+    const snapshot = { body: textarea.value.trim(), circle_id: room.id, reply_access: replies.value || 'everyone',
+      media: roomPostImages.map((item) => ({ id: item.id, alt_text: '' })) };
     const response = await fetch('/api/sauti', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        body: textarea.value.trim(),
-        circle_id: room.id,
-        reply_access: replies.value || 'everyone',
-        media: roomPostImages.map((item) => ({ id: item.id, alt_text: '' })),
-      }),
+      body: JSON.stringify({ ...snapshot, client_request_id: roomPublishRequestId(snapshot) }),
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok || payload?.ok === false) {
       throw new Error(payload?.error?.message || 'The Room post could not be published.');
     }
 
+    const outcome = roomPublishOutcome(response, payload);
+    confirmRoomPublishRequest(snapshot);
+    // Pending uploads are now held by the server. Release local previews only.
     await clearRoomPostImages({ remote: false });
     textarea.value = '';
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    roomPostMessage('Post published in this Room.', true);
+    roomPostMessage(outcome.pending ? 'Submitted to Room admins for approval.' : 'Post published in this Room.', true);
     roomPostNode('circle-stream-retry')?.click();
   } catch (error) {
     roomPostMessage(error?.message || 'The Room post could not be published.');

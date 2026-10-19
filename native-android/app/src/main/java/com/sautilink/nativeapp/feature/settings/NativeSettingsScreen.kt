@@ -2,6 +2,7 @@ package com.sautilink.nativeapp.feature.settings
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Refresh
@@ -12,23 +13,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import com.sautilink.nativeapp.feature.home.NativePlaybackPreferences
+import androidx.compose.ui.platform.LocalContext
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
+import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import com.sautilink.nativeapp.BuildConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme: () -> Unit,
+    focusPrivacy: Boolean = false,
     onBack: () -> Unit, onSignIn: () -> Unit, onOpenAuth: () -> Unit,
     onOpenRecovery: () -> Unit, onOpenProfile: () -> Unit,
-    onOpenNotifications: () -> Unit, onOpenConnection: () -> Unit) {
+    onOpenNotifications: () -> Unit) {
     val client = remember(auth) { NativeSettingsClient(auth) }
+    val context = LocalContext.current
+    var autoplay by remember { mutableStateOf(NativePlaybackPreferences.autoplayEnabled) }
     val scope = rememberCoroutineScope()
+    val settingsListState = rememberLazyListState()
     var settings by remember { mutableStateOf<NativeAccountSettings?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
-    var loading by remember { mutableStateOf(false) }
+    var loading by remember(auth.account?.id) { mutableStateOf(auth.account != null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var note by remember { mutableStateOf<String?>(null) }
@@ -55,6 +62,9 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
     }
 
     val state = settings
+    LaunchedEffect(focusPrivacy, state != null) {
+        if (focusPrivacy && state != null) settingsListState.scrollToItem(3)
+    }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
@@ -63,7 +73,8 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                 Icon(Icons.Rounded.Refresh, "Refresh settings")
             }
         }
-        if (loading || busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (loading && state == null) repeat(4) { SautiExploreSkeleton() }
+        else if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (error != null) Text(error.orEmpty(), Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
             color = MaterialTheme.colorScheme.error)
         if (note != null) Text(note.orEmpty(), Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
@@ -76,7 +87,9 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                 if (auth.sessionState != StagingSessionState.CHECKING)
                     Button(onClick = onSignIn) { Text("Sign in") }
             }
-        } else if (state != null) LazyColumn(contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 32.dp),
+        } else if (state != null) LazyColumn(
+            state = settingsListState,
+            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
@@ -116,6 +129,14 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                 state.activityStatus, !busy) {
                 perform("Online status saved") { client.setPreferenceBoolean("activity_status", it) }
             } }
+            item { SectionTitle("MEDIA PLAYBACK") }
+            item {
+                SettingSwitch("Auto-play videos", "Play Home videos automatically, muted. Pause off-screen.",
+                    autoplay, !busy) { enabled ->
+                    NativePlaybackPreferences.setAutoplay(context, enabled)
+                    autoplay = enabled
+                }
+            }
             item { SectionTitle("NOTIFICATIONS") }
             item { SettingSwitch("Post activity", "Likes, comments and reposts",
                 state.notifyPosts, !busy) {
@@ -129,7 +150,7 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                 state.notifyFollowers, !busy) {
                 perform("Notification preference saved") { client.setPreferenceBoolean("notify_followers", it) }
             } }
-            item { SettingSwitch("Sautify updates", "Updates from SautiLink",
+            item { SettingSwitch("Rooms updates", "Updates from SautiLink",
                 state.notifySautify, !busy) {
                 perform("Notification preference saved") { client.setPreferenceBoolean("notify_sautify", it) }
             } }
@@ -194,10 +215,6 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                 else OutlinedButton(onClick = { deleteText = ""; deleteDialog = true }, enabled = !busy) {
                     Text("Request account deletion")
                 }
-            }
-            if (BuildConfig.FLAVOR == "preview") {
-                item { SectionTitle("DEVELOPER") }
-                item { TextButton(onClick = onOpenConnection) { Text("Staging connection") } }
             }
         }
     }

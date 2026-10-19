@@ -1,0 +1,93 @@
+{
+  "verifiedAt": "2026-10-19T03:02:13.310235+00:00",
+  "status": "PASS_DOWNLOADED_SIGNED_ARTIFACT_CHECKS",
+  "expectedGithub": {
+    "repository": "sautilink/sautilink",
+    "runId": 39191409362,
+    "automationCommit": "e2781b43aab7806f293c8133143bda3ad3e9ef7a",
+    "remoteRunStatusVerifiedByThisScript": false
+  },
+  "sourceSha": "f82cfe1b3c5ed4e376a3ed125007fb599acaf042",
+  "appSourceTree": "8de6734a0e62879f7207749a02f396151ed16666",
+  "archive": {
+    "bytes": 20631873,
+    "sha256": "efe0b237ea697ecfef7f3bfcc595e1cef18f1039a490dc22a2371322ba24dd63",
+    "matchedProvidedGithubDigest": true,
+    "exactFileCount": 6,
+    "allFivePublishedChecksumsMatched": true
+  },
+  "aabBytes": 20872339,
+  "aabSha256": "ea395e54a68bd84b7664567ef2a8b05bd9f1d39b0dd15011a86fa2765cb95c7d",
+  "uploadCertificateSha256": "31c773a7229a563d92f7047a56735ad7b02027d27a6e020d8923dd5418f4b50f",
+  "certificateValidAtCheckTime": true,
+  "allPayloadEntriesCryptographicallyVerified": true,
+  "signedEntryCount": 577,
+  "registrationAssetPresent": false,
+  "ciManifestReceipt": {
+    "package": "com.sautilink.app",
+    "versionCode": 44,
+    "versionName": "1.0.2",
+    "minSdk": 26,
+    "targetSdk": 36,
+    "debuggable": false
+  },
+  "actualManifestDecodedLocally": true,
+  "localManifestIdentity": {
+    "package": "com.sautilink.app",
+    "versionCode": "44",
+    "versionName": "1.0.2",
+    "minSdk": "26",
+    "targetSdk": "36",
+    "debuggable": "false"
+  },
+  "bundletoolExecutedLocally": true,
+  "bundletoolSha256": "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29",
+  "nativeTextEntityChecksCiReceipt": {
+    "sourceSha": "f82cfe1b3c5ed4e376a3ed125007fb599acaf042",
+    "appSourceTree": "8de6734a0e62879f7207749a02f396151ed16666",
+    "passed": true,
+    "checkCount": 191,
+    "kotlinCompilerVersion": "2.2.20"
+  },
+  "nativePlayIntegrityChecksCiReceipt": {
+    "sourceSha": "f82cfe1b3c5ed4e376a3ed125007fb599acaf042",
+    "appSourceTree": "8de6734a0e62879f7207749a02f396151ed16666",
+    "passed": true,
+    "checkCount": 63,
+    "kotlinCompilerVersion": "2.2.20",
+    "checksUsedActualKotlinSources": true,
+    "authSnapshotExtractedFromProductionSource": true,
+    "offlineChecksOnly": true,
+    "playIntegrityModeInSource": "monitor",
+    "playIntegrityLibraryVersion": "1.6.0",
+    "integrityUsesReadOnlyCachedAuthSnapshot": true,
+    "integrityHookSeparateFromAppAccess": true,
+    "integrityProductionPackageAndBackendOnly": true,
+    "playIntegrityLiveTokenValidationPerformed": false,
+    "googlePlayPublishingPerformed": false
+  },
+  "integritySourceFlagsVerifiedFromCiReceipts": {
+    "playIntegrityModeInSource": "monitor",
+    "playIntegrityLibraryVersion": "1.6.0",
+    "integrityUsesReadOnlyCachedAuthSnapshot": true,
+    "integrityHookSeparateFromAppAccess": true,
+    "integrityProductionPackageAndBackendOnly": true,
+    "playIntegrityLiveTokenValidationPerformed": false,
+    "googlePlayPublishingPerformed": false
+  },
+  "fullProductionLintDownloadedReport": {
+    "Hint": 2,
+    "Warning": 111
+  },
+  "scope": {
+    "captionTestsRerun": false,
+    "integrityTestsRerun": false,
+    "lintRerun": false,
+    "buildRerun": false,
+    "sourceAndFirebaseVerifiedFromCiReceipts": true,
+    "playIntegrityLiveTokenValidationPerformed": false,
+    "cloudLinkingOrServerDeploymentVerifiedByThisScript": false,
+    "playConsoleUploadOrValidationPerformed": false,
+    "deviceRuntimeTestPerformed": false
+  }
+}

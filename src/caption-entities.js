@@ -4,18 +4,19 @@ const CAPTION_SELECTOR = '.sauti-card-body, .sauti-caption-text, .profile-activi
 const PROFILE_BIO_SELECTOR = '#profile-bio';
 const ENTITY_SELECTOR = `${CAPTION_SELECTOR}, ${PROFILE_BIO_SELECTOR}`;
 const ENTITY_STYLESHEET_ID = 'sautilink-caption-entities-style';
-const ENTITY_STYLESHEET_HREF = '/app/assets/caption-entities.css?v=20260909-theme1';
+const ENTITY_STYLESHEET_HREF = '/app/assets/caption-entities.css?v=20261016-orange1';
 const ENTITY_ATTR = 'data-caption-entity';
-const ENTITY_CANDIDATE_RE = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+|@[a-z0-9][a-z0-9._]{2,29}|#[\p{L}\p{N}_]{1,64})/giu;
+const renderedEntities = new WeakMap();
+const ENTITY_CANDIDATE_RE = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+|@[a-z0-9][a-z0-9._]*|#[\p{L}\p{N}_]+)/giu;
 
 function isMentionBoundary(source, index) {
   if (index === 0) return true;
-  return !/[A-Za-z0-9._@]/.test(source[index - 1]);
+  return !/[\p{L}\p{N}\p{M}._@]$/u.test(source.slice(0, index));
 }
 
 function isHashtagBoundary(source, index) {
   if (index === 0) return true;
-  return !/[\p{L}\p{N}_]/u.test(source[index - 1]);
+  return !/[\p{L}\p{N}\p{M}_]$/u.test(source.slice(0, index));
 }
 
 function trimMentionPunctuation(value) {
@@ -80,6 +81,7 @@ export function findCaptionEntities(value) {
 
     if (candidate.startsWith('@')) {
       if (!isMentionBoundary(source, start)) continue;
+      if (/^[\p{L}\p{N}\p{M}_@]/u.test(source.slice(start + candidate.length))) continue;
       const displayText = trimMentionPunctuation(candidate);
       const href = profileHref(displayText);
       if (!displayText || href === '/discover') continue;
@@ -95,12 +97,15 @@ export function findCaptionEntities(value) {
 
     if (candidate.startsWith('#')) {
       if (!isHashtagBoundary(source, start)) continue;
+      if (/^[\p{L}\p{N}\p{M}_@]/u.test(source.slice(start + candidate.length))) continue;
+      const href = hashtagSearchHref(candidate);
+      if (href === '/discover') continue;
       entities.push({
         type: 'hashtag',
         start,
         end: start + candidate.length,
         text: candidate,
-        href: hashtagSearchHref(candidate),
+        href,
       });
       continue;
     }
@@ -194,7 +199,35 @@ export function appendFormattedPostText(parent, value, host = parent) {
       }
     }
   };
-  appendNodes(parent, parsePostFormatting(value));
+  appendNodes(parent, parsePostFormatting(value, 0, true));
+  return changed;
+}
+
+function entityNodeSnapshot(element) {
+  const nodes = [];
+  const visit = (parent) => {
+    for (const child of parent.childNodes) {
+      nodes.push(child);
+      visit(child);
+    }
+  };
+  visit(element);
+  return nodes;
+}
+
+function restoreEntityTextNodes(parent, host) {
+  let changed = false;
+  for (const child of Array.from(parent.childNodes)) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      const fragment = document.createDocumentFragment();
+      if (appendEntities(fragment, child.textContent || '', host)) {
+        child.replaceWith(fragment);
+        changed = true;
+      }
+    } else if (child instanceof Element && child.tagName !== 'A') {
+      changed = restoreEntityTextNodes(child, host) || changed;
+    }
+  }
   return changed;
 }
 
@@ -203,17 +236,27 @@ export function renderCaptionEntities(element) {
   if (!element.matches(ENTITY_SELECTOR)) return false;
 
   const source = element.textContent || '';
-  if (element.dataset.captionEntitiesRenderedText === source) return false;
+  const currentNodes = entityNodeSnapshot(element);
+  const previous = renderedEntities.get(element);
+  if (previous?.text === source
+    && previous.nodes.length === currentNodes.length
+    && previous.nodes.every((node, index) => node === currentNodes[index])) return false;
   const fragment = document.createDocumentFragment();
-  const changed = element.matches(PROFILE_BIO_SELECTOR)
-    ? appendEntities(fragment, source, element)
-    : appendFormattedPostText(fragment, source, element);
+  const repairOnly = previous?.text === source;
+  const changed = repairOnly
+    ? restoreEntityTextNodes(element, element)
+    : element.matches(PROFILE_BIO_SELECTOR)
+      ? appendEntities(fragment, source, element)
+      : appendFormattedPostText(fragment, source, element);
   element.dataset.captionEntitiesText = source;
   element.dataset.captionEntitiesRenderedText = source;
-  if (!changed) return false;
-  element.replaceChildren(fragment);
+  if (changed && !repairOnly) element.replaceChildren(fragment);
   element.dataset.captionEntitiesRenderedText = element.textContent || '';
-  return true;
+  renderedEntities.set(element, {
+    text: element.textContent || '',
+    nodes: changed ? entityNodeSnapshot(element) : currentNodes,
+  });
+  return changed;
 }
 
 function ensureEntityStylesheet() {
@@ -256,7 +299,7 @@ function initCaptionEntities() {
     }
   });
 
-  observer.observe(observedRoot, { childList: true, subtree: true });
+  observer.observe(observedRoot, { childList: true, characterData: true, subtree: true });
 }
 
 if (typeof document !== 'undefined') {

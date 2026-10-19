@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 
 data class NativeNotification(
     val id: String, val type: String, val actorHandle: String, val actorName: String,
-    val actorVerified: Boolean, val actorBadgeType: String,
+    val actorVerified: Boolean, val actorBadgeType: String, val actorHasAvatar: Boolean,
     val circleSlug: String, val circleName: String, val circleEvent: String,
     val postId: String, val createdAt: String, val isRead: Boolean,
 )
@@ -65,7 +65,7 @@ class NativeNotificationsClient(private val auth: StagingAuthClient) {
         val actorIds = rows.mapNotNull { it.optString("actor_id").takeIf(uuid::matches) }.distinct()
         val circleIds = rows.mapNotNull { it.optString("circle_id").takeIf(uuid::matches) }.distinct()
         val actors = if (actorIds.isEmpty()) emptyMap() else rest(
-            "social_profiles?id=in.(${actorIds.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type"
+            "social_profiles?id=in.(${actorIds.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type,avatar_key"
         ).objects().associateBy { it.optString("id") }
         val circles = if (circleIds.isEmpty()) emptyMap() else rest(
             "social_circles?id=in.(${circleIds.joinToString(",")})&select=id,slug,name"
@@ -81,6 +81,7 @@ class NativeNotificationsClient(private val auth: StagingAuthClient) {
                     ?: handle.ifBlank { "SautiLink" },
                 actor?.optBoolean("is_verified", false) == true,
                 actor?.optString("verification_badge_type", "standard") ?: "standard",
+                actor?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null,
                 circle?.optString("slug").orEmpty(), circle?.optString("name").orEmpty(),
                 row.optString("circle_event"), row.optString("post_id").takeIf(uuid::matches).orEmpty(),
                 row.optString("created_at"), !row.isNull("read_at"))

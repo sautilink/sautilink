@@ -1,0 +1,66 @@
+name: Play Integrity monitoring verification
+
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        required: true
+        type: string
+  push:
+    branches: [design/native-ios-foundation-20261012]
+    paths:
+      - .github/workflows/play-integrity-monitor.yml
+      - .github/scripts/play-integrity/**
+      - supabase/functions/sautilink-play-integrity/**
+      - supabase/migrations/*_play_integrity_monitor.sql
+      - supabase/tests/play_integrity_monitor.sql
+      - tests/play-integrity-monitor.test.mjs
+  pull_request:
+    paths:
+      - .github/workflows/play-integrity-monitor.yml
+      - .github/scripts/play-integrity/**
+      - supabase/functions/sautilink-play-integrity/**
+      - supabase/migrations/*_play_integrity_monitor.sql
+      - supabase/tests/play_integrity_monitor.sql
+      - tests/play-integrity-monitor.test.mjs
+
+permissions:
+  contents: read
+
+concurrency:
+  group: play-integrity-verification-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Type-check the actual Edge Function with the official Deno runtime
+        run: npx --yes --package=deno@2.9.6 deno check --no-config supabase/functions/sautilink-play-integrity/index.ts
+      - name: Verify request binding, authentication, OAuth signing and monitoring behavior
+        run: node tests/play-integrity-monitor.test.mjs
+      - name: Build a disposable PostgreSQL 17 database with real pg_cron
+        run: docker build --tag sautilink-integrity-postgres-test .github/scripts/play-integrity
+      - name: Start the isolated database without publishing network ports
+        run: >-
+          docker run --detach --rm --name sautilink-integrity-sql-test
+          --env POSTGRES_DB=sautilink_integrity_test
+          --env POSTGRES_USER=postgres
+          --env POSTGRES_PASSWORD=disposable-local-test-only
+          sautilink-integrity-postgres-test
+      - name: Execute the migration, role checks and real concurrent replay test
+        run: >-
+          python3 .github/scripts/play-integrity/run-db-checks.py
+          --container sautilink-integrity-sql-test
+          --migration supabase/migrations/20261019024713_play_integrity_monitor.sql
+      - name: Remove the disposable database
+        if: always()
+        run: docker rm --force sautilink-integrity-sql-test || true

@@ -29,21 +29,28 @@ class NativeDmRealtime(
 ) {
     private val http = OkHttpClient.Builder().pingInterval(30, TimeUnit.SECONDS).build()
     private val main = Handler(Looper.getMainLooper())
-    private val ref = AtomicInteger(3)
+    // Keep dynamic message refs distinct from fixed join refs (1-4).
+    private val ref = AtomicInteger(100)
     private var socket: WebSocket? = null
     private var heartbeat: Job? = null
     private var currentToken: String? = null
     private var closed = false
     private var joinedConversation = false
     private var activityEnabled = false
+    private var conversationActivityEnabled = false
     private val ownId = auth.account?.id.orEmpty()
     private val userTopic = "realtime:dm-user:$ownId"
     private val conversationTopic = "realtime:dm:$conversationId"
+    private val ownActivityTopic = "realtime:member-activity:$ownId"
+    private val peerActivityTopic = "realtime:member-activity:$peerId"
     private val peerMetas = mutableSetOf<String>()
+    private val globalPeerMetas = mutableSetOf<String>()
 
     suspend fun start(scope: CoroutineScope, allowActivity: Boolean) {
         if (ownId.isBlank() || closed) return
-        activityEnabled = allowActivity && !conversationId.isNullOrBlank() && !peerId.isNullOrBlank()
+        activityEnabled = allowActivity
+        conversationActivityEnabled = allowActivity &&
+            !conversationId.isNullOrBlank() && !peerId.isNullOrBlank()
         currentToken = auth.accessTokenForStagingRead()
         val url = auth.restOrigin.substringBefore("/rest/v1/")
             .replaceFirst("https://", "wss://") +
@@ -52,7 +59,11 @@ class NativeDmRealtime(
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 if (closed) { webSocket.close(1000, "Screen closed"); return }
                 join(webSocket, userTopic, "1", false)
-                if (activityEnabled) join(webSocket, conversationTopic, "2", true)
+                if (activityEnabled) join(webSocket, ownActivityTopic, "3", true)
+                if (conversationActivityEnabled) {
+                    join(webSocket, conversationTopic, "2", true)
+                    join(webSocket, peerActivityTopic, "4", true)
+                }
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -64,6 +75,12 @@ class NativeDmRealtime(
                         val ok = packet.optJSONObject("payload")?.optString("status") == "ok"
                         if (BuildConfig.DEBUG && packet.optString("ref") in setOf("1", "2"))
                             Log.d("SautiDmRealtime", "join ${if (topic == userTopic) "inbox" else "thread"}: $ok")
+                        if (topic == ownActivityTopic && packet.optString("ref") == "3" && ok) {
+                            push(ownActivityTopic, "presence", JSONObject()
+                                .put("type", "presence").put("event", "track")
+                                .put("payload", JSONObject().put("member_id", ownId)
+                                    .put("online_at", java.time.Instant.now().toString())), "3")
+                        }
                         if (topic == conversationTopic && packet.optString("ref") == "2" && ok) {
                             joinedConversation = true
                             push(conversationTopic, "presence", JSONObject()
@@ -74,8 +91,9 @@ class NativeDmRealtime(
                     }
                     "broadcast" -> {
                         val body = packet.optJSONObject("payload") ?: return
-                        if (topic == userTopic && body.optString("event") in setOf(
-                                "message_changed", "conversation_state_changed", "read_state_changed")) {
+                        if (topic == userTopic && body.optString("event") == "message_changed") {
+                            // Read receipts are polled separately; reloading every photo
+                            // for a peer's read_state_changed causes a refresh loop.
                             main.post { if (!closed) onChanged() }
                         } else if (topic == conversationTopic && body.optString("event") == "typing") {
                             val payload = body.optJSONObject("payload")
@@ -85,20 +103,29 @@ class NativeDmRealtime(
                             }
                         }
                     }
-                    "presence_state" -> if (topic == conversationTopic) {
-                        peerMetas.clear()
-                        addPeerMetas(packet.optJSONObject("payload"))
+                    "presence_state" -> if (topic == conversationTopic ||
+                        topic == peerActivityTopic) {
+                        val target = if (topic == peerActivityTopic) globalPeerMetas else peerMetas
+                        target.clear()
+                        addPeerMetas(packet.optJSONObject("payload"), target)
                         updateOnline()
                     }
-                    "presence_diff" -> if (topic == conversationTopic) {
+                    "presence_diff" -> if (topic == conversationTopic ||
+                        topic == peerActivityTopic) {
+                        val target = if (topic == peerActivityTopic) globalPeerMetas else peerMetas
                         val changes = packet.optJSONObject("payload")
-                        removePeerMetas(changes?.optJSONObject("leaves"))
-                        addPeerMetas(changes?.optJSONObject("joins"))
+                        removePeerMetas(changes?.optJSONObject("leaves"), target)
+                        addPeerMetas(changes?.optJSONObject("joins"), target)
                         updateOnline()
                     }
-                    "phx_close", "phx_error" -> if (topic == conversationTopic) {
-                        joinedConversation = false
-                        peerMetas.clear(); updateOnline()
+                    "phx_close", "phx_error" -> {
+                        if (topic == conversationTopic) {
+                            joinedConversation = false
+                            peerMetas.clear(); updateOnline()
+                        }
+                        if (topic == peerActivityTopic) {
+                            globalPeerMetas.clear(); updateOnline()
+                        }
                     }
                 }
             }
@@ -119,6 +146,10 @@ class NativeDmRealtime(
                     push(userTopic, "access_token", JSONObject().put("access_token", renewed), "1")
                     if (joinedConversation)
                         push(conversationTopic, "access_token", JSONObject().put("access_token", renewed), "2")
+                    if (activityEnabled) push(ownActivityTopic, "access_token",
+                        JSONObject().put("access_token", renewed), "3")
+                    if (conversationActivityEnabled) push(peerActivityTopic, "access_token",
+                        JSONObject().put("access_token", renewed), "4")
                 }
             }
         }
@@ -147,24 +178,24 @@ class NativeDmRealtime(
                          joinRef: String?): JSONObject = JSONObject().put("topic", topic).put("event", event)
         .put("payload", payload).put("ref", ref).put("join_ref", joinRef ?: JSONObject.NULL)
 
-    private fun addPeerMetas(state: JSONObject?) {
+    private fun addPeerMetas(state: JSONObject?, target: MutableSet<String>) {
         if (state == null || peerId == null) return
         val peers = state.optJSONObject(peerId)?.optJSONArray("metas") ?: return
         for (index in 0 until peers.length()) {
             val meta = peers.optJSONObject(index) ?: continue
             if (meta.optString("member_id") == peerId)
-                peerMetas.add(meta.optString("phx_ref").ifBlank { index.toString() })
+                target.add(meta.optString("phx_ref").ifBlank { index.toString() })
         }
     }
 
-    private fun removePeerMetas(state: JSONObject?) {
+    private fun removePeerMetas(state: JSONObject?, target: MutableSet<String>) {
         if (state == null || peerId == null) return
         val peers = state.optJSONObject(peerId)?.optJSONArray("metas") ?: return
-        for (index in 0 until peers.length()) peerMetas.remove(peers.optJSONObject(index)?.optString("phx_ref"))
+        for (index in 0 until peers.length()) target.remove(peers.optJSONObject(index)?.optString("phx_ref"))
     }
 
     private fun updateOnline() {
-        val online = peerMetas.isNotEmpty()
+        val online = peerMetas.isNotEmpty() || globalPeerMetas.isNotEmpty()
         main.post { if (!closed) onPeerOnline(online) }
     }
 
@@ -177,5 +208,6 @@ class NativeDmRealtime(
         socket = null
         joinedConversation = false
         peerMetas.clear()
+        globalPeerMetas.clear()
     }
 }

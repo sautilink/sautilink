@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android masks the 288dp system splash icon to a 192dp circle. Keep the
+     approved transparent logo intact and centered inside that safe area. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/sautilink_logo"
+    android:insetLeft="23%"
+    android:insetRight="23%"
+    android:insetTop="38%"
+    android:insetBottom="38%" />

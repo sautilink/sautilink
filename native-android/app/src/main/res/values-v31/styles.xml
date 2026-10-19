@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ system splash: official transparent artwork, never the launcher badge. -->
+    <style name="Theme.SautiLink.Launch" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/sautilink_launch_charcoal</item>
+        <item name="android:windowSplashScreenBackground">@color/sautilink_launch_charcoal</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/sautilink_splash_icon</item>
+    </style>
+</resources>

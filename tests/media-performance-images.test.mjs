@@ -98,7 +98,7 @@ test('production protected media reports access, cache, R2, transform, and total
 
   const authRead = mediaApi.indexOf('const deliveryAuth = mediaDeliveryAuthorization(request)');
   const accessStart = mediaApi.indexOf('const accessStartedAt = mediaTimingNow()', authRead);
-  const accessQuery = mediaApi.indexOf('const row = await selectVideoMediaForDelivery(request, id, deliveryAuth)', accessStart);
+  const accessQuery = mediaApi.indexOf('selectVideoMediaForDelivery(request, id, deliveryAuth)', accessStart);
   const accessDone = mediaApi.indexOf('timings.accessMs = mediaTimingDuration(accessStartedAt)', accessQuery);
   assert.ok(authRead >= 0 && accessStart > authRead && accessQuery > accessStart && accessDone > accessQuery, 'access timing must wrap the token-scoped RLS media lookup');
   assert.doesNotMatch(mediaApi, /Server-Timing[^\n]*(?:owner_id|object_key|Authorization|Bearer)/i);

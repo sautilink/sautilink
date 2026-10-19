@@ -1,5 +1,16 @@
+:root {
+  --caption-entity-orange: #ff9b70;
+  --caption-entity-orange-hover: #ffb18f;
+}
+
+:root[data-theme="light"] {
+  --caption-entity-orange: #b84216;
+  --caption-entity-orange-hover: #9c3510;
+}
+
 .sauti-card-body .sautilink-caption-entity,
 .sauti-caption-text .sautilink-caption-entity,
+.profile-activity-body .sautilink-caption-entity,
 #profile-bio .sautilink-caption-entity {
   color: var(--app-accent);
   text-decoration: none;
@@ -11,30 +22,44 @@
 .sauti-card-body .sautilink-caption-mention,
 .sauti-caption-text .sautilink-caption-hashtag,
 .sauti-caption-text .sautilink-caption-mention,
+.profile-activity-body .sautilink-caption-hashtag,
+.profile-activity-body .sautilink-caption-mention,
 #profile-bio .sautilink-caption-hashtag,
 #profile-bio .sautilink-caption-mention {
+  color: var(--caption-entity-orange);
   font-weight: 680;
 }
 
 .sauti-card-body .sautilink-caption-entity:hover,
 .sauti-caption-text .sautilink-caption-entity:hover,
+.profile-activity-body .sautilink-caption-entity:hover,
 #profile-bio .sautilink-caption-entity:hover {
   color: var(--app-accent-strong);
   text-decoration: underline;
   text-underline-offset: .16em;
 }
 
+:is(.sauti-card-body, .sauti-caption-text, .profile-activity-body, #profile-bio) :is(.sautilink-caption-hashtag, .sautilink-caption-mention):hover {
+  color: var(--caption-entity-orange-hover);
+}
+
 .sauti-card-body .sautilink-caption-url,
-.sauti-caption-text .sautilink-caption-url {
+.sauti-caption-text .sautilink-caption-url,
+.profile-activity-body .sautilink-caption-url {
   font-weight: inherit;
 }
 
 .sauti-card-body .sautilink-caption-entity:focus-visible,
 .sauti-caption-text .sautilink-caption-entity:focus-visible,
+.profile-activity-body .sautilink-caption-entity:focus-visible,
 #profile-bio .sautilink-caption-entity:focus-visible {
   outline: 2px solid var(--app-accent);
   outline-offset: 2px;
   border-radius: 3px;
+}
+
+:is(.sauti-card-body, .sauti-caption-text, .profile-activity-body, #profile-bio) :is(.sautilink-caption-hashtag, .sautilink-caption-mention):focus-visible {
+  outline-color: var(--caption-entity-orange);
 }
 
 /* Theme coherence: legacy Room discussion and threaded-reply surfaces must

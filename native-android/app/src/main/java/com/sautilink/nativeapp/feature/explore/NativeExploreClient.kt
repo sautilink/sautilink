@@ -10,10 +10,13 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import com.sautilink.nativeapp.ui.text.normalizeExploreQuery
+import com.sautilink.nativeapp.ui.text.exploreLiteralPattern
 import java.util.concurrent.TimeUnit
 
 data class ExplorePerson(val id: String, val username: String, val name: String, val bio: String,
-    val followers: Int, val verified: Boolean, val badgeType: String)
+    val followers: Int, val verified: Boolean, val badgeType: String,
+    val hasAvatar: Boolean)
 data class ExplorePost(val id: String, val authorHandle: String, val authorName: String,
     val body: String, val createdAt: String, val likes: Int, val comments: Int, val mediaCount: Int,
     val verified: Boolean, val badgeType: String)
@@ -49,7 +52,8 @@ class NativeExploreClient(private val auth: StagingAuthClient) {
         val ownId = auth.account?.id?.takeIf(uuid::matches)
             ?: throw AuthRequestException("Sign in to explore SautiLink.")
         // The wildcard syntax belongs to the app; user input cannot turn into a broad PostgREST pattern.
-        val query = rawQuery.trim().take(64).replace("%", "").replace("*", "").replace("_", "")
+        val query = normalizeExploreQuery(rawQuery)
+        val pattern = exploreLiteralPattern(query)
         val token = auth.accessTokenForStagingRead()
         return withContext(Dispatchers.IO) {
             val blocked = rows(url("social_blocks") {
@@ -60,13 +64,13 @@ class NativeExploreClient(private val auth: StagingAuthClient) {
                 addQueryParameter("muter_id", "eq.$ownId")
                 addQueryParameter("select", "muted_id")
             }, token).objects().mapNotNull { it.optString("muted_id").takeIf(uuid::matches) }.toSet()
-            val personSelect = "id,username,display_name,bio,followers_count,is_verified,verification_badge_type"
+            val personSelect = "id,username,display_name,bio,followers_count,is_verified,verification_badge_type,avatar_key"
             val personRows = (if (query.isBlank()) listOf("" ) else listOf("username", "display_name"))
                 .flatMap { column -> rows(url("social_profiles") {
                     addQueryParameter("select", personSelect)
                     addQueryParameter("is_discoverable", "eq.true")
                     addQueryParameter("id", "neq.$ownId")
-                    if (column.isNotBlank()) addQueryParameter(column, "ilike.*$query*")
+                    if (column.isNotBlank()) addQueryParameter(column, "ilike.$pattern")
                     addQueryParameter("order", "followers_count.desc,created_at.desc")
                     addQueryParameter("limit", "12")
                 }, token).objects() }
@@ -78,14 +82,15 @@ class NativeExploreClient(private val auth: StagingAuthClient) {
                             ?: row.optString("username"),
                         row.optString("bio").takeUnless { it == "null" }.orEmpty(),
                         row.optInt("followers_count").coerceAtLeast(0), row.optBoolean("is_verified"),
-                        row.optString("verification_badge_type", "standard"))
+                        row.optString("verification_badge_type", "standard"),
+                        row.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" } != null)
                 }.toList()
             val postRows = rows(url("social_posts") {
                 addQueryParameter("select", "id,author_id,body,created_at,like_count,comment_count,media_count")
                 addQueryParameter("visibility", "eq.public")
                 addQueryParameter("circle_id", "is.null")
                 addQueryParameter("reply_to_post_id", "is.null")
-                if (query.isNotBlank()) addQueryParameter("body", "ilike.*$query*")
+                if (query.isNotBlank()) addQueryParameter("body", "ilike.$pattern")
                 addQueryParameter("order", "created_at.desc")
                 addQueryParameter("limit", "30")
             }, token).objects().filter { row ->

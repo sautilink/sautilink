@@ -1,6 +1,11 @@
 package com.sautilink.nativeapp.feature.home
 
 import android.content.Intent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.sautilink.nativeapp.ui.components.sautiActionFeedback
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -9,18 +14,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.NotificationsNone
 import androidx.compose.material.icons.rounded.ChatBubbleOutline
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.ThumbUp
+import androidx.compose.material.icons.rounded.ThumbUpOffAlt
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkBorder
-import androidx.compose.material.icons.rounded.Send
-import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Repeat
@@ -30,15 +35,23 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import com.sautilink.nativeapp.ui.components.SautiPostIcons
+import com.sautilink.nativeapp.ui.components.SautiPostActionRow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
+import com.sautilink.nativeapp.feature.menu.AnimatedHamburgerButton
+import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
 import com.sautilink.nativeapp.ui.components.SautiAvatar
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.theme.SautiColors
@@ -48,8 +61,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
-import java.util.UUID
-import com.sautilink.nativeapp.BuildConfig
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+import java.util.Locale
 
 /** Explicit environment-isolated read-only feed; production and staging use different auth sessions. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,26 +76,35 @@ fun StagingFeedScreen(
     onBack: () -> Unit,
     onSignIn: () -> Unit,
     asHome: Boolean = false,
-    onOpenDemo: () -> Unit = {},
-    onOpenStaging: () -> Unit = {},
+    savedRequestVersion: Int = 0,
     onOpenNotifications: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenMenu: () -> Unit = {},
     onOpenVideos: () -> Unit = {},
     onOpenRooms: () -> Unit = {},
     onOpenProfile: (String) -> Unit = {},
     onOpenPost: (String) -> Unit = {}
 ) {
     val account = auth.account
+    val accountId = account?.id
     val sessionState = auth.sessionState
-    var menuOpen by remember { mutableStateOf(false) }
-    var mode by rememberSaveable(auth.backend.id) { mutableStateOf("for_you") }
+    var mode by rememberSaveable(auth.backend.id) {
+        mutableStateOf(if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION)
+            "saved" else "for_you")
+    }
+    LaunchedEffect(savedRequestVersion) {
+        if (mode == "short_videos") mode = "for_you" // Retire saved old tab state.
+        if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION) mode = "saved"
+    }
     var refreshVersion by remember { mutableIntStateOf(0) }
-    var loading by remember { mutableStateOf(false) }
-    var loadingMore by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var posts by remember { mutableStateOf<List<StagingFeedPost>>(emptyList()) }
-    var offset by remember { mutableIntStateOf(0) }
-    var hasMore by remember { mutableStateOf(false) }
+    // A new feed/account must start with its own loading state. Otherwise one frame can
+    // show the previous tab's posts or the empty-state card before LaunchedEffect runs.
+    var loading by remember(accountId, mode) { mutableStateOf(account != null) }
+    var loadingMore by remember(accountId, mode) { mutableStateOf(false) }
+    var error by remember(accountId, mode) { mutableStateOf<String?>(null) }
+    var posts by remember(accountId, mode) { mutableStateOf<List<StagingFeedPost>>(emptyList()) }
+    var offset by remember(accountId, mode) { mutableIntStateOf(0) }
+    var hasMore by remember(accountId, mode) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val online = rememberNetworkAvailable()
@@ -86,37 +112,42 @@ fun StagingFeedScreen(
     val actions = remember(auth) { PostInteractionsClient(auth) }
     val canInteract = auth.backend == SautiBackend.PRODUCTION && account != null && online
     // Separate Like and Save state: one slow lookup never disables the other.
-    var likeStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
-    var savedStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
-    var repostStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
-    var followingStates by remember(auth, account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
-    var followReadError by remember(auth, account?.id) { mutableStateOf<String?>(null) }
-    var followRetryVersion by remember(auth, account?.id) { mutableIntStateOf(0) }
-    var likeReadError by remember(auth, account?.id) { mutableStateOf<String?>(null) }
-    var savedReadError by remember(auth, account?.id) { mutableStateOf<String?>(null) }
-    var repostReadError by remember(auth, account?.id) { mutableStateOf<String?>(null) }
-    var repostCountSyncVersion by remember(auth, account?.id) { mutableIntStateOf(0) }
-    var actionError by remember(auth, account?.id) { mutableStateOf<String?>(null) }
-    var actionErrorPostId by remember(auth, account?.id) { mutableStateOf<String?>(null) }
-    var actionRetryVersion by remember(auth, account?.id) { mutableIntStateOf(0) }
-    var busyKeys by remember(auth, account?.id) { mutableStateOf<Set<String>>(emptySet()) }
-    var commentsFor by remember(auth, account?.id) { mutableStateOf<StagingFeedPost?>(null) }
-    var commentCountSyncVersion by remember(auth, account?.id) { mutableIntStateOf(0) }
+    var likeStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var savedStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var repostStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var followingStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    // Pending intent is separate from the state confirmed by the server.
+    var pendingFollowStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    // Keep confirmed artwork across refresh/offline; a late GET cannot undo a confirmed tap.
+    val actionStateVersions = remember(auth, accountId) { FeedActionVersions() }
+    var followReadError by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var followRetryVersion by remember(auth, accountId) { mutableIntStateOf(0) }
+    var likeReadError by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var savedReadError by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var repostReadError by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var repostCountSyncVersion by remember(auth, accountId) { mutableIntStateOf(0) }
+    var actionError by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var actionErrorPostId by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var actionRetryVersion by remember(auth, accountId) { mutableIntStateOf(0) }
+    var busyKeys by remember(auth, accountId) { mutableStateOf<Set<String>>(emptySet()) }
+    var commentsFor by remember(auth, accountId) { mutableStateOf<StagingFeedPost?>(null) }
+    var commentCountSyncVersion by remember(auth, accountId) { mutableIntStateOf(0) }
 
     val shownPostIds = remember(posts) { posts.map { it.id } }
     // Each request has a deadline and its own result/error. No mutation happens here.
-    LaunchedEffect(auth, account?.id, shownPostIds, actionRetryVersion) {
+    LaunchedEffect(auth, accountId, shownPostIds, actionRetryVersion, canInteract, refreshVersion, mode) {
         if (!canInteract || shownPostIds.isEmpty()) return@LaunchedEffect
-        val expectedId = account?.id
-        val missingLikes = shownPostIds.filterNot { it in likeStates }
-        val missingSaved = shownPostIds.filterNot { it in savedStates }
-        val missingReposts = shownPostIds.filterNot { it in repostStates }
+        val expectedId = accountId
+        val readVersions = actionStateVersions.snapshot()
+        val missingLikes = shownPostIds
+        val missingSaved = shownPostIds
+        val missingReposts = shownPostIds
         if (missingLikes.isNotEmpty()) {
             launch {
                 try {
                     val loaded = withTimeout(18_000L) { actions.getLikeStates(missingLikes) }
                     if (auth.account?.id == expectedId) {
-                        likeStates = loaded + likeStates
+                        likeStates = actionStateVersions.reconcile("like", likeStates, loaded, readVersions)
                         likeReadError = null
                     }
                 } catch (_: TimeoutCancellationException) {
@@ -132,7 +163,7 @@ fun StagingFeedScreen(
                 try {
                     val loaded = withTimeout(18_000L) { actions.getSavedStates(missingSaved) }
                     if (auth.account?.id == expectedId) {
-                        savedStates = loaded + savedStates
+                        savedStates = actionStateVersions.reconcile("saved", savedStates, loaded, readVersions)
                         savedReadError = null
                     }
                 } catch (_: TimeoutCancellationException) {
@@ -148,7 +179,7 @@ fun StagingFeedScreen(
                 try {
                     val loaded = withTimeout(18_000L) { actions.getRepostStates(missingReposts) }
                     if (auth.account?.id == expectedId) {
-                        repostStates = loaded + repostStates
+                        repostStates = actionStateVersions.reconcile("repost", repostStates, loaded, readVersions)
                         repostReadError = null
                     }
                 } catch (_: TimeoutCancellationException) {
@@ -161,20 +192,21 @@ fun StagingFeedScreen(
         }
     }
 
-    val shownAuthorIds = remember(posts, account?.id) {
-        posts.map { it.authorId }.filter { it.isNotBlank() && it != account?.id }.distinct()
+    val shownAuthorIds = remember(posts, accountId) {
+        posts.map { it.authorId }.filter { it.isNotBlank() && it != accountId }.distinct()
     }
     // Independent from Like/Save/Repost: a slow Follow lookup never stalls a post action.
-    LaunchedEffect(auth, account?.id, shownAuthorIds, followRetryVersion) {
+    LaunchedEffect(auth, accountId, shownAuthorIds, followRetryVersion, canInteract, refreshVersion, mode) {
         if (!canInteract || shownAuthorIds.isEmpty()) return@LaunchedEffect
-        val expectedAccountId = account?.id
-        val missing = shownAuthorIds.filterNot { it in followingStates }
+        val expectedAccountId = accountId
+        val readVersions = actionStateVersions.snapshot()
+        val missing = shownAuthorIds
         if (missing.isEmpty()) return@LaunchedEffect
         try {
             val loaded = withTimeout(18_000L) { actions.getFollowingStates(missing) }
             if (auth.account?.id == expectedAccountId) {
                 // A confirmed tap made while loading takes precedence over a late GET.
-                followingStates = loaded + followingStates
+                followingStates = actionStateVersions.reconcile("follow", followingStates, loaded, readVersions)
                 followReadError = null
             }
         } catch (_: TimeoutCancellationException) {
@@ -186,7 +218,7 @@ fun StagingFeedScreen(
     }
 
     // UI watchdog independent from the network calls: never leave a spinner forever.
-    LaunchedEffect(auth, account?.id, shownPostIds, actionRetryVersion) {
+    LaunchedEffect(auth, accountId, shownPostIds, actionRetryVersion, canInteract, refreshVersion, mode) {
         if (canInteract && shownPostIds.isNotEmpty()) {
             delay(25_000L)
             if (shownPostIds.any { it !in likeStates } && likeReadError == null) {
@@ -201,15 +233,16 @@ fun StagingFeedScreen(
         }
     }
 
-    fun changeAction(post: StagingFeedPost, kind: String) {
+    fun changeAction(post: StagingFeedPost, kind: String, addOnly: Boolean = false) {
         if (!canInteract) return
         val key = "$kind:${post.id}"
         if (key in busyKeys) return
         val expectedUser = auth.account?.id
         val previous = if (kind == "like") likeStates[post.id] else savedStates[post.id]
+        if (addOnly && previous == true) return
         // When state is unknown, a user tap means explicit Like/Save (idempotent POST),
         // NEVER Unlike/Unsave. This avoids a stuck status lookup disabling both buttons.
-        val desired = previous != true
+        val desired = addOnly || previous != true
         busyKeys = busyKeys + key
         actionError = null
         actionErrorPostId = null
@@ -219,11 +252,13 @@ fun StagingFeedScreen(
                 else actions.setSaved(post.id, desired)
                 if (auth.account?.id != expectedUser) return@launch
                 if (kind == "like") {
+                    actionStateVersions.changed("like:${post.id}")
                     likeStates = likeStates + (post.id to desired)
                     // An unknown prior state may already be liked: do not invent a count.
                     if (previous != null) posts = posts.map { item -> if (item.id == post.id) item.copy(likes =
                         (item.likes + if (previous) -1 else 1).coerceAtLeast(0)) else item }
                 } else {
+                    actionStateVersions.changed("saved:${post.id}")
                     savedStates = savedStates + (post.id to desired)
                     if (mode == "saved" && !desired) {
                         // The server confirmed deletion. Remove only that item; no feed write is involved.
@@ -257,6 +292,7 @@ fun StagingFeedScreen(
             try {
                 withTimeout(20_000L) { actions.setRepost(post.id, desired) }
                 if (auth.account?.id != expectedUser) return@launch
+                actionStateVersions.changed("repost:${post.id}")
                 repostStates = repostStates + (post.id to desired)
                 if (previous != null) {
                     posts = posts.map { p -> if (p.id == post.id)
@@ -276,6 +312,7 @@ fun StagingFeedScreen(
                 if (auth.account?.id == expectedUser) {
                     actionError = "Repost took too long. Refresh to check its status before trying again."
                     actionErrorPostId = post.id
+                    actionStateVersions.changed("repost:${post.id}")
                     repostStates = repostStates - post.id
                     repostReadError = "Repost status is uncertain. Tap Retry."
                 }
@@ -301,18 +338,22 @@ fun StagingFeedScreen(
         val desired = previous != true
         val expectedUserId = auth.account?.id
         busyKeys = busyKeys + key
+        pendingFollowStates = pendingFollowStates + (post.authorId to desired)
         actionError = null
         actionErrorPostId = null
         scope.launch {
             try {
                 withTimeout(20_000L) { actions.setFollow(post.authorHandle, desired) }
                 if (auth.account?.id != expectedUserId) return@launch
+                client.invalidateFollowing()
+                actionStateVersions.changed("follow:${post.authorId}")
                 followingStates = followingStates + (post.authorId to desired)
                 followReadError = null
                 // Following must not continue showing an author the user has just unfollowed.
                 if (mode == "following" && !desired) refreshVersion++
             } catch (_: TimeoutCancellationException) {
                 if (auth.account?.id == expectedUserId) {
+                    actionStateVersions.changed("follow:${post.authorId}")
                     followingStates = followingStates - post.authorId
                     actionError = "Follow request timed out. Check current status before trying again."
                     actionErrorPostId = post.id
@@ -325,6 +366,7 @@ fun StagingFeedScreen(
                     actionErrorPostId = post.id
                 }
             } finally {
+                pendingFollowStates = pendingFollowStates - post.authorId
                 busyKeys = busyKeys - key
             }
         }
@@ -345,13 +387,11 @@ fun StagingFeedScreen(
         }
     }
 
-    LaunchedEffect(client, account?.id, mode, refreshVersion, online) {
+    LaunchedEffect(client, accountId, mode, refreshVersion, online) {
         val cachedPage = if (account == null) null else client.cached(mode)
-        posts = cachedPage?.posts.orEmpty()
-        likeStates = emptyMap()
-        savedStates = emptyMap()
-        repostStates = emptyMap()
-        followingStates = emptyMap()
+        // Existing rows/counts and confirmed viewer states stay visible during revalidation.
+        // remember(account.id, mode) supplies an empty list for a genuinely different feed.
+        if (posts.isEmpty()) posts = cachedPage?.posts.orEmpty()
         followReadError = null
         likeReadError = null
         savedReadError = null
@@ -392,71 +432,86 @@ fun StagingFeedScreen(
         }
     }
 
+    // The activity owns system-bar insets. Avoid doubling the status-bar spacer.
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                title = { Column {
-                    Text(if (asHome) "SautiLink" else "SautiLink Feed", style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        if (auth.backend == SautiBackend.PRODUCTION) "PRODUCTION · LIVE INTERACTIONS"
-                        else "STAGING · READ ONLY",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                } },
+                title = {
+                    if (asHome) {
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(
+                                    com.sautilink.nativeapp.R.drawable.sautilink_logo),
+                                contentDescription = "SautiLink logo",
+                                modifier = Modifier.width(42.dp).height(28.dp),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                            Text("SautiLink", style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1)
+                        }
+                    } else {
+                        Column {
+                            Text("SautiLink Feed", style = MaterialTheme.typography.titleLarge)
+                            if (auth.backend != SautiBackend.PRODUCTION) {
+                                Text("STAGING · READ ONLY", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                },
                 navigationIcon = {
                     if (!asHome) IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") }
                 },
                 actions = {
-                    IconButton(onClick = { refreshVersion++ }, enabled = account != null && !loading && !loadingMore) {
-                        Icon(Icons.Rounded.Refresh, "Refresh posts")
-                    }
-                    if (asHome) {
-                        IconButton(onClick = onOpenNotifications) {
-                            Icon(Icons.Rounded.NotificationsNone, "Notifications preview")
+                    if (!asHome) {
+                        IconButton(onClick = { refreshVersion++ }, enabled = account != null && !loading && !loadingMore) {
+                            Icon(Icons.Rounded.Refresh, "Refresh posts")
                         }
-                        Box {
-                            IconButton(onClick = { menuOpen = true }) {
-                                Icon(Icons.Rounded.MoreHoriz, "Home options")
-                            }
-                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                                if (auth.backend == SautiBackend.PRODUCTION) DropdownMenuItem(
-                                    text = { Text("Rooms") }, onClick = { menuOpen = false; onOpenRooms() })
-                                if (BuildConfig.FLAVOR == "preview") {
-                                    DropdownMenuItem(text = { Text("Demo Home · UI preview") }, onClick = { menuOpen = false; onOpenDemo() })
-                                    DropdownMenuItem(text = { Text("Staging test feed") }, onClick = { menuOpen = false; onOpenStaging() })
-                                }
-                                DropdownMenuItem(text = { Text("Settings") }, onClick = { menuOpen = false; onOpenSettings() })
-                            }
-                        }
+                    } else {
+                        // Notifications already has a dedicated bottom-navigation destination.
+                        AnimatedHamburgerButton(onClick = onOpenMenu)
                     }
-                }
+                },
+                windowInsets = WindowInsets(0, 0, 0, 0)
             )
         }
     ) { insets ->
         LazyColumn(
             Modifier.fillMaxSize().padding(insets),
-            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 30.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 6.dp,
+                bottom = if (asHome) 90.dp else 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
-                Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FilterChip(selected = mode == "for_you", onClick = { mode = "for_you" }, label = { Text("For You") }, shape = SautiShape.Pill)
-                    FilterChip(selected = mode == "following", onClick = { mode = "following" }, label = { Text("Following") }, shape = SautiShape.Pill)
-                    FilterChip(selected = mode == "short_videos", onClick = {
-                        if (auth.backend == SautiBackend.PRODUCTION && asHome) onOpenVideos()
-                        else mode = "short_videos"
-                    }, label = { Text("Short Videos") }, shape = SautiShape.Pill)
-                    if (auth.backend == SautiBackend.PRODUCTION) {
-                        FilterChip(selected = mode == "saved", onClick = { mode = "saved" }, label = { Text("Saved") }, shape = SautiShape.Pill)
-                    }
+                Row(modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FeedModePill("For You", mode == "for_you") { mode = "for_you" }
+                    FeedModePill("Following", mode == "following") { mode = "following" }
+                    FeedModePill("Trending", mode == "trending") { mode = "trending" }
                 }
             }
-            item {
-                Text(if (mode == "saved") "Saved posts · Private to your production account."
-                    else "${if (asHome) "Live feed" else "Posts"} from ${auth.backend.siteOrigin} · ${if (auth.backend == SautiBackend.PRODUCTION) "Like, Save, Comment, Repost and publishing are live." else "Test environment · Read only."}",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (mode == "saved" && auth.backend == SautiBackend.PRODUCTION) item {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Saved posts", modifier = Modifier.weight(1f),
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMedium)
+                    TextButton(onClick = { mode = "for_you" }) { Text("Back to For You") }
+                }
+            }
+            if (mode == "trending") item {
+                Text("Top 20 trending · public posts from the last 7 days",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 3.dp))
+            }
+            if (auth.backend != SautiBackend.PRODUCTION) item {
+                Text("Staging test feed · Read only",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (actionError != null && account != null) item {
                 FeedMessageCard(actionError.orEmpty()) {
@@ -467,29 +522,21 @@ fun StagingFeedScreen(
             }
             if (account == null) {
                 when (sessionState) {
-                    StagingSessionState.CHECKING -> item {
-                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    }
+                    StagingSessionState.CHECKING -> items(2) { SautiPostSkeleton() }
                     StagingSessionState.RETRYABLE_ERROR -> item {
-                        FeedMessageCard("Could not restore your encrypted ${auth.backend.title.lowercase()} session. Check your connection and try again; your login has been kept on this device.") {
+                        FeedMessageCard("Could not restore your session. Check your connection and try again; your sign-in is still saved on this device.") {
                             Button(onClick = { scope.launch { auth.restoreSession() } }, shape = SautiShape.Pill) { Text("Retry session") }
                             TextButton(onClick = onSignIn) { Text("Account options") }
                         }
                     }
                     else -> item {
-                        FeedMessageCard("Sign in to your ${auth.backend.title.lowercase()} SautiLink account to see accessible posts.") {
+                        FeedMessageCard("Sign in to SautiLink to see posts from your community.") {
                             Button(onClick = onSignIn, shape = SautiShape.Pill) { Text("Sign in to SautiLink") }
                         }
                     }
                 }
             } else {
-                if (loading) item {
-                    Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
+                if (loading && posts.isEmpty()) items(3) { SautiPostSkeleton() }
                 if (error != null) item { FeedMessageCard(error.orEmpty()) {
                     OutlinedButton(onClick = { refreshVersion++ }, shape = SautiShape.Pill) { Text("Try again") }
                 } }
@@ -497,15 +544,19 @@ fun StagingFeedScreen(
                     FeedMessageCard(when (mode) {
                         "following" -> "No posts from followed accounts yet."
                         "short_videos" -> "No accessible short videos available yet."
+                        "trending" -> "No trending public posts available in the last 7 days."
                         "saved" -> "No saved posts yet. Save a post from For You or Following to find it here."
                         else -> "No accessible posts available for this account."
                     })
                 }
-                items(posts, key = { it.id }) { post ->
+                itemsIndexed(posts, key = { _, post -> post.id }) { index, post ->
                     RealPostCard(
                         post, auth,
+                        trendingRank = if (mode == "trending") index + 1 else null,
                         online = online,
+                        bufferingOverlayEnabled = asHome,
                         following = followingStates[post.authorId],
+                        pendingFollow = pendingFollowStates[post.authorId],
                         busyFollow = "follow:${post.authorId}" in busyKeys,
                         followReadError = if (followingStates[post.authorId] == null) followReadError else null,
                         liked = likeStates[post.id],
@@ -520,20 +571,24 @@ fun StagingFeedScreen(
                         mutationError = if (actionErrorPostId == post.id) actionError else null,
                         onRetryLike = {
                             likeReadError = null
+                            actionStateVersions.changed("like:${post.id}")
                             likeStates = likeStates - post.id
                             actionRetryVersion++
                         },
                         onRetrySaved = {
                             savedReadError = null
+                            actionStateVersions.changed("saved:${post.id}")
                             savedStates = savedStates - post.id
                             actionRetryVersion++
                         },
                         onRetryRepost = {
                             repostReadError = null
+                            actionStateVersions.changed("repost:${post.id}")
                             repostStates = repostStates - post.id
                             actionRetryVersion++
                         },
                         onLike = { changeAction(post, "like") },
+                        onDoubleTapLike = { changeAction(post, "like", addOnly = true) },
                         onSave = { changeAction(post, "save") },
                         onComments = { commentsFor = post },
                         onRepost = { changeRepost(post) },
@@ -543,6 +598,7 @@ fun StagingFeedScreen(
                         onFollow = { changeFollow(post) },
                         onRetryFollow = {
                             followReadError = null
+                            actionStateVersions.changed("follow:${post.authorId}")
                             followingStates = followingStates - post.authorId
                             followRetryVersion++
                         }
@@ -550,7 +606,7 @@ fun StagingFeedScreen(
                 }
                 if (hasMore && error == null && !loading) item {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        if (loadingMore) CircularProgressIndicator(Modifier.padding(15.dp))
+                        if (loadingMore) SautiPostSkeleton()
                         else OutlinedButton(onClick = {
                             val requestedUserId = auth.account?.id
                             val requestedMode = mode
@@ -584,33 +640,84 @@ fun StagingFeedScreen(
             }
         }
     }
+    val commentStateHolder = key(auth.backend.id, accountId) { rememberSaveableStateHolder() }
     val selectedPost = commentsFor
     if (selectedPost != null) {
-        PostCommentsSheet(
-            post = selectedPost, actions = actions,
-            allowWrite = canInteract,
-            signedInUserId = account?.id,
-            onDismiss = { commentsFor = null },
-            onRootPosted = {
-                posts = posts.map { p -> if (p.id == selectedPost.id) p.copy(comments = p.comments + 1) else p }
-            },
-            onRootDeleted = {
-                posts = posts.map { p -> if (p.id == selectedPost.id) p.copy(comments = (p.comments - 1).coerceAtLeast(0)) else p }
-            },
-            onCommentChanged = {
-                val expectedAccountId = auth.account?.id
-                val sequence = ++commentCountSyncVersion
-                scope.launch {
-                    try {
-                        val total = withTimeout(12_000L) { actions.loadCommentCount(selectedPost.id) }
-                        if (auth.account?.id == expectedAccountId && sequence == commentCountSyncVersion) {
-                            posts = posts.map { p -> if (p.id == selectedPost.id) p.copy(comments = total) else p }
-                        }
-                    } catch (cancelled: CancellationException) { throw cancelled }
-                    catch (_: Exception) { /* Optimistic count remains until the next feed refresh. */ }
+        commentStateHolder.SaveableStateProvider(selectedPost.id) {
+            PostCommentsSheet(
+                post = selectedPost, actions = actions,
+                allowWrite = canInteract,
+                signedInUserId = accountId,
+                onDismiss = { commentsFor = null },
+                onRootPosted = {
+                    posts = posts.map { p -> if (p.id == selectedPost.id) p.copy(comments = p.comments + 1) else p }
+                },
+                onRootDeleted = {
+                    posts = posts.map { p -> if (p.id == selectedPost.id) p.copy(comments = (p.comments - 1).coerceAtLeast(0)) else p }
+                },
+                onCommentChanged = {
+                    val expectedAccountId = auth.account?.id
+                    val sequence = ++commentCountSyncVersion
+                    scope.launch {
+                        try {
+                            val total = withTimeout(12_000L) { actions.loadCommentCount(selectedPost.id) }
+                            if (auth.account?.id == expectedAccountId && sequence == commentCountSyncVersion) {
+                                posts = posts.map { p -> if (p.id == selectedPost.id) p.copy(comments = total) else p }
+                            }
+                        } catch (cancelled: CancellationException) { throw cancelled }
+                        catch (_: Exception) { /* Optimistic count remains until the next feed refresh. */ }
+                    }
                 }
-            }
-        )
+            )
+        }
+    }
+}
+
+internal fun feedCount(count: Int): String = when {
+    count >= 1_000_000 -> String.format(Locale.US, "%.1fM", count / 1_000_000.0)
+    count >= 1_000 -> String.format(Locale.US, "%.1fK", count / 1_000.0)
+    else -> count.toString()
+}
+
+/** Compact elapsed time for native social posts and comments, matching familiar social UI.
+ * Supabase uses ISO-8601 timestamps, usually with a Z or +00:00 offset.
+ * Timezones are honored and future/server-skew timestamps are clamped to 'now'.
+ */
+internal fun relativePostTime(isoDate: String, now: Instant = Instant.now()): String {
+    val timestamp = isoDate.trim().replace(' ', 'T')
+    val postedAt = runCatching { OffsetDateTime.parse(timestamp).toInstant() }.getOrNull()
+        ?: runCatching { Instant.parse(timestamp) }.getOrNull()
+        ?: runCatching { LocalDateTime.parse(timestamp).toInstant(ZoneOffset.UTC) }.getOrNull()
+        ?: return isoDate.take(10)
+    val seconds = Duration.between(postedAt, now).seconds.coerceAtLeast(0L)
+    val minutes = seconds / 60
+    val hours = seconds / 3_600
+    val days = seconds / 86_400
+    return when {
+        seconds < 60 -> "now"
+        minutes < 60 -> "${minutes}m"
+        hours < 24 -> "${hours}h"
+        days < 7 -> "${days}d"
+        days < 30 -> "${days / 7}w"
+        days < 365 -> "${days / 30}mo"
+        else -> "${days / 365}y"
+    }
+}
+
+/** Compact selection chips with quiet grouped-surface styling and 44dp hit targets. */
+@Composable
+private fun FeedModePill(label: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = SautiShape.Pill,
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = .12f)
+                else MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.heightIn(min = 44.dp)) {
+        Box(Modifier.padding(horizontal = 17.dp, vertical = 11.dp),
+            contentAlignment = Alignment.Center) {
+            Text(label, style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (selected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -624,12 +731,73 @@ private fun FeedMessageCard(message: String, footer: @Composable () -> Unit = {}
     }
 }
 
+private fun feedFollowVisible(auth: StagingAuthClient, post: StagingFeedPost): Boolean {
+    if (auth.backend != SautiBackend.PRODUCTION) return false
+    val account = auth.account ?: return false
+    return post.authorId != account.id &&
+        Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(post.authorHandle)
+}
+
+private fun feedLikeGesture(auth: StagingAuthClient, online: Boolean, busy: Boolean,
+    onLike: () -> Unit): (() -> Unit)? {
+    if (!online || busy) return null
+    if (auth.account == null || auth.backend != SautiBackend.PRODUCTION) return null
+    return onLike
+}
+
+@Composable
+private fun FeedFollowButton(following: Boolean?, pending: Boolean?, enabled: Boolean,
+    onFollow: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    val label = when (pending) {
+        true -> "Following…"
+        false -> "Unfollowing…"
+        null -> if (following == true) "Following" else "Follow"
+    }
+    OutlinedButton(onClick = onFollow, enabled = enabled, interactionSource = interaction,
+        modifier = Modifier.heightIn(min = 40.dp), shape = RoundedCornerShape(13.dp),
+        contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp)) {
+        Text(label, modifier = Modifier.sautiActionFeedback(interaction),
+            style = MaterialTheme.typography.labelMedium, maxLines = 1)
+    }
+}
+
+@Composable
+private fun FeedPostBodyAndMedia(post: StagingFeedPost, auth: StagingAuthClient,
+    onDoubleTapLike: (() -> Unit)?, bufferingOverlayEnabled: Boolean) {
+    if (post.body.isNotBlank()) {
+        com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(
+            Modifier.fillMaxWidth(), onLike = onDoubleTapLike) {
+            com.sautilink.nativeapp.ui.components.SautiPostText(post.body,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 10.dp))
+        }
+    }
+    // Gallery is flush with card edges; caption is never overlaid onto the media.
+    if (post.media.isNotEmpty()) {
+        PostMediaGallery(auth, post.media, onDoubleTapLike = onDoubleTapLike,
+            bufferingOverlayEnabled = bufferingOverlayEnabled)
+    } else if (post.mediaCount > 0) {
+        Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
+            Row(Modifier.fillMaxWidth().padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Rounded.PhotoLibrary, null, modifier = Modifier.size(19.dp))
+                Text("Media unavailable for this session", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
 @Composable
 private fun RealPostCard(
     post: StagingFeedPost,
     auth: StagingAuthClient,
+    trendingRank: Int?,
     online: Boolean,
+    bufferingOverlayEnabled: Boolean,
     following: Boolean?,
+    pendingFollow: Boolean?,
     busyFollow: Boolean,
     followReadError: String?,
     liked: Boolean?,
@@ -646,6 +814,7 @@ private fun RealPostCard(
     onRetrySaved: () -> Unit,
     onRetryRepost: () -> Unit,
     onLike: () -> Unit,
+    onDoubleTapLike: () -> Unit,
     onSave: () -> Unit,
     onComments: () -> Unit,
     onRepost: () -> Unit,
@@ -657,9 +826,30 @@ private fun RealPostCard(
 ) {
     val initials = post.authorName.split(" ").filter { it.isNotBlank() }.take(2)
         .map { it.first().uppercaseChar() }.joinToString("").ifBlank { "SL" }
-    Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
+    val doubleTapLike = feedLikeGesture(auth, online, busyLike, onDoubleTapLike)
+    val showFollow = feedFollowVisible(auth, post)
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .18f)),
+        shadowElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+            if (trendingRank != null) {
+                Text("#$trendingRank on Trending",
+                    color = SautiColors.Red,
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(start = 14.dp, top = 9.dp))
+            }
+            // Author identity and actions match the established SautiLink web order.
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
                 if (post.hasAvatar && Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(post.authorHandle)) {
                     AuthorizedImage(
                         auth = auth,
@@ -669,143 +859,105 @@ private fun RealPostCard(
                         fallback = { SautiAvatar(initials, Modifier.size(44.dp), SautiColors.Blue) }
                     )
                 } else SautiAvatar(initials, Modifier.size(44.dp), SautiColors.Blue)
-                Column(Modifier.weight(1f).clickable(onClick = onOpenProfile)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(
+                    modifier = Modifier.weight(1f).clickable(onClick = onOpenProfile),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(post.authorName, style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.weight(1f, fill = false), maxLines = 1,
-                            overflow = TextOverflow.Ellipsis)
-                        if (post.verified) Spacer(Modifier.width(5.dp))
+                            modifier = Modifier.weight(1f, fill = false),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
                         SautiVerificationBadge(post.verified, post.badgeType,
                             post.authorName, size = 16.dp)
                     }
-                    Text("${if (post.authorHandle.isNotBlank()) "@${post.authorHandle} · " else ""}${post.createdAt.take(10)}",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "${if (post.authorHandle.isNotBlank()) "@${post.authorHandle} · " else ""}${relativePostTime(post.createdAt)}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
                 }
-                if (auth.backend == SautiBackend.PRODUCTION && auth.account != null &&
-                    post.authorId != auth.account?.id &&
-                    Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(post.authorHandle)) {
-                    TextButton(onClick = onFollow, enabled = online && !busyFollow,
-                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 7.dp)) {
-                        if (busyFollow) {
-                            CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
-                        } else {
-                            Icon(if (following == true) Icons.Rounded.Check else Icons.Rounded.PersonAdd,
-                                if (following == true) "Unfollow @${post.authorHandle}" else "Follow @${post.authorHandle}",
-                                modifier = Modifier.size(17.dp))
-                        }
-                        Spacer(Modifier.width(4.dp))
-                        Text(if (following == true) "Following" else "Follow",
-                            style = MaterialTheme.typography.labelMedium)
-                    }
+                if (showFollow) {
+                    FeedFollowButton(following, pendingFollow, online && !busyFollow, onFollow)
+                }
+                if (auth.backend == SautiBackend.PRODUCTION) {
+                    FeedPostOptions(post, auth, online, onOpenProfile, onOpenPost, onShare)
                 }
             }
-            if (auth.backend == SautiBackend.PRODUCTION && auth.account != null &&
-                post.authorId != auth.account?.id &&
-                Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(post.authorHandle) && followReadError != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            if (showFollow && followReadError != null) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
                     Text("Follow status unavailable", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
                     TextButton(onClick = onRetryFollow) { Text("Retry Follow") }
                 }
             }
-            if (post.body.isNotBlank()) Text(post.body, style = MaterialTheme.typography.bodyMedium)
+            FeedPostBodyAndMedia(post, auth, doubleTapLike, bufferingOverlayEnabled)
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .55f)
+            )
             if (auth.backend == SautiBackend.PRODUCTION) {
-                TextButton(onClick = onOpenPost, enabled = online,
-                    contentPadding = PaddingValues(horizontal = 2.dp)) {
-                    Text("Open post and safety options")
-                }
-            }
-            if (post.media.isNotEmpty()) {
-                PostMediaGallery(auth, post.media)
-            } else if (post.mediaCount > 0) {
-                Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceVariant) {
-                    Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Rounded.PhotoLibrary, null, modifier = Modifier.size(19.dp))
-                        Text("Media unavailable for this session", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            if (auth.backend == SautiBackend.PRODUCTION) {
-                if (liked == null) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (likeReadError == null) {
-                            CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
-                            Text("Checking Like status… You can still Like this post.", style = MaterialTheme.typography.labelSmall)
-                        } else {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {
+                    // Only failures interrupt the feed, not routine relationship queries.
+                    if (liked == null && likeReadError != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(likeReadError, style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
                             TextButton(onClick = onRetryLike) { Text("Retry Like") }
                         }
                     }
-                }
-                if (saved == null) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (savedReadError == null) {
-                            CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
-                            Text("Checking Saved status… You can still Save this post.", style = MaterialTheme.typography.labelSmall)
-                        } else {
+                    if (saved == null && savedReadError != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(savedReadError, style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
                             TextButton(onClick = onRetrySaved) { Text("Retry Save") }
                         }
                     }
-                }
-                if (reposted == null) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (repostReadError == null) {
-                            CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
-                            Text("Checking Repost status… You can still Repost.", style = MaterialTheme.typography.labelSmall)
-                        } else {
+                    if (reposted == null && repostReadError != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(repostReadError, style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
                             TextButton(onClick = onRetryRepost) { Text("Retry Repost") }
                         }
                     }
-                }
-                if (mutationError != null) {
-                    Text(mutationError, color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall)
-                }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    TextButton(onClick = onLike, enabled = online && !busyLike, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Icon(if (liked == true) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            "Like post", modifier = Modifier.size(19.dp), tint = if (liked == true) SautiColors.Red else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(5.dp))
-                        Text("${post.likes}", style = MaterialTheme.typography.labelMedium)
+                    if (mutationError != null) {
+                        Text(mutationError, color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall)
                     }
-                    TextButton(onClick = onComments, enabled = online, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Icon(Icons.Rounded.ChatBubbleOutline, "View comments", modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text("${post.comments}", style = MaterialTheme.typography.labelMedium)
-                    }
-                    TextButton(onClick = onSave, enabled = online && !busySave, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Icon(if (saved == true) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                            if (saved == true) "Remove from saved" else "Save post", modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text(if (saved == true) "Saved" else "Save", style = MaterialTheme.typography.labelMedium)
-                    }
-                }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween) {
-                    TextButton(onClick = onRepost, enabled = online && !busyRepost, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Icon(Icons.Rounded.Repeat, if (reposted == true) "Undo repost" else "Repost", modifier = Modifier.size(18.dp),
-                            tint = if (reposted == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(5.dp))
-                        Text(if (reposted == true) "Reposted (${post.reposts})" else "Repost (${post.reposts})",
-                            style = MaterialTheme.typography.labelMedium)
-                    }
-                    TextButton(onClick = onShare, contentPadding = PaddingValues(horizontal = 4.dp)) {
-                        Icon(Icons.Rounded.Share, "Share post", modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text("Share", style = MaterialTheme.typography.labelMedium)
-                    }
+                    // The leading actions wrap their content instead of expanding into equal columns.
+                    SautiPostActionRow(actions = {
+                        CompactPostAction(Icons.Rounded.ThumbUpOffAlt,
+                            if (liked == true) "Unlike post" else "Like post", feedCount(post.likes),
+                            Modifier, onLike, online && !busyLike,
+                            if (liked == true) SautiColors.Red else MaterialTheme.colorScheme.onSurfaceVariant,
+                            if (liked == true) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbUpOffAlt)
+                        CompactPostAction(Icons.Rounded.ChatBubbleOutline, "View comments",
+                            feedCount(post.comments), Modifier, onComments, online)
+                        CompactPostAction(Icons.Rounded.Repeat,
+                            if (reposted == true) "Undo repost" else "Repost",
+                            feedCount(post.reposts), Modifier, onRepost,
+                            online && !busyRepost,
+                            if (reposted == true) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant)
+                        CompactPostAction(SautiPostIcons.Share, "Share post", null,
+                            Modifier, onShare)
+                    }, trailing = {
+                        val saveInteraction = remember { MutableInteractionSource() }
+                        IconButton(onClick = onSave, enabled = online && !busySave,
+                            interactionSource = saveInteraction, modifier = Modifier.size(48.dp)) {
+                            Icon(if (saved == true) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                                if (saved == true) "Remove from saved" else "Save post",
+                                modifier = Modifier.size(24.dp).sautiActionFeedback(saveInteraction),
+                                tint = if (saved == true) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    })
                 }
             } else {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("${post.likes} likes · ${post.comments} comments · ${post.reposts} reposts",
                         style = MaterialTheme.typography.labelMedium)
@@ -820,249 +972,32 @@ private fun RealPostCard(
     }
 }
 
-
-/** Production comments and nested replies share SautiLink's existing guarded APIs.
- * Staging can browse, but may never send or delete content.
- */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Compact accessible touch target; reaction counts stay beside their icons. */
 @Composable
-private fun PostCommentsSheet(
-    post: StagingFeedPost,
-    actions: PostInteractionsClient,
-    allowWrite: Boolean,
-    signedInUserId: String?,
-    onDismiss: () -> Unit,
-    onRootPosted: () -> Unit,
-    onRootDeleted: () -> Unit,
-    onCommentChanged: () -> Unit
+internal fun CompactPostAction(
+    icon: ImageVector,
+    label: String,
+    count: String?,
+    modifier: Modifier,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    activeIcon: ImageVector = icon
 ) {
-    val scope = rememberCoroutineScope()
-    // Each breadcrumb is a real social_posts UUID; navigating up stays inside this sheet.
-    var trail by remember(post.id) { mutableStateOf<List<NativePostComment>>(emptyList()) }
-    val parent = trail.lastOrNull()
-    val targetId = parent?.id ?: post.id
-    var comments by remember(post.id) { mutableStateOf<List<NativePostComment>>(emptyList()) }
-    var loading by remember(post.id) { mutableStateOf(true) }
-    var loadError by remember(post.id) { mutableStateOf<String?>(null) }
-    var writeError by remember(post.id) { mutableStateOf<String?>(null) }
-    var busySend by remember(post.id) { mutableStateOf(false) }
-    var deletingId by remember(post.id) { mutableStateOf<String?>(null) }
-    var confirmDelete by remember(post.id) { mutableStateOf<NativePostComment?>(null) }
-    var refresh by remember(post.id) { mutableIntStateOf(0) }
-    // Draft and idempotency key are scoped to their comment thread.
-    var draft by rememberSaveable(post.id, targetId) { mutableStateOf("") }
-    var requestId by remember(post.id, targetId) { mutableStateOf(UUID.randomUUID().toString()) }
-    val mutating = busySend || deletingId != null
-
-    LaunchedEffect(post.id, targetId, refresh) {
-        loading = true
-        comments = emptyList() // Never show another thread's comments while loading.
-        loadError = null
-        try {
-            comments = withTimeout(18_000L) { actions.loadComments(targetId) }
-        } catch (_: TimeoutCancellationException) {
-            loadError = "Comments took too long to load. Try again."
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (e: Exception) {
-            loadError = e.message ?: "Could not load comments."
-        } finally {
-            loading = false
+    val interaction = remember { MutableInteractionSource() }
+    val animatedTint by animateColorAsState(tint, tween(150), label = "Post action color")
+    Row(
+        modifier = modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            .clickable(interactionSource = interaction, indication = ripple(), enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 1.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(activeIcon, contentDescription = label, tint = animatedTint, modifier = Modifier.size(20.dp).sautiActionFeedback(interaction))
+        if (count != null) {
+            Spacer(Modifier.width(2.dp))
+            Text(count, style = MaterialTheme.typography.labelSmall,
+                color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-    }
-
-    ModalBottomSheet(onDismissRequest = onDismiss, shape = SautiShape.Sheet) {
-        Column(
-            Modifier.fillMaxWidth().padding(horizontal = 18.dp).padding(bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                if (parent != null) {
-                    IconButton(onClick = { trail = trail.dropLast(1); writeError = null }, enabled = !mutating) {
-                        Icon(Icons.Rounded.ArrowBack, "Back to previous comments")
-                    }
-                }
-                Column(Modifier.weight(1f)) {
-                    Text(if (parent == null) "Comments" else "Replies", style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        if (parent == null) "${post.authorName}'s post" else "Replying to ${parent.author}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                IconButton(onClick = { refresh++ }, enabled = !mutating && !loading) {
-                    Icon(Icons.Rounded.Refresh, "Refresh comments")
-                }
-            }
-            if (parent != null) {
-                Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceVariant) {
-                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text(parent.author + if (parent.handle.isNotBlank()) " · @${parent.handle}" else "",
-                            style = MaterialTheme.typography.labelMedium)
-                        Text(parent.body, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-            }
-            if (loading) {
-                Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-            if (loadError != null) {
-                Text(loadError.orEmpty(), color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = { refresh++ }, enabled = !loading) { Text("Retry comments") }
-            }
-            if (!loading && loadError == null && comments.isEmpty()) {
-                Text(if (parent == null) "No comments yet. Start the conversation." else "No replies yet.",
-                    style = MaterialTheme.typography.bodyMedium)
-            }
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 360.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(comments, key = { it.id }) { comment ->
-                    Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
-                        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                Text(comment.author + if (comment.handle.isNotBlank()) " · @${comment.handle}" else "",
-                                    style = MaterialTheme.typography.labelMedium)
-                                SautiVerificationBadge(comment.verified, comment.badgeType,
-                                    comment.author, size = 13.dp)
-                            }
-                            Text(comment.body, style = MaterialTheme.typography.bodyMedium)
-                            Text(comment.createdAt.take(10), style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                TextButton(
-                                    onClick = { trail = trail + comment; writeError = null },
-                                    enabled = !mutating
-                                ) {
-                                    Icon(Icons.Rounded.ChatBubbleOutline, null, Modifier.size(16.dp))
-                                    Spacer(Modifier.width(5.dp))
-                                    Text(if (comment.replyCount > 0) "Replies (${comment.replyCount})" else "Reply")
-                                }
-                                if (allowWrite && signedInUserId != null && comment.authorId == signedInUserId) {
-                                    TextButton(
-                                        onClick = { confirmDelete = comment },
-                                        enabled = !mutating
-                                    ) {
-                                        if (deletingId == comment.id) {
-                                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                                        } else {
-                                            Icon(Icons.Rounded.DeleteOutline, null, Modifier.size(16.dp))
-                                        }
-                                        Spacer(Modifier.width(5.dp))
-                                        Text("Delete", color = MaterialTheme.colorScheme.error)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if (comments.size == 40) {
-                Text("Showing the latest 40 in this thread.", style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (writeError != null) {
-                Text(writeError.orEmpty(), color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall)
-            }
-            if (allowWrite) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = draft,
-                        onValueChange = { newValue ->
-                            if (newValue.length <= 500 && newValue != draft) {
-                                draft = newValue
-                                requestId = UUID.randomUUID().toString()
-                                writeError = null
-                            }
-                        },
-                        modifier = Modifier.weight(1f), shape = SautiShape.Card,
-                        placeholder = { Text(if (parent == null) "Write a comment..." else "Write a reply...") },
-                        maxLines = 4,
-                        supportingText = { Text("${draft.length}/500") },
-                        enabled = !mutating
-                    )
-                    IconButton(onClick = {
-                        if (mutating || draft.isBlank()) return@IconButton
-                        val destination = targetId
-                        val rootWrite = parent == null
-                        val body = draft
-                        val key = requestId
-                        busySend = true
-                        writeError = null
-                        scope.launch {
-                            try {
-                                withTimeout(20_000L) { actions.sendComment(destination, body, key) }
-                                draft = ""
-                                requestId = UUID.randomUUID().toString()
-                                if (rootWrite) onRootPosted()
-                                else {
-                                    trail = trail.mapIndexed { index, ancestor ->
-                                        if (index == trail.lastIndex) ancestor.copy(replyCount = ancestor.replyCount + 1) else ancestor
-                                    }
-                                }
-                                refresh++
-                                onCommentChanged()
-                            } catch (_: TimeoutCancellationException) {
-                                writeError = "Comment request timed out. Retry with the same text; duplicates are protected."
-                            } catch (cancelled: CancellationException) {
-                                throw cancelled
-                            } catch (e: Exception) {
-                                writeError = e.message ?: "Comment could not be posted."
-                            } finally {
-                                busySend = false
-                            }
-                        }
-                    }, enabled = draft.isNotBlank() && !mutating) {
-                        if (busySend) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                        else Icon(Icons.Rounded.Send, if (parent == null) "Post comment" else "Post reply")
-                    }
-                }
-            } else {
-                Text("Read-only test environment", style = MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
-    val toDelete = confirmDelete
-    if (toDelete != null) {
-        AlertDialog(
-            onDismissRequest = { if (!mutating) confirmDelete = null },
-            title = { Text("Delete your comment?") },
-            text = { Text("This comment and any replies beneath it may be removed from SautiLink. This cannot be undone.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (mutating || toDelete.authorId != signedInUserId || !allowWrite) return@TextButton
-                    confirmDelete = null
-                    val deletedFromRoot = parent == null
-                    deletingId = toDelete.id
-                    writeError = null
-                    scope.launch {
-                        try {
-                            withTimeout(20_000L) { actions.deleteOwnComment(toDelete.id) }
-                            if (deletedFromRoot) onRootDeleted()
-                            else {
-                                trail = trail.mapIndexed { index, ancestor ->
-                                    if (index == trail.lastIndex) ancestor.copy(replyCount = (ancestor.replyCount - 1).coerceAtLeast(0)) else ancestor
-                                }
-                            }
-                            refresh++
-                            onCommentChanged()
-                        } catch (_: TimeoutCancellationException) {
-                            writeError = "Delete timed out. Refresh to check whether it was removed."
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (e: Exception) {
-                            writeError = e.message ?: "Could not delete comment. Refresh and try again."
-                        } finally {
-                            deletingId = null
-                        }
-                    }
-                }, enabled = !mutating) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = { TextButton(onClick = { confirmDelete = null }, enabled = !mutating) { Text("Cancel") } }
-        )
     }
 }

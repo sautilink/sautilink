@@ -1,19 +1,12 @@
 package com.sautilink.nativeapp.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ChatBubbleOutline
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.PersonOutline
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,70 +34,70 @@ fun SautiAvatar(initials: String, modifier: Modifier = Modifier, accent: Color =
     }
 }
 
-data class NativeTab(val title: String, val icon: ImageVector)
+data class NativeTab(val title: String)
 val nativeTabs = listOf(
-    NativeTab("Home", Icons.Rounded.Home),
-    NativeTab("Explore", Icons.Rounded.Search),
-    NativeTab("Create", Icons.Rounded.Add),
-    NativeTab("Messages", Icons.Rounded.ChatBubbleOutline),
-    NativeTab("Profile", Icons.Rounded.PersonOutline)
+    NativeTab("Home"),
+    NativeTab("Explore"),
+    NativeTab("Messages"),
+    NativeTab("Notifications"),
+    NativeTab("Short Videos"),
+    NativeTab("Profile")
 )
 
-/** A native Android bottom bar using iOS-inspired geometry, not an iOS control clone. */
+/** Web-inspired six-icon bottom navigation. All destinations have >=48dp touch targets. */
 @Composable
-fun SautiBottomBar(selected: Int, onSelect: (Int) -> Unit) {
+fun SautiBottomBar(selected: Int, unreadNotifications: Int = 0, onSelect: (Int) -> Unit) {
     Surface(
-        shadowElevation = 12.dp,
-        tonalElevation = 2.dp,
         color = MaterialTheme.colorScheme.surface,
-        shape = SautiShape.Pill,
-        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 14.dp, vertical = 7.dp)
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .26f), SautiShape.Pill)
+        tonalElevation = 0.dp,
+        shadowElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding()
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            nativeTabs.forEachIndexed { index, tab ->
-                val active = index == selected
-                val create = index == 2
-                val fill by animateColorAsState(
-                    targetValue = when {
-                        create -> SautiColors.Blue
-                        active -> MaterialTheme.colorScheme.primary.copy(alpha = .12f)
-                        else -> Color.Transparent
-                    },
-                    label = "navigation background"
-                )
-                val tint by animateColorAsState(
-                    targetValue = if (create) Color.White else if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    label = "navigation icon"
-                )
-                val iconSize by animateDpAsState(
-                    targetValue = if (active) 25.dp else 23.dp,
-                    animationSpec = spring(), label = "navigation icon size"
-                )
-                Column(
-                    modifier = Modifier.weight(1f).clip(SautiShape.Button).clickable { onSelect(index) }
-                        .padding(vertical = 2.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Box(
-                        modifier = Modifier.size(if (create) 42.dp else 34.dp)
-                            .clip(if (create) CircleShape else SautiShape.Button)
-                            .background(fill),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(tab.icon, contentDescription = tab.title, tint = tint,
-                            modifier = Modifier.size(if (create) 27.dp else iconSize))
-                    }
-                    if (!create) Text(
-                        tab.title, fontSize = 10.sp,
-                        color = tint, maxLines = 1,
-                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal
+        Column {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f))
+            Row(
+                Modifier.fillMaxWidth().height(62.dp).padding(horizontal = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                nativeTabs.forEachIndexed { index, tab ->
+                    val active = index == selected
+                    val tint by animateColorAsState(
+                        targetValue = if (active) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        animationSpec = androidx.compose.animation.core.tween(120),
+                        label = "Navigation color"
                     )
+                    Column(
+                        Modifier.weight(1f).heightIn(min = 52.dp)
+                            .clip(SautiShape.Button)
+                            .selectable(selected = active, role = Role.Tab,
+                                onClick = { onSelect(index) }),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(contentAlignment = Alignment.Center,
+                            modifier = Modifier.size(34.dp)) {
+                            SautiNavigationIcon(index = index,
+                                label = if (index == 3 && unreadNotifications > 0)
+                                    "Notifications, $unreadNotifications unread" else tab.title,
+                                selected = active, tint = tint, modifier = Modifier.size(27.dp))
+                            if (index == 3 && unreadNotifications > 0) {
+                                Badge(
+                                    modifier = Modifier.align(Alignment.TopEnd)
+                                        .offset(x = 7.dp, y = (-5).dp),
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Text(if (unreadNotifications >= 50) "50+" else unreadNotifications.toString(),
+                                        style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Box(Modifier.width(18.dp).height(3.dp)
+                            .clip(CircleShape)
+                            .background(if (active) SautiColors.Red else Color.Transparent))
+                    }
                 }
             }
         }

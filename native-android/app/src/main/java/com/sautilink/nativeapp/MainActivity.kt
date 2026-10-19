@@ -7,7 +7,6 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
@@ -17,37 +16,53 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.sautilink.nativeapp.feature.inbox.NativeMessagesClient
+import com.sautilink.nativeapp.feature.inbox.NativeDmRealtime
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
-import com.sautilink.nativeapp.feature.chat.ChatScreen
-import com.sautilink.nativeapp.feature.home.HomeScreen
+import com.sautilink.nativeapp.feature.dashboard.NativeDashboardScreen
+import com.sautilink.nativeapp.feature.menu.NativeMenuScreen
+import com.sautilink.nativeapp.feature.verification.NativeVerificationScreen
+import com.sautilink.nativeapp.feature.home.NativePlaybackPreferences
 import com.sautilink.nativeapp.feature.home.StagingFeedScreen
 import com.sautilink.nativeapp.feature.home.NativePostDetailScreen
 import com.sautilink.nativeapp.feature.inbox.InboxScreen
 import com.sautilink.nativeapp.feature.inbox.NativeInboxScreen
-import com.sautilink.nativeapp.feature.profile.PremiumProfileScreen
+import com.sautilink.nativeapp.feature.profile.NativeProfile
 import com.sautilink.nativeapp.feature.profile.NativeProfileScreen
 import com.sautilink.nativeapp.feature.posts.NativePostComposer
 import com.sautilink.nativeapp.feature.posts.NativeOwnPostsScreen
 import com.sautilink.nativeapp.feature.settings.NativeSettingsScreen
 import com.sautilink.nativeapp.feature.other.NotificationsScreen
 import com.sautilink.nativeapp.feature.notifications.NativeNotificationsScreen
+import com.sautilink.nativeapp.feature.notifications.NativeNotificationsClient
 import com.sautilink.nativeapp.feature.notifications.NativePushManager
+import com.sautilink.nativeapp.feature.integrity.NativePlayIntegrityMonitor
 import com.sautilink.nativeapp.feature.videos.ProductionShortVideosScreen
 import com.sautilink.nativeapp.feature.explore.NativeExploreScreen
 import com.sautilink.nativeapp.feature.rooms.NativeRoomsScreen
 import com.sautilink.nativeapp.feature.media.MediaViewerScreen
-import com.sautilink.nativeapp.feature.diagnostics.StagingConnectionScreen
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.NativeAuthScreen
+import com.sautilink.nativeapp.feature.auth.SautiStartupSplash
+import com.sautilink.nativeapp.feature.auth.SautiWelcomeOnboarding
 import com.sautilink.nativeapp.feature.auth.NativeRegistrationScreen
 import com.sautilink.nativeapp.feature.auth.NativeRecoveryScreen
-import com.sautilink.nativeapp.feature.auth.StagingProfileScreen
 import com.sautilink.nativeapp.ui.components.SautiBottomBar
+import com.sautilink.nativeapp.ui.components.LocalSautiTextNavigation
+import com.sautilink.nativeapp.ui.components.SautiTextNavigation
+import com.sautilink.nativeapp.ui.text.parseTextEntities
+import com.sautilink.nativeapp.ui.text.normalizeExternalUrl
+import com.sautilink.nativeapp.ui.text.TextEntityKind
+import com.sautilink.nativeapp.ui.theme.SautiColors
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import com.sautilink.nativeapp.ui.theme.SautiTheme
 import kotlinx.coroutines.launch
@@ -61,6 +76,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         NativePushManager.createChannel(this)
+        NativePlaybackPreferences.restore(this)
+        if (savedInstanceState == null) NativePlaybackPreferences.resetSessionSound()
         pendingPushRoute = NativePushManager.routeFromIntent(intent)
         setContent { SautiNativePreview(pendingPushRoute, { pendingPushRoute = null }, appResumeVersion) }
     }
@@ -80,7 +97,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: () -> Unit,
     appResumeVersion: Int) {
-    val systemDark = isSystemInDarkTheme()
     val context = LocalContext.current
     // Local-only appearance preference. No account API or analytics is involved.
     val themePrefs = remember(context) {
@@ -89,52 +105,129 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     var darkOverride by remember(themePrefs) {
         mutableStateOf<Boolean?>(
             if (themePrefs.contains("dark_theme_override"))
-                themePrefs.getBoolean("dark_theme_override", false) else null
+                themePrefs.getBoolean("dark_theme_override", false) else false
         )
     }
-    val isDark = darkOverride ?: systemDark
+    // Light is the default; explicit in-app choices are persisted.
+    val isDark = darkOverride ?: false
     // Retain light UI state on rotation / ordinary activity recreation.
+    var startupSplash by rememberSaveable { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        delay(1_050)
+        startupSplash = false
+    }
     var root by rememberSaveable { mutableStateOf(0) }
     var detail by rememberSaveable { mutableStateOf<String?>(null) }
     var composerOpen by rememberSaveable { mutableStateOf(false) }
     var composerInFlight by remember { mutableStateOf(false) }
     var postDraft by rememberSaveable { mutableStateOf("") }
     var postsRefresh by remember { mutableIntStateOf(0) }
+    var unreadNotifications by remember { mutableIntStateOf(0) }
+    var activityRevision by remember { mutableIntStateOf(0) }
+    val lifecycle = LocalLifecycleOwner.current
+    var visibleOnScreen by remember(lifecycle) {
+        mutableStateOf(lifecycle.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+    }
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) visibleOnScreen = true
+            if (event == Lifecycle.Event.ON_STOP) visibleOnScreen = false
+        }
+        lifecycle.lifecycle.addObserver(observer)
+        onDispose { lifecycle.lifecycle.removeObserver(observer) }
+    }
+    var savedRequestVersion by remember { mutableIntStateOf(0) }
+    var menuEntryDestination by rememberSaveable { mutableStateOf<String?>(null) }
+    var settingsPrivacyFocus by rememberSaveable { mutableStateOf(false) }
     var mediaStartIndex by rememberSaveable { mutableStateOf(0) }
     var previousDetail by rememberSaveable { mutableStateOf<String?>(null) }
     var profileReturn by rememberSaveable { mutableStateOf<String?>(null) }
     var memberProfileReturn by rememberSaveable { mutableStateOf<String?>(null) }
     var viewedProfileHandle by rememberSaveable { mutableStateOf("") }
+    var entityExploreActive by rememberSaveable { mutableStateOf(false) }
+    var entityExploreQuery by rememberSaveable { mutableStateOf("") }
+    var entityExploreReturn by rememberSaveable { mutableStateOf<String?>(null) }
+    var entityExploreProfile by rememberSaveable { mutableStateOf("") }
+    var entityExploreMemberReturn by rememberSaveable { mutableStateOf<String?>(null) }
+    var entityExplorePostId by rememberSaveable { mutableStateOf("") }
+    var entityExplorePostReturn by rememberSaveable { mutableStateOf<String?>(null) }
+    var entityExploreAccount by rememberSaveable { mutableStateOf<String?>(null) }
     var notificationPostId by rememberSaveable { mutableStateOf("") }
     var postReturn by rememberSaveable { mutableStateOf<String?>(null) }
+    var dashboardReturn by rememberSaveable { mutableStateOf<String?>(null) }
     var notificationRoomSlug by rememberSaveable { mutableStateOf<String?>(null) }
     var roomReturn by rememberSaveable { mutableStateOf<String?>(null) }
     var messageDeepId by rememberSaveable { mutableStateOf<String?>(null) }
-    var chatContact by rememberSaveable { mutableStateOf("Aisha Mohamed") }
-    var chatInitials by rememberSaveable { mutableStateOf("AM") }
-    val stagingAuth = remember(context.applicationContext) {
-        StagingAuthClient(BuildConfig.STAGING_SUPABASE_PUBLISHABLE_KEY, context.applicationContext)
-    }
+    var pendingMessagePeerId by rememberSaveable { mutableStateOf<String?>(null) }
     val productionAuth = remember(context.applicationContext) {
         StagingAuthClient(BuildConfig.PRODUCTION_SUPABASE_PUBLISHABLE_KEY,
             context.applicationContext, SautiBackend.PRODUCTION)
     }
-    if (BuildConfig.FLAVOR == "preview") {
-        LaunchedEffect(stagingAuth) {
-            stagingAuth.restoreSession()
-            if (stagingAuth.sessionState == StagingSessionState.RETRYABLE_ERROR) {
-                delay(2000); stagingAuth.restoreSession()
-            }
+    var initialRestoreFinished by remember(productionAuth) { mutableStateOf(false) }
+    // A local, per-user welcome choice only. Never persist credentials here.
+    val welcomePreferences = remember(context.applicationContext) {
+        context.applicationContext.getSharedPreferences("sautilink_native_welcome_v1", Context.MODE_PRIVATE)
+    }
+    val activeAccountId = productionAuth.account?.id
+    LaunchedEffect(activeAccountId) {
+        if (entityExploreActive && entityExploreAccount != activeAccountId) {
+            entityExploreActive = false
+            if (detail == "entity-explore") detail = null
+        }
+    }
+    LaunchedEffect(detail) {
+        if (detail !in setOf("entity-explore", "member-profile", "post", "media")) entityExploreActive = false
+    }
+    // Memory-only menu identity, scoped to the active account and cleared on sign-out/switch.
+    var menuProfile by remember(activeAccountId) { mutableStateOf<NativeProfile?>(null) }
+    var welcomeDone by remember(activeAccountId) {
+        mutableStateOf(activeAccountId == null ||
+            welcomePreferences.getBoolean("completed_$activeAccountId", false))
+    }
+    // Don't allow a partially verified registration to bypass its existing server-side gates.
+    var profileGate by remember(activeAccountId) { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(activeAccountId) {
+        if (activeAccountId == null) { profileGate = null; return@LaunchedEffect }
+        profileGate = null
+        profileGate = try { productionAuth.loadOwnProfile() != null }
+        catch (_: Exception) {
+            // A temporary profile lookup error cannot invalidate a legitimate offline session.
+            true
         }
     }
     LaunchedEffect(productionAuth) {
         productionAuth.restoreSession()
+        initialRestoreFinished = true
         if (productionAuth.sessionState == StagingSessionState.RETRYABLE_ERROR) {
             delay(2000); productionAuth.restoreSession()
         }
     }
     LaunchedEffect(productionAuth.account?.id, appResumeVersion) {
-        if (productionAuth.account != null) NativePushManager.sync(context, productionAuth)
+        if (productionAuth.account != null) {
+            NativePushManager.sync(context, productionAuth)
+            runCatching { NativeNotificationsClient(productionAuth).load() }
+                .onSuccess { notices -> unreadNotifications = notices.count { !it.isRead } }
+        } else unreadNotifications = 0
+    }
+    // A sampled background observation only; auth, navigation, and content never wait for it.
+    LaunchedEffect(activeAccountId, visibleOnScreen, appResumeVersion) {
+        if (activeAccountId == null || !visibleOnScreen) return@LaunchedEffect
+        delay(2_000)
+        NativePlayIntegrityMonitor.syncIfDue(context.applicationContext, productionAuth)
+    }
+    // Platform-wide activity is ephemeral, opt-in, reciprocal and foreground-only.
+    LaunchedEffect(productionAuth.account?.id, visibleOnScreen, activityRevision, appResumeVersion) {
+        if (productionAuth.account == null || !visibleOnScreen) return@LaunchedEffect
+        val dm = NativeMessagesClient(productionAuth)
+        if (!runCatching { dm.activityStatusEnabled() }.getOrDefault(false)) return@LaunchedEffect
+        val live = NativeDmRealtime(productionAuth, null, null, {}, {}, {})
+        try {
+            live.start(this, true)
+            while (true) {
+                runCatching { dm.touchActivity() }
+                delay(180_000)
+            }
+        } finally { live.close() }
     }
     LaunchedEffect(pendingPushRoute) {
         val route = pendingPushRoute ?: return@LaunchedEffect
@@ -170,17 +263,79 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     fun notice(message: String) { scope.launch { snackbar.showSnackbar(message) } }
     fun openMedia(index: Int) { mediaStartIndex = index; previousDetail = detail; detail = "media" }
     fun closeMedia() { detail = previousDetail; previousDetail = null }
+    fun openWebsite(section: String) {
+        // Only allow official, verified destinations; no arbitrary URL input from content.
+        if (section !in setOf("terms", "community-guidelines", "appeals", "help", "about", "contact", "privacy")) return
+        val url = android.net.Uri.parse("https://sautilink.com/$section")
+        runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, url).addCategory(Intent.CATEGORY_BROWSABLE))
+        }.onFailure { notice("Unable to open this page. Try again later.") }
+    }
+    fun openDeviceLanguage() {
+        runCatching {
+            context.startActivity(Intent(android.provider.Settings.ACTION_LOCALE_SETTINGS))
+        }.onFailure { notice("Language settings are unavailable on this device.") }
+    }
+
+    fun openEntityUrl(value: String) {
+        val destination = normalizeExternalUrl(value) ?: return
+        runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(destination))
+                .addCategory(Intent.CATEGORY_BROWSABLE))
+        }.onFailure { notice("Unable to open this link on this device.") }
+    }
+
     fun toggleTheme() {
         val nextDark = !isDark
         darkOverride = nextDark
         themePrefs.edit().putBoolean("dark_theme_override", nextDark).apply()
     }
 
+    fun openEntityProfile(handle: String) {
+        // A canonical card target can legitimately end in a dot; prose punctuation rules do not apply.
+        val normalized = handle.trim().lowercase()
+        if (!Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(normalized)) return
+        // A mention inside a profile must not replace its Back destination with itself.
+        if (detail != "member-profile") memberProfileReturn = detail
+        viewedProfileHandle = normalized
+        detail = "member-profile"
+    }
+    fun openEntityHashtag(hashtag: String) {
+        val entity = parseTextEntities(hashtag).singleOrNull()
+        if (entity?.kind != TextEntityKind.HASHTAG || entity.end != hashtag.length) return
+        if (!entityExploreActive) {
+            entityExploreReturn = detail
+            entityExploreProfile = viewedProfileHandle
+            entityExploreMemberReturn = memberProfileReturn
+            entityExplorePostId = notificationPostId
+            entityExplorePostReturn = postReturn
+            entityExploreAccount = activeAccountId
+            entityExploreActive = true
+        }
+        entityExploreQuery = entity.target
+        detail = "entity-explore"
+    }
+    fun closeEntityExplore() {
+        viewedProfileHandle = entityExploreProfile
+        memberProfileReturn = entityExploreMemberReturn
+        notificationPostId = entityExplorePostId
+        postReturn = entityExplorePostReturn
+        detail = entityExploreReturn
+        entityExploreActive = false
+    }
+
     BackHandler(detail != null || composerOpen || root != 0) {
         when {
             composerOpen -> if (!composerInFlight) composerOpen = false else notice("Wait for upload to finish")
+            detail == "entity-explore" -> closeEntityExplore()
             detail == "media" -> closeMedia()
-            detail == "staging-profile" || detail == "production-profile" -> detail = profileReturn
+            detail == "menu" -> detail = null
+            detail == menuEntryDestination && menuEntryDestination != null -> {
+                menuEntryDestination = null
+                detail = "menu"
+            }
+            detail == "dashboard" -> detail = dashboardReturn
+            detail == "production-profile" -> detail = profileReturn
             detail == "member-profile" -> detail = memberProfileReturn
             detail == "my-posts" -> detail = null
             detail == "post" -> detail = postReturn
@@ -193,36 +348,185 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         }
     }
 
+    val currentEntityProfile by rememberUpdatedState<(String) -> Unit>(::openEntityProfile)
+    val currentEntityHashtag by rememberUpdatedState<(String) -> Unit>(::openEntityHashtag)
+    val currentEntityUrl by rememberUpdatedState<(String) -> Unit>(::openEntityUrl)
+    val textNavigation = remember {
+        SautiTextNavigation(onProfile = { currentEntityProfile(it) }, onHashtag = { currentEntityHashtag(it) },
+            onUrl = { currentEntityUrl(it) })
+    }
     SautiTheme(darkTheme = isDark) {
-        Scaffold(
+      CompositionLocalProvider(LocalSautiTextNavigation provides textNavigation) {
+        when {
+            // Keep the auth screen mounted during a later Retry session. Replacing it
+            // with splash cancels its remembered coroutine scope and aborts the retry.
+            startupSplash || (!initialRestoreFinished &&
+                productionAuth.sessionState == StagingSessionState.CHECKING) -> {
+                SautiStartupSplash()
+            }
+            productionAuth.account == null -> {
+                when (detail) {
+                    "production-signup" -> NativeRegistrationScreen(
+                        client = productionAuth,
+                        onBack = { detail = "production-auth" },
+                        onFinished = { detail = null; root = 0 })
+                    "production-recovery" -> NativeRecoveryScreen(client = productionAuth,
+                        onBack = { detail = "production-auth" })
+                    else -> NativeAuthScreen(client = productionAuth,
+                        onBack = { detail = "production-auth" },
+                        onViewProfile = { detail = "production-auth" },
+                        onRegister = { detail = "production-signup" },
+                        onRecovery = { detail = "production-recovery" },
+                        isEntry = true,
+                        onBeforeSignOut = { NativePushManager.unregister(context, productionAuth) })
+                }
+            }
+            detail == "production-signup" -> {
+                NativeRegistrationScreen(client = productionAuth,
+                    onBack = { detail = "production-auth" },
+                    onFinished = { detail = null; root = 0; profileGate = true })
+            }
+            profileGate == null -> SautiStartupSplash()
+            profileGate == false -> {
+                NativeRegistrationScreen(client = productionAuth,
+                    onBack = { detail = "production-auth" },
+                    onFinished = { detail = null; root = 0; profileGate = true })
+            }
+            !welcomeDone -> {
+                SautiWelcomeOnboarding(auth = productionAuth, onComplete = {
+                    activeAccountId?.let { id ->
+                        welcomePreferences.edit().putBoolean("completed_$id", true).apply()
+                    }
+                    welcomeDone = true
+                    if (detail == "production-auth") detail = null
+                })
+            }
+            else -> {
+                Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = MaterialTheme.colorScheme.background,
             snackbarHost = { SnackbarHost(snackbar) },
             bottomBar = {
-                if (detail == null) SautiBottomBar(root) { tab ->
-                    if (tab == 2) composerOpen = true else root = tab
+                // Primary destinations keep one stable navigation bar, including Notifications and Videos.
+                if (detail == null || detail == "notifications" || detail == "videos") {
+                    val selectedTab = when (detail) {
+                        "notifications" -> 3
+                        "videos" -> 4
+                        else -> when (root) { 0 -> 0; 1 -> 1; 3 -> 2; 4 -> 5; else -> 0 }
+                    }
+                    SautiBottomBar(selectedTab, unreadNotifications) { tab ->
+                        entityExploreActive = false
+                        menuEntryDestination = null
+                        when (tab) {
+                            0 -> { detail = null; root = 0 }
+                            1 -> { detail = null; root = 1 }
+                            2 -> { detail = null; root = 3 }
+                            3 -> { detail = "notifications" }
+                            4 -> { detail = "videos" }
+                            5 -> { detail = null; root = 4 }
+                        }
+                    }
                 }
-            }
+            },
+            floatingActionButton = {
+                // Twitter/X-inspired composer above the bottom navigation, never inside it.
+                if (detail == null && root == 0) {
+                    FloatingActionButton(
+                        onClick = { composerOpen = true },
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        containerColor = Color.Transparent,
+                        contentColor = Color.White,
+                        modifier = Modifier.size(58.dp),
+                        elevation = FloatingActionButtonDefaults.elevation(
+                            defaultElevation = 6.dp, pressedElevation = 10.dp
+                        )
+                    ) {
+                        Box(Modifier.fillMaxSize().background(Brush.linearGradient(
+                            listOf(SautiColors.LogoOrange, SautiColors.LogoPink)),
+                            androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Rounded.Add, "Create a post", Modifier.size(28.dp))
+                        }
+                    }
+                }
+            },
+            floatingActionButtonPosition = FabPosition.End
         ) { insets ->
             Box(Modifier.fillMaxSize().padding(insets)) {
-                Crossfade(targetState = detail to root, label = "SautiLink screen transition") { destination ->
-                val (activeDetail, activeRoot) = destination
-                when (activeDetail) {
-                    "chat" -> ChatScreen(onBack = { detail = null }, onToggleTheme = ::toggleTheme, onNotice = ::notice, contactName = chatContact, contactInitials = chatInitials)
+                // Crossfade retains the old destination under the next screen and exposes
+                // stale frames on slower devices. Switch destinations in one composition.
+                when (detail) {
+                    "entity-explore" -> NativeExploreScreen(auth = productionAuth,
+                        initialQuery = entityExploreQuery, onBack = ::closeEntityExplore,
+                        onSignIn = { detail = "production-auth" },
+                        onOpenProfile = ::openEntityProfile,
+                        onOpenPost = { id -> notificationPostId = id; postReturn = "entity-explore"; detail = "post" })
                     "settings" -> NativeSettingsScreen(
                         auth = productionAuth,
+                        focusPrivacy = settingsPrivacyFocus,
                         isDark = isDark,
-                        onBack = { detail = null },
+                        onBack = {
+                            detail = if (menuEntryDestination == "settings") "menu" else null
+                            menuEntryDestination = null
+                            settingsPrivacyFocus = false
+                        },
                         onToggleTheme = ::toggleTheme,
                         onSignIn = { detail = "production-auth" },
                         onOpenProfile = { profileReturn = "settings"; detail = "production-profile" },
                         onOpenNotifications = { detail = "notifications" },
-                        onOpenConnection = { detail = "connection" },
                         onOpenAuth = { detail = "production-auth" },
                         onOpenRecovery = { detail = "production-recovery" }
                     )
-                    "connection" -> StagingConnectionScreen(onBack = { detail = "settings" })
-                    "staging-feed" -> StagingFeedScreen(auth = stagingAuth, onBack = { detail = null }, onSignIn = { detail = "auth" })
+                    "verification" -> NativeVerificationScreen(
+                        auth = productionAuth,
+                        onBack = { detail = "menu" }
+                    )
+                    "menu" -> NativeMenuScreen(
+                        auth = productionAuth,
+                        isDark = isDark,
+                        confirmedProfile = menuProfile,
+                        onProfileConfirmed = { menuProfile = it },
+                        onBack = { detail = null },
+                        onProfile = {
+                            if (productionAuth.account == null) detail = "production-auth"
+                            else { detail = null; root = 4 }
+                        },
+                        onRooms = {
+                            menuEntryDestination = "rooms"
+                            notificationRoomSlug = null
+                            detail = "rooms"
+                        },
+                        onSaved = {
+                            detail = null
+                            root = 0
+                            savedRequestVersion++
+                        },
+                        onNotifications = {
+                            menuEntryDestination = "notifications"
+                            detail = "notifications"
+                        },
+                        onVerification = { detail = "verification" },
+                        onSettings = {
+                            menuEntryDestination = "settings"
+                            settingsPrivacyFocus = false
+                            detail = "settings"
+                        },
+                        onPrivacy = {
+                            menuEntryDestination = "settings"
+                            settingsPrivacyFocus = true
+                            detail = "settings"
+                        },
+                        onLanguage = ::openDeviceLanguage,
+                        onWebsite = ::openWebsite,
+                        onToggleTheme = ::toggleTheme,
+                        onSignOut = {
+                            scope.launch {
+                                runCatching { NativePushManager.unregister(context, productionAuth) }
+                                runCatching { productionAuth.signOut() }
+                                    .onSuccess { detail = null; root = 0; notice("Signed out") }
+                                    .onFailure { notice("Could not complete sign out. Try again.") }
+                            }
+                        }
+                    )
                     "production-auth" -> NativeAuthScreen(client = productionAuth, onBack = { detail = null; root = 0 },
                         onViewProfile = { profileReturn = "production-auth"; detail = "production-profile" },
                         onRegister = { detail = "production-signup" },
@@ -233,35 +537,31 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onFinished = { detail = null; root = 0 })
                     "production-recovery" -> NativeRecoveryScreen(client = productionAuth,
                         onBack = { detail = "production-auth" })
+                    "dashboard" -> NativeDashboardScreen(auth = productionAuth,
+                        onBack = { detail = dashboardReturn },
+                        onOpenPost = { id -> notificationPostId = id; postReturn = "dashboard"; detail = "post" })
                     "production-profile" -> NativeProfileScreen(auth = productionAuth,
                         onBack = { detail = profileReturn }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle -> viewedProfileHandle = handle; memberProfileReturn = "production-profile"; detail = "member-profile" },
-                        onOpenPosts = { detail = "my-posts" })
+                        onOpenPosts = { detail = "my-posts" },
+                        onOpenDashboard = { dashboardReturn = "production-profile"; detail = "dashboard" },
+                        onOpenPost = { id -> notificationPostId = id; postReturn = "production-profile"; detail = "post" })
                     "member-profile" -> NativeProfileScreen(auth = productionAuth, username = viewedProfileHandle,
-                        onBack = { detail = memberProfileReturn }, onSignIn = { detail = "production-auth" })
+                        onBack = { detail = memberProfileReturn }, onSignIn = { detail = "production-auth" },
+                        onStartMessage = { recipientId ->
+                            pendingMessagePeerId = recipientId
+                            detail = null
+                            root = 3
+                        },
+                        onOpenPost = { id -> notificationPostId = id; postReturn = "member-profile"; detail = "post" })
                     "my-posts" -> NativeOwnPostsScreen(auth = productionAuth, refreshKey = postsRefresh,
                         onBack = { detail = null; root = 4 }, onCreate = { composerOpen = true })
-                    "auth" -> NativeAuthScreen(client = stagingAuth, onBack = { detail = "settings" },
-                        onViewProfile = { profileReturn = "auth"; detail = "staging-profile" })
-                    "staging-profile" -> StagingProfileScreen(
-                        client = stagingAuth,
-                        onBack = { detail = profileReturn },
-                        onSignIn = { detail = "auth" }
-                    )
-                    "demo-home" -> HomeScreen(
-                        onOpenChat = { detail = "chat" },
-                        onToggleTheme = ::toggleTheme,
-                        onOpenNotifications = { detail = "notifications" },
-                        onOpenVideos = { detail = "videos" },
-                        onCreatePost = { composerOpen = true },
-                        onOpenProfile = { detail = null; root = 4 },
-                        onOpenMedia = ::openMedia,
-                        onOpenStagingFeed = { detail = "staging-feed" },
-                        onOpenProductionFeed = { detail = null; root = 0 },
-                        onNotice = ::notice
-                    )
                     "notifications" -> NativeNotificationsScreen(auth = productionAuth,
-                        onBack = { detail = null }, onSignIn = { detail = "production-auth" },
+                        onUnreadChanged = { unreadNotifications = it },
+                        onBack = {
+                            detail = if (menuEntryDestination == "notifications") "menu" else null
+                            menuEntryDestination = null
+                        }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle ->
                             viewedProfileHandle = handle; memberProfileReturn = "notifications"; detail = "member-profile"
                         }, onOpenRoom = { slug -> notificationRoomSlug = slug; roomReturn = "notifications"; detail = "rooms" },
@@ -271,7 +571,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onBack = { detail = postReturn }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle ->
                             viewedProfileHandle = handle; memberProfileReturn = "post"; detail = "member-profile"
-                        })
+                        }, initialComments = postReturn == "videos")
                     "videos" -> ProductionShortVideosScreen(auth = productionAuth,
                         onBack = { detail = null }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle ->
@@ -279,22 +579,24 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         })
                     "rooms" -> NativeRoomsScreen(auth = productionAuth,
                         onBack = {
-                            detail = if (notificationRoomSlug != null) roomReturn else null
+                            detail = if (notificationRoomSlug != null) roomReturn
+                                else if (menuEntryDestination == "rooms") "menu" else null
+                            menuEntryDestination = null
                             notificationRoomSlug = null
                         }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle ->
                             viewedProfileHandle = handle; memberProfileReturn = "rooms"; detail = "member-profile"
                         }, initialRoomSlug = notificationRoomSlug)
                     "media" -> MediaViewerScreen(startIndex = mediaStartIndex, onBack = ::closeMedia, onNotice = ::notice)
-                    else -> when (activeRoot) {
+                    else -> when (root) {
                         0 -> StagingFeedScreen(
                             auth = productionAuth,
                             onBack = {},
                             onSignIn = { detail = "production-auth" },
                             asHome = true,
-                            onOpenDemo = { detail = "demo-home" },
-                            onOpenStaging = { detail = "staging-feed" },
-                            onOpenNotifications = { detail = "notifications" },
+                            savedRequestVersion = savedRequestVersion,
+                            onOpenMenu = { detail = "menu" },
+                            onOpenNotifications = { menuEntryDestination = null; detail = "notifications" },
                             onOpenSettings = { detail = "settings" },
                             onOpenVideos = { detail = "videos" },
                             onOpenRooms = { detail = "rooms" },
@@ -305,21 +607,29 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             onSignIn = { detail = "production-auth" },
                             onOpenProfile = { handle ->
                                 viewedProfileHandle = handle; memberProfileReturn = null; detail = "member-profile"
-                            })
+                            },
+                            onOpenPost = { id -> notificationPostId = id; postReturn = null; detail = "post" })
                         3 -> NativeInboxScreen(auth = productionAuth,
                             onSignIn = { detail = "production-auth" },
+                            onOpenPrivacy = { settingsPrivacyFocus = true; detail = "settings" },
+                            onActivityVisibilityChanged = { activityRevision++ },
+                            initialPeerId = pendingMessagePeerId,
+                            onPeerConsumed = { pendingMessagePeerId = null },
                             onOpenProfile = { handle -> viewedProfileHandle = handle; memberProfileReturn = null; detail = "member-profile" },
                             initialConversationId = messageDeepId,
                             onDeepLinkConsumed = { messageDeepId = null })
                         4 -> NativeProfileScreen(auth = productionAuth,
                             onSignIn = { detail = "production-auth" },
                             onOpenProfile = { handle -> viewedProfileHandle = handle; memberProfileReturn = null; detail = "member-profile" },
-                            onOpenPosts = { detail = "my-posts" })
+                            onOpenPosts = { detail = "my-posts" },
+                            onOpenDashboard = { dashboardReturn = null; detail = "dashboard" },
+                            onOpenPost = { id -> notificationPostId = id; postReturn = null; detail = "post" })
                         else -> StagingFeedScreen(
                             auth = productionAuth, onBack = {}, onSignIn = { detail = "production-auth" },
-                            asHome = true, onOpenDemo = { detail = "demo-home" },
-                            onOpenStaging = { detail = "staging-feed" },
-                            onOpenNotifications = { detail = "notifications" },
+                            asHome = true,
+                            savedRequestVersion = savedRequestVersion,
+                            onOpenMenu = { detail = "menu" },
+                            onOpenNotifications = { menuEntryDestination = null; detail = "notifications" },
                             onOpenSettings = { detail = "settings" },
                             onOpenVideos = { detail = "videos" },
                             onOpenRooms = { detail = "rooms" },
@@ -327,7 +637,6 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             onOpenPost = { id -> notificationPostId = id; postReturn = null; detail = "post" }
                         )
                     }
-                }
                 }
             }
         }
@@ -342,5 +651,10 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                     onUploadActivity = { composerInFlight = it })
             }
         }
+                // Keep the final branch Unit-valued, even when the composer is closed.
+                Unit
+            }
+        }
+      }
     }
 }

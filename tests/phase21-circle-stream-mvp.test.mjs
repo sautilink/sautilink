@@ -64,7 +64,9 @@ test('Phase 21 browser source reads, writes and interacts within Circle Stream w
     assert.ok(source.includes(marker), `source missing Phase 21 marker: ${marker}`);
   }
 
-  assert.match(source, /JSON\.stringify\(\{ body, circle_id: circle\.id, reply_access: replyAccess \}\)/);
+  // Preserve required Room fields while allowing additive request metadata.
+  // Stable request IDs and retry outcomes have behavioral coverage in rooms-post-approval-behavior.
+  assert.match(source, /JSON\.stringify\(\{\s*body,\s*circle_id:\s*circle\.id,\s*reply_access:\s*replyAccess\s*(?:,|\})/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
   assert.doesNotMatch(source, /service_role|sb_secret_|SUPABASE_SECRET/i);
 });

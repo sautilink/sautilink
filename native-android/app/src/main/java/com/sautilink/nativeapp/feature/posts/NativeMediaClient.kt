@@ -16,6 +16,8 @@ import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -155,33 +157,52 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
     }
 
     suspend fun upload(uri: Uri, onProgress: (Int) -> Unit): NativeReadyMedia {
-        if (auth.backend != SautiBackend.PRODUCTION || auth.account == null)
+        val expectedOwner = auth.account?.id
+        if (auth.backend != SautiBackend.PRODUCTION || expectedOwner == null)
             throw AuthRequestException("Sign in to production before uploading media.")
+        fun checkOwner() {
+            if (auth.account?.id != expectedOwner)
+                throw AuthRequestException("Your account changed. Select the media again.")
+        }
         return uploads.withLock {
             withContext(Dispatchers.IO) {
+                currentCoroutineContext().ensureActive()
+                checkOwner()
                 val prepared = prepare(uri)
                 var remoteId: String? = null
+                var uploadToken: String? = null
                 try {
+                    currentCoroutineContext().ensureActive()
+                    checkOwner()
                     val token = auth.accessTokenForStagingRead()
+                    checkOwner()
+                    uploadToken = token
                     val begin = request("/api/sauti-media/begin", "POST", token,
                         JSONObject().put("content_type", prepared.type).put("size_bytes", prepared.file.length())
                             .toString().toRequestBody("application/json".toMediaType()))
                     val id = begin.optString("id")
                     if (!uuid.matches(id)) throw AuthRequestException("Upload reference was invalid.")
                     remoteId = id
+                    currentCoroutineContext().ensureActive()
+                    checkOwner()
                     val body = ProgressFileBody(prepared.file, prepared.type.toMediaType()) { value ->
-                        main.post { onProgress(value) }
+                        main.post { if (auth.account?.id == expectedOwner) onProgress(value) }
                     }
                     request("/api/sauti-media/upload/$id", "PUT", token, body)
+                    currentCoroutineContext().ensureActive()
+                    checkOwner()
                     val finalized = request("/api/sauti-media/finalize/$id", "POST", token)
                     if (!finalized.optBoolean("ready") || finalized.optString("id") != id)
                         throw AuthRequestException("Upload was not finalized.")
-                    main.post { onProgress(100) }
+                    currentCoroutineContext().ensureActive()
+                    checkOwner()
+                    main.post { if (auth.account?.id == expectedOwner) onProgress(100) }
                     NativeReadyMedia(id, prepared.kind)
                 } catch (e: Exception) {
-                    if (remoteId != null) withContext(NonCancellable) {
+                    val cleanupToken = uploadToken
+                    if (remoteId != null && cleanupToken != null) withContext(NonCancellable) {
                         runCatching {
-                            request("/api/sauti-media/$remoteId", "DELETE", auth.accessTokenForStagingRead())
+                            request("/api/sauti-media/$remoteId", "DELETE", cleanupToken)
                         }
                     }
                     throw e
