@@ -139,6 +139,18 @@ Run the executable backend behavior checks with Node 22.18+ or Node 24:
 node tests/play-integrity-monitor.test.mjs
 ```
 
+The direct command above is also suitable for CI. When using Node 24's `--test`
+runner, explicitly disable process isolation to enumerate the individual checks:
+
+```sh
+node --test --test-isolation=none --test-reporter=tap tests/play-integrity-monitor.test.mjs
+```
+
+Both commands were verified to run **23 named tests** on Node 24.19.0. Confirm
+that the output reports those 23 cases. In that local environment, plain
+`node --test` reported only a single file-level test, which is not evidence of
+the individual case results.
+
 The tests exercise the actual TypeScript modules, including real ephemeral RS256
 signing/verification with mocked HTTP, account/session/hash binding, package and
 timestamp failures, certificate/version mismatches, missing verdicts, request
@@ -151,6 +163,88 @@ per-user and global limits, daily resets, allowed summary fields, delayed result
 retention, and account deletion using synthetic fixtures, then rolls back.
 Execution of this file and a real device verdict are separate validation steps;
 the JavaScript tests do not establish either result.
+
+## Prepared deployment and activation record — 19 October 2026
+
+The initial Android source is commit
+`f82cfe1b3c5ed4e376a3ed125007fb599acaf042`, with app source tree
+`8de6734a0e62879f7207749a02f396151ed16666`. The signed candidate workflow is
+[run 39191409362](https://github.com/sautilink/sautilink/actions/runs/39191409362),
+triggered by automation commit `e2781b43aab7806f293c8133143bda3ad3e9ef7a`.
+Its backend gate passed all 23 behavior cases, Deno 2.9.6 type checking, the
+complete migration on PostgreSQL 17.11 with pg_cron, role-sensitive SQL checks,
+and a real two-connection consume race with observed lock contention.
+
+The production migration was applied as server-recorded version
+`20261019024713_play_integrity_monitor.sql`. The local migration was originally
+created by the Supabase CLI as `20261019023255_play_integrity_monitor.sql`; its
+filename was aligned to the actual remote migration record after deployment.
+The SQL content is identical. The original candidate source retains the original
+filename so that its immutable build and CI remain reproducible.
+
+Production Edge Function `sautilink-play-integrity` version 1 was deployed with
+`verify_jwt=true` and the reviewed four files. Its public default mode is **off**;
+no monitor-mode override, new credentials, or IAM permissions were configured.
+Readback matched all four source files. An unauthenticated request returned HTTP
+401. Production read-only checks confirmed both tables force RLS, ordinary
+users cannot read either table, only the server can execute the recording RPC,
+the cleanup job is active, and there are no observations or issued challenges.
+
+Post-deployment advisors introduced no warning or error. The informational
+findings are expected: the two private tables have RLS with no user policy
+(access is intentionally denied), and the new cleanup index has no usage yet.
+Existing project-wide warnings were not changed by this integration. See the
+[RLS advisory](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)
+and [unused-index advisory](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index)
+for their definitions.
+
+The Google Cloud project link and Google Play Integrity terms acceptance remain
+pending. No live Google OAuth/decode request or real-device verdict has been
+verified. Completing these checks is required before claiming the integration
+is active or publishing the accompanying privacy text in the present tense.
+
+### Data safety draft
+
+The existing Play Console declaration was inspected before editing. User IDs
+were already collected, required, non-ephemeral, and used for fraud prevention,
+security and compliance. Device or other IDs had the same collection and
+retention answers but only the app-functionality purpose. A draft was saved
+adding **Fraud prevention, security and compliance** to Device or other IDs.
+The draft has not been submitted as part of this activation.
+
+No extra Diagnostics, Crash logs, Other app performance data, or Installed apps
+declaration was added for this feature. This is a code-based mapping: the
+integration keeps security outcomes and bounded security counters, not client
+crashes, performance traces, or latency measurements. Reassess the mapping if
+those practices change. Existing unrelated declarations remain subject to their
+own review.
+
+### Privacy wording prepared for activation
+
+Apply the following addition to the **current** published privacy policy, in its
+storage/security section, after checking its current revision. The default
+branch policy inspected on 19 October has an effective date of 17 October 2026
+and a minimum age of 16. Do not replace it with this development branch's older
+privacy page. Advance the effective date to the actual publication date when
+the addition is released.
+
+**Android app integrity**
+
+Our Android app uses Google Play Integrity to assess app authenticity, Google
+Play licensing and device security. Google processes app metadata, licensing
+and device-attestation information for these checks. We send a hashed request
+reference and receive security results, which we associate with your SautiLink
+account. We retain the latest result and limited security counters to monitor
+abuse and improve protection. Google's handling of information for these checks
+is described in its
+[Play Integrity data-safety information](https://developer.android.com/google/play/integrity/terms#data-safety).
+
+Add this sentence to the retention section:
+
+We replace the account-linked integrity result when a newer check completes.
+Results expire after 30 days and are removed by daily cleanup within 31 days;
+short-lived counters limit how often checks run. Account-linked integrity
+records are removed when the account is deleted.
 
 ## Official references
 

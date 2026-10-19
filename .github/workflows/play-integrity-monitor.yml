@@ -60,7 +60,7 @@ jobs:
         run: >-
           python3 .github/scripts/play-integrity/run-db-checks.py
           --container sautilink-integrity-sql-test
-          --migration supabase/migrations/20261019023255_play_integrity_monitor.sql
+          --migration supabase/migrations/20261019024713_play_integrity_monitor.sql
       - name: Remove the disposable database
         if: always()
         run: docker rm --force sautilink-integrity-sql-test || true
