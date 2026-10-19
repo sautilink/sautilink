@@ -2,6 +2,7 @@ package com.sautilink.nativeapp.ui
 
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.util.Log
@@ -64,10 +65,14 @@ class NativeUiRegressionTest {
     @get:Rule val compose = createComposeRule(effectContext = noMotion)
 
     private fun signedOutFixture(): StagingAuthClient {
-        // A test APK has a package context but need not have an Application instance.
-        // Keep all vault preferences in that package, never the user's preview/production app.
-        val storage = object : ContextWrapper(InstrumentationRegistry.getInstrumentation().context) {
+        // Instrumentation executes under the preview UID. Its test-package data directory may
+        // not exist, so use a strictly prefixed store in the writable preview app sandbox.
+        val storage = object : ContextWrapper(
+            InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        ) {
             override fun getApplicationContext(): Context = this
+            override fun getSharedPreferences(name: String, mode: Int): SharedPreferences =
+                baseContext.getSharedPreferences("native_ui_fixture_$name", mode)
         }
         return StagingAuthClient("sb_publishable_offline_ui_fixture", storage,
             SautiBackend.PRODUCTION).apply { forgetSavedSession() }
@@ -96,6 +101,8 @@ class NativeUiRegressionTest {
     }
 
     private fun screenshot(name: String) {
+        // Material press indications are allowed to finish before a review image is exported.
+        compose.mainClock.advanceTimeBy(600)
         compose.waitForIdle()
         val context = InstrumentationRegistry.getInstrumentation().context
         val supplied = InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")
