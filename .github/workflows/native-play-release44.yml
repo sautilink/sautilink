@@ -1,0 +1,95 @@
+name: Approved Play release candidate 44
+
+on:
+  push:
+    branches: [design/native-ios-foundation-20261012]
+    paths:
+      - .github/workflows/native-play-release44.yml
+      - .github/scripts/play-candidate/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: approved-play-release44
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    if: >-
+      github.repository == 'sautilink/sautilink' &&
+      github.ref == 'refs/heads/design/native-ios-foundation-20261012' &&
+      github.event_name == 'push' && github.run_attempt == 1 &&
+      github.event.head_commit.message == 'ci: build approved Play release candidate 44' &&
+      github.event.forced == false && github.event.deleted == false
+    uses: ./.github/workflows/play-integrity-monitor.yml
+    with:
+      source_sha: f82cfe1b3c5ed4e376a3ed125007fb599acaf042
+  artifacts:
+    needs: backend
+    if: >-
+      github.repository == 'sautilink/sautilink' &&
+      github.ref == 'refs/heads/design/native-ios-foundation-20261012' &&
+      github.event_name == 'push' && github.run_attempt == 1 &&
+      github.event.head_commit.message == 'ci: build approved Play release candidate 44' &&
+      github.event.forced == false && github.event.deleted == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: automation
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          # Build the reviewed, immutable 1.0.2 (44) source commit.
+          # The same SHA and its app/src tree must be pinned in release44.py.
+          ref: f82cfe1b3c5ed4e376a3ed125007fb599acaf042
+          path: candidate
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+          cache-disabled: true
+      - name: Prepare pinned source, Firebase, existing signer and official bundletool
+        env:
+          FIREBASE_CONFIG: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON_BASE64 }}
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: python3 automation/.github/scripts/play-candidate/release44.py prepare
+      - name: Compile preview, build clean signed production AAB and run full production lint
+        working-directory: candidate/native-android
+        env:
+          SAUTILINK_KEYSTORE_PATH: ${{ runner.temp }}/sautilink-play-release44-upload.jks
+          SAUTILINK_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          SAUTILINK_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          SAUTILINK_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: >-
+          gradle :app:compilePreviewDebugKotlin :app:bundleProductionRelease :app:lintProductionRelease --no-daemon
+          --no-configuration-cache --max-workers=1 --no-parallel
+          -Pkotlin.compiler.execution.strategy=in-process
+          '-Dorg.gradle.jvmargs=-Xmx6144m -Dfile.encoding=UTF-8'
+      - name: Cache exact Kotlin compiler dependencies and verify caption behavior
+        run: python3 automation/.github/scripts/play-candidate/release44.py check-caption
+      - name: Verify monitor-only integrity behavior and read-only cached authentication
+        run: python3 automation/.github/scripts/play-candidate/release44.py check-integrity
+      - name: Verify signed AAB, production manifest, caption and integrity receipts and full lint
+        run: python3 automation/.github/scripts/play-candidate/release44.py seal-aab
+      - name: Seal exact artifact allowlist and checksums
+        run: python3 automation/.github/scripts/play-candidate/release44.py seal-outputs
+      - name: Remove transient signing, Firebase and behavior-check inputs
+        if: always()
+        run: python3 automation/.github/scripts/play-candidate/release44.py cleanup
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SautiLink-Play-Release44-${{ github.run_id }}
+          path: ${{ runner.temp }}/sautilink-release44-public/
+          if-no-files-found: error
+          retention-days: 7
