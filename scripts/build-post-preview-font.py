@@ -126,7 +126,7 @@ def build(cache):
             "notoLicense": {"url": f"{SOURCE_BASE}/OFL.txt", "sha256": NOTO_OFL_SHA},
         },
     }
-    (OUTPUT / "provenance.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    (OUTPUT / "provenance.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(json.dumps(report, indent=2))
 
 
