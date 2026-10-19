@@ -42,8 +42,8 @@ skips. These include actual image editor UI/export and source preservation,
 62-second input video clipped to a later 1.5-second interval with decoded frame
 and audio checks, comments at 320dp/150% text, fixed-header scrolling, Marketplace
 copy, menu destinations, 85 vector icons and existing auth/keyboard policies.
-Kotlin caption and media-policy checks pass. Full lint and immutable signed
-release checks remain required before publication. Release checks retain
+Kotlin caption and media-policy checks pass. Full local preview lint and signed
+production lint pass with zero errors. Release checks retain
 the existing upload certificate/Firebase pins and validate bundle manifest,
 caption/integrity behavior, 16KB library alignment, checksums and exact artifacts.
 
@@ -55,3 +55,26 @@ while still rejecting colored/dark interior pixels and an opaque background.
 The later measurement/docs commit changes no app/src/main content; its exact
 tree remains 9568065c2d2e31e3f894fc84114a528e1059fac5, matching candidate
 086ffa73af86756c1feae2ecd239d73454519a6d built by the release46 workflow.
+
+Release46 workflow 39301680613 completed successfully. Its exact artifact
+12213221255 was downloaded with its archive digest checked and independently
+verified offline: package com.sautilink.app, version 1.1.1 (46), minSdk 26,
+targetSdk 36, non-debuggable, original upload signer, all 600 payload entries
+signed, production Firebase identities, all five checksums, 191 caption checks,
+63 monitor-only integrity checks and 16KB-aligned 64-bit ELF load segments.
+AAB SHA-256: a0b114ffc3d95e2bae966a206fd1b24cb1bc741fff6209d10e71b276839ede20.
+The normal Native Android, Brand Guard and Phase 1 Authentication PR checks also
+passed on 3e828ca0abb2797b1140b20dfb391ae913daa795. This final receipt update
+changes documentation only and leaves the tested app/src/main tree unchanged.
+
+On 19 October 2026 at 21:48 EAT, Play Console confirmed release46 available to
+internal testers on the existing Internal track (release 5). The same uploaded
+bundle was promoted to existing Closed Alpha with 100% rollout to that track's
+existing audience and submitted to Google. At 21:49 EAT Publishing overview
+confirmed “Changes in review” for “1.1.1 (46) - Web parity - Closed Alpha”, with
+Google quick checks still running. Public production access, tester lists,
+countries, store assets and managed publishing settings were not changed.
+No claim is made of Alpha approval, Play-installed testing or physical 16KB
+device runtime testing. Google displayed only the two non-blocking mapping and
+native-symbol upload recommendations. Local release evidence and screenshots
+are in outputs/SautiLink-1.1.1-46 in the task workspace, outside this worktree.
