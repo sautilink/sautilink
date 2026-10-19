@@ -1,5 +1,11 @@
 /* Public information only: shared Huge pictograms, with the existing site layouts. */
 body[data-public-icons] { min-width: 0; }
+body.contact-page[data-public-selects] .sl-select-trigger {
+  min-height: 55px;
+  border-radius: 13px;
+  background: var(--legal-surface-solid);
+  font-size: 14px;
+}
 body[data-public-icons] .public-icon { vertical-align: -.12em; }
 body[data-public-icons] .public-icon-link {
   display: inline-flex;
