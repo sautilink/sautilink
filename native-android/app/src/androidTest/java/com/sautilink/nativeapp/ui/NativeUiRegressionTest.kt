@@ -20,13 +20,18 @@ import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -54,7 +59,7 @@ import java.io.File
 
 /**
  * Real Compose rendering in an empty test host. MainActivity is never started.
- * Auth has an empty account in the instrumentation APK's isolated preferences.
+ * Auth has an empty account in strictly prefixed fixture preferences in the preview sandbox.
  * No test presses a submit/send button, restores a session, or requests backend data.
  * Screenshots are review artifacts rather than comparisons against unreviewed goldens.
  */
@@ -116,6 +121,35 @@ class NativeUiRegressionTest {
         Log.i("SautiUiScreenshot", output.absolutePath)
     }
 
+    private fun assertReadableDarkText(text: String) {
+        val node = compose.onNodeWithText(text).performScrollTo().assertIsDisplayed()
+        compose.waitForIdle()
+        val pixels = node.captureToImage().toPixelMap()
+        var samples = 0
+        var readableInk = 0
+        for (y in 0 until pixels.height step 2) for (x in 0 until pixels.width step 2) {
+            samples++
+            if (pixels[x, y].luminance() > .35f) readableInk++
+        }
+        assertTrue("'$text' needs visible light ink on the dark background; found $readableInk/$samples pixels",
+            samples > 0 && readableInk.toFloat() / samples > .02f)
+    }
+
+    private fun assertMethodLabelsFit() {
+        val methodParent = SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)
+        listOf("Password", "Email code", "Phone code").forEach { label ->
+            val layouts = mutableListOf<TextLayoutResult>()
+            compose.onNode(hasText(label) and hasAnyAncestor(methodParent), useUnmergedTree = true).performScrollTo()
+                .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            assertTrue("Missing text layout for $label", layouts.isNotEmpty())
+            layouts.forEach { layout ->
+                assertEquals("$label should remain readable on one line at large text", 1, layout.lineCount)
+                assertFalse("$label must not clip or ellipsize", layout.hasVisualOverflow)
+            }
+        }
+        compose.onNode(hasText("Password") and hasAnyAncestor(methodParent), useUnmergedTree = true).performScrollTo()
+    }
+
     @Test fun realLogin_light390_keepsAllMethodsAndNavigation() {
         val client = signedOutFixture()
         var registrations = 0
@@ -147,6 +181,8 @@ class NativeUiRegressionTest {
             NativeAuthScreen(client, {}, {}, onRegister = {}, onRecovery = {}, isEntry = true)
         } }
         compose.onNodeWithText("Welcome back").assertIsDisplayed()
+        assertReadableDarkText("Welcome back")
+        assertMethodLabelsFit()
         screenshot("login-dark-320-font150-top")
         compose.onNodeWithText("Create an account").performScrollTo().assertIsDisplayed()
         screenshot("login-dark-320-font150-actions")
@@ -175,6 +211,7 @@ class NativeUiRegressionTest {
             NativeRecoveryScreen(client, {})
         } }
         compose.onNodeWithText("Let’s get you back in").assertExists()
+        assertReadableDarkText("Let’s get you back in")
         compose.onNode(hasSetTextAction() and hasText("Email address")).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Send recovery link").performScrollTo().assertIsNotEnabled()
         screenshot("recovery-dark-320-font150")

@@ -3,6 +3,9 @@ package com.sautilink.nativeapp.feature.auth
 import com.sautilink.nativeapp.ui.components.SautiCopyrightFooter
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -207,21 +210,24 @@ fun NativeAuthScreen(client: StagingAuthClient, onBack: () -> Unit, onViewProfil
                 }
             }
         } else {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                LoginMethod.entries.forEachIndexed { index, option ->
-                    SegmentedButton(
+            Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LoginMethod.entries.forEach { option ->
+                    FilterChip(
                         selected = method == option,
                         onClick = { method = option; message = null; code = ""; codeRequested = false },
                         enabled = !loading,
-                        shape = SegmentedButtonDefaults.itemShape(index, LoginMethod.entries.size),
-                        icon = {
+                        modifier = Modifier.heightIn(min = 48.dp),
+                        shape = SautiShape.Pill,
+                        leadingIcon = {
                             Icon(when (option) {
                                 LoginMethod.PASSWORD -> Icons.Rounded.Lock
                                 LoginMethod.EMAIL_CODE -> Icons.Rounded.AlternateEmail
                                 LoginMethod.PHONE_CODE -> Icons.Rounded.PhoneAndroid
                             }, null, Modifier.size(18.dp), selected = method == option)
-                        }
-                    ) { Text(option.label, style = MaterialTheme.typography.labelSmall) }
+                        },
+                        label = { Text(option.label, style = MaterialTheme.typography.labelSmall, maxLines = 1) }
+                    )
                 }
             }
 
