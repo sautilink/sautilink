@@ -39,7 +39,7 @@ function styleSelectors(css) {
 }
 
 test('member presentation remains gated away from every account-entry state', async () => {
-  for (const file of ['member-ios.css', 'member-ios-surfaces.css', 'member-ios-icons.css', 'member-animated-icons.css', 'member-profile-tabs.css']) {
+  for (const file of ['member-ios.css', 'member-ios-surfaces.css', 'member-ios-icons.css', 'member-animated-icons.css', 'member-profile-tabs.css', 'member-builtin-controls.css', 'member-builtin-dialogs.css', 'member-builtin-color.css', 'member-builtin-files.css', 'member-builtin-media.css']) {
     const selectors = styleSelectors(await read(`app/assets/${file}`));
     assert.ok(selectors.length > 0, `${file} must contain scoped presentation rules`);
     for (const selector of selectors) {

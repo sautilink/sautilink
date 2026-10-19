@@ -7,6 +7,8 @@ const memberAnimatedIconAssets = [
   'runtime.js', 'manifest.json', 'LICENSE', 'LICENSE-MOTION.md', 'NOTICE.md',
   'THIRD_PARTY_NOTICES.md',
 ].map((name) => `app/assets/huge-icons/${name}`);
+const memberBuiltinAssets = ['controls', 'dialogs', 'color', 'files', 'media']
+  .flatMap((name) => ['css', 'js'].map((extension) => `app/assets/member-builtin-${name}.${extension}`));
 
 test('preview is isolated, noindex and cannot connect to production services', async () => {
   const sourceHtml = await read('preview-src/app-shell/index.html');
@@ -115,6 +117,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     assert.ok(files.includes(`app/assets/${asset}`));
   }
   for (const asset of memberAnimatedIconAssets) assert.ok(files.includes(asset), `staged animated icon asset is missing: ${asset}`);
+  for (const asset of memberBuiltinAssets) assert.ok(files.includes(asset), `staged member control asset is missing: ${asset}`);
   assert.ok(files.includes('app/assets/mobile-nav-icon-style.css'));
   assert.ok(files.includes('app/assets/mobile-more-drawer.css'));
   assert.ok(files.includes('app/assets/post-edit.css'));
@@ -172,6 +175,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
 
   const exactAllowed = new Set([
     ...memberAnimatedIconAssets,
+    ...memberBuiltinAssets,
     '_headers',
     '_redirects',
     'sw.js',

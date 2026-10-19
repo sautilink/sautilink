@@ -1,0 +1,129 @@
+/* Native fields keep their data and validation; these surfaces are member-only. */
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select[hidden] { display: none; }
+body:not(.auth-entry):has(#member-view:not([hidden])) select[data-sl-native-select] {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  pointer-events: none !important;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  gap: 12px;
+  padding: 10px 13px;
+  border: 1px solid var(--ios-line);
+  border-radius: 13px;
+  background: var(--ios-secondary);
+  color: var(--ios-ink);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-trigger:hover { background: color-mix(in srgb, var(--ios-blue) 5%, var(--ios-secondary)); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-trigger:focus-visible,
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-open .sl-select-trigger {
+  border-color: var(--ios-blue);
+  box-shadow: 0 0 0 3px var(--ios-blue-soft);
+  outline: 0;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-trigger:disabled { cursor: default; opacity: .45; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-trigger[aria-invalid="true"] { border-color: var(--app-bad); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-placeholder .sl-select-value { color: var(--ios-muted); }
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.sl-select-trigger, .sl-select-option) > svg {
+  display: block;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--ios-muted);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-menu {
+  position: fixed;
+  z-index: 2147483000;
+  inset: auto;
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  padding: 6px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  border: 1px solid var(--ios-line);
+  border-radius: 18px;
+  background: var(--ios-elevated);
+  color: var(--ios-ink);
+  box-shadow: 0 18px 60px #10182826, 0 4px 12px #10182812;
+  font: inherit;
+  isolation: isolate;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-menu::backdrop { background: transparent; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-option > span { min-width: 0; overflow-wrap: anywhere; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-option > svg { visibility: hidden; color: var(--ios-blue); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-option[aria-selected="true"] { color: var(--ios-blue); font-weight: 650; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-option[aria-selected="true"] > svg { visibility: visible; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-option.sl-select-highlighted { background: var(--ios-blue-soft); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-option[aria-disabled="true"] { opacity: .38; cursor: default; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-group { padding: 12px 12px 5px; color: var(--ios-muted); font-size: 10px; font-weight: 650; letter-spacing: .04em; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-field-error { display: block; margin: 6px 0 0; color: var(--app-bad); font-size: 12px; line-height: 1.5; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .composer-select .sl-select { flex: 1 1 auto; width: auto; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .composer-select .sl-select-trigger { min-height: 30px; gap: 5px; padding: 4px 2px 4px 4px; border: 0; border-radius: 7px; background: transparent; font-size: 11px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .composer-select .sl-select-trigger > svg { flex-basis: 14px; width: 14px; height: 14px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .composer-select .sl-select-value { max-width: 180px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-select > .sl-select { flex: 0 1 210px; width: min(100%, 210px); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .birth-date-control > .sl-select { width: 100%; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .birth-date-control .sl-select-trigger { min-height: 44px; gap: 2px; padding: 0 6px; border: 0; border-radius: 0; background: transparent; font-size: 12px; box-shadow: none; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .birth-date-control .sl-select-trigger > svg { flex-basis: 12px; width: 12px; height: 12px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .professional-insights-controls > .sl-select { width: auto; min-width: 140px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .moderation-filter-row > .sl-select { width: auto; min-width: 150px; }
+@media (max-width: 600px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-menu { border-radius: 17px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-option { min-height: 48px; font-size: 14px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .settings-select > .sl-select { flex-basis: auto; width: 100%; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .composer-select .sl-select-value { max-width: 126px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) .sl-select-trigger { transition: none; }
+}

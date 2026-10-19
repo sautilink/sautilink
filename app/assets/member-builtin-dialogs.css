@@ -1,0 +1,98 @@
+/* Top-layer member confirmations and sheets; account-entry presentation is untouched. */
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog {
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 32px));
+  max-height: min(85dvh, 760px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--ios-line, #e7e7ed);
+  border-radius: 26px;
+  background: var(--ios-surface, #fff);
+  color: var(--ios-ink, #1c1c1e);
+  box-shadow: 0 24px 90px #0003;
+  font: inherit;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog::backdrop {
+  background: #10141d66;
+  backdrop-filter: blur(8px);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog-form { display: grid; gap: 14px; margin: 0; padding: 26px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog-badge {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 2px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--ios-blue, #0068df) 10%, transparent);
+  color: var(--ios-blue, #0068df);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog[data-tone="destructive"] .member-builtin-dialog-badge { background: color-mix(in srgb, var(--ios-rose, #ce335c) 10%, transparent); color: var(--ios-rose, #ce335c); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog h2 { margin: 0; font-size: 22px; line-height: 1.2; font-weight: 750; letter-spacing: -.5px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog p { margin: 0; color: var(--ios-muted, #686873); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog-input-label { margin-top: 4px; font-size: 13px; font-weight: 650; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 110px;
+  margin: -5px 0 0;
+  padding: 13px 14px;
+  border: 1px solid var(--ios-line, #e7e7ed);
+  border-radius: 14px;
+  background: var(--ios-secondary, #f5f6f8);
+  color: var(--ios-ink, #1c1c1e);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  resize: vertical;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog-actions { display: flex; gap: 10px; margin-top: 9px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog-actions > button {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  margin: 0;
+  padding: 11px 17px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--ios-secondary, #f5f6f8);
+  color: var(--ios-ink, #1c1c1e);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog-actions > .member-builtin-dialog-confirm { background: var(--ios-blue, #0068df); color: #fff; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog[data-tone="destructive"] .member-builtin-dialog-confirm { background: #c93455; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog button:focus-visible,
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog textarea:focus-visible { outline: 2px solid var(--ios-blue, #0068df); outline-offset: 3px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog-choices { display: grid; gap: 8px; margin-top: 2px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog-choice {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  min-height: 60px;
+  margin: 0;
+  padding: 13px 15px;
+  border: 1px solid var(--ios-line, #e7e7ed);
+  border-radius: 15px;
+  background: var(--ios-secondary, #f5f6f8);
+  color: var(--ios-ink, #1c1c1e);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog-choice > svg { flex: 0 0 22px; color: var(--ios-blue, #0068df); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog-choice > span { display: grid; gap: 3px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog-choice strong { font-size: 14px; font-weight: 650; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog-choice small { color: var(--ios-muted, #686873); font-size: 12px; line-height: 1.4; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog [hidden] { display: none !important; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog[data-builtin-fallback] { position: fixed; inset: 0; z-index: 2147483646; }
+@media (max-width: 520px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog { width: calc(100vw - 24px); margin-block: auto max(12px, env(safe-area-inset-bottom)); border-radius: 26px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .member-builtin-dialog-form { padding: 23px; }
+}
