@@ -1,0 +1,27 @@
+/* The editor is mounted only for signed-in member surfaces. */
+body:not(.auth-entry):has(#member-view:not([hidden])) [data-sl-color-native] { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; border: 0 !important; opacity: 0 !important; pointer-events: none !important; clip-path: inset(50%); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color { min-width: 0; margin-top: 10px; color: var(--ios-ink, #1c1c1e); font: inherit; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color * { box-sizing: border-box; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color [hidden] { display: none !important; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-trigger { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 10px 13px; border: 1px solid var(--ios-line, #dddfe5); border-radius: 14px; background: var(--ios-surface, #fff); color: inherit; cursor: pointer; font: inherit; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-trigger:focus-visible { outline: 3px solid var(--ios-blue, #0068df); outline-offset: 3px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-dot { width: 25px; height: 25px; border-radius: 8px; box-shadow: inset 0 0 0 1px #8884; flex-shrink: 0; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-value { font-size: 13px; font-weight: 650; letter-spacing: .03em; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-edit { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--ios-blue, #0068df); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-panel { margin-top: 8px; padding: 18px; border: 1px solid var(--ios-line, #dddfe5); border-radius: 18px; background: var(--ios-surface, #fff); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 14px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-preview { width: 34px; height: 34px; border-radius: 11px; border: 1px solid #8884; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-palette { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-swatch { width: 100%; min-width: 0; min-height: 32px; padding: 0; aspect-ratio: 1.4; border: 2px solid transparent; border-radius: 10px; cursor: pointer; box-shadow: inset 0 0 0 1px #8884; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-swatch[aria-pressed="true"] { outline: 2px solid var(--ios-blue, #0068df); outline-offset: 3px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-swatch:focus-visible { outline: 3px solid var(--ios-ink, #1c1c1e); outline-offset: 3px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-sliders { display: grid; gap: 14px; margin-top: 22px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-slider { display: grid; gap: 8px; margin: 0; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-slider-caption { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-slider-caption output { color: var(--ios-muted, #686873); font-variant-numeric: tabular-nums; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-slider input[type="range"] { appearance: none; width: 100%; height: 6px; margin: 6px 0; padding: 0; border: 0; border-radius: 4px; background: var(--ios-secondary, #e9ebf0); accent-color: var(--ios-blue, #0068df); cursor: pointer; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-slider input[type="range"]::-webkit-slider-thumb { appearance: none; width: 22px; height: 22px; border: 2px solid var(--ios-surface, #fff); border-radius: 50%; background: var(--ios-blue, #0068df); box-shadow: 0 1px 5px #0003; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-slider input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 2px solid var(--ios-surface, #fff); border-radius: 50%; background: var(--ios-blue, #0068df); box-shadow: 0 1px 5px #0003; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-hex-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; font-size: 12px; font-weight: 600; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-hex-row input { width: 112px; min-height: 40px; padding: 8px 12px; border: 1px solid var(--ios-line, #dddfe5); border-radius: 10px; background: var(--ios-bg, #f5f6f8); color: inherit; font: 13px ui-monospace, monospace; text-transform: uppercase; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sl-color-error { margin: 8px 0 0; color: var(--ios-danger, #ce335c); font-size: 12px; }

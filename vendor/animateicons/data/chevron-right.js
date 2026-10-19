@@ -1,0 +1,2 @@
+var t={name:"chevron-right",library:"huge",tag:"svg",attrs:{xmlns:"http://www.w3.org/2000/svg",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor","stroke-width":"2","stroke-linecap":"round","stroke-linejoin":"round"},children:[{tag:"path",attrs:{d:"M9.00005 6C9.00005 6 15 10.4189 15 12C15 13.5812 9 18 9 18"},normal:{x:0},animate:{x:[0,2.5,-0.625,0],transition:{duration:.6,ease:"easeInOut",times:[0,.4,.75,1]}}}]};
+export{t as a};

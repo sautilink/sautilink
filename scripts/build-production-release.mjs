@@ -8,6 +8,8 @@ import { transformBootstrapResilienceSource } from './bootstrap-resilience-sourc
 import { transformLoginBootSource } from './login-boot-source-transform.mjs';
 import { transformMediaPerformanceSource } from './media-performance-source-transform.mjs';
 import { transformMemberBootstrapResilienceSource } from './member-bootstrap-resilience-source-transform.mjs';
+import { transformMemberDialogSource } from './member-dialog-source-transform.mjs';
+import { transformMemberShareSource } from './member-share-source-transform.mjs';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformMessagesDurableRealtimeSource } from './messages-durable-realtime-source-transform.mjs';
 import { transformMessagesMediaSource } from './messages-media-source-transform.mjs';
@@ -25,6 +27,8 @@ import { transformVideoPlayerSource } from './video-player-source-transform.mjs'
 import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+await import('./build-member-icons.mjs');
+await import('./build-member-controls.mjs');
 const workerRoot = resolve(projectRoot, 'dist-production-worker');
 const workerSource = resolve(workerRoot, 'src');
 const productionAppSource = resolve(workerSource, 'app.js');
@@ -157,6 +161,8 @@ for (const file of await walk(workerSource)) {
   output = transformRoomOpenPerformanceSource(file, output);
   output = transformRoomCoverPerformanceSource(file, output);
   output = transformRoomPreviewCoverStabilitySource(file, output);
+  output = transformMemberDialogSource(file, output);
+  output = transformMemberShareSource(file, output);
   if (file === productionAppSource) {
     output = transformVerificationCaseFlowSource(file, output);
   }
@@ -222,6 +228,7 @@ await build({
     resolve(workerSource, 'rooms-transient-surfaces.js'),
     resolve(workerSource, 'android-push-notifications.js'),
     resolve(workerSource, 'web-push-notifications.js'),
+    resolve(workerSource, 'member-builtin-dialogs.js'),
   ],
   outfile: resolve(siteRoot, 'app/assets/app.js'),
   bundle: true,

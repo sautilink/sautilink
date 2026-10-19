@@ -7,6 +7,8 @@ import { transformAuthSessionStabilitySource } from './auth-session-stability-so
 import { transformBootstrapResilienceSource } from './bootstrap-resilience-source-transform.mjs';
 import { transformMediaPerformanceSource } from './media-performance-source-transform.mjs';
 import { transformMemberBootstrapResilienceSource } from './member-bootstrap-resilience-source-transform.mjs';
+import { transformMemberDialogSource } from './member-dialog-source-transform.mjs';
+import { transformMemberShareSource } from './member-share-source-transform.mjs';
 import { transformMentionNotificationSource } from './mention-notification-source-transform.mjs';
 import { transformMessagesDurableRealtimeSource } from './messages-durable-realtime-source-transform.mjs';
 import { transformMessagesMediaSource } from './messages-media-source-transform.mjs';
@@ -25,7 +27,7 @@ import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const appSourcePath = resolve(projectRoot, 'src/app.js');
-const appSource = transformMessagesReplySource(appSourcePath, transformRoomOpenPerformanceSource(
+const baseAppSource = transformMessagesReplySource(appSourcePath, transformRoomOpenPerformanceSource(
   appSourcePath,
   transformVerificationCaseFlowSource(
     appSourcePath,
@@ -68,6 +70,7 @@ const appSource = transformMessagesReplySource(appSourcePath, transformRoomOpenP
     ),
   ),
 ));
+const appSource = transformMemberShareSource(appSourcePath, transformMemberDialogSource(appSourcePath, baseAppSource));
 
 const profileTabIconsPlugin = {
   name: 'profile-tab-icons',
@@ -83,7 +86,7 @@ const roomsStartupIsolationPlugin = {
   name: 'rooms-startup-isolation',
   setup(buildApi) {
     buildApi.onLoad({ filter: /rooms-(?:platform|facebook-ui)\.js$/ }, async ({ path }) => ({
-      contents: transformRoomPreviewCoverStabilitySource(
+      contents: transformMemberShareSource(path, transformMemberDialogSource(path, transformRoomPreviewCoverStabilitySource(
         path,
         transformRoomCoverPerformanceSource(
           path,
@@ -92,7 +95,7 @@ const roomsStartupIsolationPlugin = {
             transformRoomsStartupIsolationSource(path, await readFile(path, 'utf8')),
           ),
         ),
-      ),
+      ))),
       loader: 'js',
     }));
   },
@@ -142,6 +145,7 @@ await build({
     resolve(projectRoot, 'src/sautilink-video-player.js'),
     resolve(projectRoot, 'src/android-push-notifications.js'),
     resolve(projectRoot, 'src/web-push-notifications.js'),
+    resolve(projectRoot, 'src/member-builtin-dialogs.js'),
   ],
   plugins: [profileTabIconsPlugin, roomsStartupIsolationPlugin],
   outfile: resolve(projectRoot, 'app/assets/app.js'),
@@ -162,3 +166,6 @@ await build({
   target: 'es2022',
   sourcemap: false,
 });
+
+await import('./build-member-icons.mjs');
+await import('./build-member-controls.mjs');

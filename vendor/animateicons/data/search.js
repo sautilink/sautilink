@@ -1,0 +1,2 @@
+var t={name:"search",library:"huge",tag:"svg",attrs:{xmlns:"http://www.w3.org/2000/svg",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor","stroke-width":"2","stroke-linecap":"round","stroke-linejoin":"round"},children:[{tag:"g",normal:{x:0,y:0,rotate:0},animate:{x:[0,2,-2,1,0],y:[0,-1,2,-1,0],rotate:[0,6,-6,4,0],transition:{duration:.7,ease:"easeInOut"}},style:{transformBox:"view-box",originX:"11px",originY:"11px"},children:[{tag:"circle",attrs:{cx:"11",cy:"11",r:"8"}},{tag:"path",attrs:{d:"M17 17L21 21"}}]}]};
+export{t as a};

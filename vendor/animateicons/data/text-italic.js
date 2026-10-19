@@ -1,0 +1,2 @@
+var t={name:"text-italic",library:"huge",tag:"svg",attrs:{xmlns:"http://www.w3.org/2000/svg",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor","stroke-width":"2","stroke-linecap":"round","stroke-linejoin":"round"},children:[{tag:"g",normal:{skewX:0},animate:{skewX:[0,-14,4,0],transition:{duration:.6,ease:"easeInOut",times:[0,.4,.75,1]}},style:{transformBox:"view-box",originX:"12px",originY:"12px"},children:[{tag:"path",attrs:{d:"M12 4H19"}},{tag:"path",attrs:{d:"M8 20L16 4"}},{tag:"path",attrs:{d:"M5 20H12"}}]}]};
+export{t as a};

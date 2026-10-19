@@ -1,0 +1,2 @@
+var t={name:"cloud",library:"lucide",tag:"svg",attrs:{xmlns:"http://www.w3.org/2000/svg",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor","stroke-width":"2","stroke-linecap":"round","stroke-linejoin":"round"},children:[{tag:"path",attrs:{d:"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"},normal:{x:0},animate:{x:[0,1,-0.5,0],transition:{duration:.7,ease:"easeInOut",times:[0,.35,.7,1]}}}]};
+export{t as a};

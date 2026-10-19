@@ -7,13 +7,15 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('Privacy Policy describes the live SautiLink product rather than pre-launch plans', async () => {
   const privacy = await read('privacy.html');
 
-  assert.match(privacy, /Effective<\/strong> October 17, 2026/);
+  assert.match(privacy, /Effective<\/strong> October 19, 2026/);
   assert.match(privacy, /Account deletion is available now/);
   assert.match(privacy, /Direct messages are private from the public/);
   assert.match(privacy, /Private Rooms/);
   assert.match(privacy, /supported connected-account sign-in method/);
   assert.match(privacy, /Ivy Network PLC/);
   assert.match(privacy, /https:\/\/www\.ivynetwork\.co\.uk\//);
+  assert.match(privacy, /Our Android app uses Google Play Integrity/);
+  assert.match(privacy, /Results expire after 30 days/);
   assert.doesNotMatch(privacy, /pre-launch/i);
   assert.doesNotMatch(privacy, /when accounts launch/i);
   assert.doesNotMatch(privacy, /future SautiLink accounts/i);
@@ -33,9 +35,9 @@ test('Terms cover current Rooms, identity, moderation and platform safety', asyn
   assert.match(terms, /href="\/upload-guidelines"/);
   assert.doesNotMatch(terms, /pre-launch/i);
   assert.doesNotMatch(terms, /when those features launch/i);
-  for (const page of [privacy, terms]) {
-    assert.doesNotMatch(page, /Supabase|Cloudflare|Google|Facebook|Microsoft|TikTok/i);
-  }
+  // Privacy now discloses Play Integrity processing; Terms remain vendor-neutral.
+  assert.doesNotMatch(privacy, /Supabase|Cloudflare|Facebook|Microsoft|TikTok/i);
+  assert.doesNotMatch(terms, /Supabase|Cloudflare|Google|Facebook|Microsoft|TikTok/i);
 });
 
 test('Privacy and Terms use the scoped document-first legal layout', async () => {

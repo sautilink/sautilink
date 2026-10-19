@@ -11,7 +11,11 @@ test('Phase 13 profile basics remain live on desktop and mobile', async () => {
     'profile-location-input', 'profile-website-input', 'profile-discoverable-input',
   ]) assert.match(html, new RegExp(`id="${id}"`));
 
-  assert.equal((html.match(/data-member-view="profile"/g) || []).length, 2);
+  const desktopNavigation = html.match(/<nav class="app-nav" aria-label="Social navigation">[\s\S]*?<\/nav>/)?.[0] || '';
+  const mobileNavigation = html.match(/<nav class="mobile-nav"[\s\S]*?<\/nav>/)?.[0] || '';
+  for (const navigation of [desktopNavigation, mobileNavigation]) {
+    assert.equal((navigation.match(/data-member-view="profile"/g) || []).length, 1);
+  }
   assert.match(html, /name="bio" maxlength="500"/);
   assert.match(html, /name="location" type="text" maxlength="100"/);
   assert.match(html, /name="website" type="url" maxlength="2048"/);

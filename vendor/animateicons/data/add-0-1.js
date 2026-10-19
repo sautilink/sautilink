@@ -1,0 +1,2 @@
+var t={name:"add-0-1",library:"huge",tag:"svg",attrs:{xmlns:"http://www.w3.org/2000/svg",viewBox:"0 0 24 24",fill:"none",stroke:"currentColor","stroke-width":"2","stroke-linecap":"round","stroke-linejoin":"round"},children:[{tag:"g",normal:{rotate:0,scale:1,transition:{duration:0}},animate:{rotate:[0,90],scale:[1,1.2,1],transition:{duration:.5,ease:"easeInOut"}},style:{transformBox:"view-box",originX:"12px",originY:"12px"},children:[{tag:"path",attrs:{d:"M12.001 5.00003V19.002"}},{tag:"path",attrs:{d:"M19.002 12.002L4.99998 12.002"}}]}]};
+export{t as a};

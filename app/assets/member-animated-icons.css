@@ -1,0 +1,61 @@
+/* A single icon family throughout member surfaces. IDs, dimensions, states and
+ * theme-specific visibility stay on the application's original SVG nodes. */
+body:not(.auth-entry):has(#member-view:not([hidden])) svg[data-sl-huge-icon] {
+  flex-shrink: 0;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  overflow: visible;
+  vertical-align: middle;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) svg[data-sl-huge-text] {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  pointer-events: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions button:is([data-sauti-action="like"], [data-sauti-action="save"]):is(.active, [aria-pressed="true"]) > svg[data-sl-huge-icon] { fill: currentColor; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #message-voice-button.recording > svg[data-sl-huge-icon] { color: var(--ios-icon-rose, #ce335c); }
+body:not(.auth-entry):has(#member-view:not([hidden])) [data-sl-huge-before]::before,
+body:not(.auth-entry):has(#member-view:not([hidden])) [data-sl-huge-after]::after,
+body:not(.auth-entry):has(#member-view:not([hidden])) [data-sl-huge-decoration]::after { content: none !important; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-search[data-sl-huge-before] > svg[data-sl-huge-text] {
+  position: absolute;
+  left: 30px;
+  top: calc(50% - 4px);
+  transform: translateY(-50%);
+  color: var(--ios-muted, var(--app-muted));
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-wa-app-back-chevron > svg[data-sl-huge-text],
+body:not(.auth-entry):has(#member-view:not([hidden])) .message-thread-back-chevron > svg[data-sl-huge-text] { width: 24px; height: 24px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-wa-thread-menu > summary > svg[data-sl-huge-text] { width: 24px; height: 24px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .dm-message[data-sl-huge-after] > svg[data-sl-huge-text] {
+  display: none;
+  position: absolute;
+  top: 50%;
+  right: -43px;
+  width: 30px;
+  height: 30px;
+  padding: 6px;
+  border: 1px solid var(--message-line);
+  border-radius: 50%;
+  background: var(--message-panel-soft);
+  color: var(--message-brand);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%) scale(.82);
+  transition: opacity .12s ease, transform .12s ease;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .dm-message.reply-swipe-active[data-sl-huge-after] > svg[data-sl-huge-text] { display: block; opacity: 1; transform: translateY(-50%) scale(1); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .notification-item[data-sl-huge-after] > svg[data-sl-huge-text],
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-video-quality-option[data-sl-huge-after] > svg[data-sl-huge-text] { margin-left: auto; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .notification-item[data-sl-huge-after] > svg[data-sl-huge-text] { align-self: center; color: var(--ios-muted, var(--app-muted)); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-wa-placeholder-mark[data-sl-huge-decoration] { display: grid; place-items: center; border: 0; border-radius: 0; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-wa-placeholder-mark[data-sl-huge-decoration] > svg[data-sl-huge-text] { width: 64px; height: 64px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-wa-menu-button[data-sl-huge-decoration] > span { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) svg[data-sl-huge-icon] { animation: none !important; transition: none !important; }
+}
