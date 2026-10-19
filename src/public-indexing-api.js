@@ -1,4 +1,5 @@
 import { servePublicSautiMediaPreview } from './sauti-media-api.js';
+import { parsePostFormatting, postTextPlainText } from './post-text-formatting.js';
 
 const PRIMARY_ORIGIN = 'https://sautilink.com';
 const STAGING_HOST = 'test.sautilink.com';
@@ -73,6 +74,13 @@ function plainText(value, limit = 160) {
   return `${text.slice(0, Math.max(1, limit - 1)).trimEnd()}…`;
 }
 
+function formattedPostHtml(value) {
+  const render = (nodes) => nodes.map((node) => (
+    node.tag ? `<${node.tag}>${render(node.children)}</${node.tag}>` : htmlEscape(node.text).replace(/\r?\n/g, '<br>')
+  )).join('');
+  return render(parsePostFormatting(value));
+}
+
 function safeHttpUrl(value) {
   try {
     const parsed = new URL(String(value || ''));
@@ -108,7 +116,8 @@ function publicPostMediaUrl(postId, mediaId, kind = 'image') {
 
 function publicPostCardUrl(postId, updatedAt = '') {
   const stamp = encodeURIComponent(isoDate(updatedAt) || '1');
-  return `${PRIMARY_ORIGIN}/api/public-post-card/${postId}.png?v=${stamp}`;
+  // New presentation key avoids reusing previously cached delimiter-filled cards.
+  return `${PRIMARY_ORIGIN}/api/public-post-card/${postId}.png?v=2-${stamp}`;
 }
 
 function normalizePostMedia(post) {
@@ -272,7 +281,7 @@ function postMetadata(post) {
   const displayName = plainText(post.author_display_name || username, 80);
   const verified = Boolean(post.author_is_verified);
   const canonical = postCanonical(postId);
-  const body = plainText(post.body, 500);
+  const body = plainText(postTextPlainText(post.body), 500);
   const media = normalizePostMedia(post);
   const firstMedia = media[0] || null;
   const imageMedia = media.filter((item) => item.kind === 'image');
@@ -360,7 +369,7 @@ function postMetadata(post) {
   if (interactions.length) structuredData.interactionStatistic = interactions;
 
   const verifiedLabel = verified ? ' <strong>(Verified)</strong>' : '';
-  const bodyMarkup = body ? `<p>${htmlEscape(body)}</p>` : '<p>Public media post.</p>';
+  const bodyMarkup = body ? `<p>${formattedPostHtml(post.body)}</p>` : '<p>Public media post.</p>';
   const mediaMarkup = media.map((item) => {
     const mediaUrl = publicPostMediaUrl(postId, item.id, item.kind);
     if (item.kind === 'video') {
@@ -540,7 +549,7 @@ async function publicPostCardResponse(request, env, postId) {
 
   const displayName = plainText(post.author_display_name || post.author_username, 60);
   const username = plainText(post.author_username, 40);
-  const body = String(post.body || '').trim() || `Public post by ${displayName}`;
+  const body = postTextPlainText(post.body).trim() || `Public post by ${displayName}`;
   const lines = previewLines(body);
   const baseSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07101f"/><stop offset="1" stop-color="#101c31"/></linearGradient></defs><rect width="1200" height="630" fill="url(#g)"/><circle cx="1080" cy="90" r="210" fill="#e6205a" opacity=".12"/><circle cx="1120" cy="520" r="280" fill="#246bfe" opacity=".12"/><rect x="70" y="62" width="1060" height="506" rx="32" fill="#0b1525" stroke="#33415a" stroke-width="2"/></svg>';
 

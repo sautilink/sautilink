@@ -21,8 +21,15 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
     const member = document.getElementById('member-view');
     return Boolean(member && !member.hidden && !document.body.classList.contains('auth-entry'));
   }
+  function activeSurface() {
+    const guestPost = document.getElementById('sautilink-guest-post-gate');
+    if (guestPost && !guestPost.closest('[hidden]')) return guestPost;
+    // Navigation and member dialogs also live beside #member-view. Preserve
+    // that member-wide scope, while public post previews own only their gate.
+    return memberVisible() ? document.body : null;
+  }
   function visible(record) {
-    return memberVisible() && record.svg.isConnected && !record.svg.closest('[hidden]')
+    return Boolean(activeSurface()?.contains(record.svg)) && record.svg.isConnected && !record.svg.closest('[hidden]')
       && document.visibilityState !== 'hidden' && record.svg.getClientRects().length > 0 && record.inView;
   }
   function busy(button) { return button?.getAttribute('aria-busy') === 'true' || button?.dataset.sending === 'true'; }
@@ -147,6 +154,7 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
   }
   function sync(record) {
     if (!record.svg.isConnected) { destroy(record, false); return; }
+    if (!activeSurface()?.contains(record.svg)) { destroy(record); return; }
     let name = resolve(record.svg, record);
     if (!name) { destroy(record); return; }
     if (recording(record)) name = 'activity';
@@ -207,9 +215,9 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
     }
     textRecords.clear();
   }
-  function glyphs() {
+  function glyphs(surface) {
     for (const rule of textIconRules) {
-      for (const host of document.querySelectorAll(rule.selector)) {
+      for (const host of surface.querySelectorAll(rule.selector)) {
         if (excluded(host) || textRecords.has(host) || host.querySelector('svg[data-sl-huge-text]')) continue;
         const text = [...host.childNodes].find(node => node.nodeType === 3 && rule.glyph && node.nodeValue.includes(rule.glyph));
         if (!rule.pseudo && rule.glyph && !text) continue;
@@ -233,19 +241,21 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
   }
   function scan() {
     queued = false;
-    if (!memberVisible()) {
+    const surface = activeSurface();
+    if (!surface) {
       [...records.values()].forEach(record => destroy(record));
       restoreText();
       return;
     }
-    for (const [host, item] of textRecords) if (!host.isConnected || !item.svg.isConnected || !host.matches(item.rule.selector)) {
+    for (const [host, item] of textRecords) if (!surface.contains(host) || !host.isConnected || !item.svg.isConnected || !host.matches(item.rule.selector)) {
       item.svg.remove();
       if (item.text?.isConnected && item.text.nodeValue === item.replacement) item.text.nodeValue = item.original;
       if (item.flag) host.removeAttribute(item.flag);
       textRecords.delete(host);
     }
-    if (playerRuntime) glyphs();
-    for (const svg of document.querySelectorAll('svg')) if (!records.has(svg)) makeRecord(svg);
+    if (playerRuntime && surface === document.body) glyphs(surface);
+    const selector = surface === document.body ? 'svg' : 'svg[data-sl-icon-name]';
+    for (const svg of surface.querySelectorAll(selector)) if (!records.has(svg)) makeRecord(svg);
     for (const record of [...records.values()]) sync(record);
     if (!playerRuntime && records.size) void ensureRuntime().then(schedule).catch(() => {});
   }
@@ -255,7 +265,8 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
     queueMicrotask(scan);
   }
   function interactions(event) {
-    if (!memberVisible() || motion.matches || !(event.target instanceof Element)) return;
+    const surface = activeSurface();
+    if (!(event.target instanceof Element) || !surface?.contains(event.target) || motion.matches) return;
     const target = event.target.closest('button, a, summary, [role="button"], label') || event.target.closest('svg');
     if (!target || target.disabled) return;
     if (event.type === 'pointerover' && event.relatedTarget instanceof Element && target.contains(event.relatedTarget)) return;
@@ -268,7 +279,7 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
     }
   }
   function profileTabKeys(event) {
-    if (!memberVisible() || event.defaultPrevented || !(event.target instanceof Element)
+    if (activeSurface() !== document.body || event.defaultPrevented || !(event.target instanceof Element)
       || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     const current = event.target.closest('.profile-activity-tabs [data-profile-activity-tab]');
     if (!current) return;
@@ -288,7 +299,7 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
     if (!tab.matches('.profile-activity-tab[aria-selected="true"]')) return;
     clearTimeout(profileScrollTimer);
     profileScrollTimer = setTimeout(() => {
-      if (!memberVisible() || !tab.isConnected || tab.hidden || tab.getAttribute('aria-selected') !== 'true') return;
+      if (activeSurface() !== document.body || !tab.isConnected || tab.hidden || tab.getAttribute('aria-selected') !== 'true') return;
       const bar = tab.closest('.profile-activity-tabs');
       if (!bar || !(bar.scrollWidth > bar.clientWidth)) return;
       const bounds = bar.getBoundingClientRect();
@@ -299,7 +310,7 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
     }, motion.matches ? 0 : 270);
   }
   function install() {
-    if (!document.getElementById('member-view')) return;
+    if (!document.getElementById('member-view') && !document.getElementById('sautilink-guest-post-gate')) return;
     observer = new MutationObserver(changes => {
       let relevant = false;
       for (const change of changes) {
@@ -339,7 +350,7 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
     document.addEventListener('click', interactions, true);
     document.addEventListener('keydown', profileTabKeys);
     document.addEventListener('submit', event => {
-      if (!memberVisible() || event.target?.id !== 'message-composer') return;
+      if (activeSurface() !== document.body || event.target?.id !== 'message-composer') return;
       for (const record of records.values()) if (record.kind === 'send') record.intent = !record.control.disabled && !busy(record.control);
     }, true);
     document.addEventListener('visibilitychange', schedule);

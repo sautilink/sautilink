@@ -71,7 +71,11 @@ test('public verification ownership URL has a real explanatory page', async () =
   assert.match(page, /<link rel="canonical" href="https:\/\/sautilink\.com\/verify">/);
   assert.match(page, /<title>How to Get Verified on SautiLink — Verification<\/title>/);
   assert.match(page, /How to get <span>verified on SautiLink\.<\/span>/);
-  assert.match(page, /href="\/settings">Request verification<\/a>/);
+  const settingsLinks = [...page.matchAll(/<a\b[^>]*\bhref="\/settings"[^>]*>([\s\S]*?)<\/a>/g)];
+  assert.ok(settingsLinks.some(([, contents]) => contents
+    .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, '')
+    .replace(/<[^>]*>/g, '')
+    .trim() === 'Request verification'), 'The Request verification link must still target exactly /settings');
   assert.match(page, /Settings → Account → Verification/);
   assert.match(page, /public ownership signal/i);
   assert.match(page, /sautilink\.com\/verify/);
