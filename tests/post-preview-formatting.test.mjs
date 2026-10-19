@@ -73,7 +73,7 @@ test('external share metadata removes formatting before truncation, while JSON r
     const response = await handlePublicIndexingRoutes(new Request(`https://sautilink.com/post/${POST_ID}`), env);
     const html = await response.text();
     const data = structuredPost(html);
-    assert.match(html, /public-post-card\/[^" ]+\.png\?v=2-/);
+    assert.match(html, /public-post-card\/[^" ]+\.png\?v=3-/);
     assert.doesNotMatch(html, /\*\*|__new|~~now/);
     assert.match(html, /<strong>SautiLink /);
     assert.match(html, /<em>Enjoy<\/em> the <u>new look<\/u> <s>now<\/s>/);
@@ -87,6 +87,37 @@ test('external share metadata removes formatting before truncation, while JSON r
     const jsonResponse = await handlePublicIndexingRoutes(new Request(`https://sautilink.com/api/public-post/${POST_ID}`), env);
     const json = await jsonResponse.json();
     assert.equal(json.data.post.body, body);
+  });
+});
+
+test('share title truncation preserves the emoji at the actual styled-caption boundary', async () => {
+  const body = 'We **Redesigned** the **SautiLink App** and **Web** for a smoother user experience🔥 🚀. Enjoy the new look! 👀. **Update the App** (as a tester) or check it here: https://www.sautilink.com/home';
+  await withPost(body, async () => {
+    const response = await handlePublicIndexingRoutes(new Request(`https://sautilink.com/post/${POST_ID}`), env);
+    const html = await response.text();
+    const data = structuredPost(html);
+    const headline = 'We Redesigned the SautiLink App and Web for a smoother user experience🔥…';
+    assert.equal(data.headline, headline);
+    assert.equal(data.headline.isWellFormed(), true);
+    assert.match(html, /<title>We Redesigned the SautiLink App and Web for a smoother user experience🔥… — BenLinker on SautiLink<\/title>/);
+    assert.doesNotMatch(html, /\uFFFD/);
+  });
+});
+
+test('share description truncation keeps complete emoji within its readable character limit', async () => {
+  const prefix = 'a'.repeat(178);
+  const body = `**${prefix}🚀** more caption text`;
+  await withPost(body, async () => {
+    const response = await handlePublicIndexingRoutes(new Request(`https://sautilink.com/post/${POST_ID}`), env);
+    const html = await response.text();
+    const data = structuredPost(html);
+    assert.equal(data.description, `${prefix}🚀…`);
+    assert.equal(data.description.isWellFormed(), true);
+    assert.equal(Array.from(data.description).length, 180);
+    assert.doesNotMatch(html, /\uFFFD/);
+    for (const name of ['description', 'og:description', 'twitter:description']) {
+      assert.match(html, new RegExp(`(?:name|property)="${name}" content="${prefix}🚀…"`));
+    }
   });
 });
 
@@ -107,9 +138,20 @@ test('PNG text preview draws visible caption text without editor delimiters', as
   const drawn = [];
   const imageEnv = {
     ...env,
+    ASSETS: {
+      async fetch(request) {
+        assert.equal(new URL(request.url).pathname, '/app/assets/post-share-base.png');
+        return new Response(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]), { headers: { 'Content-Type': 'image/png' } });
+      },
+    },
     IMAGES: {
-      text(value) { drawn.push(value); return value; },
-      input() {
+      text(value, options) {
+        assert.equal(options.font.url, 'https://sautilink.com/app/assets/fonts/post-preview/SautiLinkPostPreview-Regular.woff2');
+        drawn.push(value);
+        return value;
+      },
+      input(stream) {
+        assert.ok(stream instanceof ReadableStream);
         return {
           draw() { return this; },
           async output() {

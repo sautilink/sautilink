@@ -10,6 +10,20 @@ const IMAGE_B = '123e4567-e89b-42d3-a456-426614174102';
 const VIDEO_ID = '123e4567-e89b-42d3-a456-426614174103';
 const OWNER_ID = '123e4567-e89b-42d3-a456-426614174199';
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+const CARD_BASE_PATH = '/app/assets/post-share-base.png';
+const CARD_FONT_URL = 'https://sautilink.com/app/assets/fonts/post-preview/SautiLinkPostPreview-Regular.woff2';
+const cardPng = await readFile(new URL('../app/assets/post-share-base.png', import.meta.url));
+
+function cardAssets(events = []) {
+  return {
+    async fetch(request) {
+      events.push('asset');
+      assert.equal(new URL(request.url).pathname, CARD_BASE_PATH);
+      assert.equal(request.method, 'GET', 'Images and HEAD fallbacks need the full raster source');
+      return new Response(cardPng, { headers: { 'Content-Type': 'image/png', 'Set-Cookie': 'asset-only=1' } });
+    },
+  };
+}
 
 const shell = '<!doctype html><html><head><meta name="robots" content="noindex, nofollow"><title>SautiLink App</title><meta name="description" content="Sign in or create your SautiLink account."></head><body><main>App shell</main></body></html>';
 const env = {
@@ -284,14 +298,116 @@ test('public video poster falls back to a branded post card instead of a broken 
   }
 });
 
-test('text-card source uses Cloudflare Images text drawing and PNG output', async () => {
-  const source = await read('src/public-indexing-api.js');
+test('the staged social-card backdrop is a real 1200x630 PNG in the production app assets', () => {
+  assert.deepEqual([...cardPng.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  assert.equal(cardPng.toString('ascii', 12, 16), 'IHDR');
+  assert.equal(cardPng.readUInt32BE(16), 1200);
+  assert.equal(cardPng.readUInt32BE(20), 630);
+});
 
-  assert.match(source, /width="1200" height="630"/);
-  assert.match(source, /env\.IMAGES\.text\('SautiLink'/);
-  assert.match(source, /canvas\.draw\(env\.IMAGES\.text/);
-  assert.match(source, /output\(\{ format: 'image\/png' \}\)/);
-  assert.match(source, /public-post-card/);
-  assert.match(source, /servePublicSautiMediaPreview/);
-  assert.doesNotMatch(source, /handleSautiMediaRequest\(new Request\(previewUrl/);
+test('text cards use the staged PNG stream and an explicit first-party font for every text overlay', async () => {
+  const originalFetch = globalThis.fetch;
+  const events = [];
+  const overlays = [];
+  let sourceStream;
+  globalThis.fetch = async (input) => {
+    events.push('public lookup');
+    return rpcFetch(basePost())(input);
+  };
+  const imageEnv = {
+    ASSETS: cardAssets(events),
+    IMAGES: {
+      text(value, options) {
+        assert.deepEqual(options.font, { url: CARD_FONT_URL }, 'Cloudflare requires a font URL');
+        assert.ok(options.size > 0);
+        return { value, options };
+      },
+      input(stream) {
+        events.push('image input');
+        assert.ok(stream instanceof ReadableStream);
+        sourceStream = stream;
+        return {
+          draw(overlay, position) { overlays.push({ ...overlay, position }); return this; },
+          async output(options) {
+            assert.deepEqual(options, { format: 'image/png' });
+            assert.deepEqual(new Uint8Array(await new Response(sourceStream).arrayBuffer()), new Uint8Array(cardPng));
+            return { response: ({ headers }) => new Response(cardPng, { headers: { ...headers, 'Content-Type': 'image/png' } }) };
+          },
+        };
+      },
+    },
+  };
+  try {
+    for (const method of ['GET', 'HEAD']) {
+      events.length = 0;
+      const response = await handlePublicIndexingRoutes(new Request(`https://sautilink.com/api/public-post-card/${POST_ID}.png?v=3-renderer`, { method }), imageEnv);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get('Content-Type'), 'image/png');
+      assert.equal(response.headers.get('Cache-Control'), 'public, max-age=3600, stale-while-revalidate=86400');
+      assert.equal(response.headers.get('X-Robots-Tag'), 'index, noarchive');
+      assert.equal(response.headers.get('Set-Cookie'), null);
+      assert.deepEqual(events, ['public lookup', 'asset', 'image input']);
+      assert.equal((await response.arrayBuffer()).byteLength, method === 'HEAD' ? 0 : cardPng.length);
+    }
+    assert.equal(overlays[0].value, 'SautiLink');
+    assert.ok(overlays.every(({ options }) => options.font.url === CARD_FONT_URL));
+    assert.equal(overlays.find(({ options }) => options.size === 46).position.top, 276);
+    assert.equal(overlays.find(({ value }) => value === 'sautilink.com').position.bottom, 80);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('verified public posts keep a PNG fallback when Images is unavailable or rendering throws', async () => {
+  const originalFetch = globalThis.fetch;
+  const rejectedOutput = {
+    text() { return {}; },
+    input() {
+      return { draw() { return this; }, async output() { throw new Error('Images rejected the transformation'); } };
+    },
+  };
+  try {
+    for (const images of [undefined, { input() { throw new Error('Images unavailable'); } }, rejectedOutput]) {
+      for (const method of ['GET', 'HEAD']) {
+        const events = [];
+        globalThis.fetch = async (input) => {
+          events.push('public lookup');
+          return rpcFetch(basePost({ search_indexable: false }))(input);
+        };
+        const response = await handlePublicIndexingRoutes(new Request(`https://sautilink.com/api/public-post-card/${POST_ID}.png?v=3-fallback`, { method }), {
+          ASSETS: cardAssets(events), IMAGES: images,
+        });
+        assert.equal(response.status, 200);
+        assert.equal(response.headers.get('Content-Type'), 'image/png');
+        assert.equal(response.headers.get('Cache-Control'), 'public, max-age=300');
+        assert.equal(response.headers.get('X-Robots-Tag'), 'noindex, nofollow, noarchive');
+        assert.equal(response.headers.get('Set-Cookie'), null);
+        assert.equal((await response.arrayBuffer()).byteLength, method === 'HEAD' ? 0 : cardPng.length);
+        assert.equal(events[0], 'public lookup', 'the public-read gate runs before any branded fallback');
+        assert.ok(events.slice(1).every((event) => event === 'asset'));
+      }
+    }
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('private or missing posts stay 404 before reading a fallback or cached PNG', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalCaches = globalThis.caches;
+  let assetsRead = 0;
+  let cacheReads = 0;
+  globalThis.fetch = rpcFetch(null);
+  globalThis.caches = { default: { async match() { cacheReads++; return new Response(cardPng, { headers: { 'Content-Type': 'image/png' } }); } } };
+  try {
+    for (const images of [undefined, { input() { throw new Error('must not render a private post'); } }]) {
+      const response = await handlePublicIndexingRoutes(new Request(`https://sautilink.com/api/public-post-card/${POST_ID}.png?v=3-private`), {
+        ASSETS: { async fetch() { assetsRead++; return new Response(cardPng, { headers: { 'Content-Type': 'image/png' } }); } },
+        IMAGES: images,
+      });
+      assert.equal(response.status, 404);
+      assert.equal(response.headers.get('X-Robots-Tag'), 'noindex, nofollow, noarchive');
+    }
+    assert.equal(assetsRead, 0);
+    assert.equal(cacheReads, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalCaches === undefined) delete globalThis.caches; else globalThis.caches = originalCaches;
+  }
 });

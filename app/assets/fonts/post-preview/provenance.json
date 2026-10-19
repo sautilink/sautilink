@@ -1,0 +1,30 @@
+{
+  "file": "SautiLinkPostPreview-Regular.woff2",
+  "sha256": "6855b3689b45922baf355e421ab984e15ec989f3bd144b83d11d9dcf4770e8a0",
+  "bytes": 585468,
+  "fontToolsVersion": "4.67.0",
+  "family": "SautiLink Post Preview",
+  "weight": 400,
+  "unitsPerEm": 2048,
+  "mappedCodepoints": 4303,
+  "glyphs": 4828,
+  "verifiedEmoji": [
+    "U+1F525",
+    "U+1F680",
+    "U+1F440"
+  ],
+  "sources": {
+    "inter": {
+      "file": "assets/fonts/inter/InterVariable.woff2",
+      "sha256": "693b77d4f32ee9b8bfc995589b5fad5e99adf2832738661f5402f9978429a8e3"
+    },
+    "notoEmoji": {
+      "url": "https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf",
+      "sha256": "de6c18832938afc99caf132b39d6a30a19bac7f2e812e28db2535b4608d27551"
+    },
+    "notoLicense": {
+      "url": "https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/notoemoji/OFL.txt",
+      "sha256": "500bb1ccf43df7bbb522112f9133a52b16e1c35e809632f5d8609b179152de5b"
+    }
+  }
+}
