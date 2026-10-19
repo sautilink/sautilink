@@ -1,0 +1,188 @@
+/* Public information only: shared Huge pictograms, with the existing site layouts. */
+body[data-public-icons] { min-width: 0; }
+body[data-public-icons] .public-icon { vertical-align: -.12em; }
+body[data-public-icons] .public-icon-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+body[data-public-icons] .public-icon-link > .public-icon {
+  width: 18px;
+  height: 18px;
+  margin-inline-end: 0;
+  flex: 0 0 auto;
+}
+body[data-public-icons] a.public-icon-link::after { content: none; }
+body[data-public-icons] .nav-links .public-icon,
+body[data-public-icons] .footer-links .public-icon,
+body[data-public-icons] .footer-directory nav .public-icon,
+body[data-public-icons] .legal-toc .public-icon,
+body[data-public-icons] .page-local-links .public-icon {
+  width: 16px;
+  height: 16px;
+}
+body[data-public-icons] .footer-directory nav .public-icon-link {
+  align-items: flex-start;
+}
+body[data-public-icons] .footer-directory nav .public-icon {
+  margin-top: .14em;
+}
+body[data-public-icons] .page-local-title .public-icon {
+  color: var(--legal-accent, currentColor);
+  width: 19px;
+  height: 19px;
+}
+body[data-public-icons] .footer-breadcrumbs > .public-icon {
+  width: 10px;
+  height: 10px;
+}
+
+body[data-public-icons] .public-icon--hero {
+  display: block;
+  width: 44px;
+  height: 44px;
+  margin: 0 0 18px;
+  color: var(--legal-accent, currentColor);
+}
+body[data-public-icons] .public-icon--section,
+body[data-public-icons] .public-icon--card {
+  width: 24px;
+  height: 24px;
+  margin-inline-end: 9px;
+  color: var(--legal-accent, currentColor);
+}
+body[data-public-icons] .footer-directory .public-icon--section {
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 6px;
+  color: inherit;
+}
+body[data-public-icons] .icon-chip > .public-icon {
+  width: 36px;
+  height: 36px;
+  stroke-width: 2;
+}
+body[data-public-icons] .note-channel-icon > .public-icon {
+  width: 34px;
+  height: 34px;
+  stroke-width: 2;
+}
+body[data-public-icons] .note-identity .public-icon--art {
+  display: block;
+  width: 100%;
+  height: 95px;
+  margin-top: 26px;
+  color: var(--legal-border);
+}
+body[data-public-icons] .help-search > .public-icon,
+body[data-public-icons] .location-item > .public-icon,
+body[data-public-icons] .contact-method > .public-icon {
+  width: 24px;
+  height: 24px;
+}
+body[data-public-icons] .partner-note > .public-icon {
+  width: 22px;
+  height: 22px;
+}
+
+/* Preserve the existing theme button's two mutually exclusive symbols. */
+body[data-public-icons].legal-page .theme-toggle .moon-icon,
+html[data-theme="light"] body[data-public-icons].legal-page .theme-toggle .sun-icon {
+  display: none;
+}
+html[data-theme="light"] body[data-public-icons].legal-page .theme-toggle .moon-icon {
+  display: block;
+}
+body[data-public-icons] .icon-button > .public-icon {
+  width: 18px;
+  height: 18px;
+}
+
+body[data-public-icons] .public-icon-summary::before,
+body[data-public-icons] .public-icon-summary::after {
+  content: none;
+}
+body[data-public-icons] .public-icon--disclosure {
+  width: 18px;
+  height: 18px;
+  margin-inline-start: auto;
+  transition: transform 160ms ease;
+}
+body[data-public-icons] details[open] > summary > .public-icon--disclosure {
+  transform: rotate(180deg);
+}
+body[data-public-icons] .faq-item > .public-icon-summary > .public-icon--disclosure {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+body[data-public-icons] .faq-item[open] > .public-icon-summary > .public-icon--disclosure {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+/* Keep the official download anchor and its existing navigation contract intact. */
+body[data-public-icons] .public-download-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+body[data-public-icons] .public-download-action > .public-icon {
+  position: absolute;
+  left: 19px;
+  width: 19px;
+  height: 19px;
+  color: #fff;
+}
+body[data-public-icons] .public-download-action > .button { padding-inline-start: 48px; }
+body[data-public-icon-page="download"] .android > .public-icon { width: 27px; height: 27px; }
+body[data-public-icons] .public-icon--detail {
+  width: 18px;
+  height: 18px;
+  margin-inline-end: 8px;
+}
+
+/* Legacy public partners retain their original identity and colors. */
+body[data-public-icon-page="tour"] .public-icon--hero,
+body[data-public-icon-page="mgoyelamedia"] .public-icon--hero { margin-inline: auto; }
+body[data-public-icon-page="mgoyelamedia"] .public-icon--hero { color: var(--red); }
+body[data-public-icon-page="mgoyelamedia"] #moon-icon { display: none; }
+body[data-public-icon-page="mgoyelamedia"] .theme-toggle > .public-icon { width: 20px; height: 20px; }
+
+@media (min-width: 841px) {
+  body[data-public-icons] .toc-disclosure > summary > .public-icon--disclosure { display: none; }
+}
+@media (max-width: 900px) {
+  body[data-public-icons].legal-page .nav-links .public-icon { width: 20px; height: 20px; }
+}
+@media (max-width: 800px) {
+  body[data-public-icon-page="mgoyelamedia"] header { position: sticky; }
+  body[data-public-icon-page="mgoyelamedia"] .nav { flex-wrap: wrap; gap: 14px; }
+  body[data-public-icon-page="mgoyelamedia"] .nav-links {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px 18px;
+  }
+  body[data-public-icon-page="mgoyelamedia"] main { padding-top: 32px; }
+}
+@media (max-width: 700px) {
+  body[data-public-icons] .page-local-inner { min-width: 0; }
+  body[data-public-icons] .page-local-title { min-width: 0; flex: 1 1 0; max-width: none; }
+  body[data-public-icons] .page-local-links { min-width: 0; flex: 0 1 auto; max-width: 56%; }
+  body[data-public-icons] .page-local-links .local-secondary { display: none; }
+  body[data-public-icons] .page-local-links .local-cta { max-width: 100%; white-space: normal; text-align: center; }
+  body[data-public-icons] .public-icon--hero { width: 38px; height: 38px; margin-bottom: 16px; }
+  body[data-public-icons] .public-icon--section,
+  body[data-public-icons] .public-icon--card { width: 22px; height: 22px; margin-inline-end: 8px; }
+  body[data-public-icons] .footer-directory .public-icon--section { width: 16px; height: 16px; margin-inline-end: 6px; }
+  body[data-public-icons] .note-identity .public-icon--art { height: 76px; margin-top: 20px; }
+}
+@media (max-width: 480px) {
+  body[data-public-icons] .page-local-title .public-icon { width: 17px; height: 17px; }
+  body[data-public-icons] .page-local-links .public-icon { width: 14px; height: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-public-icons] .public-icon--disclosure { transition: none; }
+}

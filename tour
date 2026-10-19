@@ -16,8 +16,13 @@
       background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
     }
   </style>
+
+  <link rel="stylesheet" href="/assets/public-icons/icons.css?v=20261019-1">
+  <link rel="stylesheet" href="/assets/public-pages-icons.css?v=20261019-1">
+  <script src="/assets/public-icons/icons.js?v=20261019-1" defer></script>
+  <script src="/assets/public-icons/adapter.js?v=20261019-1" defer></script>
 </head>
-<body class="bg-gray-50">
+<body class="bg-gray-50" data-public-icons="" data-public-icon-page="tour">
 
   <!-- Navbar -->
   <nav class="bg-white shadow-md sticky top-0 z-50">
@@ -25,14 +30,14 @@
       <div class="flex items-center gap-3">
         <img src="https://raw.githubusercontent.com/ivynetworkplc/public/main/assets/logo.png" alt="Ivy Network PLC" class="h-11">
       </div>
-      <a href="https://ivynetwork.co.uk" class="text-sky-600 hover:text-sky-700 font-medium">Back to Home</a>
+      <a href="https://ivynetwork.co.uk" class="text-sky-600 hover:text-sky-700 font-medium public-icon-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="public-icon public-icon--nav" data-public-icon="arrow-up-right-0-1" aria-hidden="true" focusable="false"><path d="M9 6.65032C9 6.65032 15.9383 6.10759 16.9154 7.08463C17.8924 8.06167 17.3496 15 17.3496 15M16.5 7.5L6.5 17.5"></path></svg>Back to Home</a>
     </div>
   </nav>
 
   <!-- Hero -->
   <section class="hero-bg text-white py-24">
     <div class="max-w-7xl mx-auto px-6 text-center">
-      <h1 class="text-5xl md:text-6xl font-bold mb-6">Elite Tour Season 6</h1>
+      <h1 class="text-5xl md:text-6xl font-bold mb-6"><svg data-public-icon-intro="" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="public-icon public-icon--hero" data-public-icon="calendar-0-1" aria-hidden="true" focusable="false"><path d="M16 2V6M8 2V6"></path><path d="M13 4H11C7.22876 4 5.34315 4 4.17157 5.17157C3 6.34315 3 8.22876 3 12V14C3 17.7712 3 19.6569 4.17157 20.8284C5.34315 22 7.22876 22 11 22H13C16.7712 22 18.6569 22 19.8284 20.8284C21 19.6569 21 17.7712 21 14V12C21 8.22876 21 6.34315 19.8284 5.17157C18.6569 4 16.7712 4 13 4Z"></path><path d="M3 10H21"></path><path d="M10 18.5002L9.99999 13.8474C9.99999 13.6557 9.86325 13.5002 9.69458 13.5002H9M14 18.4983L15.4855 13.8923C15.4951 13.8626 15.5 13.8315 15.5 13.8002C15.5 13.6346 15.3657 13.5002 15.2 13.5002L13 13.5"></path></svg>Elite Tour Season 6</h1>
       <p class="text-2xl md:text-3xl max-w-3xl mx-auto">Empowering Tanzanians with Free Digital Skills Nationwide</p>
       <div class="mt-10">
         <a href="https://forms.gle/FWUye6oCzh6todd96" target="_blank"
@@ -72,31 +77,31 @@
   <!-- Schedule -->
   <section class="py-20 bg-gray-100">
     <div class="max-w-7xl mx-auto px-6">
-      <h2 class="text-4xl font-bold text-center mb-12">Tour Schedule 2026</h2>
+      <h2 class="text-4xl font-bold text-center mb-12 public-icon-heading"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="public-icon public-icon--section" data-public-icon="calendar-0-1" aria-hidden="true" focusable="false"><path d="M16 2V6M8 2V6"></path><path d="M13 4H11C7.22876 4 5.34315 4 4.17157 5.17157C3 6.34315 3 8.22876 3 12V14C3 17.7712 3 19.6569 4.17157 20.8284C5.34315 22 7.22876 22 11 22H13C16.7712 22 18.6569 22 19.8284 20.8284C21 19.6569 21 17.7712 21 14V12C21 8.22876 21 6.34315 19.8284 5.17157C18.6569 4 16.7712 4 13 4Z"></path><path d="M3 10H21"></path><path d="M10 18.5002L9.99999 13.8474C9.99999 13.6557 9.86325 13.5002 9.69458 13.5002H9M14 18.4983L15.4855 13.8923C15.4951 13.8626 15.5 13.8315 15.5 13.8002C15.5 13.6346 15.3657 13.5002 15.2 13.5002L13 13.5"></path></svg>Tour Schedule 2026</h2>
       <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
         <div class="bg-white rounded-3xl p-8 shadow-sm">
           <div class="text-sky-600 font-medium">August 11, 2026</div>
-          <div class="text-2xl font-semibold mt-2">Mwanza</div>
+          <div class="text-2xl font-semibold mt-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="public-icon public-icon--detail" data-public-icon="location-0-1" aria-hidden="true" focusable="false" data-public-icon-intro=""><g><path d="M13.6177 21.367C13.1841 21.773 12.6044 22 12.0011 22C11.3978 22 10.8182 21.773 10.3845 21.367C6.41302 17.626 1.09076 13.4469 3.68627 7.37966C5.08963 4.09916 8.45834 2 12.0011 2C15.5439 2 18.9126 4.09916 20.316 7.37966C22.9082 13.4393 17.599 17.6389 13.6177 21.367Z"></path><path d="M15.5 11C15.5 12.933 13.933 14.5 12 14.5C10.067 14.5 8.5 12.933 8.5 11C8.5 9.067 10.067 7.5 12 7.5C13.933 7.5 15.5 9.067 15.5 11Z"></path></g></svg>Mwanza</div>
         </div>
         <div class="bg-white rounded-3xl p-8 shadow-sm">
           <div class="text-sky-600 font-medium">August 20, 2026</div>
-          <div class="text-2xl font-semibold mt-2">Morogoro</div>
+          <div class="text-2xl font-semibold mt-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="public-icon public-icon--detail" data-public-icon="location-0-1" aria-hidden="true" focusable="false" data-public-icon-intro=""><g><path d="M13.6177 21.367C13.1841 21.773 12.6044 22 12.0011 22C11.3978 22 10.8182 21.773 10.3845 21.367C6.41302 17.626 1.09076 13.4469 3.68627 7.37966C5.08963 4.09916 8.45834 2 12.0011 2C15.5439 2 18.9126 4.09916 20.316 7.37966C22.9082 13.4393 17.599 17.6389 13.6177 21.367Z"></path><path d="M15.5 11C15.5 12.933 13.933 14.5 12 14.5C10.067 14.5 8.5 12.933 8.5 11C8.5 9.067 10.067 7.5 12 7.5C13.933 7.5 15.5 9.067 15.5 11Z"></path></g></svg>Morogoro</div>
         </div>
         <div class="bg-white rounded-3xl p-8 shadow-sm">
           <div class="text-sky-600 font-medium">September 3, 2026</div>
-          <div class="text-2xl font-semibold mt-2">Lindi</div>
+          <div class="text-2xl font-semibold mt-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="public-icon public-icon--detail" data-public-icon="location-0-1" aria-hidden="true" focusable="false" data-public-icon-intro=""><g><path d="M13.6177 21.367C13.1841 21.773 12.6044 22 12.0011 22C11.3978 22 10.8182 21.773 10.3845 21.367C6.41302 17.626 1.09076 13.4469 3.68627 7.37966C5.08963 4.09916 8.45834 2 12.0011 2C15.5439 2 18.9126 4.09916 20.316 7.37966C22.9082 13.4393 17.599 17.6389 13.6177 21.367Z"></path><path d="M15.5 11C15.5 12.933 13.933 14.5 12 14.5C10.067 14.5 8.5 12.933 8.5 11C8.5 9.067 10.067 7.5 12 7.5C13.933 7.5 15.5 9.067 15.5 11Z"></path></g></svg>Lindi</div>
         </div>
         <div class="bg-white rounded-3xl p-8 shadow-sm">
           <div class="text-sky-600 font-medium">September 16, 2026</div>
-          <div class="text-2xl font-semibold mt-2">Singida</div>
+          <div class="text-2xl font-semibold mt-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="public-icon public-icon--detail" data-public-icon="location-0-1" aria-hidden="true" focusable="false" data-public-icon-intro=""><g><path d="M13.6177 21.367C13.1841 21.773 12.6044 22 12.0011 22C11.3978 22 10.8182 21.773 10.3845 21.367C6.41302 17.626 1.09076 13.4469 3.68627 7.37966C5.08963 4.09916 8.45834 2 12.0011 2C15.5439 2 18.9126 4.09916 20.316 7.37966C22.9082 13.4393 17.599 17.6389 13.6177 21.367Z"></path><path d="M15.5 11C15.5 12.933 13.933 14.5 12 14.5C10.067 14.5 8.5 12.933 8.5 11C8.5 9.067 10.067 7.5 12 7.5C13.933 7.5 15.5 9.067 15.5 11Z"></path></g></svg>Singida</div>
         </div>
         <div class="bg-white rounded-3xl p-8 shadow-sm">
           <div class="text-sky-600 font-medium">October 20, 2026</div>
-          <div class="text-2xl font-semibold mt-2">Kagera</div>
+          <div class="text-2xl font-semibold mt-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="public-icon public-icon--detail" data-public-icon="location-0-1" aria-hidden="true" focusable="false" data-public-icon-intro=""><g><path d="M13.6177 21.367C13.1841 21.773 12.6044 22 12.0011 22C11.3978 22 10.8182 21.773 10.3845 21.367C6.41302 17.626 1.09076 13.4469 3.68627 7.37966C5.08963 4.09916 8.45834 2 12.0011 2C15.5439 2 18.9126 4.09916 20.316 7.37966C22.9082 13.4393 17.599 17.6389 13.6177 21.367Z"></path><path d="M15.5 11C15.5 12.933 13.933 14.5 12 14.5C10.067 14.5 8.5 12.933 8.5 11C8.5 9.067 10.067 7.5 12 7.5C13.933 7.5 15.5 9.067 15.5 11Z"></path></g></svg>Kagera</div>
         </div>
         <div class="bg-white rounded-3xl p-8 shadow-sm border-2 border-amber-400">
           <div class="text-amber-600 font-medium">November 3, 2026</div>
-          <div class="text-2xl font-semibold mt-2">Final - Tabora</div>
+          <div class="text-2xl font-semibold mt-2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="public-icon public-icon--detail" data-public-icon="location-0-1" aria-hidden="true" focusable="false" data-public-icon-intro=""><g><path d="M13.6177 21.367C13.1841 21.773 12.6044 22 12.0011 22C11.3978 22 10.8182 21.773 10.3845 21.367C6.41302 17.626 1.09076 13.4469 3.68627 7.37966C5.08963 4.09916 8.45834 2 12.0011 2C15.5439 2 18.9126 4.09916 20.316 7.37966C22.9082 13.4393 17.599 17.6389 13.6177 21.367Z"></path><path d="M15.5 11C15.5 12.933 13.933 14.5 12 14.5C10.067 14.5 8.5 12.933 8.5 11C8.5 9.067 10.067 7.5 12 7.5C13.933 7.5 15.5 9.067 15.5 11Z"></path></g></svg>Final - Tabora</div>
         </div>
       </div>
     </div>
@@ -105,7 +110,7 @@
   <!-- CTA -->
   <section class="py-20 bg-white">
     <div class="max-w-4xl mx-auto text-center px-6">
-      <h2 class="text-4xl font-bold mb-6">Ready to Join the Movement?</h2>
+      <h2 class="text-4xl font-bold mb-6 public-icon-heading"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="public-icon public-icon--section" data-public-icon="book-open-0-1" aria-hidden="true" focusable="false"><path d="M7.99978 3.5H6.60021C4.43183 3.5 3.34764 3.5 2.67399 4.17362C2.00034 4.84724 2.00029 5.93144 2.00021 8.09982L2 13.3998C1.99992 15.5684 1.99987 16.6526 2.67353 17.3263C3.34719 18 4.43146 18 6.6 18H8.95042C10.4329 18 11.7092 19.0464 11.9999 20.5V5.5C11.0556 4.24097 9.99989 3.5 7.99978 3.5Z"></path><path d="M16.0001 3.5H17.3997C19.5681 3.5 20.6523 3.5 21.3259 4.17362C21.9996 4.84724 21.9996 5.93144 21.9997 8.09982L21.9999 13.3998C22 15.5684 22 16.6526 21.3264 17.3263C20.6527 18 19.5684 18 17.3999 18H15.0495C13.567 18 12.2907 19.0464 12 20.5V5.5C12.9443 4.24097 14 3.5 16.0001 3.5Z"></path></svg>Ready to Join the Movement?</h2>
       <p class="text-xl text-gray-600 mb-10">All training is completely free. No hidden charges.</p>
       <a href="https://forms.gle/FWUye6oCzh6todd96" target="_blank"
          class="inline-block bg-sky-600 hover:bg-sky-700 text-white px-12 py-6 rounded-2xl text-2xl font-semibold transition">
@@ -118,10 +123,10 @@
   <footer class="bg-gray-900 text-gray-400 py-16">
     <div class="max-w-7xl mx-auto px-6">
       <div class="flex flex-wrap justify-center gap-8 text-sm mb-10">
-        <a href="https://ivynetwork.co.uk" class="hover:text-white">Home</a>
-        <a href="https://ivynetwork.co.uk/about" class="hover:text-white">About</a>
-        <a href="https://ivynetwork.co.uk/services" class="hover:text-white">Services</a>
-        <a href="https://ivynetwork.co.uk/privacy" class="hover:text-white">Privacy</a>
+        <a href="https://ivynetwork.co.uk" class="hover:text-white public-icon-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="public-icon public-icon--nav" data-public-icon="arrow-up-right-0-1" aria-hidden="true" focusable="false"><path d="M9 6.65032C9 6.65032 15.9383 6.10759 16.9154 7.08463C17.8924 8.06167 17.3496 15 17.3496 15M16.5 7.5L6.5 17.5"></path></svg>Home</a>
+        <a href="https://ivynetwork.co.uk/about" class="hover:text-white public-icon-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="public-icon public-icon--nav" data-public-icon="arrow-up-right-0-1" aria-hidden="true" focusable="false"><path d="M9 6.65032C9 6.65032 15.9383 6.10759 16.9154 7.08463C17.8924 8.06167 17.3496 15 17.3496 15M16.5 7.5L6.5 17.5"></path></svg>About</a>
+        <a href="https://ivynetwork.co.uk/services" class="hover:text-white public-icon-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="public-icon public-icon--nav" data-public-icon="arrow-up-right-0-1" aria-hidden="true" focusable="false"><path d="M9 6.65032C9 6.65032 15.9383 6.10759 16.9154 7.08463C17.8924 8.06167 17.3496 15 17.3496 15M16.5 7.5L6.5 17.5"></path></svg>Services</a>
+        <a href="https://ivynetwork.co.uk/privacy" class="hover:text-white public-icon-link"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" class="public-icon public-icon--nav" data-public-icon="lock-keyhole" aria-hidden="true" focusable="false"><g><path d="M16.4964 9V6.5C16.4964 4.01472 14.4817 2 11.9964 2C9.51112 2 7.4964 4.01472 7.4964 6.5V9"></path><path d="M13.4958 9H10.4964C8.16158 9 6.99417 9 6.11049 9.47237C5.41275 9.84535 4.84128 10.4169 4.46837 11.1146C3.99608 11.9984 3.99619 13.1658 3.99641 15.5006C3.99662 17.835 3.99673 19.0023 4.46907 19.8858C4.84203 20.5835 5.41347 21.1548 6.11115 21.5277C6.99475 22 8.16197 22 10.4964 22H13.4958C15.8304 22 16.9978 22 17.8814 21.5277C18.5791 21.1548 19.1506 20.5833 19.5235 19.8856C19.9958 19.0019 19.9958 17.8346 19.9958 15.5C19.9958 13.1654 19.9958 11.9981 19.5235 11.1144C19.1506 10.4167 18.5791 9.84525 17.8814 9.47231C16.9978 9 15.8304 9 13.4958 9Z"></path><circle cx="11.9964" cy="15.5" r="2"></circle></g></svg>Privacy</a>
       </div>
       <div class="text-center text-sm">
         © 2026 Ivy Network PLC. All Rights Reserved.<br>
