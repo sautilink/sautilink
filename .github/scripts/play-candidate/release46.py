@@ -5,8 +5,8 @@ import xml.etree.ElementTree as ET
 
 # Immutable source pins for the reviewed native web parity UI 1.1.1 (46) candidate.
 # Keep SOURCE identical to the candidate checkout ref in native-web-parity-release46.yml.
-SOURCE = 'a829fc200554bcfc2eef10975523f57dccc28f8f'
-SOURCE_TREE = '618122e1a129986d9885afe1ed8828a11f849a2d'
+SOURCE = '086ffa73af86756c1feae2ecd239d73454519a6d'
+SOURCE_TREE = 'f5837da73da3c93649bf932be42cb00d9936ed8f'
 CERT = '31c773a7229a563d92f7047a56735ad7b02027d27a6e020d8923dd5418f4b50f'
 FIREBASE_SHA = 'be30a77f6be106c97b59ecdc6e7cc61100e0d9fd354ac883357e253fb69e6cae'
 BUNDLETOOL_SHA = 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29'

@@ -34,7 +34,7 @@ jobs:
         with:
           # Build the reviewed, immutable native web parity UI 1.1.1 (46) source commit.
           # The same SHA and its app/src tree must be pinned in release46.py.
-          ref: a829fc200554bcfc2eef10975523f57dccc28f8f
+          ref: 086ffa73af86756c1feae2ecd239d73454519a6d
           path: candidate
           persist-credentials: false
       - uses: actions/setup-java@v4
