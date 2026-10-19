@@ -1,5 +1,7 @@
 package com.sautilink.nativeapp.ui
 
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.util.Log
@@ -61,11 +63,15 @@ class NativeUiRegressionTest {
     private val noMotion = object : MotionDurationScale { override val scaleFactor = 0f }
     @get:Rule val compose = createComposeRule(effectContext = noMotion)
 
-    private fun signedOutFixture(): StagingAuthClient = StagingAuthClient(
-        "sb_publishable_offline_ui_fixture",
-        InstrumentationRegistry.getInstrumentation().context,
-        SautiBackend.PRODUCTION
-    ).apply { forgetSavedSession() }
+    private fun signedOutFixture(): StagingAuthClient {
+        // A test APK has a package context but need not have an Application instance.
+        // Keep all vault preferences in that package, never the user's preview/production app.
+        val storage = object : ContextWrapper(InstrumentationRegistry.getInstrumentation().context) {
+            override fun getApplicationContext(): Context = this
+        }
+        return StagingAuthClient("sb_publishable_offline_ui_fixture", storage,
+            SautiBackend.PRODUCTION).apply { forgetSavedSession() }
+    }
 
     @Composable
     private fun Frame(width: Int = 390, height: Int = 844, fontScale: Float = 1f,
