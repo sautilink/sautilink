@@ -143,8 +143,19 @@ class NativeUiRegressionTest {
                 .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
             assertTrue("Missing text layout for $label", layouts.isNotEmpty())
             layouts.forEach { layout ->
+                val details = "$label size=${layout.size} paragraph=${layout.multiParagraph.width}x${layout.multiParagraph.height} " +
+                    "lines=${layout.lineCount} widthOverflow=${layout.didOverflowWidth} heightOverflow=${layout.didOverflowHeight} " +
+                    "line0=${layout.getLineLeft(0)}..${layout.getLineRight(0)} bottom=${layout.getLineBottom(0)} " +
+                    "ellipsis=${layout.isLineEllipsized(0)} styleLineHeight=${layout.layoutInput.style.lineHeight}"
+                Log.i("SautiUiLayout", details)
                 assertEquals("$label should remain readable on one line at large text", 1, layout.lineCount)
-                assertFalse("$label must not clip or ellipsize", layout.hasVisualOverflow)
+                // A horizontally scrolling Row gives MultiParagraph an infinite constraint.
+                // Compare the actual line ink and visible characters with its measured node.
+                assertFalse("$label must not ellipsize: $details", layout.isLineEllipsized(0))
+                assertTrue("$label clips its leading edge: $details", layout.getLineLeft(0) >= -1f)
+                assertTrue("$label clips its trailing edge: $details", layout.getLineRight(0) <= layout.size.width + 1f)
+                assertTrue("$label clips vertically: $details", layout.getLineBottom(0) <= layout.size.height + 1f)
+                assertEquals("$label must show every character: $details", label.length, layout.getLineEnd(0, visibleEnd = true))
             }
         }
         compose.onNode(hasText("Password") and hasAnyAncestor(methodParent), useUnmergedTree = true).performScrollTo()
@@ -182,6 +193,7 @@ class NativeUiRegressionTest {
         } }
         compose.onNodeWithText("Welcome back").assertIsDisplayed()
         assertReadableDarkText("Welcome back")
+        screenshot("login-dark-320-font150-before-label-check")
         assertMethodLabelsFit()
         screenshot("login-dark-320-font150-top")
         compose.onNodeWithText("Create an account").performScrollTo().assertIsDisplayed()
