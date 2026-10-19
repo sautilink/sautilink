@@ -175,6 +175,24 @@ Its backend gate passed all 23 behavior cases, Deno 2.9.6 type checking, the
 complete migration on PostgreSQL 17.11 with pg_cron, role-sensitive SQL checks,
 and a real two-connection consume race with observed lock contention.
 
+The complete candidate workflow succeeded. Preview Kotlin compilation, the
+signed production AAB build, all 191 caption checks, all 63 integrity/auth checks,
+and production lint passed. Lint reports zero fatal/errors, 111 warnings and two
+hints. The one added warning compared with release 43 suggests the optional KTX
+`SharedPreferences.edit` convenience function; it is not a failed correctness
+or security check.
+
+The downloaded artifact was independently checked against GitHub's ZIP SHA-256,
+its five published file checksums, its exact file allowlist, the upload signing
+certificate, all 577 signed bundle payload entries, and the actual manifest
+decoded with the pinned official bundletool. The verified candidate is
+`SautiLink-1.0.2-44.aab`, package `com.sautilink.app`, version 44, min SDK 26,
+target SDK 36, non-debuggable, 20,872,339 bytes, SHA-256
+`ea395e54a68bd84b7664567ef2a8b05bd9f1d39b0dd15011a86fa2765cb95c7d`.
+The AAB has been retained for the next testing release. Version 44 has not yet
+been uploaded to Play Console. The machine-readable checks are in
+`play-integrity-release44-verification.json` beside this document.
+
 The production migration was applied as server-recorded version
 `20261019024713_play_integrity_monitor.sql`. The local migration was originally
 created by the Supabase CLI as `20261019023255_play_integrity_monitor.sql`; its
@@ -186,7 +204,8 @@ Production Edge Function `sautilink-play-integrity` version 1 was deployed with
 `verify_jwt=true` and the reviewed four files. Its public default mode is **off**;
 no monitor-mode override, new credentials, or IAM permissions were configured.
 Readback matched all four source files. An unauthenticated request returned HTTP
-401. Production read-only checks confirmed both tables force RLS, ordinary
+401, as did a request supplying only the public API key without a user JWT.
+Production read-only checks confirmed both tables force RLS, ordinary
 users cannot read either table, only the server can execute the recording RPC,
 the cleanup job is active, and there are no observations or issued challenges.
 
