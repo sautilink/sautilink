@@ -781,6 +781,7 @@ function installShortVideosFeed() {
   });
   document.addEventListener('visibilitychange', syncShortVideoForeground);
   window.addEventListener('sautilink:routechange', syncShortVideoForeground);
+  document.addEventListener('sautilink:comment-sheet-toggle', syncShortVideoForeground);
 
   track.addEventListener('click', (event) => {
     const profileLink = event.target.closest('.sauti-short-profile a');
@@ -830,8 +831,14 @@ function installShortVideosFeed() {
     if (!source || source.disabled) return;
 
     if (actionName === 'comments') {
-      closeShortVideos({ restore: false });
-      source.click();
+      const request = new CustomEvent('sautilink:open-comments', {
+        cancelable: true,
+        detail: { postId: slide.dataset.postId, trigger: action },
+      });
+      if (document.dispatchEvent(request)) {
+        closeShortVideos({ restore: false });
+        source.click();
+      }
       return;
     }
 

@@ -64,17 +64,44 @@ test('profile Like toggles in place, sends the authenticated action and rolls ba
   assert.equal(statuses.at(-1)[0], 'Try later');
 });
 
-test('profile card opens the full post and its comment action opens the conversation', async () => {
+test('profile comments request the shared sheet with their actual trigger and retain the full-post fallback', async () => {
   const navigation = source.slice(source.indexOf('function profileActivityPostPath('), source.indexOf('function createProfileActivityMetric('));
   const destinations = [];
-  const context = { window: { location: { assign: (path) => destinations.push(path) } }, encodeURIComponent };
+  const requests = [];
+  let handled = false;
+  class CustomEvent {
+    constructor(type, options) { this.type = type; this.detail = options.detail; this.cancelable = options.cancelable; this.defaultPrevented = false; }
+    preventDefault() { if (this.cancelable) this.defaultPrevented = true; }
+  }
+  const context = {
+    window: { location: { assign: (path) => destinations.push(path) } },
+    document: { dispatchEvent(event) { requests.push(event); if (handled) event.preventDefault(); return !event.defaultPrevented; } },
+    CustomEvent, encodeURIComponent,
+  };
   runInNewContext(`${navigation}\nthis.navigateProfileActivityCard = navigateProfileActivityCard;`, context);
   const card = { dataset: { postId: 'sample-id' } };
+  const trigger = { dataset: { profileActivityAction: 'reply' } };
 
   context.navigateProfileActivityCard(card);
-  context.navigateProfileActivityCard(card, { comments: true });
+  context.navigateProfileActivityCard(card, { comments: true, trigger });
   assert.deepEqual(destinations, ['/post/sample-id?view=post', '/post/sample-id']);
-  assert.match(source, /kind === 'reply'\) navigateProfileActivityCard\(card, \{ comments: true \}\)/);
+  assert.equal(requests.length, 1, 'full-post clicks do not ask for the comments sheet');
+  assert.equal(requests[0].type, 'sautilink:open-comments');
+  assert.equal(requests[0].detail.postId, 'sample-id');
+  assert.equal(requests[0].detail.trigger, trigger);
+  assert.equal(requests[0].cancelable, true);
+
+  handled = true;
+  context.navigateProfileActivityCard(card, { comments: true, trigger });
+  assert.equal(requests[1].detail.trigger, trigger);
+  assert.equal(requests[1].defaultPrevented, true);
+  assert.equal(destinations.length, 2, 'the handled modal bridge prevents full-page navigation');
+  context.navigateProfileActivityCard(card, { comments: true });
+  assert.equal(requests[2].detail.trigger, card, 'keyboard or legacy callers retain a focus return target');
+  context.navigateProfileActivityCard(card);
+  assert.equal(destinations.at(-1), '/post/sample-id?view=post');
+  assert.equal(destinations.length, 3, 'opening the full post still navigates even when the bridge is available');
+  assert.match(source, /kind === 'reply'\) navigateProfileActivityCard\(card, \{ comments: true, trigger: action \}\)/);
   assert.doesNotMatch(source, /toggleProfileActivityComments\(/);
 });
 

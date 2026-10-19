@@ -5,6 +5,7 @@ import { installVideoPlaybackCoordinator } from './video-playback-coordinator.js
 import { applyHomeVideoAudio, resetHomeVideoAudio } from './home-video-audio-session.js';
 import { POST_BODY_LIMIT, hasPostFormatting } from './post-text-formatting.js';
 import { notificationPostDestination } from './notification-destinations.js';
+import { createMemberCommentSheet } from './member-comment-sheet.js';
 import { normalizeOtpPhone, otpPhoneError } from './phone-number-validation.js';
 import {
   displayNameError,
@@ -74,6 +75,7 @@ const savedSurface = byId('saved-surface');
 const appealsSurface = byId('appeals-surface');
 const moderationSurface = byId('moderation-surface');
 const conversationSurface = byId('conversation-surface');
+let memberCommentSheet = null;
 const viewTitle = byId('view-title');
 const authTabs = byId('auth-tabs');
 const railAccount = byId('rail-account');
@@ -5424,17 +5426,28 @@ async function shareSauti() {
 
 async function deleteThreadComment(commentId, button) {
   if (!currentMember || !commentId) return;
+  const conversation = activeSautiConversation;
+  const memberId = currentMemberId;
+  const viewRequestId = sautiConversationRequest;
+  const ownsView = () => currentMemberId === memberId
+    && activeSautiConversation === conversation
+    && sautiConversationRequest === viewRequestId
+    && !conversationSurface.hidden;
   if (!window.confirm('Delete this comment? This cannot be undone.')) return;
 
   const rootId = button.closest('.comment-card')?.dataset.rootPostId || activeSautiConversation?.rootId || '';
   button.disabled = true;
   try {
     await socialMutation(`/api/social/comments/${encodeURIComponent(commentId)}`, { method: 'DELETE' });
-    showToast('Comment deleted.');
-    if (rootId) await loadConversation(rootId);
+    if (ownsView()) {
+      showToast('Comment deleted.');
+      if (rootId) await loadConversation(rootId);
+    }
   } catch (error) {
-    button.disabled = false;
-    showToast(error?.message || 'This comment could not be deleted.', 'error');
+    if (ownsView()) {
+      button.disabled = false;
+      showToast(error?.message || 'This comment could not be deleted.', 'error');
+    }
   }
 }
 
@@ -6667,7 +6680,7 @@ function conversationAuthorLabel(post) {
   return author.display_name || author.username || 'SautiLink member';
 }
 
-function setConversationReplyTarget(post) {
+function setConversationReplyTarget(post, { persistDraft = true } = {}) {
   if (!activeSautiConversation || !post?.id) return false;
   activeSautiConversation.replyTargetId = post.id;
   const item = conversationItemById(post.id);
@@ -6682,7 +6695,7 @@ function setConversationReplyTarget(post) {
     ? 'Write a comment…'
     : `Reply to ${conversationAuthorLabel(post)}…`;
   updateConversationReplyState();
-  if (canComment) persistThreadReplyDraft();
+  if (canComment && persistDraft) persistThreadReplyDraft();
   return canComment;
 }
 
@@ -6710,6 +6723,7 @@ function restoreThreadReplyDraft() {
   if (!activeSautiConversation?.rootId) return;
   const draft = readThreadDraft(activeSautiConversation.rootId);
   if (!draft?.body) {
+    byId('conversation-reply-body').value = '';
     threadReplyRequestId = '';
     updateConversationReplyState();
     return;
@@ -6738,6 +6752,7 @@ function updateConversationReplyState() {
   submit.disabled = !currentMemberId
     || !activeSautiConversation?.replyTargetId
     || !activeSautiConversation?.canReply
+    || Boolean(activeSautiConversation?.pendingReplyRequestId)
     || !hasBody
     || length > 500;
 }
@@ -6852,6 +6867,7 @@ async function loadConversation(postId) {
   thread.scrollTop = 0;
   byId('conversation-reply-compose').hidden = true;
   byId('conversation-reply-restriction').hidden = true;
+  byId('conversation-reply-submit').removeAttribute('aria-busy');
   setMessage(byId('conversation-reply-message'), '', '');
 
   try {
@@ -6936,7 +6952,7 @@ async function loadConversation(postId) {
 
     renderConversationThread();
     const defaultTarget = postMap.get(target.id)?.post || rootItem.post;
-    setConversationReplyTarget(defaultTarget);
+    setConversationReplyTarget(defaultTarget, { persistDraft: false });
     restoreThreadReplyDraft();
 
     window.setTimeout(() => {
@@ -6954,17 +6970,32 @@ async function loadConversation(postId) {
 }
 
 async function submitThreadReply() {
-  if (!activeSautiConversation?.replyTargetId || !activeSautiConversation?.canReply || !currentMemberId) return;
+  if (!activeSautiConversation?.replyTargetId || !activeSautiConversation?.canReply
+    || activeSautiConversation.pendingReplyRequestId || !currentMemberId) return;
+  const conversation = activeSautiConversation;
+  const memberId = currentMemberId;
+  const viewRequestId = sautiConversationRequest;
+  const rootId = conversation.rootId;
+  const replyTargetId = conversation.replyTargetId;
+  const sheetWasOpen = Boolean(memberCommentSheet?.isOpen);
+  const sheetPostId = memberCommentSheet?.postId || '';
+  const ownsView = () => currentMemberId === memberId
+    && activeSautiConversation === conversation
+    && sautiConversationRequest === viewRequestId
+    && (sheetWasOpen
+      ? Boolean(memberCommentSheet?.isOpen) && memberCommentSheet.postId === sheetPostId
+      : !memberCommentSheet?.isOpen && !conversationSurface.hidden);
   const textarea = byId('conversation-reply-body');
   const submit = byId('conversation-reply-submit');
   const message = byId('conversation-reply-message');
-  const body = textarea.value.trim();
+  const draftBody = textarea.value;
+  const body = draftBody.trim();
   setMessage(message, '', '');
 
   if (!body) return;
   if (textarea.value.length > 500) return setMessage(message, 'Comments must be 500 characters or fewer.');
 
-  ensureThreadReplyRequestId();
+  const clientRequestId = ensureThreadReplyRequestId();
   persistThreadReplyDraft();
 
   if (!navigator.onLine) {
@@ -6973,38 +7004,59 @@ async function submitThreadReply() {
     return;
   }
 
+  conversation.pendingReplyRequestId = clientRequestId;
   submit.disabled = true;
   submit.setAttribute('aria-busy', 'true');
   const previous = submit.textContent;
   submit.textContent = 'Commenting…';
 
   try {
-    const replyTargetId = activeSautiConversation.replyTargetId;
     await socialMutation(
-      `/api/social/posts/${activeSautiConversation.replyTargetId}/comments`,
+      `/api/social/posts/${replyTargetId}/comments`,
       {
         method: 'POST',
         body: {
           body,
-          client_request_id: threadReplyRequestId,
+          client_request_id: clientRequestId,
         },
       },
     );
 
-    textarea.value = '';
-    writeThreadDraft(null);
-    threadReplyRequestId = '';
-    const rootId = activeSautiConversation.rootId;
-    if (replyTargetId !== rootId) activeSautiConversation.expandedReplies.add(replyTargetId);
-    window.history.replaceState({}, '', conversationPath(rootId));
+    // An older request may finish after dismissal or while another post is open.
+    // Only its own saved draft can be consumed; newer text needs a new request ID.
+    if (currentMemberId === memberId) {
+      const savedDraft = readThreadDraft(rootId);
+      if (savedDraft?.clientRequestId === clientRequestId) {
+        if (savedDraft.body === draftBody && savedDraft.targetId === replyTargetId) {
+          writeThreadDraft(null, rootId);
+        } else {
+          writeThreadDraft({ ...savedDraft, clientRequestId: crypto.randomUUID() }, rootId);
+        }
+      }
+    }
+    if (!ownsView()) return;
+    if (textarea.value === draftBody && conversation.replyTargetId === replyTargetId) {
+      textarea.value = '';
+      threadReplyRequestId = '';
+    } else {
+      threadReplyRequestId = readThreadDraft(rootId)?.clientRequestId || crypto.randomUUID();
+      persistThreadReplyDraft();
+    }
+    if (replyTargetId !== rootId) conversation.expandedReplies.add(replyTargetId);
+    delete conversation.pendingReplyRequestId;
+    submit.removeAttribute('aria-busy');
+    if (!sheetWasOpen) window.history.replaceState({}, '', conversationPath(rootId));
     await loadConversation(rootId);
     showToast('Comment shared.');
   } catch (error) {
-    setMessage(message, error?.message || 'This comment could not be shared.');
+    if (ownsView()) setMessage(message, error?.message || 'This comment could not be shared.');
   } finally {
-    submit.textContent = previous;
-    submit.removeAttribute('aria-busy');
-    updateConversationReplyState();
+    if (conversation.pendingReplyRequestId === clientRequestId) delete conversation.pendingReplyRequestId;
+    if (ownsView()) {
+      submit.textContent = previous;
+      submit.removeAttribute('aria-busy');
+      updateConversationReplyState();
+    }
   }
 }
 
@@ -8723,6 +8775,7 @@ function renderMenuPage() {
 }
 
 function setMemberNavigation(name) {
+  memberCommentSheet?.close({ history: false, restoreFocus: false });
   if (name !== 'messages' && dmConversationRealtimeChannel) void stopDmConversationRealtime();
   if (name !== 'stream') pauseHomeFeedVideos();
   streamSurface.hidden = name !== 'stream';
@@ -10697,13 +10750,26 @@ document.addEventListener('sautilink:short-videos-closing', (event) => {
   syncHomeFeedModeUi();
   void loadStream({ reset: true });
 });
+memberCommentSheet = createMemberCommentSheet({
+  load: (postId) => { void loadConversation(postId); },
+  onClose: () => {
+    if (!byId('conversation-reply-compose').hidden) persistThreadReplyDraft();
+    sautiConversationRequest += 1;
+  },
+});
+document.addEventListener('sautilink:open-comments', (event) => {
+  if (!currentMember || !event.detail?.postId) return;
+  if (memberCommentSheet?.open(event.detail.postId, event.detail.trigger)) event.preventDefault();
+});
 byId('conversation-back').addEventListener('click', () => {
+  if (memberCommentSheet?.close()) return;
   if (window.history.length > 1) window.history.back();
   else showMemberSurface('stream');
 });
 byId('conversation-retry').addEventListener('click', () => {
   const route = readConversationRoute();
-  if (route?.postId) void loadConversation(route.postId);
+  const postId = memberCommentSheet?.postId || route?.postId;
+  if (postId) void loadConversation(postId);
 });
 byId('conversation-reply-body').addEventListener('input', () => {
   ensureThreadReplyRequestId();
@@ -10919,7 +10985,7 @@ function handleSautiFeedClick(event) {
       if (setConversationReplyTarget(post)) byId('conversation-reply-body').focus();
       byId('conversation-reply-form').scrollIntoView({ behavior: motionBehavior(), block: 'center' });
     } else {
-      openSautiTarget(card.dataset.postId);
+      if (!memberCommentSheet?.open(card.dataset.postId, action)) openSautiTarget(card.dataset.postId);
     }
   }
   if (action.dataset.sautiAction === 'repost') toggleRepostMenu(card);
