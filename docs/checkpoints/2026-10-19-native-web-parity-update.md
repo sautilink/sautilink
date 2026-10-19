@@ -37,8 +37,21 @@ release workflows remain unchanged. The native branch stays stacked on the
 previous native candidate; it must not be merged into the Web main branch for
 testing releases.
 
-Validation in progress: production and test Kotlin compile, pure Kotlin caption
-and media-policy checks pass. Connected Samsung Compose/export tests and full
-lint must pass before pinning the signed release candidate. Release checks retain
+Validation: all 23 connected Samsung SM-A057F / Android 15 tests pass, with no
+skips. These include actual image editor UI/export and source preservation,
+62-second input video clipped to a later 1.5-second interval with decoded frame
+and audio checks, comments at 320dp/150% text, fixed-header scrolling, Marketplace
+copy, menu destinations, 85 vector icons and existing auth/keyboard policies.
+Kotlin caption and media-policy checks pass. Full lint and immutable signed
+release checks remain required before publication. Release checks retain
 the existing upload certificate/Firebase pins and validate bundle manifest,
 caption/integrity behavior, 16KB library alignment, checksums and exact artifacts.
+
+Samsung exposed an XML bitmap-tint inconsistency and narrow text measurement.
+The final notification mask is actual white RGB with the approved original
+alpha, and tab labels have explicit full-tab text width. The icon regression
+allows neutral white 8-bit premultiplied-alpha rounding observed on Samsung,
+while still rejecting colored/dark interior pixels and an opaque background.
+The later measurement/docs commit changes no app/src/main content; its exact
+tree remains 9568065c2d2e31e3f894fc84114a528e1059fac5, matching candidate
+086ffa73af86756c1feae2ecd239d73454519a6d built by the release46 workflow.

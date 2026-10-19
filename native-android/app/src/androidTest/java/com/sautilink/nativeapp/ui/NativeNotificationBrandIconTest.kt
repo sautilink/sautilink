@@ -29,7 +29,12 @@ class NativeNotificationBrandIconTest {
             val pixel = image.getPixel(x, y)
             if (Color.alpha(pixel) == 0) clear++ else {
                 visible++
-                if (Color.red(pixel) != 255 || Color.green(pixel) != 255 || Color.blue(pixel) != 255) {
+                val channels = listOf(Color.red(pixel), Color.green(pixel), Color.blue(pixel))
+                // Canvas premultiplied-alpha filtering on Samsung recovered RGB254
+                // from the white raster at alpha246. Keep a strict neutral/white
+                // check without treating this 8-bit rounding as colored artwork.
+                if (channels.max() - channels.min() > 1 ||
+                    (Color.alpha(pixel) >= 128 && channels.min() < 252)) {
                     colored++
                     if (firstColored.isEmpty()) firstColored = "$x,$y ARGB=${Integer.toHexString(pixel)}"
                 }
