@@ -34,7 +34,7 @@ jobs:
         with:
           # Build the reviewed, immutable premium native UI 1.1.0 (45) source commit.
           # The same SHA and its app/src tree must be pinned in release45.py.
-          ref: 40c0c3de6000a67565d2ae712093d65a1e9edbd1
+          ref: 25982c5107a78c5686caafbb37bf34ec64a31bfa
           path: candidate
           persist-credentials: false
       - uses: actions/setup-java@v4

@@ -5,8 +5,8 @@ import xml.etree.ElementTree as ET
 
 # Immutable source pins for the reviewed premium native UI 1.1.0 (45) candidate.
 # Keep SOURCE identical to the candidate checkout ref in native-premium-release45.yml.
-SOURCE = '40c0c3de6000a67565d2ae712093d65a1e9edbd1'
-SOURCE_TREE = '5c907c854e8034d6ce7bdbee01d9920bb229c2cd'
+SOURCE = '25982c5107a78c5686caafbb37bf34ec64a31bfa'
+SOURCE_TREE = 'b735e857af31eb63d1d024f995df741d356de64e'
 CERT = '31c773a7229a563d92f7047a56735ad7b02027d27a6e020d8923dd5418f4b50f'
 FIREBASE_SHA = 'be30a77f6be106c97b59ecdc6e7cc61100e0d9fd354ac883357e253fb69e6cae'
 BUNDLETOOL_SHA = 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29'
