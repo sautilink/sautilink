@@ -107,6 +107,9 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/messages-media.css'));
   assert.ok(files.includes('app/assets/messages-reply.css'));
   assert.ok(files.includes('app/assets/messages-whatsapp.css'));
+  for (const asset of ['member-ios.css', 'member-ios-surfaces.css', 'member-ios-icons.css', 'member-ios-icons.js']) {
+    assert.ok(files.includes(`app/assets/${asset}`));
+  }
   assert.ok(files.includes('app/assets/mobile-nav-icon-style.css'));
   assert.ok(files.includes('app/assets/mobile-more-drawer.css'));
   assert.ok(files.includes('app/assets/post-edit.css'));
@@ -184,6 +187,10 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/messages-media.css',
     'app/assets/messages-reply.css',
     'app/assets/messages-whatsapp.css',
+    'app/assets/member-ios.css',
+    'app/assets/member-ios-surfaces.css',
+    'app/assets/member-ios-icons.css',
+    'app/assets/member-ios-icons.js',
     'app/assets/mobile-nav-icon-style.css',
     'app/assets/mobile-more-drawer.css',
     'app/assets/post-edit.css',

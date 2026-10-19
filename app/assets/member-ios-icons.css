@@ -1,0 +1,213 @@
+/* Member-only icon finishing. Native SVGs, labels, counters and controls stay intact. */
+body:not(.auth-entry):has(#member-view:not([hidden])) {
+  --ios-icon-rose: #ce335c;
+  --ios-icon-mint: #0b8061;
+  --ios-icon-amber: #996500;
+  --ios-icon-violet: #7955d9;
+  --ios-icon-ease: cubic-bezier(.22, .8, .24, 1);
+}
+
+html[data-theme="dark"] body:not(.auth-entry):has(#member-view:not([hidden])) {
+  --ios-icon-rose: #ff7291;
+  --ios-icon-mint: #50d6a5;
+  --ios-icon-amber: #f6bd54;
+  --ios-icon-violet: #b59aff;
+}
+
+/* Keep the optical weight consistent without touching logos or media controls. */
+body:not(.auth-entry):has(#member-view:not([hidden])) .primary-rail .app-nav > .nav-item > svg {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  color: var(--ios-muted, var(--app-muted));
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .primary-rail .app-nav > .nav-item:is(.active, [aria-current="page"]) > svg {
+  color: var(--ios-blue, #007aff);
+  stroke-width: 2;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button.sauti-action[data-sauti-action] {
+  min-width: 44px;
+  min-height: 44px;
+  padding-inline: 8px;
+  border: 0;
+  border-radius: 13px;
+  color: var(--ios-muted, var(--app-muted));
+  background: transparent;
+  transition: color 160ms ease, background-color 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button.sauti-action[data-sauti-action] > svg {
+  flex: 0 0 auto;
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-origin: center;
+  transition: transform 180ms var(--ios-icon-ease), fill 160ms ease;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > .sauti-action .sauti-action-count {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button[data-sauti-action="like"]:is(.active, [aria-pressed="true"]) {
+  color: var(--ios-icon-rose);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button[data-sauti-action="repost"]:is(.active, [aria-pressed="true"]) {
+  color: var(--ios-icon-mint);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button[data-sauti-action="save"]:is(.active, [aria-pressed="true"]) {
+  color: var(--ios-icon-amber);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button:is([data-sauti-action="like"], [data-sauti-action="save"]):is(.active, [aria-pressed="true"]) > svg {
+  fill: currentColor;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > .sauti-view-metric {
+  color: var(--ios-muted, var(--app-muted));
+  opacity: .8;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > .sauti-view-metric > svg {
+  width: 19px;
+  height: 19px;
+  stroke-width: 1.75;
+}
+
+/* Focus is visible on keyboard and the same state is available to touch users. */
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button[data-sauti-action]:focus-visible,
+body:not(.auth-entry):has(#member-view:not([hidden])) .composer-tools > button.composer-tool:focus-visible,
+body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-header-actions > button:focus-visible {
+  outline: 2px solid var(--ios-blue, #007aff);
+  outline-offset: 3px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button[data-sauti-action]:active:not(:disabled) {
+  background: color-mix(in srgb, var(--ios-blue, #007aff) 8%, transparent);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button[data-sauti-action]:active:not(:disabled) > svg {
+  transform: scale(.9);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button.sauti-action:disabled {
+  opacity: .45;
+}
+
+/* Functional accents keep the tools recognisable in the composer and Settings. */
+body:not(.auth-entry):has(#member-view:not([hidden])) .composer-dialog .composer-tools > .composer-tool > svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.8;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-media-add > svg {
+  color: var(--ios-icon-mint);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-camera-add > svg {
+  color: var(--ios-icon-violet);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .composer-upload-icon > svg,
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-tabs > button > svg {
+  stroke-width: 1.8;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-tabs > [data-settings-section="account"] > svg,
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-tabs > [data-settings-section="data"] > svg {
+  color: var(--ios-blue, #007aff);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-tabs > [data-settings-section="privacy"] > svg {
+  color: var(--ios-icon-violet);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-tabs > [data-settings-section="playback"] > svg {
+  color: var(--ios-icon-mint);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-tabs > [data-settings-section="notifications"] > svg {
+  color: var(--ios-icon-amber);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-tabs > [data-settings-section="safety"] > svg {
+  color: var(--ios-icon-rose);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button[data-sauti-action]:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--ios-blue, #007aff) 7%, transparent);
+    color: var(--ios-blue, #007aff);
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button[data-sauti-action="like"]:hover:not(:disabled) {
+    color: var(--ios-icon-rose);
+    background: color-mix(in srgb, var(--ios-icon-rose) 9%, transparent);
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button[data-sauti-action="repost"]:hover:not(:disabled) {
+    color: var(--ios-icon-mint);
+    background: color-mix(in srgb, var(--ios-icon-mint) 9%, transparent);
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button[data-sauti-action="save"]:hover:not(:disabled) {
+    color: var(--ios-icon-amber);
+    background: color-mix(in srgb, var(--ios-icon-amber) 9%, transparent);
+  }
+}
+
+@media (max-width: 680px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style="bold-outline"] button {
+    color: var(--ios-muted, var(--app-muted));
+    opacity: 1;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style="bold-outline"] button:is(.active, [aria-current="page"]) {
+    color: var(--ios-blue, #007aff);
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style="bold-outline"] .mobile-nav-icon {
+    width: 25px;
+    height: 25px;
+    stroke-width: 1.85;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style="bold-outline"] button.active .mobile-nav-icon {
+    stroke-width: 2;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style="bold-outline"] button:focus-visible {
+    outline: 2px solid var(--ios-blue, #007aff);
+    outline-offset: -7px;
+  }
+}
+
+@media (max-width: 360px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button.sauti-action[data-sauti-action] {
+    padding-inline: 5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button[data-sauti-action],
+  body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button[data-sauti-action] > svg,
+  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style="bold-outline"] .mobile-nav-icon {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

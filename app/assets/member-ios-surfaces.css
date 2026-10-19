@@ -1,0 +1,1075 @@
+/* Authenticated subpages. This gate intentionally excludes every auth entry state.
+   Existing routes, hidden states, controls, and personal chat appearance remain intact. */
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.discover-surface, .notifications-surface, .profile-surface, .settings-surface) {
+  background: var(--ios-bg);
+  color: var(--ios-ink);
+}
+
+/* Discovery and activity: inset, grouped lists with a quieter hierarchy. */
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.discover-search, .discover-section, .notifications-list) {
+  border: 1px solid var(--ios-line);
+  border-radius: 22px;
+  background: var(--ios-surface);
+  box-shadow: var(--ios-shadow);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .discover-search {
+  gap: 12px;
+  margin: 6px 20px 22px;
+  padding: 10px 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .discover-search input {
+  min-height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--ios-secondary);
+  color: var(--ios-ink);
+  font-size: 14px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .discover-search svg,
+body:not(.auth-entry):has(#member-view:not([hidden])) .discover-search input::placeholder {
+  color: var(--ios-muted);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .discover-search button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--ios-blue-soft);
+  color: var(--ios-blue);
+  font-size: 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .discover-section {
+  margin: 0 20px 20px;
+  overflow: hidden;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .discover-section-heading {
+  padding: 22px 20px 18px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .discover-section-heading h3 {
+  margin-top: 6px;
+  color: var(--ios-ink);
+  font-size: 19px;
+  font-weight: 730;
+  letter-spacing: -.035em;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .discover-profile-row {
+  gap: 13px;
+  padding: 17px 20px;
+  border-color: var(--ios-line);
+  background: var(--ios-surface);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.discover-profile-row:hover, .notification-item:hover) {
+  background: var(--ios-secondary);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .discover-profile-avatar {
+  width: 48px;
+  height: 48px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .discover-profile-heading {
+  flex-wrap: wrap;
+  gap: 3px 8px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .discover-profile-heading :is(strong, .verified-name) {
+  color: var(--ios-ink);
+  font-size: 14px;
+  font-weight: 680;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.discover-profile-heading > span, .discover-profile-copy p) {
+  color: var(--ios-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.discover-profile-copy small, .discover-section-empty) {
+  color: var(--ios-muted);
+  font-size: 11px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .discover-profile-open {
+  min-height: 38px;
+  border-color: transparent;
+  border-radius: 12px;
+  background: var(--ios-blue-soft);
+  color: var(--ios-blue);
+  font-size: 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .notifications-surface {
+  padding: 20px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .notifications-list {
+  overflow: hidden;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .notifications-list:empty {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .notification-item {
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 14px;
+  padding: 20px;
+  border-color: var(--ios-line);
+  background: var(--ios-surface);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .notification-item:last-child {
+  border-bottom: 0;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .notification-item.unread {
+  background: color-mix(in srgb, var(--ios-blue) 6%, var(--ios-surface));
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .notification-item.unread:hover {
+  background: color-mix(in srgb, var(--ios-blue) 10%, var(--ios-surface));
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .notification-avatar {
+  width: 48px;
+  height: 48px;
+  border-color: var(--ios-line);
+  background: var(--ios-blue-soft);
+  color: var(--ios-blue);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .notification-copy p {
+  color: var(--ios-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .notification-copy :is(strong, .verified-name) {
+  color: var(--ios-ink);
+  font-size: 14px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .notification-meta {
+  color: var(--ios-muted);
+  font-size: 11px;
+}
+
+/* Public identity inside the signed-in app. */
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface {
+  padding: 20px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-card {
+  border: 1px solid var(--ios-line);
+  border-radius: 24px;
+  background: var(--ios-surface);
+  box-shadow: var(--ios-shadow);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-banner {
+  height: 192px;
+  border-radius: 23px 23px 0 0;
+  background: radial-gradient(ellipse at 80% 5%, #c7ddff 0, transparent 60%), linear-gradient(135deg, #8eadd9, #abc8ef 55%, #d5ddf8);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-main {
+  padding: 0 24px 26px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-topline {
+  min-height: 82px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-avatar-shell {
+  width: 112px;
+  height: 112px;
+  flex-basis: 112px;
+  margin-top: -56px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface :is(.profile-avatar, .profile-avatar-image) {
+  width: 112px;
+  height: 112px;
+  border: 5px solid var(--ios-surface);
+  box-shadow: 0 4px 18px #16294814;
+  font-size: 38px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-actions {
+  padding-top: 16px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface :is(.profile-edit-button, .profile-follow-button, .profile-dashboard-button) {
+  min-height: 40px;
+  border: 1px solid var(--ios-line);
+  border-radius: 13px;
+  background: var(--ios-secondary);
+  color: var(--ios-ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-follow-button:not(.following):not(.profile-message-button) {
+  border-color: transparent;
+  background: var(--app-accent-strong);
+  color: #fff;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface :is(.profile-heading h2, .profile-name-line h2) {
+  color: var(--ios-ink);
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: -.045em;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-bio {
+  margin-top: 17px;
+  color: var(--ios-ink);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-social-stats {
+  gap: 24px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--ios-line);
+  color: var(--ios-muted);
+  font-size: 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-social-stats strong {
+  color: var(--ios-ink);
+  font-size: 16px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-owner-dashboard-actions {
+  gap: 10px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--ios-line);
+  border-radius: 20px;
+  background: var(--ios-surface);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-activity-shell {
+  margin-top: 20px;
+  border: 1px solid var(--ios-line);
+  border-radius: 22px;
+  background: var(--ios-surface);
+  box-shadow: var(--ios-shadow);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-activity-tabs {
+  gap: 4px;
+  padding: 8px;
+  border-color: var(--ios-line);
+  border-radius: 21px 21px 0 0;
+  background: var(--ios-surface);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-activity-tab {
+  min-height: 42px;
+  border-radius: 13px;
+  color: var(--ios-muted);
+  font-size: 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-activity-tab[aria-selected="true"] {
+  background: var(--ios-blue-soft);
+  color: var(--ios-blue);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-activity-tab[aria-selected="true"]::after {
+  height: 0;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-activity-card {
+  padding: 20px;
+  background: var(--ios-surface);
+  border-color: var(--ios-line);
+}
+
+/* Settings: a grouped sidebar and readable controls, with native switch proportions. */
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface {
+  margin: 20px;
+  min-height: 650px;
+  border: 1px solid var(--ios-line);
+  border-radius: 24px;
+  background: var(--ios-surface);
+  box-shadow: var(--ios-shadow);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-toolbar {
+  padding: 20px 24px;
+  border-color: var(--ios-line);
+  border-radius: 23px 23px 0 0;
+  background: var(--ios-surface);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-tabs {
+  gap: 6px;
+  padding: 16px 12px;
+  border-color: var(--ios-line);
+  border-radius: 0 0 0 23px;
+  background: var(--ios-surface);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-tabs button {
+  min-height: 48px;
+  border-radius: 14px;
+  color: var(--ios-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-tabs button.active {
+  border-color: transparent;
+  background: var(--ios-blue-soft);
+  color: var(--ios-blue);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-tabs button.active i {
+  color: var(--ios-blue);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-panel {
+  gap: 18px;
+  padding: 24px;
+  border-radius: 0 0 23px 0;
+  background: var(--ios-bg);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-panel-heading h3 {
+  color: var(--ios-ink);
+  font-size: 24px;
+  font-weight: 720;
+  letter-spacing: -.04em;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-card {
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--ios-line);
+  border-radius: 20px;
+  background: var(--ios-surface);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface :is(.settings-card-title strong, .settings-data-card strong, .settings-toggle-row strong, .settings-select > span) {
+  color: var(--ios-ink);
+  font-size: 14px;
+  font-weight: 630;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface :is(.settings-card-title small, .settings-note, .settings-select small, .settings-card-copy, .settings-data-card p, .settings-empty, .settings-toggle-row small, .settings-panel-heading > p:last-child) {
+  color: var(--ios-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface :is(.settings-details div, .settings-account-row, .settings-verification-status) {
+  padding: 13px;
+  background: var(--ios-secondary);
+  border-color: var(--ios-line);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface :is(.settings-details dt, .settings-details dd, .settings-select select, .settings-account-row strong) {
+  font-size: 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-details dd {
+  color: var(--ios-ink);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-toggle-list {
+  gap: 0;
+  padding: 0;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-toggle-row {
+  min-height: 82px;
+  gap: 20px;
+  padding: 18px 20px;
+  border-color: var(--ios-line);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-toggle-row i {
+  width: 46px;
+  height: 28px;
+  border: 0;
+  background: color-mix(in srgb, var(--ios-muted) 24%, var(--ios-surface));
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-toggle-row i b {
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  background: #fff;
+  box-shadow: 0 2px 5px #0002;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-toggle-row input:checked + i {
+  background: #34c759;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-toggle-row input:checked + i b {
+  left: 21px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-select select {
+  min-height: 44px;
+  border-radius: 12px;
+  background: var(--ios-secondary);
+  color: var(--ios-ink);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-data-card.danger {
+  border-color: color-mix(in srgb, #e34b55 24%, var(--ios-line));
+  background: color-mix(in srgb, #e34b55 4%, var(--ios-surface));
+}
+
+/* Messages keeps its existing split layout, mobile navigation, and appearance controls. */
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui {
+  --message-brand: var(--app-accent-strong);
+  --message-brand-hover: color-mix(in srgb, var(--app-accent-strong) 84%, #000);
+  --message-bg: var(--ios-bg);
+  --message-panel: var(--ios-surface);
+  --message-panel-soft: var(--ios-secondary);
+  --message-line: var(--ios-line);
+  --message-text: var(--ios-ink);
+  --message-muted: var(--ios-muted);
+  --message-incoming: var(--ios-elevated);
+  --message-own: var(--app-accent-strong);
+  --message-ios-incoming: var(--ios-elevated);
+  --message-ios-incoming-text: var(--ios-ink);
+  --message-ios-outgoing: var(--app-accent-strong);
+  --message-ios-outgoing-text: #fff;
+  --message-ios-meta: var(--ios-muted);
+  --message-ios-outgoing-meta: #fff;
+  --message-ios-read: var(--ios-blue);
+  --wa-bg: var(--ios-bg);
+  --wa-panel: var(--ios-surface);
+  --wa-panel-soft: var(--ios-secondary);
+  --wa-chat: var(--ios-bg);
+  --wa-line: var(--ios-line);
+  --wa-text: var(--ios-ink);
+  --wa-muted: var(--ios-muted);
+  --wa-green: var(--ios-blue);
+  --wa-green-strong: var(--app-accent-strong);
+  --wa-incoming: var(--ios-elevated);
+  --wa-outgoing: var(--app-accent-strong);
+  --wa-unread: var(--ios-blue);
+  background: var(--ios-bg);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .dm-message.own :is(.dm-read-receipt, .dm-message-action) {
+  color: #fff;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .messages-wa-shell {
+  border-color: var(--ios-line);
+  border-radius: 24px;
+  box-shadow: var(--ios-shadow);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui :is(.messages-toolbar, .message-thread-header) {
+  min-height: 76px;
+  padding: 14px 18px;
+  background: var(--ios-surface);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .messages-toolbar h2 {
+  font-size: 23px;
+  font-weight: 730;
+  letter-spacing: -.045em;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui :is(.messages-wa-new-chat, .messages-wa-menu-button, .messages-appearance-close) {
+  border-radius: 13px;
+  background: var(--ios-secondary);
+  color: var(--ios-blue);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .messages-search {
+  padding: 8px 16px 16px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui #messages-search {
+  height: 44px;
+  border-radius: 13px;
+  font-size: 14px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .message-inbox-item {
+  min-height: 84px;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui :is(.message-inbox-top strong, .message-inbox-top .verified-name) {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .message-inbox-preview {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .message-inbox-meta {
+  font-size: 10px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui :is(.messages-wa-menu-items, .message-thread-controls) {
+  padding: 7px;
+  border-color: var(--ios-line);
+  border-radius: 18px;
+  background: var(--ios-elevated);
+  box-shadow: var(--ios-shadow);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui #message-thread-name {
+  color: var(--ios-ink);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .message-thread-feed {
+  padding: 24px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .message-composer {
+  gap: 10px;
+  padding: 14px 18px;
+  border-color: var(--ios-line);
+  background: var(--ios-surface);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui #message-body {
+  min-height: 46px;
+  border-color: var(--ios-line);
+  border-radius: 20px;
+  background: var(--ios-secondary);
+  font-size: 14px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .message-safety-note {
+  border-color: var(--ios-line);
+  background: var(--ios-secondary);
+  color: var(--ios-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+/* Rooms uses its original presentation tokens, remapped to the shared palette. */
+body.rooms-facebook-view:not(.auth-entry):has(#member-view:not([hidden])) {
+  --room-fb-bg: var(--ios-bg);
+  --room-fb-card: var(--ios-surface);
+  --room-fb-card-soft: var(--ios-secondary);
+  --room-fb-line: var(--ios-line);
+  --room-fb-text: var(--ios-ink);
+  --room-fb-muted: var(--ios-muted);
+  --room-fb-blue: var(--ios-blue);
+  --room-fb-blue-strong: var(--ios-blue);
+  --room-fb-hover: var(--ios-secondary);
+  --room-fb-shadow: var(--ios-shadow);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.room-fb-landing-sidebar, .room-fb-about-card, .room-invite-panel, .room-admin-panel, .circle-members, .circle-requests, .circle-create-form) {
+  border: 1px solid var(--ios-line);
+  border-radius: 22px;
+  background: var(--ios-surface);
+  box-shadow: var(--ios-shadow);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .room-fb-sidebar-heading {
+  padding: 24px 20px 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .room-fb-sidebar-heading h2 {
+  font-size: 27px;
+  font-weight: 730;
+  letter-spacing: -.045em;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .room-fb-sidebar-nav {
+  gap: 5px;
+  padding: 8px 12px 16px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .room-fb-sidebar-nav button {
+  min-height: 50px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 630;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .room-fb-sidebar-nav button.active {
+  background: var(--ios-blue-soft);
+  color: var(--ios-blue);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .room-fb-sidebar-nav button svg {
+  border-radius: 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface:not(.room-fb-detail-open) .circles-toolbar {
+  padding: 20px;
+  border: 1px solid var(--ios-line);
+  border-radius: 22px;
+  background: var(--ios-surface);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-list {
+  gap: 18px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-list .circle-card {
+  border: 1px solid var(--ios-line);
+  border-radius: 22px;
+  background: var(--ios-surface);
+  box-shadow: var(--ios-shadow);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-list .room-card-cover {
+  height: 170px;
+  background: linear-gradient(140deg, #9cbfe8, #c7d6f5 65%, #dee6f6);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-list .circle-card-main {
+  padding: 18px 18px 10px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-list .circle-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -.03em;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-list .circle-card-description {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.circle-policy-badge, .room-category-badge, .room-privacy-badge, .room-detail-badges span) {
+  border: 1px solid var(--ios-line);
+  border-radius: 8px;
+  background: var(--ios-secondary);
+  color: var(--ios-muted);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .circle-detail.room-fb-detail > .circle-detail-card {
+  overflow: hidden;
+  border: 1px solid var(--ios-line);
+  border-radius: 22px;
+  background: var(--ios-surface);
+  box-shadow: var(--ios-shadow);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .room-fb-detail-tabs {
+  gap: 6px;
+  margin: 14px 0;
+  padding: 7px;
+  border: 1px solid var(--ios-line);
+  border-radius: 18px;
+  background: var(--ios-surface);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .room-fb-detail-tabs button {
+  min-height: 42px;
+  border-radius: 12px;
+  color: var(--ios-muted);
+  font-size: 13px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .room-fb-detail-tabs button.active {
+  background: var(--ios-blue-soft);
+  color: var(--ios-blue);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .room-fb-detail-tabs button.active::after {
+  height: 0;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.circle-detail-actions .form-submit, .circle-detail-actions .secondary-action, #circles-create-toggle, #circle-sauti-submit) {
+  min-height: 42px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.room-detail-menu, .room-detail-search, .profile-more-popover) {
+  border-color: var(--ios-line);
+  border-radius: 18px;
+  background: var(--ios-elevated);
+  box-shadow: var(--ios-shadow);
+}
+
+/* Existing member dialogs get the same material; native dialog visibility is untouched. */
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.settings-delete-dialog, .report-dialog, .appeal-dialog, .verification-request-dialog, .verification-info-dialog, .messages-appearance-dialog, .profile-media-editor-dialog) {
+  max-height: calc(100dvh - 40px);
+  border: 1px solid var(--ios-line);
+  border-radius: 24px;
+  background: var(--ios-elevated);
+  color: var(--ios-ink);
+  box-shadow: 0 28px 90px #07122230;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.settings-delete-dialog, .report-dialog, .appeal-dialog, .verification-request-dialog, .verification-info-dialog, .messages-appearance-dialog, .profile-media-editor-dialog)::backdrop {
+  background: #08132670;
+  backdrop-filter: blur(8px);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-editor {
+  background: #08132670;
+  backdrop-filter: blur(12px);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-editor-dialog {
+  border-color: var(--ios-line);
+  border-radius: 26px;
+  background: var(--ios-bg);
+  box-shadow: 0 28px 90px #07122230;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-editor .profile-editor-heading {
+  min-height: 78px;
+  padding: 18px 24px;
+  background: var(--ios-surface);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-editor .profile-editor-content {
+  gap: 18px;
+  padding: 22px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-editor :is(.profile-identity-panel, .profile-media-panel, .profile-form, .account-security-panel) {
+  padding: 22px;
+  border-color: var(--ios-line);
+  border-radius: 20px;
+  background: var(--ios-surface);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.profile-editor, .settings-delete-form, .report-dialog, .appeal-dialog, .verification-request-dialog) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), textarea, select) {
+  min-height: 46px;
+  border: 1px solid var(--ios-line);
+  border-radius: 13px;
+  background: var(--ios-secondary);
+  color: var(--ios-ink);
+  font-size: 14px;
+}
+
+@media (min-width: 681px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui {
+    padding: 20px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .messages-wa-shell {
+    height: calc(100dvh - 122px);
+    min-height: 580px;
+  }
+}
+
+@media (max-width: 680px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) .discover-search {
+    margin: 4px 12px 16px;
+    padding: 8px 10px;
+    border-radius: 18px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .discover-search button {
+    grid-column: auto;
+    min-height: 40px;
+    padding-inline: 13px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .discover-search {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .discover-section {
+    margin: 0 12px 16px;
+    border-radius: 20px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) :is(.discover-section-heading, .discover-profile-row) {
+    padding-inline: 16px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .notifications-surface {
+    padding: 12px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .notification-item {
+    gap: 12px;
+    padding: 18px 16px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface {
+    padding: 12px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-banner {
+    height: 154px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-main {
+    padding: 0 18px 22px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-avatar-shell {
+    width: 92px;
+    height: 92px;
+    flex-basis: 92px;
+    margin-top: -46px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface :is(.profile-avatar, .profile-avatar-image) {
+    width: 92px;
+    height: 92px;
+    font-size: 32px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-topline {
+    min-height: 72px;
+    gap: 8px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-actions {
+    gap: 6px;
+    padding-top: 12px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface :is(.profile-edit-button, .profile-follow-button) {
+    min-height: 38px;
+    padding-inline: 12px;
+    font-size: 11px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface :is(.profile-heading h2, .profile-name-line h2) {
+    font-size: 24px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-activity-card {
+    padding: 18px 14px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface {
+    min-height: 0;
+    margin: 12px;
+    border-radius: 22px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-toolbar {
+    padding: 18px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-tabs {
+    top: max(130px, calc(121px + env(safe-area-inset-top)));
+    padding: 8px 10px;
+    border-radius: 0;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-tabs button {
+    min-height: 42px;
+    padding-inline: 13px;
+    font-size: 12px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-panel {
+    gap: 16px;
+    padding: 20px 12px;
+    border-radius: 0 0 21px 21px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-card {
+    padding: 17px;
+    border-radius: 18px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-toggle-list {
+    padding: 0;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-toggle-row {
+    gap: 16px;
+    padding: 16px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui {
+    min-height: calc(100dvh - 82px - env(safe-area-inset-bottom));
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .messages-wa-shell {
+    min-height: calc(100dvh - 82px - env(safe-area-inset-bottom));
+    height: calc(100dvh - 82px - env(safe-area-inset-bottom));
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui :is(.messages-toolbar, .message-thread-header) {
+    min-height: 68px;
+    padding: 12px 16px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .message-thread-feed {
+    padding: 18px 16px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .message-composer {
+    padding: 12px 14px max(12px, env(safe-area-inset-bottom));
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-list {
+    gap: 14px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-list .room-card-cover {
+    height: 156px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface.room-fb-detail-open .room-detail-toolbar {
+    top: max(64px, calc(55px + env(safe-area-inset-top)));
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-editor-dialog {
+    border: 0;
+    border-radius: 0;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-editor .profile-editor-heading {
+    padding: max(16px, env(safe-area-inset-top)) 18px 16px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-editor .profile-editor-content {
+    padding: 12px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-editor :is(.profile-identity-panel, .profile-media-panel, .profile-form, .account-security-panel) {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 420px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) .discover-profile-row {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding-inline: 13px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .discover-profile-avatar {
+    width: 44px;
+    height: 44px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .discover-profile-open {
+    grid-column: auto;
+    margin: 0;
+    padding-inline: 10px;
+    font-size: 11px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface .settings-select {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+/* Saved, appeals, and moderation use the same member materials and readable statuses. */
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.saved-surface, .appeals-surface, .moderation-surface, .moderation-workspace) {
+  background: var(--ios-bg); color: var(--ios-ink);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .surface-toolbar {
+  border-color: var(--ios-line); background: var(--ios-bg); color: var(--ios-ink);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .surface-toolbar h2 { color: var(--ios-ink); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .surface-toolbar :is(.surface-intro-copy, p:last-child) {
+  color: var(--ios-muted); font-size: 12px; line-height: 1.6;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.appeal-card-live, .moderation-appeal-row, .moderation-audit-row, .moderation-case-detail) {
+  padding: 20px; border: 1px solid var(--ios-line); border-radius: 20px; background: var(--ios-surface); color: var(--ios-ink); box-shadow: var(--ios-shadow);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.appeal-card-live, .moderation-appeal-row, .moderation-audit-row, .moderation-case-row) strong {
+  color: var(--ios-ink); font-size: 13px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.appeal-card-live, .moderation-appeal-row, .moderation-audit-row, .moderation-case-row) small,
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.appeal-policy, .moderation-audit-row > span, .moderation-list-empty) {
+  color: var(--ios-muted); font-size: 11px; line-height: 1.55;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.appeal-card-live p, .moderation-appeal-row p, .appeal-dialog p) {
+  color: var(--ios-muted); font-size: 12px; line-height: 1.6;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.appeal-existing, .moderation-case-list, .moderation-case-row, .moderation-filter-row, .moderation-tabs) {
+  border-color: var(--ios-line);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.appeal-state, .moderation-case-state, .moderation-role) {
+  min-height: 27px; padding-inline: 10px; border-color: var(--ios-line); background: var(--ios-secondary); color: var(--ios-muted); font-size: 11px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.appeal-state.reversed, .moderation-case-state.resolved) {
+  border-color: color-mix(in srgb, var(--app-good) 24%, var(--ios-line)); background: color-mix(in srgb, var(--app-good) 8%, var(--ios-surface)); color: color-mix(in srgb, var(--app-good) 75%, var(--ios-ink));
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.appeal-state.open, .appeal-state.reviewing, .moderation-case-state.open, .moderation-case-state.reviewing) {
+  border-color: color-mix(in srgb, #c28b13 30%, var(--ios-line)); background: color-mix(in srgb, #d4a229 10%, var(--ios-surface)); color: color-mix(in srgb, #c28b13 45%, var(--ios-ink));
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .moderation-tabs {
+  gap: 5px; margin: 0 18px; padding: 5px; border: 1px solid var(--ios-line); border-radius: 15px; background: var(--ios-secondary);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .moderation-tabs button {
+  min-height: 40px; border: 0; border-radius: 10px; color: var(--ios-muted); font-size: 12px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .moderation-tabs button[aria-selected="true"] {
+  background: var(--ios-surface); color: var(--ios-ink); box-shadow: var(--ios-shadow);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .moderation-filter-row {
+  color: var(--ios-muted); font-size: 12px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.moderation-filter-row select, .moderation-decision-reason) {
+  min-height: 40px; border-color: var(--ios-line); border-radius: 12px; background: var(--ios-secondary); color: var(--ios-ink); font-size: 13px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .moderation-workspace { gap: 16px; padding: 16px 18px 24px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .moderation-case-row { min-height: 72px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .moderation-case-row:hover { background: var(--ios-secondary); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .moderation-case-row.selected { background: var(--ios-blue-soft); }
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.moderation-context, .moderation-reporter-context) {
+  border-color: var(--ios-line); border-radius: 14px; background: var(--ios-secondary); color: var(--ios-ink); font-size: 12px; line-height: 1.65;
+}
+
+/* Conversation retains its nested reply layout and independently scrolling thread. */
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#conversation-surface, #conversation-thread) {
+  background: var(--ios-surface); color: var(--ios-ink);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #conversation-surface .conversation-toolbar {
+  min-height: 64px; border-color: var(--ios-line); background: var(--app-header-bg);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.conversation-thread-heading h3, .conversation-reply-context strong, .conversation-reply-meta b) { color: var(--ios-ink); }
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.conversation-thread-heading > span, .conversation-reply-context span, .conversation-reply-meta, .conversation-reply-actions > span) {
+  color: var(--ios-muted); font-size: 11px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .conversation-reply-form {
+  border-color: var(--ios-line); background: var(--app-header-bg);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .conversation-reply-form textarea {
+  border-color: var(--ios-line); background: var(--ios-secondary); color: var(--ios-ink);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .conversation-reply-actions button {
+  background: var(--app-accent-strong); color: #fff; font-size: 12px;
+}
+@media (max-width: 680px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) .moderation-workspace { padding: 12px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) :is(.appeal-card-live, .moderation-appeal-row, .moderation-audit-row, .moderation-case-detail) { padding: 16px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) #conversation-surface {
+    height: calc(100dvh - max(64px, calc(55px + env(safe-area-inset-top))) - 82px - env(safe-area-inset-bottom));
+  }
+}
