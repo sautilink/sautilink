@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import kotlinx.coroutines.launch
@@ -68,7 +69,7 @@ internal fun messageWallpaper(choice: String): Color = when (choice) {
 internal fun outgoingBubble(choice: String): Color = when (choice) {
     "teal" -> Color(0xFF0B8676)
     "neutral" -> MaterialTheme.colorScheme.secondaryContainer
-    else -> Color(0xFF0866FF)
+    else -> Color(0xFF0068DF)
 }
 
 /** Telegram/iOS-style messaging controls, no false promises of DM attachment support. */
@@ -104,12 +105,12 @@ internal fun NativeMessageSettingsScreen(
     var compact by remember { mutableStateOf(preferences.compact) }
     var dataSaver by remember { mutableStateOf(preferences.dataSaver) }
     var autoPhotos by remember { mutableStateOf(preferences.autoPhotos) }
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack, Modifier.size(48.dp)) {
                 Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
             }
-            Text("Chat settings", style = MaterialTheme.typography.headlineSmall,
+            Text("Chat settings", style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f))
         }
         HorizontalDivider()
@@ -119,13 +120,13 @@ internal fun NativeMessageSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                Text("Appearance", style = MaterialTheme.typography.titleMedium)
+                MessageSettingsHeading("Appearance", Icons.Rounded.Palette)
                 Text("Chat wallpapers and outgoing bubble colours are saved on this device.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             item {
-                Text("Wallpaper", style = MaterialTheme.typography.labelLarge)
+                MessageSettingsHeading("Wallpaper", Icons.Rounded.Wallpaper)
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     listOf("system" to "Auto", "warm" to "Warm", "blue" to "Blue", "dark" to "Dark")
@@ -137,7 +138,7 @@ internal fun NativeMessageSettingsScreen(
                 }
             }
             item {
-                Text("Chat bubble", style = MaterialTheme.typography.labelLarge)
+                MessageSettingsHeading("Chat bubble", Icons.Rounded.ChatBubbleOutline)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("blue" to "Blue", "teal" to "Teal", "neutral" to "Neutral")
                         .forEach { (key, label) ->
@@ -158,7 +159,7 @@ internal fun NativeMessageSettingsScreen(
                 )
             }
             item {
-                Text("Privacy and safety", style = MaterialTheme.typography.titleMedium)
+                MessageSettingsHeading("Privacy and safety", Icons.Rounded.Shield)
                 ListItem(
                     headlineContent = { Text("Online, last seen and typing") },
                     supportingContent = { Text("Show activity to eligible chats. If disabled, you also cannot see others' activity.") },
@@ -216,7 +217,7 @@ internal fun NativeMessageSettingsScreen(
                 )
             }
             item {
-                Text("Data and storage", style = MaterialTheme.typography.titleMedium)
+                MessageSettingsHeading("Data and storage", Icons.Rounded.Storage)
                 ListItem(
                     headlineContent = { Text("Data saver") },
                     supportingContent = { Text("Save your preference for future chat media support") },
@@ -245,5 +246,14 @@ internal fun NativeMessageSettingsScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun MessageSettingsHeading(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Row(Modifier.padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+        Icon(icon, null, Modifier.size(21.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(label, style = MaterialTheme.typography.titleSmall)
     }
 }

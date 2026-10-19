@@ -45,10 +45,11 @@ android {
     defaultConfig {
         minSdk = 26
         targetSdk = 36
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "STAGING_SUPABASE_PUBLISHABLE_KEY", "\"${stagingPublishableKey}\"")
         buildConfigField("String", "PRODUCTION_SUPABASE_PUBLISHABLE_KEY", "\"${productionPublishableKey}\"")
-        versionCode = 44
-        versionName = "1.0.2"
+        versionCode = 45
+        versionName = "1.1.0"
     }
     flavorDimensions += "distribution"
     productFlavors {
@@ -80,6 +81,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures { compose = true; buildConfig = true }
+    // Licensed icon sources are test fixtures only; no test assets enter release builds.
+    sourceSets.getByName("androidTest").assets.srcDir("../icons")
 }
 androidComponents {
     beforeVariants(selector().all()) { variant ->
@@ -118,4 +121,9 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
     implementation("com.google.firebase:firebase-messaging")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    androidTestImplementation(composeBom)
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
 }

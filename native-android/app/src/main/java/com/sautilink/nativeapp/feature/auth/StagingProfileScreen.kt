@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.PersonOutline
 import androidx.compose.material.icons.rounded.Refresh
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -58,8 +59,8 @@ fun StagingProfileScreen(client: StagingAuthClient, onBack: () -> Unit, onSignIn
         }
         Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("${client.backend.title.uppercase()} · READ ONLY", color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                Text("${client.backend.title} · Read only", color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall)
                 Text("Live identity from your SautiLink ${client.backend.title.lowercase()} account",
                     style = MaterialTheme.typography.titleMedium)
                 Text("The main Home preview and Messages still use demo data.",
@@ -97,7 +98,8 @@ fun StagingProfileScreen(client: StagingAuthClient, onBack: () -> Unit, onSignIn
                                     modifier = Modifier.size(38.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                             }
                         }
-                        Text(member.displayName.ifBlank { "SautiLink member" }, style = MaterialTheme.typography.headlineMedium)
+                        Text(member.displayName.ifBlank { "SautiLink member" }, style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.SemiBold)
                         Text("@${member.username}", color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.titleMedium)
                         if (member.bio.isNotBlank()) Text(member.bio, style = MaterialTheme.typography.bodyLarge)

@@ -1,6 +1,8 @@
 package com.sautilink.nativeapp.feature.rooms
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -39,7 +41,7 @@ internal fun RoomMembershipQuestionsSheet(room: NativeRoom, state: RoomManagemen
     RoomSheet("Join ${room.name}", onDismiss) {
         RoomRulesContent(snapshot.rules)
         if (snapshot.questions.isNotEmpty()) {
-            Text("Before you join", style = MaterialTheme.typography.titleMedium)
+            RoomSectionHeading("Before you join")
             Text("Your answers are visible to you and current Room staff.", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             snapshot.questions.forEach { question ->
@@ -58,8 +60,8 @@ internal fun RoomMembershipQuestionsSheet(room: NativeRoom, state: RoomManagemen
                 if (attached.get()) onDismiss()
             }
         }, enabled = !busy && !reload, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            Text(if (busy) "Sending…" else if (actionKind == "accept_invitation") "Accept invitation"
-                else if (actionKind == "request") "Request to join" else "Join Room")
+            RoomActionLabel(if (busy) "Sending…" else if (actionKind == "accept_invitation") "Accept invitation"
+                else if (actionKind == "request") "Request to join" else "Join Room", Icons.Rounded.PersonAdd)
         }
         if (state.membershipError != null || state.configurationError != null) TextButton(onClick = {
             state.reloadMembershipQuestions(room); reload = true

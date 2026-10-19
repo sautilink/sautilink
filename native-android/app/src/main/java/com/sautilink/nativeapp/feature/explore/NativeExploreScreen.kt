@@ -11,9 +11,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.home.AuthorizedImage
 import com.sautilink.nativeapp.feature.home.relativePostTime
@@ -64,7 +65,7 @@ fun NativeExploreScreen(
         finally { loading = false }
     }
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(bottom = 30.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
@@ -78,13 +79,11 @@ fun NativeExploreScreen(
                     if (onBack != null) IconButton(onClick = onBack) {
                         Icon(Icons.Rounded.ArrowBack, "Back")
                     }
-                    Icon(Icons.Rounded.Search, contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(25.dp))
                     OutlinedTextField(
                         query, { query = limitExploreQueryInput(it) },
                         modifier = Modifier.weight(1f),
                         placeholder = { Text("Search people or posts") },
+                        leadingIcon = { Icon(Icons.Rounded.Search, null, Modifier.size(21.dp)) },
                         singleLine = true,
                         shape = RoundedCornerShape(16.dp),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -93,14 +92,10 @@ fun NativeExploreScreen(
                             searchRevision++
                         })
                     )
-                }
-                Button(
-                    onClick = { committedQuery = query.trim(); searchRevision++ },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                    shape = RoundedCornerShape(13.dp)
-                ) {
-                    Text("Search", style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold)
+                    FilledTonalIconButton(onClick = { committedQuery = query.trim(); searchRevision++ },
+                        modifier = Modifier.size(48.dp), shape = RoundedCornerShape(16.dp)) {
+                        Icon(Icons.Rounded.ArrowForward, "Search")
+                    }
                 }
             }
         }
@@ -117,14 +112,13 @@ fun NativeExploreScreen(
             }
         } else {
             item {
-                Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .45f)) {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp),
-                        verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Text("PEOPLE", color = SautiColors.Red,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold)
+                Surface(color = MaterialTheme.colorScheme.background) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Icon(Icons.Rounded.PeopleOutline, null, tint = MaterialTheme.colorScheme.primary)
                         Text("Voices to discover",
-                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -150,20 +144,21 @@ fun NativeExploreScreen(
                 Row(
                     Modifier.fillMaxWidth()
                         .clickable(enabled = validHandle) { onOpenProfile(person.username) }
-                        .padding(horizontal = 18.dp, vertical = 17.dp),
+                        .padding(horizontal = 18.dp, vertical = 13.dp),
                     verticalAlignment = Alignment.Top,
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     if (person.hasAvatar && validHandle) {
                         AuthorizedImage(auth, route = "/api/profile-media/${person.username}/avatar",
                             description = "${person.name}'s avatar",
-                            modifier = Modifier.size(58.dp).clip(CircleShape),
-                            fallback = { SautiAvatar(initials, Modifier.size(58.dp), SautiColors.Blue) })
-                    } else SautiAvatar(initials, Modifier.size(58.dp), SautiColors.Blue)
+                            modifier = Modifier.size(48.dp).clip(CircleShape),
+                            fallback = { SautiAvatar(initials, Modifier.size(48.dp), SautiColors.Blue) })
+                    } else SautiAvatar(initials, Modifier.size(48.dp), SautiColors.Blue)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(person.name, fontWeight = FontWeight.SemiBold,
                                 style = MaterialTheme.typography.titleSmall, maxLines = 1,
+                                modifier = Modifier.weight(1f, fill = false),
                                 overflow = TextOverflow.Ellipsis)
                             Spacer(Modifier.width(4.dp))
                             SautiVerificationBadge(person.verified, person.badgeType,
@@ -189,13 +184,13 @@ fun NativeExploreScreen(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .60f))
             }
             item {
-                Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .45f)) {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("POSTS", color = SautiColors.Red,
-                            fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-                        Text("Discover public posts", fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleLarge)
+                Surface(color = MaterialTheme.colorScheme.background) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Icon(Icons.Rounded.Article, null, tint = MaterialTheme.colorScheme.primary)
+                        Text("Discover public posts", fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
@@ -208,8 +203,9 @@ fun NativeExploreScreen(
             }
             items(results.posts, key = { "post:${it.id}" }) { post ->
                 Surface(color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth(),
-                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
+                    shape = RoundedCornerShape(22.dp),
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .6f))) {
                     Column(
                         Modifier.fillMaxWidth().clickable { onOpenPost(post.id) }
                             .padding(horizontal = 18.dp, vertical = 14.dp),
@@ -226,6 +222,7 @@ fun NativeExploreScreen(
                                 style = MaterialTheme.typography.bodySmall)
                         }
                         SautiPostText(post.body.ifBlank { "Media post" },
+                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
                             maxLines = 5, overflow = TextOverflow.Ellipsis)
                         Text("${post.likes} likes · ${post.comments} comments" +
                             if (post.mediaCount > 0) " · ${post.mediaCount} media" else "",

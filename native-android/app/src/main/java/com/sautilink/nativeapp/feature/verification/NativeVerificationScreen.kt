@@ -1,12 +1,16 @@
 package com.sautilink.nativeapp.feature.verification
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.VerifiedUser
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -91,29 +95,43 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
     val active = case?.optString("status") in listOf("submitted", "reviewing")
     val cooldown = case?.optString("status") == "rejected" && case?.optBoolean("can_reapply") != true
     val canApply = auth.account != null && verified == false && !active && !cooldown && !busy
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
             Text("Verification", style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.weight(1f))
+                fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             Icon(Icons.Rounded.VerifiedUser, null, tint = MaterialTheme.colorScheme.primary)
         }
-        HorizontalDivider()
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .4f))
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(13.dp)) {
-            Text("Request an account verification badge", style = MaterialTheme.typography.titleLarge)
-            when {
-                verified == true -> Text("Your account is already verified. New requests are disabled.")
-                active -> Text("Your existing verification application is ${case?.optString("status")?.replace('_', ' ')}. " +
-                    "You cannot submit a duplicate request.")
-                cooldown -> Text("Reapplication is available after ${case?.optInt("cooldown_days_remaining")} days.")
-                else -> Text("Submit your public identity and evidence for review. Approval is not guaranteed.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+                Column(Modifier.fillMaxWidth().padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Surface(shape = RoundedCornerShape(17.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer) {
+                        Icon(Icons.Rounded.VerifiedUser, null, Modifier.padding(13.dp).size(29.dp),
+                            tint = MaterialTheme.colorScheme.primary, selected = verified == true)
+                    }
+                    Text("Let your identity stand out", style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold)
+                    when {
+                        verified == true -> Text("Your account is already verified. New requests are disabled.")
+                        active -> Text("Your existing verification application is ${case?.optString("status")?.replace('_', ' ')}. " +
+                            "You cannot submit a duplicate request.")
+                        cooldown -> Text("Reapplication is available after ${case?.optInt("cooldown_days_remaining")} days.")
+                        else -> Text("Submit your public identity and evidence for review. Approval is not guaranteed.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
             }
             if (case != null) {
-                Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
                     Column(Modifier.padding(14.dp)) {
-                        Text("Application: ${case?.optString("case_number")}", style = MaterialTheme.typography.titleMedium)
+                        VerificationSectionTitle("Application status", Icons.Rounded.AssignmentTurnedIn)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Application: ${case?.optString("case_number")}", style = MaterialTheme.typography.titleSmall)
                         Text("Status: ${case?.optString("status")}")
                         case?.optString("staff_message")?.takeIf { it.isNotBlank() && it != "null" }
                             ?.let { Text(it) }
@@ -121,28 +139,49 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
                 }
             }
             if (message != null) Text(message.orEmpty(), color = MaterialTheme.colorScheme.error)
+            VerificationSectionTitle("Identity details", Icons.Rounded.PersonOutline)
             OutlinedTextField(legalName, { legalName = it.take(120) }, Modifier.fillMaxWidth(),
-                label = { Text("Full legal name *") }, enabled = canApply, singleLine = true)
+                label = { Text("Full legal name *") },
+                leadingIcon = { Icon(Icons.Rounded.PersonOutline, null, Modifier.size(21.dp)) },
+                shape = RoundedCornerShape(16.dp), enabled = canApply, singleLine = true)
             OutlinedTextField(publicName, { publicName = it.take(120) }, Modifier.fillMaxWidth(),
-                label = { Text("Public name / organisation (optional)") }, enabled = canApply)
+                label = { Text("Public name / organisation (optional)") },
+                leadingIcon = { Icon(Icons.Rounded.Badge, null, Modifier.size(21.dp)) },
+                shape = RoundedCornerShape(16.dp), enabled = canApply)
             OutlinedTextField(category, { category = it.take(100) }, Modifier.fillMaxWidth(),
-                label = { Text("Account category *") }, enabled = canApply)
+                label = { Text("Account category *") },
+                leadingIcon = { Icon(Icons.Rounded.Category, null, Modifier.size(21.dp)) },
+                shape = RoundedCornerShape(16.dp), enabled = canApply)
             OutlinedTextField(country, { country = it.take(100) }, Modifier.fillMaxWidth(),
-                label = { Text("Country *") }, enabled = canApply)
-            Text("Public evidence links", style = MaterialTheme.typography.titleMedium)
+                label = { Text("Country *") },
+                leadingIcon = { Icon(Icons.Rounded.Public, null, Modifier.size(21.dp)) },
+                shape = RoundedCornerShape(16.dp), enabled = canApply)
+            VerificationSectionTitle("Public evidence links", Icons.Rounded.Link)
             OutlinedTextField(facebook, { facebook = it.take(500) }, Modifier.fillMaxWidth(),
-                label = { Text("Facebook URL") }, enabled = canApply)
+                label = { Text("Facebook URL") },
+                leadingIcon = { Icon(Icons.Rounded.Link, null, Modifier.size(21.dp)) },
+                shape = RoundedCornerShape(16.dp), enabled = canApply)
             OutlinedTextField(instagram, { instagram = it.take(500) }, Modifier.fillMaxWidth(),
-                label = { Text("Instagram URL") }, enabled = canApply)
+                label = { Text("Instagram URL") },
+                leadingIcon = { Icon(Icons.Rounded.PhotoCamera, null, Modifier.size(21.dp)) },
+                shape = RoundedCornerShape(16.dp), enabled = canApply)
             OutlinedTextField(tiktok, { tiktok = it.take(500) }, Modifier.fillMaxWidth(),
-                label = { Text("TikTok URL") }, enabled = canApply)
+                label = { Text("TikTok URL") },
+                leadingIcon = { Icon(Icons.Rounded.MusicNote, null, Modifier.size(21.dp)) },
+                shape = RoundedCornerShape(16.dp), enabled = canApply)
             OutlinedTextField(youtube, { youtube = it.take(500) }, Modifier.fillMaxWidth(),
-                label = { Text("YouTube URL") }, enabled = canApply)
+                label = { Text("YouTube URL") },
+                leadingIcon = { Icon(Icons.Rounded.PlayCircleOutline, null, Modifier.size(21.dp)) },
+                shape = RoundedCornerShape(16.dp), enabled = canApply)
             OutlinedTextField(article, { article = it.take(5500) }, Modifier.fillMaxWidth(),
                 label = { Text("Independent article URLs, up to 5 (one per line)") },
+                leadingIcon = { Icon(Icons.Rounded.Article, null, Modifier.size(21.dp)) },
+                shape = RoundedCornerShape(16.dp),
                 minLines = 3, enabled = canApply)
             OutlinedTextField(reason, { reason = it.take(2000) }, Modifier.fillMaxWidth(),
                 label = { Text("Why should your account be verified? *") },
+                leadingIcon = { Icon(Icons.Rounded.Description, null, Modifier.size(21.dp)) },
+                shape = RoundedCornerShape(16.dp),
                 minLines = 3, enabled = canApply)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = accepted, onCheckedChange = { accepted = it }, enabled = canApply)
@@ -194,11 +233,25 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
                 enabled = canApply,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                 shape = RoundedCornerShape(15.dp)
-            ) { Text(if (busy) "Checking…" else "Submit verification request") }
+            ) {
+                Icon(Icons.Rounded.VerifiedUser, null, Modifier.size(21.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(if (busy) "Checking…" else "Submit verification request")
+            }
             if (verified == true) {
                 Text("Already verified — request unavailable",
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+}
+
+@Composable
+private fun VerificationSectionTitle(title: String, icon: ImageVector) {
+    Row(Modifier.padding(top = 7.dp, bottom = 1.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(icon, null, Modifier.size(21.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
     }
 }

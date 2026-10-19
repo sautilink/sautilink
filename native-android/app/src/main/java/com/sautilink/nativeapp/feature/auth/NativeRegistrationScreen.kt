@@ -4,14 +4,14 @@ import com.sautilink.nativeapp.ui.components.SautiCopyrightFooter
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBackIosNew
+import androidx.compose.material.icons.rounded.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.launch
@@ -70,6 +71,8 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
     // Passwords and OTPs deliberately do not use rememberSaveable (no saved-state persistence).
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
     var code by remember { mutableStateOf("") }
     var channel by rememberSaveable { mutableStateOf("whatsapp") }
     var consent by rememberSaveable { mutableStateOf(false) }
@@ -138,23 +141,34 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://sautilink.com/$route")))
     }
 
-    Column(
-        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-            .imePadding().verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(15.dp)
-    ) {
+    SautiAuthPage {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBackIosNew, "Back") }
-            Text("Sign up", style = MaterialTheme.typography.headlineMedium)
+            Text("Create account", style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold)
         }
         if (step == SignupStep.DETAILS) {
             SautiAuthBrand()
-            Text("Create your account",
-                style = MaterialTheme.typography.headlineSmall)
+            Text("A place for your voice.",
+                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp,
+                    lineHeight = 38.sp, letterSpacing = (-1).sp), fontWeight = FontWeight.Bold)
             Text("Enter your details to get started.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        val progressStep = when (step) {
+            SignupStep.DETAILS -> 1
+            SignupStep.EMAIL_CODE -> 2
+            SignupStep.REQUIREMENTS, SignupStep.PHONE_CODE -> 3
+            SignupStep.ONBOARDING, SignupStep.COMPLETE -> 4
+        }
+        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            repeat(4) { index ->
+                Surface(Modifier.weight(1f).height(4.dp), shape = RoundedCornerShape(4.dp),
+                    color = if (index < progressStep) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surfaceContainerHigh) { }
+            }
         }
         if (checking || client.sessionState == StagingSessionState.CHECKING) {
             LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -168,25 +182,45 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
             Button(onClick = { progressRetry++ }, enabled = !checking) { Text("Retry checking progress") }
         } else when (step) {
             SignupStep.DETAILS -> {
-                Text("Your details", style = MaterialTheme.typography.titleMedium)
+                AuthSectionTitle("Your details", Icons.Rounded.PersonOutline)
                 OutlinedTextField(username, { username = it.lowercase().removePrefix("@") },
-                    label = { Text("Username") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    label = { Text("Username") },
+                    leadingIcon = { Icon(Icons.Rounded.AlternateEmail, null, Modifier.size(21.dp)) },
+                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(), singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(displayName, { displayName = it },
-                    label = { Text("Display name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    label = { Text("Display name") },
+                    leadingIcon = { Icon(Icons.Rounded.PersonOutline, null, Modifier.size(21.dp)) },
+                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(), singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(email, { email = it }, label = { Text("Email address (required)") },
+                    leadingIcon = { Icon(Icons.Rounded.AlternateEmail, null, Modifier.size(21.dp)) },
+                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(phone, { phone = it }, label = { Text("Phone number (optional)") },
+                    leadingIcon = { Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(21.dp)) },
+                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
                     placeholder = { Text("Include country code, e.g. +255…") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true, modifier = Modifier.fillMaxWidth())
                 AuthBirthDateField(birthDate, { birthDate = it }, Modifier.fillMaxWidth())
                 OutlinedTextField(password, { password = it }, label = { Text("Password") },
-                    visualTransformation = PasswordVisualTransformation(),
+                    leadingIcon = { Icon(Icons.Rounded.Lock, null, Modifier.size(21.dp)) },
+                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = { IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(if (passwordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                            if (passwordVisible) "Hide password" else "Show password", Modifier.size(21.dp))
+                    } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(confirmPassword, { confirmPassword = it }, label = { Text("Confirm password") },
-                    visualTransformation = PasswordVisualTransformation(),
+                    leadingIcon = { Icon(Icons.Rounded.Lock, null, Modifier.size(21.dp)) },
+                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
+                    visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = { IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                        Icon(if (confirmPasswordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                            if (confirmPasswordVisible) "Hide confirm password" else "Show confirm password", Modifier.size(21.dp))
+                    } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true, modifier = Modifier.fillMaxWidth())
                 if (phone.isNotBlank()) {
@@ -226,13 +260,17 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     modifier = Modifier.fillMaxWidth()) { Text("Already have a signup email code?") }
             }
             SignupStep.EMAIL_CODE -> {
-                Text("2 of 4 · Verify email", style = MaterialTheme.typography.titleMedium)
+                AuthSectionTitle("2 of 4 · Verify email", Icons.Rounded.MarkEmailRead)
                 Text("Enter the 8-digit code sent to your email. Do not share it.")
                 OutlinedTextField(email, { email = it }, label = { Text("Signup email address") },
+                    leadingIcon = { Icon(Icons.Rounded.AlternateEmail, null, Modifier.size(21.dp)) },
+                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
                 OutlinedTextField(code, { code = it.filter(Char::isDigit).take(8) },
                     label = { Text("8-digit email code") },
+                    leadingIcon = { Icon(Icons.Rounded.Key, null, Modifier.size(21.dp)) },
+                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
                 Button(onClick = { action {
@@ -252,13 +290,15 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                 } }, enabled = !busy && signupEmail(email)) { Text("Resend email code") }
             }
             SignupStep.REQUIREMENTS -> {
-                Text("3 of 4 · Account agreement", style = MaterialTheme.typography.titleMedium)
+                AuthSectionTitle("3 of 4 · Account agreement", Icons.Rounded.Shield)
                 Text(if (phoneVerified) "Your phone is verified. Accept the documents to continue."
                     else if (phoneRequired) "Accept the documents. The current account policy also requires phone verification."
                     else "Accept the documents to continue. You can verify a phone now or leave it empty.")
                 if (!phoneVerified) {
                     OutlinedTextField(phone, { phone = it },
                         label = { Text(if (phoneRequired) "Phone with country code" else "Phone number (optional)") },
+                        leadingIcon = { Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(21.dp)) },
+                        shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         singleLine = true, modifier = Modifier.fillMaxWidth())
                     if (phone.isNotBlank()) {
@@ -316,10 +356,12 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                 }
             }
             SignupStep.PHONE_CODE -> {
-                Text("3 of 4 · Confirm phone", style = MaterialTheme.typography.titleMedium)
+                AuthSectionTitle("3 of 4 · Confirm phone", Icons.Rounded.PhoneAndroid)
                 Text("Enter the verification code sent to $phone.")
                 OutlinedTextField(code, { code = it.filter(Char::isDigit).take(10) },
                     label = { Text("Phone verification code") },
+                    leadingIcon = { Icon(Icons.Rounded.Key, null, Modifier.size(21.dp)) },
+                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true, modifier = Modifier.fillMaxWidth())
                 Button(onClick = { action {
@@ -330,12 +372,18 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                 TextButton(onClick = { step = SignupStep.REQUIREMENTS; code = "" }) { Text("Request a new code") }
             }
             SignupStep.ONBOARDING -> {
-                Text("4 of 4 · Finish your account", style = MaterialTheme.typography.titleMedium)
+                AuthSectionTitle("4 of 4 · Finish your account", Icons.Rounded.PersonOutline)
                 Text("Choose the public details for your verified SautiLink profile.")
                 OutlinedTextField(username, { username = it.lowercase().removePrefix("@") },
-                    label = { Text("Username") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    label = { Text("Username") },
+                    leadingIcon = { Icon(Icons.Rounded.AlternateEmail, null, Modifier.size(21.dp)) },
+                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
+                    modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(displayName, { displayName = it },
-                    label = { Text("Display name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    label = { Text("Display name") },
+                    leadingIcon = { Icon(Icons.Rounded.PersonOutline, null, Modifier.size(21.dp)) },
+                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
+                    modifier = Modifier.fillMaxWidth(), singleLine = true)
                 AuthBirthDateField(birthDate, { birthDate = it }, Modifier.fillMaxWidth())
                 Button(onClick = {
                     val handle = username.trim().lowercase()
@@ -351,7 +399,7 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     shape = SautiShape.Pill) { Text("Finish registration") }
             }
             SignupStep.COMPLETE -> {
-                Text("Your SautiLink account is ready", style = MaterialTheme.typography.titleLarge)
+                AuthSectionTitle("Your SautiLink account is ready", Icons.Rounded.CheckCircle)
                 Text("Email, signup requirements and your profile have been checked. Welcome to SautiLink.")
                 Button(onClick = onFinished, modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = SautiShape.Pill) { Text("Continue") }
@@ -393,14 +441,17 @@ fun NativeRecoveryScreen(client: StagingAuthClient, onBack: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var sent by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState())
-        .padding(horizontal = 20.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    SautiAuthPage {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBackIosNew, "Back") }
             Text("Recover your account", style = MaterialTheme.typography.titleLarge)
         }
+        SautiAuthBrand()
+        AuthSectionTitle("Let’s get you back in", Icons.Rounded.LockReset)
         Text("Password recovery uses an official secure email link, not an OTP. The link opens SautiLink's verified recovery page in your browser.")
         OutlinedTextField(email, { email = it; sent = false }, label = { Text("Email address") },
+            leadingIcon = { Icon(Icons.Rounded.AlternateEmail, null, Modifier.size(21.dp)) },
+            shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             modifier = Modifier.fillMaxWidth(), singleLine = true)
         if (error != null) Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)

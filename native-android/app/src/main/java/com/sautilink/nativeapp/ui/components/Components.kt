@@ -8,6 +8,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -50,7 +51,7 @@ fun SautiBottomBar(selected: Int, unreadNotifications: Int = 0, onSelect: (Int) 
     Surface(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
-        shadowElevation = 1.dp,
+        shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth().navigationBarsPadding()
     ) {
         Column {
@@ -63,7 +64,7 @@ fun SautiBottomBar(selected: Int, unreadNotifications: Int = 0, onSelect: (Int) 
                 nativeTabs.forEachIndexed { index, tab ->
                     val active = index == selected
                     val tint by animateColorAsState(
-                        targetValue = if (active) MaterialTheme.colorScheme.onSurface
+                        targetValue = if (active) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                         animationSpec = androidx.compose.animation.core.tween(120),
                         label = "Navigation color"
@@ -96,7 +97,7 @@ fun SautiBottomBar(selected: Int, unreadNotifications: Int = 0, onSelect: (Int) 
                         Spacer(Modifier.height(4.dp))
                         Box(Modifier.width(18.dp).height(3.dp)
                             .clip(CircleShape)
-                            .background(if (active) SautiColors.Red else Color.Transparent))
+                            .background(if (active) MaterialTheme.colorScheme.primary else Color.Transparent))
                     }
                 }
             }

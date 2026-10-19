@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -41,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -474,13 +476,13 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                             Icon(Icons.Rounded.MoreHoriz, "Conversation options")
                         }
                         DropdownMenu(expanded = chatMenu, onDismissRequest = { chatMenu = false }) {
-                            DropdownMenuItem(text = { Text("Search in chat") }, onClick = {
+                            DropdownMenuItem(text = { Text("Search in chat") }, leadingIcon = { Icon(Icons.Rounded.Search, null) }, onClick = {
                                 searchingThread = true; chatMenu = false
                             })
-                            DropdownMenuItem(text = { Text("Chat theme") }, onClick = {
+                            DropdownMenuItem(text = { Text("Chat theme") }, leadingIcon = { Icon(Icons.Rounded.Palette, null) }, onClick = {
                                 chatSettings = true; chatMenu = false
                             })
-                            DropdownMenuItem(text = { Text("Block account") }, onClick = {
+                            DropdownMenuItem(text = { Text("Block account") }, leadingIcon = { Icon(Icons.Rounded.Block, null) }, onClick = {
                                 chatMenu = false
                                 val handle = active?.conversation?.handle
                                 if (!handle.isNullOrBlank()) scope.launch {
@@ -488,7 +490,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                     catch (e: Exception) { error = e.message }
                                 }
                             })
-                            DropdownMenuItem(text = { Text("Clear chat for me") }, onClick = {
+                            DropdownMenuItem(text = { Text("Clear chat for me") }, leadingIcon = { Icon(Icons.Rounded.DeleteOutline, null) }, onClick = {
                                 clearEveryone = false
                                 clearConfirm = true; chatMenu = false
                             })
@@ -546,12 +548,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = if (own) Arrangement.End else Arrangement.Start) {
                             Surface(
-                                shape = if (own) RoundedCornerShape(17.dp, 17.dp, 5.dp, 17.dp)
-                                    else RoundedCornerShape(17.dp, 17.dp, 17.dp, 5.dp),
+                                shape = if (own) RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp)
+                                    else RoundedCornerShape(20.dp, 20.dp, 20.dp, 6.dp),
                                 color = if (own) outgoingBubble(bubble)
                                     else MaterialTheme.colorScheme.surface,
-                                tonalElevation = if (own) 0.dp else 1.dp,
-                                shadowElevation = 1.dp,
+                                tonalElevation = 0.dp,
+                                shadowElevation = 0.dp,
                                 modifier = Modifier.widthIn(max = bubbleLimit)
                                     .pointerInput(message.id) {
                                         var movement = 0f
@@ -616,6 +618,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                     }
                                     if (message.body.isNotBlank()) {
                                         Text(message.body,
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
                                             color = if (own && bubble != "neutral") Color.White
                                                 else MaterialTheme.colorScheme.onSurface)
                                     }
@@ -916,7 +919,9 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 12.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Text("Chats", style = MaterialTheme.typography.headlineMedium,
+            Icon(Icons.Rounded.ChatBubbleOutline, null, Modifier.size(25.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(10.dp))
+            Text("Chats", style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             IconButton(onClick = { chatSettings = true }) {
                 Icon(Icons.Rounded.Settings, "Chat settings")
@@ -928,10 +933,16 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         }
         OutlinedTextField(query, { query = it.take(80) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
             placeholder = { Text("Search conversations") }, leadingIcon = { Icon(Icons.Rounded.Search, null) },
-            singleLine = true, shape = SautiShape.Pill)
+            singleLine = true, shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                unfocusedBorderColor = Color.Transparent))
         Row(Modifier.padding(horizontal = 18.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = !unreadOnly, onClick = { unreadOnly = false }, label = { Text("All") })
-            FilterChip(selected = unreadOnly, onClick = { unreadOnly = true }, label = { Text("Unread") })
+            FilterChip(selected = !unreadOnly, onClick = { unreadOnly = false }, shape = SautiShape.Pill,
+                leadingIcon = { Icon(Icons.Rounded.Forum, null, Modifier.size(18.dp), selected = !unreadOnly) }, label = { Text("All") })
+            FilterChip(selected = unreadOnly, onClick = { unreadOnly = true }, shape = SautiShape.Pill,
+                leadingIcon = { Icon(Icons.Rounded.MarkEmailUnread, null, Modifier.size(18.dp), selected = unreadOnly) }, label = { Text("Unread") })
         }
         if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (auth.account == null) {
@@ -971,7 +982,9 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                Text(item.name, fontWeight = if (item.unread > 0) FontWeight.Bold else FontWeight.SemiBold)
+                                Text(item.name, style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false))
                                 SautiVerificationBadge(item.verified, item.badgeType,
                                     item.name, size = 15.dp)
                             }
@@ -979,6 +992,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(item.latestBody.ifBlank { "Conversation" }, maxLines = 1,
+                                style = MaterialTheme.typography.bodyMedium,
                                 overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (item.unread > 0) Badge { Text(item.unread.coerceAtMost(99).toString()) }

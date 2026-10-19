@@ -10,11 +10,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.ui.theme.SautiColors
@@ -35,7 +38,7 @@ fun ExploreScreen(onOpenProfile: () -> Unit) {
                     singleLine = true, shape = SautiShape.Pill)
             }
         }
-        item { Text("Trending topics", Modifier.padding(horizontal = 20.dp, vertical = 10.dp), style = MaterialTheme.typography.titleLarge) }
+        item { OtherSectionHeading("Trending topics", Icons.Rounded.TrendingUp) }
         items(found) { topic ->
             Row(Modifier.fillMaxWidth().clickable { onOpenProfile() }.padding(horizontal = 20.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(48.dp).clip(SautiShape.Button).background(MaterialTheme.colorScheme.surfaceContainer), contentAlignment = Alignment.Center) {
@@ -68,10 +71,10 @@ fun ExploreScreen(onOpenProfile: () -> Unit) {
 @Composable
 fun SettingsScreen(isDark: Boolean, onBack: () -> Unit, onToggleTheme: () -> Unit, onNotice: (String) -> Unit, onOpenConnection: () -> Unit, onOpenAuth: () -> Unit) {
     val sections = listOf(
-        "ACCOUNT" to listOf("Profile details", "Security & sign-in"),
-        "PRIVACY" to listOf("Who can see your posts", "Blocked accounts"),
-        "NOTIFICATIONS" to listOf("Push notifications", "Message alerts"),
-        "SUPPORT" to listOf("Help center", "About SautiLink")
+        "Account" to listOf("Profile details", "Security & sign-in"),
+        "Privacy" to listOf("Who can see your posts", "Blocked accounts"),
+        "Notifications" to listOf("Push notifications", "Message alerts"),
+        "Support" to listOf("Help center", "About SautiLink")
     )
     LazyColumn(
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
@@ -80,9 +83,7 @@ fun SettingsScreen(isDark: Boolean, onBack: () -> Unit, onToggleTheme: () -> Uni
     ) {
         item { DetailHeader("Settings", onBack) }
         item {
-            Text("APPEARANCE", Modifier.padding(start = 22.dp, top = 14.dp, bottom = 8.dp),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OtherSectionHeading("Appearance", Icons.Rounded.Palette)
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 shape = SautiShape.Card,
@@ -106,9 +107,7 @@ fun SettingsScreen(isDark: Boolean, onBack: () -> Unit, onToggleTheme: () -> Uni
             }
         }
         item {
-            Text("DEVELOPER PREVIEW", Modifier.padding(start = 22.dp, top = 18.dp, bottom = 9.dp),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OtherSectionHeading("Developer preview", Icons.Rounded.Code)
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 shape = SautiShape.Card,
@@ -159,9 +158,12 @@ fun SettingsScreen(isDark: Boolean, onBack: () -> Unit, onToggleTheme: () -> Uni
         }
         sections.forEach { (section, entries) ->
             item {
-                Text(section, Modifier.padding(start = 22.dp, top = 18.dp, bottom = 9.dp),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OtherSectionHeading(section, when (section) {
+                    "Account" -> Icons.Rounded.PersonOutline
+                    "Privacy" -> Icons.Rounded.Lock
+                    "Notifications" -> Icons.Rounded.NotificationsNone
+                    else -> Icons.Rounded.HelpOutline
+                })
                 Surface(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     shape = SautiShape.Card,
@@ -173,21 +175,25 @@ fun SettingsScreen(isDark: Boolean, onBack: () -> Unit, onToggleTheme: () -> Uni
                                 onNotice("$entry — UI preview; live account settings not connected")
                             }.padding(horizontal = 15.dp, vertical = 16.dp),
                                 verticalAlignment = Alignment.CenterVertically) {
-                                val icon = when (section) {
-                                    "ACCOUNT" -> Icons.Rounded.PersonOutline
-                                    "PRIVACY" -> Icons.Rounded.Lock
-                                    "NOTIFICATIONS" -> Icons.Rounded.NotificationsNone
+                                val icon = when (entry) {
+                                    "Profile details" -> Icons.Rounded.PersonOutline
+                                    "Security & sign-in" -> Icons.Rounded.Lock
+                                    "Who can see your posts" -> Icons.Rounded.Visibility
+                                    "Blocked accounts" -> Icons.Rounded.Block
+                                    "Push notifications" -> Icons.Rounded.NotificationsNone
+                                    "Message alerts" -> Icons.Rounded.ChatBubbleOutline
+                                    "About SautiLink" -> Icons.Rounded.Info
                                     else -> Icons.Rounded.HelpOutline
                                 }
                                 val accent = when (section) {
-                                    "ACCOUNT" -> SautiColors.Blue
-                                    "PRIVACY" -> Color(0xFFED9852)
-                                    "NOTIFICATIONS" -> Color(0xFF9A6BD1)
+                                    "Account" -> SautiColors.Blue
+                                    "Privacy" -> Color(0xFFED9852)
+                                    "Notifications" -> Color(0xFF9A6BD1)
                                     else -> Color(0xFF25A98A)
                                 }
                                 Box(Modifier.size(31.dp).clip(RoundedCornerShape(9.dp))
-                                    .background(accent), contentAlignment = Alignment.Center) {
-                                    Icon(icon, contentDescription = null, tint = Color.White,
+                                    .background(accent.copy(alpha = .12f)), contentAlignment = Alignment.Center) {
+                                    Icon(icon, contentDescription = null, tint = accent,
                                         modifier = Modifier.size(18.dp))
                                 }
                                 Spacer(Modifier.width(12.dp))
@@ -227,6 +233,15 @@ fun NotificationsScreen(onBack: () -> Unit, onNotice: (String) -> Unit) {
             }
         }
         item { PreviewLabel() }
+    }
+}
+
+@Composable
+private fun OtherSectionHeading(title: String, icon: ImageVector) {
+    Row(Modifier.fillMaxWidth().padding(start = 22.dp, end = 18.dp, top = 18.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
     }
 }
 

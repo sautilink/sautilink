@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.safety.NativeReportDialog
 import com.sautilink.nativeapp.feature.safety.NativeSafetyClient
@@ -41,6 +43,7 @@ import java.util.UUID
 /** Canonical Post Detail: same media, reactions and nested comments as the Home feed.
  * Avoid the historical bare media preview when opening a post via profile/notification.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NativePostDetailScreen(
     auth: StagingAuthClient, postId: String, onBack: () -> Unit,
@@ -153,7 +156,7 @@ fun NativePostDetailScreen(
             }, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back", tint = SautiColors.Red)
             }
-            Text(if (commentsMode) "Comments" else "Post",
+            Text("Post",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             if (commentsMode) {
@@ -179,85 +182,6 @@ fun NativePostDetailScreen(
             loading && post == null -> repeat(2) { SautiPostSkeleton() }
             post == null -> Text("This post is unavailable or you do not have access.",
                 Modifier.padding(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            commentsMode -> {
-                LazyColumn(
-                    Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 16.dp)
-                ) {
-                    if (commentsLoading && comments.isEmpty()) items(3) { SautiPostSkeleton() }
-                    if (error != null) item {
-                        Text(error.orEmpty(), Modifier.padding(14.dp),
-                            color = MaterialTheme.colorScheme.error)
-                    }
-                    if (!commentsLoading && comments.isEmpty() && error == null) item {
-                        Text("Be the first to comment.", Modifier.padding(22.dp))
-                    }
-                    items(comments, key = { it.id }) { comment ->
-                        CommentThreadRow(auth, comment, replies, expanded,
-                            counts = reactionCounts, selected = selectedReactions, reactionsEnabled = !busy,
-                            onOpenProfile = onOpenProfile,
-                            onReply = { target ->
-                                replyTarget = target
-                                draft = if (target.handle.isNotBlank()) "@${target.handle} " else ""
-                            },
-                            onExpand = ::toggleExpanded,
-                            onReaction = { target, reaction ->
-                                if (!busy) {
-                                    busy = true; error = null; commentReactionRevision++
-                                    scope.launch {
-                                        try {
-                                            val next = if (selectedReactions[target.id] == reaction) null else reaction
-                                            reactionCounts[target.id] = actions.setCommentReaction(target.id, next)
-                                            selectedReactions[target.id] = next
-                                        } catch (e: Exception) { error = e.message ?: "Could not react." }
-                                        finally { busy = false }
-                                    }
-                                }
-                            }
-                        )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
-                    }
-                }
-                if (replyTarget != null) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text("Replying to @${replyTarget?.handle.orEmpty()}",
-                            modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                        IconButton(onClick = { replyTarget = null; draft = "" }) {
-                            Icon(Icons.Rounded.Close, "Cancel reply")
-                        }
-                    }
-                }
-                Row(Modifier.fillMaxWidth().padding(10.dp),
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    OutlinedTextField(
-                        value = draft, onValueChange = { draft = it.take(500) },
-                        placeholder = { Text("Write a comment…") },
-                        shape = RoundedCornerShape(23.dp),
-                        modifier = Modifier.weight(1f),
-                        minLines = 1, maxLines = 4
-                    )
-                    IconButton(
-                        onClick = {
-                            val targetId = replyTarget?.id ?: postId
-                            val message = draft.trim()
-                            if (message.isBlank() || busy) return@IconButton
-                            busy = true; error = null
-                            scope.launch {
-                                try {
-                                    actions.sendComment(targetId, message, UUID.randomUUID().toString())
-                                    draft = ""; replyTarget = null
-                                    commentRevision++
-                                } catch (e: Exception) { error = e.message ?: "Could not send comment." }
-                                finally { busy = false }
-                            }
-                        },
-                        enabled = draft.trim().isNotEmpty() && !busy,
-                        modifier = Modifier.size(48.dp)
-                    ) { Icon(Icons.Rounded.Send, "Send comment") }
-                }
-            }
             else -> {
                 val item = post!!
                 LazyColumn(
@@ -282,6 +206,7 @@ fun NativePostDetailScreen(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(item.authorName, fontWeight = FontWeight.SemiBold,
                                         style = MaterialTheme.typography.titleMedium,
+                                        modifier = Modifier.weight(1f, fill = false),
                                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Spacer(Modifier.width(5.dp))
                                     SautiVerificationBadge(item.verified, item.badgeType,
@@ -301,10 +226,13 @@ fun NativePostDetailScreen(
                     if (item.body.isNotBlank()) item {
                         com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(Modifier.fillMaxWidth(),
                             onLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null) {
-                            com.sautilink.nativeapp.ui.components.SautiPostText(item.body, style = MaterialTheme.typography.bodyLarge)
+                            com.sautilink.nativeapp.ui.components.SautiPostText(item.body,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp))
                         }
                     }
-                    if (item.media.isNotEmpty()) item {
+                    // Comments previously replaced the post: retain that decoder lifecycle.
+                    // The identity and caption remain behind the sheet without active media.
+                    if (item.media.isNotEmpty() && !commentsMode) item {
                         PostMediaGallery(auth, item.media,
                             bufferingOverlayEnabled = true, adaptivePlaybackEnabled = false,
                             onDoubleTapLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
@@ -367,6 +295,103 @@ fun NativePostDetailScreen(
             }
         }
     }
+    if (commentsMode && post != null && auth.account != null) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(onDismissRequest = { commentsMode = false }, sheetState = sheetState,
+            shape = com.sautilink.nativeapp.ui.theme.SautiShape.Sheet,
+            containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+            val heightFraction = commentSheetHeightFraction()
+            Column(Modifier.fillMaxWidth().imePadding().heightIn(min = 280.dp).fillMaxHeight(heightFraction)) {
+                Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.ChatBubbleOutline, null, Modifier.size(21.dp),
+                        tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(9.dp))
+                    Text("Comments", style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { commentsMode = false }) { Icon(Icons.Rounded.Close, "Close comments") }
+                }
+                LazyColumn(
+                    Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 16.dp)
+                ) {
+                    if (commentsLoading && comments.isEmpty()) items(3) { SautiPostSkeleton() }
+                    if (error != null) item {
+                        Text(error.orEmpty(), Modifier.padding(14.dp),
+                            color = MaterialTheme.colorScheme.error)
+                    }
+                    if (!commentsLoading && comments.isEmpty() && error == null) item {
+                        Text("Be the first to comment.", Modifier.padding(22.dp))
+                    }
+                    items(comments, key = { it.id }) { comment ->
+                        CommentThreadRow(auth, comment, replies, expanded,
+                            counts = reactionCounts, selected = selectedReactions, reactionsEnabled = !busy,
+                            onOpenProfile = onOpenProfile,
+                            onReply = { target ->
+                                replyTarget = target
+                                draft = if (target.handle.isNotBlank()) "@${target.handle} " else ""
+                            },
+                            onExpand = ::toggleExpanded,
+                            onReaction = { target, reaction ->
+                                if (!busy) {
+                                    busy = true; error = null; commentReactionRevision++
+                                    scope.launch {
+                                        try {
+                                            val next = if (selectedReactions[target.id] == reaction) null else reaction
+                                            reactionCounts[target.id] = actions.setCommentReaction(target.id, next)
+                                            selectedReactions[target.id] = next
+                                        } catch (e: Exception) { error = e.message ?: "Could not react." }
+                                        finally { busy = false }
+                                    }
+                                }
+                            }
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
+                    }
+                }
+                if (replyTarget != null) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("Replying to @${replyTarget?.handle.orEmpty()}",
+                            modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        IconButton(onClick = { replyTarget = null; draft = "" }) {
+                            Icon(Icons.Rounded.Close, "Cancel reply")
+                        }
+                    }
+                }
+                Row(Modifier.fillMaxWidth().padding(10.dp),
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    OutlinedTextField(
+                        value = draft, onValueChange = { draft = it.take(500) },
+                        placeholder = { Text("Write a comment…") },
+                        shape = RoundedCornerShape(23.dp),
+                        modifier = Modifier.weight(1f),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp, lineHeight = 22.sp),
+                        minLines = 1, maxLines = 3
+                    )
+                    IconButton(
+                        onClick = {
+                            val targetId = replyTarget?.id ?: postId
+                            val message = draft.trim()
+                            if (message.isBlank() || busy) return@IconButton
+                            busy = true; error = null
+                            scope.launch {
+                                try {
+                                    actions.sendComment(targetId, message, UUID.randomUUID().toString())
+                                    draft = ""; replyTarget = null
+                                    commentRevision++
+                                } catch (e: Exception) { error = e.message ?: "Could not send comment." }
+                                finally { busy = false }
+                            }
+                        },
+                        enabled = draft.trim().isNotEmpty() && !busy,
+                        modifier = Modifier.size(48.dp)
+                    ) { Icon(Icons.Rounded.Send, "Send comment") }
+                }
+            }
+        }
+    }
     if (reportOpen) NativeReportDialog("post", busy, error = reportNote,
         onDismiss = { reportOpen = false }) { reason, details ->
         busy = true; reportNote = null
@@ -420,7 +445,8 @@ private fun CommentThreadRow(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                SautiEntityText(item.body, style = MaterialTheme.typography.bodyLarge)
+                SautiEntityText(item.body,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp))
                 val totals = counts[item.id] ?: (item.likes to item.dislikes)
                 SautiCommentActions(likes = totals.first, dislikes = totals.second,
                     replyCount = item.replyCount, liked = selected[item.id] == "like",

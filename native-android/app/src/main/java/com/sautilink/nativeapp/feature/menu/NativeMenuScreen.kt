@@ -12,7 +12,6 @@ import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.components.SautiAvatar
 import com.sautilink.nativeapp.ui.theme.SautiColors
 import kotlinx.coroutines.CancellationException
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -25,14 +24,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,27 +55,9 @@ fun AnimatedHamburgerButton(openAtRest: Boolean = false, onClick: () -> Unit) {
         },
         interactionSource = interaction
     ) {
-        val ink = MaterialTheme.colorScheme.onSurface
-        Canvas(Modifier.size(25.dp).semantics {
-            contentDescription = if (openAtRest) "Close menu" else "Open menu"
-        }) {
-            val unit = size.width / 24f
-            val morph = if (openAtRest) 1f else 0f
-            fun shift(a: Float, b: Float) = (a + (b - a) * morph) * unit
-            val stroke = 2.15f * unit
-            drawLine(ink,
-                start = androidx.compose.ui.geometry.Offset(shift(4f, 6f), shift(6f, 6f)),
-                end = androidx.compose.ui.geometry.Offset(shift(20f, 18f), shift(6f, 18f)),
-                strokeWidth = stroke, cap = StrokeCap.Round)
-            drawLine(ink.copy(alpha = 1f - morph),
-                start = androidx.compose.ui.geometry.Offset(5f * unit, 12f * unit),
-                end = androidx.compose.ui.geometry.Offset(19f * unit, 12f * unit),
-                strokeWidth = stroke, cap = StrokeCap.Round)
-            drawLine(ink,
-                start = androidx.compose.ui.geometry.Offset(shift(4f, 6f), shift(18f, 18f)),
-                end = androidx.compose.ui.geometry.Offset(shift(20f, 18f), shift(18f, 6f)),
-                strokeWidth = stroke, cap = StrokeCap.Round)
-        }
+        Icon(if (openAtRest) Icons.Rounded.Close else Icons.Rounded.Menu,
+            contentDescription = if (openAtRest) "Close menu" else "Open menu",
+            modifier = Modifier.size(25.dp), selected = openAtRest)
     }
 }
 
@@ -102,7 +81,7 @@ private val menuDestinations = listOf(
     MenuDestination("Theme", Icons.Rounded.DarkMode, "theme")
 )
 
-/** Facebook-inspired grid structure, original SautiLink iconography and Compose motion. */
+/** Compact native destinations with a shared icon language and event-driven press feedback. */
 @Composable
 fun NativeMenuScreen(
     auth: StagingAuthClient,
@@ -175,7 +154,7 @@ fun NativeMenuScreen(
                     shape = RoundedCornerShape(20.dp),
                     color = MaterialTheme.colorScheme.surface,
                     tonalElevation = 0.dp,
-                    shadowElevation = 1.dp,
+                    shadowElevation = 0.dp,
                     border = androidx.compose.foundation.BorderStroke(
                         1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .4f)
                     ),
@@ -234,16 +213,15 @@ fun NativeMenuScreen(
                 }
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    "Discover and manage",
-                    modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 8.dp, bottom = 2.dp),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = 8.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Rounded.Explore, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                    Text("Discover and manage", style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold)
+                }
             }
             itemsIndexed(menuDestinations, key = { _, item -> item.key }) { _, entry ->
-                Box(Modifier.fillMaxWidth().height(112.dp)) {
+                Box(Modifier.fillMaxWidth().heightIn(min = 84.dp)) {
                     MenuTile(entry, selected = entry.key == "theme" && isDark,
                         disabled = entry.key == "verification" && ownProfile?.verified == true) {
                             when (entry.key) {
@@ -287,7 +265,8 @@ fun NativeMenuScreen(
     if (signOutDialog) {
         AlertDialog(
             onDismissRequest = { signOutDialog = false },
-            title = { Text("Log out of SautiLink?") },
+        icon = { Icon(Icons.Rounded.Logout, null, tint = MaterialTheme.colorScheme.primary) },
+        title = { Text("Log out of SautiLink?") },
             text = { Text("You'll need to sign in again to access your account.") },
             confirmButton = {
                 TextButton(onClick = { signOutDialog = false; onSignOut() }) { Text("Log out") }
@@ -310,36 +289,42 @@ private fun MenuTile(item: MenuDestination, selected: Boolean,
         onClick = onClick,
         enabled = !disabled,
         interactionSource = source,
-        modifier = Modifier.fillMaxSize().graphicsLayer {
+        modifier = Modifier.fillMaxWidth().heightIn(min = 84.dp).graphicsLayer {
             scaleX = scale
             scaleY = scale
         },
         shape = RoundedCornerShape(18.dp),
         color = if (selected) MaterialTheme.colorScheme.primaryContainer
             else MaterialTheme.colorScheme.surface,
-        shadowElevation = 1.dp,
+        shadowElevation = 0.dp,
         border = androidx.compose.foundation.BorderStroke(
             1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .38f)
         )
     ) {
-        Column(
-            Modifier.fillMaxSize().padding(start = 14.dp, end = 10.dp, top = 14.dp, bottom = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            horizontalAlignment = Alignment.Start
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 15.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                item.icon,
-                contentDescription = null,
-                modifier = Modifier.size(29.dp),
-                tint = if (disabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .4f)
-                    else if (selected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurface
-            )
+            val accent = when (item.key) {
+                "rooms", "notifications", "language" -> MaterialTheme.colorScheme.primary
+                "saved", "settings", "theme" -> androidx.compose.ui.graphics.Color(0xFF7961D8)
+                "verification", "privacy", "community-guidelines" -> androidx.compose.ui.graphics.Color(0xFF218B72)
+                "help", "contact", "report" -> androidx.compose.ui.graphics.Color(0xFFD57838)
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            }
+            Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp))
+                .background(accent.copy(alpha = if (disabled) .05f else .10f)), contentAlignment = Alignment.Center) {
+                Icon(item.icon, contentDescription = null, modifier = Modifier.size(23.dp),
+                    tint = if (disabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .4f) else accent,
+                    selected = selected)
+            }
             Text(if (item.key == "verification" && disabled) "Verified" else item.label,
                 color = if (disabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f)
                     else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis)
         }

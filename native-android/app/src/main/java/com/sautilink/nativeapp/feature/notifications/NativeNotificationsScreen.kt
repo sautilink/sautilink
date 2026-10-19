@@ -12,8 +12,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -75,7 +76,7 @@ fun NativeNotificationsScreen(
             IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
             }
-            Text("Notifications", style = MaterialTheme.typography.headlineMedium,
+            Text("Notifications", style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             TextButton(onClick = {
                 busy = true; error = null
@@ -99,8 +100,10 @@ fun NativeNotificationsScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             FilterChip(selected = !unreadOnly, onClick = { unreadOnly = false },
+                leadingIcon = { Icon(Icons.Rounded.NotificationsNone, null, Modifier.size(18.dp), selected = !unreadOnly) },
                 label = { Text("All") })
             FilterChip(selected = unreadOnly, onClick = { unreadOnly = true },
+                leadingIcon = { Icon(Icons.Rounded.MarkEmailUnread, null, Modifier.size(18.dp), selected = unreadOnly) },
                 label = { Text(if (unread > 0) "Unread ($unread)" else "Unread") })
             Spacer(Modifier.weight(1f))
             IconButton(onClick = { refresh++ }, enabled = !loading && !busy,
@@ -143,7 +146,7 @@ fun NativeNotificationsScreen(
                 val allowedHandle = Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(item.actorHandle)
                 val initials = item.actorName.split(" ").filter { it.isNotBlank() }
                     .take(2).map { it.first().uppercaseChar() }.joinToString("").ifBlank { "SL" }
-                val highlight = if (!item.isRead) SautiColors.Red.copy(alpha = .065f)
+                val highlight = if (!item.isRead) MaterialTheme.colorScheme.primary.copy(alpha = .055f)
                     else MaterialTheme.colorScheme.surface
                 Row(
                     Modifier.fillMaxWidth().background(highlight)
@@ -167,30 +170,48 @@ fun NativeNotificationsScreen(
                                     error = e.message ?: "Could not open notification."
                                 } finally { busy = false }
                             }
-                        }.padding(horizontal = 18.dp, vertical = 18.dp),
+                        }.padding(horizontal = 18.dp, vertical = 13.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(13.dp)
                 ) {
+                    Box(Modifier.size(50.dp)) {
                     if (item.actorHasAvatar && allowedHandle) {
                         AuthorizedImage(auth,
                             route = "/api/profile-media/${item.actorHandle}/avatar",
                             description = "${item.actorName} profile picture",
-                            modifier = Modifier.size(58.dp).clip(CircleShape),
-                            fallback = { SautiAvatar(initials, Modifier.size(58.dp), SautiColors.Blue) })
-                    } else SautiAvatar(initials, Modifier.size(58.dp), SautiColors.Blue)
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                            modifier = Modifier.size(46.dp).clip(CircleShape),
+                            fallback = { SautiAvatar(initials, Modifier.size(46.dp), SautiColors.Blue) })
+                    } else SautiAvatar(initials, Modifier.size(46.dp), SautiColors.Blue)
+                    Surface(modifier = Modifier.align(Alignment.BottomEnd).size(23.dp),
+                        shape = CircleShape, color = MaterialTheme.colorScheme.surface) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(when (item.type) {
+                                "follow" -> Icons.Rounded.PersonAdd
+                                "like" -> Icons.Rounded.FavoriteBorder
+                                "reply" -> Icons.Rounded.ChatBubbleOutline
+                                "mention" -> Icons.Rounded.AlternateEmail
+                                "reshare" -> Icons.Rounded.Repeat
+                                "circle" -> Icons.Rounded.Groups
+                                "message" -> Icons.Rounded.MailOutline
+                                "safety" -> Icons.Rounded.Shield
+                                else -> Icons.Rounded.NotificationsNone
+                            }, null, Modifier.size(15.dp), tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                             Text(actor, style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.weight(1f, fill = false),
                                 color = bodyTextColor, maxLines = 1)
                             SautiVerificationBadge(item.actorVerified, item.actorBadgeType,
                                 item.actorName, size = 16.dp)
+                        }
                             Text(notificationActionCopy(item),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.weight(1f, fill = false))
-                        }
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (!item.isRead) {

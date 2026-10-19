@@ -6,8 +6,9 @@ import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -39,17 +40,21 @@ internal fun FeedPostOptions(
         }
         DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(text = { Text("View profile") }, enabled = post.authorHandle.isNotBlank(),
+                leadingIcon = { Icon(Icons.Rounded.PersonOutline, null) },
                 onClick = { expanded = false; onOpenProfile() })
-            DropdownMenuItem(text = { Text("Copy link") }, onClick = {
+            DropdownMenuItem(text = { Text("Copy link") }, leadingIcon = { Icon(Icons.Rounded.Link, null) }, onClick = {
                 expanded = false
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.setPrimaryClip(ClipData.newPlainText("SautiLink post", "https://sautilink.com/post/${post.id}"))
             })
-            DropdownMenuItem(text = { Text("Share") }, onClick = { expanded = false; onShare() })
-            DropdownMenuItem(text = { Text("View post") }, onClick = { expanded = false; onOpenPost() })
+            DropdownMenuItem(text = { Text("Share") }, leadingIcon = { Icon(Icons.Rounded.Share, null) },
+                onClick = { expanded = false; onShare() })
+            DropdownMenuItem(text = { Text("View post") }, leadingIcon = { Icon(Icons.Rounded.Article, null) },
+                onClick = { expanded = false; onOpenPost() })
             if (accountId != null && post.authorId != accountId) {
                 HorizontalDivider()
                 DropdownMenuItem(text = { Text("Report", color = MaterialTheme.colorScheme.error) },
+                    leadingIcon = { Icon(Icons.Rounded.Flag, null, tint = MaterialTheme.colorScheme.error) },
                     enabled = online && !busy, onClick = { expanded = false; error = null; reportOpen = true })
             }
         }

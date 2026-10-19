@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AttachFile
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,7 +35,7 @@ internal fun RoomRulesPanel(room: NativeRoom, state: RoomManagementState) {
 internal fun RoomRulesContent(rules: List<NativeRoomRule>) {
     if (rules.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Room rules", style = MaterialTheme.typography.titleMedium)
+        RoomSectionHeading("Room rules")
         rules.forEachIndexed { index, rule ->
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text("${index + 1}. ${rule.title}", style = MaterialTheme.typography.titleSmall)

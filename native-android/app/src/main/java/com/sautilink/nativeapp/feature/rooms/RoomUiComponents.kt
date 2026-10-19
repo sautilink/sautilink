@@ -3,19 +3,26 @@ package com.sautilink.nativeapp.feature.rooms
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +43,38 @@ import com.sautilink.nativeapp.ui.theme.SautiShape
 internal enum class RoomsTab(val title: String) { DISCOVER("Discover"), YOURS("Your rooms"), INVITES("Invites") }
 internal enum class RoomTab(val title: String) { DISCUSSION("Discussion"), ABOUT("About"), PEOPLE("People"), MEDIA("Media") }
 
+internal fun roomSectionIcon(title: String): ImageVector = when {
+    title.contains("rule", true) -> Icons.Rounded.Rule
+    title.contains("question", true) || title.contains("answer", true) || title.contains("Before you join", true) -> Icons.Rounded.QuestionAnswer
+    title.contains("invite", true) || title.contains("invitation", true) -> Icons.Rounded.PersonAdd
+    title.contains("request", true) || title.contains("approval", true) || title.contains("submission", true) -> Icons.Rounded.FactCheck
+    title.contains("setting", true) || title.startsWith("Manage") -> Icons.Rounded.Settings
+    title.contains("member", true) || title.contains("people", true) -> Icons.Rounded.People
+    title.contains("post", true) || title.contains("discussion", true) -> Icons.Rounded.ChatBubbleOutline
+    title.contains("about", true) -> Icons.Rounded.Info
+    title.contains("media", true) -> Icons.Rounded.PhotoLibrary
+    else -> Icons.Rounded.Groups
+}
+
+@Composable
+internal fun RoomSectionHeading(title: String, icon: ImageVector = roomSectionIcon(title),
+    modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+        Icon(icon, null, Modifier.size(21.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+internal fun RoomActionLabel(text: String, icon: ImageVector) {
+    Row(verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        Icon(icon, null, Modifier.size(18.dp))
+        Text(text)
+    }
+}
+
 internal fun roomPolicyLabel(policy: String) = when (policy) {
     "approval" -> "Approval to join"
     "private" -> "Invite only"
@@ -52,7 +91,7 @@ internal fun RoomsTopBar(title: String, refreshing: Boolean, onBack: () -> Unit,
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
-        Text(title, style = MaterialTheme.typography.titleLarge, maxLines = 1,
+        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1,
             overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         IconButton(onClick = onRefresh, enabled = !refreshing) {
             Icon(Icons.Rounded.Refresh, "Refresh Rooms")
@@ -65,13 +104,18 @@ internal fun RoomsTopBar(title: String, refreshing: Boolean, onBack: () -> Unit,
 
 @Composable
 internal fun RoomsTabs(selected: RoomsTab, invites: Int, onSelect: (RoomsTab) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         RoomsTab.entries.forEach { tab ->
             FilterChip(selected = tab == selected, onClick = { onSelect(tab) },
+                leadingIcon = { Icon(when (tab) {
+                    RoomsTab.DISCOVER -> Icons.Rounded.Explore
+                    RoomsTab.YOURS -> Icons.Rounded.Groups
+                    RoomsTab.INVITES -> Icons.Rounded.PersonAdd
+                }, null, Modifier.size(18.dp), selected = tab == selected) },
                 label = { Text(if (tab == RoomsTab.INVITES && invites > 0) "Invites ($invites)" else tab.title,
                     style = MaterialTheme.typography.labelMedium, maxLines = 1) },
-                modifier = Modifier.weight(1f), shape = SautiShape.Pill, colors = roomFilterChipColors())
+                modifier = Modifier.heightIn(min = 48.dp), shape = SautiShape.Pill, colors = roomFilterChipColors())
         }
     }
 }
@@ -85,11 +129,25 @@ internal fun roomFilterChipColors() = FilterChipDefaults.filterChipColors(
 
 @Composable
 internal fun RoomContentTabs(selected: RoomTab, onSelect: (RoomTab) -> Unit) {
-    ScrollableTabRow(selectedTabIndex = selected.ordinal, edgePadding = 8.dp,
-        containerColor = MaterialTheme.colorScheme.surface, divider = {}) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup()
+        .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         RoomTab.entries.forEach { tab ->
-            Tab(selected = tab == selected, onClick = { onSelect(tab) },
-                text = { Text(tab.title, style = MaterialTheme.typography.labelLarge) })
+            val active = tab == selected
+            val ink = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            Row(Modifier.heightIn(min = 48.dp).widthIn(min = 48.dp)
+                .clip(SautiShape.Pill)
+                .background(if (active) MaterialTheme.colorScheme.primary.copy(alpha = .10f) else Color.Transparent)
+                .selectable(selected = active, role = Role.Tab, onClick = { onSelect(tab) })
+                .semantics { contentDescription = tab.title }.padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center) {
+                Icon(roomSectionIcon(tab.title), null, Modifier.size(21.dp), tint = ink, selected = active)
+                if (active) {
+                    Spacer(Modifier.width(7.dp))
+                    Text(tab.title, style = MaterialTheme.typography.labelLarge, color = ink, maxLines = 1)
+                }
+            }
         }
     }
 }
@@ -114,8 +172,8 @@ internal fun RoomCard(auth: StagingAuthClient, room: NativeRoom, onOpen: () -> U
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))) {
         Column(Modifier.clickable(onClick = onOpen)) {
-            RoomCover(auth, room, Modifier.fillMaxWidth().height(132.dp))
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            RoomCover(auth, room, Modifier.fillMaxWidth().height(116.dp))
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text(room.name, style = MaterialTheme.typography.titleMedium, maxLines = 2,
                     overflow = TextOverflow.Ellipsis)
                 RoomMeta(room)
@@ -151,7 +209,7 @@ internal fun RoomMeta(room: NativeRoom) {
 @Composable
 internal fun RoomDetailHeading(auth: StagingAuthClient, room: NativeRoom) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        RoomCover(auth, room, Modifier.fillMaxWidth().height(180.dp).clip(SautiShape.Card))
+        RoomCover(auth, room, Modifier.fillMaxWidth().height(154.dp).clip(SautiShape.Card))
         Text(room.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         RoomMeta(room)
         Text("${room.memberCount} ${if (room.memberCount == 1) "member" else "members"} · ${roomPolicyLabel(room.policy)}",
@@ -165,6 +223,9 @@ internal fun RoomNotice(message: String, isError: Boolean = false, onRetry: (() 
         color = if (isError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainer) {
         Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(if (isError) Icons.Rounded.ErrorOutline else Icons.Rounded.Info, null,
+                Modifier.size(20.dp), tint = if (isError) MaterialTheme.colorScheme.onErrorContainer
+                    else MaterialTheme.colorScheme.primary)
             Text(message, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
                 color = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant)
             if (onRetry != null) TextButton(onClick = onRetry) { Text("Retry") }
@@ -177,7 +238,7 @@ internal fun RoomEmpty(title: String, detail: String, icon: ImageVector = Icons.
     actionLabel: String? = null, onAction: (() -> Unit)? = null) {
     Column(Modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceContainer) {
+        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.primary.copy(alpha = .08f)) {
             Icon(icon, null, Modifier.padding(17.dp).size(30.dp), tint = MaterialTheme.colorScheme.primary)
         }
         Text(title, style = MaterialTheme.typography.titleMedium)
@@ -247,7 +308,7 @@ internal fun RoomPostCard(auth: StagingAuthClient, post: NativeRoomPost, state: 
             val likeGesture: (() -> Unit)? = if (state.liked != null && "like" !in state.pending) ({ onLike(true) }) else null
             SautiPostGestureSurface(Modifier.fillMaxWidth().padding(14.dp), onLike = likeGesture,
                 onTap = onOpenPost, tapLabel = "Open Room post") {
-                SautiPostText(post.body, style = MaterialTheme.typography.bodyLarge)
+                SautiPostText(post.body, style = MaterialTheme.typography.bodyMedium)
             }
             PostMediaGallery(auth, post.media, onDoubleTapLike = likeGesture)
             if (state.error != null) Box(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
@@ -288,7 +349,7 @@ private fun RoomCountAction(icon: ImageVector, label: String, count: Int, enable
         .clickable(interactionSource = interaction, indication = ripple(), enabled = enabled,
             role = Role.Button, onClick = onClick), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center) {
-        Icon(icon, label, Modifier.size(20.dp).sautiActionFeedback(interaction), tint = tint)
+        Icon(icon, label, Modifier.size(20.dp).sautiActionFeedback(interaction), tint = tint, selected = active)
         if (count > 0) Spacer(Modifier.width(2.dp))
         Text(if (count <= 0) "" else when { count >= 1_000_000 -> "${count / 1_000_000}m"
             count >= 1000 -> "${count / 1000}k"; else -> count.toString() }, style = MaterialTheme.typography.labelSmall,

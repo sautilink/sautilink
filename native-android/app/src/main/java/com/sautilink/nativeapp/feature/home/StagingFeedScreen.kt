@@ -32,7 +32,11 @@ import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.PeopleOutline
+import androidx.compose.material.icons.rounded.TrendingUp
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.*
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -47,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
@@ -448,8 +453,8 @@ fun StagingFeedScreen(
                                 contentDescription = "SautiLink logo",
                                 modifier = Modifier.width(42.dp).height(28.dp),
                                 contentScale = androidx.compose.ui.layout.ContentScale.Fit)
-                            Text("SautiLink", style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.ExtraBold,
+                            Text("SautiLink", style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1)
                         }
@@ -482,9 +487,9 @@ fun StagingFeedScreen(
     ) { insets ->
         LazyColumn(
             Modifier.fillMaxSize().padding(insets),
-            contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 6.dp,
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp,
                 bottom = if (asHome) 90.dp else 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
                 Row(modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -711,8 +716,15 @@ private fun FeedModePill(label: String, selected: Boolean, onClick: () -> Unit) 
         color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = .12f)
                 else MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier.heightIn(min = 44.dp)) {
-        Box(Modifier.padding(horizontal = 17.dp, vertical = 11.dp),
-            contentAlignment = Alignment.Center) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            Icon(when (label) {
+                "Following" -> Icons.Rounded.PeopleOutline
+                "Trending" -> Icons.Rounded.TrendingUp
+                else -> Icons.Rounded.AutoAwesome
+            }, contentDescription = null, modifier = Modifier.size(18.dp), selected = selected,
+                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             Text(label, style = MaterialTheme.typography.labelLarge,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                 color = if (selected) MaterialTheme.colorScheme.primary
@@ -769,7 +781,7 @@ private fun FeedPostBodyAndMedia(post: StagingFeedPost, auth: StagingAuthClient,
         com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(
             Modifier.fillMaxWidth(), onLike = onDoubleTapLike) {
             com.sautilink.nativeapp.ui.components.SautiPostText(post.body,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
                 modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 10.dp))
         }
     }
@@ -829,7 +841,7 @@ private fun RealPostCard(
     val doubleTapLike = feedLikeGesture(auth, online, busyLike, onDoubleTapLike)
     val showFollow = feedFollowVisible(auth, post)
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .18f)),
         shadowElevation = 0.dp,
@@ -866,6 +878,7 @@ private fun RealPostCard(
                     Row(verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(post.authorName, style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.weight(1f, fill = false),
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                         SautiVerificationBadge(post.verified, post.badgeType,
@@ -950,6 +963,7 @@ private fun RealPostCard(
                             Icon(if (saved == true) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                                 if (saved == true) "Remove from saved" else "Save post",
                                 modifier = Modifier.size(24.dp).sautiActionFeedback(saveInteraction),
+                                selected = saved == true,
                                 tint = if (saved == true) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -993,7 +1007,9 @@ internal fun CompactPostAction(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(activeIcon, contentDescription = label, tint = animatedTint, modifier = Modifier.size(20.dp).sautiActionFeedback(interaction))
+        Icon(activeIcon, contentDescription = label, tint = animatedTint,
+            selected = activeIcon != icon,
+            modifier = Modifier.size(20.dp).sautiActionFeedback(interaction))
         if (count != null) {
             Spacer(Modifier.width(2.dp))
             Text(count, style = MaterialTheme.typography.labelSmall,
