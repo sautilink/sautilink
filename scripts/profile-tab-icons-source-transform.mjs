@@ -8,7 +8,10 @@ const TAB_ICON_MAP = `const PROFILE_ACTIVITY_TAB_ICONS = Object.freeze({
   saves: '<svg data-profile-activity-tab-icon="saves" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z"></path></svg>&nbsp;',
   hashtags: '<svg data-profile-activity-tab-icon="hashtags" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 9h14M4 15h14M10 3 8 21M16 3l-2 18"></path></svg>&nbsp;',
 });
-const PROFILE_ACTIVITY_PRIVACY_ICON = '<svg data-profile-activity-privacy-icon="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3 5 6v5c0 4.8 2.9 8.1 7 10 4.1-1.9 7-5.2 7-10V6l-7-3Z"></path><rect x="9" y="10" width="6" height="5" rx="1"></rect><path d="M10.5 10V8.7a1.5 1.5 0 0 1 3 0V10"></path></svg>&nbsp;';`;
+const PROFILE_ACTIVITY_PRIVACY_ICON = '<svg data-profile-activity-privacy-icon="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3 5 6v5c0 4.8 2.9 8.1 7 10 4.1-1.9 7-5.2 7-10V6l-7-3Z"></path><rect x="9" y="10" width="6" height="5" rx="1"></rect><path d="M10.5 10V8.7a1.5 1.5 0 0 1 3 0V10"></path></svg>&nbsp;';
+function profileActivityTabLabel(tab) {
+  return tab === 'replies' ? 'Replies' : PROFILE_ACTIVITY_LABELS[tab];
+}`;
 
 export function transformProfileTabIconsSource(filePath, source) {
   const normalized = String(filePath || '').replaceAll('\\', '/');
@@ -17,6 +20,7 @@ export function transformProfileTabIconsSource(filePath, source) {
 
   const badgesMarker = 'const PROFILE_ACTIVITY_LABELS = Object.freeze({';
   const tabRenderMarker = '${PROFILE_ACTIVITY_LABELS[tab]}</button>';
+  const tabAttributesMarker = 'data-profile-activity-tab="${tab}" aria-selected="${tab === \'posts\'}">';
   const privacyRenderMarker = 'aria-expanded="false">Activity privacy</button>';
 
   if (!source.includes(badgesMarker)) {
@@ -25,12 +29,16 @@ export function transformProfileTabIconsSource(filePath, source) {
   if (!source.includes(tabRenderMarker)) {
     throw new Error('Profile tab icon transform could not find the profile activity tab renderer.');
   }
+  if (!source.includes(tabAttributesMarker)) {
+    throw new Error('Profile tab icon transform could not find the existing accessible tab attributes.');
+  }
   if (!source.includes(privacyRenderMarker)) {
     throw new Error('Profile tab icon transform could not find the Activity privacy renderer.');
   }
 
   return source
-    .replace(badgesMarker, `${TAB_ICON_MAP}\n\n${badgesMarker}`)
-    .replace(tabRenderMarker, '${PROFILE_ACTIVITY_TAB_ICONS[tab] || \'\'}${PROFILE_ACTIVITY_LABELS[tab]}</button>')
+    .replace(badgesMarker, `${TAB_ICON_MAP.replaceAll('</svg>&nbsp;', '</svg>')}\n\n${badgesMarker}`)
+    .replace(tabAttributesMarker, 'data-profile-activity-tab="${tab}" aria-selected="${tab === \'posts\'}" aria-label="${profileActivityTabLabel(tab)}" title="${profileActivityTabLabel(tab)}">')
+    .replace(tabRenderMarker, '${PROFILE_ACTIVITY_TAB_ICONS[tab] || \'\'}<span class="profile-activity-tab-label">${profileActivityTabLabel(tab)}</span></button>')
     .replace(privacyRenderMarker, 'aria-expanded="false">${PROFILE_ACTIVITY_PRIVACY_ICON}Activity privacy</button>');
 }

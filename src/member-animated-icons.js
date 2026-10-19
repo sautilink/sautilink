@@ -15,6 +15,7 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
   let observer;
   let intersection;
   let queued = false;
+  let profileScrollTimer;
 
   function memberVisible() {
     const member = document.getElementById('member-view');
@@ -26,7 +27,8 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
   }
   function busy(button) { return button?.getAttribute('aria-busy') === 'true' || button?.dataset.sending === 'true'; }
   function selected(button) {
-    return button?.getAttribute('aria-pressed') === 'true' || button?.dataset.active === 'true' || button?.classList.contains('active');
+    return button?.getAttribute('aria-pressed') === 'true' || button?.getAttribute('aria-selected') === 'true'
+      || button?.dataset.active === 'true' || button?.classList.contains('active');
   }
   function unread(button) {
     const badge = button?.querySelector('[data-notification-badge]');
@@ -265,12 +267,44 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
       sync(record);
     }
   }
+  function profileTabKeys(event) {
+    if (!memberVisible() || event.defaultPrevented || !(event.target instanceof Element)
+      || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    const current = event.target.closest('.profile-activity-tabs [data-profile-activity-tab]');
+    if (!current) return;
+    const tabs = [...current.closest('.profile-activity-tabs').querySelectorAll('[data-profile-activity-tab]')]
+      .filter(tab => !tab.hidden && !tab.disabled && tab.getClientRects().length > 0);
+    const index = tabs.indexOf(current);
+    if (index < 0 || !tabs.length) return;
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
+      : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    event.preventDefault();
+    tabs[next].focus();
+    // Keep the existing tab handler responsible for its permission checks,
+    // selected state and feed request, exactly as on a pointer/touch click.
+    tabs[next].click();
+  }
+  function revealProfileTab(tab) {
+    if (!tab.matches('.profile-activity-tab[aria-selected="true"]')) return;
+    clearTimeout(profileScrollTimer);
+    profileScrollTimer = setTimeout(() => {
+      if (!memberVisible() || !tab.isConnected || tab.hidden || tab.getAttribute('aria-selected') !== 'true') return;
+      const bar = tab.closest('.profile-activity-tabs');
+      if (!bar || !(bar.scrollWidth > bar.clientWidth)) return;
+      const bounds = bar.getBoundingClientRect();
+      const item = tab.getBoundingClientRect();
+      const delta = item.right > bounds.right ? item.right - bounds.right + 5
+        : item.left < bounds.left ? item.left - bounds.left - 5 : 0;
+      if (delta) bar.scrollBy({ left: delta, behavior: motion.matches ? 'auto' : 'smooth' });
+    }, motion.matches ? 0 : 270);
+  }
   function install() {
     if (!document.getElementById('member-view')) return;
     observer = new MutationObserver(changes => {
       let relevant = false;
       for (const change of changes) {
         const element = change.target instanceof Element ? change.target : change.target.parentElement;
+        if (change.attributeName === 'aria-selected' && element) revealProfileTab(element);
         const svg = element?.closest('svg[data-sl-huge-icon]');
         if (svg) {
           // The application can redraw a captured SVG. Detect that without
@@ -293,7 +327,7 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
       if (relevant) schedule();
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true,
-      attributeFilter: ['hidden', 'class', 'aria-pressed', 'aria-current', 'aria-checked', 'aria-busy', 'aria-expanded', 'aria-label', 'title', 'data-active', 'data-sending'] });
+      attributeFilter: ['hidden', 'class', 'aria-pressed', 'aria-selected', 'aria-current', 'aria-checked', 'aria-busy', 'aria-expanded', 'aria-label', 'title', 'data-active', 'data-sending'] });
     if (typeof IntersectionObserver === 'function') intersection = new IntersectionObserver(entries => {
       for (const entry of entries) {
         const record = records.get(entry.target);
@@ -303,6 +337,7 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
     document.addEventListener('pointerover', interactions, { passive: true });
     document.addEventListener('focusin', interactions);
     document.addEventListener('click', interactions, true);
+    document.addEventListener('keydown', profileTabKeys);
     document.addEventListener('submit', event => {
       if (!memberVisible() || event.target?.id !== 'message-composer') return;
       for (const record of records.values()) if (record.kind === 'send') record.intent = !record.control.disabled && !busy(record.control);

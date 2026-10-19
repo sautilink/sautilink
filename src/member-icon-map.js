@@ -238,6 +238,20 @@ const generatedGlyphs = [
 
 export const glyphIcons = Object.freeze(Object.fromEntries([...literalGlyphs, ...generatedGlyphs]));
 
+// profile-activity.js owns category availability and selection. Its build-time
+// icon transform prepends a direct SVG before each existing plain-text label.
+// Media is a presentation mapping for hosts that already expose that category;
+// this map never creates or removes profile tabs.
+export const profileActivityTabIcons = Object.freeze({
+  posts: 'file-0-1',
+  reposts: 'repeat',
+  replies: 'message-0-1',
+  likes: 'heart',
+  saves: 'bookmark',
+  hashtags: 'lucide:hash',
+  media: 'image-0-1',
+});
+
 // All selectors target the native SVG itself. Specific state rules precede
 // general ones so Pause/Play and recording never advertise the wrong action.
 export const iconRules = Object.freeze([
@@ -260,6 +274,8 @@ export const iconRules = Object.freeze([
   { selector: '.profile-route-unavailable-icon', icon: 'security-block' },
   { selector: '[data-comment-reaction="like"] > svg', icon: 'thumbs-up' },
   { selector: '[data-comment-reaction="dislike"] > svg', icon: 'thumbs-down' },
+  ...Object.entries(profileActivityTabIcons).map(([tab, icon]) => ({ selector: '[data-profile-activity-tab="' + tab + '"] > svg, svg[data-profile-activity-tab-icon="' + tab + '"]', icon })),
+  { selector: 'svg[data-profile-activity-privacy-icon="true"]', icon: 'lock-keyhole' },
   ...Object.entries({ like: 'heart', save: 'bookmark', repost: 'repeat', share: 'share-0-1', comments: 'message-0-1' }).map(([action, icon]) => ({ selector: '[data-sauti-action="' + action + '"] > svg', icon })),
   ...Object.entries({ like: 'heart', heart: 'heart', save: 'bookmark', repost: 'repeat', share: 'share-0-1', comment: 'message-0-1' }).map(([action, icon]) => ({ selector: '[data-short-action="' + action + '"] .sauti-short-action-icon > svg', icon })),
   ...Object.entries({ stream: 'home-0-1', discover: 'search', messages: 'message-0-1', notifications: 'notification', circles: 'user-group', saved: 'bookmark', settings: 'settings-0-1', profile: 'user', appeals: 'sautilink:justice-scale', moderation: 'shield-check' }).map(([view, icon]) => ({ selector: '[data-member-view="' + view + '"] > svg:first-child, [data-member-view="' + view + '"] > span[aria-hidden="true"] > svg, [data-mobile-drawer-view="' + view + '"] > svg:first-child', icon })),

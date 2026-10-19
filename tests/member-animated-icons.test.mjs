@@ -113,6 +113,8 @@ function harness({ reduced = false, auth = false, hidden = false, runtimeAvailab
     set hidden(value) { if (value) this.setAttribute('hidden', ''); else this.removeAttribute('hidden'); }
     get disabled() { return this.hasAttribute('disabled'); }
     set disabled(value) { if (value) this.setAttribute('disabled', ''); else this.removeAttribute('disabled'); }
+    get tabIndex() { return Number(this.getAttribute('tabindex') ?? (this.localName === 'button' ? 0 : -1)); }
+    set tabIndex(value) { this.setAttribute('tabindex', String(value)); }
     get isConnected() { return document.contains(this); }
     get parentElement() { return this.parentNode instanceof Element ? this.parentNode : null; }
     get childNodes() { return this.children; }
@@ -233,6 +235,8 @@ function harness({ reduced = false, auth = false, hidden = false, runtimeAvailab
     querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
     getBoundingClientRect() { return { top: 10, bottom: 42, left: 10, right: 42, width: 32, height: 32 }; }
     getClientRects() { return this.closest('[hidden]') ? [] : [this.getBoundingClientRect()]; }
+    focus() { document.activeElement = this; this.dispatchEvent(new Event('focusin')); }
+    click() { if (!this.disabled) this.dispatchEvent(new Event('click')); }
     addEventListener(type, callback, options = {}) {
       const events = this.listeners.get(type) || [];
       events.push({ callback, capture: options === true || options.capture === true, once: options.once === true });
@@ -780,6 +784,56 @@ test('video quality selection moves its decorative check icon with aria-checked 
   assert.equal(second.querySelector('svg')?.getAttribute('data-sl-huge-icon'),'check');
   assert.equal(first.textContent,'Auto');
   assert.equal(second.textContent,'Original');
+});
+
+test('profile tab keyboard navigation retains real feature handlers, permission-hidden tabs, and roving focus', async () => {
+  const state = harness();
+  const tabs = state.node('nav', { class:'profile-activity-tabs', id:'profile-activity-tabs', role:'tablist' }, state.member);
+  const keys = ['posts','reposts','replies','likes','saves','hashtags'];
+  const labels = ['Posts','Reposts','Replies','Likes','Saves','Hashtags'];
+  const buttons = keys.map((key,index) => {
+    const button = state.node('button', { class:'profile-activity-tab', type:'button', role:'tab', 'data-profile-activity-tab':key, 'aria-label':labels[index], title:labels[index] }, tabs);
+    state.node('svg', { 'data-profile-activity-tab-icon':key, 'aria-hidden':'true' }, button);
+    state.node('span', { class:'profile-activity-tab-label' }, button).textContent=labels[index];
+    return button;
+  });
+  const source = await read('src/profile-activity.js');
+  const renderSource = source.slice(source.indexOf('function renderProfileActivityTabs()'),source.indexOf('function syncProfileActivityPrivacyControls()'));
+  const handlerSource = source.slice(source.indexOf("  nodes.tabs.addEventListener('click'"),source.indexOf("  nodes.privacyToggle.addEventListener('click'"));
+  const requested = [];
+  const context = {
+    ...state.context, nodes:{tabs}, PROFILE_ACTIVITY_TABS:keys,
+    profileActivityState:{tabs:Object.fromEntries(keys.map(key=>[key,key!=='saves']))},
+    profileActivityTab:'posts', profileActivityNodes:()=>({tabs}),
+    loadProfileActivityTab(tab) { requested.push(tab); context.profileActivityTab=tab; render(); },
+  };
+  const render = runInNewContext(`${renderSource}\n${handlerSource}\nrenderProfileActivityTabs;`,context);
+  render();state.start();await state.flush();
+  assert.equal(buttons[0].getAttribute('aria-selected'),'true');
+  assert.equal(buttons[0].tabIndex,0);
+  assert.equal(buttons[4].hidden,true,'the existing feature permission gate still hides Saves');
+  const press = async (button,key) => { const event=new state.Event('keydown',{key});button.dispatchEvent(event);await state.flush();assert.equal(event.defaultPrevented,true); };
+  await press(buttons[0],'ArrowRight');
+  assert.equal(requested.at(-1),'reposts');
+  assert.equal(state.document.activeElement,buttons[1]);
+  assert.equal(buttons[1].getAttribute('aria-selected'),'true');
+  assert.equal(buttons[1].tabIndex,0);
+  assert.equal(buttons[0].tabIndex,-1);
+  await press(buttons[1],'End');
+  assert.equal(requested.at(-1),'hashtags');
+  buttons[3].disabled=true;
+  await press(buttons[5],'ArrowLeft');
+  assert.equal(requested.at(-1),'replies','hidden Saves and disabled Likes are skipped');
+  await press(buttons[2],'Home');
+  assert.equal(requested.at(-1),'posts');
+  assert.equal(tabs.querySelectorAll('[data-profile-activity-tab]').every((button,index)=>button===buttons[index]),true,'the original feature buttons and listeners are retained');
+  const count=requested.length;buttons[4].click();await state.flush();
+  assert.equal(requested.length,count,'the real feature handler still rejects permission-hidden tabs');
+  buttons.forEach((button,index)=>{
+    assert.equal(button.getAttribute('aria-label'),labels[index]);
+    assert.equal(button.getAttribute('title'),labels[index]);
+    assert.equal(button.querySelector('.profile-activity-tab-label').textContent,labels[index]);
+  });
 });
 
 test('real production message sending animates success only and preserves its icon and submit handler on failure', async () => {

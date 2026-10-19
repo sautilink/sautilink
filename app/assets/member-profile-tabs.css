@@ -1,0 +1,71 @@
+/* Keep every original activity control; the selected tab reveals its label. */
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface #profile-activity-tabs {
+  display: flex;
+  gap: 3px;
+  min-width: 0;
+  padding: 7px 6px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface #profile-activity-tabs > .profile-activity-tab {
+  display: inline-flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-width: 44px;
+  min-height: 46px;
+  padding: 0 10px;
+  border-radius: 13px;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  transition: color .18s ease, background-color .18s ease;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface #profile-activity-tabs > .profile-activity-tab > svg {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface #profile-activity-tabs .profile-activity-tab-label {
+  display: inline-block;
+  max-width: 0;
+  margin-inline-start: 0;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  transition: max-width .24s cubic-bezier(.2,.7,.2,1), margin-inline-start .24s ease, opacity .16s ease;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface #profile-activity-tabs > .profile-activity-tab[aria-selected="true"] .profile-activity-tab-label {
+  max-width: 7em;
+  margin-inline-start: 7px;
+  opacity: 1;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface #profile-activity-tabs > .profile-activity-tab:focus-visible {
+  outline: 2px solid var(--ios-blue, var(--app-accent));
+  outline-offset: -2px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface #profile-activity-tabs > .profile-activity-tab[hidden] {
+  display: none !important;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-activity-privacy-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  border-color: var(--ios-line);
+  color: var(--ios-muted);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface .profile-activity-privacy-toggle[hidden] {
+  display: none !important;
+}
+@media (max-width: 450px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface #profile-activity-tabs { gap: 2px; padding: 6px 4px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface #profile-activity-tabs > .profile-activity-tab { padding-inline: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface #profile-activity-tabs > .profile-activity-tab,
+  body:not(.auth-entry):has(#member-view:not([hidden])) .profile-surface #profile-activity-tabs .profile-activity-tab-label { transition: none; }
+}
