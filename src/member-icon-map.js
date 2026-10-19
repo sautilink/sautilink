@@ -271,6 +271,7 @@ export const iconRules = Object.freeze([
   { selector: '.sauti-video-control.fullscreen > svg', icon: 'full-screen' },
   { selector: '.sauti-video-control.pip > svg', icon: 'lucide:picture-in-picture' },
   { selector: 'svg[data-profile-media-upload-icon="true"]', icon: 'upload-0-1' },
+  { selector: 'svg[data-profile-media-remove-icon="true"]', icon: 'delete-0-2' },
   { selector: '.profile-route-unavailable-icon', icon: 'security-block' },
   { selector: '[data-comment-reaction="like"] > svg', icon: 'thumbs-up' },
   { selector: '[data-comment-reaction="dislike"] > svg', icon: 'thumbs-down' },

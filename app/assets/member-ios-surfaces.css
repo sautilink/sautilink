@@ -489,6 +489,29 @@ body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui :is(
   background: var(--ios-surface);
 }
 
+body:not(.auth-entry):has(#member-view:not([hidden])) .section-label:not(#moderation-report-detail > .section-label):not(#auth-view .section-label):not(.auth-result .section-label),
+body:not(.auth-entry):has(#member-view:not([hidden])) .professional-dashboard-eyebrow,
+body:not(.auth-entry):has(#member-view:not([hidden])) .member-notice-eyebrow,
+body:not(.auth-entry):has(#member-view:not([hidden])) .composer-trim-card > header > div > p,
+body:not(.auth-entry):has(#member-view:not([hidden])) #moderation-report-detail:not(:has(.moderation-case-state)) > .section-label {
+  display: none !important;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #moderation-report-detail > .section-label {
+  color: var(--ios-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .messages-toolbar {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 body:not(.auth-entry):has(#member-view:not([hidden])) .messages-whatsapp-ui .messages-toolbar h2 {
   font-size: 23px;
   font-weight: 730;
@@ -759,6 +782,30 @@ body:not(.auth-entry):has(#member-view:not([hidden])) .profile-editor :is(.profi
   border-color: var(--ios-line);
   border-radius: 20px;
   background: var(--ios-surface);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-media-control :is(.profile-media-action, .profile-media-remove) {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  justify-self: start;
+  border: 1px solid var(--ios-line);
+  border-radius: 13px;
+  background: var(--ios-blue-soft);
+  color: var(--ios-blue);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-media-control .profile-media-remove {
+  background: color-mix(in srgb, var(--ios-rose, #ce335c) 8%, var(--ios-surface));
+  color: var(--ios-rose, #ce335c);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .profile-media-control :is(.profile-media-action, .profile-media-remove) > svg {
+  display: block;
+  width: 21px;
+  height: 21px;
 }
 
 body:not(.auth-entry):has(#member-view:not([hidden])) :is(.profile-editor, .settings-delete-form, .report-dialog, .appeal-dialog, .verification-request-dialog) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), textarea, select) {

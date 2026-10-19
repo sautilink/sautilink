@@ -8,6 +8,10 @@ const PROFILE_MEDIA_UPLOAD_BUTTONS = Object.freeze([
     label: 'Upload header image',
   },
 ]);
+const PROFILE_MEDIA_REMOVE_BUTTONS = Object.freeze([
+  { id: 'profile-avatar-remove-button', label: 'Remove profile photo' },
+  { id: 'profile-header-remove-button', label: 'Remove header image' },
+]);
 
 const PROFILE_MEDIA_EDITOR_STYLESHEET_ID = 'sautilink-profile-media-editor';
 const PROFILE_MEDIA_EDITOR_STYLESHEET = '/app/assets/profile-media-editor.css?v=20260920-mediaeditor1';
@@ -91,6 +95,40 @@ function watchProfileMediaUploadButton({ id, label }) {
     if (hasUploadIcon(button)) return;
     iconifyProfileMediaUploadButton(button, label);
   });
+  observer.observe(button, { childList: true, characterData: true, subtree: true });
+}
+
+function profileMediaRemoveIcon() {
+  const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
+  for (const [name, value] of Object.entries({ viewBox: '0 0 24 24', width: '18', height: '18', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.9', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false', 'data-profile-media-remove-icon': 'true', 'data-sl-icon-name': 'delete-0-2' })) svg.setAttribute(name, value);
+  const path = document.createElementNS(SVG_NAMESPACE, 'path');
+  path.setAttribute('d', 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5');
+  svg.append(path);
+  return svg;
+}
+
+function hasRemoveIcon(button) {
+  return button.children.length === 1
+    && button.firstElementChild?.matches('svg[data-profile-media-remove-icon="true"]');
+}
+
+function iconifyProfileMediaRemoveButton(button, label) {
+  if (!button || hasRemoveIcon(button)) return;
+  const currentText = String(button.textContent || '').trim();
+  const busy = /^removing\b/i.test(currentText);
+  button.replaceChildren(profileMediaRemoveIcon());
+  button.dataset.profileMediaIconified = 'true';
+  button.setAttribute('aria-label', busy ? currentText : label);
+  button.title = label;
+  if (busy) button.setAttribute('aria-busy', 'true');
+  else button.removeAttribute('aria-busy');
+}
+
+function watchProfileMediaRemoveButton({ id, label }) {
+  const button = document.getElementById(id);
+  if (!button) return;
+  iconifyProfileMediaRemoveButton(button, label);
+  const observer = new MutationObserver(() => iconifyProfileMediaRemoveButton(button, label));
   observer.observe(button, { childList: true, characterData: true, subtree: true });
 }
 
@@ -536,6 +574,9 @@ function installProfileMediaEditor() {
 function installProfileMediaUploadIcons() {
   for (const config of PROFILE_MEDIA_UPLOAD_BUTTONS) {
     watchProfileMediaUploadButton(config);
+  }
+  for (const config of PROFILE_MEDIA_REMOVE_BUTTONS) {
+    watchProfileMediaRemoveButton(config);
   }
   installProfileMediaEditor();
 }
