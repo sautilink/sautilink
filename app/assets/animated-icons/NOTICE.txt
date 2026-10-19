@@ -1,0 +1,60 @@
+useAnimations animated icons
+Upstream: https://github.com/useAnimations/react-useanimations
+Pinned commit: 88b845d9a4330b95bc7f456a17f32ce54157b32f
+Downloaded: 2026-10-19
+License: MIT; the exact upstream copyright and permission notice is in LICENSE.
+
+The JSON files are unmodified copies of icons/<filename>.json at the pinned
+commit, with one filename alias: notification.json is icons/notification4.json
+(the ringing bell, without a mute slash or an artificial unread badge).
+They are raw Lottie animation data, not shadcn registry documents.
+All animations use a 32 x 32 artboard and have no external assets. The official
+catalogue marks every icon below requiresFullPlayer=false: the existing
+self-hosted lottie_light SVG renderer can play them without another dependency.
+https://useanimations.com/icons.json
+https://useanimations.com/documentation#use-without-react
+
+Playback notes, checked against the actual pinned animation data:
+The op value is an exclusive end; a player's last displayed frame is op - 1.
+Do not infer on/off state from the generic HTML example on an icon page.
+
+Filename           Bytes  FPS  Frames  Upstream interaction  First / final state
+heart.json          2421   30   0-9     click-toggle          outline / filled
+bookmark.json       1886   30   0-9     click-toggle          outline / filled
+notification.json   2522   29.97 0-59   loop                  bell / same rest
+send.json           1230   30   0-39    click-replay          paper plane / same rest
+microphone.json     3442   30   0-24    click-toggle          mic / mic with slash
+home.json           1850   60   0-30    hover                 closed / open door
+searchToX.json      3185   30   0-29    click-toggle          magnifier / close X
+messageCircle.json  1681   30   0-33    hover-replay          chat bubble / same rest
+settings.json       3534   30   0-49    hover                 gear / gear rotated 45deg
+user.json           2113   30   0-33    hover-replay          person / same rest
+users.json          4265   30   0-37    hover-replay          people / same rest
+link.json           2478   30   0-33    click-replay          chain / same rest
+repeat.json         1310   30   0-39    click-replay          arrows / rotated 180deg
+activity.json       1759   30   0-39    loop                  pulse / pulse (trim loop)
+
+notification.json has floating point op=60.0000024438501 and
+fr=29.9700012207031. It settles to its initial rotation by frame 50 and has no
+slash, white knockout or unread dot. Replay once when opening notifications;
+do not use its upstream continuous-loop mode for a navigation control.
+
+Toggle heart/bookmark forward to select and backward to clear. Microphone runs
+forward to a slashed state, so its semantics are inverted relative to an
+enabled/on boolean. Keep microphone at frame 0 for idle voice recording, then
+show activity looping only while a recording is active; do not imply muting.
+Replay icons play from frame 0 once;
+home/settings play forward on hover/focus and backward on leave/blur. Replaying
+searchToX would briefly replace search with close: use only for a real open/close
+state, or keep its magnifier frame static for search navigation. Repeat's end
+state is visually identical because its arrows have half-turn symmetry.
+
+Color handling: black [0,0,0,1] strokes and fills are foreground and may follow
+currentColor. The white [1,1,1,1] stroke in microphone is a
+knockout behind the slash. Map it to the actual containing surface, never to
+the foreground. Preserve fill='none'. Heart/bookmark animate fill opacity as
+part of their selected state; do not override that opacity.
+
+Accessibility: keep existing real button/link controls, names and handlers;
+animations are decorative. For reduced motion use static state frames, skip
+replays and jump toggles to their correct resting endpoint.

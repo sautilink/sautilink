@@ -45,6 +45,9 @@ const copies = [
   ['assets/brand/system.css', 'assets/brand/system.css'],
   ['assets/fonts/inter/InterVariable.woff2', 'assets/fonts/inter/InterVariable.woff2'],
   ['assets/fonts/inter/InterVariable-Italic.woff2', 'assets/fonts/inter/InterVariable-Italic.woff2'],
+  ['assets/vendor/lottie-web/lottie_light.min.js', 'assets/vendor/lottie-web/lottie_light.min.js'],
+  ['assets/vendor/lottie-web/LICENSE.md', 'assets/vendor/lottie-web/LICENSE.md'],
+  ['assets/vendor/lottie-web/NOTICE.txt', 'assets/vendor/lottie-web/NOTICE.txt'],
 ];
 
 for (const [source, destination] of copies) {

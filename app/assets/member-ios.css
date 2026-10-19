@@ -276,7 +276,7 @@ body:not(.auth-entry):has(#member-view:not([hidden])) .app-footer { gap: 7px 13p
   body:not(.auth-entry):has(#member-view:not([hidden])) .share-sauti-button span { display: none; }
 }
 @media (min-width: 681px) and (max-width: 1190px) {
-  body:not(.auth-entry):has(#member-view:not([hidden])) .primary-rail .nav-item > span:not(.notification-badge) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) .primary-rail .nav-item > span:not(.notification-badge):not(.sl-animated-icon) {
     position: absolute;
     display: block;
     width: 1px;
