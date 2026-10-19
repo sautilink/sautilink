@@ -4,11 +4,9 @@ import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const memberAnimatedIconAssets = [
-  'activity.json', 'bookmark.json', 'heart.json', 'home.json', 'link.json',
-  'messageCircle.json', 'microphone.json', 'notification.json', 'repeat.json',
-  'searchToX.json', 'send.json', 'settings.json', 'user.json', 'users.json',
-  'LICENSE', 'NOTICE.txt',
-].map((name) => `app/assets/animated-icons/${name}`);
+  'runtime.js', 'manifest.json', 'LICENSE', 'LICENSE-MOTION.md', 'NOTICE.md',
+  'THIRD_PARTY_NOTICES.md',
+].map((name) => `app/assets/huge-icons/${name}`);
 
 test('preview is isolated, noindex and cannot connect to production services', async () => {
   const sourceHtml = await read('preview-src/app-shell/index.html');
@@ -113,13 +111,10 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/messages-media.css'));
   assert.ok(files.includes('app/assets/messages-reply.css'));
   assert.ok(files.includes('app/assets/messages-whatsapp.css'));
-  for (const asset of ['member-ios.css', 'member-ios-surfaces.css', 'member-ios-icons.css', 'member-ios-icons.js', 'member-animated-icons.css', 'member-animated-icons.js']) {
+  for (const asset of ['member-ios.css', 'member-ios-surfaces.css', 'member-ios-icons.css', 'member-animated-icons.css', 'member-animated-icons.js']) {
     assert.ok(files.includes(`app/assets/${asset}`));
   }
   for (const asset of memberAnimatedIconAssets) assert.ok(files.includes(asset), `staged animated icon asset is missing: ${asset}`);
-  for (const asset of ['lottie_light.min.js', 'LICENSE.md', 'NOTICE.txt']) {
-    assert.ok(files.includes(`assets/vendor/lottie-web/${asset}`));
-  }
   assert.ok(files.includes('app/assets/mobile-nav-icon-style.css'));
   assert.ok(files.includes('app/assets/mobile-more-drawer.css'));
   assert.ok(files.includes('app/assets/post-edit.css'));
@@ -177,9 +172,6 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
 
   const exactAllowed = new Set([
     ...memberAnimatedIconAssets,
-    'assets/vendor/lottie-web/lottie_light.min.js',
-    'assets/vendor/lottie-web/LICENSE.md',
-    'assets/vendor/lottie-web/NOTICE.txt',
     '_headers',
     '_redirects',
     'sw.js',
@@ -204,7 +196,6 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/member-ios.css',
     'app/assets/member-ios-surfaces.css',
     'app/assets/member-ios-icons.css',
-    'app/assets/member-ios-icons.js',
     'app/assets/member-animated-icons.css',
     'app/assets/member-animated-icons.js',
     'app/assets/mobile-nav-icon-style.css',

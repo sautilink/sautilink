@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { runInNewContext } from 'node:vm';
 import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -47,45 +46,4 @@ test('member presentation remains gated away from every account-entry state', as
       assert.match(selector, /body(?:\.[\w-]+)*:not\(\.auth-entry\):has\(#member-view:not\(\[hidden\]\)\)/, `${file}: unguarded rule ${selector}`);
     }
   }
-});
-
-test('member icon helper leaves account entry untouched until the member surface opens', async () => {
-  const source = await read('app/assets/member-ios-icons.js');
-  const member = { hidden: true };
-  let authEntry = true;
-  const observers = [];
-  const queries = [];
-  const writes = [];
-  const paths = [0, 1].map(() => ({
-    value: 'original',
-    getAttribute() { return this.value; },
-    setAttribute(name, value) { writes.push(name); this.value = value; },
-  }));
-  const document = {
-    readyState: 'complete',
-    body: { classList: { contains(name) { return name === 'auth-entry' && authEntry; } } },
-    getElementById(id) { assert.equal(id, 'member-view'); return member; },
-    querySelector(selector) { queries.push(selector); return { querySelector() { return paths[queries.length - 1]; } }; },
-    addEventListener() {},
-    removeEventListener() {},
-  };
-  runInNewContext(source, {
-    document,
-    Element: class {},
-    MutationObserver: class {
-      constructor(callback) { this.callback = callback; observers.push(this); }
-      observe() {}
-      disconnect() {}
-    },
-  });
-  assert.deepEqual(queries, []);
-  assert.deepEqual(paths.map(path => path.value), ['original', 'original']);
-  member.hidden = false;
-  observers[0].callback();
-  assert.deepEqual(queries, [], 'visible member HTML must still respect the auth-entry state');
-  authEntry = false;
-  observers[0].callback();
-  assert.equal(writes.length, 2);
-  assert.ok(paths.every(path => path.value !== 'original'));
-  assert.ok(queries.every(selector => !/auth|login|signup/.test(selector)));
 });

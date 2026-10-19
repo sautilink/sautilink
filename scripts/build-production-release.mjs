@@ -25,6 +25,7 @@ import { transformVideoPlayerSource } from './video-player-source-transform.mjs'
 import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+await import('./build-member-icons.mjs');
 const workerRoot = resolve(projectRoot, 'dist-production-worker');
 const workerSource = resolve(workerRoot, 'src');
 const productionAppSource = resolve(workerSource, 'app.js');
