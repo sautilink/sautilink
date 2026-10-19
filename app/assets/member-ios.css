@@ -172,15 +172,18 @@ body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card {
 body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card:hover { background: var(--ios-surface); }
 body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-head { min-height: 78px; gap: 12px; padding: 16px 19px; }
 body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-avatar { width: 43px; height: 43px; flex-basis: 43px; border: 1px solid var(--ios-line); background: var(--ios-blue-soft); color: var(--ios-blue); }
-body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-head .verified-name { color: var(--ios-ink); font-size: 13px; font-weight: 650; }
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.sauti-card-head .verified-name, .profile-activity-author) { color: var(--ios-ink); font-size: 15px; line-height: 1.3; font-weight: 650; letter-spacing: normal; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-head .verified-name > strong { font-weight: inherit; }
 body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-identity { gap: 3px; }
 body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-head a,
 body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-head time { color: var(--ios-muted); font-size: 11px; }
-body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-body { padding: 0 20px 18px; font-size: 15px; line-height: 1.65; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-body { padding: 0 20px 12px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.sauti-card-body, .sauti-caption, .profile-activity-body) { font-size: 14px; line-height: 1.5; letter-spacing: normal; }
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.sauti-card-body, .sauti-caption-text, .profile-activity-body) strong { font-weight: 700; }
 body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-head-follow { min-height: 34px; padding: 7px 12px; border-radius: 10px; color: var(--ios-blue); background: var(--ios-blue-soft); font-size: 11px; font-weight: 650; }
 body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-head-follow.following { background: var(--ios-secondary); color: var(--ios-muted); border-color: transparent; }
 body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-footer { min-height: 57px; padding: 7px 12px 2px; }
-body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-caption { margin: 3px 20px 0; font-size: 14px; line-height: 1.65; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-caption { margin: 2px 20px 12px; }
 body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-caption-author { font-weight: 650; }
 body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-meta { margin: 6px 20px 15px; font-size: 11px; }
 body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-repost-note { padding-inline: 20px; color: var(--ios-muted); font-size: 11px; }
@@ -328,12 +331,12 @@ body:not(.auth-entry):has(#member-view:not([hidden])) .app-footer { gap: 7px 13p
   body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-head { min-height: 74px; flex-wrap: nowrap; gap: 10px; padding: 13px 14px; }
   body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-head time { width: auto; margin-left: 0; font-size: 10px; }
   body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-avatar { width: 38px; height: 38px; flex-basis: 38px; }
-  body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-head .verified-name { font-size: 12px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) :is(.sauti-card-head .verified-name, .profile-activity-author) { font-size: 14px; }
   body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-head a { font-size: 10px; }
   body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-head-follow { padding-inline: 8px; font-size: 10px; }
-  body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-body { padding: 0 15px 16px; font-size: 14px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-body { padding: 0 15px 12px; }
   body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-footer { padding-inline: 7px; }
-  body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-caption { margin-inline: 15px; font-size: 13px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-caption { margin-inline: 15px; }
   body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-card-meta { margin-inline: 15px; }
   body:not(.auth-entry):has(#member-view:not([hidden])) .ios-quick-compose { width: calc(100% - 26px); margin: 0 13px 14px; padding: 12px; border-radius: 18px; gap: 10px; }
   body:not(.auth-entry):has(#member-view:not([hidden])) .ios-quick-compose-copy { font-size: 12px; }

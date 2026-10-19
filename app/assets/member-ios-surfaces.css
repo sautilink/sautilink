@@ -371,6 +371,60 @@ body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface :is(.set
   font-weight: 630;
 }
 
+/* Small section marks give Settings and member cards a consistent visual anchor. */
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(
+  .settings-panel-heading > h3,
+  .settings-card-title > strong,
+  .settings-data-card > div > strong,
+  .settings-toggle-row > span > strong,
+  .settings-select > span > strong,
+  #profile-editor-title,
+  #profile-identity-title,
+  #profile-media-title,
+  #profile-activity-privacy-title,
+  #account-security-title,
+  #account-deletion-title,
+  .discover-section-heading h3,
+  .circle-create-heading h3,
+  .circle-stream-heading h3,
+  .circle-members-heading h3,
+  .circle-requests-heading h3,
+  #room-fb-about-card > h3,
+  #room-invite-panel > div > h3,
+  .room-invitation-heading h3,
+  .room-admin-heading h3,
+  .room-admin-subheading h4,
+  .professional-insights-heading h3,
+  .professional-top-content > div > h3
+)[data-sl-huge-decoration] {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(
+  .settings-surface,
+  .profile-editor,
+  .profile-activity-privacy-heading,
+  .discover-section-heading,
+  .circle-create-heading,
+  .circle-stream-heading,
+  .circle-members-heading,
+  .circle-requests-heading,
+  #room-fb-about-card,
+  #room-invite-panel,
+  .room-invitation-heading,
+  .room-admin-heading,
+  .room-admin-subheading,
+  .professional-insights-heading,
+  .professional-top-content
+) :is(h2, h3, h4, strong)[data-sl-huge-decoration] > svg[data-sl-huge-text] {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--ios-blue);
+}
+
 body:not(.auth-entry):has(#member-view:not([hidden])) .settings-surface :is(.settings-card-title small, .settings-note, .settings-select small, .settings-card-copy, .settings-data-card p, .settings-empty, .settings-toggle-row small, .settings-panel-heading > p:last-child) {
   color: var(--ios-muted);
   font-size: 12px;

@@ -4,7 +4,7 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
 
 (() => {
   'use strict';
-  const RELEASE = '20261019-huge2';
+  const RELEASE = '20261019-huge3';
   const RUNTIME = `/app/assets/huge-icons/runtime.js?v=${RELEASE}`;
   const GRAPHICS = ['viewBox', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'style'];
   const records = new Map();
