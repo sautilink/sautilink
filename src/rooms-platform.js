@@ -206,7 +206,10 @@ function brandRoomsShell() {
   if (heading) heading.textContent = 'Rooms';
   if (copy) copy.textContent = 'Find communities by topic, join public Rooms, request access to private Rooms, or create your own.';
   if (roomById('circles-create-toggle')) roomById('circles-create-toggle').textContent = 'Create Room';
-  if (roomById('circle-back')) roomById('circle-back').textContent = '← All Rooms';
+  const back = roomById('circle-back');
+  if (back && !back.closest('.room-detail-toolbar') && back.textContent !== '← All Rooms') {
+    back.textContent = '← All Rooms';
+  }
   if (roomById('circle-route-home')) roomById('circle-route-home').textContent = 'Back to Rooms';
 
   const notificationSetting = roomById('settings-notify-sautify');

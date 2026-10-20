@@ -407,11 +407,19 @@ function ensureRoomDetailToolbar(detail, card) {
 }
 
 function roomFbPrivacyCopy() {
-  const badgeText = String(roomFbById('circle-detail-policy')?.textContent || 'Room').trim();
-  const privateRoom = /private|invite/i.test(badgeText);
-  return privateRoom
-    ? ['Private', 'Only members can see who is in the Room and what they post.']
-    : ['Public', 'Anyone can find this Room and see its public information.'];
+  // Membership policy (open/approval/invitation) does not describe Room privacy.
+  // Use the same rendered privacy metadata as the detail heading, wherever its
+  // chip appears among the category and member count chips.
+  const badges = roomFbById('circle-detail')?.querySelectorAll('.room-detail-badges > span') || [];
+  const privacyText = Array.from(badges, (badge) => String(badge.textContent || '').trim())
+    .find((text) => /^(private|public)(?:\s*room)?$/i.test(text));
+  if (/^private/i.test(privacyText || '')) {
+    return ['Private', 'Only members can see who is in the Room and what they post.'];
+  }
+  if (/^public/i.test(privacyText || '')) {
+    return ['Public', 'Anyone can find this Room and see its public information.'];
+  }
+  return ['Room privacy', 'Privacy details are not available yet.'];
 }
 
 function ensureRoomAboutCard() {
