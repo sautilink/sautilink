@@ -117,14 +117,22 @@ try {
   await build({ stdin: { contents: fixture, resolveDir: root, sourcefile: 'local-only-realtime-runtime-fixture.mjs' },
     bundle: true, platform: 'neutral', format: 'esm', external: ['cloudflare:workers'],
     outfile: join(scratch, 'fixture.mjs'), logLevel: 'warning' });
-  runtime = new Miniflare(convertV4MiniflareOptions({ name: 'sautilink-realtime-runtime-local',
+  const runtimeOptions = convertV4MiniflareOptions({ name: 'sautilink-realtime-runtime-local',
+    // Miniflare names modules relative to modulesRoot. The temporary bundle is
+    // outside the checkout, so the default cwd root would create a ../ module
+    // name that workerd correctly rejects as escaping its starting directory.
+    rootPath: scratch, modulesRoot: scratch,
     scriptPath: join(scratch, 'fixture.mjs'), modules: true, compatibilityDate: '2026-08-17',
     host: '127.0.0.1', port: 0, inspectorHost: '127.0.0.1',
     durableObjects: { DM_REALTIME_HUB: { className: 'DmRealtimeHub', useSQLite: true } },
     resourcePersistencePath: join(scratch, 'state'), resourceTmpPath: join(scratch, 'tmp'),
     outboundService: async () => { outboundAttempts++; throw new Error('Hosted network access is disabled in runtime verification'); },
     cf: false, telemetry: { enabled: false }, logRequests: false,
-  }));
+  });
+  const manifest = runtimeOptions.workers[0].config.manifest;
+  assert.equal(manifest.mainModule, 'fixture.mjs');
+  assert.deepEqual(Object.keys(manifest.modules), ['fixture.mjs']);
+  runtime = new Miniflare(runtimeOptions);
   const origin = await runtime.ready;
   runtimeStarted = true;
   assert.equal(origin.hostname, '127.0.0.1');
