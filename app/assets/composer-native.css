@@ -112,7 +112,7 @@ body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .co
   min-height: 44px;
   border-radius: 9px;
 }
-body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog :is(.composer-format-preview, .composer-quote-preview, .composer-poll-editor, .composer-drafts) {
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog :is(.composer-format-preview, .composer-poll-editor, .composer-drafts) {
   margin: 0;
   padding: 14px;
   border-color: var(--ios-line);

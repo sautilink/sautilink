@@ -211,7 +211,6 @@ const COMPOSER_DRAFT_LIMIT = 5;
 const COMPOSER_DRAFTS_PREFIX = 'sautilink.composer.drafts.v1:';
 const COMPOSER_CURRENT_PREFIX = 'sautilink.composer.current.v1:';
 let composerDrafts = [];
-let activeComposerQuote = null;
 let composerMedia = [];
 let restoringComposerState = false;
 let composerRestoreFocus = null;
@@ -629,11 +628,9 @@ function showSignedOut(mode = 'login') {
   byId('sauti-body').disabled = true;
   byId('sauti-camera-add').disabled = true;
   byId('sauti-body').value = '';
-  activeComposerQuote = null;
   composerMedia.forEach((item) => { if (item.localUrl) URL.revokeObjectURL(item.localUrl); });
   composerMedia = [];
   composerDrafts = [];
-  renderComposerQuote();
   renderComposerMedia();
   byId('composer-drafts').hidden = true;
   byId('sauti-drafts-toggle').setAttribute('aria-expanded', 'false');
@@ -3195,12 +3192,25 @@ function composerStorageKey(prefix) {
   return currentMemberId ? `${prefix}${currentMemberId}` : '';
 }
 
+function stripComposerQuote(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object' || !Object.hasOwn(snapshot, 'quote')) return snapshot;
+  const postDraft = { ...snapshot };
+  delete postDraft.quote;
+  return postDraft;
+}
+
 function readComposerStorage(prefix, fallback) {
   const key = composerStorageKey(prefix);
   if (!key) return fallback;
   try {
     const parsed = JSON.parse(window.localStorage.getItem(key) || 'null');
-    return parsed ?? fallback;
+    const stored = parsed ?? fallback;
+    const restored = Array.isArray(stored) ? stored.map(stripComposerQuote) : stripComposerQuote(stored);
+    const changed = Array.isArray(stored)
+      ? restored.some((snapshot, index) => snapshot !== stored[index])
+      : restored !== stored;
+    if (changed) writeComposerStorage(prefix, restored);
+    return restored;
   } catch {
     return fallback;
   }
@@ -3256,28 +3266,14 @@ function currentComposerSnapshot() {
     body: byId('sauti-body')?.value || '',
     audience,
     replyAccess,
-    quote: activeComposerQuote ? { ...activeComposerQuote } : null,
     media: serializeComposerMedia(),
   };
-}
-
-function renderComposerQuote() {
-  const preview = byId('sauti-quote-preview');
-  if (!preview) return;
-  preview.hidden = !activeComposerQuote;
-  if (!activeComposerQuote) {
-    byId('sauti-quote-author').textContent = '@member';
-    byId('sauti-quote-body').textContent = '';
-    return;
-  }
-  byId('sauti-quote-author').textContent = activeComposerQuote.author || '@member';
-  byId('sauti-quote-body').textContent = activeComposerQuote.body || 'Quoted post';
 }
 
 function persistComposerCurrent() {
   if (restoringComposerState || !currentMemberId) return;
   const snapshot = currentComposerSnapshot();
-  if (!snapshot.body && !snapshot.quote && !snapshot.media?.length) {
+  if (!snapshot.body && !snapshot.media?.length) {
     writeComposerStorage(COMPOSER_CURRENT_PREFIX, null);
     return;
   }
@@ -3304,7 +3300,7 @@ function renderComposerDrafts() {
     restore.dataset.restoreDraft = String(draft.id);
 
     const text = document.createElement('strong');
-    text.textContent = String(draft.body || '').trim() || (draft.quote ? 'Quote Post' : draft.media?.length ? 'Media post' : 'Draft post');
+    text.textContent = String(draft.body || '').trim() || (draft.media?.length ? 'Media post' : 'Draft post');
     const meta = document.createElement('span');
     const audience = String(draft.audience || 'public').startsWith('circle:')
       ? 'Room'
@@ -3344,8 +3340,6 @@ function loadComposerDraftsFromStorage() {
 function clearComposerCurrent({ resetControls = false } = {}) {
   const textarea = byId('sauti-body');
   if (textarea) textarea.value = '';
-  activeComposerQuote = null;
-  renderComposerQuote();
   restoreComposerMedia([]);
   if (resetControls) {
     if (byId('sauti-audience')) byId('sauti-audience').value = 'public';
@@ -3357,7 +3351,7 @@ function clearComposerCurrent({ resetControls = false } = {}) {
 
 function saveComposerDraft({ offline = false } = {}) {
   const snapshot = currentComposerSnapshot();
-  if (!String(snapshot.body || '').trim() && !snapshot.quote && !snapshot.media?.length) return false;
+  if (!String(snapshot.body || '').trim() && !snapshot.media?.length) return false;
   if (composerMedia.some((item) => item.status !== 'ready' && !item.cacheReady)) {
     showToast('Media is still being prepared for device storage. Try saving the draft again.', 'error');
     return false;
@@ -3379,6 +3373,7 @@ function saveComposerDraft({ offline = false } = {}) {
 
 function applyComposerSnapshot(snapshot) {
   if (!snapshot) return;
+  snapshot = stripComposerQuote(snapshot);
   restoringComposerState = true;
   const textarea = byId('sauti-body');
   const audience = byId('sauti-audience');
@@ -3394,8 +3389,6 @@ function applyComposerSnapshot(snapshot) {
   } else if (replies) {
     replies.value = 'everyone';
   }
-  activeComposerQuote = snapshot.quote?.id ? { ...snapshot.quote } : null;
-  renderComposerQuote();
   restoreComposerMedia(snapshot.media || []);
   restoringComposerState = false;
   updateComposerState({ persist: false });
@@ -3424,12 +3417,6 @@ function deleteComposerDraft(id) {
     if (item?.localId) void removeCachedComposerMediaFile(item.localId);
     if (item?.id) void removeRemoteComposerMedia(item.id);
   });
-}
-
-function setComposerQuote(quote) {
-  activeComposerQuote = quote?.id ? { ...quote } : null;
-  renderComposerQuote();
-  updateComposerState();
 }
 
 async function loadComposerAudiences() {
@@ -3627,7 +3614,7 @@ function updateComposerState({ persist = true } = {}) {
   const replies = byId('sauti-reply-access');
   const body = textarea.value.trim();
   const hasMedia = composerMedia.length > 0;
-  const hasContent = Boolean(body || activeComposerQuote || hasMedia);
+  const hasContent = Boolean(body || hasMedia);
   const mediaReady = composerMedia.every((item) => item.status === 'ready');
   const mediaDraftReady = composerMedia.every((item) => item.status === 'ready' || item.cacheReady);
   const mentionedReady = replies.value !== 'mentioned' || composerHasMention(textarea.value);
@@ -4231,7 +4218,7 @@ function createSautiCard(item, { home = false } = {}) {
   actions.append(
     interactionButton('like', 'Like', post.like_count, item.liked),
     interactionButton('comments', canComment ? 'Comment' : 'View comments', post.comment_count, false),
-    interactionButton('repost', 'Repost', post.repost_count, item.reposted),
+    interactionButton('repost', item.reposted ? 'Undo repost' : 'Repost', post.repost_count, item.reposted),
     interactionButton('share', 'Share'),
     interactionButton('save', item.saved ? 'Saved' : 'Save', null, item.saved),
   );
@@ -4242,26 +4229,6 @@ function createSautiCard(item, { home = false } = {}) {
   const meta = document.createElement('div');
   meta.className = 'sauti-card-meta';
   meta.append(context);
-
-  const repostMenu = document.createElement('div');
-  repostMenu.className = 'sauti-repost-menu';
-  repostMenu.hidden = true;
-
-  const repostToggle = document.createElement('button');
-  repostToggle.type = 'button';
-  repostToggle.dataset.repostToggle = post.id;
-  repostToggle.append(sautiActionIcon('repost'), document.createTextNode(item.reposted ? 'Undo repost' : 'Repost'));
-
-  const quoteAction = document.createElement('button');
-  quoteAction.type = 'button';
-  quoteAction.dataset.quoteSauti = post.id;
-  quoteAction.append(sautiActionIcon('comments'), document.createTextNode('Quote Post'));
-  if (post.visibility !== 'public') {
-    quoteAction.disabled = true;
-    quoteAction.title = 'Only public posts can be quoted.';
-  }
-
-  repostMenu.append(repostToggle, quoteAction);
 
   if (post.author_id === currentMemberId) {
     const remove = document.createElement('button');
@@ -4335,7 +4302,7 @@ function createSautiCard(item, { home = false } = {}) {
   main.append(mediaGallery);
   void hydrateSautiMediaGallery(post.id, mediaGallery);
   if (quoteCard) main.append(quoteCard);
-  main.append(footer, repostMenu);
+  main.append(footer);
   main.append(meta, comments);
   article.append(main);
   return article;
@@ -4706,13 +4673,6 @@ function setPostInteractionState(postId, action, active, countDelta = 0, { pendi
     if (count && countDelta) {
       count.textContent = String(Math.max(0, Number(count.textContent || 0) + countDelta));
     }
-    if (action === 'repost') {
-      const menuButton = card.querySelector('[data-repost-toggle]');
-      menuButton?.replaceChildren(
-        sautiActionIcon('repost'),
-        document.createTextNode(active ? 'Undo repost' : 'Repost'),
-      );
-    }
   });
 }
 
@@ -4770,13 +4730,6 @@ async function refreshPostInteractionControls(postId) {
 
     const repostButton = card.querySelector('[data-sauti-action="repost"]');
     syncPostActionButton(repostButton, 'repost', reposted);
-    const repostMenuButton = card.querySelector('[data-repost-toggle]');
-    if (repostMenuButton) {
-      repostMenuButton.replaceChildren(
-        sautiActionIcon('repost'),
-        document.createTextNode(reposted ? 'Undo repost' : 'Repost'),
-      );
-    }
 
     const saveButton = card.querySelector('[data-sauti-action="save"]');
     syncPostActionButton(saveButton, 'save', saved);
@@ -4910,7 +4863,6 @@ async function toggleRepost(card, button) {
   const active = button.dataset.active === 'true';
   const reposted = !active;
   setPostInteractionState(postId, 'repost', reposted, reposted ? 1 : -1, { pending: true });
-  closeRepostMenus();
   try {
     await socialMutation(`/api/social/posts/${postId}/repost`, {
       method: active ? 'DELETE' : 'POST',
@@ -5071,20 +5023,6 @@ document.addEventListener('sautilink:share-short-video', (event) => {
   void shareShortVideoLink(event.detail?.postId || '', event.detail?.button || null);
 });
 
-function closeRepostMenus(except = null) {
-  document.querySelectorAll('.sauti-repost-menu').forEach((menu) => {
-    if (menu !== except) menu.hidden = true;
-  });
-}
-
-function toggleRepostMenu(card) {
-  const menu = card.querySelector('.sauti-repost-menu');
-  if (!menu) return;
-  const willOpen = menu.hidden;
-  closeRepostMenus(menu);
-  menu.hidden = !willOpen;
-}
-
 function homeAuthorCards(authorId) {
   return [...byId('stream-feed').querySelectorAll('.sauti-card')]
     .filter((card) => card.dataset.authorId === authorId);
@@ -5155,7 +5093,6 @@ function toggleHomePostMenu(card) {
 function dismissTransientMenusOnScroll() {
   if (document.querySelector('[data-home-post-menu-toggle][aria-expanded="true"]')) closeHomePostMenus();
   if (openCommentMenuShell) closeCommentMenus();
-  if (document.querySelector('.sauti-repost-menu:not([hidden])')) closeRepostMenus();
 
   const profilePopover = byId('profile-more-popover');
   if (profilePopover && !profilePopover.hidden) {
@@ -5301,31 +5238,6 @@ function openSautiTarget(postId) {
   void applyLocationRoute();
 }
 
-function startQuoteSauti(card) {
-  if (!card || card.dataset.visibility !== 'public') {
-    showToast('Only public posts can be quoted.', 'error');
-    return;
-  }
-
-  const postId = card.dataset.postId;
-  if (!postId) return;
-
-  const author = card.dataset.authorUsername
-    ? `@${card.dataset.authorUsername}`
-    : card.dataset.authorName || '@member';
-  const body = card.querySelector('.sauti-card-body')?.textContent?.trim()
-    || card.querySelector('.sauti-quote-body')?.textContent?.trim()
-    || 'Quoted post';
-
-  showMemberSurface('stream');
-  if (window.location.pathname !== '/home' || window.location.search) {
-    window.history.pushState({}, '', '/home');
-  }
-  setComposerQuote({ id: postId, author, body });
-  closeRepostMenus();
-  openSautiComposer();
-}
-
 async function submitComment(form) {
   const postId = form.dataset.commentForm;
   const textarea = form.elements.body;
@@ -5372,12 +5284,11 @@ async function shareSauti() {
   const audienceValue = byId('sauti-audience').value || 'public';
   const replyAccess = byId('sauti-reply-access').value || 'everyone';
   const body = textarea.value.trim();
-  const quotePostId = activeComposerQuote?.id || '';
   const circleId = audienceValue.startsWith('circle:') ? audienceValue.slice(7) : '';
   const visibility = circleId ? 'circle' : audienceValue === 'followers' ? 'followers' : 'public';
   setMessage(message, '', '');
 
-  if (!body && !quotePostId && !composerMedia.length) return setMessage(message, 'Write something or add media before sharing.');
+  if (!body && !composerMedia.length) return setMessage(message, 'Write something or add media before sharing.');
   if (composerMedia.length > 4) return setMessage(message, 'A post can include up to four media items.');
   if (composerMedia.some((item) => item.status !== 'ready' || !item.id)) {
     return setMessage(message, navigator.onLine ? 'Wait for media uploads to finish or retry the failed item.' : 'Media is waiting for connection.');
@@ -5411,7 +5322,6 @@ async function shareSauti() {
         visibility,
         circle_id: circleId || null,
         reply_access: replyAccess,
-        quote_post_id: quotePostId || null,
         media: composerMedia.map((item) => ({
           id: item.id,
           alt_text: String(item.altText || '').trim(),
@@ -10753,10 +10663,6 @@ byId('sauti-drafts-list').addEventListener('click', (event) => {
   const remove = event.target.closest('[data-delete-draft]');
   if (remove) deleteComposerDraft(remove.dataset.deleteDraft);
 });
-byId('sauti-quote-remove').addEventListener('click', () => {
-  setComposerQuote(null);
-  byId('sauti-body').focus();
-});
 byId('sauti-composer').addEventListener('submit', async (event) => {
   event.preventDefault();
   await shareSauti();
@@ -10994,24 +10900,6 @@ function handleSautiFeedClick(event) {
     return;
   }
 
-  const repostToggle = event.target.closest('[data-repost-toggle]');
-  if (repostToggle) {
-    const card = repostToggle.closest('.sauti-card');
-    const coreButton = card?.querySelector('[data-sauti-action="repost"]');
-    if (card && coreButton) {
-      closeRepostMenus();
-      void toggleRepost(card, coreButton);
-    }
-    return;
-  }
-
-  const quoteButton = event.target.closest('[data-quote-sauti]');
-  if (quoteButton) {
-    const card = quoteButton.closest('.sauti-card');
-    if (card) startQuoteSauti(card);
-    return;
-  }
-
   const reportPostButton = event.target.closest('[data-report-post]');
   if (reportPostButton) {
     openReportDialog('post', reportPostButton.dataset.reportPost, reportPostButton.dataset.reportLabel);
@@ -11061,7 +10949,7 @@ function handleSautiFeedClick(event) {
       if (!memberCommentSheet?.open(card.dataset.postId, action)) openSautiTarget(card.dataset.postId);
     }
   }
-  if (action.dataset.sautiAction === 'repost') toggleRepostMenu(card);
+  if (action.dataset.sautiAction === 'repost') void toggleRepost(card, action);
   if (action.dataset.sautiAction === 'save') {
     closeCommentMenus();
     void toggleSave(card, action);

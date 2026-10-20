@@ -185,12 +185,12 @@ test('native composer arrangement retains the original submit, media actions and
   const avatar = make('span', 'avatar'); const submit = make('button'); submit.disabled = true;
   const tools = make('div', 'composer-tools'); const camera = make('button'); camera.onclick = () => 'camera'; tools.append(camera);
   const actions = make('div', 'composer-actions'); const drafts = make('button'); actions.append(tools, drafts);
-  const queue = make('section'); const quote = make('section');
+  const queue = make('section'); const meta = make('div', 'composer-meta');
   const preview = make('div', 'composer-media-preview'); const video = make('video'); preview.append(video); queue.append(preview);
   const audience = make('select'); const replies = make('select');
   const nodes = { 'sauti-composer-dialog': dialog, 'sauti-audience': audience, 'sauti-reply-access': replies,
-    'sauti-quote-preview': quote, 'member-avatar': avatar, 'sauti-submit': submit, 'sauti-media-queue': queue };
-  header.append(submit); body.append(author, queue, quote, actions); content.append(avatar, body); form.append(header, content); dialog.append(form);
+    'member-avatar': avatar, 'sauti-submit': submit, 'sauti-media-queue': queue };
+  header.append(submit); body.append(author, queue, meta, actions); content.append(avatar, body); form.append(header, content); dialog.append(form);
   const documentEvents = new Map();
   const document = { getElementById: (id) => nodes[id], createElement: (tag) => make(tag),
     addEventListener: (type, callback) => documentEvents.set(type, callback) };
@@ -205,6 +205,7 @@ test('native composer arrangement retains the original submit, media actions and
   assert.equal(body.children.length, count); assert.equal(author.children[0], avatar);
   assert.equal(submit.parentNode.className, 'composer-native-publish'); assert.equal(submit.disabled, true);
   assert.equal(tools.parentNode, body); assert.equal(body.children.indexOf(tools) + 1, body.children.indexOf(queue));
+  assert.equal(body.children[body.children.indexOf(meta) - 1]?.id, 'composer-native-choices', 'audience and reply choices stay immediately before composer metadata without a quote preview');
   assert.equal(tools.children[0], camera); assert.equal(camera.onclick(), 'camera');
   assert.equal(drafts.parentNode, actions); window.SautiLinkComposerPresentation.refresh(); assert.equal(refreshes, 2);
   dialog.dispatchEvent({ type: 'close' }); assert.equal(video.pauseCalls, 1);

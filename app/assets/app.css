@@ -184,7 +184,6 @@ body.composer-open {
 }
 
 .composer-dialog .composer-media-queue,
-.composer-dialog .composer-quote-preview,
 .composer-dialog .composer-drafts {
   border-color: var(--app-line);
   background: var(--app-panel-soft);
@@ -846,7 +845,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
-
 .auth-result {
   display: flex;
   align-items: flex-start;
@@ -899,7 +897,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
   .account-email-current { max-width: 100%; width: fit-content; }
   .reauth-intro .secondary-action, .security-form .form-submit { width: 100%; }
 }
-
 
 .profile-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 13px; }
 .profile-actions .profile-edit-button, .profile-actions .profile-follow-button { margin-top: 0; }
@@ -999,7 +996,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
   .report-form footer button { width: 100%; }
 }
 
-
 /* Phase 20 — Circles MVP */
 .circles-surface { min-height: calc(100vh - 72px); }
 .circles-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 22px 20px; border-bottom: 1px solid var(--app-line); background: #081426; }
@@ -1097,7 +1093,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
   .circle-request-actions { width: 100%; }
   .circle-request-actions button { flex: 1; }
 }
-
 
 /* Phase 21 — Circle Stream MVP */
 .circle-stream {
@@ -1200,7 +1195,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
   .circle-stream-locked { padding: 24px 16px; }
 }
 
-
 /* Phase 22 — Circle notifications + owner member management */
 .notification-item[data-circle-slug] {
   position: relative;
@@ -1288,7 +1282,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
   .circle-member-row { grid-template-columns: minmax(0, 1fr) auto; }
   .circle-member-remove { grid-column: 1 / -1; width: 100%; }
 }
-
 
 /* Phase 23 — Real Direct Messages MVP */
 .messages-surface { min-height: 520px; }
@@ -1564,7 +1557,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
   .message-composer-actions button { width: 100%; }
 }
 
-
 /* Phase 24 — Discover + Saved Sauti */
 .sauti-action svg {
   width: 16px;
@@ -1787,7 +1779,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
   .sauti-action-label { display: none; }
 }
 
-
 /* Phase 25 — Advanced Sauti Composer */
 .share-sauti-button {
   display: inline-flex;
@@ -1832,31 +1823,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
 }
 .composer-select select option,
 .composer-select select optgroup { background: #0b1727; color: #e5edf7; }
-
-.composer-quote-preview {
-  position: relative;
-  margin: 4px 0 10px;
-  padding: 11px 42px 11px 12px;
-  border: 1px solid var(--app-line-strong);
-  border-radius: 12px;
-  background: #07111f;
-}
-.composer-quote-preview > div { display: flex; align-items: baseline; gap: 7px; }
-.composer-quote-preview > div span { color: #71869f; font-size: 8px; font-weight: 720; }
-.composer-quote-preview > div strong { color: #dce8f5; font-size: 9px; }
-.composer-quote-preview p {
-  margin: 6px 0 0;
-  color: #a8b8ca;
-  font-size: 10px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.composer-quote-preview .icon-control {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-}
 
 .composer-offline {
   display: flex;
@@ -2010,35 +1976,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
   overflow-wrap: anywhere;
 }
 
-.sauti-repost-menu {
-  width: min(220px, 100%);
-  margin: 3px 0 8px 40px;
-  overflow: hidden;
-  border: 1px solid var(--app-line-strong);
-  border-radius: 11px;
-  background: #091525;
-}
-.sauti-repost-menu button {
-  display: flex;
-  width: 100%;
-  min-height: 38px;
-  align-items: center;
-  gap: 8px;
-  padding: 0 11px;
-  border: 0;
-  border-bottom: 1px solid var(--app-line);
-  background: transparent;
-  color: #c4d1e0;
-  font-size: 9px;
-  font-weight: 720;
-  text-align: left;
-  cursor: pointer;
-}
-.sauti-repost-menu button:last-child { border-bottom: 0; }
-.sauti-repost-menu button:hover:not(:disabled) { background: #0d1c30; }
-.sauti-repost-menu button:disabled { color: #566a80; cursor: not-allowed; }
-.sauti-repost-menu svg { width: 15px; height: 15px; }
-
 .circle-sauti-controls {
   display: flex;
   align-items: center;
@@ -2082,12 +2019,10 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
     width: 100%;
     margin-left: 0;
   }
-  .composer-quote-preview { padding-right: 40px; }
-  .sauti-repost-menu { margin-left: 0; }
+
   .circle-sauti-controls { align-items: stretch; flex-direction: column; }
   .circle-sauti-controls > label { justify-content: space-between; }
 }
-
 
 /* Phase 26 — Conversations & Threaded Replies */
 .conversation-surface {
@@ -2286,7 +2221,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
     margin-left: 14px;
   }
 }
-
 
 /* Phase 27 — Sauti media */
 .composer-tool.media-tool {
@@ -2499,7 +2433,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
   }
 }
 
-
 /* Phase 28 — Mute + safety completion */
 .profile-safety-button.muted,
 #message-thread-mute[data-muted="true"] {
@@ -2513,7 +2446,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
 .message-inbox-item.muted .message-inbox-preview {
   color: #6f839c;
 }
-
 
 /* Phase 29 — Moderation, Admin & Appeals */
 .appeals-surface,
@@ -2688,7 +2620,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
   .moderation-audit-row { grid-template-columns: 1fr; }
 }
 
-
 /* Settings, Privacy & Account Controls */
 .settings-surface { min-height: calc(100vh - 72px); }
 .settings-toolbar { padding: 22px 20px 18px; border-bottom: 1px solid var(--app-line); background: #081426; }
@@ -2842,7 +2773,6 @@ body:has(#notifications-surface:not([hidden])) .notifications-mark-all:focus-vis
 }
 
 .dm-read-receipt { color: #9fc3e8; font-size: 8px; font-weight: 760; }
-
 
 /* Identity controls + clean-route rollout */
 .profile-name-line {
@@ -3126,7 +3056,6 @@ button.verification-badge:hover svg {
     flex-direction: column;
   }
 }
-
 
 /* Account entry: standalone SautiLink login/signup experience */
 body.auth-entry {
@@ -3455,7 +3384,6 @@ body.auth-entry .auth-result > div > p:last-child {
     width: min(100% - 28px, 430px);
   }
 }
-
 
 /* Home viewer experience — neutral themes and media-first Sauti cards */
 html {
@@ -4135,21 +4063,6 @@ body:not(.auth-entry) {
   color: var(--app-text);
 }
 
-.sauti-repost-menu {
-  margin: 0 16px 8px;
-  border-color: var(--app-line);
-  background: var(--app-panel-soft);
-}
-
-.sauti-repost-menu button {
-  border-color: var(--app-line);
-  color: var(--app-text);
-}
-
-.sauti-repost-menu button:hover:not(:disabled) {
-  background: var(--app-elevated);
-}
-
 .sauti-comments {
   margin: 0 16px 14px;
   padding-top: 13px;
@@ -4669,7 +4582,6 @@ body:not(.auth-entry) select {
     flex: 1;
   }
 }
-
 
 /* Standalone /menu mirrors the existing sidebar without changing the sidebar itself. */
 .menu-surface {

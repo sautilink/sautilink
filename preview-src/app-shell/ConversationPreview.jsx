@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from 'react';
-import { useDismissOnScroll } from './useDismissOnScroll.js';
 import {
   ArrowLeft,
   BadgeCheck,
@@ -125,8 +124,6 @@ export default function ConversationPreview({
   const [likedReplies, setLikedReplies] = useState(new Set(['reply-asha']));
   const [hiddenShown, setHiddenShown] = useState(false);
   const [reshared, setReshared] = useState(false);
-  const [reshareMenuOpen, setReshareMenuOpen] = useState(false);
-  useDismissOnScroll(reshareMenuOpen, () => setReshareMenuOpen(false));
 
   const visibleReplies = useMemo(() => {
     if (sort === 'newest') return [...replies].reverse();
@@ -198,10 +195,10 @@ export default function ConversationPreview({
         {rootPost.tags?.length ? <div className="thread-root-tags">{rootPost.tags.map((tag) => <button type="button" key={tag} onClick={() => onPreviewAction(`#${tag}`)}>#{tag}</button>)}</div> : null}
         {rootPost.media ? <MediaGallery items={rootPost.media} onOpen={onOpenMedia} /> : null}
         <p className="thread-root-meta"><time>7:42 PM · Aug 26, 2026</time><span aria-hidden="true">·</span><strong>{rootPost.metrics.views}</strong> Views</p>
-        <div className="thread-root-counts"><button type="button" onClick={() => onPreviewAction('Reshare list')}><strong>{rootReshares}</strong> Reshares</button><button type="button" onClick={() => onPreviewAction('Quote list')}><strong>19</strong> Quotes</button><button type="button" onClick={() => onPreviewAction('Like list')}><strong>{rootLikes}</strong> Likes</button><button type="button" onClick={() => onPreviewAction('Saved count')}><strong>57</strong> Saves</button></div>
+        <div className="thread-root-counts"><button type="button" onClick={() => onPreviewAction('Reshare list')}><strong>{rootReshares}</strong> Reshares</button><button type="button" onClick={() => onPreviewAction('Like list')}><strong>{rootLikes}</strong> Likes</button><button type="button" onClick={() => onPreviewAction('Saved count')}><strong>57</strong> Saves</button></div>
         <div className="thread-root-actions">
           <button type="button" onClick={() => selectReplyTarget(rootPost.author.handle)} aria-label="Reply"><MessageCircle aria-hidden="true" /></button>
-          <span className="thread-reshare-wrap"><button className={reshared ? 'is-reshared' : ''} type="button" aria-expanded={reshareMenuOpen} onClick={() => setReshareMenuOpen((value) => !value)} aria-label="Reshare options"><Repeat2 aria-hidden="true" /></button>{reshareMenuOpen ? <span className="thread-reshare-menu" role="menu"><button type="button" role="menuitem" onClick={() => { setReshared((value) => !value); setReshareMenuOpen(false); onPreviewAction(reshared ? 'Reshare removed locally.' : 'Reshared locally.'); }}><Repeat2 aria-hidden="true" />{reshared ? 'Undo Reshare' : 'Reshare'}</button><button type="button" role="menuitem" onClick={() => { setReshareMenuOpen(false); onPreviewAction('Quote Sauti composer'); }}><MessageCircle aria-hidden="true" />Quote Sauti</button></span> : null}</span>
+          <button className={reshared ? 'is-reshared' : ''} type="button" aria-pressed={reshared} aria-label={reshared ? 'Undo repost' : 'Repost'} onClick={() => { setReshared((value) => !value); onPreviewAction(reshared ? 'Repost removed locally.' : 'Reposted locally.'); }}><Repeat2 aria-hidden="true" /></button>
           <button className={rootLiked ? 'is-liked' : ''} type="button" onClick={() => onRootLike(rootPost.id)} aria-pressed={rootLiked} aria-label="Like"><Heart aria-hidden="true" /></button>
           <button className={rootSaved ? 'is-saved' : ''} type="button" onClick={() => onRootSave(rootPost.id)} aria-pressed={rootSaved} aria-label="Save"><Bookmark aria-hidden="true" /></button>
           <button type="button" onClick={() => onPreviewAction('Share conversation')} aria-label="Share"><Share2 aria-hidden="true" /></button>
