@@ -45,6 +45,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.10",
     "@vitejs/plugin-react": "6.1.0",
     "esbuild": "0.28.2",
     "vite": "8.2.2",

@@ -8,6 +8,10 @@ let durableSocket = null;
 let durableConversationId = '';
 let durableReconnectTimer = 0;
 let durableReconnectAttempt = 0;
+let durableReconnectNotBefore = 0;
+let durableReconnectContext = '';
+let durableOpeningContext = '';
+let durableContextGeneration = 0;
 let durableTypingStopTimer = 0;
 let durableTypingState = false;
 let durableSyncTimer = 0;
@@ -29,6 +33,11 @@ function realtimeContext() {
 function currentConversationId() {
   const context = realtimeContext();
   return context?.activityEnabled && !context?.blocked ? String(context.conversationId || '') : '';
+}
+
+function currentRealtimeContextKey() {
+  const conversationId = currentConversationId();
+  return conversationId ? String(realtimeContext()?.memberId || '') + ':' + conversationId : '';
 }
 
 function setTransportState(active) {
@@ -188,10 +197,16 @@ function closeDurableSocket({ clearPresence = false } = {}) {
 
 function scheduleReconnect() {
   window.clearTimeout(durableReconnectTimer);
-  if (!currentConversationId()) return;
+  durableReconnectTimer = 0;
+  const contextKey = currentRealtimeContextKey();
+  if (!contextKey || contextKey !== durableReconnectContext) return;
   durableReconnectAttempt = Math.min(durableReconnectAttempt + 1, 5);
   const delay = Math.min(DM_REALTIME_RECONNECT_MAX_MS, 700 * (2 ** durableReconnectAttempt));
-  durableReconnectTimer = window.setTimeout(() => void syncDurableRealtime(), delay);
+  durableReconnectNotBefore = Date.now() + delay;
+  durableReconnectTimer = window.setTimeout(() => {
+    durableReconnectTimer = 0;
+    if (contextKey === currentRealtimeContextKey()) void syncDurableRealtime();
+  }, delay);
 }
 
 function handleDurableMessage(event) {
@@ -220,9 +235,11 @@ async function realtimeAccessToken() {
   return authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
 }
 
-async function openDurableRealtime(conversationId) {
+async function openDurableRealtime(conversationId, contextKey, generation) {
   const token = await realtimeAccessToken();
-  if (!token || currentConversationId() !== conversationId) return;
+  if (generation !== durableContextGeneration || currentRealtimeContextKey() !== contextKey ||
+      durableReconnectContext !== contextKey) return;
+  if (!token) { scheduleReconnect(); return; }
 
   const scheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const url = scheme + '//' + window.location.host + '/api/dm-realtime/' + encodeURIComponent(conversationId);
@@ -238,14 +255,15 @@ async function openDurableRealtime(conversationId) {
   durableConversationId = conversationId;
 
   socket.addEventListener('open', () => {
-    if (socket !== durableSocket || durableConversationId !== conversationId) return;
+    if (socket !== durableSocket || currentRealtimeContextKey() !== contextKey) return;
     durableReconnectAttempt = 0;
+    durableReconnectNotBefore = 0;
     setTransportState(true);
     sendDurableEvent({ type: 'ping' });
   });
 
   socket.addEventListener('message', (event) => {
-    if (socket !== durableSocket || durableConversationId !== conversationId) return;
+    if (socket !== durableSocket || currentRealtimeContextKey() !== contextKey) return;
     handleDurableMessage(event);
   });
 
@@ -268,10 +286,26 @@ async function openDurableRealtime(conversationId) {
 
 async function syncDurableRealtime() {
   const wanted = currentConversationId();
+  const contextKey = currentRealtimeContextKey();
   if (!wanted) {
+    durableContextGeneration++;
+    durableReconnectContext = '';
+    durableOpeningContext = '';
+    durableReconnectNotBefore = 0;
+    durableReconnectAttempt = 0;
     closeDurableSocket({ clearPresence: true });
     return;
   }
+  if (durableReconnectContext !== contextKey) {
+    durableContextGeneration++;
+    durableReconnectContext = contextKey;
+    durableReconnectNotBefore = 0;
+    durableReconnectAttempt = 0;
+    closeDurableSocket({ clearPresence: true });
+  }
+  // DOM updates, presence rendering and online events must not bypass a failed
+  // upgrade's backoff. One pending token read/upgrade owns each account/thread.
+  if (Date.now() < durableReconnectNotBefore || durableOpeningContext === contextKey) return;
   if (
     durableConversationId === wanted
     && durableSocket
@@ -279,7 +313,12 @@ async function syncDurableRealtime() {
   ) return;
 
   closeDurableSocket({ clearPresence: true });
-  await openDurableRealtime(wanted);
+  durableOpeningContext = contextKey;
+  const generation = durableContextGeneration;
+  try { await openDurableRealtime(wanted, contextKey, generation); }
+  finally {
+    if (generation === durableContextGeneration && durableOpeningContext === contextKey) durableOpeningContext = '';
+  }
 }
 
 function queueDurableSync() {

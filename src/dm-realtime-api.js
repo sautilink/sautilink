@@ -1,6 +1,7 @@
 const REALTIME_PROTOCOL = 'sautilink-dm-v1';
 const AUTH_PROTOCOL_PREFIX = 'sautilink-auth.';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const AUTHORIZATION_LEASE_MS = 30_000;
 
 function json(status, payload) {
   return new Response(JSON.stringify(payload), {
@@ -49,56 +50,45 @@ async function authenticate(config, token) {
   if (!token) return null;
   const response = await fetch(`${config.url}/auth/v1/user`, {
     headers: supabaseHeaders(config, token),
+    redirect: 'error',
   });
   if (!response.ok) return null;
   const user = await response.json().catch(() => null);
   return user?.id && UUID_PATTERN.test(user.id) ? user : null;
 }
 
-async function selectOne(config, token, table, params) {
-  const query = new URLSearchParams({ ...params, limit: '1' });
-  const response = await fetch(`${config.url}/rest/v1/${table}?${query}`, {
-    headers: supabaseHeaders(config, token),
+async function authorizeConversation(config, token, userId, conversationId) {
+  // Peer social_member_preferences and peer-owned social_blocks are hidden by RLS.
+  // This narrow RPC checks dm_conversations membership, both activity_status choices,
+  // bidirectional blocks and the live Auth session without exposing either preference.
+  const response = await fetch(`${config.url}/rest/v1/rpc/dm_realtime_authorize_v1`, {
+    method: 'POST',
+    headers: { ...supabaseHeaders(config, token), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_conversation_id: conversationId }),
+    redirect: 'error',
   });
-  if (!response.ok) return null;
-  const rows = await response.json().catch(() => []);
-  return Array.isArray(rows) ? rows[0] || null : null;
+  if (!response.ok) return { allowed: false, code: 'CONVERSATION_UNAVAILABLE' };
+  const result = await response.json().catch(() => null);
+  const identified = result?.conversation_id === conversationId && result?.user_id === userId &&
+    UUID_PATTERN.test(String(result?.peer_id || '')) && result.peer_id !== userId;
+  if (result?.allowed === true && identified) return { allowed: true, peerId: result.peer_id };
+  const code = ['AUTH_REQUIRED', 'CONVERSATION_UNAVAILABLE', 'ACTIVITY_STATUS_DISABLED', 'MESSAGING_BLOCKED']
+    .includes(result?.code) ? result.code : 'CONVERSATION_UNAVAILABLE';
+  // Only the RPC's already-validated participants may invalidate this conversation's DO.
+  return { allowed: false, code,
+    peerId: identified && ['ACTIVITY_STATUS_DISABLED', 'MESSAGING_BLOCKED'].includes(code)
+      ? result.peer_id : null };
 }
 
-async function authorizeConversation(config, token, userId, conversationId) {
-  const preferences = await selectOne(config, token, 'social_member_preferences', {
-    user_id: `eq.${userId}`,
-    select: 'activity_status',
-  });
-  if (!preferences?.activity_status) return { allowed: false, code: 'ACTIVITY_STATUS_DISABLED' };
-
-  const conversation = await selectOne(config, token, 'dm_conversations', {
-    id: `eq.${conversationId}`,
-    select: 'id,member_one_id,member_two_id',
-  });
-  if (!conversation) return { allowed: false, code: 'CONVERSATION_UNAVAILABLE' };
-
-  const memberOne = String(conversation.member_one_id || '');
-  const memberTwo = String(conversation.member_two_id || '');
-  if (userId !== memberOne && userId !== memberTwo) {
-    return { allowed: false, code: 'CONVERSATION_UNAVAILABLE' };
-  }
-
-  const blockOr = [
-    `and(blocker_id.eq.${memberOne},blocked_id.eq.${memberTwo})`,
-    `and(blocker_id.eq.${memberTwo},blocked_id.eq.${memberOne})`,
-  ].join(',');
-  const blocked = await selectOne(config, token, 'social_blocks', {
-    select: 'blocker_id,blocked_id',
-    or: `(${blockOr})`,
-  });
-  if (blocked) return { allowed: false, code: 'MESSAGING_BLOCKED' };
-
-  return {
-    allowed: true,
-    conversation,
-    peerId: userId === memberOne ? memberTwo : memberOne,
-  };
+function accessTokenExpiry(token, userId) {
+  // /auth/v1/user verifies this JWT before these claims are used. Decoding is not authentication.
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return 0;
+    const claims = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return claims.sub === userId && UUID_PATTERN.test(String(claims.session_id || '')) &&
+      Number.isSafeInteger(claims.exp) && claims.exp > 0 ? claims.exp * 1000 : 0;
+  } catch { return 0; }
 }
 
 function durableStub(namespace, name) {
@@ -142,17 +132,30 @@ export async function handleDmRealtimeRequest(request, env) {
     return apiError(503, 'REALTIME_NOT_READY', 'Realtime messaging is temporarily unavailable.');
   }
 
+  const authorizationStartedAt = Date.now();
   const token = accessTokenFromProtocols(request);
-  const user = await authenticate(config, token);
+  const user = await authenticate(config, token).catch(() => null);
   if (!user) return apiError(401, 'AUTH_REQUIRED', 'Sign in again before opening realtime messaging.');
 
-  const access = await authorizeConversation(config, token, user.id, conversationId);
+  const expiresAt = Math.min(accessTokenExpiry(token, user.id), authorizationStartedAt + AUTHORIZATION_LEASE_MS);
+  if (expiresAt <= Date.now()) return apiError(401, 'AUTH_REQUIRED', 'Sign in again before opening realtime messaging.');
+
+  const access = await authorizeConversation(config, token, user.id, conversationId)
+    .catch(() => ({ allowed: false, code: 'CONVERSATION_UNAVAILABLE' }));
   if (!access.allowed) {
+    if (access.peerId) {
+      const deniedStub = durableStub(env.DM_REALTIME_HUB, conversationId);
+      if (deniedStub) await deniedStub.fetch(new Request('https://durable.internal/revoke', {
+        method: 'POST', headers: { 'X-Sauti-Conversation-ID': conversationId,
+          'X-Sauti-User-ID': user.id, 'X-Sauti-Peer-ID': access.peerId },
+      })).catch(() => {});
+    }
     const message = access.code === 'ACTIVITY_STATUS_DISABLED'
-      ? 'Activity status is disabled for this account.'
+      ? 'Activity status is unavailable for this conversation.'
       : 'Realtime messaging is unavailable for this conversation.';
-    return apiError(403, access.code, message);
+    return apiError(access.code === 'AUTH_REQUIRED' ? 401 : 403, access.code, message);
   }
+  if (expiresAt <= Date.now()) return apiError(401, 'AUTH_REQUIRED', 'Sign in again before opening realtime messaging.');
 
   const stub = durableStub(env.DM_REALTIME_HUB, conversationId);
   if (!stub) return apiError(503, 'REALTIME_NOT_READY', 'Realtime messaging is temporarily unavailable.');
@@ -163,6 +166,8 @@ export async function handleDmRealtimeRequest(request, env) {
   headers.set('X-Sauti-Conversation-ID', conversationId);
   headers.set('X-Sauti-User-ID', user.id);
   headers.set('X-Sauti-Peer-ID', access.peerId);
+  headers.set('X-Sauti-Authorization-Checked-At', String(authorizationStartedAt));
+  headers.set('X-Sauti-Authorization-Expires-At', String(expiresAt));
 
   return stub.fetch(new Request('https://durable.internal/connect', {
     method: 'GET',
