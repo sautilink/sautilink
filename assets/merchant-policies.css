@@ -1,0 +1,29 @@
+/* Merchant policy only; shared public typography, theme and icon runtime stay in charge. */
+body.merchant-policy-page .merchant-hero { padding-top: clamp(36px, 6vw, 64px); }
+body.merchant-policy-page .merchant-hero h1 { letter-spacing: -.045em; line-height: 1.06; }
+body.merchant-policy-page .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; }
+body.merchant-policy-page .hero-actions :is(a, button) { min-height: 44px; }
+body.merchant-policy-page .trust-card h2 { display: flex; align-items: center; }
+body.merchant-policy-page .trust-card h2 > svg { flex: 0 0 22px; }
+body.merchant-policy-page .legal-toc summary { min-height: 44px; }
+body.merchant-policy-page .merchant-requirements { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 22px 0; }
+body.merchant-policy-page .merchant-requirements > div { min-width: 0; padding: 18px; border: 1px solid var(--legal-border); border-radius: 16px; background: var(--legal-surface-raised); }
+body.merchant-policy-page .merchant-requirements dt { margin: 0 0 6px; font-size: 15px; font-weight: 650; color: var(--legal-text); }
+body.merchant-policy-page .merchant-requirements dd { margin: 0; font-size: 14px; line-height: 1.6; color: var(--public-body); }
+body.merchant-policy-page .merchant-optional { display: inline-block; margin-inline-start: 4px; padding: 2px 6px; border-radius: 6px; background: var(--legal-accent-soft); color: var(--legal-accent); font-size: 11px; font-weight: 600; vertical-align: middle; }
+body.merchant-policy-page .merchant-steps { list-style: none; counter-reset: merchant-step; display: grid; gap: 0; padding: 0; margin: 24px 0; }
+body.merchant-policy-page .merchant-steps li { position: relative; counter-increment: merchant-step; padding: 14px 0 14px 48px; border-bottom: 1px solid var(--legal-border); }
+body.merchant-policy-page .merchant-steps li::before { content: counter(merchant-step, decimal-leading-zero); position: absolute; top: 16px; left: 0; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 10px; color: var(--legal-accent); background: var(--legal-accent-soft); font-size: 12px; font-weight: 650; }
+body.merchant-policy-page .merchant-steps :is(strong, span) { display: block; }
+body.merchant-policy-page .merchant-steps strong { font-size: 15px; }
+body.merchant-policy-page .merchant-steps span { margin-top: 3px; font-size: 14px; color: var(--public-body); line-height: 1.6; }
+body.merchant-policy-page .legal-section :is(p, li, dd) { overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  body.merchant-policy-page .merchant-requirements { grid-template-columns: minmax(0, 1fr); }
+  body.merchant-policy-page .hero-actions { flex-direction: column; align-items: stretch; }
+  body.merchant-policy-page .hero-actions :is(a, button) { justify-content: center; }
+}
+@media print {
+  body.merchant-policy-page .hero-actions { display: none; }
+  body.merchant-policy-page .merchant-requirements > div { break-inside: avoid; background: transparent; }
+}

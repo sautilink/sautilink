@@ -24,8 +24,13 @@ test('Help Centre documents live product areas and current commercial wording', 
   for (const expected of ['Account &amp; sign-in', 'What are Rooms?', 'direct messages', 'verification badge', '14-day recovery window']) {
     assert.match(html, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
   }
-  assert.match(html, /Core SautiLink access currently does not require a subscription/i);
-  assert.match(html, /optional paid features/i);
+  assert.match(html, /All SautiLink services are free\./);
+  assert.match(html, /charges no platform service fees/i);
+  assert.match(html, /no sales commissions/i);
+  assert.match(html, /Marketplace listings are separate from advertisements/i);
+  assert.match(html, /does not currently offer an advertising service/i);
+  assert.match(html, /href="\/merchant-policies"/);
+  assert.doesNotMatch(html, /optional paid features/i);
   assert.doesNotMatch(html, /core SautiLink social-network experience is intended to be free/i);
 });
 
