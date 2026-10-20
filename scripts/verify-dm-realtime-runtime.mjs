@@ -22,9 +22,11 @@ const scratch = await mkdtemp(join(resolve(tmpdir()), 'sautilink-realtime-runtim
 const clients = [];
 const checks = [];
 let runtime;
+let runtimeOrigin;
 let runtimeStarted = false;
 let outboundAttempts = 0;
 let failed;
+const diagnostics = [];
 const started = Date.now();
 const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms));
 
@@ -32,16 +34,37 @@ const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms));
 // It must never be included in a deployable Worker. It has no auth credentials,
 // remote bindings, hosted resources or private data and binds only to loopback.
 const fixture = `
-export { DmRealtimeHub } from ${JSON.stringify(hubPath.replaceAll('\\', '/'))};
+import { DmRealtimeHub as ReviewedDmRealtimeHub } from ${JSON.stringify(hubPath.replaceAll('\\', '/'))};
+// Probe routes exist only in this synthetic temporary bundle. Inherited security
+// methods execute unchanged; the timed wait performs no diagnostic requests, so
+// probes cannot wake an idle Object and make the required alarm test pass.
+export class DmRealtimeHub extends ReviewedDmRealtimeHub {
+  async alarm() {
+    console.log(JSON.stringify({runtime_probe:'alarm_enter',now:Date.now(),alarm:await this.ctx.storage.getAlarm()}));
+    try { await super.alarm(); }
+    finally { console.log(JSON.stringify({runtime_probe:'alarm_exit',now:Date.now(),alarm:await this.ctx.storage.getAlarm()})); }
+  }
+  async fetch(request) {
+    if (new URL(request.url).pathname === '/__runtime_probe') {
+      return Response.json({now:Date.now(),alarm:await this.ctx.storage.getAlarm(),
+        sockets:this.ctx.getWebSockets().map(socket=>({readyState:socket.readyState,attachment:socket.deserializeAttachment()})),
+        lastSeen:[...await this.ctx.storage.list({prefix:'last-seen:'})]});
+    }
+    return super.fetch(request);
+  }
+}
 const USER = '11111111-1111-4111-8111-111111111111';
 const PEER = '22222222-2222-4222-8222-222222222222';
 const CONVERSATION = '33333333-3333-4333-8333-333333333333';
 export default { async fetch(request, env) {
   const url = new URL(request.url);
   if (url.hostname !== '127.0.0.1') return new Response('Local fixture only', {status:403});
-  const match = url.pathname.match(/^\\/(connect|revoke)\\/([a-z0-9-]{1,60})$/);
+  const match = url.pathname.match(/^\\/(connect|revoke|diagnostic)\\/([a-z0-9-]{1,60})$/);
   if (!match) return new Response('Not found', {status:404});
   const [, action, name] = match;
+  if (action === 'diagnostic') {
+    return env.DM_REALTIME_HUB.getByName(name).fetch(new Request('https://durable.internal/__runtime_probe'));
+  }
   const reverse = url.searchParams.get('actor') === 'two';
   const headers = new Headers({ 'X-Sauti-Conversation-ID': CONVERSATION,
     'X-Sauti-User-ID': reverse ? PEER : USER, 'X-Sauti-Peer-ID': reverse ? USER : PEER });
@@ -93,7 +116,10 @@ function client(url) {
     resolveClose(closeResult);
     for (const check of waiting) check();
   });
-  const result = { socket, events, opened: withTimeout(opened, 'WebSocket upgrade'),
+  const result = { socket, events, probe: () => ({url:url.pathname,now:Date.now(),readyState:socket.readyState,
+      closeFrameReceived:socket._closeFrameReceived,closeFrameSent:socket._closeFrameSent,
+      closeResult,error:error?.message,events:events.slice(-10)}),
+    opened: withTimeout(opened, 'WebSocket upgrade'),
     closed: () => withTimeout(closed, 'WebSocket close'),
     wait(predicate, label, after = 0) {
       return withTimeout(new Promise((resolveEvent, rejectEvent) => {
@@ -134,6 +160,7 @@ try {
   assert.deepEqual(Object.keys(manifest.modules), ['fixture.mjs']);
   runtime = new Miniflare(runtimeOptions);
   const origin = await runtime.ready;
+  runtimeOrigin = origin;
   runtimeStarted = true;
   assert.equal(origin.hostname, '127.0.0.1');
   function connect(name, { actor = 'one', ms = 20000, ...query } = {}) {
@@ -168,6 +195,13 @@ try {
   const survivor = connect('deadline', { actor: 'two' });
   await ready(survivor);
   await survivor.wait(event => event.type === 'presence' && event.peer_online === true, 'short-lease peer online');
+  const scheduledProbe = await fetch(new URL('/diagnostic/deadline', origin), { redirect: 'error' });
+  assert.equal(scheduledProbe.status, 200);
+  const scheduled = await scheduledProbe.json();
+  diagnostics.push({phase:'before_expiry_wait',object:'deadline',...scheduled});
+  assert.ok(scheduled.alarm > scheduled.now, 'The short-lease alarm must be scheduled in the future');
+  assert.equal(scheduled.alarm, Math.min(...scheduled.sockets.map(value=>value.attachment.authorizationExpiresAt)),
+    'The earliest socket authorization deadline must be the scheduled alarm');
   const afterExpiry = survivor.events.length;
   const expiredClose = await expires.closed();
   assert.equal(expiredClose.code, 1008);
@@ -205,6 +239,16 @@ try {
     'The reviewed Hub source must remain unchanged during runtime verification');
 } catch (error) {
   failed = error;
+  diagnostics.push({phase:'failed_client_snapshot',clients:clients.map(value=>value.probe())});
+  if (runtimeStarted && runtimeOrigin) {
+    for (const name of ['deadline','pair']) {
+      try {
+        const response = await withTimeout(fetch(new URL(`/diagnostic/${name}`, runtimeOrigin), { redirect:'error' }),
+          `failure diagnostic ${name}`, 2000);
+        diagnostics.push({phase:'after_failure',object:name,status:response.status,...await response.json()});
+      } catch (probeError) { diagnostics.push({phase:'after_failure',object:name,error:probeError.message}); }
+    }
+  }
 } finally {
   for (const { socket } of clients) socket.terminate();
   if (runtime) await runtime.dispose().catch(error => { failed ||= error; });
@@ -217,6 +261,6 @@ try {
 const report = { ok: !failed, local_only: true, real_workerd_runtime: true, runtime_started: runtimeStarted,
   synthetic_data_only: true, hosted_network_requests: outboundAttempts,
   hub_sha256: hubSha256,
-  elapsed_ms: Date.now() - started, checks };
+  elapsed_ms: Date.now() - started, checks, diagnostics };
 console.log(JSON.stringify(report, null, 2));
 if (failed) throw failed;
