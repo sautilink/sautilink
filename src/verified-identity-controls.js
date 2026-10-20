@@ -4,6 +4,9 @@ const VERIFICATION_PROFILE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXR
 const VERIFICATION_AUTH_STORAGE_KEY = 'sautilink.auth.session';
 
 let latestIdentityState = null;
+let latestIdentityContext = null;
+let identityEnhancementGeneration = 0;
+let identityEnhancementRequest = 0;
 let verificationSinceRequest = 0;
 const verificationSinceCache = new Map();
 
@@ -49,7 +52,7 @@ function applyVerifiedIdentityControls(data = latestIdentityState) {
   if (profile.is_verified) {
     const remaining = Number(data.display_name?.changes_remaining_month ?? 2);
     if (stateNode) stateNode.textContent = 'Verified';
-    if (summary) summary.textContent = 'Verified accounts can change their display name twice per month. Username is permanently locked.';
+    if (summary) summary.textContent = 'Verified accounts can change their display name twice per month. Remove verification in Settings to manage your username under the normal change limits.';
     if (nameSubmit) {
       nameSubmit.textContent = 'Save name';
       nameSubmit.disabled = remaining < 1;
@@ -71,7 +74,9 @@ function applyVerifiedIdentityControls(data = latestIdentityState) {
       usernameSubmit.disabled = true;
       usernameSubmit.dataset.verifiedUsernameLocked = 'true';
     }
-    if (usernameHint) usernameHint.textContent = 'Username is permanently locked after verification.';
+    if (usernameHint) usernameHint.textContent = profile.is_verified
+      ? 'Username is locked while verified. You can remove verification in Settings; normal username change limits will apply.'
+      : 'Username is locked after a verification review. Contact SautiLink support for help.';
   } else {
     if (usernameInput) {
       usernameInput.disabled = false;
@@ -82,10 +87,30 @@ function applyVerifiedIdentityControls(data = latestIdentityState) {
   }
 }
 
-function scheduleApply(data) {
+function currentIdentityEnhancement(context) {
+  return context && context.generation === identityEnhancementGeneration
+    && context.request === identityEnhancementRequest && context.token === storedAccessToken();
+}
+
+function scheduleApply(data, context) {
+  if (!currentIdentityEnhancement(context)) return;
   latestIdentityState = data;
-  window.setTimeout(() => applyVerifiedIdentityControls(data), 0);
-  window.setTimeout(() => applyVerifiedIdentityControls(data), 60);
+  latestIdentityContext = context;
+  for (const delay of [0, 60]) {
+    window.setTimeout(() => {
+      if (currentIdentityEnhancement(context)) applyVerifiedIdentityControls(data);
+    }, delay);
+  }
+}
+
+function invalidateVerificationEnhancements() {
+  identityEnhancementGeneration += 1;
+  identityEnhancementRequest += 1;
+  latestIdentityState = null;
+  latestIdentityContext = null;
+  verificationSinceRequest += 1;
+  verificationSinceCache.clear();
+  renderVerificationSince('');
 }
 
 function storedAccessToken() {
@@ -167,6 +192,8 @@ async function loadVerificationSince(username) {
     if (requestId !== verificationSinceRequest || currentProfileUsername() !== username) return;
     if (!response.ok) return renderVerificationSince('');
     const rows = await response.json().catch(() => []);
+    if (requestId !== verificationSinceRequest || currentProfileUsername() !== username
+      || accessToken !== storedAccessToken() || document.getElementById('profile-verified-badge')?.hidden) return;
     const verifiedAt = Array.isArray(rows) ? String(rows[0]?.username_locked_at || '') : '';
     verificationSinceCache.set(username, verifiedAt);
     renderVerificationSince(verifiedAt);
@@ -190,16 +217,20 @@ function syncVerificationSince() {
 
 const nativeFetch = window.fetch.bind(window);
 window.fetch = async (...args) => {
-  const response = await nativeFetch(...args);
+  const context = { generation: identityEnhancementGeneration, token: storedAccessToken(), request: identityEnhancementRequest };
+  let identityRead = false;
   try {
-    const requestUrl = typeof args[0] === 'string' || args[0] instanceof URL
-      ? String(args[0])
-      : String(args[0]?.url || '');
+    const requestUrl = typeof args[0] === 'string' || args[0] instanceof URL ? String(args[0]) : String(args[0]?.url || '');
     const url = new URL(requestUrl, window.location.origin);
     const method = String(args[1]?.method || args[0]?.method || 'GET').toUpperCase();
-    if (method === 'GET' && url.origin === window.location.origin && url.pathname === '/api/account/identity' && response.ok) {
+    identityRead = method === 'GET' && url.origin === window.location.origin && url.pathname === '/api/account/identity';
+    if (identityRead) context.request = ++identityEnhancementRequest;
+  } catch { /* Non-identity fetches keep their native behavior. */ }
+  const response = await nativeFetch(...args);
+  try {
+    if (identityRead && response.ok && currentIdentityEnhancement(context)) {
       const payload = await response.clone().json().catch(() => null);
-      if (payload?.ok && payload?.data?.profile) scheduleApply(payload.data);
+      if (payload?.ok && payload?.data?.profile) scheduleApply(payload.data, context);
     }
   } catch {
     // Identity styling is progressive enhancement; the account API remains authoritative.
@@ -215,7 +246,7 @@ function installVerifiedIdentityControls() {
   const editor = document.getElementById('profile-editor');
   if (editor) {
     new MutationObserver(() => {
-      if (!editor.hidden && latestIdentityState) scheduleApply(latestIdentityState);
+      if (!editor.hidden && latestIdentityState) scheduleApply(latestIdentityState, latestIdentityContext);
     }).observe(editor, { attributes: true, attributeFilter: ['hidden'] });
   }
 
@@ -239,6 +270,11 @@ function installVerifiedIdentityControls() {
   syncVerificationSince();
   window.setTimeout(syncVerificationSince, 80);
 }
+
+document.addEventListener('sautilink:verification-removed', invalidateVerificationEnhancements);
+window.addEventListener('storage', (event) => {
+  if (event.key === VERIFICATION_AUTH_STORAGE_KEY || event.key === null) invalidateVerificationEnhancements();
+});
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', installVerifiedIdentityControls, { once: true });

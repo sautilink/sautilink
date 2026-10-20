@@ -50,7 +50,7 @@ test('profile editor grays and disables a permanently locked username', async ()
   assert.match(controls, /locked_permanently/);
   assert.match(controls, /usernameInput\.disabled = true/);
   assert.match(controls, /verified-username-locked/);
-  assert.match(controls, /Username is permanently locked after verification\./);
+  assert.match(controls, /Username is locked while verified\. You can remove verification in Settings; normal username change limits will apply\./);
   assert.match(controls, /twice per month/);
   assert.match(css, /\.identity-username-field\.verified-username-locked/);
   assert.match(css, /cursor: not-allowed/);

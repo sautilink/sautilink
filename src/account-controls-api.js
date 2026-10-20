@@ -316,8 +316,103 @@ async function changeIdentity(request, env) {
   return json(data?.status === 'pending' ? 202 : 200, { ok: true, data });
 }
 
+async function verificationRemovalPayload(request) {
+  if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type') || '')) {
+    return { response: apiError(415, 'JSON_REQUIRED', 'Send this confirmation as JSON.') };
+  }
+  const reader = request.body?.getReader();
+  if (!reader) return { response: apiError(400, 'VERIFICATION_REMOVAL_CONFIRMATION_REQUIRED', 'Confirm removal before continuing.') };
+  const chunks = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > 1024) {
+        await reader.cancel();
+        return { response: apiError(413, 'VERIFICATION_REMOVAL_REQUEST_TOO_LARGE', 'This verification removal request is too large.') };
+      }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    const payload = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+    if (!payload || Array.isArray(payload) || typeof payload !== 'object'
+      || Object.keys(payload).some((key) => !['request_id', 'confirmation'].includes(key))) {
+      return { response: apiError(400, 'VERIFICATION_REMOVAL_REQUEST_INVALID', 'Only your own verification can be removed.') };
+    }
+    if (payload.confirmation !== 'remove-verification-v1') {
+      return { response: apiError(400, 'VERIFICATION_REMOVAL_CONFIRMATION_REQUIRED', 'Confirm removal before continuing.') };
+    }
+    const requestId = typeof payload.request_id === 'string' ? uuid(payload.request_id) : '';
+    if (!requestId) return { response: apiError(400, 'REQUEST_ID_REQUIRED', 'A valid request id is required.') };
+    return { requestId };
+  } catch {
+    return { response: apiError(400, 'VERIFICATION_REMOVAL_REQUEST_INVALID', 'This verification removal request is invalid.') };
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+function verificationRemovalProviderError(provider) {
+  const message = String(provider?.message || '');
+  if (message.includes('AUTH_REQUIRED')) return apiError(401, 'AUTH_REQUIRED', 'Sign in again before removing verification.');
+  if (message.includes('PROFILE_UNAVAILABLE')) return apiError(404, 'PROFILE_UNAVAILABLE', 'Your social profile is unavailable.');
+  if (message.includes('VERIFICATION_REMOVAL_CONFIRMATION_REQUIRED')) {
+    return apiError(400, 'VERIFICATION_REMOVAL_CONFIRMATION_REQUIRED', 'Confirm removal before continuing.');
+  }
+  if (message.includes('REQUEST_ID_REQUIRED')) return apiError(400, 'REQUEST_ID_REQUIRED', 'A valid request id is required.');
+  if (message.includes('VERIFICATION_REMOVAL_REPLAY_REJECTED')) {
+    return apiError(409, 'VERIFICATION_REMOVAL_REPLAY_REJECTED', 'Your verification status changed. Refresh settings before choosing again.');
+  }
+  if (message.includes('REQUEST_ID_REUSED')) return apiError(409, 'REQUEST_ID_REUSED', 'Refresh settings before choosing removal again.');
+  if (message.includes('VERIFICATION_NOT_ACTIVE') || message.includes('NOT_VERIFIED')) {
+    return apiError(409, 'VERIFICATION_NOT_ACTIVE', 'Your account does not currently have a verification checkmark.');
+  }
+  return apiError(503, 'VERIFICATION_REMOVAL_UNAVAILABLE', 'Verification could not be removed. Refresh settings and try again.');
+}
+
+async function removeOwnVerification(request, env) {
+  const gate = await requireSession(request, env);
+  if (gate.response) return gate.response;
+  const payload = await verificationRemovalPayload(request);
+  if (payload.response) return payload.response;
+  try {
+    const response = await rest('rpc/remove_my_social_verification', {
+      method: 'POST',
+      auth: gate.session.auth,
+      body: { p_request_id: payload.requestId, p_confirmation: 'remove-verification-v1' },
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) return verificationRemovalProviderError(data);
+    const profile = data?.profile;
+    if (!['removed', 'already_removed'].includes(data?.status) || data.user_id !== gate.session.user.id
+      || profile?.id !== gate.session.user.id || profile?.is_verified !== false
+      || profile?.verification_badge_type !== 'standard' || data.username_unlocked !== true
+      || typeof profile.username !== 'string' || typeof profile.display_name !== 'string') {
+      return apiError(502, 'VERIFICATION_REMOVAL_RESPONSE_INVALID', 'Verification removal could not be confirmed. Refresh your settings.');
+    }
+    return json(200, { ok: true, data: {
+      status: data.status, user_id: gate.session.user.id, username_unlocked: true,
+      profile: { id: profile.id, username: profile.username, display_name: profile.display_name,
+        is_verified: false, verification_badge_type: 'standard' },
+    } });
+  } catch {
+    return apiError(503, 'VERIFICATION_REMOVAL_UNAVAILABLE', 'Verification could not be removed. Refresh settings and try again.');
+  }
+}
+
 export async function handleAccountControlRequest(request, env) {
   const path = new URL(request.url).pathname;
+
+  if (path === '/api/account/verification/remove') {
+    if (request.method === 'POST') return removeOwnVerification(request, env);
+    const response = apiError(405, 'METHOD_NOT_ALLOWED', 'Use the confirmed removal action.');
+    response.headers.set('Allow', 'POST');
+    return response;
+  }
 
   if (path === '/api/account/export') {
     if (request.method === 'GET') return exportState(request, env);

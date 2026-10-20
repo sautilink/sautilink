@@ -57,7 +57,7 @@ test('profile editor includes name controls and permanently disables locked user
   assert.match(source, /loadIdentityControls/);
   assert.match(source, /submitIdentityChange/);
   assert.match(verifiedControls, /Verified accounts can change their display name twice per month/);
-  assert.match(verifiedControls, /Username is permanently locked after verification/);
+  assert.match(verifiedControls, /Username is locked while verified\. You can remove verification in Settings; normal username change limits will apply/);
   assert.match(verifiedControls, /usernameInput\.disabled = true/);
   assert.match(verifiedControls, /verified-username-locked/);
 });

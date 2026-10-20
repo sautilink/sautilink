@@ -20,7 +20,7 @@ function feature(name) {
 }
 
 test('every member native confirmation and prompt becomes an awaited built-in request', async () => {
-  assert.equal((app.match(/await window\.SautiMemberDialogs\.confirm\(/g) || []).length, 9);
+  assert.equal((app.match(/await window\.SautiMemberDialogs\.confirm\(/g) || []).length, 10);
   assert.equal((app.match(/await window\.SautiMemberDialogs\.prompt\(/g) || []).length, 2);
   assert.equal((room.match(/await window\.SautiMemberDialogs\.confirm\(/g) || []).length, 1);
   assert.doesNotMatch(app + room, /window\.(confirm|prompt)\(/);
