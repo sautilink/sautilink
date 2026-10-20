@@ -532,17 +532,22 @@ function enhanceRoomDetail(room, role) {
     badges.className = 'room-detail-badges';
     card.querySelector('.circle-detail-top')?.insertAdjacentElement('afterend', badges);
   }
-  badges.replaceChildren();
   const total = Number(room.member_count || 0);
-  [
+  const badgeLabels = [
     ROOM_CATEGORY_LABELS.get(room.category) || 'General',
     room.privacy === 'private' ? 'Private Room' : 'Public Room',
     `${total.toLocaleString()} ${total === 1 ? 'member' : 'members'}`,
-  ].forEach((text) => {
-    const chip = document.createElement('span');
-    chip.textContent = text;
-    badges.append(chip);
-  });
+  ];
+  const badgeSignature = JSON.stringify(badgeLabels);
+  if (badges.dataset.roomDetailSignature !== badgeSignature || badges.childElementCount !== badgeLabels.length) {
+    badges.replaceChildren();
+    badgeLabels.forEach((text) => {
+      const chip = document.createElement('span');
+      chip.textContent = text;
+      badges.append(chip);
+    });
+    badges.dataset.roomDetailSignature = badgeSignature;
+  }
 
   if (roomById('circle-detail-slug')) roomById('circle-detail-slug').textContent = `/rooms/${room.slug}`;
   if (role && roomById('circle-detail-membership')) {
@@ -555,15 +560,19 @@ function enhanceRoomDetail(room, role) {
     permissions.className = 'room-permissions-summary';
     card.querySelector('.circle-detail-description')?.insertAdjacentElement('afterend', permissions);
   }
-  permissions.replaceChildren();
-  [['Posting', room.post_permission === 'staff_only' ? 'Admins & moderators' : 'All members'], ['Invites', room.invite_permission === 'staff_only' ? 'Admins & moderators' : 'All members']]
-    .forEach(([label, value]) => {
+  const permissionLabels = [['Posting', room.post_permission === 'staff_only' ? 'Admins & moderators' : 'All members'], ['Invites', room.invite_permission === 'staff_only' ? 'Admins & moderators' : 'All members']];
+  const permissionSignature = JSON.stringify(permissionLabels);
+  if (permissions.dataset.roomDetailSignature !== permissionSignature || permissions.childElementCount !== permissionLabels.length) {
+    permissions.replaceChildren();
+    permissionLabels.forEach(([label, value]) => {
       const cell = document.createElement('span');
       const strong = document.createElement('strong');
       strong.textContent = label;
       cell.append(strong, document.createTextNode(value));
       permissions.append(cell);
     });
+    permissions.dataset.roomDetailSignature = permissionSignature;
+  }
 
   const composer = roomById('circle-sauti-composer');
   const staff = ['owner', 'admin', 'moderator'].includes(role);
@@ -975,10 +984,13 @@ function scheduleRoomsUi() {
 }
 
 function initRoomsPlatform() {
-  const css = document.createElement('link');
-  css.rel = 'stylesheet';
-  css.href = '/app/assets/rooms.css?v=20260909-rooms1';
-  document.head.append(css);
+  if (!document.querySelector('link[data-rooms-platform-style]')) {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = '/app/assets/rooms.css?v=20260909-rooms1';
+    css.dataset.roomsPlatformStyle = 'true';
+    document.head.append(css);
+  }
   sanitizeRoomBrand(document.body);
   brandRoomsShell();
   enhanceRoomCreateForm();

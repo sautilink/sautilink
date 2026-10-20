@@ -5,6 +5,7 @@ import { installVideoPlaybackCoordinator } from './video-playback-coordinator.js
 import { applyHomeVideoAudio, resetHomeVideoAudio } from './home-video-audio-session.js';
 import { POST_BODY_LIMIT, hasPostFormatting } from './post-text-formatting.js';
 import { notificationPostDestination } from './notification-destinations.js';
+import { disposeDmTimeline, reconcileDmTimeline } from './messages-timeline-ui.js';
 import { createMemberCommentSheet } from './member-comment-sheet.js';
 import { normalizeOtpPhone, otpPhoneError } from './phone-number-validation.js';
 import {
@@ -238,6 +239,7 @@ let dmConversationRealtimeId = '';
 let dmTypingStopTimer = 0;
 let dmTypingSent = false;
 let dmRealtimeSyncTimer = 0;
+let dmThreadSyncRequest = 0;
 const MEMBER_ACTIVITY_HEARTBEAT_MS = 5 * 60_000;
 let memberActivityRealtimeChannel = null;
 let memberActivityMemberId = '';
@@ -642,9 +644,11 @@ function showSignedOut(mode = 'login') {
   syncNotificationBadges(0);
   byId('notifications-list').replaceChildren();
   messagesRequest += 1;
+  dmThreadSyncRequest += 1;
   activeConversation = null;
   syncMessageBadges(0);
   byId('messages-inbox-list').replaceChildren();
+  disposeDmTimeline(byId('message-thread-feed'));
   byId('message-thread-feed').replaceChildren();
   byId('message-thread').hidden = true;
   byId('messages-inbox').hidden = false;
@@ -1914,7 +1918,13 @@ async function stopDmConversationRealtime() {
   dmTypingStopTimer = 0;
 
   const channel = dmConversationRealtimeChannel;
-  if (channel && dmTypingSent) {
+  const wasTyping = dmTypingSent;
+  dmTypingSent = false;
+  dmConversationRealtimeChannel = null;
+  dmConversationRealtimeId = '';
+  resetDmActivityUI();
+
+  if (channel && wasTyping) {
     try {
       await channel.send({
         type: 'broadcast',
@@ -1926,11 +1936,6 @@ async function stopDmConversationRealtime() {
     }
   }
 
-  dmTypingSent = false;
-  dmConversationRealtimeChannel = null;
-  dmConversationRealtimeId = '';
-  resetDmActivityUI();
-
   if (channel) {
     try {
       await supabase.removeChannel(channel);
@@ -1941,6 +1946,8 @@ async function stopDmConversationRealtime() {
 }
 
 async function stopDmRealtime() {
+  dmThreadSyncRequest += 1;
+  disposeDmTimeline(byId('message-thread-feed'));
   window.clearTimeout(dmRealtimeSyncTimer);
   dmRealtimeSyncTimer = 0;
   await stopDmConversationRealtime();
@@ -1985,32 +1992,22 @@ function dmDayLabel(value) {
 }
 
 function renderDmTimeline(feed, messages) {
-  let previousDay = '';
-  const fragment = document.createDocumentFragment();
-  for (const message of messages) {
-    const day = dmCalendarKey(message.sent_at);
-    if (day && day !== previousDay) {
-      const separator = document.createElement('div');
-      separator.className = 'dm-day-separator';
-      separator.textContent = dmDayLabel(message.sent_at);
-      fragment.append(separator);
-    }
-    previousDay = day;
-    const card = renderDirectMessage(message);
-    const time = card.querySelector('.dm-message-meta time');
-    if (time && !Number.isNaN(new Date(message.sent_at).getTime())) {
-      time.textContent = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
-        .format(new Date(message.sent_at));
-    }
-    fragment.append(card);
-  }
-  feed.append(fragment);
+  reconcileDmTimeline(feed, messages, {
+    renderMessage: renderDirectMessage,
+    dayKey: dmCalendarKey,
+    dayLabel: dmDayLabel,
+    formatTime: (value) => Number.isNaN(new Date(value).getTime()) ? null
+      : new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(value)),
+    contextKey: `${currentMemberId}:${activeConversation?.peer?.display_name || activeConversation?.peer?.username || ''}`,
+  });
 }
 
 function scrollToDmMessage(feed, messageId = '') {
   const conversationId = activeConversation?.id;
+  const requestId = messagesRequest;
   const move = () => {
-    if (activeConversation?.id !== conversationId || !feed.isConnected) return;
+    if (activeConversation?.id !== conversationId || requestId !== messagesRequest
+      || messagesSurface.hidden || byId('message-thread').hidden || !feed.isConnected) return;
     const target = messageId
       ? [...feed.querySelectorAll('.dm-message[data-message-id]')]
         .find((card) => card.dataset.messageId === String(messageId))
@@ -2024,7 +2021,6 @@ function scrollToDmMessage(feed, messageId = '') {
     }
   };
   requestAnimationFrame(() => requestAnimationFrame(move));
-  window.setTimeout(move, 180);
 }
 
 async function fetchDmNotificationWindow(conversationId, messageId) {
@@ -2047,15 +2043,19 @@ async function fetchDmNotificationWindow(conversationId, messageId) {
 
 async function syncActiveMessageThreadRealtime({ markRead = true } = {}) {
   const conversationId = activeConversation?.id;
-  if (!conversationId || !currentMemberId) return;
+  if (!conversationId || !currentMemberId || messagesSurface.hidden
+    || byId('message-thread').hidden || !byId('message-thread-loading').hidden) return;
 
+  const requestId = ++dmThreadSyncRequest;
+  const presentationRequest = messagesRequest;
+  const memberId = currentMemberId;
   const feed = byId('message-thread-feed');
   const empty = byId('message-thread-empty');
-  const nearBottom = (feed.scrollHeight - feed.scrollTop - feed.clientHeight) < 140;
   const messages = await fetchActiveConversationMessages(conversationId).catch(() => null);
-  if (!messages || activeConversation?.id !== conversationId) return;
+  if (!messages || requestId !== dmThreadSyncRequest || presentationRequest !== messagesRequest
+    || currentMemberId !== memberId || activeConversation?.id !== conversationId
+    || messagesSurface.hidden || byId('message-thread').hidden || !byId('message-thread-loading').hidden) return;
 
-  feed.replaceChildren();
   renderDmTimeline(feed, messages);
   empty.hidden = messages.length > 0;
 
@@ -2064,13 +2064,9 @@ async function syncActiveMessageThreadRealtime({ markRead = true } = {}) {
     && !messagesSurface.hidden
     && !byId('message-thread').hidden;
   if (canMarkRead) await markActiveConversationRead();
+  if (requestId !== dmThreadSyncRequest || presentationRequest !== messagesRequest
+    || currentMemberId !== memberId || activeConversation?.id !== conversationId) return;
   await renderPeerReadReceipt(conversationId, messages);
-
-  if (nearBottom) {
-    window.setTimeout(() => {
-      if (activeConversation?.id === conversationId) feed.scrollTop = feed.scrollHeight;
-    }, 0);
-  }
 }
 
 function queueDmRealtimeSync(conversationId, event = 'message_changed') {
@@ -7252,12 +7248,12 @@ function renderMessageInboxItem(row, peer) {
 
 async function loadMessagesInbox() {
   if (!currentMemberId) return;
-  await Promise.all([
-    stopDmConversationRealtime(),
-    stopDmPeerActivityPresence(),
-  ]);
   const requestId = ++messagesRequest;
+  const memberId = currentMemberId;
+  dmThreadSyncRequest += 1;
   activeConversation = null;
+  disposeDmTimeline(byId('message-thread-feed'));
+  const stopped = Promise.all([stopDmConversationRealtime(), stopDmPeerActivityPresence()]);
 
   const loading = byId('messages-loading');
   const errorState = byId('messages-error');
@@ -7275,8 +7271,10 @@ async function loadMessagesInbox() {
   setMessage(byId('message-new-message'), '', '');
 
   try {
+    await stopped;
+    if (requestId !== messagesRequest || currentMemberId !== memberId || messagesSurface.hidden) return;
     const rows = await getDmInboxRows();
-    if (requestId !== messagesRequest) return;
+    if (requestId !== messagesRequest || currentMemberId !== memberId || messagesSurface.hidden) return;
 
     const peerIds = [...new Set(rows.map((row) => row.peer_id).filter(Boolean))];
     let profiles = [];
@@ -7288,7 +7286,7 @@ async function loadMessagesInbox() {
       profiles = data || [];
     }
 
-    if (requestId !== messagesRequest) return;
+    if (requestId !== messagesRequest || currentMemberId !== memberId || messagesSurface.hidden) return;
     const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
     rows.forEach((row) => list.append(renderMessageInboxItem(row, profileMap.get(row.peer_id))));
 
@@ -7342,6 +7340,8 @@ function renderDirectMessage(message) {
 }
 
 async function renderPeerReadReceipt(conversationId, messages = []) {
+  const presentationRequest = messagesRequest;
+  const memberId = currentMemberId;
   const lastOwn = [...messages].reverse().find((message) => (
     message.sender_id === currentMemberId && !message.deleted_at
   ));
@@ -7351,7 +7351,8 @@ async function renderPeerReadReceipt(conversationId, messages = []) {
     const { data, error } = await supabase.rpc('dm_peer_read_state_phase30', {
       p_conversation_id: conversationId,
     });
-    if (error) return;
+    if (error || activeConversation?.id !== conversationId || messagesRequest !== presentationRequest
+      || currentMemberId !== memberId || messagesSurface.hidden || byId('message-thread').hidden) return;
     const peerReadAt = Array.isArray(data) ? data[0]?.peer_last_read_at : data?.peer_last_read_at;
     if (!peerReadAt || new Date(peerReadAt).getTime() < new Date(lastOwn.sent_at).getTime()) return;
 
@@ -7378,6 +7379,7 @@ function updateMessageComposerState() {
 
   const unavailable = !activeConversation
     || activeConversation.blockedByYou
+    || submit.dataset.sending === 'true'
     || textarea.disabled
     || !textarea.value.trim()
     || length > 4000;
@@ -7385,6 +7387,9 @@ function updateMessageComposerState() {
 }
 
 async function syncMessageThreadSafety(peer) {
+  const conversationId = activeConversation?.id;
+  const presentationRequest = messagesRequest;
+  const memberId = currentMemberId;
   const muteButton = byId('message-thread-mute');
   const blockButton = byId('message-thread-block');
   const note = byId('message-delivery-note');
@@ -7409,6 +7414,8 @@ async function syncMessageThreadSafety(peer) {
     safetyRequest(`/api/safety/block/${encodeURIComponent(peer.username)}`),
     safetyRequest(`/api/safety/mute/${encodeURIComponent(peer.username)}`),
   ]);
+  if (activeConversation?.id !== conversationId || messagesRequest !== presentationRequest
+    || currentMemberId !== memberId || messagesSurface.hidden || byId('message-thread').hidden) return;
 
   const blocked = blockResult.status === 'fulfilled'
     ? Boolean(blockResult.value.blocked_by_you)
@@ -7477,23 +7484,26 @@ function renderMessageThreadProfile(peer) {
 async function refreshActiveConversationProfile() {
   const conversationId = activeConversation?.id;
   const peerId = activeConversation?.peerId;
+  const presentationRequest = messagesRequest;
+  const memberId = currentMemberId;
   if (!conversationId || !peerId) return;
   const { data, error } = await supabase
     .from('social_profiles')
     .select('id, username, display_name, avatar_key, updated_at, is_verified, verification_badge_type')
     .eq('id', peerId)
     .maybeSingle();
-  if (error || !data || activeConversation?.id !== conversationId) return;
+  if (error || !data || activeConversation?.id !== conversationId || messagesRequest !== presentationRequest
+    || currentMemberId !== memberId || messagesSurface.hidden || byId('message-thread').hidden) return;
   activeConversation.peer = data;
   renderMessageThreadProfile(data);
 }
 
 async function loadMessageThread(conversationId, notificationMessageId = '') {
   if (!currentMemberId || !conversationId) return;
-  if (dmConversationRealtimeId && dmConversationRealtimeId !== conversationId) {
-    await stopDmConversationRealtime();
-  }
   const requestId = ++messagesRequest;
+  const memberId = currentMemberId;
+  dmThreadSyncRequest += 1;
+  activeConversation = null;
   const thread = byId('message-thread');
   const inbox = byId('messages-inbox');
   const loading = byId('message-thread-loading');
@@ -7501,11 +7511,21 @@ async function loadMessageThread(conversationId, notificationMessageId = '') {
   const feed = byId('message-thread-feed');
   const empty = byId('message-thread-empty');
 
+  disposeDmTimeline(feed);
   inbox.hidden = true;
   thread.hidden = false;
   loading.hidden = false;
   setMessageSearchLoading(false);
   errorState.hidden = true;
+  renderProfileAvatar(byId('message-thread-avatar'), null, 'Conversation');
+  const threadName = byId('message-thread-name');
+  threadName.replaceChildren(document.createTextNode('Conversation'));
+  threadName.classList.remove('verified');
+  byId('message-thread-username').textContent = 'Loading conversation…';
+  resetDmActivityUI();
+  byId('message-send').removeAttribute('aria-busy');
+  byId('message-send').setAttribute('aria-label', 'Send message');
+  delete byId('message-send').dataset.sending;
   empty.hidden = true;
   feed.replaceChildren();
   byId('message-body').value = '';
@@ -7513,13 +7533,17 @@ async function loadMessageThread(conversationId, notificationMessageId = '') {
   setMessage(byId('message-composer-message'), '', '');
   updateMessageComposerState();
 
+  if (dmConversationRealtimeId && dmConversationRealtimeId !== conversationId) {
+    await stopDmConversationRealtime();
+  }
+  if (requestId !== messagesRequest || currentMemberId !== memberId || messagesSurface.hidden) return;
   const { data: conversation, error: conversationError } = await supabase
     .from('dm_conversations')
     .select('id, member_one_id, member_two_id, created_by, created_at, last_message_at')
     .eq('id', conversationId)
     .maybeSingle();
 
-  if (requestId !== messagesRequest) return;
+  if (requestId !== messagesRequest || currentMemberId !== memberId || messagesSurface.hidden) return;
   if (conversationError || !conversation) {
     loading.hidden = true;
     errorState.hidden = false;
@@ -7546,7 +7570,7 @@ async function loadMessageThread(conversationId, notificationMessageId = '') {
       .limit(200),
   ]);
 
-  if (requestId !== messagesRequest) return;
+  if (requestId !== messagesRequest || currentMemberId !== memberId || messagesSurface.hidden) return;
   if (messageResult.error) {
     loading.hidden = true;
     errorState.hidden = false;
@@ -7568,23 +7592,26 @@ async function loadMessageThread(conversationId, notificationMessageId = '') {
   let messages = (messageResult.data || []).reverse();
   if (notificationMessageId && !messages.some((message) => String(message.id) === notificationMessageId)) {
     const aroundTarget = await fetchDmNotificationWindow(conversation.id, notificationMessageId);
-    if (requestId !== messagesRequest) return;
+    if (requestId !== messagesRequest || currentMemberId !== memberId || messagesSurface.hidden) return;
     if (aroundTarget) messages = aroundTarget;
   }
   renderDmTimeline(feed, messages);
   empty.hidden = messages.length > 0;
   loading.hidden = true;
+  scrollToDmMessage(feed, messages.some((message) => String(message.id) === notificationMessageId)
+    ? notificationMessageId : '');
 
   byId('message-body').disabled = false;
   updateMessageComposerState();
   await markActiveConversationRead();
+  if (requestId !== messagesRequest || currentMemberId !== memberId || messagesSurface.hidden) return;
   await renderPeerReadReceipt(conversation.id, messages);
+  if (requestId !== messagesRequest || currentMemberId !== memberId || messagesSurface.hidden) return;
   await syncMessageThreadSafety(peer);
+  if (requestId !== messagesRequest || currentMemberId !== memberId || messagesSurface.hidden) return;
   void startDmPeerActivityPresence(peerId);
   void startDmConversationRealtime(conversation.id);
 
-  scrollToDmMessage(feed, messages.some((message) => String(message.id) === notificationMessageId)
-    ? notificationMessageId : '');
 }
 
 async function openDirectConversation(peerId, username = '') {
@@ -7644,10 +7671,14 @@ async function startDirectMessageByUsername(usernameValue) {
 
 async function sendDirectMessage() {
   if (!activeConversation?.id || !currentMemberId) return;
+  const conversationId = activeConversation.id;
+  const presentationRequest = messagesRequest;
+  const memberId = currentMemberId;
   const textarea = byId('message-body');
   const submit = byId('message-send');
   const message = byId('message-composer-message');
-  const body = textarea.value.trim();
+  const draft = textarea.value;
+  const body = draft.trim();
   setMessage(message, '', '');
 
   if (!body) return;
@@ -7655,8 +7686,9 @@ async function sendDirectMessage() {
 
   submit.disabled = true;
   submit.setAttribute('aria-busy', 'true');
-  const previous = submit.textContent;
-  submit.textContent = 'Sending…';
+  submit.dataset.sending = 'true';
+  const previousLabel = submit.getAttribute('aria-label') || 'Send message';
+  submit.setAttribute('aria-label', 'Sending message');
 
   try {
     const { error } = await supabase
@@ -7668,11 +7700,15 @@ async function sendDirectMessage() {
       });
 
     if (error) throw error;
-    textarea.value = '';
+    if (activeConversation?.id !== conversationId || currentMemberId !== memberId
+      || messagesRequest !== presentationRequest) return;
+    if (textarea.value === draft) textarea.value = '';
     updateMessageComposerState();
     await broadcastDmTyping(false);
     await syncActiveMessageThreadRealtime({ markRead: false });
   } catch (error) {
+    if (activeConversation?.id !== conversationId || currentMemberId !== memberId
+      || messagesRequest !== presentationRequest) return;
     const provider = String(error?.message || '');
     const copy = provider.includes('DM_RATE_LIMITED')
       ? 'You are sending messages too quickly. Try again shortly.'
@@ -7683,9 +7719,13 @@ async function sendDirectMessage() {
           : 'Your message could not be sent.';
     setMessage(message, copy);
   } finally {
-    submit.textContent = previous;
-    submit.removeAttribute('aria-busy');
-    updateMessageComposerState();
+    if (activeConversation?.id === conversationId && currentMemberId === memberId
+      && messagesRequest === presentationRequest) {
+      submit.removeAttribute('aria-busy');
+      delete submit.dataset.sending;
+      submit.setAttribute('aria-label', previousLabel);
+      updateMessageComposerState();
+    }
   }
 }
 
@@ -8776,6 +8816,14 @@ function renderMenuPage() {
 
 function setMemberNavigation(name) {
   memberCommentSheet?.close({ history: false, restoreFocus: false });
+  if (name !== 'messages' && !messagesSurface.hidden) {
+    messagesRequest += 1;
+    dmThreadSyncRequest += 1;
+    activeConversation = null;
+    disposeDmTimeline(byId('message-thread-feed'));
+    window.__sautilinkClearMessageReply?.();
+    void stopDmPeerActivityPresence();
+  }
   if (name !== 'messages' && dmConversationRealtimeChannel) void stopDmConversationRealtime();
   if (name !== 'stream') pauseHomeFeedVideos();
   streamSurface.hidden = name !== 'stream';
@@ -9726,7 +9774,7 @@ window.addEventListener('focus', () => {
     void refreshMessageBadge();
     void ensureDmInboxRealtime();
     if (!notificationsSurface.hidden) void loadNotifications();
-    if (!messagesSurface.hidden && !activeConversation?.id) void loadMessagesInbox();
+    if (!messagesSurface.hidden && !activeConversation?.id && !byId('messages-inbox').hidden) void loadMessagesInbox();
     if (activeConversation?.id) void refreshActiveConversationProfile();
     if (activeConversation?.id) void syncActiveMessageThreadRealtime({ markRead: true });
   }
@@ -9738,7 +9786,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && currentMemberId) {
     void ensureDmInboxRealtime();
     if (!notificationsSurface.hidden) void loadNotifications();
-    if (!messagesSurface.hidden && !activeConversation?.id) void loadMessagesInbox();
+    if (!messagesSurface.hidden && !activeConversation?.id && !byId('messages-inbox').hidden) void loadMessagesInbox();
     if (activeConversation?.id) void refreshActiveConversationProfile();
     if (activeConversation?.id) void syncActiveMessageThreadRealtime({ markRead: true });
   }

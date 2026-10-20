@@ -582,19 +582,57 @@ function buildMessagesWhatsAppShell() {
 
 function startMessagesWhatsAppUiWhenVisible() {
   if (!messagesSurface) return;
-  if (!messagesSurface.hidden) {
-    buildMessagesWhatsAppShell();
-    return;
-  }
+  // Prepare the inert shell while hidden; opening Messages only reveals it.
+  buildMessagesWhatsAppShell();
+}
 
-  const visibilityObserver = new MutationObserver(() => {
-    if (messagesSurface.hidden || messagesWhatsAppUiInitialized) return;
-    visibilityObserver.disconnect();
-    buildMessagesWhatsAppShell();
-  });
-  visibilityObserver.observe(messagesSurface, {
-    attributes: true,
-    attributeFilter: ['hidden'],
+let messagesViewportFrame = 0;
+function resizeMessagesComposer() {
+  const body = document.getElementById('message-body');
+  if (!body || messagesSurface?.hidden) return;
+  body.style.height = 'auto';
+  const cssMaximum = Number.parseFloat(getComputedStyle(body).maxHeight);
+  const maximum = Math.max(44, Math.min(144, Number.isFinite(cssMaximum) ? cssMaximum : 144));
+  body.style.height = `${Math.min(maximum, Math.max(44, body.scrollHeight))}px`;
+  body.style.overflowY = body.scrollHeight > body.clientHeight ? 'auto' : 'hidden';
+}
+
+function updateMessagesViewport() {
+  messagesViewportFrame = 0;
+  if (!messagesSurface || messagesSurface.hidden) return;
+  const viewport = window.visualViewport;
+  const top = viewport?.offsetTop || 0;
+  const height = viewport?.height || window.innerHeight;
+  const bottom = top + height;
+  const surfaceTop = Math.max(top, messagesSurface.getBoundingClientRect().top);
+  const navigation = document.querySelector('.mobile-nav');
+  const navBounds = navigation?.getBoundingClientRect();
+  const navVisible = navBounds && navBounds.height > 0 && navBounds.width > 0;
+  const navigationOverlap = navVisible ? Math.max(0, bottom - Math.max(surfaceTop, navBounds.top)) : 0;
+  messagesSurface.style.setProperty('--messages-viewport-height', `${height}px`);
+  messagesSurface.style.setProperty('--messages-viewport-top', `${top}px`);
+  messagesSurface.style.setProperty('--messages-shell-height', `${Math.max(0, bottom - surfaceTop - navigationOverlap)}px`);
+  resizeMessagesComposer();
+}
+
+function scheduleMessagesViewport() {
+  if (messagesViewportFrame) return;
+  messagesViewportFrame = requestAnimationFrame(updateMessagesViewport);
+}
+
+window.addEventListener('resize', scheduleMessagesViewport, { passive: true });
+window.visualViewport?.addEventListener('resize', scheduleMessagesViewport, { passive: true });
+window.visualViewport?.addEventListener('scroll', scheduleMessagesViewport, { passive: true });
+document.getElementById('message-body')?.addEventListener('input', resizeMessagesComposer);
+document.getElementById('message-composer')?.addEventListener('submit', () => {
+  // The existing sender clears the field asynchronously; its state observer below
+  // also resizes it after delivery or attachment completion.
+  scheduleMessagesViewport();
+});
+const messagesSendControl = document.getElementById('message-send');
+if (messagesSendControl) {
+  new MutationObserver(scheduleMessagesViewport).observe(messagesSendControl, {
+    attributes: true, attributeFilter: ['disabled', 'aria-busy'],
   });
 }
 
@@ -605,6 +643,7 @@ if (messagesSurface) {
       if (messagesAppearanceDialog?.open) messagesAppearanceDialog.close();
     } else {
       loadMessagesAppearance();
+      scheduleMessagesViewport();
     }
   }).observe(messagesSurface, {
     attributes: true,
@@ -619,3 +658,4 @@ window.addEventListener('storage', (event) => {
 });
 
 startMessagesWhatsAppUiWhenVisible();
+scheduleMessagesViewport();

@@ -42,7 +42,7 @@ test('notification route selects its message and older target is fetched within 
 });
 
 test('timeline groups messages by local day and displays a clock time', () => {
-  assert.match(source, /dmDayLabel\(message\.sent_at\)/);
+  assert.match(source, /dayLabel: dmDayLabel/);
   assert.match(source, /day: 'numeric', month: 'short', year: 'numeric'/);
   assert.match(source, /hour: 'numeric', minute: '2-digit'/);
   assert.match(source, /return 'Today'/);

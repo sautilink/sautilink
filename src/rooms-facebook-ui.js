@@ -21,6 +21,15 @@ function roomFbIcon(path) {
   return svg;
 }
 
+function roomFbNamedIcon(iconName, path) {
+  const svg = roomFbIcon(path);
+  svg.dataset.slIconName = iconName;
+  svg.setAttribute('width', '24');
+  svg.setAttribute('height', '24');
+  svg.setAttribute('focusable', 'false');
+  return svg;
+}
+
 function ensureRoomsFacebookStyles() {
   if (!document.querySelector(`link[href^="/app/assets/rooms-facebook.css"]`)) {
     const link = document.createElement('link');
@@ -194,10 +203,25 @@ function syncRoomLandingFilter() {
     button.setAttribute('aria-current', active ? 'page' : 'false');
   });
 
+  const query = String(roomFbById('room-search')?.value || '').trim().toLowerCase();
+  const category = String(roomFbById('room-category-filter')?.value || 'all');
   document.querySelectorAll('#circles-list .circle-card').forEach((card) => {
-    if (roomsFacebookFilter !== 'joined') return;
     const state = String(card.querySelector('.circle-card-state')?.textContent || '').toLowerCase();
-    if (!/(owner|joined|member|requested)/.test(state)) card.hidden = true;
+    const membership = roomsFacebookFilter !== 'joined' || /(owner|joined|member|requested)/.test(state);
+    const matchesQuery = !query || String(card.dataset.roomSearch || card.textContent).toLowerCase().includes(query);
+    const matchesCategory = category === 'all' || card.dataset.roomCategory === category;
+    const hidden = !(membership && matchesQuery && matchesCategory);
+    if (card.hidden !== hidden) card.hidden = hidden;
+  });
+}
+
+function selectRoomDetailSection(tabs, key) {
+  tabs.querySelectorAll('[data-room-fb-tab]').forEach((button) => {
+    const selected = button.dataset.roomFbTab === key;
+    button.classList.toggle('active', selected);
+    if (button.getAttribute('aria-pressed') !== String(selected)) {
+      button.setAttribute('aria-pressed', String(selected));
+    }
   });
 }
 
@@ -214,11 +238,25 @@ function createRoomDetailTabs() {
     ['about', 'About'],
     ['people', 'Members'],
   ];
+  const icons = {
+    discussion: ['file-0-1', '<path d="M6 3h9l3 3v15H6Z"></path><path d="M14 3v5h4M9 12h6M9 16h4"></path>'],
+    photos: ['image-0-1', '<rect x="3" y="3" width="18" height="18" rx="3"></rect><circle cx="8" cy="8" r="2"></circle><path d="m3 17 5-5 4 4 4-6 5 7"></path>'],
+    videos: ['video-0-1', '<rect x="3" y="5" width="13" height="14" rx="3"></rect><path d="m16 10 5-3v10l-5-3"></path>'],
+    about: ['help-circle', '<circle cx="12" cy="12" r="9"></circle><path d="M12 11v6M12 7h.01"></path>'],
+    people: ['user-group', '<circle cx="9" cy="9" r="3"></circle><circle cx="17" cy="10" r="2.5"></circle><path d="M3.5 20c.5-4 2.3-6 5.5-6s5 2 5.5 6M14 15c3.4-.7 5.5.9 6 4"></path>'],
+  };
   items.forEach(([key, label], index) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.dataset.roomFbTab = key;
-    button.textContent = label;
+    button.setAttribute('aria-label', label);
+    button.setAttribute('aria-pressed', String(index === 0));
+    button.title = label;
+    const caption = document.createElement('span');
+    caption.dataset.roomTabLabel = 'true';
+    caption.textContent = label;
+    const [iconName, paths] = icons[key];
+    button.append(roomFbNamedIcon(iconName, paths), caption);
     button.classList.toggle('active', index === 0);
     tabs.append(button);
   });
@@ -239,8 +277,9 @@ function createRoomDetailTabs() {
       target = memberList && !memberList.hidden ? memberList
         : roomFbById('room-fb-about-card')?.querySelector('[data-room-fb-members]');
     }
-    tabs.querySelectorAll('[data-room-fb-tab]').forEach((tab) => tab.classList.toggle('active', tab === button));
-    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    selectRoomDetailSection(tabs, key);
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    target?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
   });
   return tabs;
 }
@@ -284,7 +323,19 @@ function ensureRoomDetailToolbar(detail, card) {
   toolbar.setAttribute('aria-label', 'Room controls');
   const back = roomFbById('circle-back');
   back.textContent = 'Back to Rooms';
-  toolbar.append(back);
+  back.setAttribute('aria-label', 'Back to Rooms');
+  back.title = 'Back to Rooms';
+  const backCaption = document.createElement('span');
+  backCaption.className = 'sr-only';
+  backCaption.textContent = 'Back to Rooms';
+  back.replaceChildren(
+    roomFbNamedIcon('arrow-left-0-2', '<path d="M19 12H5M11 6l-6 6 6 6"></path>'),
+    backCaption,
+  );
+  const title = document.createElement('h2');
+  title.className = 'room-detail-toolbar-title';
+  title.textContent = 'Room';
+  toolbar.append(back, title);
 
   const searchButton = document.createElement('button');
   searchButton.type = 'button';
@@ -384,37 +435,48 @@ function ensureRoomAboutCard() {
 
   const description = String(roomFbById('circle-detail-description')?.textContent || '').trim();
   const aboutDescription = card.querySelector('[data-room-fb-about-description]');
-  if (aboutDescription) aboutDescription.textContent = description || 'No description yet.';
+  const descriptionCopy = description || 'No description yet.';
+  if (aboutDescription && aboutDescription.textContent !== descriptionCopy) {
+    aboutDescription.textContent = descriptionCopy;
+  }
 
   const privacy = card.querySelector('[data-room-fb-privacy]');
   if (privacy) {
     const [label, copy] = roomFbPrivacyCopy();
-    privacy.replaceChildren(
-      roomFbIcon('<path d="M12 3a7 7 0 0 0-7 7v3H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2h-1v-3a7 7 0 0 0-7-7Zm-4 10v-3a4 4 0 0 1 8 0v3"></path>'),
-    );
-    const copyNode = document.createElement('span');
-    const strong = document.createElement('strong');
-    strong.textContent = label;
-    const small = document.createElement('small');
-    small.textContent = copy;
-    copyNode.append(strong, small);
-    privacy.append(copyNode);
+    const signature = JSON.stringify([label, copy]);
+    if (privacy.dataset.roomFbAboutSignature !== signature) {
+      privacy.replaceChildren(
+        roomFbIcon('<path d="M12 3a7 7 0 0 0-7 7v3H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2h-1v-3a7 7 0 0 0-7-7Zm-4 10v-3a4 4 0 0 1 8 0v3"></path>'),
+      );
+      const copyNode = document.createElement('span');
+      const strong = document.createElement('strong');
+      strong.textContent = label;
+      const small = document.createElement('small');
+      small.textContent = copy;
+      copyNode.append(strong, small);
+      privacy.append(copyNode);
+      privacy.dataset.roomFbAboutSignature = signature;
+    }
   }
 
   const members = card.querySelector('[data-room-fb-members]');
   if (members) {
     const count = String(document.querySelector('#circle-detail .room-detail-badges span:last-child')?.textContent || '').trim();
     const membership = String(roomFbById('circle-detail-membership')?.textContent || '').trim();
-    members.replaceChildren(
-      roomFbIcon('<circle cx="9" cy="9" r="3"></circle><circle cx="17" cy="10" r="2.5"></circle><path d="M3.5 20c.5-4 2.3-6 5.5-6s5 2 5.5 6M14 15c3.4-.7 5.5.9 6 4"></path>'),
-    );
-    const copyNode = document.createElement('span');
-    const strong = document.createElement('strong');
-    strong.textContent = 'Members';
-    const small = document.createElement('small');
-    small.textContent = [count, membership].filter(Boolean).join(' · ') || 'Room membership';
-    copyNode.append(strong, small);
-    members.append(copyNode);
+    const signature = JSON.stringify([count, membership]);
+    if (members.dataset.roomFbAboutSignature !== signature) {
+      members.replaceChildren(
+        roomFbIcon('<circle cx="9" cy="9" r="3"></circle><circle cx="17" cy="10" r="2.5"></circle><path d="M3.5 20c.5-4 2.3-6 5.5-6s5 2 5.5 6M14 15c3.4-.7 5.5.9 6 4"></path>'),
+      );
+      const copyNode = document.createElement('span');
+      const strong = document.createElement('strong');
+      strong.textContent = 'Members';
+      const small = document.createElement('small');
+      small.textContent = [count, membership].filter(Boolean).join(' · ') || 'Room membership';
+      copyNode.append(strong, small);
+      members.append(copyNode);
+      members.dataset.roomFbAboutSignature = signature;
+    }
   }
   return card;
 }
@@ -507,8 +569,8 @@ function ensureRoomDetailLayout() {
     if (menu) menu.hidden = true;
     roomFbById('room-detail-toolbar')?.querySelectorAll('[aria-expanded]')
       .forEach((button) => button.setAttribute('aria-expanded', 'false'));
-    roomFbById('room-fb-detail-tabs')?.querySelectorAll('[data-room-fb-tab]')
-      .forEach((tab) => tab.classList.toggle('active', tab.dataset.roomFbTab === 'discussion'));
+    const existingTabs = roomFbById('room-fb-detail-tabs');
+    if (existingTabs) selectRoomDetailSection(existingTabs, 'discussion');
   }
 
   let tabs = roomFbById('room-fb-detail-tabs');
@@ -544,8 +606,11 @@ function syncRoomFacebookShell() {
 }
 
 function scheduleRoomsFacebookUi() {
-  window.clearTimeout(roomsFacebookTimer);
-  roomsFacebookTimer = window.setTimeout(syncRoomFacebookShell, 90);
+  if (roomsFacebookTimer) return;
+  roomsFacebookTimer = requestAnimationFrame(() => {
+    roomsFacebookTimer = 0;
+    syncRoomFacebookShell();
+  });
 }
 
 ensureRoomsFacebookStyles();

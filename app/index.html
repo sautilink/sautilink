@@ -31,6 +31,17 @@
   <link rel="stylesheet" href="/app/assets/profile-settings-ui.css?v=20260927-page-headers1">
   <link rel="stylesheet" href="/app/assets/non-home-loading.css?v=20261010-home-logo1">
   <link id="sautilink-motion-foundation" rel="stylesheet" href="/app/assets/motion-foundation.css?v=20261012-motion1">
+  <!-- Messages uses its final layout from the first paint, including cold navigation. -->
+  <link data-messages-whatsapp-style="true" rel="stylesheet" href="/app/assets/messages-whatsapp.css?v=20261009-appearance1">
+  <link data-messages-composer-style="true" rel="stylesheet" href="/app/assets/messages-composer.css?v=20260914-messagesui1">
+  <link data-messages-header-polish-style="true" rel="stylesheet" href="/app/assets/messages-header-polish.css?v=20261009-appearance1">
+  <link data-messages-appearance-style="true" rel="stylesheet" href="/app/assets/messages-appearance.css?v=20261009-appearance1">
+  <link data-messages-media-style="true" rel="stylesheet" href="/app/assets/messages-media.css?v=20261009-skeleton1">
+  <link data-messages-reply-style="true" rel="stylesheet" href="/app/assets/messages-reply.css?v=20261003-edit1">
+  <link data-rooms-platform-style="true" rel="stylesheet" href="/app/assets/rooms.css?v=20260909-rooms1">
+  <link rel="stylesheet" href="/app/assets/rooms-facebook.css?v=20260929-room-detail2">
+  <link rel="stylesheet" href="/app/assets/rooms-mobile-preview.css?v=20260914-mobile1">
+  <link data-rooms-invitations-style="true" rel="stylesheet" href="/app/assets/rooms-invitations.css?v=20260909-rooms1">
   <!-- Member-only presentation: auth UI remains isolated by the member visibility gate. -->
   <link rel="stylesheet" href="/app/assets/member-ios.css?v=20261019-ios1">
   <link rel="stylesheet" href="/app/assets/member-ios-surfaces.css?v=20261019-ios1">
@@ -43,6 +54,8 @@
   <link rel="stylesheet" href="/app/assets/member-builtin-files.css?v=20261019-controls1">
   <link rel="stylesheet" href="/app/assets/member-builtin-media.css?v=20261019-controls1">
   <link rel="stylesheet" href="/app/assets/member-comment-sheet.css?v=20261019-sheet1">
+  <link data-messages-native-style="true" rel="stylesheet" href="/app/assets/messages-native.css?v=20261020-native1">
+  <link rel="stylesheet" href="/app/assets/rooms-native.css?v=20261020-native1">
   <script src="/app/assets/member-animated-icons.js?v=20261019-huge4-postpreview1" defer></script>
   <script src="/app/assets/member-builtin-controls.js?v=20261019-controls1" defer></script>
   <script src="/app/assets/member-builtin-dialogs.js?v=20261019-controls1" defer></script>
@@ -1094,7 +1107,7 @@
 
             <form class="message-composer" id="message-composer" novalidate>
               <label class="sr-only" for="message-body">Write a message</label>
-              <textarea id="message-body" name="body" rows="3" maxlength="4000" placeholder="Write a message…"></textarea>
+              <textarea id="message-body" name="body" rows="1" maxlength="4000" placeholder="Message"></textarea>
               <div class="message-composer-meta">
                 <span id="message-delivery-note">Only this conversation can read these messages.</span>
                 <span><b id="message-body-count">0</b> / 4000</span>
@@ -1639,6 +1652,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="/app/assets/app.js?v=20260930-swala-otp2&amp;signup=20261003-phone2&amp;messages=20261009-appearance1&amp;thread=20261003-thread1&amp;profile=20261007-video-poster1&amp;menu=20261007-page1&amp;comments=20261019-sheet1&amp;postpreview=20261019-post2&amp;video=20261009-playback1&amp;other=20261009-skeleton1"></script>
+  <script type="module" src="/app/assets/app.js?v=20260930-swala-otp2&amp;signup=20261003-phone2&amp;messages=20261020-native1&amp;rooms=20261020-native1&amp;thread=20261003-thread1&amp;profile=20261007-video-poster1&amp;menu=20261007-page1&amp;comments=20261019-sheet1&amp;postpreview=20261019-post2&amp;video=20261009-playback1&amp;other=20261009-skeleton1"></script>
 </body>
 </html>

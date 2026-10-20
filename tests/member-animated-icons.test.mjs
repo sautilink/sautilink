@@ -961,6 +961,7 @@ test('real production message sending animates success only and preserves its ic
       byId: (id) => state.document.getElementById(id),
       activeConversation: { id: 'conversation-123' },
       currentMemberId: 'member-123',
+      messagesRequest: 1,
       supabase: { from(table) {
         assert.equal(table, 'dm_messages');
         return { insert(payload) { insertPayload = payload; return inserted; } };
