@@ -1,4 +1,4 @@
-import { mountInlineVerificationSvg } from './verification-inline-svg.js';
+import { mountInlineVerificationSvg, refreshClonedVerificationSvgs } from './verification-inline-svg.js';
 import { createClient } from '@supabase/supabase-js';
 import { getVideoAutoplayPreference, setVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autoplay-preference.js';
 import { installVideoPlaybackCoordinator } from './video-playback-coordinator.js';
@@ -8788,6 +8788,7 @@ function namespaceMenuCloneIds(root) {
 
   root.querySelectorAll('[aria-current]').forEach((node) => node.removeAttribute('aria-current'));
   root.querySelectorAll('.nav-item.active').forEach((node) => node.classList.remove('active'));
+  refreshClonedVerificationSvgs(root);
 }
 
 function scheduleMenuMirror() {

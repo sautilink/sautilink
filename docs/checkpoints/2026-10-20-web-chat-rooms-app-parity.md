@@ -134,3 +134,21 @@ checks now pass, including esbuild and Wrangler; the reviewed PR's exact-head
 GitHub checks are still required before publication. No build configuration or
 verification gate is bypassed. Publish through the existing linked pipelines
 only after those checks succeed.
+
+## Cloned verification artwork follow-up
+
+Production visual QA found that Menu and Short Videos clones removed or
+namespaced inline SVG gradient IDs while retaining the old paint references.
+The existing badge artwork generator now refreshes only the cloned SVG visual,
+giving each team badge its own gradient ID and preserving all eight color stops.
+Original verification wrappers, account status, theme, accessibility labels and
+permission gates remain unchanged. The bundle's scoped native cache key advances
+to v1112; auth, backend and deployment configuration stay unchanged.
+
+Six behavioral regressions exercise the actual creator and clone callers,
+including stripped and prefixed IDs, repeated clones, standard light/dark badges,
+Menu ARIA references and independent gradient ownership. The canonical check
+passes 1,035 tests without failures or skips. The real-source browser fixture
+also confirms that source, drawer and Menu page team gradients resolve locally
+with unique document IDs and no runtime errors. Evidence is stored alongside
+the release logs as menu-badge-gradient-fixture-verification.json.

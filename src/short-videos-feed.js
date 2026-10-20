@@ -1,4 +1,5 @@
 import { getVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autoplay-preference.js';
+import { refreshClonedVerificationSvgs } from './verification-inline-svg.js';
 
 const SHORT_VIDEOS_STYLESHEET = '/app/assets/short-videos-feed.css?v=20261004-repost-icon1';
 const HOME_VIDEO_TILE_SELECTOR = '#stream-feed .sauti-media-tile[data-media-kind="video"][data-open-media-id]';
@@ -147,6 +148,7 @@ function cloneVerificationBadge(card) {
   if (!source) return null;
   const badge = source.cloneNode(true);
   badge.querySelectorAll('[id]').forEach((node) => node.removeAttribute('id'));
+  refreshClonedVerificationSvgs(badge);
   return badge;
 }
 

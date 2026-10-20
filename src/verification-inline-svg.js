@@ -56,6 +56,19 @@ export function createInlineVerificationSvg(badgeType = 'standard', theme = docu
   return svg;
 }
 
+// Cloned controls discard or namespace DOM IDs. Recreate only badge artwork so
+// its paint references resolve to fresh, unique gradients inside each SVG.
+// The existing badge wrapper, account status and accessibility label stay put.
+export function refreshClonedVerificationSvgs(root) {
+  if (!root) return;
+  const selector = 'svg[data-sautilink-verification-vector]';
+  const vectors = [...(root.matches?.(selector) ? [root] : []), ...root.querySelectorAll(selector)];
+  for (const vector of vectors) {
+    const type = vector.getAttribute('data-sautilink-verification-vector');
+    vector.replaceWith(createInlineVerificationSvg(type === 'team' ? 'team' : 'standard', type === 'standard-dark' ? 'dark' : 'light'));
+  }
+}
+
 export function mountInlineVerificationSvg(container, badgeType = 'standard') {
   if (!container) return;
   // Only replaces artwork, never the interactive button or its accessibility label.
