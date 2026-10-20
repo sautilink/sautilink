@@ -191,7 +191,7 @@ function dmCalendarKey`,
     `    if (aroundTarget) messages = aroundTarget;
   }
   messages = await hydrateDmReplyTargets(conversation.id, messages);
-  if (requestId !== messagesRequest) return;
+  if (requestId !== messagesRequest || currentMemberId !== memberId || messagesSurface.hidden) return;
   renderDmTimeline(feed, messages);
   empty.hidden = messages.length > 0;`,
     'initial thread reply hydration');
@@ -207,8 +207,9 @@ function dmCalendarKey`,
 
   const sendSetupSource = `  submit.disabled = true;
   submit.setAttribute('aria-busy', 'true');
-  const previous = submit.textContent;
-  submit.textContent = 'Sending…';
+  submit.dataset.sending = 'true';
+  const previousLabel = submit.getAttribute('aria-label') || 'Send message';
+  submit.setAttribute('aria-label', 'Sending message');
 
   try {
     const { error } = await supabase
@@ -224,7 +225,8 @@ function dmCalendarKey`,
   submit.dataset.sending = 'true';
   const previousLabel = submit.getAttribute('aria-label') || 'Send message';
   submit.setAttribute('aria-label', 'Sending message');
-  const replyToMessageId = Number.parseInt(String(byId('message-composer')?.dataset.replyToMessageId || ''), 10);
+  const replyContextAtSend = String(byId('message-composer')?.dataset.replyToMessageId || '');
+  const replyToMessageId = Number.parseInt(replyContextAtSend, 10);
   const insertPayload = {
     conversation_id: activeConversation.id,
     sender_id: currentMemberId,
@@ -241,29 +243,18 @@ function dmCalendarKey`,
 
   output = replaceRequired(output, sendSetupSource, sendSetupReplacement, 'direct message send setup');
 
-  const sendSuccessSource = `    textarea.value = '';
+  const sendSuccessSource = `    if (textarea.value === draft) textarea.value = '';
     updateMessageComposerState();
     await broadcastDmTyping(false);`;
-  const sendSuccessReplacement = `    textarea.value = '';
-    window.__sautilinkClearMessageReply?.();
+  const sendSuccessReplacement = `    if (textarea.value === draft) {
+      textarea.value = '';
+      if (String(byId('message-composer')?.dataset.replyToMessageId || '') === replyContextAtSend) {
+        window.__sautilinkClearMessageReply?.();
+      }
+    }
     updateMessageComposerState();
     await broadcastDmTyping(false);`;
   output = replaceRequired(output, sendSuccessSource, sendSuccessReplacement, 'direct message reply clear');
-
-  const sendFinallySource = `  } finally {
-    submit.textContent = previous;
-    submit.removeAttribute('aria-busy');
-    updateMessageComposerState();
-  }
-}`;
-  const sendFinallyReplacement = `  } finally {
-    submit.removeAttribute('aria-busy');
-    delete submit.dataset.sending;
-    submit.setAttribute('aria-label', previousLabel);
-    updateMessageComposerState();
-  }
-}`;
-  output = replaceRequired(output, sendFinallySource, sendFinallyReplacement, 'send icon restoration');
 
   return output;
 }

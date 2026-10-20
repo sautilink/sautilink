@@ -1,0 +1,865 @@
+/* Rooms keeps the full Groups information architecture and existing permission
+   gates, with the same compact cards and controls as the native app. */
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface {
+  --room-fb-bg: var(--ios-bg, #f5f6f8);
+  --room-fb-card: var(--ios-surface, #fff);
+  --room-fb-card-soft: var(--ios-secondary, #f0f2f6);
+  --room-fb-line: var(--ios-line, rgba(60, 60, 67, .12));
+  --room-fb-text: var(--ios-ink, #1c1c1e);
+  --room-fb-muted: var(--ios-muted, #686873);
+  --room-fb-blue: var(--ios-blue, #0068df);
+  --room-fb-hover: var(--ios-secondary, #f0f2f6);
+  min-width: 0;
+  min-height: 100dvh;
+  background: var(--room-fb-bg);
+  color: var(--room-fb-text);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface:not(.room-fb-detail-open) {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-landing-sidebar {
+  min-width: 0;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  border: 1px solid var(--room-fb-line);
+  border-radius: 20px;
+  background: var(--room-fb-card);
+  box-shadow: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-sidebar-heading {
+  padding: 18px 16px 6px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-sidebar-heading h2 {
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: -.025em;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-sidebar-nav {
+  gap: 5px;
+  padding: 8px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-sidebar-nav button {
+  min-height: 46px;
+  gap: 9px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-sidebar-nav button.active {
+  background: var(--ios-blue-soft);
+  color: var(--room-fb-blue);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-sidebar-nav button svg {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-discovery-controls {
+  min-width: 0;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-discovery-controls :is(input, select),
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface :is(.circle-create-form, .room-settings-form) :is(input:not([type="file"]), textarea, select) {
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--room-fb-line);
+  border-radius: 13px;
+  background: var(--room-fb-card-soft);
+  color: var(--room-fb-text);
+  font-size: 14px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface:not(.room-fb-detail-open) .circles-toolbar {
+  min-height: 68px;
+  gap: 12px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--room-fb-line);
+  border-radius: 20px;
+  background: var(--room-fb-card);
+  box-shadow: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circles-toolbar h2 {
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: -.025em;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circles-toolbar p:last-child {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface :is(#circles-create-toggle, .circle-create-actions button, .circle-detail-actions button, #circle-sauti-submit) {
+  min-height: 44px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 0;
+}
+
+/* A real cover spans the whole card; privacy, description and membership are
+   readable again instead of the older decorative mobile preview anatomy. */
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list .circle-card {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--room-fb-line);
+  border-radius: 20px;
+  background: var(--room-fb-card);
+  box-shadow: none;
+  isolation: auto;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list .circle-card:hover {
+  background: var(--room-fb-card);
+  transform: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list .room-card-cover {
+  position: relative;
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 0;
+  height: 132px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(130deg, #2475d7, #263d68);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list .room-card-cover::after {
+  content: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-cover-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list .circle-card-main {
+  display: block;
+  width: 100%;
+  padding: 14px 14px 10px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list .circle-card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list .circle-card h3 {
+  display: -webkit-box;
+  width: 100%;
+  margin: 0 0 3px;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -.015em;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list .circle-card-slug:not([hidden]) {
+  display: block !important;
+  width: 100%;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list :is(.circle-policy-badge, .room-category-badge, .room-privacy-badge):not([hidden]) {
+  display: inline-flex !important;
+  min-height: 23px;
+  align-items: center;
+  margin: 3px 0 0;
+  padding: 3px 7px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--room-fb-card-soft);
+  color: var(--room-fb-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list .circle-card-description:not([hidden]) {
+  display: -webkit-box !important;
+  margin: 9px 0 0;
+  color: var(--room-fb-muted);
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list .circle-card-meta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 9px;
+  color: var(--room-fb-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list .room-member-count {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--room-fb-muted);
+  font-size: inherit;
+  font-weight: 400;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list .circle-card-state {
+  display: block;
+  width: auto;
+  min-height: 36px;
+  margin: auto 14px 14px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--ios-blue-soft);
+  color: var(--room-fb-blue);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list .circle-card-state::after {
+  content: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface.room-fb-detail-open {
+  padding: 0 0 24px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-detail.room-fb-detail {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-rows: auto auto auto auto;
+  gap: 14px;
+  padding: 0 14px 24px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-detail > .room-detail-toolbar {
+  position: sticky;
+  z-index: 8;
+  top: 0;
+  min-width: 0;
+  min-height: 62px;
+  gap: 6px;
+  padding: 7px 6px;
+  border-bottom: 1px solid var(--room-fb-line);
+  background: var(--room-fb-bg);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-detail-toolbar .circle-back {
+  position: relative;
+  display: grid;
+  min-width: 44px;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  overflow: visible;
+  margin: 0;
+  padding: 0;
+  border-radius: 12px;
+  color: var(--room-fb-text);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-detail-toolbar .circle-back::before {
+  content: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-detail-toolbar .circle-back svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-detail-toolbar-title {
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -.025em;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-detail-icon-button {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-detail > .circle-detail-card {
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 16px;
+  overflow: hidden;
+  border: 1px solid var(--room-fb-line);
+  border-radius: 20px;
+  background: var(--room-fb-card);
+  box-shadow: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-detail-cover {
+  width: 100%;
+  height: clamp(154px, 24vw, 260px);
+  margin: 0 0 16px;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(130deg, #2475d7, #263d68);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface :is(.circle-detail-top, .circle-detail-description, .circle-detail-meta, .room-detail-badges, .room-permissions-summary, .circle-detail-actions) {
+  min-width: 0;
+  margin-right: 16px;
+  margin-left: 16px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-detail-card h2 {
+  margin: 0;
+  font-size: clamp(23px, 3vw, 29px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -.02em;
+  overflow-wrap: anywhere;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-detail-description {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface :is(.circle-detail-meta, .circle-detail-slug) {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-detail-meta {
+  flex-wrap: wrap;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-detail-badges span {
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-permissions-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-permissions-summary > span {
+  gap: 3px;
+  padding: 9px;
+  border-radius: 12px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-permissions-summary strong {
+  font-size: 11px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-detail-actions :is(.form-submit, .secondary-action):not([hidden]) {
+  display: inline-flex;
+  width: auto;
+  min-width: 0;
+  min-height: 44px;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-detail-actions button svg {
+  flex: 0 0 19px;
+  margin-right: 0;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-detail-tabs {
+  position: sticky;
+  z-index: 6;
+  top: 62px;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  gap: 5px;
+  margin: 0;
+  padding: 6px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--room-fb-line);
+  border-radius: 17px;
+  background: var(--room-fb-card);
+  box-shadow: none;
+  scrollbar-width: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-detail-tabs button {
+  display: inline-flex;
+  min-width: 46px;
+  min-height: 46px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 23px;
+  background: transparent;
+  color: var(--room-fb-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-detail-tabs button svg {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-detail-tabs button:not(.active) [data-room-tab-label] {
+  display: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-detail-tabs button.active {
+  background: var(--ios-blue-soft);
+  color: var(--room-fb-blue);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-detail-tabs button::after {
+  content: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-detail-aside {
+  position: sticky;
+  top: 134px;
+  min-width: 0;
+  gap: 14px;
+  padding: 0;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface :is(.room-fb-about-card, .room-invite-panel, .room-incoming-invitations, .room-admin-panel, .circle-members, .circle-requests, .circle-create-form, .circle-stream-state, .circle-stream-locked, .circle-stream-empty-state) {
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--room-fb-line);
+  border-radius: 20px;
+  background: var(--room-fb-card);
+  color: var(--room-fb-text);
+  box-shadow: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface :is(.room-fb-about-card h3, .room-invite-panel h3, .room-admin-heading h3, .circle-members-heading h3, .circle-requests-heading h3) {
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -.015em;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface :is(.room-fb-about-card > p, .room-invite-panel > div > p:last-child, .room-fb-about-row small) {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-invite-panel {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-invitation-row {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-invitation-row strong {
+  font-size: 13px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-invitation-row :is(.form-submit, .secondary-action) {
+  min-height: 42px;
+  min-width: 80px;
+  font-size: 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-admin-person-row {
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-admin-person-row > div {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-admin-person-row :is(button, select) {
+  min-height: 42px;
+  font-size: 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-admin-person-row :is(strong, small),
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface :is(.room-settings-form, .circle-create-form) label {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-sauti-composer {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 9px;
+  margin: 0 0 14px;
+  padding: 14px;
+  border: 1px solid var(--room-fb-line);
+  border-radius: 20px;
+  background: var(--room-fb-card);
+  box-shadow: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-sauti-composer::before {
+  content: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-sauti-composer textarea {
+  width: 100%;
+  min-height: 76px;
+  height: 76px;
+  max-height: 240px;
+  padding: 12px;
+  border: 1px solid var(--room-fb-line);
+  border-radius: 15px;
+  background: var(--room-fb-card-soft);
+  color: var(--room-fb-text);
+  font-size: 15px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface :is(.circle-sauti-controls, .circle-sauti-actions) {
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-sauti-controls {
+  order: 1;
+  font-size: 11px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-sauti-controls label {
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-sauti-meta {
+  order: 2;
+  gap: 8px;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-sauti-actions {
+  order: 3;
+  justify-content: flex-end;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-sauti-composer .composer-message {
+  order: 4;
+  font-size: 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-stream-heading {
+  padding: 12px 2px;
+  background: transparent;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-stream-heading h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-stream-feed {
+  gap: 14px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-stream-feed > article {
+  min-width: 0;
+  border: 1px solid var(--room-fb-line);
+  border-radius: 22px;
+  background: var(--room-fb-card);
+  box-shadow: none;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface :is(#circle-stream, #room-fb-about-card, #circle-members, [data-room-fb-members]) {
+  scroll-margin-top: 136px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface :is(button, input, textarea, select):focus-visible {
+  outline: 2px solid var(--room-fb-blue);
+  outline-offset: 2px;
+}
+
+/* Loading retains its reserved geometry and never exposes previous Room data. */
+body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circle-detail[data-loading] :is(.circle-detail-top, .circle-detail-description, .circle-detail-meta, .room-detail-badges, .room-permissions-summary, .circle-detail-actions, .room-fb-detail-tabs, .room-fb-detail-aside) {
+  display: none;
+}
+
+/* These two transient controls are intentionally portalled by the existing UI. */
+body.rooms-facebook-view #room-detail-menu[data-room-transient-portal],
+body.rooms-facebook-view #room-detail-search[data-room-transient-portal] {
+  border: 1px solid var(--ios-line);
+  border-radius: 16px;
+  background: var(--ios-elevated);
+  color: var(--ios-ink);
+}
+
+@media (max-width: 1099px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface:not(.room-fb-detail-open) {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface:not(.room-fb-detail-open) .circles-toolbar {
+    order: -2;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-landing-sidebar {
+    position: static;
+    order: -1;
+    align-self: stretch;
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-sidebar-heading {
+    display: none;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-sidebar-nav {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 5px 0;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-sidebar-nav button {
+    min-width: max-content;
+    border: 1px solid var(--room-fb-line);
+    border-radius: 24px;
+    background: var(--room-fb-card);
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-sidebar-nav .room-fb-create-shortcut {
+    margin-top: 0;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-discovery-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(140px, .5fr);
+    padding: 0 0 8px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-detail.room-fb-detail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0 14px 24px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-detail.room-fb-detail > #circle-stream {
+    grid-column: 1;
+    grid-row: 4;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-detail.room-fb-detail > .room-fb-detail-aside {
+    position: static;
+    grid-column: 1;
+    grid-row: 5;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+@media (max-width: 680px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])):has(#circles-surface:not([hidden])) .mobile-header {
+    display: none;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface:not(.room-fb-detail-open) {
+    padding: 12px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface:not(.room-fb-detail-open) .circles-toolbar {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 54px;
+    padding: 4px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circles-toolbar p {
+    display: none;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-create-toggle {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 0 14px;
+    background: #0068df;
+    color: #fff;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-discovery-controls {
+    grid-template-columns: minmax(0, 1fr) minmax(100px, .65fr);
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-discovery-controls > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-sidebar-nav .room-fb-create-shortcut {
+    min-width: 44px;
+    width: 44px;
+    flex: 0 0 44px;
+    justify-content: center;
+    gap: 0;
+    padding: 0;
+    font-size: 0;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface #circles-list .room-card-cover {
+    height: 116px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-detail.room-fb-detail {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-detail-cover {
+    height: 154px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-detail-tabs {
+    gap: 3px;
+    padding: 5px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-fb-detail-tabs button {
+    padding-right: 9px;
+    padding-left: 9px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .circle-detail-actions :is(.form-submit, .secondary-action):not([hidden]) {
+    flex-basis: calc(50% - 4px);
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 380px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-discovery-controls,
+  body:not(.auth-entry):has(#member-view:not([hidden])) #circles-surface .room-permissions-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

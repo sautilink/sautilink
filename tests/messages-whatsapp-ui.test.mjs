@@ -8,10 +8,9 @@ test('WhatsApp-style Messages UI is isolated to the Messages surface', async () 
   const source = await read('src/messages-whatsapp-ui.js');
 
   assert.match(source, /document\.getElementById\('messages-surface'\)/);
-  assert.match(source, /if \(!messagesSurface\.hidden\)/);
-  assert.match(source, /visibilityObserver\.observe\(messagesSurface/);
   assert.match(source, /attributeFilter: \['hidden'\]/);
-  assert.match(source, /visibilityObserver\.disconnect\(\)/);
+  assert.match(source, /Prepare the inert shell while hidden/);
+  assert.doesNotMatch(source, /visibilityObserver/);
   assert.doesNotMatch(source, /observe\(document\.body/);
   assert.doesNotMatch(source, /observe\(document\.documentElement/);
   assert.doesNotMatch(source, /supabase|service_role|sb_secret_|fetch\(/i);

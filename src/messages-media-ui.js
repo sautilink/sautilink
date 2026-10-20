@@ -32,6 +32,9 @@ const DM_PHOTO_TYPES = Object.freeze({
 let pendingMessageAttachment = null;
 let activeVoiceRecording = null;
 let messageMediaHydrateTimer = 0;
+let messageMediaContextKey = '';
+let messageMediaContextEpoch = 0;
+let attachmentSendOwner = null;
 const hydratedMediaUrls = new Set();
 
 function ensureMessagesMediaStyles() {
@@ -60,6 +63,31 @@ function conversationIdFromLocation() {
   const match = window.location.pathname.match(/^(?:\/app)?\/messages\/([^/]+)\/?$/i);
   const id = String(match?.[1] || '').toLowerCase();
   return DM_UUID_PATTERN.test(id) ? id : '';
+}
+
+function syncMessageMediaContext() {
+  const live = window.__sautilinkDmRealtimeContext?.();
+  const conversationId = conversationIdFromLocation();
+  const available = Boolean(conversationId && live?.memberId && live.conversationId === conversationId
+    && !messagesMediaSurface?.hidden && !document.getElementById('message-thread')?.hidden
+    && !messagesMediaBody?.disabled);
+  const key = available ? `${live.memberId}:${conversationId}` : '';
+  if (key !== messageMediaContextKey) {
+    messageMediaContextKey = key;
+    messageMediaContextEpoch += 1;
+    if (activeVoiceRecording) stopVoiceRecording(true);
+    if (pendingMessageAttachment) void clearPendingAttachment({ remote: true });
+  }
+  return available ? { key, epoch: messageMediaContextEpoch, conversationId } : null;
+}
+
+function isMessageMediaContextCurrent(context) {
+  const current = syncMessageMediaContext();
+  return Boolean(context && current && context.key === current.key && context.epoch === current.epoch);
+}
+
+function isCurrentPendingAttachment(item) {
+  return isMessageMediaContextCurrent(item?.context) && pendingMessageAttachment === item;
 }
 
 async function messagesAuthorizationHeaders() {
@@ -123,17 +151,24 @@ function revokeUrlsInside(node) {
   urls.forEach(revokeObjectUrl);
 }
 
-function clearPendingLocalUrl() {
-  const url = pendingMessageAttachment?.localUrl || '';
+function clearPendingLocalUrl(item = pendingMessageAttachment) {
+  const url = item?.localUrl || '';
   if (url) revokeObjectUrl(url);
+}
+
+function releaseAttachmentSend(item) {
+  if (attachmentSendOwner !== item) return;
+  attachmentSendOwner = null;
+  if (messagesMediaSend?.dataset.sending !== 'true') messagesMediaSend?.removeAttribute('aria-busy');
 }
 
 function syncAttachmentSendState() {
   if (!messagesMediaSend || !messagesMediaBody || !pendingMessageAttachment) return;
-  const blocked = messagesMediaBody.disabled;
+  const blocked = messagesMediaBody.disabled || messagesMediaSend.getAttribute('aria-busy') === 'true';
   const ready = pendingMessageAttachment.status === 'ready' && Boolean(pendingMessageAttachment.id);
   const lengthOkay = messagesMediaBody.value.trim().length <= 4000;
-  messagesMediaSend.disabled = blocked || !ready || !lengthOkay;
+  const disabled = blocked || !ready || !lengthOkay;
+  if (messagesMediaSend.disabled !== disabled) messagesMediaSend.disabled = disabled;
 }
 
 function resetTextComposerState() {
@@ -206,7 +241,7 @@ function createPendingPreview() {
   remove.setAttribute('aria-label', 'Remove attachment');
   remove.title = 'Remove attachment';
   remove.append(svgIcon(['M6 6l12 12', 'M18 6 6 18']));
-  remove.addEventListener('click', () => void clearPendingAttachment({ remote: true }));
+  remove.addEventListener('click', () => void clearPendingAttachment({ remote: true, item }));
 
   card.append(visual, copy, remove);
   container.append(card);
@@ -223,19 +258,22 @@ async function removeRemotePendingAttachment(id) {
   }
 }
 
-async function clearPendingAttachment({ remote = false } = {}) {
-  const id = pendingMessageAttachment?.id || '';
-  clearPendingLocalUrl();
-  pendingMessageAttachment = null;
-  createPendingPreview();
-  resetTextComposerState();
-  if (remote && id) await removeRemotePendingAttachment(id);
+async function clearPendingAttachment({ remote = false, item = pendingMessageAttachment } = {}) {
+  if (!item) return;
+  clearPendingLocalUrl(item);
+  if (pendingMessageAttachment === item) {
+    pendingMessageAttachment = null;
+    releaseAttachmentSend(item);
+    createPendingPreview();
+    resetTextComposerState();
+  }
+  if (remote && item.id && item.status !== 'sent') await removeRemotePendingAttachment(item.id);
 }
 
 async function uploadMessageAttachment(file, kind, durationMs = 0) {
   if (!file || !messagesMediaComposer) return;
-  const conversationId = conversationIdFromLocation();
-  if (!conversationId) {
+  const context = syncMessageMediaContext();
+  if (!context) {
     setMessagesMediaMessage('Open a conversation before adding an attachment.');
     return;
   }
@@ -252,10 +290,10 @@ async function uploadMessageAttachment(file, kind, durationMs = 0) {
     return;
   }
 
-  if (pendingMessageAttachment) await clearPendingAttachment({ remote: true });
+  if (pendingMessageAttachment) void clearPendingAttachment({ remote: true });
   setMessagesMediaMessage('');
   const localUrl = kind === 'photo' || kind === 'voice' ? trackObjectUrl(file) : '';
-  pendingMessageAttachment = {
+  const item = {
     id: '',
     kind,
     file,
@@ -263,14 +301,17 @@ async function uploadMessageAttachment(file, kind, durationMs = 0) {
     localUrl,
     status: 'uploading',
     error: '',
+    context,
   };
+  pendingMessageAttachment = item;
   createPendingPreview();
 
   try {
     const auth = await messagesAuthorizationHeaders();
+    if (!isCurrentPendingAttachment(item)) return;
     const headers = new Headers(auth);
     headers.set('Content-Type', type);
-    headers.set('X-Sauti-Conversation-ID', conversationId);
+    headers.set('X-Sauti-Conversation-ID', context.conversationId);
     headers.set('X-Sauti-Media-Kind', kind);
     headers.set('X-Sauti-File-Name', encodeURIComponent(file.name || `${kind}-message`));
     headers.set('X-Sauti-Size-Bytes', String(file.size));
@@ -286,20 +327,20 @@ async function uploadMessageAttachment(file, kind, durationMs = 0) {
       throw new Error(payload?.error?.message || 'The attachment could not be uploaded.');
     }
 
-    if (!pendingMessageAttachment || pendingMessageAttachment.file !== file) {
+    if (!isCurrentPendingAttachment(item)) {
       await removeRemotePendingAttachment(payload.data.id);
       return;
     }
-    pendingMessageAttachment.id = payload.data.id;
-    pendingMessageAttachment.remote = payload.data;
-    pendingMessageAttachment.status = 'ready';
+    item.id = payload.data.id;
+    item.remote = payload.data;
+    item.status = 'ready';
     createPendingPreview();
   } catch (error) {
-    if (!pendingMessageAttachment || pendingMessageAttachment.file !== file) return;
-    pendingMessageAttachment.status = 'error';
-    pendingMessageAttachment.error = String(error?.message || 'The attachment could not be uploaded.');
+    if (!isCurrentPendingAttachment(item)) return;
+    item.status = 'error';
+    item.error = String(error?.message || 'The attachment could not be uploaded.');
     createPendingPreview();
-    setMessagesMediaMessage(pendingMessageAttachment.error);
+    setMessagesMediaMessage(item.error);
   }
 }
 
@@ -358,7 +399,8 @@ function renderRecordingState() {
 }
 
 function finishVoiceRecording(recording) {
-  if (!recording || recording.cancelled || !recording.chunks.length) return;
+  if (!recording || recording.cancelled || !recording.chunks.length
+    || !isMessageMediaContextCurrent(recording.context)) return;
   const mimeType = String(recording.recorder.mimeType || recording.mimeType || 'audio/webm').split(';')[0].toLowerCase();
   const durationMs = Math.min(DM_VOICE_MAX_MS, Math.max(0, Date.now() - recording.startedAt));
   const blob = new Blob(recording.chunks, { type: mimeType });
@@ -387,6 +429,8 @@ function stopVoiceRecording(cancelled = false) {
 }
 
 async function startVoiceRecording() {
+  const context = syncMessageMediaContext();
+  if (!context) return;
   if (pendingMessageAttachment || activeVoiceRecording) {
     if (activeVoiceRecording) stopVoiceRecording(false);
     return;
@@ -408,6 +452,10 @@ async function startVoiceRecording() {
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       video: false,
     });
+    if (!isMessageMediaContextCurrent(context)) {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
     const recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 64000 });
     const recording = {
       recorder,
@@ -418,12 +466,14 @@ async function startVoiceRecording() {
       tickTimer: 0,
       limitTimer: 0,
       cancelled: false,
+      context,
     };
     recorder.addEventListener('dataavailable', (event) => {
       if (event.data?.size) recording.chunks.push(event.data);
     });
     recorder.addEventListener('stop', () => finishVoiceRecording(recording), { once: true });
     recorder.addEventListener('error', () => {
+      if (activeVoiceRecording !== recording || !isMessageMediaContextCurrent(context)) return;
       setMessagesMediaMessage('Voice recording stopped unexpectedly. Try again.');
       stopVoiceRecording(true);
     }, { once: true });
@@ -434,6 +484,7 @@ async function startVoiceRecording() {
     recording.limitTimer = window.setTimeout(() => stopVoiceRecording(false), DM_VOICE_MAX_MS);
     renderRecordingState();
   } catch (error) {
+    if (!isMessageMediaContextCurrent(context)) return;
     const denied = String(error?.name || '') === 'NotAllowedError';
     setMessagesMediaMessage(denied
       ? 'Microphone permission is required to record a voice note.'
@@ -443,19 +494,19 @@ async function startVoiceRecording() {
 
 async function sendPendingAttachment(event) {
   if (!pendingMessageAttachment) return;
+  const item = pendingMessageAttachment;
   event.preventDefault();
   event.stopImmediatePropagation();
-  if (pendingMessageAttachment.status !== 'ready' || !pendingMessageAttachment.id) {
+  // Consume a stale attachment submit rather than falling through to text sending.
+  if (!isCurrentPendingAttachment(item)) return;
+  if (item.sending) return;
+  if (item.status !== 'ready' || !item.id) {
     setMessagesMediaMessage('Finish uploading the attachment before sending.');
     return;
   }
 
-  const conversationId = conversationIdFromLocation();
-  if (!conversationId) {
-    setMessagesMediaMessage('Open the conversation again before sending.');
-    return;
-  }
-  const body = messagesMediaBody?.value.trim() || '';
+  const draft = messagesMediaBody?.value || '';
+  const body = draft.trim();
   if (body.length > 4000) {
     setMessagesMediaMessage('Keep messages within 4,000 characters.');
     return;
@@ -463,28 +514,36 @@ async function sendPendingAttachment(event) {
 
   messagesMediaSend.disabled = true;
   messagesMediaSend.setAttribute('aria-busy', 'true');
+  item.sending = true;
+  attachmentSendOwner = item;
   setMessagesMediaMessage('');
   try {
     const headers = new Headers(await messagesAuthorizationHeaders());
+    if (!isCurrentPendingAttachment(item)) return;
     headers.set('Content-Type', 'application/json');
-    const response = await fetch(`/api/dm-media/send/${encodeURIComponent(pendingMessageAttachment.id)}`, {
+    const response = await fetch(`/api/dm-media/send/${encodeURIComponent(item.id)}`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ conversation_id: conversationId, body }),
+      body: JSON.stringify({ conversation_id: item.context.conversationId, body }),
     });
     const payload = await response.json().catch(() => null);
+    if (!isCurrentPendingAttachment(item)) return;
     if (!response.ok) throw new Error(payload?.error?.message || 'The attachment could not be sent.');
 
-    clearPendingLocalUrl();
-    pendingMessageAttachment = null;
-    createPendingPreview();
-    if (messagesMediaBody) messagesMediaBody.value = '';
+    item.status = 'sent';
+    void clearPendingAttachment({ item });
+    if (messagesMediaBody && messagesMediaBody.value === draft) messagesMediaBody.value = '';
     resetTextComposerState();
   } catch (error) {
+    if (!isCurrentPendingAttachment(item)) return;
     setMessagesMediaMessage(String(error?.message || 'The attachment could not be sent.'));
     syncAttachmentSendState();
   } finally {
-    messagesMediaSend.removeAttribute('aria-busy');
+    item.sending = false;
+    if (attachmentSendOwner === item && isMessageMediaContextCurrent(item.context)) {
+      releaseAttachmentSend(item);
+      syncAttachmentSendState();
+    }
   }
 }
 
@@ -504,6 +563,7 @@ async function loadPhotoNode(figure, attachment) {
   figure.dataset.loading = 'true';
   try {
     const blob = await protectedMediaBlob(attachment);
+    if (!figure.isConnected) return;
     const url = trackObjectUrl(blob);
     const image = document.createElement('img');
     image.src = url;
@@ -558,6 +618,7 @@ function renderVoiceAttachment(attachment) {
     label.textContent = 'Loading voice note…';
     try {
       const blob = await protectedMediaBlob(attachment);
+      if (!wrapper.isConnected) return;
       const url = trackObjectUrl(blob);
       const audio = document.createElement('audio');
       audio.controls = true;
@@ -640,6 +701,7 @@ async function hydrateThreadAttachments() {
     const attachments = Array.isArray(payload?.data?.attachments) ? payload.data.attachments : [];
     const byMessage = new Map(attachments.map((attachment) => [String(attachment.message_id), attachment]));
     cards.forEach((card) => {
+      if (!card.isConnected || !messagesMediaFeed.contains(card)) return;
       const attachment = byMessage.get(String(card.dataset.messageId || ''));
       if (attachment) decorateMessageCard(card, attachment);
       card.dataset.dmMediaChecked = 'true';
@@ -728,19 +790,32 @@ function initializeMessagesMediaUi() {
 
   if (messagesMediaFeed) {
     new MutationObserver((records) => {
-      records.forEach((record) => record.removedNodes.forEach(revokeUrlsInside));
+      syncMessageMediaContext();
+      // A keyed timeline can move a live node without disposing its media.
+      records.forEach((record) => record.removedNodes.forEach((node) => {
+        if (!node.isConnected) revokeUrlsInside(node);
+      }));
       queueThreadAttachmentHydration();
     }).observe(messagesMediaFeed, { childList: true, subtree: false });
   }
 
   new MutationObserver(() => {
+    syncMessageMediaContext();
     if ((messagesMediaSurface.hidden || document.getElementById('message-thread')?.hidden) && activeVoiceRecording) {
       stopVoiceRecording(true);
     }
     updateAttachmentControls();
   }).observe(messagesMediaSurface, { attributes: true, subtree: true, attributeFilter: ['hidden'] });
 
-  window.addEventListener('popstate', queueThreadAttachmentHydration);
+  new MutationObserver(() => {
+    syncMessageMediaContext();
+    updateAttachmentControls();
+  }).observe(messagesMediaBody, { attributes: true, attributeFilter: ['disabled'] });
+
+  window.addEventListener('popstate', () => {
+    syncMessageMediaContext();
+    queueThreadAttachmentHydration();
+  });
   window.addEventListener('beforeunload', () => {
     hydratedMediaUrls.forEach((url) => URL.revokeObjectURL(url));
     hydratedMediaUrls.clear();

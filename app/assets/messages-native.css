@@ -1,0 +1,649 @@
+/* Native app parity for the member Messages surface. Loaded after the legacy
+   presentation layers; routes, transport and personal appearance stay intact. */
+body:not(.auth-entry):has(#member-view:not([hidden])):has(#messages-surface:not([hidden])) {
+  height: 100dvh;
+  min-height: 0;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui {
+  --message-brand: #0068df;
+  --message-brand-hover: #005bc4;
+  --message-ios-incoming: var(--ios-surface, #fff);
+  --message-ios-incoming-text: var(--ios-ink, #1c1c1e);
+  --message-ios-outgoing: #0068df;
+  --message-ios-outgoing-text: #fff;
+  --message-ios-meta: var(--ios-muted, #686873);
+  --message-ios-outgoing-meta: rgba(255, 255, 255, .8);
+  --message-ios-read: rgba(255, 255, 255, .9);
+  min-width: 0;
+  min-height: 0;
+  height: var(--messages-shell-height, calc(100dvh - 82px - env(safe-area-inset-bottom)));
+  max-height: var(--messages-shell-height, calc(100dvh - 82px - env(safe-area-inset-bottom)));
+  margin: 0;
+  padding: 0;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .messages-wa-shell {
+  display: grid;
+  grid-template-columns: minmax(280px, 32%) minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: none;
+  overflow: hidden;
+  border: 1px solid var(--ios-line);
+  border-radius: 20px;
+  background: var(--ios-surface);
+  box-shadow: none;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui :is(.messages-wa-sidebar, .messages-wa-stage, .message-thread) {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-thread:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui :is(.messages-toolbar, .message-thread-header) {
+  flex: 0 0 auto;
+  min-height: 64px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--ios-line);
+  border-radius: 0;
+  background: var(--ios-surface);
+  box-shadow: none;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .messages-toolbar h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -.035em;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui :is(.messages-wa-app-back, .messages-wa-menu-button) {
+  min-width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ios-ink);
+  box-shadow: none;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .messages-wa-app-back-label {
+  font-size: 13px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui :is(.messages-wa-menu-button:hover, .messages-wa-app-back:hover, .messages-wa-thread-menu > summary:hover) {
+  background: var(--ios-secondary);
+  box-shadow: none;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui :is(button, summary, .dm-message):focus-visible {
+  outline: 2px solid var(--ios-blue, #0068df);
+  outline-offset: 2px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .messages-search {
+  flex: 0 0 auto;
+  padding: 10px 14px 12px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui #messages-search {
+  min-height: 44px;
+  height: 44px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .messages-inbox {
+  min-height: 0;
+  flex: 1 1 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-inbox-item {
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  min-height: 80px;
+  gap: 11px;
+  padding: 12px 14px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-inbox-item::after {
+  left: 73px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-inbox-avatar {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui :is(.message-inbox-top strong, .message-inbox-top .verified-name) {
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -.015em;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-inbox-preview {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-inbox-meta {
+  min-width: 32px;
+  gap: 7px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-inbox-meta b {
+  min-width: 20px;
+  height: 20px;
+  background: var(--message-brand);
+  color: #fff;
+  font-size: 10px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .messages-wa-list-end {
+  padding: 26px 14px 20px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .messages-wa-placeholder {
+  min-height: 0;
+  padding: 30px;
+  border-bottom: 0;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui #message-thread-avatar {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui #message-thread-name {
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -.015em;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui :is(#message-thread-username, .message-thread-activity) {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-thread-person > span:last-child {
+  min-width: 0;
+  gap: 2px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .messages-wa-thread-menu > summary {
+  width: 44px;
+  height: 44px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-thread-controls {
+  top: calc(100% + 5px);
+  width: min(240px, calc(100vw - 30px));
+  max-height: min(360px, 60dvh);
+  overflow-y: auto;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-thread-controls .secondary-action {
+  min-height: 44px;
+  font-size: 13px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-safety-note {
+  flex: 0 0 auto;
+  max-width: 600px;
+  margin: 6px 12px;
+  padding: 4px 8px;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-thread-feed {
+  min-width: 0;
+  min-height: 0;
+  max-height: none;
+  flex: 1 1 0;
+  gap: 6px;
+  padding: 14px 16px;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scroll-behavior: auto;
+}
+
+/* A single content column keeps quotes, attachments and receipts in order.
+   The old body/metadata grid let newly hydrated media change columns. */
+#member-view #messages-surface.messages-whatsapp-ui .dm-message {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  width: fit-content;
+  max-width: min(82%, 360px);
+  gap: 4px;
+  padding: 8px 11px 7px;
+  border: 0;
+  border-radius: 20px 20px 20px 6px;
+  background: var(--message-ios-incoming);
+  color: var(--message-ios-incoming-text);
+  box-shadow: none;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message.incoming {
+  align-self: flex-start;
+  border-radius: 20px 20px 20px 6px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message.own {
+  align-self: flex-end;
+  border-radius: 20px 20px 6px 20px;
+  background: var(--message-ios-outgoing);
+  color: var(--message-ios-outgoing-text);
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message > p {
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  color: inherit;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message > .dm-message-meta {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 14px;
+  align-self: flex-end;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: 0;
+  color: var(--message-ios-meta);
+  font-size: 10px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: normal;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message .dm-message-meta :is(time, small) {
+  color: inherit;
+  font-size: inherit;
+  white-space: nowrap;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message.own > .dm-message-meta {
+  color: var(--message-ios-outgoing-meta);
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message .dm-read-receipt {
+  margin-left: 1px;
+  color: var(--message-ios-read);
+  font-size: 12px;
+  line-height: 1;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message.own a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message.deleted > p {
+  color: inherit;
+  font-style: italic;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message:not(.reply-swipe-active)::after {
+  content: none;
+}
+
+/* Preserve the reply gesture indicator without reusing a triangular tail. */
+#member-view #messages-surface.messages-whatsapp-ui .dm-message.reply-swipe-active::after {
+  top: 50%;
+  right: -40px;
+  bottom: auto;
+  left: auto;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--ios-line);
+  border-radius: 50%;
+  background: var(--ios-surface);
+  color: var(--ios-blue);
+  clip-path: none;
+  content: "↩";
+  opacity: 1;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message > .dm-reply-context {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  flex: 0 0 auto;
+  margin: 0 0 2px;
+  padding: 7px 8px;
+  border-left-color: var(--ios-blue);
+  background: color-mix(in srgb, var(--ios-blue) 8%, var(--ios-surface));
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message.own > .dm-reply-context {
+  border-left-color: rgba(255, 255, 255, .85);
+  background: rgba(255, 255, 255, .13);
+  color: #fff;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-reply-context :is(strong, span) {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message.own .dm-reply-context :is(strong, span) {
+  color: inherit;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message:has(> .dm-media-card) {
+  width: min(82%, 340px);
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-media-card {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+}
+
+/* Match the app's stable thumbnail frame before and after the protected image
+   loads. The original image remains intact and is fitted without cropping. */
+#member-view #messages-surface.messages-whatsapp-ui .dm-media-photo {
+  min-width: 0;
+  min-height: 0;
+  height: 218px;
+  max-height: none;
+  border-radius: 12px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-media-photo img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-media-voice audio {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message-edit-form {
+  min-width: 0;
+  width: min(260px, 100%);
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-message-edit-form textarea {
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .dm-day-separator {
+  flex: 0 0 auto;
+  margin: 9px 0;
+  padding: 5px 12px;
+  border-radius: 15px;
+  background: var(--ios-surface);
+  font-size: 11px;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-typing-status {
+  flex: 0 0 auto;
+  min-height: 0;
+  padding: 0 16px 6px;
+  background: var(--messages-wallpaper-color);
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-composer {
+  min-width: 0;
+  flex: 0 0 auto;
+  grid-template-columns: auto minmax(0, 1fr) 44px;
+  align-items: end;
+  gap: 5px 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--ios-line);
+  background: var(--ios-surface);
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-media-controls {
+  align-self: end;
+  gap: 0;
+  min-height: 44px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-media-control {
+  width: 36px;
+  height: 44px;
+  color: var(--ios-muted);
+}
+
+#member-view #messages-surface.messages-whatsapp-ui #message-body {
+  min-width: 0;
+  min-height: 44px;
+  max-height: min(132px, 28dvh);
+  padding: 11px 13px;
+  overflow-y: auto;
+  border: 1px solid var(--ios-line);
+  border-radius: 23px;
+  background: var(--ios-secondary);
+  color: var(--ios-ink);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-composer-actions {
+  align-self: end;
+  flex-direction: row;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui #message-send {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--message-brand);
+  color: #fff;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui #message-send:disabled {
+  background: var(--ios-secondary);
+  color: var(--ios-muted);
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-composer-meta {
+  min-width: 0;
+  min-height: 12px;
+  gap: 8px;
+  padding: 0 3px;
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-composer-meta > :last-child {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-composer .composer-message {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui :is(.message-reply-preview, .message-attachment-preview, .message-recording-state) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui .message-reply-preview-copy :is(strong, span) {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+/* Keep every saved shape choice, after the default native geometry above. */
+#member-view #messages-surface.messages-whatsapp-ui[data-messages-bubbles="rounded"] .dm-message {
+  padding: 9px 13px;
+  border-radius: 22px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui[data-messages-bubbles="compact"] .message-thread-feed {
+  gap: 3px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui[data-messages-bubbles="compact"] .dm-message {
+  padding: 5px 8px;
+  border-radius: 8px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui[data-messages-bubbles="square"] .dm-message {
+  border-radius: 4px;
+}
+
+#member-view #messages-surface.messages-whatsapp-ui[data-messages-bubbles="outline"] .dm-message {
+  border: 1px solid var(--ios-line);
+  border-radius: 14px;
+}
+
+@media (min-width: 901px) {
+  #member-view #messages-surface.messages-whatsapp-ui .messages-wa-sidebar {
+    display: flex;
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui:has(#message-thread:not([hidden])) #messages-inbox[hidden] {
+    display: block !important;
+  }
+}
+
+/* The focused app layout also avoids an unusably narrow chat on small tablets. */
+@media (max-width: 900px) {
+  #member-view #messages-surface.messages-whatsapp-ui .messages-wa-shell {
+    display: block;
+    border: 0;
+    border-radius: 0;
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui .messages-wa-sidebar {
+    display: flex;
+    width: 100%;
+    border-right: 0;
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui .messages-wa-stage {
+    display: none;
+    width: 100%;
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui:has(#message-thread:not([hidden])) .messages-wa-sidebar {
+    display: none;
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui:has(#message-thread:not([hidden])) .messages-wa-stage {
+    display: flex;
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui .messages-wa-placeholder {
+    display: none;
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui .messages-wa-app-back {
+    position: absolute;
+    top: 50%;
+    left: 6px;
+    display: inline-flex;
+    min-width: 62px;
+    gap: 0;
+    padding: 0 6px 0 0;
+    transform: translateY(-50%);
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui .messages-wa-title-row {
+    max-width: calc(100% - 148px);
+    gap: 7px;
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui #message-thread-back {
+    display: inline-flex;
+    min-width: 36px;
+    width: auto;
+    height: 44px;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 2px 0 0;
+    color: var(--ios-blue);
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui :is(.messages-toolbar, .message-thread-header) {
+    min-height: 62px;
+    gap: 5px;
+    padding: 7px 10px;
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui .message-thread-feed {
+    padding: 12px;
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui .dm-message {
+    max-width: min(84%, 320px);
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui .dm-message:has(> .dm-media-card) {
+    width: min(84%, 320px);
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui .message-composer {
+    padding: 7px 8px;
+  }
+}
+
+@media (max-width: 360px) {
+  #member-view #messages-surface.messages-whatsapp-ui .messages-toolbar h2 {
+    font-size: 20px;
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui .message-media-control {
+    width: 30px;
+  }
+
+  #member-view #messages-surface.messages-whatsapp-ui .message-composer {
+    column-gap: 4px;
+    padding-inline: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #member-view #messages-surface.messages-whatsapp-ui .message-thread-feed {
+    scroll-behavior: auto;
+  }
+}
