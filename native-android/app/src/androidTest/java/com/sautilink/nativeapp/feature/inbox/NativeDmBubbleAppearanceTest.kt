@@ -185,10 +185,11 @@ class NativeDmBubbleAppearanceTest {
         compose.onNodeWithText("Poa").assertIsDisplayed()
         compose.onNodeWithContentDescription("Seen").assertIsDisplayed()
         compose.onNodeWithText("Attachment caption").assertIsDisplayed()
+        // Capture the resting appearance before gesture tests create a pressed-state ripple.
+        savePreview()
         compose.onNodeWithText("Quoted message").performClick()
         compose.onNodeWithTag("received-message").performTouchInput { longClick() }
         compose.runOnIdle { assertEquals(1, replyOpened); assertEquals(1, selected) }
-        savePreview()
     }
 
     private fun savePreview() {
