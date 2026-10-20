@@ -1,0 +1,472 @@
+/* Member Menu parity with the native app. Existing buttons, protected actions
+   and links keep their original owners; this layer changes presentation only. */
+body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface {
+  min-width: 0;
+  padding: 8px 18px 30px;
+  background: var(--ios-bg);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-page-sidebar.primary-rail {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-native-page {
+  position: static;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  max-height: none;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+  overflow: visible;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-native-grid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .menu-native-section-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 3px 0;
+  color: var(--ios-ink);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.4;
+  letter-spacing: -.01em;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .menu-native-section-heading > svg {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 21px;
+  fill: none;
+  stroke: currentColor;
+  color: var(--ios-blue);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .menu-native-tile {
+  --menu-icon-ink: var(--ios-blue);
+  --menu-icon-fill: var(--ios-blue-soft);
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 84px;
+  align-items: center;
+  justify-content: flex-start;
+  justify-self: stretch;
+  gap: 10px;
+  margin: 0;
+  padding: 13px 12px;
+  border: 1px solid var(--ios-line);
+  border-radius: 18px;
+  background: var(--ios-surface);
+  color: var(--ios-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background-color .15s ease, transform .12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .menu-native-tile[data-menu-tone="purple"] {
+  --menu-icon-ink: #7961d8;
+  --menu-icon-fill: rgba(121, 97, 216, .1);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .menu-native-tile[data-menu-tone="green"] {
+  --menu-icon-ink: #218b72;
+  --menu-icon-fill: rgba(33, 139, 114, .1);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .menu-native-tile[data-menu-tone="orange"] {
+  --menu-icon-ink: #d57838;
+  --menu-icon-fill: rgba(213, 120, 56, .1);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .menu-native-tile > svg:first-child {
+  display: block;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  margin: 0;
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--menu-icon-fill);
+  color: var(--menu-icon-ink);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .menu-native-tile > span:not(.notification-badge):not(.mobile-notification-badge) {
+  position: static;
+  display: block;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-native-tile .notification-badge {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: #0068df;
+  color: #fff;
+  font-size: 10px;
+  line-height: 18px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .menu-native-tile:hover {
+  background: var(--ios-secondary);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .menu-native-tile:active {
+  transform: scale(.975);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) :is(button, a):focus-visible {
+  outline: 2px solid var(--ios-blue);
+  outline-offset: 3px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-native-profile {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 82px;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--ios-line);
+  border-radius: 20px;
+  background: var(--ios-surface);
+  color: var(--ios-ink);
+  text-align: left;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-native-profile > span {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  white-space: normal;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-native-profile > .avatar {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-native-profile .rail-account-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 3px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-native-profile .rail-account-copy strong {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .verification-badge {
+  --verification-badge-size: 18px;
+  display: inline-flex;
+  width: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  max-height: 18px;
+  flex: 0 0 18px;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .verification-badge :is([data-verification-badge-image], svg) {
+  display: block;
+  width: 18px;
+  max-width: 18px;
+  height: 18px;
+  max-height: 18px;
+  flex: 0 0 18px;
+  padding: 0;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-native-profile .rail-account-copy small {
+  color: var(--ios-muted);
+  font-size: 12px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-native-profile-chevron {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  color: var(--ios-muted);
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-native-profile-chevron svg {
+  width: 22px;
+  height: 22px;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .menu-native-signout {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin: 8px 0 0;
+  padding: 12px;
+  border: 1px solid var(--ios-line);
+  border-radius: 16px;
+  background: var(--ios-surface);
+  color: var(--ios-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (max-width: 680px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface {
+    padding: 8px 14px 26px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    width: 100%;
+    max-width: none;
+    gap: 10px;
+    padding: 0 14px max(26px, env(safe-area-inset-bottom));
+    border: 0;
+    border-radius: 0;
+    background: var(--ios-bg);
+    color: var(--ios-ink);
+    box-shadow: none;
+    transform: translateX(-100%);
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer.is-open {
+    transform: translateX(0);
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .sauti-mobile-drawer-head {
+    position: sticky;
+    z-index: 2;
+    top: 0;
+    min-height: 66px;
+    flex: 0 0 auto;
+    gap: 8px;
+    margin: 0 -14px;
+    padding: max(5px, env(safe-area-inset-top)) 8px 5px;
+    background: var(--ios-bg);
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .sauti-mobile-drawer-head > strong {
+    flex: 1;
+    font-size: 27px;
+    font-weight: 700;
+    letter-spacing: -.025em;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer :is(.sauti-mobile-drawer-close, .sauti-mobile-drawer-back) {
+    display: grid;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: inherit;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .sauti-mobile-drawer-profile {
+    display: flex;
+    min-height: 82px;
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--ios-line);
+    border-radius: 20px;
+    background: var(--ios-surface);
+    text-align: left;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .sauti-mobile-drawer-avatar {
+    width: 46px;
+    height: 46px;
+    flex: 0 0 46px;
+    border: 1px solid var(--ios-line);
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .sauti-mobile-drawer-profile-copy {
+    min-width: 0;
+    flex: 1;
+    align-items: start;
+    text-align: left;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .sauti-mobile-drawer-profile-copy > strong {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 5px;
+    font-size: 16px;
+    font-weight: 650;
+    line-height: 1.3;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .sauti-mobile-drawer-member-status {
+    display: none;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .sauti-mobile-drawer-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 0;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .sauti-mobile-drawer-nav .menu-native-tile strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .menu-native-tile small {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer :is(.sauti-mobile-drawer-chevron, .sauti-mobile-drawer-settings-chevron) {
+    display: none;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .sauti-mobile-drawer-settings-group {
+    display: contents;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .sauti-mobile-drawer-settings-panel {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 10px;
+    border: 1px solid var(--ios-line);
+    border-radius: 18px;
+    background: var(--ios-secondary);
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .sauti-mobile-drawer-settings-panel > .menu-native-tile {
+    min-height: 68px;
+    padding: 9px;
+    gap: 7px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer :is(.menu-native-products-heading, .sauti-mobile-drawer-verification-message) {
+    grid-column: 1 / -1;
+    margin-top: 12px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .sauti-mobile-drawer-signout {
+    justify-content: center;
+    min-height: 52px;
+    flex: 0 0 auto;
+    border: 1px solid var(--ios-line);
+    background: var(--ios-surface);
+    border-radius: 16px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .sauti-mobile-drawer-spacer {
+    display: none;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-mobile-more-drawer .menu-native-verified {
+    color: var(--ios-muted);
+  }
+}
+
+@media (max-width: 360px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .menu-native-tile {
+    gap: 7px;
+    padding: 11px 9px;
+    font-size: 12px;
+  }
+
+  body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .menu-native-tile > svg:first-child {
+    width: 33px;
+    height: 33px;
+    flex-basis: 33px;
+    padding: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) :is(#menu-surface, #sauti-mobile-more-drawer) .menu-native-tile {
+    transition: none;
+  }
+}

@@ -21,11 +21,13 @@ test('mobile More drawer delegates to existing SautiLink actions', async () => {
   assert.match(source, /href="\/community-guidelines"/);
   assert.match(source, /href="\/upload-guidelines"/);
   assert.match(source, /href="\/contact"/);
-  assert.match(source, />Other SautiLink Systems<\/p>/);
+  assert.match(source, /Other SautiLink Products<\/h2>/);
   assert.match(source, /href="https:\/\/cloudengine\.sautilink\.com" target="_blank" rel="noopener noreferrer"/);
   assert.match(source, /href="https:\/\/router\.sautilink\.com" target="_blank" rel="noopener noreferrer"/);
-  assert.match(source, />Router Setup Gateway<\/strong>/);
-  assert.doesNotMatch(source, /data-mobile-drawer-view="(?:stream|discover|messages|notifications|circles)"/);
+  assert.match(source, />Router Setup<\/strong>/);
+  assert.match(source, /data-mobile-drawer-view="circles"/);
+  assert.match(source, /data-mobile-drawer-view="notifications"/);
+  assert.doesNotMatch(source, /data-mobile-drawer-view="(?:stream|discover|messages)"/);
   assert.doesNotMatch(source, /supabase|fetch\(|XMLHttpRequest|WebSocket/i);
 });
 

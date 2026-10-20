@@ -29,6 +29,17 @@ the same metadata/about DOM while idle. Frame-coalesced layout prepares the
 current Room without the old 90ms presentation delay. Existing post/member,
 moderation, invitation, creation and privacy tools remain present.
 
+Live verification additionally corrected the About card to read actual Room
+privacy independently of join policy. Unknown/loading metadata stays neutral.
+Repeated legacy branding leaves the enhanced Back icon and its action intact.
+
+The web Menu follows the native app's profile card and grouped icon tiles, on
+both the mobile overlay and dedicated Menu page. The refreshed presentation
+retains existing routes, settings sections, theme controls, verification,
+moderation gating, support/legal links, other SautiLink products and sign out.
+Its final stylesheet is available before navigation. Existing action handlers
+continue to own navigation and account behavior.
+
 Scope is browser presentation, async client UI lifecycle and regression tests.
 Backend handlers, RPC/query contracts, database, auth implementation, native app,
 deployment settings and environment variables are unchanged. The feature cache
