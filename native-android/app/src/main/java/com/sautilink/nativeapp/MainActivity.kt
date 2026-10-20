@@ -34,6 +34,7 @@ import com.sautilink.nativeapp.feature.safety.NativeAppealsScreen
 import com.sautilink.nativeapp.feature.verification.NativeVerificationScreen
 import com.sautilink.nativeapp.feature.home.NativePlaybackPreferences
 import com.sautilink.nativeapp.feature.home.StagingFeedScreen
+import com.sautilink.nativeapp.feature.home.StagingFeedClient
 import com.sautilink.nativeapp.feature.home.NativePostDetailScreen
 import com.sautilink.nativeapp.feature.inbox.InboxScreen
 import com.sautilink.nativeapp.feature.inbox.NativeInboxScreen
@@ -482,7 +483,17 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onOpenProfile = { profileReturn = "settings"; detail = "production-profile" },
                         onOpenNotifications = { detail = "notifications" },
                         onOpenAuth = { detail = "production-auth" },
-                        onOpenRecovery = { detail = "production-recovery" }
+                        onOpenRecovery = { detail = "production-recovery" },
+                        onVerificationRemoved = { ownerId ->
+                            // Only a confirmed removal for the still-active owner may update
+                            // local identity. Other profiles and later server reviews stay authoritative.
+                            if (productionAuth.account?.id == ownerId) {
+                                menuProfile = menuProfile?.takeIf { it.id == ownerId }?.copy(
+                                    verified = false, badgeType = "standard", verifiedSince = "")
+                                StagingFeedClient(productionAuth).confirmOwnVerificationRemoved(ownerId)
+                                postsRefresh++
+                            }
+                        }
                     )
                     "verification" -> NativeVerificationScreen(
                         auth = productionAuth,

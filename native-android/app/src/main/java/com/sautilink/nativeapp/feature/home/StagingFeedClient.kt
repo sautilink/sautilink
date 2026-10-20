@@ -32,65 +32,124 @@ data class FeedMedia(val id: String, val kind: String, val position: Int,
 
 data class StagingFeedPage(val posts: List<StagingFeedPost>, val nextOffset: Int, val hasMore: Boolean)
 
+/** Memory-only, account/environment-scoped rows. This never changes server verification. */
+internal class StagingFeedCache {
+    internal data class ReadStamp(val generation: Long, val verificationRemoval: Long)
+    private data class CachedPage(val page: StagingFeedPage, val at: Long, val generation: Long)
+    private val lock = Any()
+    private val firstPages = mutableMapOf<String, CachedPage>()
+    private val generations = mutableMapOf<String, Long>()
+    private val verificationRemovals = mutableMapOf<String, Long>()
+    private fun ownerKey(backend: String, owner: String) = "$backend:$owner:"
+    private fun key(backend: String, owner: String, mode: String) = ownerKey(backend, owner) + mode
+
+    fun readStamp(backend: String, owner: String?, mode: String): ReadStamp = synchronized(lock) {
+        if (owner == null) ReadStamp(0L, 0L) else ReadStamp(
+            generations[key(backend, owner, mode)] ?: 0L,
+            verificationRemovals[ownerKey(backend, owner)] ?: 0L)
+    }
+
+    fun cached(backend: String, owner: String?, mode: String, maxAgeMs: Long,
+        now: Long = System.currentTimeMillis()): StagingFeedPage? = synchronized(lock) {
+        if (owner == null) return@synchronized null
+        firstPages[key(backend, owner, mode)]?.takeIf { now - it.at <= maxAgeMs }?.page
+    }
+
+    fun ageMs(backend: String, owner: String?, mode: String,
+        now: Long = System.currentTimeMillis()): Long? = synchronized(lock) {
+        if (owner == null) return@synchronized null
+        val cacheKey = key(backend, owner, mode)
+        firstPages[cacheKey]?.let {
+            if (it.generation != (generations[cacheKey] ?: 0L)) Long.MAX_VALUE else now - it.at
+        }
+    }
+
+    fun invalidateFollowing(backend: String, owner: String?) = synchronized(lock) {
+        if (owner == null) return@synchronized
+        val cacheKey = key(backend, owner, "following")
+        generations[cacheKey] = (generations[cacheKey] ?: 0L) + 1L
+    }
+
+    /** Call only after the server confirms this owner's removal. Keep offline rows, force revalidation. */
+    fun confirmOwnVerificationRemoved(backend: String, owner: String,
+        currentOwner: () -> String?): Boolean = synchronized(lock) {
+        if (owner.isBlank() || currentOwner() != owner) return@synchronized false
+        val prefix = ownerKey(backend, owner)
+        verificationRemovals[prefix] = (verificationRemovals[prefix] ?: 0L) + 1L
+        val modes = setOf("for_you", "following", "short_videos", "saved", "trending") +
+            firstPages.keys.filter { it.startsWith(prefix) }.map { it.removePrefix(prefix) }
+        modes.forEach { mode ->
+            val cacheKey = key(backend, owner, mode)
+            generations[cacheKey] = (generations[cacheKey] ?: 0L) + 1L
+            firstPages[cacheKey]?.let { entry ->
+                firstPages[cacheKey] = entry.copy(page = entry.page.copy(posts =
+                    entry.page.posts.map { demoteOwnPost(it, owner) }))
+            }
+        }
+        true
+    }
+
+    fun clear(backend: String) = synchronized(lock) {
+        firstPages.keys.removeAll { it.startsWith("$backend:") }
+    }
+
+    /** The same guard covers rows returned to the UI and rows committed to the cache. */
+    fun finishPage(backend: String, owner: String?, mode: String, offset: Int,
+        page: StagingFeedPage, stamp: ReadStamp, currentOwner: () -> String?,
+        now: Long = System.currentTimeMillis()): StagingFeedPage = synchronized(lock) {
+        val result = if (removalOccurred(backend, owner, stamp))
+            page.copy(posts = page.posts.map { demoteOwnPost(it, owner!!) }) else page
+        if (offset == 0 && owner != null && currentOwner() == owner &&
+            stamp.generation == (generations[key(backend, owner, mode)] ?: 0L)) {
+            firstPages.keys.removeAll { it.startsWith("$backend:") &&
+                !it.startsWith(ownerKey(backend, owner)) }
+            firstPages[key(backend, owner, mode)] = CachedPage(result, now, stamp.generation)
+        }
+        result
+    }
+
+    fun finishPost(backend: String, owner: String?, post: StagingFeedPost?,
+        stamp: ReadStamp): StagingFeedPost? = synchronized(lock) {
+        if (post != null && removalOccurred(backend, owner, stamp)) demoteOwnPost(post, owner!!) else post
+    }
+
+    private fun removalOccurred(backend: String, owner: String?, stamp: ReadStamp): Boolean =
+        owner != null && stamp.verificationRemoval != (verificationRemovals[ownerKey(backend, owner)] ?: 0L)
+
+    private fun demoteOwnPost(post: StagingFeedPost, owner: String): StagingFeedPost =
+        if (post.authorId == owner) post.copy(verified = false, badgeType = "standard") else post
+}
+
 class StagingFeedClient(private val auth: StagingAuthClient) {
     private val endpoint = auth.restOrigin
     private val uuid = Regex("^[0-9a-fA-F-]{36}$")
     private val batchSize = 15
-    private data class CachedPage(val owner: String, val page: StagingFeedPage, val at: Long,
-        val generation: Long)
     private companion object {
-        val cacheLock = Any()
-        val firstPages = mutableMapOf<String, CachedPage>()
-        val cacheGenerations = mutableMapOf<String, Long>()
+        val cache = StagingFeedCache()
     }
-    private fun key(owner: String, mode: String) = "${auth.backend.id}:$owner:$mode"
 
     /** Private, memory-only first-page cache. Account changes and sign-out invalidate it. */
-    fun cached(mode: String, maxAgeMs: Long = 5 * 60_000L): StagingFeedPage? = synchronized(cacheLock) {
-        val owner = auth.account?.id ?: return@synchronized null
-        val entry = firstPages[key(owner, mode)] ?: return@synchronized null
-        entry.page.takeIf { entry.owner == owner && System.currentTimeMillis() - entry.at <= maxAgeMs }
-    }
+    fun cached(mode: String, maxAgeMs: Long = 5 * 60_000L): StagingFeedPage? =
+        cache.cached(auth.backend.id, auth.account?.id, mode, maxAgeMs)
 
-    fun cacheAgeMs(mode: String): Long? = synchronized(cacheLock) {
-        val owner = auth.account?.id ?: return@synchronized null
-        val cacheKey = key(owner, mode)
-        firstPages[cacheKey]?.takeIf { it.owner == owner }?.let {
-            if (it.generation != (cacheGenerations[cacheKey] ?: 0L)) Long.MAX_VALUE
-            else System.currentTimeMillis() - it.at
-        }
-    }
+    fun cacheAgeMs(mode: String): Long? = cache.ageMs(auth.backend.id, auth.account?.id, mode)
 
     /** A confirmed relationship change makes only this account's Following page stale.
      * Keep recent rows for offline fallback while rejecting older in-flight cache writes. */
-    fun invalidateFollowing() = synchronized(cacheLock) {
-        val owner = auth.account?.id ?: return@synchronized
-        val cacheKey = key(owner, "following")
-        cacheGenerations[cacheKey] = (cacheGenerations[cacheKey] ?: 0L) + 1L
-    }
+    fun invalidateFollowing() = cache.invalidateFollowing(auth.backend.id, auth.account?.id)
 
-    fun clearCache() = synchronized(cacheLock) {
-        firstPages.keys.removeAll { it.startsWith("${auth.backend.id}:") }
-    }
+    fun confirmOwnVerificationRemoved(ownerId: String): Boolean =
+        cache.confirmOwnVerificationRemoved(auth.backend.id, ownerId) { auth.account?.id }
 
-    private fun rememberPage(mode: String, offset: Int, page: StagingFeedPage, owner: String?,
-        readGeneration: Long) {
-        if (offset != 0 || owner == null) return
-        synchronized(cacheLock) {
-            val cacheKey = key(owner, mode)
-            if (auth.account?.id != owner ||
-                readGeneration != (cacheGenerations[cacheKey] ?: 0L)) return@synchronized
-            firstPages.keys.removeAll { it.startsWith("${auth.backend.id}:") &&
-                !it.startsWith("${auth.backend.id}:$owner:") }
-            firstPages[cacheKey] = CachedPage(owner, page, System.currentTimeMillis(), readGeneration)
-        }
-    }
+    fun clearCache() = cache.clear(auth.backend.id)
 
     /** Resolve a notification/deep-link post through the same RLS path as the feed. */
     suspend fun loadOne(postId: String): StagingFeedPost? {
         if (!uuid.matches(postId)) throw AuthRequestException("Invalid post link.")
         val token = auth.accessTokenForStagingRead()
         return withContext(Dispatchers.IO) {
+            val owner = auth.account?.id
+            val stamp = cache.readStamp(auth.backend.id, owner, "for_you")
             val post = getJsonArray("social_posts?id=eq.$postId&select=id,author_id,circle_id,body,created_at,like_count,comment_count,repost_count,media_count&limit=1", token)
                 .optJSONObject(0) ?: return@withContext null
             val authorId = post.optString("author_id")
@@ -111,7 +170,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                 else FeedMedia(id, kind, row.optInt("position"),
                     row.optInt("width"), row.optInt("height"), row.optLong("duration_ms", 0L))
             }
-            StagingFeedPost(postId, authorId,
+            val result = StagingFeedPost(postId, authorId,
                 author?.optString("display_name")?.takeUnless { it.isBlank() || it == "null" }
                     ?: handle.ifBlank { "SautiLink member" },
                 handle, author?.optBoolean("is_verified", false) == true,
@@ -121,6 +180,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                 post.optInt("comment_count").coerceAtLeast(0), post.optInt("repost_count").coerceAtLeast(0),
                 post.optInt("media_count").coerceAtLeast(0), media,
                 author?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null)
+            cache.finishPost(auth.backend.id, owner, result, stamp)
         }
     }
 
@@ -138,9 +198,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
             // Both paths only resolve post details through social_posts RLS, so vanished / blocked posts are omitted.
             val userId = auth.account?.id?.takeIf { uuid.matches(it) }
             if (mode == "saved" && userId == null) throw AuthRequestException("Sign in to see Saved posts.")
-            val readGeneration = synchronized(cacheLock) {
-                if (userId == null) 0L else cacheGenerations[key(userId, mode)] ?: 0L
-            }
+            val stamp = cache.readStamp(auth.backend.id, userId, mode)
             val pointers = if (mode == "trending") {
                 // Public posts from the last seven days, ranked by actual reactions/comments.
                 // Collect leading candidates by several metrics, instead of privileging likes alone.
@@ -194,8 +252,8 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
             if (ids.isEmpty()) {
                 val page = StagingFeedPage(emptyList(), offset + pointers.length(),
                     pointers.length() == batchSize && (mode != "trending" || offset + pointers.length() < 20))
-                rememberPage(mode, offset, page, userId, readGeneration)
-                return@withContext page
+                return@withContext cache.finishPage(auth.backend.id, userId, mode, offset, page, stamp,
+                    { auth.account?.id })
             }
 
             val postRows = getJsonArray(
@@ -248,10 +306,9 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                     hasAvatar = a?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null
                 )
             }
-            StagingFeedPage(results, offset + pointers.length(),
-                pointers.length() == batchSize && (mode != "trending" || offset + pointers.length() < 20)).also {
-                rememberPage(mode, offset, it, userId, readGeneration)
-            }
+            val page = StagingFeedPage(results, offset + pointers.length(),
+                pointers.length() == batchSize && (mode != "trending" || offset + pointers.length() < 20))
+            cache.finishPage(auth.backend.id, userId, mode, offset, page, stamp, { auth.account?.id })
         }
     }
 
