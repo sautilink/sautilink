@@ -4,6 +4,10 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.util.Log
 import android.view.KeyEvent
+import android.view.inspector.WindowInspector
+import androidx.activity.ComponentDialog
+import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -25,6 +29,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.filters.SdkSuppress
 import com.sautilink.nativeapp.ui.theme.SautiTheme
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
@@ -103,8 +108,30 @@ class NativeVerificationRemovalUiTest {
 
     private fun confirm() = compose.onNodeWithTag("verification-removal-confirm").performClick()
 
+    @RequiresApi(29)
+    private fun activeDialog(): ComponentDialog {
+        val dialogs = WindowInspector.getGlobalWindowViews().mapNotNull {
+            it.findViewTreeOnBackPressedDispatcherOwner() as? ComponentDialog
+        }.filter { it.isShowing }.distinct()
+        assertEquals("The empty fixture must have exactly one real dialog window", 1, dialogs.size)
+        return dialogs.single()
+    }
+
+    @RequiresApi(29)
     private fun pressBack() {
-        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        // Global key injection can go to Samsung's notification shade instead of the app.
+        // Invoke the actual dialog's Android Back dispatcher, which Compose registers itself.
+        compose.runOnIdle { activeDialog().onBackPressedDispatcher.onBackPressed() }
+        compose.waitForIdle()
+    }
+
+    @RequiresApi(29)
+    private fun pressEnter() {
+        compose.runOnIdle {
+            val dialog = activeDialog()
+            dialog.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+            dialog.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
+        }
         compose.waitForIdle()
     }
 
@@ -162,6 +189,8 @@ class NativeVerificationRemovalUiTest {
         compose.runOnIdle { assertTrue(gateway.attempts.isEmpty()) }
     }
 
+    @RequiresApi(29)
+    @SdkSuppress(minSdkVersion = 29) // Public window inspection is needed only for window-targeted keys.
     @Test fun exactWarningAndKeepVerification_cancelWithoutAnyRequest_andBackIsAlsoSafe() {
         val gateway = Gateway()
         render(gateway)
@@ -178,12 +207,13 @@ class NativeVerificationRemovalUiTest {
         compose.onNodeWithTag("verification-removal-dialog").assertDoesNotExist()
         open()
         compose.onNodeWithTag("verification-removal-keep").assertIsFocused()
-        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_ENTER)
-        compose.waitForIdle()
+        pressEnter()
         compose.onNodeWithTag("verification-removal-dialog").assertDoesNotExist()
         compose.runOnIdle { assertTrue(gateway.attempts.isEmpty()); assertTrue(verified); assertTrue(removedOwners.isEmpty()) }
     }
 
+    @RequiresApi(29)
+    @SdkSuppress(minSdkVersion = 29)
     @Test fun pendingConfirmationBlocksDuplicateClicksKeepAndBack_thenConfirmedSuccessHidesSetting() {
         val gateway = Gateway()
         val reply = CompletableDeferred<NativeVerificationRemovalResult>()
