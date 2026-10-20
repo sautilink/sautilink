@@ -32,6 +32,12 @@ test('all Messages and Rooms presentation is render blocking and final layers fo
   assert.equal(appended, 0, 'eager links must not be replaced by later duplicate CSS');
 });
 
+test('new chat and Room bundles use fresh scoped URL cache keys in both builds', async () => {
+  const production = await read('scripts/build-production-release.mjs');
+  assert.match(html, /messages=20261020-native1&amp;rooms=20261020-native1/);
+  assert.match(production, /messages=20261020-native1&rooms=20261020-native1/);
+});
+
 test('visible chat uses actual viewport and navigation bounds, including keyboard-sized viewports', () => {
   const cases = [
     { height: 844, top: 0, surface: 0, navTop: 770, navHeight: 65, expected: 770 },
