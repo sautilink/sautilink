@@ -13,7 +13,7 @@ test('composer presents Photo, reels-style Video and a live Poll control', async
   assert.match(source, /document\.createTextNode\('Video'\)/);
   assert.match(source, /M4 9h16M7 4l3 5M13 4l3 5/);
   assert.match(source, /document\.createTextNode\('Poll'\)/);
-  assert.match(source, /Add 2 to 4 options/);
+  assert.match(source, /Ask your question above\. Add 2–4 choices below\./);
   assert.match(source, /SHORT_VIDEO_LIMIT_SECONDS = 60/);
   assert.match(source, /MAX_TRIMMABLE_VIDEO_SECONDS = 120/);
   assert.match(source, /promptVideoTrim/);

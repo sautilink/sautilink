@@ -611,12 +611,12 @@ function clearHomeFeedMediaState() {
     output,
     `  try {
     const url = await fetchSautiMediaBlobUrl(item.id);
-    if (!composerMedia.some((current) => current.localId === item.localId)) {`,
+    if (!composerMedia.includes(item) || item.localUrl) {`,
     `  try {
     const url = item.mediaKind === 'video'
       ? await fetchSautiVideoStreamUrl(item.id, 'original')
       : await fetchSautiMediaBlobUrl(item.id);
-    if (!composerMedia.some((current) => current.localId === item.localId)) {`,
+    if (!composerMedia.includes(item) || item.localUrl) {`,
     'the composer video streaming preview',
   );
 

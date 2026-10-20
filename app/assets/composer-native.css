@@ -1,0 +1,569 @@
+/* Native v1.1.1 presentation over the existing Web composer and media owners. */
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog {
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  border: 1px solid var(--ios-line);
+  border-radius: 24px;
+  background: var(--ios-surface);
+  color: var(--ios-ink);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-card {
+  max-height: calc(100dvh - 32px);
+  min-height: 0;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-header {
+  min-height: 64px;
+  grid-template-columns: 44px minmax(0, 1fr);
+  padding: 8px 16px;
+  background: var(--ios-surface);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-header h2 {
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.3;
+  text-align: left;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-content {
+  display: block;
+  min-height: 0;
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-body {
+  min-width: 0;
+  min-height: 0;
+  gap: 12px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-author {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 0;
+  align-items: center;
+  margin: 0 0 2px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-author #member-avatar {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  grid-row: 1 / 3;
+  font-size: 14px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-author strong {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-author > span:not(.avatar) {
+  grid-column: 2;
+  color: var(--ios-muted);
+  font-size: 11px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog[data-composer-native-ready] .composer-settings {
+  display: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-body #sauti-body {
+  width: 100%;
+  min-height: 138px;
+  max-height: 400px;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--ios-line);
+  border-radius: 16px;
+  background: var(--ios-surface);
+  color: var(--ios-ink);
+  font-size: 16px;
+  line-height: 22px;
+  letter-spacing: normal;
+  transition: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-format-bar {
+  min-width: 0;
+  min-height: 44px;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--ios-secondary);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-format-bar > span {
+  display: flex;
+  width: 100%;
+  flex: 0 0 100%;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 3px 7px;
+  color: var(--ios-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-format-bar button {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 9px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog :is(.composer-format-preview, .composer-quote-preview, .composer-poll-editor, .composer-drafts) {
+  margin: 0;
+  padding: 14px;
+  border-color: var(--ios-line);
+  border-radius: 16px;
+  background: var(--ios-secondary);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-format-preview p {
+  margin-top: 7px;
+  font-size: 16px;
+  line-height: 22px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-poll-editor {
+  min-width: 0;
+  gap: 10px;
+  padding: 14px;
+  background: var(--ios-secondary);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-poll-heading {
+  min-width: 0;
+  min-height: 36px;
+  gap: 8px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-poll-heading strong {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--ios-ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-poll-editor svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-poll-heading strong > svg {
+  color: var(--ios-blue);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-poll-note {
+  margin: -3px 0 2px;
+  color: var(--ios-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-poll-options {
+  min-width: 0;
+  gap: 8px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-poll-option {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 24px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 7px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-poll-number {
+  color: var(--ios-muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-poll-option input {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--ios-line);
+  border-radius: 12px;
+  background: var(--ios-surface);
+  color: var(--ios-ink);
+  font: inherit;
+  font-size: 16px;
+  line-height: 22px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-poll-option:not(:has(button)) input {
+  grid-column: 2 / -1;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-poll-option input::placeholder {
+  color: var(--ios-muted);
+  font-size: 13px;
+  opacity: 1;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog :is(.composer-poll-remove, .composer-poll-option-remove) {
+  display: inline-flex;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ios-muted);
+  cursor: pointer;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog :is(.composer-poll-remove, .composer-poll-option-remove):hover {
+  background: var(--ios-surface);
+  color: var(--ios-ink);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-poll-actions {
+  min-width: 0;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 2px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog #sauti-poll-add-option {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--ios-blue-soft);
+  color: var(--ios-blue);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-poll-count {
+  color: var(--ios-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-upload-zone {
+  display: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-queue {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-heading {
+  margin-bottom: 8px;
+  color: var(--ios-muted);
+  font-size: 12px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-heading strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog :is(.composer-media-heading strong, .composer-format-bar > span) > svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: var(--ios-blue);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-list {
+  gap: 12px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-item {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--ios-line);
+  border-radius: 18px;
+  background: var(--ios-secondary);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-preview {
+  width: 100%;
+  height: auto;
+  min-height: 210px;
+  grid-column: 1 / -1;
+  overflow: visible;
+  border: 0;
+  border-radius: 12px;
+  background: var(--ios-surface);
+  color: var(--ios-muted);
+  font-size: 13px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-preview :is(img, video) {
+  display: block;
+  width: 100%;
+  height: 210px;
+  border-radius: 12px;
+  object-fit: contain;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-preview .sl-media-controls {
+  width: 100%;
+  border: 0;
+  background: transparent;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-copy {
+  min-width: 0;
+  gap: 6px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-copy strong {
+  color: var(--ios-ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-copy > span {
+  color: var(--ios-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-copy input {
+  min-height: 44px;
+  padding: 9px 11px;
+  border-color: var(--ios-line);
+  border-radius: 11px;
+  background: var(--ios-surface);
+  color: var(--ios-ink);
+  font-size: 16px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-actions {
+  gap: 6px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-actions button {
+  min-height: 44px;
+  padding: 7px;
+  color: var(--ios-blue);
+  font-size: 12px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-media-note {
+  margin: 9px 2px 0;
+  color: var(--ios-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #composer-native-choices {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .composer-native-choice {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .composer-native-choice legend {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--ios-ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(.composer-native-choice legend, .composer-native-chip) svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: var(--ios-blue);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .composer-native-chips {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .composer-native-chip {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 11px;
+  border: 1px solid var(--ios-line);
+  border-radius: 999px;
+  background: var(--ios-surface);
+  color: var(--ios-muted);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .composer-native-chip span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .composer-native-chip[aria-checked="true"] {
+  border-color: transparent;
+  background: var(--ios-blue-soft);
+  color: var(--ios-blue);
+  font-weight: 600;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-meta {
+  min-height: 20px;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--ios-muted);
+  font-size: 11px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-audience {
+  display: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-actions {
+  position: static;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-tools {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-tools.drag-over {
+  outline: 1px dashed var(--ios-blue);
+  outline-offset: 4px;
+  background: var(--ios-blue-soft);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-add-label {
+  display: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-tool {
+  display: inline-flex;
+  min-height: 44px;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 1px solid var(--ios-line);
+  border-radius: 12px;
+  background: var(--ios-surface);
+  color: var(--ios-blue);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: nowrap;
+  cursor: pointer;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-tool > svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .poll-tool[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--ios-blue-soft);
+  color: var(--ios-blue);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-tool.active {
+  display: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-draft-action {
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-native-publish {
+  margin-top: 2px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog #sauti-submit {
+  display: flex;
+  width: 100%;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ios-blue);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog :is(button, input, textarea):focus-visible {
+  outline: 2px solid var(--ios-blue);
+  outline-offset: 2px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog :disabled {
+  opacity: .45;
+  cursor: default;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog [hidden] {
+  display: none;
+}
+@media (max-width: 680px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog {
+    position: fixed;
+    top: var(--composer-viewport-top, 0px);
+    right: 0;
+    bottom: auto;
+    left: 0;
+    width: 100%;
+    height: var(--composer-viewport-height, 100dvh);
+    max-height: var(--composer-viewport-height, 100dvh);
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-card {
+    height: 100%;
+    max-height: 100%;
+  }
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-header {
+    padding-top: max(8px, env(safe-area-inset-top));
+  }
+  body:not(.auth-entry):has(#member-view:not([hidden])) #sauti-composer-dialog .composer-content {
+    padding: 14px 16px max(24px, env(safe-area-inset-bottom));
+  }
+}

@@ -865,27 +865,92 @@ function restoreComposerMedia(items) {
 }
 
 async function ensureComposerMediaPreview(item, host) {
-  if (!item || !host || item.localUrl || !item.id) return;
+  if (!item || !host || item.localUrl || !item.id || host.composerPreviewPending?.item === item) return;
+  const request = { item };
+  host.composerPreviewPending = request;
   try {
     const url = await fetchSautiMediaBlobUrl(item.id);
-    if (!composerMedia.some((current) => current.localId === item.localId)) {
+    if (!composerMedia.includes(item) || item.localUrl) {
       URL.revokeObjectURL(url);
       return;
     }
     item.localUrl = url;
-    const visual = item.mediaKind === 'video' ? document.createElement('video') : document.createElement('img');
-    visual.src = url;
-    if (visual instanceof HTMLVideoElement) {
-      visual.muted = true;
-      visual.playsInline = true;
-      visual.preload = 'metadata';
-    } else {
-      visual.alt = item.altText || '';
-    }
-    host.replaceChildren(visual);
+    if (host.isConnected) syncComposerMediaPreview(item, host);
   } catch {
-    host.textContent = 'Preview unavailable';
+    if (composerMedia.includes(item) && host.isConnected) host.textContent = 'Preview unavailable';
+  } finally {
+    if (host.composerPreviewPending === request) delete host.composerPreviewPending;
   }
+}
+
+function createComposerMediaPreview(item) {
+  const visual = document.createElement(item.mediaKind === 'video' ? 'video' : 'img');
+  visual.src = item.localUrl;
+  if (item.mediaKind === 'video') {
+    visual.controls = true;
+    visual.muted = true;
+    visual.playsInline = true;
+    visual.preload = 'metadata';
+    visual.setAttribute('aria-label', `Preview ${item.name || 'video'}`);
+  } else visual.alt = item.altText || '';
+  return visual;
+}
+
+function syncComposerMediaPreview(item, host) {
+  if (item.localUrl) {
+    const kind = item.mediaKind === 'video' ? 'video' : 'img';
+    const current = host.querySelector(kind);
+    if (current && host.dataset.previewUrl === item.localUrl) {
+      if (kind === 'img' && current.alt !== (item.altText || '')) current.alt = item.altText || '';
+      return;
+    }
+    host.querySelector('video')?.pause();
+    host.dataset.previewUrl = item.localUrl;
+    host.replaceChildren(createComposerMediaPreview(item));
+  } else if (item.status === 'ready' && item.id) {
+    if (host.composerPreviewPending?.item !== item) {
+      host.textContent = 'Loading…';
+      void ensureComposerMediaPreview(item, host);
+    }
+  } else {
+    const text = item.mediaKind === 'video' ? 'Video' : 'Image';
+    if (host.textContent !== text) host.textContent = text;
+  }
+}
+
+function createComposerMediaRow(item) {
+  const row = document.createElement('article');
+  row.dataset.mediaLocalId = item.localId;
+  const preview = document.createElement('div');
+  preview.className = 'composer-media-preview';
+  const copy = document.createElement('div');
+  copy.className = 'composer-media-copy';
+  const name = document.createElement('strong');
+  const status = document.createElement('span');
+  status.setAttribute('role', 'status');
+  const alt = document.createElement('input');
+  alt.type = 'text';
+  alt.maxLength = 1000;
+  alt.placeholder = 'Describe this media (alt text)';
+  alt.dataset.mediaAlt = item.localId;
+  const progress = document.createElement('progress');
+  progress.max = 100;
+  copy.append(name, status, alt, progress);
+  const actions = document.createElement('div');
+  actions.className = 'composer-media-actions';
+  const retry = document.createElement('button');
+  retry.type = 'button';
+  retry.className = 'text-action';
+  retry.dataset.mediaRetry = item.localId;
+  retry.textContent = 'Retry';
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'text-action';
+  remove.dataset.mediaRemove = item.localId;
+  remove.textContent = 'Remove';
+  actions.append(retry, remove);
+  row.append(preview, copy, actions);
+  return row;
 }
 
 function renderComposerMedia() {
@@ -896,77 +961,30 @@ function renderComposerMedia() {
 
   panel.hidden = composerMedia.length === 0;
   count.textContent = `${composerMedia.length} / 4`;
-  list.replaceChildren();
-
-  composerMedia.forEach((item) => {
-    const row = document.createElement('article');
-    row.className = `composer-media-item ${item.status}`;
-    row.dataset.mediaLocalId = item.localId;
-
-    const preview = document.createElement('div');
-    preview.className = 'composer-media-preview';
-    if (item.localUrl) {
-      const visual = item.mediaKind === 'video' ? document.createElement('video') : document.createElement('img');
-      visual.src = item.localUrl;
-      if (visual instanceof HTMLVideoElement) {
-        visual.muted = true;
-        visual.playsInline = true;
-        visual.preload = 'metadata';
-      } else {
-        visual.alt = item.altText || '';
-      }
-      preview.append(visual);
-    } else if (item.status === 'ready' && item.id) {
-      preview.textContent = 'Loading…';
-      void ensureComposerMediaPreview(item, preview);
-    } else {
-      preview.textContent = item.mediaKind === 'video' ? 'Video' : 'Image';
-    }
-
-    const copy = document.createElement('div');
-    copy.className = 'composer-media-copy';
-    const name = document.createElement('strong');
-    name.textContent = item.name || 'Media';
-    const status = document.createElement('span');
-    status.textContent = composerMediaStatusLabel(item);
-
-    const alt = document.createElement('input');
-    alt.type = 'text';
-    alt.maxLength = 1000;
-    alt.value = item.altText || '';
-    alt.placeholder = 'Describe this media (alt text)';
+  const existing = new Map([...list.children].map((row) => [row.dataset.mediaLocalId, row]));
+  composerMedia.forEach((item, index) => {
+    const row = existing.get(item.localId) || createComposerMediaRow(item);
+    existing.delete(item.localId);
+    const className = `composer-media-item ${item.status}`;
+    if (row.className !== className) row.className = className;
+    syncComposerMediaPreview(item, row.querySelector('.composer-media-preview'));
+    const copy = row.querySelector('.composer-media-copy');
+    const name = copy.querySelector('strong');
+    const status = copy.querySelector('span');
+    if (name.textContent !== (item.name || 'Media')) name.textContent = item.name || 'Media';
+    const label = composerMediaStatusLabel(item);
+    if (status.textContent !== label) status.textContent = label;
+    const alt = copy.querySelector('input');
+    if (document.activeElement !== alt && alt.value !== (item.altText || '')) alt.value = item.altText || '';
     alt.setAttribute('aria-label', `Alternative text for ${item.name || 'media'}`);
-    alt.dataset.mediaAlt = item.localId;
-    copy.append(name, status, alt);
-
-    if (item.status === 'uploading') {
-      const progress = document.createElement('progress');
-      progress.max = 100;
-      progress.value = Math.max(0, Math.min(100, item.progress || 0));
-      progress.setAttribute('aria-label', `Upload progress for ${item.name || 'media'}`);
-      copy.append(progress);
-    }
-
-    const actions = document.createElement('div');
-    actions.className = 'composer-media-actions';
-    if (item.status === 'error' || (item.status === 'waiting' && navigator.onLine)) {
-      const retry = document.createElement('button');
-      retry.type = 'button';
-      retry.className = 'text-action';
-      retry.dataset.mediaRetry = item.localId;
-      retry.textContent = 'Retry';
-      actions.append(retry);
-    }
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'text-action';
-    remove.dataset.mediaRemove = item.localId;
-    remove.textContent = 'Remove';
-    actions.append(remove);
-
-    row.append(preview, copy, actions);
-    list.append(row);
+    const progress = copy.querySelector('progress');
+    progress.hidden = item.status !== 'uploading';
+    progress.value = Math.max(0, Math.min(100, item.progress || 0));
+    progress.setAttribute('aria-label', `Upload progress for ${item.name || 'media'}`);
+    row.querySelector('[data-media-retry]').hidden = !(item.status === 'error' || (item.status === 'waiting' && navigator.onLine));
+    if (list.children[index] !== row) list.insertBefore(row, list.children[index] || null);
   });
+  for (const row of existing.values()) { row.querySelector('video')?.pause(); row.remove(); }
 
   const add = byId('sauti-media-add');
   if (add) add.disabled = !currentMember || composerMedia.length >= 4;
@@ -6150,6 +6168,7 @@ function renderNotificationItem(notification, actor, circle, post) {
   item.type = 'button';
   item.className = `notification-item${notification.read_at ? '' : ' unread'}`;
   item.dataset.notificationId = String(notification.id);
+  item.dataset.notificationType = String(notification.notification_type || '');
   if (post?.id) item.dataset.notificationRoute = notificationPostDestination(notification, post);
   if (circle?.slug) item.dataset.circleSlug = circle.slug;
 
