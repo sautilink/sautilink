@@ -78,7 +78,7 @@ function menuHarness() {
     '.nav-item, [data-open-sauti-composer]': controls,
   };
   rail.append(...controls, avatar, identity, signout);
-  const prefix = source.slice(0, source.indexOf('function ensureMobileDrawerStylesheet('));
+  const prefix = source.slice(source.indexOf('const MOBILE_DRAWER_ID'), source.indexOf('function ensureMobileDrawerStylesheet('));
   const helpers = source.slice(source.indexOf('function menuHeading('), source.indexOf('function canonicalViewButton('));
   const enhance = runInNewContext(`${prefix}\n${helpers}\nenhanceNativeMenuClone;`, {
     document: { createElement: (tag) => new Element(tag), createTextNode: (text) => ({ textContent: text }) },

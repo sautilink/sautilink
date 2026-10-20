@@ -1,3 +1,5 @@
+import { refreshClonedVerificationSvgs } from './verification-inline-svg.js';
+
 const MOBILE_DRAWER_ID = 'sauti-mobile-more-drawer';
 const MOBILE_DRAWER_TRIGGER_ID = 'sauti-mobile-more-trigger';
 const MOBILE_DRAWER_STYLE_ID = 'sautilink-mobile-more-drawer-style';
@@ -195,6 +197,7 @@ function replaceWithSafeClones(target, source) {
   if (!clones.length) return false;
   target.replaceChildren(...clones);
   target.querySelectorAll('[id]').forEach((node) => node.removeAttribute('id'));
+  refreshClonedVerificationSvgs(target);
   return true;
 }
 
@@ -340,6 +343,7 @@ function installMobileMoreDrawer() {
     if (sourceBadge) {
       const badge = sourceBadge.cloneNode(true);
       badge.querySelectorAll('[id]').forEach((node) => node.removeAttribute('id'));
+      refreshClonedVerificationSvgs(badge);
       drawerName.append(badge);
     }
     drawerUsername.textContent = sourceUsername?.textContent?.trim() || '@username';
@@ -350,6 +354,7 @@ function installMobileMoreDrawer() {
       if (verified) {
         memberStatusIcon.replaceChildren(sourceBadge.cloneNode(true));
         memberStatusIcon.querySelectorAll('[id]').forEach((node) => node.removeAttribute('id'));
+        refreshClonedVerificationSvgs(memberStatusIcon);
       } else {
         memberStatusIcon.innerHTML = icon('memberShield');
       }
