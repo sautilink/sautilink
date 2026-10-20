@@ -517,6 +517,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             if (active != null) {
                 val ownId = auth.account?.id
                 val bubbleLimit = minOf(LocalConfiguration.current.screenWidthDp.dp * .79f, 320.dp)
+                val chatWallpaper = messageWallpaper(wallpaper)
                 val shownMessages = if (threadQuery.isBlank()) active.messages
                     else active.messages.filter { it.body.contains(threadQuery, ignoreCase = true) }
                 val listState = rememberLazyListState()
@@ -526,7 +527,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     }
                 }
                 LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth()
-                    .background(messageWallpaper(wallpaper)),
+                    .background(chatWallpaper),
                     contentPadding = PaddingValues(12.dp),
                     verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 5.dp)) {
                     if (shownMessages.isEmpty()) item {
@@ -547,13 +548,10 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                             }
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = if (own) Arrangement.End else Arrangement.Start) {
-                            Surface(
-                                shape = if (own) RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp)
-                                    else RoundedCornerShape(20.dp, 20.dp, 20.dp, 6.dp),
-                                color = if (own) outgoingBubble(bubble)
-                                    else MaterialTheme.colorScheme.surface,
-                                tonalElevation = 0.dp,
-                                shadowElevation = 0.dp,
+                            NativeDmMessageBubbleSurface(
+                                own = own,
+                                outgoingChoice = bubble,
+                                wallpaper = chatWallpaper,
                                 modifier = Modifier.widthIn(max = bubbleLimit)
                                     .pointerInput(message.id) {
                                         var movement = 0f

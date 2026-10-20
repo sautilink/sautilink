@@ -18,8 +18,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.input.InputModeManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
@@ -55,6 +58,7 @@ class NativeVerificationRemovalUiTest {
     private var removing by mutableStateOf(false)
     private var visible by mutableStateOf(true)
     private val removedOwners = mutableListOf<String>()
+    private lateinit var fixtureInputMode: InputModeManager
 
     private data class Attempt(val ownerId: String, val requestId: String)
     private class Gateway : NativeVerificationRemovalGateway {
@@ -71,6 +75,8 @@ class NativeVerificationRemovalUiTest {
     @Composable
     private fun Frame(width: Int, fontScale: Float, dark: Boolean, content: @Composable () -> Unit) {
         val density = LocalDensity.current
+        val inputMode = LocalInputModeManager.current
+        SideEffect { fixtureInputMode = inputMode }
         val configuration = Configuration(LocalConfiguration.current).apply {
             screenWidthDp = width
             screenHeightDp = 844
@@ -133,6 +139,35 @@ class NativeVerificationRemovalUiTest {
             dialog.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
         }
         compose.waitForIdle()
+    }
+
+    private fun useKeyboardInput() {
+        // Compose standard Buttons intentionally cannot receive keyboard focus in Touch mode.
+        // Switch the host input device, then open normally; never request focus on Keep in the test.
+        compose.runOnIdle { assertTrue(fixtureInputMode.requestInputMode(InputMode.Keyboard)) }
+        compose.waitUntil(5_000) { fixtureInputMode.inputMode == InputMode.Keyboard }
+    }
+
+    @RequiresApi(29)
+    private fun waitForSafeDialogKeyboardFocus() {
+        var lastState = "not observed"
+        try {
+            compose.waitUntil(5_000) {
+                val windowState = compose.runOnIdle {
+                    val root = activeDialog().window!!.decorView
+                    root.hasWindowFocus() to root.isInTouchMode
+                }
+                val keepFocused = compose.onAllNodes(hasTestTag("verification-removal-keep") and isFocused())
+                    .fetchSemanticsNodes().size == 1
+                val state = "hostMode=${fixtureInputMode.inputMode}, dialogWindowFocused=${windowState.first}, " +
+                    "dialogTouchMode=${windowState.second}, keepFocused=$keepFocused"
+                if (state != lastState) Log.i("SautiVerificationFocus", state)
+                lastState = state
+                windowState.first && keepFocused
+            }
+        } catch (timeout: ComposeTimeoutException) {
+            throw AssertionError("Safe keyboard focus did not settle: $lastState", timeout)
+        }
     }
 
     private fun screenshot(name: String, dialog: Boolean = false) {
@@ -204,7 +239,9 @@ class NativeVerificationRemovalUiTest {
         open()
         pressBack()
         compose.onNodeWithTag("verification-removal-dialog").assertDoesNotExist()
+        useKeyboardInput()
         open()
+        waitForSafeDialogKeyboardFocus()
         compose.onNodeWithTag("verification-removal-keep").assertIsFocused()
         pressEnter()
         compose.onNodeWithTag("verification-removal-dialog").assertDoesNotExist()
