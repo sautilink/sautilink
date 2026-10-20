@@ -48,8 +48,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "STAGING_SUPABASE_PUBLISHABLE_KEY", "\"${stagingPublishableKey}\"")
         buildConfigField("String", "PRODUCTION_SUPABASE_PUBLISHABLE_KEY", "\"${productionPublishableKey}\"")
-        versionCode = 47
-        versionName = "1.1.2"
+        versionCode = 48
+        versionName = "1.1.3"
     }
     flavorDimensions += "distribution"
     productFlavors {
@@ -127,4 +127,5 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
+    testImplementation("junit:junit:4.13.2")
 }
