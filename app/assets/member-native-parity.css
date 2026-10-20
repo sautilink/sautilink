@@ -267,8 +267,15 @@ body:not(.auth-entry):has(#member-view:not([hidden])) #profile-surface { padding
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card { border-radius: 24px; box-shadow: none; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-main { padding: 0 16px 16px; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-banner { height: 160px; border-radius: 23px 23px 0 0; }
-body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-topline { min-height: 58px; gap: 10px; }
-body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-avatar-shell { width: 92px; height: 92px; flex-basis: 92px; margin-top: -46px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-topline { min-height: 52px; gap: 10px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-avatar-shell {
+  width: 92px;
+  height: 92px;
+  flex-basis: 92px;
+  margin-top: -46px;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .14);
+}
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card :is(.profile-avatar, .profile-avatar-image) {
   width: 92px;
   height: 92px;
@@ -284,10 +291,10 @@ body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-nam
   letter-spacing: -.5px;
   overflow-wrap: anywhere;
 }
-body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card #profile-username { font-size: 14px; line-height: 20px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card #profile-username { margin: 1px 0 0; font-size: 14px; line-height: 20px; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-social-stats {
   gap: 12px;
-  margin: 9px 0 0;
+  margin: 6px 0 0;
   padding: 0;
   border: 0;
   font-size: 14px;
@@ -296,7 +303,7 @@ body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-soc
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-social-stats strong { font-size: 14px; font-weight: 650; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-bio { margin-top: 7px; font-size: 15px; line-height: 21px; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-meta { gap: 6px 12px; margin-top: 8px; font-size: 13px; line-height: 19px; }
-body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-actions { gap: 6px; margin: 0; padding-top: 9px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-actions { gap: 6px; margin: 0; padding-top: 4px; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card :is(.native-profile-public-actions, .profile-owner-dashboard-actions) {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -327,9 +334,34 @@ body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card :is(.profile
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card :is(.native-profile-public-actions, .profile-owner-dashboard-actions) > button { width: 100%; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card :is(.profile-edit-button, .profile-follow-button, .profile-dashboard-button) svg { width: 20px; min-width: 20px; max-width: 20px; height: 20px; flex: 0 0 20px; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-follow-button:not(.following):not(.profile-message-button) { background: var(--app-accent-strong); color: #fff; }
-body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card :is(.profile-more-button, .profile-professional-category) { min-height: 44px; }
-body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-verified-badge { width: 44px; min-width: 44px; height: 44px; flex: 0 0 44px; }
-body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-verified-badge :is([data-verification-badge-image], svg) { width: 22px; height: 22px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-more-button { min-height: 44px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-professional-category {
+  position: relative;
+  min-height: 20px;
+  margin: 2px 0 0;
+  line-height: 20px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-verified-badge {
+  position: relative;
+  width: 22px;
+  min-width: 22px;
+  height: 26px;
+  flex: 0 0 22px;
+}
+/* Expand touch areas below compact rows, clear of the profile toolbar above. */
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card :is(.profile-verified-badge, .profile-professional-category)::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 100%;
+  min-width: 44px;
+  height: 100%;
+  min-height: 44px;
+  transform: translateX(-50%);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-verified-badge::after { left: calc(50% - 4px); }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-verified-badge :is([data-verification-badge-image], svg) { width: 18px; height: 18px; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-surface .profile-activity-shell { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-surface :is(.profile-activity-tabs, .profile-activity-tools) { border: 0; border-radius: 0; background: transparent; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-surface .profile-activity-card { grid-template-columns: 44px minmax(0, 1fr); margin-bottom: 12px; padding: 14px; border: 1px solid var(--ios-line); border-radius: 22px; }

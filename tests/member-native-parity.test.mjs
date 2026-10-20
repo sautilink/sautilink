@@ -298,8 +298,9 @@ test('all parity styles are member scoped and leave auth, chat layouts, composer
   assert.doesNotMatch(source, /fetch\(|supabase|XMLHttpRequest|WebSocket|localStorage|sessionStorage|history\.|location\./);
   assert.match(css, /#home-feed-tabs \.home-feed-tab\s*\{[^}]*min-height: 46px/);
   assert.match(css, /sauti-card-avatar\s*\{[^}]*width: 44px/);
-  assert.match(css, /#profile-card \.profile-verified-badge\s*\{[^}]*width: 44px;[^}]*height: 44px/);
-  assert.match(css, /#profile-card \.profile-verified-badge :is\([^)]*\)\s*\{[^}]*width: 22px; height: 22px/);
+  assert.match(css, /#profile-card \.profile-verified-badge\s*\{[^}]*width: 22px;[^}]*height: 26px/);
+  assert.match(css, /#profile-card :is\(\.profile-verified-badge, \.profile-professional-category\)::after\s*\{[^}]*min-width: 44px;[^}]*min-height: 44px/);
+  assert.match(css, /#profile-card \.profile-verified-badge :is\([^)]*\)\s*\{[^}]*width: 18px; height: 18px/);
   assert.match(css, /#profile-card :is\(\.profile-edit-button, \.profile-follow-button, \.profile-dashboard-button\)\s*\{[^}]*display: inline-flex;[^}]*min-height: 48px;[^}]*white-space: normal;/);
   assert.match(css, /#profile-card :is\(\.profile-edit-button, \.profile-follow-button, \.profile-dashboard-button\) svg\s*\{[^}]*width: 20px;[^}]*max-width: 20px; height: 20px; flex: 0 0 20px;/);
   assert.match(css, /\.sauti-card-body, \.sauti-caption\)[^{]*\{[^}]*font-size: 15px;[^}]*line-height: 21px/);
