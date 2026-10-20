@@ -1,0 +1,383 @@
+/* Signed native 1.1.1 (46) presentation, adapted to existing browser features.
+   Auth, backend ownership, media controls and permission/hidden state stay intact. */
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #home-feed-tabs {
+  min-height: 54px;
+  padding: 4px;
+  gap: 4px;
+  border-radius: 18px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #home-feed-tabs .home-feed-tab {
+  min-width: 0;
+  min-height: 46px;
+  padding: 9px 4px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 20px;
+  white-space: normal;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .sauti-card {
+  margin-bottom: 14px;
+  border-radius: 22px;
+  border-color: color-mix(in srgb, var(--ios-line) 60%, transparent);
+  box-shadow: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .sauti-card-head {
+  min-height: 64px;
+  gap: 9px;
+  padding: 10px 12px 8px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .sauti-card-avatar {
+  width: 44px;
+  height: 44px;
+  flex-basis: 44px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .sauti-card-head .verified-name {
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 22px;
+  letter-spacing: normal;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .sauti-card-head :is(a, time) {
+  font-size: 12px;
+  line-height: 17px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .sauti-card-identity {
+  flex: 1 1 0%;
+  width: 0;
+  min-width: 0;
+  gap: 2px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .native-post-metadata {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 5px;
+  color: var(--ios-muted);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .native-post-metadata > a {
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 34px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .native-post-metadata > :is(time, .sauti-edited-label) {
+  width: auto;
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: 12px;
+  line-height: 17px;
+  white-space: nowrap;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .native-post-metadata > time::before { content: "·"; margin-right: 4px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .native-post-metadata > .sauti-edited-label { font-size: 11px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .sauti-card-head-actions { flex: 0 0 auto; gap: 2px; margin-left: 0; }
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) :is(.sauti-card-body, .sauti-caption) {
+  font-size: 15px;
+  line-height: 21px;
+  letter-spacing: normal;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .sauti-card-body { padding: 0 14px 10px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .sauti-caption { margin: 2px 14px 10px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) .sauti-head-follow {
+  min-height: 44px;
+  padding: 0 6px;
+  border-radius: 13px;
+  font-size: 12px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #circles-surface, #conversation-surface) :is(.sauti-card-footer button, .sauti-head-more) {
+  min-width: 44px;
+  min-height: 44px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #saved-surface .saved-toolbar {
+  padding: 14px 16px;
+  border: 0;
+  color: var(--ios-muted);
+  background: transparent;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #saved-surface .surface-intro-copy { font-size: 12px; line-height: 18px; }
+
+/* Native search and inset-free people rows, retaining the same real links. */
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-search {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  gap: 12px;
+  margin: 16px 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-search > svg {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 14px;
+  width: 21px;
+  height: 21px;
+  margin: 0;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-search input {
+  grid-column: 1;
+  min-width: 0;
+  min-height: 52px;
+  padding: 12px 12px 12px 44px;
+  border: 1px solid var(--ios-line);
+  border-radius: 16px;
+  background: var(--ios-bg);
+  color: var(--ios-ink);
+  font-size: 16px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-search button {
+  display: grid;
+  grid-column: 2;
+  width: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  align-self: center;
+  place-items: center;
+  padding: 0;
+  border-radius: 16px;
+  background: var(--ios-secondary);
+  color: var(--ios-ink);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-search button svg { width: 23px; height: 23px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-section {
+  margin: 0 0 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-section-heading { padding: 14px 18px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-section-heading h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 22px;
+  letter-spacing: normal;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-profile-row {
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+  padding: 13px 18px;
+  border-top: 0;
+  border-bottom: 1px solid var(--ios-line);
+  background: transparent;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-profile-avatar { width: 48px; height: 48px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-profile-heading { display: grid; gap: 4px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-profile-heading .verified-name {
+  min-width: 0;
+  font-size: 15px;
+  line-height: 21px;
+  font-weight: 650;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface :is(.discover-profile-heading > span:not(.verified-name), .discover-profile-copy p) {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 17px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-profile-copy p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-profile-copy small { margin-top: 5px; font-size: 12px; line-height: 17px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-profile-open {
+  grid-column: 2;
+  justify-self: start;
+  width: fit-content;
+  min-height: 44px;
+  margin-top: 9px;
+  padding: 0 18px;
+  border: 1px solid var(--ios-line);
+  border-radius: 13px;
+  background: transparent;
+  color: var(--ios-muted);
+  font-size: 14px;
+}
+
+/* Notification metadata remains original text, including member safety notices. */
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-surface { padding: 0 0 24px; background: var(--ios-surface); }
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .notification-item {
+  width: 100%;
+  grid-template-columns: 50px minmax(0, 1fr);
+  gap: 13px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--ios-line);
+  border-radius: 0;
+  background: var(--ios-surface);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .notification-item.unread { background: color-mix(in srgb, var(--ios-blue) 5.5%, var(--ios-surface)); }
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .notification-item:hover { background: var(--ios-secondary); }
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .notification-item.unread:hover { background: color-mix(in srgb, var(--ios-blue) 9%, var(--ios-surface)); }
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .notification-item[data-circle-slug] { grid-template-columns: 50px minmax(0, 1fr) auto; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .notification-item[data-circle-slug]::after { grid-column: 3; grid-row: 1; align-self: center; color: var(--ios-muted); }
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .notification-avatar {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  margin-right: 4px;
+  overflow: visible;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .notification-copy p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .notification-copy p > :is(.verified-name, strong) {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 4px;
+  color: var(--ios-ink);
+  font-size: 14px;
+  font-weight: 650;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .notification-meta { gap: 8px; margin-top: 5px; font-size: 12px; line-height: 17px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .notification-unread-dot { width: 9px; height: 9px; background: #ed344b; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .native-notification-event {
+  position: absolute;
+  z-index: 2;
+  right: -4px;
+  bottom: -3px;
+  display: grid;
+  width: 23px;
+  height: 23px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ios-surface);
+  color: var(--ios-blue);
+  pointer-events: none;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .native-notification-event svg { width: 15px; height: 15px; }
+
+/* The profile keeps its existing Edit/Dashboard/Follow/Message and privacy gates. */
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-surface { padding: 12px 16px 24px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card { border-radius: 24px; box-shadow: none; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-main { padding: 0 16px 16px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-banner { height: 160px; border-radius: 23px 23px 0 0; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-topline { min-height: 58px; gap: 10px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-avatar-shell { width: 92px; height: 92px; flex-basis: 92px; margin-top: -46px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card :is(.profile-avatar, .profile-avatar-image) {
+  width: 92px;
+  height: 92px;
+  border-width: 3px;
+  box-shadow: none;
+  font-size: 30px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-name-line h2 {
+  min-width: 0;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 650;
+  letter-spacing: -.5px;
+  overflow-wrap: anywhere;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card #profile-username { font-size: 14px; line-height: 20px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-social-stats {
+  gap: 12px;
+  margin: 9px 0 0;
+  padding: 0;
+  border: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-social-stats strong { font-size: 14px; font-weight: 650; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-bio { margin-top: 7px; font-size: 15px; line-height: 21px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-meta { gap: 6px 12px; margin-top: 8px; font-size: 13px; line-height: 19px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-actions { gap: 6px; margin: 0; padding-top: 9px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card :is(.native-profile-public-actions, .profile-owner-dashboard-actions) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .native-profile-public-actions:not(:has(button:not([hidden]))) { display: none; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card :is(.profile-edit-button, .profile-follow-button, .profile-dashboard-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 48px;
+  gap: 7px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 16px;
+  background: var(--ios-surface);
+  font-size: 14px;
+  line-height: 20px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card :is(.native-profile-public-actions, .profile-owner-dashboard-actions) > button { width: 100%; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card :is(.profile-edit-button, .profile-follow-button, .profile-dashboard-button) svg { width: 20px; min-width: 20px; max-width: 20px; height: 20px; flex: 0 0 20px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-follow-button:not(.following):not(.profile-message-button) { background: var(--app-accent-strong); color: #fff; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card :is(.profile-more-button, .profile-professional-category) { min-height: 44px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-verified-badge { width: 44px; min-width: 44px; height: 44px; flex: 0 0 44px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-verified-badge :is([data-verification-badge-image], svg) { width: 22px; height: 22px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-surface .profile-activity-shell { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-surface :is(.profile-activity-tabs, .profile-activity-tools) { border: 0; border-radius: 0; background: transparent; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-surface .profile-activity-card { grid-template-columns: 44px minmax(0, 1fr); margin-bottom: 12px; padding: 14px; border: 1px solid var(--ios-line); border-radius: 22px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-surface .profile-activity-card-avatar { width: 44px; height: 44px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-surface .profile-activity-author { font-size: 16px; line-height: 22px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #profile-surface .profile-activity-body { font-size: 15px; line-height: 21px; }
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-surface { border-color: transparent; box-shadow: none; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-surface .settings-panel { gap: 12px; padding: 18px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-surface .settings-panel-heading h3 { font-size: 22px; line-height: 28px; letter-spacing: -.4px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-surface :is(.settings-card, .settings-data-card) { gap: 12px; padding: 16px; border-radius: 22px; background: var(--ios-surface); }
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-surface .settings-toggle-row { min-height: 72px; gap: 14px; padding: 14px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-surface :is(.settings-toggle-row strong, .settings-select > span > strong, .settings-card-title strong) { font-size: 14px; line-height: 20px; font-weight: 650; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-surface :is(.settings-note, .settings-card-copy, .settings-toggle-row small, .settings-select small) { font-size: 12px; line-height: 17px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-surface :is(.settings-tabs button, .secondary-action, .form-submit, .settings-danger, input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, .sl-select-trigger) { min-height: 44px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #settings-surface .settings-toggle-row input:checked + i { background: var(--app-accent-strong); }
+
+/* Appeals had legacy fixed dark colours; use the same native card hierarchy. */
+body:not(.auth-entry):has(#member-view:not([hidden])) #appeals-surface { background: var(--ios-bg); color: var(--ios-ink); }
+body:not(.auth-entry):has(#member-view:not([hidden])) #appeals-surface .appeals-toolbar { padding: 16px 18px; border: 0; background: transparent; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #appeals-surface .surface-intro-copy { color: var(--ios-muted); font-size: 14px; line-height: 20px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #appeals-list { gap: 12px; padding: 0 16px 24px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #appeals-list .appeal-card-live { gap: 10px; padding: 16px; border-color: var(--ios-line); border-radius: 22px; background: var(--ios-surface); color: var(--ios-ink); }
+body:not(.auth-entry):has(#member-view:not([hidden])) #appeals-list .appeal-card-live-head { flex-wrap: wrap; gap: 8px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #appeals-list .appeal-card-live strong { font-size: 16px; line-height: 22px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #appeals-list .appeal-card-live p { color: var(--ios-muted); font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #appeals-list :is(.appeal-card-live small, .appeal-policy) { color: var(--ios-muted); font-size: 12px; line-height: 17px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #appeals-list .appeal-state { min-height: 28px; padding: 3px 9px; border-color: var(--ios-line); background: var(--ios-blue-soft); color: var(--ios-blue); font-size: 12px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #appeals-list .secondary-action { min-height: 44px; font-size: 14px; border-radius: 14px; }
+
+body:not(.auth-entry):has(#member-view:not([hidden])) #professional-dashboard-surface :is(.professional-metric-card, .professional-chart-card, .professional-top-content, .professional-earnings-card) { border-color: var(--ios-line); border-radius: 22px; background: var(--ios-surface); box-shadow: none; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #professional-dashboard-surface :is(.professional-dashboard-header, .professional-dashboard-tabs) { background: var(--ios-bg); border-color: var(--ios-line); }
+body:not(.auth-entry):has(#member-view:not([hidden])) #professional-dashboard-surface :is(.professional-dashboard-back, .professional-dashboard-tab, .professional-insights-controls button, .professional-insights-controls select) { min-width: 44px; min-height: 44px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #professional-dashboard-surface .professional-metric-card[aria-pressed="true"] { border-color: var(--ios-blue); box-shadow: inset 0 0 0 1px var(--ios-blue); }
+body:not(.auth-entry):has(#member-view:not([hidden])) #professional-dashboard-surface .professional-metric-card small { font-size: 12px; line-height: 17px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#discover-surface, #saved-surface, #notifications-surface, #appeals-surface, #profile-surface, #settings-surface) :is(.icon-control, .secondary-action, .form-submit, .profile-activity-privacy-toggle, .profile-activity-retry, .profile-activity-empty-cta) { min-width: 44px; min-height: 44px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(#discover-surface, #saved-surface, #notifications-surface, #appeals-surface, #profile-surface, #settings-surface) :is(button, a):focus-visible { outline: 2px solid var(--ios-blue); outline-offset: 3px; }
+
+@media (max-width: 680px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-banner { height: 140px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) #settings-surface { margin: 12px; border-radius: 22px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) #settings-surface .settings-panel { padding: 16px 10px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .appeal-dialog { width: 100%; max-width: none; max-height: 85dvh; margin: auto 0 0; border-radius: 26px 26px 0 0; }
+}
+@media (max-width: 360px) {
+  body:not(.auth-entry):has(#member-view:not([hidden])) #profile-surface { padding-inline: 12px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-main { padding-inline: 12px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface :is(.discover-search, .discover-profile-row, .discover-section-heading) { margin-inline: 0; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discover-search { margin-inline: 12px; gap: 8px; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .notification-item { padding-inline: 14px; }
+}

@@ -1,4 +1,5 @@
 import { createLoadingSkeleton } from './non-home-skeleton.js';
+import { postTextPlainText } from './post-text-formatting.js';
 
 const ANALYTICS_TABLE = 'social_creator_daily_metrics';
 const DASHBOARD_ID = 'professional-dashboard-surface';
@@ -565,7 +566,7 @@ function renderTopPosts(posts) {
     card.className = 'professional-top-post';
     const text = document.createElement('div');
     const body = document.createElement('strong');
-    body.textContent = String(post.body || '').trim().slice(0, 110) || 'Media post';
+    body.textContent = postTextPlainText(post.body).trim().slice(0, 110) || 'Media post';
     const date = document.createElement('span');
     date.textContent = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(post.created_at));
     text.append(body, date);

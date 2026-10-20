@@ -1,9 +1,55 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { runInNewContext } from 'node:vm';
 import { transformPostViewMetricsSource } from '../scripts/post-view-metrics-source-transform.mjs';
+import { postTextPlainText } from '../src/post-text-formatting.js';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
+
+test('dashboard top-content captions show plain formatted text, retain literal markers and limit visible copy to 110 characters', async () => {
+  const source = await read('src/professional-dashboard.js');
+  const start = source.indexOf('function renderTopPosts(');
+  const end = source.indexOf('function setStatus(', start);
+  assert.ok(start >= 0 && end > start);
+  class Element {
+    constructor(tag) { this.tagName = tag; this.children = []; this.textContent = ''; }
+    append(...nodes) { this.children.push(...nodes); }
+    replaceChildren(...nodes) { this.children = nodes; }
+  }
+  const list = new Element('div');
+  const stats = [];
+  const render = runInNewContext(`${source.slice(start, end)}\nrenderTopPosts;`, {
+    document: { createElement: (tag) => new Element(tag) },
+    byId: (id) => { assert.equal(id, 'professional-top-content-list'); return list; },
+    postTextPlainText,
+    stat: (label, value) => { stats.push({ label, value }); return new Element('span'); },
+    Intl, Date,
+  });
+  const cases = [
+    [' **A fresh perspective.** *One* __two__ ~~three~~ ***both*** ', 'A fresh perspective. One two three both'],
+    ['**Bold with *italic* and __underline__**', 'Bold with italic and underline'],
+    ['Keep **unfinished and @user_name #tag_name', 'Keep **unfinished and @user_name #tag_name'],
+    ['2 * 3 * 4 and https://example.com/a_b', '2 * 3 * 4 and https://example.com/a_b'],
+    [`**${'x'.repeat(120)}**`, 'x'.repeat(110)],
+    ['   ', 'Media post'],
+    [undefined, 'Media post'],
+  ];
+  for (const [body, expected] of cases) {
+    const post = { body, created_at: '2026-10-20T12:00:00Z', views: 12, engagement: 3 };
+    render([post]);
+    assert.equal(list.children.length, 1);
+    const card = list.children[0];
+    assert.equal(card.className, 'professional-top-post');
+    assert.equal(card.children[0].children[0].textContent, expected);
+    assert.equal(card.children[0].children[1].textContent,
+      new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(post.created_at)));
+    assert.deepEqual(stats.splice(0), [{ label: 'views', value: 12 }, { label: 'engagements', value: 3 }]);
+    assert.equal(post.body, body, 'presentation must not alter the stored caption');
+  }
+  render([]);
+  assert.equal(list.children[0].textContent, 'Publish posts to start seeing content performance here.');
+});
 
 test('profile owner dashboard reuses the canonical Edit profile control and adds Dashboard beside it', async () => {
   const source = await read('src/professional-dashboard.js');

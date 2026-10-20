@@ -109,6 +109,63 @@ test('a stalled Home stream switches to an authorized blob and keeps the viewer 
   assert.deepEqual(events, ['sautilink:video-blob-fallback']);
 });
 
+test('transformed composer previews retain video streaming, image blobs and exact draft-item cleanup', async () => {
+  const appPath = new URL('../src/app.js', import.meta.url).pathname;
+  const source = await read('src/app.js');
+  const transformed = transformMediaPerformanceSource(appPath, transformPostMediaSource(appPath, source));
+  const start = transformed.indexOf('async function ensureComposerMediaPreview(');
+  const end = transformed.indexOf('function createComposerMediaPreview(', start);
+  assert.ok(start >= 0 && end > start);
+  const requests = []; const renders = []; const revoked = [];
+  const request = (kind, id, quality) => new Promise((resolve) => requests.push({ kind, id, quality, resolve }));
+  const context = vm.createContext({
+    composerMedia: [],
+    fetchSautiVideoStreamUrl: (id, quality) => request('stream', id, quality),
+    fetchSautiMediaBlobUrl: (id) => request('blob', id),
+    syncComposerMediaPreview: (item, host) => renders.push({ item, host }),
+    URL: { revokeObjectURL: (url) => revoked.push(url) },
+  });
+  vm.runInContext(transformed.slice(start, end), context);
+  const preview = vm.runInContext('ensureComposerMediaPreview', context);
+  for (const mediaKind of ['video', 'image']) {
+    const item = { id: `${mediaKind}-id`, localId: 'retained', mediaKind, localUrl: '' };
+    const host = { isConnected: true };
+    context.composerMedia = [item];
+    const pending = preview(item, host);
+    await preview(item, host);
+    assert.equal(requests.length, 1, 'repeated render must not duplicate the pending fetch');
+    const fetch = requests.shift();
+    assert.equal(fetch.kind, mediaKind === 'video' ? 'stream' : 'blob');
+    assert.equal(fetch.id, item.id);
+    assert.equal(fetch.quality, mediaKind === 'video' ? 'original' : undefined);
+    const url = mediaKind === 'video' ? 'https://sautilink.com/api/sauti-media/video-id' : 'blob:image';
+    fetch.resolve(url); await pending;
+    assert.equal(item.localUrl, url);
+    assert.deepEqual(renders.pop(), { item, host });
+    assert.equal(host.composerPreviewPending, undefined);
+  }
+  const item = { id: 'old-id', localId: 'same-local-id', mediaKind: 'image', localUrl: '' };
+  const host = { isConnected: true };
+  context.composerMedia = [item];
+  const stale = preview(item, host);
+  const replacement = { ...item, id: 'new-id', localUrl: 'blob:new-draft' };
+  context.composerMedia = [replacement];
+  requests.shift().resolve('blob:old-draft'); await stale;
+  assert.deepEqual(revoked, ['blob:old-draft']);
+  assert.equal(replacement.localUrl, 'blob:new-draft');
+  assert.equal(item.localUrl, '');
+  assert.equal(renders.length, 0);
+  assert.equal(host.composerPreviewPending, undefined);
+  context.composerMedia = [item];
+  const superseded = preview(item, host);
+  item.localUrl = 'blob:cached-preview';
+  requests.shift().resolve('blob:duplicate-preview'); await superseded;
+  assert.deepEqual(revoked, ['blob:old-draft', 'blob:duplicate-preview']);
+  assert.equal(item.localUrl, 'blob:cached-preview');
+  assert.equal(renders.length, 0);
+  assert.equal(host.composerPreviewPending, undefined);
+});
+
 function videoRow() {
   return {
     id: MEDIA_ID,

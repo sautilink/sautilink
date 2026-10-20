@@ -118,7 +118,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/messages-media.css'));
   assert.ok(files.includes('app/assets/messages-reply.css'));
   assert.ok(files.includes('app/assets/messages-whatsapp.css'));
-  for (const asset of ['member-ios.css', 'member-ios-surfaces.css', 'member-ios-icons.css', 'member-animated-icons.css', 'member-animated-icons.js', 'member-profile-tabs.css', 'member-comment-sheet.css', 'messages-native.css', 'rooms-native.css', 'menu-native.css']) {
+  for (const asset of ['member-ios.css', 'member-ios-surfaces.css', 'member-ios-icons.css', 'member-animated-icons.css', 'member-animated-icons.js', 'member-profile-tabs.css', 'member-comment-sheet.css', 'member-native-parity.css', 'member-native-parity.js', 'composer-native.css', 'messages-native.css', 'rooms-native.css', 'menu-native.css']) {
     assert.ok(files.includes(`app/assets/${asset}`));
   }
   for (const asset of memberAnimatedIconAssets) assert.ok(files.includes(asset), `staged animated icon asset is missing: ${asset}`);
@@ -208,6 +208,9 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/messages-native.css',
     'app/assets/rooms-native.css',
     'app/assets/menu-native.css',
+    'app/assets/member-native-parity.css',
+    'app/assets/member-native-parity.js',
+    'app/assets/composer-native.css',
     'app/assets/member-ios.css',
     'app/assets/member-ios-surfaces.css',
     'app/assets/member-ios-icons.css',

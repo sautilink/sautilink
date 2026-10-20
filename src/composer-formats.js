@@ -144,12 +144,225 @@ function replaceToolLabel(button, label) {
 }
 
 function loadStylesheet() {
-  if (document.querySelector('link[data-composer-formats]')) return;
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = '/app/assets/composer-formats.css';
-  link.dataset.composerFormats = 'true';
-  document.head.append(link);
+  if (!document.querySelector('link[data-composer-formats]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/app/assets/composer-formats.css';
+    link.dataset.composerFormats = 'true';
+    document.head.append(link);
+  }
+  if (!document.querySelector('link[data-composer-native-style]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/app/assets/composer-native.css?v=20261020-v1111';
+    link.dataset.composerNativeStyle = 'true';
+    document.head.append(link);
+  }
+}
+
+function composerSectionIcon(name) {
+  const paths = {
+    globe: 'M3 12h18M12 3c5 5 5 13 0 18M12 3c-5 5-5 13 0 18M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0',
+    'user-group': 'M3 20c.5-4 2-6 6-6s5.5 2 6 6M15 14c4-1 6 1 6 5M9 3a4 4 0 1 0 0 8 4 4 0 1 0 0-8M18 5a3 3 0 1 1-2 5',
+    'text-font': 'M4 5h16M12 5v15M8 20h8',
+    'image-0-1': 'M3 4h18v16H3V4ZM5 17l5-5 4 4 3-3 4 4M7 8h2',
+    'analytics-0-1': 'M6 20V10M12 20V4M18 20v-7',
+    'add-0-1': 'M12 5v14M5 12h14',
+    'cancel-0-1': 'm6 6 12 12M18 6 6 18',
+  };
+  const svg = createSvg([{ attrs: { d: paths[name] || 'M21 12a8 8 0 0 1-8 8H7l-4 3v-6.5A8 8 0 1 1 21 12Z' } }]);
+  svg.dataset.slIconName = name === 'globe' ? 'globe-0-2' : name === 'comment-01' ? 'message-0-1' : name;
+  return svg;
+}
+
+function composerChoiceOptions(select) {
+  return [...select.options].filter((option) => !option.hidden && !option.parentElement?.hidden).map((option) => ({
+    value: option.value,
+    label: option.label || option.textContent,
+    group: option.parentElement?.tagName === 'OPTGROUP' ? option.parentElement.label : '',
+    disabled: Boolean(select.disabled || select.matches(':disabled') || option.disabled || option.parentElement?.disabled),
+    selected: option.selected,
+  }));
+}
+
+function installComposerChoices(select, title, iconName, host) {
+  if (!select || select.dataset.composerNativeChoices) return null;
+  select.dataset.composerNativeChoices = 'true';
+  const fieldset = document.createElement('fieldset');
+  fieldset.className = 'composer-native-choice';
+  const legend = document.createElement('legend');
+  legend.append(composerSectionIcon(iconName), document.createTextNode(title));
+  const choices = document.createElement('div');
+  choices.className = 'composer-native-chips';
+  choices.setAttribute('role', 'radiogroup');
+  choices.setAttribute('aria-label', title);
+  fieldset.append(legend, choices);
+  host.append(fieldset);
+  const buttons = new Map();
+  let signature = '';
+  function refresh() {
+    const options = composerChoiceOptions(select);
+    const next = JSON.stringify(options);
+    if (next === signature) return;
+    signature = next;
+    const keep = new Set();
+    const selected = options.find((option) => option.selected && !option.disabled) || options.find((option) => !option.disabled);
+    options.forEach((option, index) => {
+      const key = `${index}:${option.value}`;
+      keep.add(key);
+      let button = buttons.get(key);
+      if (!button) {
+        button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'composer-native-chip';
+        button.setAttribute('role', 'radio');
+        button.dataset.composerChoice = option.value;
+        const caption = document.createElement('span');
+        button.append(composerSectionIcon(option.value === 'public' || option.value === 'everyone' ? 'globe' : 'user-group'), caption);
+        button.addEventListener('click', () => {
+          if (button.disabled) return;
+          select.value = button.dataset.composerChoice;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          refresh();
+        });
+        buttons.set(key, button);
+      }
+      const caption = button.querySelector('span');
+      const label = option.group ? `${option.group}: ${option.label}` : option.label;
+      if (caption.textContent !== label) caption.textContent = label;
+      button.disabled = option.disabled;
+      button.setAttribute('aria-checked', String(option.selected));
+      button.dataset.active = String(option.selected);
+      button.tabIndex = option === selected ? 0 : -1;
+      if (choices.children[index] !== button) choices.insertBefore(button, choices.children[index] || null);
+    });
+    for (const [key, button] of buttons) if (!keep.has(key)) { button.remove(); buttons.delete(key); }
+  }
+  choices.addEventListener('keydown', (event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+    const enabled = [...choices.querySelectorAll('button')].filter((button) => !button.disabled);
+    if (!enabled.length) return;
+    event.preventDefault();
+    const index = enabled.indexOf(document.activeElement);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? enabled.length - 1
+      : (index + (event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1) + enabled.length) % enabled.length;
+    enabled[next].click();
+    enabled[next].focus({ preventScroll: true });
+  });
+  // Preserve any existing built-in select adapter while also reflecting silent
+  // draft restoration assignments. Only these two composer fields are wrapped.
+  for (const name of ['value', 'selectedIndex']) {
+    const descriptor = Object.getOwnPropertyDescriptor(select, name) || Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, name);
+    if (!descriptor?.get || !descriptor.set || descriptor.configurable === false) continue;
+    Object.defineProperty(select, name, { configurable: true, enumerable: descriptor.enumerable,
+      get() { return descriptor.get.call(this); },
+      set(value) { descriptor.set.call(this, value); refresh(); },
+    });
+  }
+  select.addEventListener('change', refresh);
+  new MutationObserver(refresh).observe(select, { subtree: true, childList: true, characterData: true, attributes: true,
+    attributeFilter: ['disabled', 'hidden', 'selected', 'label', 'value'] });
+  refresh();
+  return refresh;
+}
+
+function installComposerViewport(dialog) {
+  if (dialog.composerViewportController) return dialog.composerViewportController;
+  const viewport = window.visualViewport;
+  let active = false;
+  let frame = 0;
+  let suspended = false;
+  const visible = () => !suspended && dialog.open && !document.body.classList.contains('auth-entry')
+    && Boolean(document.getElementById('member-view') && !document.getElementById('member-view').hidden);
+  function stop() {
+    if (active) {
+      window.removeEventListener('resize', schedule);
+      viewport?.removeEventListener('resize', schedule);
+      viewport?.removeEventListener('scroll', schedule);
+      active = false;
+    }
+    if (frame) window.cancelAnimationFrame(frame);
+    frame = 0;
+    for (const name of ['--composer-viewport-height', '--composer-viewport-top']) {
+      if (dialog.style.getPropertyValue(name)) dialog.style.removeProperty(name);
+    }
+  }
+  function update() {
+    frame = 0;
+    if (!visible()) { stop(); return; }
+    const height = Number(viewport?.height || window.innerHeight || document.documentElement.clientHeight);
+    const top = Math.max(0, Number(viewport?.offsetTop) || 0);
+    if (!Number.isFinite(height) || height <= 0) return;
+    for (const [name, value] of [['--composer-viewport-height', `${height}px`], ['--composer-viewport-top', `${top}px`]]) {
+      if (dialog.style.getPropertyValue(name) !== value) dialog.style.setProperty(name, value);
+    }
+  }
+  function schedule() {
+    if (visible() && !frame) frame = window.requestAnimationFrame(update);
+  }
+  function sync() {
+    if (!visible()) { stop(); return; }
+    if (!active) {
+      active = true;
+      window.addEventListener('resize', schedule);
+      viewport?.addEventListener('resize', schedule);
+      viewport?.addEventListener('scroll', schedule);
+    }
+    schedule();
+  }
+  const observer = new MutationObserver(sync);
+  observer.observe(dialog, { attributes: true, attributeFilter: ['open'] });
+  observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  const member = document.getElementById('member-view');
+  if (member) observer.observe(member, { attributes: true, attributeFilter: ['hidden'] });
+  dialog.addEventListener('close', stop);
+  window.addEventListener('pagehide', () => { suspended = true; stop(); });
+  window.addEventListener('pageshow', () => { suspended = false; sync(); });
+  dialog.composerViewportController = Object.freeze({ refresh: sync });
+  sync();
+  return dialog.composerViewportController;
+}
+
+function installNativeComposerPresentation() {
+  const dialog = document.getElementById('sauti-composer-dialog');
+  const body = dialog?.querySelector('.composer-body');
+  if (!dialog || !body || dialog.dataset.composerNativeReady) return;
+  const host = document.createElement('div');
+  host.id = 'composer-native-choices';
+  const refreshers = [
+    installComposerChoices(document.getElementById('sauti-audience'), 'Audience', 'globe', host),
+    installComposerChoices(document.getElementById('sauti-reply-access'), 'Who can comment?', 'comment-01', host),
+  ].filter(Boolean);
+  const quote = document.getElementById('sauti-quote-preview');
+  if (quote) quote.after(host); else body.append(host);
+  const avatar = document.getElementById('member-avatar');
+  const author = dialog.querySelector('.composer-author');
+  if (avatar && author) author.prepend(avatar);
+  const styleTitle = dialog.querySelector('.composer-format-bar > span');
+  if (styleTitle) {
+    const icon = composerSectionIcon('text-font');
+    styleTitle.prepend(icon);
+  }
+  const mediaTitle = dialog.querySelector('.composer-media-heading strong');
+  if (mediaTitle) mediaTitle.prepend(composerSectionIcon('image-0-1'));
+  const mediaQueue = document.getElementById('sauti-media-queue');
+  const mediaTools = dialog.querySelector('.composer-tools');
+  if (mediaQueue && mediaTools) mediaQueue.before(mediaTools);
+  const submit = document.getElementById('sauti-submit');
+  if (submit) {
+    const footer = document.createElement('div');
+    footer.className = 'composer-native-publish';
+    footer.append(submit);
+    body.append(footer);
+  }
+  dialog.dataset.composerNativeReady = 'true';
+  const pausePreviews = () => dialog.querySelectorAll('.composer-media-preview video').forEach((video) => video.pause());
+  dialog.addEventListener('close', pausePreviews);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pausePreviews(); });
+  const viewport = installComposerViewport(dialog);
+  const refresh = () => { refreshers.forEach((update) => update()); viewport.refresh(); };
+  new MutationObserver(refresh).observe(dialog, { attributes: true, attributeFilter: ['open'] });
+  window.SautiLinkComposerPresentation = Object.freeze({ refresh });
 }
 
 function setPickerMode(mode) {
@@ -307,6 +520,35 @@ function waitForMediaEvent(media, name, timeoutMs = 10000) {
   });
 }
 
+async function prepareTrimRecordingStream(stream) {
+  if (!stream.getAudioTracks?.().length) return { stream, release: async () => {} };
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (typeof AudioContext !== 'function') throw new Error('This browser cannot prepare the video audio for trimming. Choose a video that is 60 seconds or shorter.');
+  let context = null;
+  let source = null;
+  let destination = null;
+  const release = async () => {
+    try { source?.disconnect(); } catch { /* A partially prepared graph may already be disconnected. */ }
+    try { destination?.disconnect(); } catch { /* No output connection is required for recording. */ }
+    destination?.stream.getTracks().forEach((track) => track.stop());
+    try { if (context && context.state !== 'closed') await context.close(); } catch { /* Keep the original export error. */ }
+  };
+  try {
+    // Windows AAC accepts 44.1/48 kHz; captured video audio can be 8 kHz.
+    // Resample locally while retaining the original video and audible content.
+    context = new AudioContext({ sampleRate: 48_000 });
+    source = context.createMediaStreamSource(stream);
+    destination = context.createMediaStreamDestination();
+    source.connect(destination);
+    await context.resume();
+    const recording = new MediaStream([...stream.getVideoTracks(), ...destination.stream.getAudioTracks()]);
+    return { stream: recording, release };
+  } catch (error) {
+    await release();
+    throw error;
+  }
+}
+
 async function trimVideoFile(file, startSeconds, endSeconds, onProgress) {
   const mimeType = supportedMp4RecorderType();
   const capture = HTMLMediaElement.prototype.captureStream || HTMLMediaElement.prototype.mozCaptureStream;
@@ -322,6 +564,7 @@ async function trimVideoFile(file, startSeconds, endSeconds, onProgress) {
   video.src = sourceUrl;
 
   let stream = null;
+  let recording = null;
   let recorder = null;
   let timer = 0;
   let frame = 0;
@@ -332,7 +575,8 @@ async function trimVideoFile(file, startSeconds, endSeconds, onProgress) {
 
     stream = capture.call(video);
     if (!stream?.getVideoTracks?.().length) throw new Error('This browser could not read the selected video track.');
-    recorder = new MediaRecorder(stream, {
+    recording = await prepareTrimRecordingStream(stream);
+    recorder = new MediaRecorder(recording.stream, {
       mimeType,
       videoBitsPerSecond: 4_500_000,
       audioBitsPerSecond: 128_000,
@@ -356,7 +600,7 @@ async function trimVideoFile(file, startSeconds, endSeconds, onProgress) {
     const clipDuration = Math.min(SHORT_VIDEO_LIMIT_SECONDS, Math.max(MIN_TRIM_SECONDS, endSeconds - startSeconds));
     const stopAt = Math.min(Number(video.duration) || endSeconds, startSeconds + clipDuration);
     const stopRecording = () => {
-      if (recorder?.state !== 'inactive') recorder.stop();
+      if (recorder && recorder.state !== 'inactive') recorder.stop();
     };
     const update = () => {
       const elapsed = Math.max(0, video.currentTime - startSeconds);
@@ -383,7 +627,8 @@ async function trimVideoFile(file, startSeconds, endSeconds, onProgress) {
     window.clearTimeout(timer);
     window.cancelAnimationFrame(frame);
     video.pause();
-    if (recorder?.state !== 'inactive') recorder.stop();
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    await recording?.release();
     stream?.getTracks?.().forEach((track) => track.stop());
     video.removeAttribute('src');
     URL.revokeObjectURL(sourceUrl);
@@ -433,6 +678,9 @@ function promptVideoTrim(file, duration) {
     let busy = false;
     let settled = false;
 
+    // The same dialog is reused after a successful export.
+    use.disabled = false;
+    cancels.forEach((button) => { button.disabled = false; });
     start.max = String(Math.max(0, duration - MIN_TRIM_SECONDS));
     start.value = '0';
     end.max = String(duration);
@@ -511,6 +759,7 @@ async function validateSelectedShortVideo(event) {
   }
 
   const files = [...(input.files || [])];
+  const preparedFiles = [...files];
   const videos = files.filter((file) => String(file.type || '').toLowerCase() === 'video/mp4');
   if (!videos.length) return;
 
@@ -529,12 +778,13 @@ async function validateSelectedShortVideo(event) {
       input.value = '';
       const trimmed = await promptVideoTrim(file, duration);
       if (!trimmed) return;
-      const transfer = new DataTransfer();
-      files.forEach((selected) => transfer.items.add(selected === file ? trimmed : selected));
-      input.files = transfer.files;
+      preparedFiles[files.indexOf(file)] = trimmed;
     }
   }
 
+  const transfer = new DataTransfer();
+  preparedFiles.forEach((selected) => transfer.items.add(selected));
+  input.files = transfer.files;
   input.dataset.shortVideoValidated = 'true';
   input.dispatchEvent(new Event('change', { bubbles: true }));
 }
@@ -575,19 +825,26 @@ function optionRow(index) {
   row.className = 'composer-poll-option';
   row.dataset.pollOptionRow = String(index);
 
+  const number = document.createElement('span');
+  number.className = 'composer-poll-number';
+  number.setAttribute('aria-hidden', 'true');
+  number.textContent = String(index + 1).padStart(2, '0');
+
   const input = document.createElement('input');
   input.type = 'text';
   input.maxLength = POLL_OPTION_MAX_LENGTH;
   input.placeholder = `Option ${index + 1}`;
   input.setAttribute('aria-label', `Poll option ${index + 1}`);
   input.dataset.pollOption = 'true';
-  row.append(input);
+  row.append(number, input);
 
   if (index >= POLL_MIN_OPTIONS) {
     const remove = document.createElement('button');
     remove.type = 'button';
-    remove.className = 'text-action';
-    remove.textContent = 'Remove';
+    remove.className = 'text-action composer-poll-option-remove';
+    remove.setAttribute('aria-label', `Remove poll option ${index + 1}`);
+    remove.title = `Remove option ${index + 1}`;
+    remove.append(composerSectionIcon('cancel-0-1'));
     remove.addEventListener('click', () => {
       row.remove();
       renumberPollOptions();
@@ -602,6 +859,8 @@ function renumberPollOptions() {
   const rows = [...(pollEditor()?.querySelectorAll('[data-poll-option-row]') || [])];
   rows.forEach((row, index) => {
     row.dataset.pollOptionRow = String(index);
+    const number = row.querySelector('.composer-poll-number');
+    if (number) number.textContent = String(index + 1).padStart(2, '0');
     const input = row.querySelector('[data-poll-option]');
     if (input) {
       input.placeholder = `Option ${index + 1}`;
@@ -609,6 +868,10 @@ function renumberPollOptions() {
     }
     const remove = row.querySelector('button');
     if (index < POLL_MIN_OPTIONS && remove) remove.remove();
+    else if (remove) {
+      remove.setAttribute('aria-label', `Remove poll option ${index + 1}`);
+      remove.title = `Remove option ${index + 1}`;
+    }
   });
 }
 
@@ -616,7 +879,10 @@ function syncAddOptionButton() {
   const editor = pollEditor();
   const button = document.getElementById('sauti-poll-add-option');
   if (!editor || !button) return;
-  button.disabled = editor.querySelectorAll('[data-poll-option]').length >= POLL_MAX_OPTIONS;
+  const count = editor.querySelectorAll('[data-poll-option]').length;
+  button.disabled = count >= POLL_MAX_OPTIONS;
+  const countLabel = editor.querySelector('.composer-poll-count');
+  if (countLabel) countLabel.textContent = `${count} / ${POLL_MAX_OPTIONS} options`;
 }
 
 function clearPollEditor() {
@@ -652,17 +918,19 @@ function buildPollEditor(textarea) {
   const heading = document.createElement('div');
   heading.className = 'composer-poll-heading';
   const title = document.createElement('strong');
-  title.textContent = 'Poll';
+  title.append(composerSectionIcon('analytics-0-1'), document.createTextNode('Poll'));
   const remove = document.createElement('button');
   remove.type = 'button';
   remove.className = 'text-action composer-poll-remove';
-  remove.textContent = 'Remove poll';
+  remove.setAttribute('aria-label', 'Remove poll');
+  remove.title = 'Remove poll';
+  remove.append(composerSectionIcon('cancel-0-1'));
   remove.addEventListener('click', clearPollEditor);
   heading.append(title, remove);
 
   const note = document.createElement('p');
   note.className = 'composer-poll-note';
-  note.textContent = 'Use the post text above as your poll question. Add 2 to 4 options.';
+  note.textContent = 'Ask your question above. Add 2–4 choices below.';
 
   const options = document.createElement('div');
   options.className = 'composer-poll-options';
@@ -674,7 +942,7 @@ function buildPollEditor(textarea) {
   add.id = 'sauti-poll-add-option';
   add.type = 'button';
   add.className = 'secondary-action';
-  add.textContent = 'Add option';
+  add.append(composerSectionIcon('add-0-1'), document.createTextNode('Add option'));
   add.addEventListener('click', () => {
     const count = options.querySelectorAll('[data-poll-option]').length;
     if (count >= POLL_MAX_OPTIONS) return;
@@ -682,7 +950,10 @@ function buildPollEditor(textarea) {
     syncAddOptionButton();
     options.lastElementChild?.querySelector('input')?.focus();
   });
-  actions.append(add);
+  const countLabel = document.createElement('span');
+  countLabel.className = 'composer-poll-count';
+  countLabel.textContent = `${POLL_MIN_OPTIONS} / ${POLL_MAX_OPTIONS} options`;
+  actions.append(add, countLabel);
 
   editor.append(heading, note, options, actions);
   textarea.after(editor);
@@ -739,6 +1010,7 @@ function installComposerTools() {
   const disabledPoll = document.querySelector('.composer-tool.disabled-feature');
   const pollButton = disabledPoll ? buildPollTool(disabledPoll, textarea) : document.getElementById('sauti-poll-add');
   if (videoButton && pollButton) syncComposerTools(textarea, videoButton, pollButton);
+  installNativeComposerPresentation();
 }
 
 function pollHeaders() {
