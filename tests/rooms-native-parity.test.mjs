@@ -28,7 +28,10 @@ test('repeated Room information syncs keep the same DOM and animated icons until
   }
   const make = (id, text) => { const node = new Element('p'); node.id = id; node.textContent = text; return node; };
   const description = make('circle-detail-description', 'A community of builders.');
-  const policy = make('circle-detail-policy', 'Public Room');
+  make('circle-detail-policy', 'Approval');
+  const privacyBadge = make('test-privacy-badge', 'Public Room');
+  let visibleBadges = [];
+  const detail = { querySelectorAll: () => visibleBadges };
   const membership = make('circle-detail-membership', 'Member');
   const count = make('test-member-count', '42 members');
   const ensure = runInNewContext(`
@@ -36,7 +39,7 @@ test('repeated Room information syncs keep the same DOM and animated icons until
     ${section('ensureRoomAboutCard', 'ensureRoomDetailActions')}
     ensureRoomAboutCard;
   `, {
-    roomFbById: (id) => nodes.find((node) => node.id === id),
+    roomFbById: (id) => id === 'circle-detail' ? detail : nodes.find((node) => node.id === id),
     roomFbIcon: () => new Element('svg'),
     document: { createElement: (tag) => new Element(tag), querySelector: () => count },
   });
@@ -44,6 +47,11 @@ test('repeated Room information syncs keep the same DOM and animated icons until
   const card = ensure();
   const privacy = card.querySelector('[data-room-fb-privacy]');
   const members = card.querySelector('[data-room-fb-members]');
+  assert.match(privacy.textContent, /^Room privacyPrivacy details are not available yet/);
+  visibleBadges = [privacyBadge];
+  ensure();
+  assert.match(privacy.textContent, /^PublicAnyone can find/,
+    'the existing About card must refresh when heading privacy metadata arrives');
   const initialPrivacyIcon = privacy.children[0];
   const initialMembersIcon = members.children[0];
   const initialMutations = mutations;
@@ -61,7 +69,7 @@ test('repeated Room information syncs keep the same DOM and animated icons until
   assert.notEqual(members.children[0], initialMembersIcon);
   assert.match(members.textContent, /43 members · Admin/);
   const updatedMembersIcon = members.children[0];
-  policy.textContent = 'Private Room';
+  privacyBadge.textContent = 'Private Room';
   ensure();
   assert.notEqual(privacy.children[0], initialPrivacyIcon);
   assert.match(privacy.textContent, /PrivateOnly members can see/);
@@ -69,6 +77,39 @@ test('repeated Room information syncs keep the same DOM and animated icons until
   const settledMutations = mutations;
   ensure();
   assert.equal(mutations, settledMutations);
+});
+
+test('About privacy follows the rendered Room privacy independently of membership policy and badge position', () => {
+  let badges = [];
+  const policy = { textContent: 'Approval' };
+  const privacy = runInNewContext(`
+    ${section('roomFbPrivacyCopy', 'ensureRoomAboutCard')}
+    roomFbPrivacyCopy;
+  `, {
+    roomFbById: (id) => id === 'circle-detail'
+      ? { querySelectorAll: (selector) => {
+        assert.equal(selector, '.room-detail-badges > span');
+        return badges;
+      } }
+      : id === 'circle-detail-policy' ? policy : null,
+  });
+  for (const [membership, visiblePrivacy, expected, position] of [
+    ['Open', 'Private Room', 'Private', 0],
+    ['Approval', 'Private Room', 'Private', 1],
+    ['Invite only', 'Public Room', 'Public', 0],
+    ['Approval', 'Public Room', 'Public', 1],
+    ['Open', 'PrivateRoom', 'Private', 1],
+  ]) {
+    policy.textContent = membership;
+    badges = [{ textContent: 'Technology' }, { textContent: '42 members' }];
+    badges.splice(position, 0, { textContent: visiblePrivacy });
+    const copy = Array.from(privacy());
+    assert.equal(copy[0], expected, `${visiblePrivacy} must stay correct with ${membership} membership`);
+    assert.match(copy[1], expected === 'Private' ? /^Only members/ : /^Anyone can find/);
+  }
+  badges = [{ textContent: 'Technology' }, { textContent: '42 members' }];
+  policy.textContent = 'Open';
+  assert.equal(privacy()[0], 'Room privacy', 'missing metadata must not be advertised as public');
 });
 
 test('switching Your Rooms back to Discover restores matching cards without dropping search or category filters', () => {
@@ -105,6 +146,45 @@ test('switching Your Rooms back to Discover restores matching cards without drop
 
 const platformSource = await readFile(new URL('../src/rooms-platform.js', import.meta.url), 'utf8');
 const detailPresentation = platformSource.slice(platformSource.indexOf('function enhanceRoomDetail('), platformSource.indexOf('\nfunction settingsField('));
+const shellBranding = platformSource.slice(platformSource.indexOf('function brandRoomsShell('), platformSource.indexOf('\nfunction roomOption('));
+
+test('repeated Room branding preserves the native toolbar back icon, accessible name and action', () => {
+  let writes = 0;
+  const svg = { tagName: 'svg' };
+  const caption = { className: 'sr-only', textContent: 'Back to Rooms' };
+  const action = () => 'Back route retained';
+  const toolbarBack = {
+    children: [svg, caption], ariaLabel: 'Back to Rooms', onclick: action,
+    closest: () => ({ className: 'room-detail-toolbar' }),
+    get textContent() { return this.children.map((child) => child.textContent || '').join(''); },
+    set textContent(value) { writes += 1; this.children = [{ textContent: value }]; },
+  };
+  let back = toolbarBack;
+  const brand = runInNewContext(`${shellBranding}\nbrandRoomsShell;`, {
+    document: { querySelectorAll: () => [] },
+    roomById: (id) => id === 'circle-back' ? back : id === 'circles-surface'
+      ? { hidden: true, setAttribute() {}, querySelector: () => null } : null,
+    canonicalizeRoomUrl() {},
+  });
+  for (let index = 0; index < 50; index += 1) brand();
+  assert.equal(writes, 0);
+  assert.equal(toolbarBack.children[0], svg, 'the existing animated icon must not be replaced by legacy text');
+  assert.equal(toolbarBack.children[1], caption);
+  assert.equal(toolbarBack.ariaLabel, 'Back to Rooms');
+  assert.equal(toolbarBack.onclick, action);
+  assert.equal(toolbarBack.onclick(), 'Back route retained');
+
+  let legacyLabel = 'Old label';
+  back = {
+    closest: () => null,
+    get textContent() { return legacyLabel; },
+    set textContent(value) { legacyLabel = value; writes += 1; },
+  };
+  brand();
+  assert.equal(legacyLabel, '← All Rooms', 'the pre-enhancement back button retains its existing label');
+  for (let index = 0; index < 50; index += 1) brand();
+  assert.equal(writes, 1, 'an unchanged legacy label also avoids repeated DOM writes');
+});
 
 test('Room metadata rows remain inert on repeated presentation and still refresh changed or reset content', () => {
   let mutations = 0;
