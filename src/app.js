@@ -171,6 +171,9 @@ let currentDeletionRequest = null;
 let currentSettingsPreferences = null;
 let currentExportRequest = null;
 let settingsRequest = 0;
+let verificationRemovalAction = null;
+let verificationRemovalEpoch = 0;
+let identityControlsRequest = 0;
 let currentModerationRole = '';
 let moderationReports = [];
 let moderationAppeals = [];
@@ -589,6 +592,7 @@ async function resolveTokenHashReturn() {
 
 function showAuthPanel(name) {
   document.body.classList.add('auth-entry');
+  resetVerificationRemovalControl();
   document.body.dataset.authMode = name;
   loadingView.hidden = true;
   memberView.hidden = true;
@@ -613,6 +617,7 @@ function showSignedOut(mode = 'login') {
   setSignupPhoneChange('');
   currentMember = null;
   currentMemberId = '';
+  resetVerificationRemovalControl();
   currentAccountEmail = '';
   currentDeletionRequest = null;
   currentSettingsPreferences = null;
@@ -1467,6 +1472,7 @@ const VERIFICATION_SOCIAL_FIELDS = Object.freeze([
 ]);
 
 function syncVerificationRequestStatus(profile, { loading = false } = {}) {
+  syncVerificationRemovalControl(profile, { loading });
   const status = byId('settings-verification-status');
   const badge = byId('settings-verification-badge');
   const request = byId('settings-verification-request');
@@ -1480,7 +1486,7 @@ function syncVerificationRequestStatus(profile, { loading = false } = {}) {
     return;
   }
 
-  const verified = Boolean(profile?.is_verified);
+  const verified = profile?.is_verified === true;
   status.textContent = verified ? 'Verified' : 'Unverified';
   status.classList.toggle('verified', verified);
   badge.hidden = !verified;
@@ -1489,6 +1495,94 @@ function syncVerificationRequestStatus(profile, { loading = false } = {}) {
     ? 'Your account currently has an active SautiLink verification badge.'
     : 'You can request review below. We return feedback within 72 hours.';
   if (verified) applyVerificationBadgeAsset(badge, profile?.verification_badge_type);
+}
+
+function syncVerificationRemovalControl(profile = currentMember, { loading = false } = {}) {
+  const control = byId('settings-verification-removal');
+  const button = byId('settings-verification-remove');
+  if (!control || !button) return;
+  const eligible = !loading && Boolean(currentMemberId)
+    && profile?.id === currentMemberId && profile?.is_verified === true
+    && !memberView.hidden && !document.body.classList.contains('auth-entry');
+  control.hidden = !eligible;
+  button.disabled = !eligible || Boolean(verificationRemovalAction);
+}
+
+function resetVerificationRemovalControl() {
+  verificationRemovalAction = null;
+  verificationRemovalEpoch += 1;
+  identityControlsRequest += 1;
+  syncVerificationRemovalControl(null, { loading: true });
+  byId('settings-verification-remove')?.removeAttribute('aria-busy');
+}
+
+async function refreshVerificationRemovalSurfaces(memberId) {
+  if (currentMemberId !== memberId || currentMember?.id !== memberId) return;
+  const refreshes = [];
+  if (!streamSurface.hidden) refreshes.push(loadStream({ reset: true }));
+  if (!notificationsSurface.hidden) refreshes.push(loadNotifications());
+  if (!discoverSurface.hidden) refreshes.push(loadDiscover());
+  if (!savedSurface.hidden) refreshes.push(loadSavedSauti());
+  if (!conversationSurface.hidden && activeSautiConversation?.rootId) {
+    refreshes.push(loadConversation(activeSautiConversation.rootId));
+  }
+  if (!circlesSurface.hidden && activeCircle?.circle?.id) {
+    refreshes.push(loadCircleStream(activeCircle.circle.id));
+  }
+  await Promise.allSettled(refreshes);
+}
+
+async function removeOwnVerification() {
+  const button = byId('settings-verification-remove');
+  if (!button || verificationRemovalAction || !currentMemberId
+    || currentMember?.id !== currentMemberId || currentMember?.is_verified !== true
+    || memberView.hidden || settingsSurface.hidden || document.body.classList.contains('auth-entry')) return;
+  const action = { memberId: currentMemberId };
+  verificationRemovalAction = action;
+  syncVerificationRemovalControl(currentMember);
+  try {
+    const accepted = await window.SautiMemberDialogs.confirm(
+      'Your verification checkmark will be removed from your account. Your username will follow the normal change limits. To become verified again, you must submit a new application and complete every verification step again. Being verified before does not guarantee approval of a future application. This removal cannot be undone.',
+      { title: 'Remove verification?', confirmLabel: 'Remove verification', cancelLabel: 'Keep verification', tone: 'destructive', icon: 'id-verified' },
+    );
+    if (!accepted || verificationRemovalAction !== action || currentMemberId !== action.memberId
+      || currentMember?.id !== action.memberId || currentMember?.is_verified !== true
+      || memberView.hidden || settingsSurface.hidden || document.body.classList.contains('auth-entry')) return;
+    button.setAttribute('aria-busy', 'true');
+    const data = await settingsApiRequest('/api/account/verification/remove', {
+      method: 'POST',
+      body: { request_id: crypto.randomUUID(), confirmation: 'remove-verification-v1' },
+    });
+    if (verificationRemovalAction !== action || currentMemberId !== action.memberId || currentMember?.id !== action.memberId) return;
+    if (!['removed', 'already_removed'].includes(data.status) || data.user_id !== action.memberId
+      || data.profile?.id !== action.memberId || data.profile?.is_verified !== false
+      || data.profile?.verification_badge_type !== 'standard' || data.username_unlocked !== true) {
+      throw new Error('Verification removal could not be confirmed. Refresh your settings before trying again.');
+    }
+    verificationRemovalEpoch += 1;
+    identityControlsRequest += 1;
+    currentMember = { ...currentMember, ...data.profile };
+    document.dispatchEvent(new CustomEvent('sautilink:verification-removed', {
+      detail: { userId: action.memberId, username: data.profile.username },
+    }));
+    syncVerificationRequestStatus(currentMember);
+    syncMemberIdentityVisuals();
+    settingsMessage('Verification removed. Normal username change limits apply. To get verified again, submit a new application and complete the full review process; approval is not guaranteed.', 'success');
+    await loadIdentityControls();
+    if (verificationRemovalAction !== action || currentMemberId !== action.memberId || currentMember?.id !== action.memberId) return;
+    await refreshVerificationRemovalSurfaces(action.memberId);
+  } catch (error) {
+    if (error?.name !== 'AbortError' && verificationRemovalAction === action
+      && currentMemberId === action.memberId && currentMember?.id === action.memberId) {
+      settingsMessage(error?.message || 'Verification could not be removed. Please try again.', 'error');
+    }
+  } finally {
+    if (verificationRemovalAction === action) {
+      verificationRemovalAction = null;
+      button.removeAttribute('aria-busy');
+      syncVerificationRemovalControl(currentMember);
+    }
+  }
 }
 
 function verificationSocialHandle(value) {
@@ -8557,11 +8651,15 @@ function syncMemberIdentityVisuals() {
   byId('rail-username').textContent = `@${username}`;
   renderProfileAvatar(byId('member-avatar'), currentMember, displayName);
   renderProfileAvatar(byId('rail-avatar'), currentMember, displayName);
-  renderProfile(currentMember, { owner: true });
+  if (profileSurface.hidden || renderedProfileOwner || renderedProfileId === currentMemberId) {
+    renderProfile(currentMember, { owner: true });
+  }
 }
 
 async function loadIdentityControls() {
   if (!currentMemberId) return null;
+  const memberId = currentMemberId;
+  const requestId = ++identityControlsRequest;
   const stateNode = byId('profile-identity-state');
   const summary = byId('profile-identity-summary');
   const nameHint = byId('profile-name-hint');
@@ -8575,7 +8673,9 @@ async function loadIdentityControls() {
 
   try {
     const data = await settingsApiRequest('/api/account/identity');
+    if (requestId !== identityControlsRequest || currentMemberId !== memberId || currentMember?.id !== memberId) return null;
     const profile = data.profile || {};
+    if (profile.id !== memberId) throw new Error('Your account identity could not be confirmed. Reopen the profile editor and try again.');
     currentMember = { ...currentMember, ...profile };
     byId('profile-name-input').value = profile.display_name || '';
     byId('profile-username-input').value = profile.username || '';
@@ -8609,6 +8709,7 @@ async function loadIdentityControls() {
     syncMemberIdentityVisuals();
     return data;
   } catch (error) {
+    if (requestId !== identityControlsRequest || currentMemberId !== memberId || currentMember?.id !== memberId) return null;
     stateNode.textContent = 'Unavailable';
     summary.textContent = error?.message || 'Identity change status could not be loaded.';
     nameHint.textContent = 'Try reopening the profile editor.';
@@ -9213,6 +9314,7 @@ function renderMember(profile, userId = currentMemberId) {
   authView.hidden = true;
   memberView.hidden = false;
   railAccount.hidden = false;
+  syncVerificationRemovalControl(currentMember);
   mobileSignoutButton.hidden = false;
   document.querySelectorAll('[data-open-sauti-composer]').forEach((button) => { button.disabled = false; });
   byId('sauti-body').disabled = false;
@@ -10475,6 +10577,7 @@ byId('settings-signout-others').addEventListener('click', async (event) => {
 });
 
 byId('settings-verification-request').addEventListener('click', openVerificationRequestDialog);
+byId('settings-verification-remove').addEventListener('click', removeOwnVerification);
 byId('verification-request-close').addEventListener('click', () => closeVerificationRequestDialog({ restoreFocus: true }));
 byId('verification-request-cancel').addEventListener('click', () => closeVerificationRequestDialog({ restoreFocus: true }));
 byId('verification-request-form').addEventListener('input', updateVerificationRequestState);
@@ -11106,6 +11209,7 @@ async function signOut() {
   if (error) return showToast('Sign out failed. Please try again.', 'error');
   currentMember = null;
   currentMemberId = '';
+  resetVerificationRemovalControl();
   currentAccountEmail = '';
   currentDeletionRequest = null;
   syncDeletionRequestUI(null);
@@ -11142,6 +11246,7 @@ supabase.auth.onAuthStateChange((event, session) => {
     void stopDmRealtime();
     currentMember = null;
     currentMemberId = '';
+    resetVerificationRemovalControl();
     currentAccountEmail = '';
     syncAccountSecurityEmail();
     window.setTimeout(() => applyLocationRoute(), 0);

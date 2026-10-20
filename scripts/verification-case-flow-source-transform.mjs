@@ -93,19 +93,22 @@ function normalizeVerificationDialogReviewCopy() {
 }
 
 function renderVerificationCaseStatus(profile = currentMember, caseValue = currentVerificationCase) {
+  syncVerificationRemovalControl(profile);
   const status = byId('settings-verification-status');
   const badge = byId('settings-verification-badge');
   const request = byId('settings-verification-request');
   const note = byId('settings-verification-note');
   if (!status || !badge || !request || !note) return;
 
-  const caseItem = normalizedVerificationCase(caseValue);
-  const verified = Boolean(profile?.is_verified) || caseItem?.status === 'approved';
+  const verified = profile?.is_verified === true;
+  const latestCase = normalizedVerificationCase(caseValue);
+  // A past approval cannot restore a checkmark or prevent a new application.
+  const caseItem = !verified && latestCase?.status === 'approved' ? null : latestCase;
   const cooldownLocked = verificationReapplyLocked(caseItem);
   status.textContent = verified ? 'Verified' : verificationCaseStatusCopy(caseItem);
   status.classList.toggle('verified', verified);
-  badge.hidden = !Boolean(profile?.is_verified);
-  if (profile?.is_verified) applyVerificationBadgeAsset(badge, profile?.verification_badge_type);
+  badge.hidden = !verified;
+  if (verified) applyVerificationBadgeAsset(badge, profile?.verification_badge_type);
 
   request.disabled = false;
   request.removeAttribute('aria-disabled');
@@ -141,38 +144,43 @@ function renderVerificationCaseStatus(profile = currentMember, caseValue = curre
   note.textContent = verificationCaseNote(caseItem);
 }
 
-async function refreshVerifiedProfileFromCase(caseItem) {
-  if (caseItem?.status !== 'approved' || !currentMemberId) return null;
+async function refreshVerifiedProfileFromCase(caseItem, { requestId = verificationCaseRequest, memberId = currentMemberId, removalEpoch = verificationRemovalEpoch } = {}) {
+  if (caseItem?.status !== 'approved' || !memberId || currentMember?.id !== memberId) return null;
   const { data, error } = await supabase
     .from('social_profiles')
     .select('id, username, display_name, avatar_key, updated_at, is_verified, verification_badge_type')
-    .eq('id', currentMemberId)
+    .eq('id', memberId)
     .maybeSingle();
-  if (error || !data) return null;
+  if (error || !data || data.id !== memberId || requestId !== verificationCaseRequest
+    || currentMemberId !== memberId || currentMember?.id !== memberId || removalEpoch !== verificationRemovalEpoch) return null;
   currentMember = { ...currentMember, ...data };
   return currentMember;
 }
 
 async function loadVerificationCaseStatus(profile = currentMember) {
   if (!currentMemberId) return null;
-  if (profile?.is_verified) {
+  const memberId = currentMemberId;
+  const removalEpoch = verificationRemovalEpoch;
+  const requestId = ++verificationCaseRequest;
+  if (profile?.is_verified === true) {
     currentVerificationCase = null;
     renderVerificationCaseStatus(profile, null);
     return null;
   }
 
-  const requestId = ++verificationCaseRequest;
   const { data, error } = await supabase.rpc('get_my_verification_case');
-  if (requestId !== verificationCaseRequest) return null;
+  if (requestId !== verificationCaseRequest || currentMemberId !== memberId
+    || currentMember?.id !== memberId || removalEpoch !== verificationRemovalEpoch) return null;
   if (error) {
-    renderVerificationCaseStatus(profile, currentVerificationCase);
+    renderVerificationCaseStatus(currentMember, currentVerificationCase);
     return null;
   }
 
   currentVerificationCase = normalizedVerificationCase(data);
-  const refreshedProfile = await refreshVerifiedProfileFromCase(currentVerificationCase);
-  if (requestId !== verificationCaseRequest) return currentVerificationCase;
-  renderVerificationCaseStatus(refreshedProfile || profile, currentVerificationCase);
+  const refreshedProfile = await refreshVerifiedProfileFromCase(currentVerificationCase, { requestId, memberId, removalEpoch });
+  if (requestId !== verificationCaseRequest || currentMemberId !== memberId
+    || currentMember?.id !== memberId || removalEpoch !== verificationRemovalEpoch) return null;
+  renderVerificationCaseStatus(refreshedProfile || currentMember, currentVerificationCase);
   return currentVerificationCase;
 }
 

@@ -632,6 +632,32 @@ body.profile-editor-open {
   }
 }
 
+.settings-surface #settings-verification-removal {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--app-line);
+}
+
+.settings-surface #settings-verification-removal-note {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.settings-surface #settings-verification-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.settings-surface #settings-verification-remove svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .settings-surface .settings-tabs button,
   .settings-surface .settings-toggle-row i,
