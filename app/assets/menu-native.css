@@ -194,10 +194,13 @@ body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-native
 }
 
 body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-native-profile > .avatar {
+  position: relative;
   display: grid;
   width: 46px;
   height: 46px;
   flex: 0 0 46px;
+  overflow: hidden;
+  border-radius: 50%;
 }
 
 body:not(.auth-entry):has(#member-view:not([hidden])) #menu-surface .menu-native-profile .rail-account-copy {

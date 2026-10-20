@@ -165,5 +165,7 @@ test('Menu labels and profile identity escape the inherited tablet compact rail 
     }
   }
   assert.match(rule('.menu-native-profile > .avatar {'), /width:\s*46px;[\s\S]*height:\s*46px;/);
+  assert.match(rule('.menu-native-profile > .avatar {'), /position:\s*relative;/);
+  assert.match(rule('.menu-native-profile > .avatar {'), /overflow:\s*hidden;/);
   assert.match(rule('.menu-native-profile-chevron {'), /width:\s*22px;[\s\S]*height:\s*22px;/);
 });
