@@ -189,7 +189,6 @@ class NativeVerificationRemovalUiTest {
         compose.runOnIdle { assertTrue(gateway.attempts.isEmpty()) }
     }
 
-    @RequiresApi(29)
     @SdkSuppress(minSdkVersion = 29) // Public window inspection is needed only for window-targeted keys.
     @Test fun exactWarningAndKeepVerification_cancelWithoutAnyRequest_andBackIsAlsoSafe() {
         val gateway = Gateway()
@@ -212,7 +211,6 @@ class NativeVerificationRemovalUiTest {
         compose.runOnIdle { assertTrue(gateway.attempts.isEmpty()); assertTrue(verified); assertTrue(removedOwners.isEmpty()) }
     }
 
-    @RequiresApi(29)
     @SdkSuppress(minSdkVersion = 29)
     @Test fun pendingConfirmationBlocksDuplicateClicksKeepAndBack_thenConfirmedSuccessHidesSetting() {
         val gateway = Gateway()
