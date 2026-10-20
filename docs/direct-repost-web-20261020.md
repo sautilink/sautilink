@@ -34,3 +34,18 @@ Short Videos module with in-memory data only; no production posts or accounts
 are mutated. Evidence belongs in `outputs/SautiLink-Direct-Repost-20261020`
 outside the repository. Release requires successful exact-head CI, the existing
 Git-linked deployment and production bundle verification.
+
+## Profile identity spacing follow-up
+
+The profile's 20px name now uses a 26px row with 18px verification artwork,
+replacing the old 44px badge layout row. Category text uses a compact 20px row;
+the decorative information glyph is removed while its original details dialog
+and accessible button remain. Both buttons retain expanded 44px touch areas.
+Username/category/stats spacing and the avatar-toolbar gap are reduced, and a
+soft circular shadow sits behind the existing 92px avatar. Own/public actions,
+image overlap, badge identity, editor/save logic and APIs remain unchanged.
+The `profileui=20261020-compact1` bundle key and existing stylesheet content
+hashes deliver the update. Canonical checks pass all 1,051 tests. Source-backed
+browser review covers Company, long-name and unverified profiles, dialogs,
+touch boundaries, and light/dark layouts down to 320px. Release evidence is
+stored outside the repository in `outputs/SautiLink-Profile-Polish-20261020`.

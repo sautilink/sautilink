@@ -272,11 +272,7 @@ function renderProfessionalCategoryButton(category) {
 
   const text = document.createElement('span');
   text.textContent = category.label;
-  const info = document.createElement('span');
-  info.className = 'profile-professional-category-info';
-  info.setAttribute('aria-hidden', 'true');
-  info.textContent = 'i';
-  button.append(text, info);
+  button.append(text);
   button.hidden = false;
 }
 

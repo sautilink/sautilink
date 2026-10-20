@@ -28,18 +28,6 @@
   border-radius: 4px;
 }
 
-.profile-professional-category-info {
-  display: inline-grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1;
-}
-
 .professional-category-editor {
   display: grid;
   gap: 11px;
