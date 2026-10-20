@@ -1,4 +1,4 @@
-name: Native verification removal Play release candidate 47
+name: Native verification and chat Play release candidate 47
 
 on:
   push:
@@ -32,9 +32,9 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
-          # Build the reviewed, immutable native verification removal 1.1.2 (47) source commit.
+          # Build the reviewed, immutable verification controls and chat 1.1.2 (47) source commit.
           # The same SHA and its app/src tree must be pinned in release47.py.
-          ref: 5456afeefae900e6be0e0149001e6453e40157c7
+          ref: 960c7a832edc8f811cba20920f32256589385e64
           path: candidate
           persist-credentials: false
       - uses: actions/setup-java@v4

@@ -5,8 +5,8 @@ import xml.etree.ElementTree as ET
 
 # Immutable source pins for the reviewed native verification removal 1.1.2 (47) candidate.
 # Keep SOURCE identical to the candidate checkout ref in native-verification-removal-release47.yml.
-SOURCE = '5456afeefae900e6be0e0149001e6453e40157c7'
-SOURCE_TREE = '2eec06ed7ff0dc66ccaa27c4bc2c1df7857a0634'
+SOURCE = '960c7a832edc8f811cba20920f32256589385e64'
+SOURCE_TREE = '67db8df2d13bda8d541cca4eb52e8362f9f6dd6f'
 CERT = '31c773a7229a563d92f7047a56735ad7b02027d27a6e020d8923dd5418f4b50f'
 FIREBASE_SHA = 'be30a77f6be106c97b59ecdc6e7cc61100e0d9fd354ac883357e253fb69e6cae'
 BUNDLETOOL_SHA = 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29'
