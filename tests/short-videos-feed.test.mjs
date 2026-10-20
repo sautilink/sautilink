@@ -12,7 +12,7 @@ test('Short Videos reuses the canonical Home feed and social actions', async () 
   assert.match(source, /stream-load-more/);
   assert.match(source, /\[data-home-follow\]/);
   assert.match(source, /\[data-sauti-action=/);
-  assert.match(source, /\[data-repost-toggle\]/);
+  assert.doesNotMatch(source, /\[data-repost-toggle\]/);
   assert.match(source, /actionName === 'comments'/);
   assert.doesNotMatch(source, /createClient|supabase|fetch\(|XMLHttpRequest|WebSocket/i);
 });
@@ -33,7 +33,8 @@ test('Short Videos exposes every video tile while loading protected media on dem
   assert.match(source, /index \+ SHORT_VIDEO_PREFETCH_DISTANCE/);
   assert.match(source, /function shortVideoUrlForTile/);
   assert.match(source, /context: 'short'/);
-  assert.match(source, /attributeFilter: \['data-active', 'data-following', 'data-media-object-url', 'data-media-poster-object-url'\]/);
+  assert.match(source, /attributeFilter: \['data-active', 'data-pending', 'aria-busy', 'aria-label', 'disabled', 'data-following', 'data-media-object-url', 'data-media-poster-object-url'\]/);
+  assert.match(source, /characterData: true/);
   assert.match(performanceTransform, /tile\.addEventListener\('sautilink:request-media-load', finish, \{ once: true \}\)/);
   assert.match(performanceTransform, /tile\.removeEventListener\('sautilink:request-media-load', finish\)/);
 });

@@ -278,8 +278,8 @@ body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card :is(.profile
 }
 body:not(.auth-entry):has(#member-view:not([hidden])) #profile-card .profile-name-line h2 {
   min-width: 0;
-  font-size: 22px;
-  line-height: 28px;
+  font-size: 20px;
+  line-height: 26px;
   font-weight: 650;
   letter-spacing: -.5px;
   overflow-wrap: anywhere;

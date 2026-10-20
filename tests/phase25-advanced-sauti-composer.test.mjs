@@ -11,7 +11,6 @@ test('Phase 25 activates the advanced Sauti composer inside the accepted app she
   for (const marker of [
     'id="sauti-audience"',
     'id="sauti-reply-access"',
-    'id="sauti-quote-preview"',
     'id="sauti-save-draft"',
     'id="sauti-drafts-toggle"',
     'id="composer-offline"',
@@ -29,10 +28,9 @@ test('Phase 25 activates the advanced Sauti composer inside the accepted app she
   assert.ok(jsVersion >= 25, `app JS version regressed below Phase 25: ${jsVersion}`);
   assert.match(css, /\.composer-settings/);
   assert.match(css, /\.composer-drafts/);
-  assert.match(css, /\.composer-quote-preview/);
-  assert.match(css, /\.sauti-repost-menu/);
   assert.match(css, /\.sauti-quote-card/);
   assert.match(css, /\.circle-sauti-controls/);
+  assert.doesNotMatch(html, /id="sauti-quote-(?:preview|remove|author|body)"/);
 });
 
 test('Phase 25 database contract enables followers, reply permissions and privacy-safe Quote Sauti', async () => {
@@ -90,7 +88,7 @@ test('Phase 25 social API gives useful reply-permission failures while DB RLS re
   assert.doesNotMatch(api, /service_role|sb_secret_|SUPABASE_SECRET/i);
 });
 
-test('Phase 25 browser composer persists per-account drafts and supports offline + Quote Sauti flow', async () => {
+test('browser composer retains per-account drafts and offline posting without offering Quote creation', async () => {
   const source = await read('src/app.js');
 
   for (const marker of [
@@ -102,8 +100,6 @@ test('Phase 25 browser composer persists per-account drafts and supports offline
     'loadComposerAudiences',
     'prepareComposer',
     'syncComposerOnlineState',
-    'startQuoteSauti',
-    'toggleRepostMenu',
     'quote_post_id',
     'reply_access',
     'circle:',
@@ -115,7 +111,7 @@ test('Phase 25 browser composer persists per-account drafts and supports offline
   assert.match(source, /window\.addEventListener\('online'/);
   assert.match(source, /window\.addEventListener\('offline'/);
   assert.match(source, /navigator\.onLine/);
-  assert.match(source, /Only public posts can be quoted/);
+  assert.doesNotMatch(source, /startQuoteSauti|setComposerQuote|toggleRepostMenu|data-quote-sauti|dataset\.quoteSauti/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
   assert.doesNotMatch(source, /service_role|sb_secret_|SUPABASE_SECRET/i);
 });

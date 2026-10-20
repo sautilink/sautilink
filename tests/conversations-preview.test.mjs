@@ -32,7 +32,6 @@ test('Conversations preview includes thread, delivery and safety contracts', asy
     'Reply not sent',
     'Retry',
     'Hidden by your reply controls',
-    'Quote Sauti',
     'Show 2 more replies',
   ]) {
     assert.match(conversation, new RegExp(term));
@@ -40,6 +39,8 @@ test('Conversations preview includes thread, delivery and safety contracts', asy
   assert.match(app, /enableConversationPreview/);
   assert.match(main, /Preview 06/);
   assert.match(main, /initialSection="thread"/);
+  assert.doesNotMatch(conversation, /Quote Sauti|Quote list|thread-reshare-menu|reshareMenuOpen/);
+  assert.match(conversation, /aria-pressed=\{reshared\}/);
 });
 
 test('Replies stay local, enforce limits and keep visible hierarchy bounded', async () => {

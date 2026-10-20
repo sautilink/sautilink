@@ -72,7 +72,8 @@ test('scroll dismissal covers floating options across the app', async () => {
   const roomSource = await read('src/rooms-transient-surfaces.js');
 
   assert.match(source, /dismissTransientMenusOnScroll\(\)[\s\S]*closeHomePostMenus\(\)/);
-  assert.match(source, /dismissTransientMenusOnScroll\(\)[\s\S]*closeRepostMenus\(\)/);
+  assert.match(source, /dismissTransientMenusOnScroll\(\)[\s\S]*if \(openCommentMenuShell\) closeCommentMenus\(\)/);
+  assert.doesNotMatch(source, /closeRepostMenus|sauti-repost-menu/);
   assert.match(source, /dismissTransientMenusOnScroll\(\)[\s\S]*profile-more-popover/);
   assert.match(source, /dismissTransientMenusOnScroll\(\)[\s\S]*messages-wa-thread-menu\[open\]/);
   assert.match(source, /dismissTransientMenusOnScroll\(\)[\s\S]*sauti-video-quality-menu/);

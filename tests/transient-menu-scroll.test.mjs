@@ -26,7 +26,6 @@ test('scroll closes open menus and resets their controls', () => {
   const document = {
     querySelector(selector) {
       if (selector.startsWith('[data-home-post-menu-toggle]')) return {};
-      if (selector.startsWith('.sauti-repost-menu')) return {};
       return null;
     },
     querySelectorAll(selector) {
@@ -47,10 +46,9 @@ test('scroll closes open menus and resets their controls', () => {
     openCommentMenuShell: {},
     closeHomePostMenus: () => closed.push('post'),
     closeCommentMenus: () => closed.push('comment'),
-    closeRepostMenus: () => closed.push('repost'),
   });
 
-  assert.deepEqual(closed, ['post', 'comment', 'repost']);
+  assert.deepEqual(closed, ['post', 'comment']);
   assert.equal(profilePopover.hidden, true);
   assert.equal(profileButton.expanded, 'false');
   assert.equal(conversationMenu.open, false);
@@ -72,5 +70,5 @@ test('preview option menus also dismiss on scroll gestures', async () => {
   assert.match(hook, /addEventListener\('wheel', dismiss/);
   assert.match(app, /useDismissOnScroll\(actionsOpen, /);
   assert.match(app, /useDismissOnScroll\(controlsOpen, /);
-  assert.match(conversation, /useDismissOnScroll\(reshareMenuOpen, /);
+  assert.doesNotMatch(conversation, /reshareMenuOpen|thread-reshare-menu/);
 });

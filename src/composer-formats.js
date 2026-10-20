@@ -333,8 +333,8 @@ function installNativeComposerPresentation() {
     installComposerChoices(document.getElementById('sauti-audience'), 'Audience', 'globe', host),
     installComposerChoices(document.getElementById('sauti-reply-access'), 'Who can comment?', 'comment-01', host),
   ].filter(Boolean);
-  const quote = document.getElementById('sauti-quote-preview');
-  if (quote) quote.after(host); else body.append(host);
+  const meta = body.querySelector('.composer-meta');
+  if (meta) meta.before(host); else body.append(host);
   const avatar = document.getElementById('member-avatar');
   const author = dialog.querySelector('.composer-author');
   if (avatar && author) author.prepend(avatar);

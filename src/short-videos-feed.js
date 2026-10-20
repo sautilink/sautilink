@@ -79,7 +79,6 @@ function sourceTileForSlide(slide) {
 
 function actionSourceFor(card, action) {
   if (!card) return null;
-  if (action === 'repost') return card.querySelector('[data-repost-toggle]') || card.querySelector('[data-sauti-action="repost"]');
   return card.querySelector(`[data-sauti-action="${action}"]`);
 }
 
@@ -334,8 +333,18 @@ function syncSlideFromSource(slide) {
     if (!button) continue;
     const source = actionStateSourceFor(card, action);
     const active = source?.dataset.active === 'true';
+    const pending = source?.dataset.pending === 'true' || source?.getAttribute('aria-busy') === 'true';
+    button.dataset.active = String(active);
+    button.dataset.pending = String(pending);
+    button.disabled = !source || Boolean(source.disabled);
     button.classList.toggle('active', active);
     button.setAttribute('aria-pressed', ['like', 'repost', 'save'].includes(action) ? String(active) : 'false');
+    button.setAttribute('aria-busy', String(pending));
+    const label = source?.getAttribute('aria-label');
+    if (label) {
+      button.setAttribute('aria-label', label);
+      button.setAttribute('title', label);
+    }
     const count = button.querySelector('[data-short-action-count]');
     if (count) {
       count.textContent = sourceActionCount(card, action);
@@ -709,7 +718,8 @@ function installShortVideosFeed() {
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: ['data-active', 'data-following', 'data-media-object-url', 'data-media-poster-object-url'],
+      characterData: true,
+      attributeFilter: ['data-active', 'data-pending', 'aria-busy', 'aria-label', 'disabled', 'data-following', 'data-media-object-url', 'data-media-poster-object-url'],
     });
   }
 
