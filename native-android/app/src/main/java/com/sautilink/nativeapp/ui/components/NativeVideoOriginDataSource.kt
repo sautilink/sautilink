@@ -71,11 +71,14 @@ internal class NativeVideoOriginDataSourceFactory(
                 (!isHls && !authenticatedVideoUrl(mediaOrigin, dataSpec.uri.toString()))) throw IOException("Unsupported video request")
             requestedUri = dataSpec.uri
             // The outer SessionSource already checked the live account and grant.
-            // Consume only a complete GET of this exact authorized playlist URI.
+            // Consume only a complete GET of this exact authorized bootstrap URI.
+            val initialCodec = isHls && hlsGrants.isBootstrapInitialization(dataSpec.uri.toString())
             val initialPlaylist = if (isHls && dataSpec.position == 0L && dataSpec.length == androidx.media3.common.C.LENGTH_UNSET.toLong())
                 hlsGrants.consumeBootstrap(dataSpec.uri.toString()) else null
             if (initialPlaylist != null) NativeVideoStartupProbe.mark(dataSpec.uri.pathSegments.getOrNull(2).orEmpty(),
-                NativeVideoStartupStage.BOOTSTRAP_HIT, NativeVideoStartupRequest.MANIFEST, bytes = initialPlaylist.size.toLong())
+                NativeVideoStartupStage.BOOTSTRAP_HIT,
+                if (initialCodec) NativeVideoStartupRequest.INITIALIZATION else NativeVideoStartupRequest.MANIFEST,
+                bytes = initialPlaylist.size.toLong())
             if (initialPlaylist == null && NativeVideoStartupProbe.observer != null) {
                 val path = dataSpec.uri.path.orEmpty()
                 probeMediaId = path.split('/').getOrNull(3)

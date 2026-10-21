@@ -20,7 +20,7 @@ import kotlin.coroutines.resumeWithException
 internal enum class NativeVideoStartupStage { VIEWPORT_INTENT, TOKEN_BEGIN, TOKEN_READY,
     DESCRIPTOR_BEGIN, DESCRIPTOR_HEADERS, DESCRIPTOR_READY, RESOURCES_BEGIN, RESOURCES_READY, PLAYER_BEGIN, PLAYER_READY, SOURCE_PREPARE, FIRST_FRAME,
     HTTP_BEGIN, HTTP_HEADERS, HTTP_FIRST_BYTE, HTTP_COMPLETE, BOOTSTRAP_HIT, FAILURE }
-internal enum class NativeVideoStartupRequest { NONE, MANIFEST, SEGMENT, MP4 }
+internal enum class NativeVideoStartupRequest { NONE, MANIFEST, INITIALIZATION, SEGMENT, MP4 }
 internal enum class NativeVideoServerTiming { RLS, READY, HLS, EDGE }
 internal data class NativeVideoStartupEvent(val mediaId: String, val stage: NativeVideoStartupStage,
     val request: NativeVideoStartupRequest, val requestId: Long, val elapsedNanos: Long,
@@ -121,13 +121,14 @@ internal fun parseNativeVideoSource(origin: String, metadataPath: String, body: 
     }
 }
 
-/** A descriptor can carry its already-authorized rewritten playlists once. Never
- * a segment, persistent cache, alternate origin or generic HTTP response cache.
+/** A descriptor can carry its already-authorized rewritten playlists and validated
+ * fMP4 codec initialization once. No media samples, keys or generic HTTP cache.
  */
 internal class NativePlaybackBootstrap internal constructor(
     private val entries: MutableMap<String, ByteArray>,
     private val receivedAtMillis: Long,
     private val receivedAtNanos: Long = System.nanoTime(),
+    private val initializations: Set<String> = emptySet(),
 ) {
     @Synchronized internal fun consume(url: String, grantExpiry: Long, nowMillis: Long): ByteArray? {
         val elapsedNanos = System.nanoTime() - receivedAtNanos
@@ -138,6 +139,38 @@ internal class NativePlaybackBootstrap internal constructor(
         return entries.remove(url)
     }
     @Synchronized internal fun clear() { entries.values.forEach { it.fill(0) }; entries.clear() }
+    internal fun isInitialization(url: String): Boolean = url in initializations
+}
+
+/** Full, small codec-only ISO BMFF initialization: exactly ftyp then moov. A box
+ * length never crosses the supplied bytes, and media/fragment/trailing boxes are
+ * forbidden. It is not a parser for arbitrary MP4 files or a media acceptance API.
+ */
+internal fun nativePlaybackInitialization(bytes: ByteArray): Boolean {
+    if (bytes.size !in 24..16_384) return false
+    var offset = 0
+    var boxes = 0
+    while (offset < bytes.size) {
+        if (bytes.size - offset < 8 || boxes >= 2) return false
+        fun unsigned32(at: Int): Long = (0..3).fold(0L) { value, index ->
+            (value shl 8) or (bytes[at + index].toLong() and 255L)
+        }
+        var size = unsigned32(offset)
+        var header = 8
+        if (size == 1L) {
+            if (bytes.size - offset < 16) return false
+            val high = unsigned32(offset + 8)
+            if (high != 0L) return false
+            size = unsigned32(offset + 12); header = 16
+        }
+        if (size < header || size > bytes.size - offset) return false
+        val type = String(bytes, offset + 4, 4, Charsets.US_ASCII)
+        if (type != if (boxes == 0) "ftyp" else "moov") return false
+        if (boxes == 0 && size < header + 8L) return false
+        if (boxes == 1 && size <= header) return false
+        offset += size.toInt(); boxes++
+    }
+    return boxes == 2 && offset == bytes.size
 }
 
 internal fun parseNativePlaybackBootstrap(origin: String, contentPath: String, masterUrl: String,
@@ -147,6 +180,7 @@ internal fun parseNativePlaybackBootstrap(origin: String, contentPath: String, m
     val rows = requireNotNull(value.optJSONArray("playlists"))
     require(rows.length() in 1..9)
     val entries = linkedMapOf<String, ByteArray>()
+    val mapUris = linkedSetOf<String>()
     var total = 0
     fun canonicalGateway(value: String): String? {
         val url = if (value.startsWith('/') && !value.startsWith("//")) origin + value else value
@@ -168,13 +202,37 @@ internal fun parseNativePlaybackBootstrap(origin: String, contentPath: String, m
             else if (line.contains("URI=", ignoreCase = true)) {
                 val attributes = Regex("(?:^|[:,])\\s*URI=\"([^\"]+)\"").findAll(line).toList()
                 require(attributes.size == Regex("URI=", RegexOption.IGNORE_CASE).findAll(line).count())
-                attributes.forEach { require(canonicalGateway(it.groupValues[1]) != null) }
+                attributes.forEach {
+                    val target = requireNotNull(canonicalGateway(it.groupValues[1]))
+                    if (line.startsWith("#EXT-X-MAP:")) mapUris.add(target)
+                }
             }
         }
         entries[url] = bytes
     }
     require(entries.containsKey(masterUrl))
-    NativePlaybackBootstrap(entries, nowMillis)
+    // Optional initialization failure drops only this extension; valid rewritten
+    // playlists remain usable and missing MAP bytes follow normal protected HTTP.
+    val initializations = runCatching {
+        val inits = value.optJSONArray("initializations") ?: return@runCatching linkedMapOf<String, ByteArray>()
+        require(inits.length() <= 8)
+        val decoded = linkedMapOf<String, ByteArray>()
+        var combined = total
+        for (index in 0 until inits.length()) {
+            val row = inits.getJSONObject(index)
+            val url = requireNotNull(canonicalGateway(row.getString("url")))
+            require(url in mapUris && URI(url).rawPath.substringAfterLast('/').startsWith("s_") && !decoded.containsKey(url))
+            val base64 = row.getString("base64")
+            require(base64.length in 1..21_848 && base64.length % 4 == 0)
+            val bytes = java.util.Base64.getDecoder().decode(base64)
+            require(java.util.Base64.getEncoder().encodeToString(bytes) == base64 && nativePlaybackInitialization(bytes))
+            combined += bytes.size; require(combined <= 256 * 1024)
+            decoded[url] = bytes
+        }
+        decoded
+    }.getOrNull().orEmpty()
+    entries.putAll(initializations)
+    NativePlaybackBootstrap(entries, nowMillis, initializations = initializations.keys.toSet())
 }.getOrNull()
 }
 
@@ -214,6 +272,12 @@ internal class NativeHlsGrantRegistry(private val now: () -> Long = System::curr
         val prefix = "${uri.scheme}://${uri.host}" + uri.rawPath.substringBeforeLast('/') + "/"
         val grant = grants[prefix] ?: return null
         return grant.bootstrap?.consume(url, grant.expiry, now())
+    }
+    @Synchronized fun isBootstrapInitialization(url: String): Boolean {
+        if (!allows(url)) return false
+        val uri = URI(url)
+        val prefix = "${uri.scheme}://${uri.host}" + uri.rawPath.substringBeforeLast('/') + "/"
+        return grants[prefix]?.bootstrap?.isInitialization(url) == true
     }
     @Synchronized fun clear() { grants.values.forEach { it.bootstrap?.clear() }; grants.clear() }
 }

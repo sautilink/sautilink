@@ -22,6 +22,9 @@ class NativePlaybackBootstrapTest {
         row(audio, "#EXTM3U\n#EXTINF:2.0,\n${url("s_audio")}\n#EXT-X-ENDLIST\n"),
     )
     private fun parsed(value: JSONObject = valid()) = parseNativePlaybackBootstrap(origin, path, master, value, now)
+    private fun box(type: String, payload: ByteArray) = java.nio.ByteBuffer.allocate(payload.size + 8)
+        .putInt(payload.size + 8).put(type.toByteArray(Charsets.US_ASCII)).put(payload).array()
+    private fun codecOnly() = box("ftyp", "isom0000".toByteArray()) + box("moov", box("mvhd", ByteArray(8)))
 
     @Test fun exactRewrittenMasterAndChildAreConsumedOnce_withoutLosingAdaptiveMaster() {
         val initial = requireNotNull(parsed())
@@ -93,5 +96,51 @@ class NativePlaybackBootstrapTest {
         val oldMonotonic = NativePlaybackBootstrap(linkedMapOf(master to "#EXTM3U\n".toByteArray()), now,
             System.nanoTime() - 20_000_000_000L)
         assertNull(oldMonotonic.consume(master, now + 300_000L, now))
+    }
+
+    @Test fun onlyMapReferencedCodecInitializationCanBeConsumedOnce_withTheSameGrantGuards() {
+        val bytes = codecOnly()
+        val value = valid().put("initializations", JSONArray().put(JSONObject().put("url", url("s_init").removePrefix(origin))
+            .put("base64", java.util.Base64.getEncoder().encodeToString(bytes))))
+        val initial = requireNotNull(parsed(value))
+        val grants = NativeHlsGrantRegistry { now }
+        grants.authorize(NativeVideoSource(id, master, true, now + 300_000L, bootstrap = initial))
+        assertTrue(grants.isBootstrapInitialization(url("s_init")))
+        assertArrayEquals(bytes, grants.consumeBootstrap(url("s_init")))
+        assertNull(grants.consumeBootstrap(url("s_init")))
+        assertNotNull(grants.consumeBootstrap(master))
+        grants.clear(); assertFalse(grants.isBootstrapInitialization(url("s_init")))
+        assertNull(grants.consumeBootstrap(url("s_init")))
+    }
+
+    @Test fun badOptionalInitDropsOnlyTheInitExtension_whileMasterAndChildRemainUsable() {
+        val b64 = java.util.Base64.getEncoder().encodeToString(codecOnly())
+        val invalid = listOf(
+            JSONArray().put(JSONObject().put("url", url("s_video")).put("base64", b64)), // A sample URI is not MAP.
+            JSONArray().put(JSONObject().put("url", url("s_init")).put("base64", "bad base64")),
+            JSONArray().put(JSONObject().put("url", url("s_init")).put("base64", java.util.Base64.getEncoder()
+                .encodeToString(codecOnly() + box("mdat", ByteArray(8))))),
+            JSONArray().put(JSONObject().put("url", url("m_video")).put("base64", b64)),
+            JSONArray().apply { repeat(9) { put(JSONObject().put("url", url("s_init")).put("base64", b64)) } },
+        )
+        invalid.forEach { rows ->
+            val initial = requireNotNull(parsed(valid().put("initializations", rows)))
+            assertNull(initial.consume(url("s_init"), now + 300_000L, now))
+            assertNotNull(initial.consume(master, now + 300_000L, now))
+            assertNotNull(initial.consume(video, now + 300_000L, now))
+        }
+    }
+
+    @Test fun isoBoxValidationRejectsMediaFragmentsOverflowAndTrailingBytes() {
+        val bytes = codecOnly()
+        assertTrue(nativePlaybackInitialization(bytes))
+        for (type in listOf("mdat", "moof", "free")) assertFalse(nativePlaybackInitialization(bytes + box(type, ByteArray(8))))
+        assertFalse(nativePlaybackInitialization(bytes + byteArrayOf(0)))
+        assertFalse(nativePlaybackInitialization(bytes.copyOf(bytes.size - 1)))
+        assertFalse(nativePlaybackInitialization(bytes.copyOf().also { it.fill(255.toByte(), 0, 4) }))
+        assertFalse(nativePlaybackInitialization(box("ftyp", ByteArray(8)) + box("moov", ByteArray(16_384))))
+        val extended = java.nio.ByteBuffer.allocate(24).putInt(1).put("ftyp".toByteArray()).putLong(24).put(ByteArray(8)).array()
+        assertTrue(nativePlaybackInitialization(extended + box("moov", box("mvhd", ByteArray(8)))))
+        assertFalse(nativePlaybackInitialization(extended.copyOf().also { it[8] = 1 } + box("moov", ByteArray(8))))
     }
 }
