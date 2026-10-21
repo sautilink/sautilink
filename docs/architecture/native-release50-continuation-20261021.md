@@ -1,12 +1,12 @@
 # Native Stream and Stories release 50 — continuation checkpoint
 
-Updated: 21 October 2026 (Tanzania, UTC+3).
+Updated: 21 October 2026, after authenticated Google Play Console verification at 17:24 UTC / 20:24 EAT.
 
 ## Current result
 
 PR [#387](https://github.com/sautilink/sautilink/pull/387) is merged into its intended native base, `feat/native-verification-removal-20261021`. The signed SautiLink **1.1.5 (50)** AAB passed independent downloaded-byte verification. The merged native source is identical to the source used for that signed bundle.
 
-**Google Play submission was not performed in this continuation.** Play Console was signed out, and the secure authentication request was declined. No authenticated Console state or release availability was subsequently established.
+**Google Play availability is now confirmed for both existing testing tracks.** After the user restored Console access, authenticated live inspection found version **1.1.5 (50)** already published: **Available to internal testers** on Internal testing and **Available to testers on Google Play** on Closed testing - Alpha, both with full rollout. This continuation verified the existing releases; it did not upload a duplicate bundle or start a new rollout. The earlier signed-out observation is superseded by this authenticated evidence.
 
 ## Exact source and artifact identity
 
@@ -64,26 +64,28 @@ PR #399 production workflow [39640685141](https://github.com/sautilink/sautilink
 
 **Post-deploy browser playback observation: passed within the observed scope.** The deployed app HTML was independently observed with `video=20261021-stream-session1`. The same previously failing 27-second Home video was observed from 17:08:03 through 17:15:05 UTC (20:08:03–20:15:05 EAT), spanning more than seven minutes and the five-minute media-cookie lifetime. This included an intentional pause and successful resume; it is not a claim of seven uninterrupted minutes of playback. The visible managed HLS `blob:` player advanced across repeated observations, decoded both 360p and selected 240p frames, retained `readyState=4` and had no media error at the final observation. No new HLS fatal log appeared during this observation window. The quality preference was restored to Auto, with playback still advancing. This browser check is scoped production evidence, not a new native-device or Play-installed test.
 
-## Google Play continuation boundary
+## Google Play confirmation
 
-No existing Google Play publisher workflow or authenticated alternative was found. The native candidate workflows build and verify artifacts; the legacy Android beta publisher publishes a GitHub Release. They do not establish a Play upload or Store availability.
+Authenticated Console inspection on 21 October 2026 confirmed these existing releases for `com.sautilink.app`:
 
-Continue only through the **existing Internal testing and Closed Alpha tracks**, preserving their current audiences and settings. Public Production, new tracks, new credentials, account permissions and unrelated Store configuration are outside this continuation.
+| Track | Release | Observed Google Play state |
+| --- | --- | --- |
+| Internal testing | `1.1.5 (50) - Stream and Stories - Internal` | Available to internal testers; Full roll-out |
+| Closed testing - Alpha | `1.1.5 (50) - Stream and Stories - Alpha` | Available to testers on Google Play; Full roll-out; release details show 100% |
 
-Once authorized authenticated access is available:
+Both release-detail pages identify app bundle **50 (1.1.5)**, Android API **26+**, target SDK **36**, four ABIs and the Stream/Stories release notes below. The bundle explorer marks version 50 **Active**, reports **Supports 16 KB**, and lists 17,963 supported Android devices. These are Console compatibility results, not a new physical-device runtime test. Version 49 is listed as deactivated by these releases. Publishing overview reports **Last published on 21 October 2026** with managed publishing off.
 
-1. Read the current Console state for `com.sautilink.app`; do not assume the earlier upload attempt succeeded or failed.
-2. If version 50 is already uploaded, verify it corresponds to this candidate and reuse it. Do not create a duplicate upload or replace the version merely to repeat the interrupted flow.
-3. Otherwise upload the verified AAB identified above to the existing intended testing track, then inspect processing and validation results.
-4. Complete the authorized existing-track submission and record the actual Google state. Distinguish submitted/in review from available to testers.
-5. If native application source changes, build and verify a new candidate rather than reusing this signed artifact as proof for changed code.
+The existing track audiences and settings were left unchanged. No new upload, track promotion, publication, credentials, permissions or Store configuration change was needed in this follow-up. The prior lack of authenticated access did not establish that the earlier release had failed; the now-visible availability confirms it had already been published.
 
-Suggested en-GB release notes:
+**Binary provenance limit:** the separately retained candidate still has the independently verified AAB SHA256 recorded above. The Console's Original file download was requested, but the resulting browser download did not synchronize into the audit workspace. Its bytes could not be hashed here, so exact byte equivalence between that Play-hosted original and the retained candidate is not newly asserted. Version/package/SDK/ABI/release metadata match; the existing Google availability state is directly verified.
 
-> Improved video playback with adaptive quality.  
-> Added 24-hour Stories with photo filters, video trimming, captions, reactions and viewer lists.  
-> Improved Home refresh, new-post notices and Following.  
-> Refined playback controls, Story upload progress and profile Story rings.
+Public Production remains **Inactive**. At inspection, the Console showed 12 closed-test participants opted in continuously for two days, with its 14-day criterion still pending and Apply for production disabled. This follow-up completed verification of the authorized existing testing tracks; it did not apply for public Production access. No Play-installed Samsung test or new 16 KiB device runtime test was performed, and rollout availability is not evidence that testers have already installed the update.
+
+Published en-GB release notes (observed unchanged on both tracks):
+
+> Smoother video playback with automatic quality, updated progress controls and looping. New 24-hour Stories with photo filters, video trimming, reactions and viewer lists. Pull to refresh your Home feed and use New Posts to catch up. A cleaner feed for followed accounts, plus reliability and privacy improvements.
+
+Do not upload version 50 again merely to repeat the interrupted flow. If native application source changes, build and verify a new candidate rather than reusing this signed artifact as proof for changed code.
 
 ## Retained release evidence
 
