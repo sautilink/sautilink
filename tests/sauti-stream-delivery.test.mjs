@@ -279,10 +279,20 @@ test('gateway encrypts provider segment signatures and binds ciphertext to exact
   t.mock.method(globalThis, 'fetch', async (url, init) => {
     requests++;
     assert.equal(new Headers(init.headers).has('Authorization'), false);
+    assert.equal(new Headers(init.headers).has('Cookie'), false);
+    assert.equal(init.redirect, 'manual');
     assert.equal(new URL(url).origin, origin);
-    if (url.includes('manifest/video.m3u8')) return new Response('#EXTM3U\nvariant.m3u8\n');
-    if (url.includes('manifest/variant.m3u8')) return new Response(`#EXTM3U\n#EXT-X-MAP:URI="../../${UID}/video/480/init.mp4?p=provider-private-metadata&s=provider-private-signature"\n../../${UID}/video/480/seg_1.mp4?p=provider-private-metadata&s=provider-private-signature\n`);
-    assert.ok(url.includes('/video/480/seg_1.mp4?p=provider-private-metadata&s=provider-private-signature'));
+    if (url.includes('manifest/video.m3u8')) {
+      assert.equal(new URL(url).pathname, '/aaaa.bbbb.cccc/manifest/video.m3u8');
+      return new Response('#EXTM3U\nvariant.m3u8\n');
+    }
+    if (url.includes('manifest/variant.m3u8')) {
+      assert.equal(new URL(url).pathname, '/aaaa.bbbb.cccc/manifest/variant.m3u8');
+      return new Response(`#EXTM3U\n#EXT-X-MAP:URI="../../${UID}/video/480/init.mp4?p=provider-private-metadata&s=provider-private-signature"\n../../${UID}/video/480/seg_1.mp4?p=provider-private-metadata&s=provider-private-signature\n`);
+    }
+    assert.ok([`/${UID}/video/480/init.mp4`, `/${UID}/video/480/seg_1.mp4`].includes(new URL(url).pathname),
+      'Signed UID-rooted fragments retain their original provider path instead of being moved beneath the token');
+    assert.equal(new URL(url).search, '?p=provider-private-metadata&s=provider-private-signature');
     return new Response(new Uint8Array([1, 2, 3]), { headers: { 'Content-Type': 'video/mp4' } });
   });
   const master = await serveSautiStreamHls(new Request(descriptor.url), f.env, asset, options, NOW + 1);
@@ -304,7 +314,11 @@ test('gateway encrypts provider segment signatures and binds ciphertext to exact
   assert.equal((await serveSautiStreamHls(new Request(new URL(segmentPath.replace('/s_', '/m_'), descriptor.url)), f.env, asset, options, NOW + 1)).status, 401);
   const segment = await serveSautiStreamHls(new Request(new URL(segmentPath, descriptor.url)), f.env, asset, options, NOW + 1);
   assert.equal(segment.status, 200); assert.deepEqual(new Uint8Array(await segment.arrayBuffer()), new Uint8Array([1, 2, 3]));
-  assert.equal(requests, 3);
+  const mapPath = /#EXT-X-MAP:URI="([^"]+)"/.exec(variantText)?.[1];
+  assert.ok(mapPath);
+  const map = await serveSautiStreamHls(new Request(new URL(mapPath, descriptor.url)), f.env, asset, options, NOW + 1);
+  assert.equal(map.status, 200); assert.deepEqual(new Uint8Array(await map.arrayBuffer()), new Uint8Array([1, 2, 3]));
+  assert.equal(requests, 4);
   const staleGeneration = { ...asset, generation: ID };
   assert.equal((await serveSautiStreamHls(new Request(descriptor.url), f.env, staleGeneration, options, NOW + 1)).status, 401);
   // Even an otherwise signed old plaintext payload cannot enter the v2 gateway.
@@ -314,7 +328,67 @@ test('gateway encrypts provider segment signatures and binds ciphertext to exact
   const wrongContent = new URL(descriptor.url); wrongContent.pathname = wrongContent.pathname.replace(ID, POST);
   assert.equal((await serveSautiStreamHls(new Request(wrongContent), f.env, { ...asset, id: POST },
     { ...options, basePath: `/api/sauti-media/${POST}/hls/` }, NOW + 1)).status, 404);
-  assert.equal(requests, 3, 'Invalid grants never reach the provider');
+  assert.equal(requests, 4, 'Invalid grants never reach the provider');
+});
+
+test('provider root is encrypted and bound into the opaque path identity even when relative paths match', async (t) => {
+  const f = fixture(); const asset = await readyPost(f);
+  const options = { basePath: `/api/sauti-media/${ID}/hls/`, accessScope: 'Bearer current-session' };
+  const descriptor = await sautiStreamPlaybackDescriptor(new Request('https://sautilink.com'), f.env, asset, options, NOW);
+  const relative = 'video/480/segment.mp4?p=private-metadata&s=private-signature';
+  const routes = [];
+  await rewriteSautiStreamManifest(`#EXTM3U\n${origin}/aaaa.bbbb.cccc/${relative}\n${origin}/${UID}/${relative}\n`, {
+    manifestUrl: `${origin}/aaaa.bbbb.cccc/manifest/video.m3u8`, providerOrigin: origin,
+    providerToken: 'aaaa.bbbb.cccc', uid: UID, rewrite: async (path, root) => { routes.push({ path, root }); return '/rewritten'; },
+  });
+  assert.deepEqual(routes, [{ path: relative, root: 'token' }, { path: relative, root: 'uid' }]);
+  const upstream = [];
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    assert.equal(init.redirect, 'manual');
+    assert.equal(new Headers(init.headers).has('Authorization'), false);
+    assert.equal(new Headers(init.headers).has('Cookie'), false);
+    if (url.endsWith('/manifest/video.m3u8')) return new Response(`#EXTM3U\n${origin}/aaaa.bbbb.cccc/${relative}\n${origin}/${UID}/${relative}\n`);
+    upstream.push(url);
+    return new Response(new Uint8Array([7]), { headers: { 'Content-Type': 'video/mp4' } });
+  });
+  const master = await serveSautiStreamHls(new Request(descriptor.url), f.env, asset, options, NOW + 1);
+  assert.equal(master.status, 200);
+  const urls = (await master.text()).split('\n').filter((line) => line && !line.startsWith('#')).map((line) => new URL(line, descriptor.url));
+  assert.equal(urls.length, 2);
+  assert.notEqual(urls[0].pathname, urls[1].pathname, 'A token-rooted and UID-rooted representation cannot alias in a private segment cache');
+  const swapped = new URL(urls[0]); swapped.search = urls[1].search;
+  assert.equal((await serveSautiStreamHls(new Request(swapped), f.env, asset, options, NOW + 1)).status, 401);
+  assert.equal(upstream.length, 0);
+  for (const url of urls) assert.equal((await serveSautiStreamHls(new Request(url), f.env, asset, options, NOW + 1)).status, 200);
+  assert.deepEqual(upstream, [`${origin}/aaaa.bbbb.cccc/${relative}`, `${origin}/${UID}/${relative}`]);
+});
+
+test('edge-compatible manual requests reject every 3xx for playlists, fragments and thumbnails without forwarding credentials', async (t) => {
+  const f = fixture(); const asset = await readyPost(f);
+  const options = { basePath: `/api/sauti-media/${ID}/hls/`, accessScope: 'Bearer current-session' };
+  const descriptor = await sautiStreamPlaybackDescriptor(new Request('https://sautilink.com'), f.env, asset, options, NOW);
+  let status = 200; let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    calls++;
+    assert.equal(new URL(url).origin, origin);
+    assert.equal(init.redirect, 'manual', 'Cloudflare Workers rejects redirect:error; redirects still must never be followed');
+    assert.equal(new Headers(init.headers).has('Authorization'), false);
+    assert.equal(new Headers(init.headers).has('Cookie'), false);
+    if (status !== 200) return new Response(null, { status, headers: { Location: 'https://evil.test/private', 'Content-Type': 'image/jpeg' } });
+    return new Response(`#EXTM3U\n${origin}/${UID}/video/480/segment.mp4?p=signed&s=signature\n`);
+  });
+  const master = await serveSautiStreamHls(new Request(descriptor.url), f.env, asset, options, NOW + 1);
+  const segmentPath = (await master.text()).split('\n').find((line) => line && !line.startsWith('#'));
+  const fragment = new URL(segmentPath, descriptor.url);
+  const secretHeaders = { Authorization: 'Bearer private-user-token', Cookie: 'private-session-cookie' };
+  for (status = 300; status < 400; status++) {
+    const previous = calls;
+    assert.equal((await serveSautiStreamHls(new Request(descriptor.url, { headers: secretHeaders }), f.env, asset, options, NOW + 1)).status, 502);
+    assert.equal((await serveSautiStreamHls(new Request(fragment, { headers: secretHeaders }), f.env, asset, options, NOW + 1)).status, 502);
+    assert.equal((await serveSautiStreamThumbnail(new Request('https://sautilink.com', { headers: secretHeaders }), f.env,
+      { ...asset, kind: 'story' }, { expiresAt: new Date((NOW + 10) * 1000).toISOString() }, NOW + 1)).status, 502);
+    assert.equal(calls - previous, 3, `HTTP ${status} must not create a redirected request`);
+  }
 });
 
 test('Stories capability cannot survive the 24-hour server expiry', async () => {

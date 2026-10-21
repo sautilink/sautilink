@@ -45,16 +45,16 @@ function safeRelativePath(path) {
   } catch { return false; }
 }
 
-async function capabilityUrl(env, asset, base, path, expiry, scopeHash) {
-  if (!safeRelativePath(path)) throw new Error('UNSAFE_HLS_PATH');
+async function capabilityUrl(env, asset, base, path, expiry, scopeHash, root = 'token') {
+  if (!safeRelativePath(path) || !['token', 'uid'].includes(root)) throw new Error('UNSAFE_HLS_PATH');
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const claims = new TextEncoder().encode(JSON.stringify({ v: 2, k: asset.kind, id: asset.id, g: asset.generation,
-    u: asset.stream_uid, p: path, e: expiry, a: scopeHash }));
+    u: asset.stream_uid, p: path, r: root, e: expiry, a: scopeHash }));
   const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv,
     additionalData: capabilityContext(asset) }, await capabilityKey(env), claims));
   const sealed = new Uint8Array(iv.length + ciphertext.length); sealed.set(iv); sealed.set(ciphertext, iv.length);
   const payload = streamBase64url(sealed);
-  return `${base}${await pathIdentity(path)}?c=${payload}.${await streamHmac(env, payload)}`;
+  return `${base}${await pathIdentity(path, root)}?c=${payload}.${await streamHmac(env, payload)}`;
 }
 
 function capabilityContext(asset) { return new TextEncoder().encode(`sautilink-hls-capability-v2\n${asset.kind}\n${asset.id}`); }
@@ -66,11 +66,11 @@ async function capabilityKey(env) {
     salt: new TextEncoder().encode('sautilink-stream-v2'),
     info: new TextEncoder().encode('opaque-hls-provider-paths') }, material, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
 }
-async function pathIdentity(path) {
+async function pathIdentity(path, root) {
   // The harmless type hint lets private clients cache only binary segments;
   // expiring manifests and their child capabilities always reauthorize.
   const segment = /\.(?:ts|m4s|mp4|aac)$/.test(path.split('?')[0]);
-  return `${segment ? 's' : 'm'}_${streamBase64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(path)))}`;
+  return `${segment ? 's' : 'm'}_${streamBase64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${root}\n${path}`)))}`;
 }
 async function openCapability(env, asset, payload) {
   if (!/^[A-Za-z0-9_-]{40,4096}$/.test(String(payload || ''))) throw new Error('INVALID_HLS_CAPABILITY');
@@ -111,11 +111,13 @@ function providerRelativePath(uri, manifestUrl, expectedOrigin, token, uid) {
   if (resolved.origin !== expectedOrigin || resolved.username || resolved.password || resolved.hash) throw new Error('UNSAFE_HLS_ORIGIN');
   const prefix = `/${token}/`;
   const uidPrefix = `/${uid}/`;
-  const relative = resolved.pathname.startsWith(prefix) ? resolved.pathname.slice(prefix.length)
-    : resolved.pathname.startsWith(uidPrefix) ? resolved.pathname.slice(uidPrefix.length) : null;
+  const root = resolved.pathname.startsWith(prefix) ? 'token'
+    : resolved.pathname.startsWith(uidPrefix) ? 'uid' : null;
+  const relative = root === 'token' ? resolved.pathname.slice(prefix.length)
+    : root === 'uid' ? resolved.pathname.slice(uidPrefix.length) : null;
   const path = relative == null ? null : `${relative}${resolved.search}`;
   if (!safeRelativePath(path)) throw new Error('UNSAFE_HLS_PATH');
-  return path;
+  return { path, root };
 }
 
 /** Rewrites lines and all URI attributes (keys, MAP, audio, subtitles, I-frames). */
@@ -126,7 +128,8 @@ export async function rewriteSautiStreamManifest(text, { manifestUrl, providerOr
   for (const line of text.replaceAll('\r\n', '\n').split('\n')) {
     if (!line.trim()) { lines.push(line); continue; }
     if (!line.startsWith('#')) {
-      lines.push(await rewrite(providerRelativePath(line, manifestUrl, providerOrigin, token, uid)));
+      const resource = providerRelativePath(line, manifestUrl, providerOrigin, token, uid);
+      lines.push(await rewrite(resource.path, resource.root));
       continue;
     }
     let cursor = 0;
@@ -137,7 +140,8 @@ export async function rewriteSautiStreamManifest(text, { manifestUrl, providerOr
     for (const match of matches) {
       const start = match.index + match[0].indexOf('URI="') + 5;
       replaced += line.slice(cursor, start);
-      replaced += await rewrite(providerRelativePath(match[1], manifestUrl, providerOrigin, token, uid));
+      const resource = providerRelativePath(match[1], manifestUrl, providerOrigin, token, uid);
+      replaced += await rewrite(resource.path, resource.root);
       cursor = start + match[1].length;
     }
     lines.push(replaced + line.slice(cursor));
@@ -184,17 +188,22 @@ export async function serveSautiStreamHls(request, env, asset, { basePath, acces
     path = claims.p;
   } catch { return unavailable(); }
   const hash = await accessHash(accessScope);
-  if (!safeRelativePath(path) || await pathIdentity(path) !== opaquePath || claims.v !== 2 || claims.k !== asset.kind || claims.id !== asset.id
+  if (!safeRelativePath(path) || !['token', 'uid'].includes(claims.r) || await pathIdentity(path, claims.r) !== opaquePath || claims.v !== 2 || claims.k !== asset.kind || claims.id !== asset.id
     || claims.g !== asset.generation || claims.u !== asset.stream_uid || claims.p !== path || !hash || claims.a !== hash
     || !Number.isSafeInteger(claims.e) || claims.e <= now || claims.e > now + TOKEN_TTL
     || (expiresAt != null && new Date(expiresAt).getTime() <= now * 1000)) return unavailable(401);
   const range = request.headers.get('Range');
   if (range && !/^bytes=\d+-\d*$/.test(range)) return unavailable(416);
   try {
-    const token = await providerToken(env, asset.stream_uid, now);
-    const upstream = `${origin}/${token}/${path}`;
     const manifest = path.split('?')[0].endsWith('.m3u8');
-    const response = await fetch(upstream, { method: manifest ? 'GET' : request.method, redirect: 'error',
+    const token = manifest || claims.r === 'token' ? await providerToken(env, asset.stream_uid, now) : null;
+    // Cloudflare signs UID-rooted fragment URLs with their original path.
+    // Preserve the validated root sealed in the grant; moving a signed fragment
+    // beneath the playback token causes a redirect and invalidates delivery.
+    const upstream = `${origin}/${claims.r === 'uid' ? asset.stream_uid : token}/${path}`;
+    // Workers supports manual/follow redirects. Keep every 3xx un-followed;
+    // response.ok below rejects it before any provider bytes are returned.
+    const response = await fetch(upstream, { method: manifest ? 'GET' : request.method, redirect: 'manual',
       signal: AbortSignal.timeout(15000), headers: range && !manifest ? { Range: range } : {} });
     if (!response.ok || (manifest && response.status !== 200)) { await response.body?.cancel(); return unavailable(response.status === 429 ? 429 : 502); }
     const headers = new Headers({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
@@ -202,7 +211,7 @@ export async function serveSautiStreamHls(request, env, asset, { basePath, acces
     if (manifest) {
       const rewritten = await rewriteSautiStreamManifest(await boundedManifest(response), {
         manifestUrl: upstream, providerOrigin: origin, providerToken: token, uid: asset.stream_uid,
-        rewrite: (relative) => capabilityUrl(env, asset, base, relative, claims.e, hash),
+        rewrite: (relative, root) => capabilityUrl(env, asset, base, relative, claims.e, hash, root),
       });
       headers.set('Content-Type', 'application/vnd.apple.mpegurl');
       return new Response(request.method === 'HEAD' ? null : rewritten, { status: 200, headers });
@@ -224,7 +233,7 @@ export async function serveSautiStreamThumbnail(request, env, asset, { expiresAt
   try {
     const token = await providerToken(env, asset.stream_uid, now);
     const response = await fetch(`${origin}/${token}/thumbnails/thumbnail.jpg?time=0s&height=480`, {
-      method: request.method, redirect: 'error', signal: AbortSignal.timeout(10000),
+      method: request.method, redirect: 'manual', signal: AbortSignal.timeout(10000),
     });
     if (!response.ok || !/^image\/jpeg(?:;|$)/i.test(response.headers.get('Content-Type') || '')
       || Number(response.headers.get('Content-Length') || 0) > 2 * 1024 * 1024) { await response.body?.cancel(); return unavailable(502); }

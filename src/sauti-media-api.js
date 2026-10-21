@@ -219,10 +219,10 @@ function boxType(bytes, offset) {
   return String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]);
 }
 
-function boxSize(view, bytes, offset) {
+function boxSize(view, bytes, offset, end) {
   if (offset + 8 > bytes.length) return 0;
   const size32 = view.getUint32(offset, false);
-  if (size32 === 0) return bytes.length - offset;
+  if (size32 === 0) return end - offset;
   if (size32 === 1) {
     if (offset + 16 > bytes.length) return 0;
     const high = view.getUint32(offset + 8, false);
@@ -237,18 +237,21 @@ function findBoxes(bytes, start, end, wanted) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const found = [];
   let offset = start;
-  while (offset + 8 <= end) {
-    const size = boxSize(view, bytes, offset);
-    if (size < 8 || offset + size > end) break;
+  let count = 0;
+  while (offset < end) {
+    if (offset + 8 > end || ++count > 4096) return null;
+    const size = boxSize(view, bytes, offset, end);
+    const header = view.getUint32(offset, false) === 1 ? 16 : 8;
+    if (size < header || offset + size > end) return null;
     const type = boxType(bytes, offset);
-    if (wanted.has(type)) found.push({ type, offset, size, header: view.getUint32(offset, false) === 1 ? 16 : 8 });
+    if (wanted.has(type)) found.push({ type, offset, size, header });
     offset += size;
   }
   return found;
 }
 
-function fullBoxDurationMs(bytes, view, box) {
-  if (!box) return 0;
+function fullBoxTiming(bytes, view, box) {
+  if (!box) return null;
   const base = box.offset + box.header;
   const end = box.offset + box.size;
   const version = bytes[base];
@@ -259,17 +262,23 @@ function fullBoxDurationMs(bytes, view, box) {
   if (version === 0 && timing + 16 <= end) {
     timescale = view.getUint32(timing + 8, false);
     duration = view.getUint32(timing + 12, false);
-    if (duration === 0xffffffff) return 0;
+    if (duration === 0xffffffff) duration = 0;
   } else if (version === 1 && timing + 28 <= end) {
     timescale = view.getUint32(timing + 16, false);
     const high = view.getUint32(timing + 20, false);
     const low = view.getUint32(timing + 24, false);
-    if (high === 0xffffffff && low === 0xffffffff) return 0;
-    duration = high * 2 ** 32 + low;
+    duration = high === 0xffffffff && low === 0xffffffff ? 0 : high * 2 ** 32 + low;
+  } else {
+    return null;
   }
 
-  if (!timescale || !duration || !Number.isSafeInteger(duration)) return 0;
-  const durationMs = Math.round((duration / timescale) * 1000);
+  if (!timescale || !Number.isSafeInteger(duration)) return null;
+  return { timescale, duration };
+}
+
+function timingDurationMs(timing) {
+  if (!timing) return 0;
+  const durationMs = Math.ceil((timing.duration / timing.timescale) * 1000);
   return Number.isSafeInteger(durationMs) && durationMs > 0 ? durationMs : 0;
 }
 
@@ -280,47 +289,155 @@ function handlerType(bytes, box) {
   return String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
 }
 
+// Fragmented MP4 initialization headers can describe only the first few samples
+// (or zero samples). The complete duration comes from each track's tfdt/trun
+// timeline, including audio that continues after the final video frame.
+function fragmentedDurationMs(bytes, view, moofs, mvex, tracks) {
+  const defaults = new Map();
+  const extendsBoxes = mvex && findBoxes(bytes, mvex.offset + mvex.header, mvex.offset + mvex.size, new Set(['trex']));
+  if (!extendsBoxes) return null;
+  for (const box of extendsBoxes) {
+    const base = box.offset + box.header;
+    if (box.size - box.header !== 24 || bytes[base] !== 0) return null;
+    const id = view.getUint32(base + 4, false);
+    if (!tracks.has(id) || defaults.has(id)) return null;
+    defaults.set(id, view.getUint32(base + 12, false));
+  }
+
+  let sampleBudget = 250000;
+  let durationMs = 0;
+  let hasSamples = false;
+  for (const moof of moofs) {
+    const fragments = findBoxes(bytes, moof.offset + moof.header, moof.offset + moof.size, new Set(['traf']));
+    if (!fragments?.length) return null;
+    for (const fragment of fragments) {
+      const boxes = findBoxes(bytes, fragment.offset + fragment.header, fragment.offset + fragment.size, new Set(['tfhd', 'tfdt', 'trun']));
+      if (!boxes) return null;
+      const headers = boxes.filter((box) => box.type === 'tfhd');
+      const times = boxes.filter((box) => box.type === 'tfdt');
+      if (headers.length !== 1 || times.length > 1) return null;
+      const header = headers[0];
+      const base = header.offset + header.header;
+      const end = header.offset + header.size;
+      if (base + 8 > end || bytes[base] !== 0) return null;
+      const flags = view.getUint32(base, false) & 0xffffff;
+      if (flags & ~0x03003b) return null;
+      const id = view.getUint32(base + 4, false);
+      const track = tracks.get(id);
+      if (!track?.timing || !defaults.has(id)) return null;
+      let offset = base + 8 + ((flags & 1) ? 8 : 0) + ((flags & 2) ? 4 : 0);
+      let defaultDuration = defaults.get(id);
+      if (flags & 8) {
+        if (offset + 4 > end) return null;
+        defaultDuration = view.getUint32(offset, false);
+        offset += 4;
+      }
+      offset += ((flags & 0x10) ? 4 : 0) + ((flags & 0x20) ? 4 : 0);
+      if (offset !== end) return null;
+      let decodeTime = track.decodeEnd || 0;
+      if (times.length) {
+        const time = times[0];
+        const p = time.offset + time.header;
+        const version = bytes[p];
+        if ((version !== 0 && version !== 1) || time.size - time.header !== (version === 1 ? 12 : 8)) return null;
+        decodeTime = version === 1 ? view.getUint32(p + 4, false) * 2 ** 32 + view.getUint32(p + 8, false) : view.getUint32(p + 4, false);
+        if (!Number.isSafeInteger(decodeTime)) return null;
+      }
+      const runs = boxes.filter((box) => box.type === 'trun');
+      if ((flags & 0x010000) && runs.length) return null;
+      for (const run of runs) {
+        const p = run.offset + run.header;
+        const runEnd = run.offset + run.size;
+        if (p + 8 > runEnd || bytes[p] > 1) return null;
+        const runFlags = view.getUint32(p, false) & 0xffffff;
+        if ((runFlags & ~0x000f05) || ((runFlags & 4) && (runFlags & 0x400))) return null;
+        const count = view.getUint32(p + 4, false);
+        if (!count || count > sampleBudget) return null;
+        sampleBudget -= count;
+        let sample = p + 8 + ((runFlags & 1) ? 4 : 0) + ((runFlags & 4) ? 4 : 0);
+        const stride = ((runFlags & 0x100) ? 4 : 0) + ((runFlags & 0x200) ? 4 : 0)
+          + ((runFlags & 0x400) ? 4 : 0) + ((runFlags & 0x800) ? 4 : 0);
+        if (sample + count * stride !== runEnd) return null;
+        for (let index = 0; index < count; index += 1) {
+          const duration = (runFlags & 0x100) ? view.getUint32(sample, false) : defaultDuration;
+          sample += ((runFlags & 0x100) ? 4 : 0) + ((runFlags & 0x200) ? 4 : 0) + ((runFlags & 0x400) ? 4 : 0);
+          const compositionOffset = (runFlags & 0x800)
+            ? (bytes[p] === 1 ? view.getInt32(sample, false) : view.getUint32(sample, false)) : 0;
+          sample += (runFlags & 0x800) ? 4 : 0;
+          const decodeEnd = decodeTime + duration;
+          const presentationEnd = decodeEnd + compositionOffset;
+          if (!duration || !Number.isSafeInteger(decodeEnd) || !Number.isSafeInteger(presentationEnd)) return null;
+          const sampleEndMs = Math.ceil((Math.max(decodeEnd, presentationEnd) / track.timing.timescale) * 1000);
+          if (!Number.isSafeInteger(sampleEndMs) || sampleEndMs > MAX_VIDEO_DURATION_MS) return null;
+          durationMs = Math.max(durationMs, sampleEndMs);
+          decodeTime = decodeEnd;
+          hasSamples = true;
+        }
+      }
+      track.decodeEnd = decodeTime;
+    }
+  }
+  return hasSamples && durationMs > 0 ? durationMs : null;
+}
+
 export function inspectMp4Bytes(bytes) {
-  if (!(bytes instanceof Uint8Array) || bytes.length < 32) return null;
-  const top = findBoxes(bytes, 0, bytes.length, new Set(['ftyp', 'moov']));
-  if (!top.some((box) => box.type === 'ftyp')) return null;
-  const moov = top.find((box) => box.type === 'moov');
-  if (!moov) return null;
+  if (!(bytes instanceof Uint8Array) || bytes.length < 32 || bytes.length > VIDEO_LIMIT) return null;
+  const top = findBoxes(bytes, 0, bytes.length, new Set(['ftyp', 'moov', 'moof']));
+  if (!top || top.filter((box) => box.type === 'ftyp').length !== 1) return null;
+  const movies = top.filter((box) => box.type === 'moov');
+  if (movies.length !== 1) return null;
+  const moov = movies[0];
 
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const children = findBoxes(bytes, moov.offset + moov.header, moov.offset + moov.size, new Set(['mvhd', 'trak']));
+  const children = findBoxes(bytes, moov.offset + moov.header, moov.offset + moov.size, new Set(['mvhd', 'trak', 'mvex']));
+  if (!children || children.filter((box) => box.type === 'mvhd').length > 1 || children.filter((box) => box.type === 'mvex').length > 1) return null;
   const mvhd = children.find((box) => box.type === 'mvhd');
-  const movieDurationMs = fullBoxDurationMs(bytes, view, mvhd);
+  let durationMs = timingDurationMs(fullBoxTiming(bytes, view, mvhd));
+  const tracks = new Map();
+  const trackBoxesList = children.filter((box) => box.type === 'trak');
+  if (trackBoxesList.length > 32) return null;
 
   let width = 0;
   let height = 0;
-  let videoDurationMs = 0;
-  for (const trak of children.filter((box) => box.type === 'trak')) {
+  for (const trak of trackBoxesList) {
     const trackBoxes = findBoxes(bytes, trak.offset + trak.header, trak.offset + trak.size, new Set(['tkhd', 'mdia']));
+    if (!trackBoxes || trackBoxes.filter((box) => box.type === 'tkhd').length !== 1 || trackBoxes.filter((box) => box.type === 'mdia').length > 1) return null;
     const tkhd = trackBoxes.find((box) => box.type === 'tkhd');
     if (!tkhd) continue;
     const base = tkhd.offset + tkhd.header;
     const tkVersion = bytes[base];
+    if (tkVersion !== 0 && tkVersion !== 1) return null;
     const data = base + 4;
     const dimensionOffset = tkVersion === 1 ? data + 84 : data + 72;
-    if (dimensionOffset + 8 > bytes.length) continue;
+    if (dimensionOffset + 8 > tkhd.offset + tkhd.size) return null;
     const w = fixed16(view.getUint32(dimensionOffset, false));
     const h = fixed16(view.getUint32(dimensionOffset + 4, false));
     const mdia = trackBoxes.find((box) => box.type === 'mdia');
     const mediaBoxes = mdia
       ? findBoxes(bytes, mdia.offset + mdia.header, mdia.offset + mdia.size, new Set(['mdhd', 'hdlr']))
       : [];
-    const mediaDurationMs = fullBoxDurationMs(bytes, view, mediaBoxes.find((box) => box.type === 'mdhd'));
+    if (!mediaBoxes || mediaBoxes.filter((box) => box.type === 'mdhd').length > 1 || mediaBoxes.filter((box) => box.type === 'hdlr').length > 1) return null;
+    const timing = fullBoxTiming(bytes, view, mediaBoxes.find((box) => box.type === 'mdhd'));
+    const id = view.getUint32(base + (tkVersion === 1 ? 20 : 12), false);
+    if (tracks.has(id)) return null;
+    tracks.set(id, { timing, decodeEnd: 0 });
+    durationMs = Math.max(durationMs, timingDurationMs(timing));
     const mediaHandler = handlerType(bytes, mediaBoxes.find((box) => box.type === 'hdlr'));
     const isVideoTrack = mediaHandler === 'vide' || (w > 0 && h > 0);
 
     if (isVideoTrack && w * h > width * height) {
       width = w;
       height = h;
-      videoDurationMs = mediaDurationMs;
     }
   }
-  const durationMs = videoDurationMs || movieDurationMs;
+  const moofs = top.filter((box) => box.type === 'moof');
+  const mvex = children.find((box) => box.type === 'mvex');
+  if (moofs.length || mvex) {
+    if (!moofs.length || !mvex) return null;
+    const fragmentedMs = fragmentedDurationMs(bytes, view, moofs, mvex, tracks);
+    if (fragmentedMs === null) return null;
+    durationMs = Math.max(durationMs, fragmentedMs);
+  }
   if (!width || !height) return null;
   if (!durationMs) return null;
   if (width > MAX_DIMENSION || height > MAX_DIMENSION || durationMs > MAX_VIDEO_DURATION_MS) return null;
