@@ -91,8 +91,10 @@ export async function sautiStreamBootstrap(request, env, asset, descriptor, opti
   const root = base && options?.basePath === base && resourceUrl(descriptor.url, origin, base);
   if (!root) return null;
   const controller = new AbortController();
+  let accepting = true;
+  const active = () => accepting && !controller.signal.aborted && !request.signal.aborted;
   async function read(url) {
-    if (controller.signal.aborted || request.signal.aborted) throw new Error('BOOTSTRAP_ABORTED');
+    if (!active()) throw new Error('BOOTSTRAP_ABORTED');
     const response = await serveSautiStreamHls(new Request(url, {
       signal: AbortSignal.any([controller.signal, request.signal]),
     }), env, asset, { ...options, manifestOnly: true });
@@ -101,43 +103,64 @@ export async function sautiStreamBootstrap(request, env, asset, descriptor, opti
       throw new Error('BOOTSTRAP_UNAVAILABLE');
     }
     const bytes = await boundedBytes(response, BODY_LIMIT);
+    if (!active()) throw new Error('BOOTSTRAP_ABORTED');
     const body = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
     if (!body.startsWith('#EXTM3U')) throw new Error('BOOTSTRAP_INVALID');
-    return { url, body };
+    return Object.freeze({ url, body });
   }
   let timer;
   let snapshot = null;
   const collect = async () => {
     const master = await read(root);
-    if (controller.signal.aborted || request.signal.aborted) return null;
+    if (!active()) return null;
     const children = childPlaylists(master.body, origin, base).filter(url => url !== root);
     if (children.length > CHILD_LIMIT) return null;
-    const playlists = [master, ...await Promise.all(children.map(read))];
+    const playlists = Object.freeze([master, ...await Promise.all(children.map(read))]);
+    if (!active()) return null;
     const metadataSize = playlists.reduce((size, item) => size + encoder.encode(item.body).length, 0);
     if (metadataSize > BODY_LIMIT) return null;
-    snapshot = { playlists };
+    snapshot = Object.freeze({ playlists });
     const initialUrls = initializationUrls(playlists, origin, base);
     if (!initialUrls.length || initialUrls.length > CHILD_LIMIT) return snapshot;
-    try {
-      const initializations = await Promise.all(initialUrls.map(async url => {
-        if (controller.signal.aborted || request.signal.aborted) throw new Error('BOOTSTRAP_ABORTED');
-        const response = await serveSautiStreamHls(new Request(url, {
-          signal: AbortSignal.any([controller.signal, request.signal]),
-        }), env, asset, { ...options, initializationOnly: true });
-        if (response.status !== 200) { await response.body?.cancel(); throw new Error('BOOTSTRAP_INIT_UNAVAILABLE'); }
-        const bytes = await boundedBytes(response, INIT_LIMIT);
-        if (!sautiStreamInitializationHeader(bytes)) throw new Error('BOOTSTRAP_INIT_INVALID');
-        return { url, base64: btoa(String.fromCharCode(...bytes)), size: bytes.length };
-      }));
-      if (metadataSize + initializations.reduce((size, item) => size + item.size, 0) <= BODY_LIMIT)
-        snapshot = { playlists, initializations: initializations.map(({ url, base64 }) => ({ url, base64 })) };
-    } catch { /* A failed optional header leaves the valid playlist snapshot. */ }
+    const initializations = [];
+    let initializationSize = 0;
+    await Promise.allSettled(initialUrls.map(async url => {
+      if (!active()) throw new Error('BOOTSTRAP_ABORTED');
+      const response = await serveSautiStreamHls(new Request(url, {
+        signal: AbortSignal.any([controller.signal, request.signal]),
+      }), env, asset, { ...options, initializationOnly: true });
+      if (response.status !== 200) { await response.body?.cancel(); throw new Error('BOOTSTRAP_INIT_UNAVAILABLE'); }
+      const bytes = await boundedBytes(response, INIT_LIMIT);
+      if (!sautiStreamInitializationHeader(bytes)) throw new Error('BOOTSTRAP_INIT_INVALID');
+      // Publish each validated header independently. A different quality can
+      // fail or miss the deadline without discarding this decoder header.
+      // Replace every array/object so no later completion changes a snapshot.
+      if (!active() || metadataSize + initializationSize + bytes.length > BODY_LIMIT) return;
+      initializationSize += bytes.length;
+      initializations.push(Object.freeze({ url, base64: btoa(String.fromCharCode(...bytes)) }));
+      snapshot = Object.freeze({ playlists, initializations: Object.freeze([...initializations]) });
+    }));
     return snapshot;
   };
+  let onDisconnect;
+  const stopped = new Promise(resolve => {
+    const stop = disconnected => {
+      accepting = false;
+      controller.abort();
+      resolve(disconnected ? null : snapshot);
+    };
+    timer = setTimeout(() => stop(false), BOOTSTRAP_BUDGET_MS);
+    onDisconnect = () => stop(true);
+    request.signal.addEventListener('abort', onDisconnect, { once: true });
+    if (request.signal.aborted) onDisconnect();
+  });
   try {
-    return await Promise.race([collect(), new Promise(resolve => {
-      timer = setTimeout(() => { controller.abort(); resolve(snapshot); }, BOOTSTRAP_BUDGET_MS);
-    })]);
+    return await Promise.race([collect(), stopped]);
   } catch { return null; }
-  finally { clearTimeout(timer); controller.abort(); }
+  finally {
+    accepting = false;
+    clearTimeout(timer);
+    request.signal.removeEventListener('abort', onDisconnect);
+    controller.abort();
+  }
 }
