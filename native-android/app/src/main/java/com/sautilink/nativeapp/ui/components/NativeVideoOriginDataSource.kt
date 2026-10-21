@@ -20,12 +20,21 @@ private val nativePlaybackHttpClient by lazy {
 
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 internal fun nativeVideoPlaybackResources(context: Context, mediaOrigin: String, token: String,
+    authorizationToken: () -> String? = { token },
     sessionActive: () -> Boolean): NativeVideoPlaybackResources {
-    val authorized = OkHttpDataSource.Factory(nativePlaybackHttpClient)
-        .setDefaultRequestProperties(mapOf("Authorization" to "Bearer $token"))
+    val credentialed = nativePlaybackHttpClient.newBuilder().addInterceptor { chain ->
+        val request = chain.request()
+        if (!authenticatedVideoUrl(mediaOrigin, request.url.toString()) && !authenticatedHlsUrl(mediaOrigin, request.url.toString()))
+            throw IOException("Unsupported video request")
+        if (!sessionActive()) throw IOException("Video playback session ended")
+        val current = authorizationToken()?.takeIf { it.isNotBlank() } ?: throw IOException("Video playback session ended")
+        chain.proceed(request.newBuilder().header("Authorization", "Bearer $current").build())
+    }.build()
+    val authorized = OkHttpDataSource.Factory(credentialed)
     val pins = NativeVideoRepresentationPins()
-    val routed = NativeVideoOriginDataSourceFactory(mediaOrigin, NativeVideoDataSourceFactory(authorized, pins::retains))
-    return NativeVideoPlaybackResources(context, routed, sessionActive, representationPins = pins)
+    val grants = NativeHlsGrantRegistry()
+    val routed = NativeVideoOriginDataSourceFactory(mediaOrigin, NativeVideoDataSourceFactory(authorized, pins::retains), authorized, grants)
+    return NativeVideoPlaybackResources(context, routed, sessionActive, representationPins = pins, hlsGrants = grants)
 }
 
 /** Only already-validated SautiLink media routes can reach the authenticated HTTP client. */
@@ -33,6 +42,8 @@ internal fun nativeVideoPlaybackResources(context: Context, mediaOrigin: String,
 internal class NativeVideoOriginDataSourceFactory(
     private val mediaOrigin: String,
     private val authenticated: DataSource.Factory,
+    private val hls: DataSource.Factory = authenticated,
+    private val hlsGrants: NativeHlsGrantRegistry = NativeHlsGrantRegistry(),
 ) : DataSource.Factory {
     override fun createDataSource(): DataSource = object : DataSource {
         private var delegate: DataSource? = null
@@ -44,9 +55,11 @@ internal class NativeVideoOriginDataSourceFactory(
         }
         override fun open(dataSpec: DataSpec): Long {
             check(delegate == null)
-            if (!authenticatedVideoUrl(mediaOrigin, dataSpec.uri.toString())) throw IOException("Unsupported video request")
+            val isHls = authenticatedHlsUrl(mediaOrigin, dataSpec.uri.toString()) && hlsGrants.allows(dataSpec.uri.toString())
+            if (dataSpec.httpMethod != DataSpec.HTTP_METHOD_GET || dataSpec.httpBody != null ||
+                (!isHls && !authenticatedVideoUrl(mediaOrigin, dataSpec.uri.toString()))) throw IOException("Unsupported video request")
             requestedUri = dataSpec.uri
-            val source = authenticated.createDataSource()
+            val source = (if (isHls) hls else authenticated).createDataSource()
             delegate = source
             listeners.forEach(source::addTransferListener)
             return source.open(dataSpec)

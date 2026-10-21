@@ -56,6 +56,9 @@ import com.sautilink.nativeapp.ui.components.VideoPlaybackControls
 import com.sautilink.nativeapp.ui.components.VideoPlaybackSettingsSheet
 import com.sautilink.nativeapp.ui.components.rememberVideoPlaybackQuality
 import com.sautilink.nativeapp.ui.components.nativeVideoPlaybackResources
+import com.sautilink.nativeapp.ui.components.rememberNativePlaybackSource
+import com.sautilink.nativeapp.ui.components.NativeHlsQualitySelection
+import com.sautilink.nativeapp.ui.components.rememberNativeHlsQualities
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
@@ -259,15 +262,25 @@ private fun InlineFeedVideo(
         }
     }
     val token = tokenRead.token
+    val playbackRead = rememberNativePlaybackSource(auth, media.id,
+        if (adaptive) "$mediaPath/playback" else null,
+        enabled = adaptive && token != null && started && isCurrent && visibleFraction > 0f &&
+            lifecycleState.isAtLeast(Lifecycle.State.STARTED), fallbackPath = mediaPath)
+    val streamSource = playbackRead.source
+    val hls = streamSource?.hls == true
+    LaunchedEffect(playbackRead.denied) {
+        if (playbackRead.denied) requestError = "This video is no longer available."
+    }
     // Snapshot the latest real-network observation at first authorized playback,
     // not at precomposition. A healthy MP4 keeps that representation mid-view.
     val autoQuality = remember(auth, accountId, media.id, quality, token != null) {
         NativeVideoQualityPolicy.selectQuality(quality, metadata, network)
     }
     val baseQuality = if (adaptive) autoQuality else "original"
+    val latestBearer by rememberUpdatedState(playbackRead.bearer ?: token)
     val resources = remember(auth, accountId, media.id, token, mediaPath) {
         if (token == null) null else
-            nativeVideoPlaybackResources(context, auth.mediaOrigin, token) {
+            nativeVideoPlaybackResources(context, auth.mediaOrigin, token, authorizationToken = { latestBearer }) {
                 accountId != null && auth.account?.id == accountId
             }
     }
@@ -281,9 +294,12 @@ private fun InlineFeedVideo(
                 .build().apply {
                     repeatMode = Player.REPEAT_MODE_ONE
                     volume = if (muted) 0f else 1f
-                    setMediaItem(MediaItem.Builder().setMediaId(media.id)
-                        .setUri(auth.mediaOrigin + videoPlaybackPath(mediaPath, baseQuality)).build())
-                    prepare()
+                    // Published videos first ask the authorized backend which source is
+                    // ready. Protected pending submissions remain MP4-only.
+                    if (!adaptive) {
+                        setMediaItem(MediaItem.Builder().setMediaId(media.id).setUri(auth.mediaOrigin + mediaPath).build())
+                        prepare()
+                    }
                     playWhenReady = false
                 }
         }
@@ -293,6 +309,8 @@ private fun InlineFeedVideo(
     var stoppedPosition by remember(player) { mutableLongStateOf(0L) }
     val playbackOwner = remember(player) { accountId }
     val actualQuality = rememberVideoPlaybackQuality(player)
+    val streamQualities = rememberNativeHlsQualities(player)
+    NativeHlsQualitySelection(player, hls, quality)
     var playing by remember(player) { mutableStateOf(false) }
     var playbackState by remember(player) { mutableIntStateOf(player?.playbackState ?: Player.STATE_IDLE) }
     var playbackRequested by remember(player) { mutableStateOf(player?.playWhenReady == true) }
@@ -330,26 +348,31 @@ private fun InlineFeedVideo(
         }
     }
     val selectedQuality = rememberVideoRecoveryQuality(player, playbackOwner, media.id, metadata, quality, baseQuality,
-        enabled = adaptive && quality == "auto", online = recoveryOnline, eligible = isCurrent && visibleFraction >= .58f &&
+        enabled = adaptive && !hls && quality == "auto", online = recoveryOnline, eligible = isCurrent && visibleFraction >= .58f &&
             lifecycleState.isAtLeast(Lifecycle.State.STARTED) && wantsToPlay && !manualPaused,
         requested = playbackRequested, playing = playing, playbackState = playbackState,
         suppressed = playbackSuppressed, hasError = requestError != null) {
         auth.account?.id == playbackOwner && isCurrent && visibleFraction >= .58f && wantsToPlay && !manualPaused &&
             owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
     }
-    LaunchedEffect(player, selectedQuality) {
-        if (!adaptive || player == null || auth.account?.id != playbackOwner ||
-            player.playerError != null || requestError != null) return@LaunchedEffect
-        val uri = auth.mediaOrigin + videoPlaybackPath(mediaPath, selectedQuality)
+    val playbackUri = if (hls) streamSource?.url else if (!adaptive || streamSource != null)
+        auth.mediaOrigin + videoPlaybackPath(mediaPath, selectedQuality) else null
+    LaunchedEffect(player, playbackUri, hls, playbackRead.denied) {
+        if (player == null || auth.account?.id != playbackOwner) return@LaunchedEffect
+        if (playbackRead.denied) { player.stop(); return@LaunchedEffect }
+        val uri = playbackUri ?: return@LaunchedEffect
+        streamSource?.let { resources?.hlsGrants?.authorize(it) }
         if (player.currentMediaItem?.localConfiguration?.uri?.toString() != uri) {
-            replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(media.id).setUri(uri).build(),
+            requestError = null
+            replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(media.id).setUri(uri)
+                .setMimeType(if (hls) androidx.media3.common.MimeTypes.APPLICATION_M3U8 else androidx.media3.common.MimeTypes.VIDEO_MP4).build(),
                 keepPosition = true, requested = wantsToPlay && !manualPaused && isCurrent &&
                     owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
         }
     }
     LaunchedEffect(player, muted) { player?.volume = if (muted) 0f else 1f }
     LaunchedEffect(player, speed) { player?.setPlaybackSpeed(speed) }
-    LaunchedEffect(player, isCurrent, visibleFraction, wantsToPlay, requestError, lifecycleState) {
+    LaunchedEffect(player, isCurrent, visibleFraction, wantsToPlay, requestError, lifecycleState, streamSource) {
         if (player != null) {
             if (!isCurrent || visibleFraction < .1f || !lifecycleState.isAtLeast(Lifecycle.State.STARTED)) {
                 if (!stoppedOffscreen && player.playbackState != Player.STATE_IDLE) {
@@ -359,7 +382,7 @@ private fun InlineFeedVideo(
                     stoppedOffscreen = true
                     firstFrame = false
                 }
-            } else if (wantsToPlay && requestError == null) {
+            } else if (wantsToPlay && requestError == null && (!adaptive || streamSource != null)) {
                 if (stoppedOffscreen) {
                     player.seekTo(stoppedPosition)
                     player.prepare()
@@ -367,14 +390,14 @@ private fun InlineFeedVideo(
                 }
                 player.play()
             }
-            else if (!wantsToPlay) player.pause()
+            else player.pause()
         }
     }
     val overlayEligible = bufferingOverlayEnabled && isCurrent && visibleFraction > 0f &&
         lifecycleState.isAtLeast(Lifecycle.State.STARTED) && started && wantsToPlay &&
         !manualPaused && requestError == null && !playbackSuppressed
     val showBufferingOverlay = overlayEligible &&
-        (token == null || playbackRequested && playbackState == Player.STATE_BUFFERING)
+        (token == null || adaptive && streamSource == null && !playbackRead.denied || playbackRequested && playbackState == Player.STATE_BUFFERING)
     Box(modifier.background(Color.Black).onGloballyPositioned { coordinates ->
         visibleFraction = measuredVideoVisibleFraction(coordinates, windowHeight)
     }, contentAlignment = Alignment.Center) {
@@ -409,13 +432,14 @@ private fun InlineFeedVideo(
         val startPlayback = {
             requestError = null
             if (tokenRead.token == null && !tokenRead.loading) tokenRetryAttempt++
+            if (adaptive) playbackRead.retry()
             started = true
             manualPaused = false
             userInitiatedPlayback = true
             wantsToPlay = true
             if (player?.playerError != null) {
-                if (adaptive) replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(media.id)
-                    .setUri(auth.mediaOrigin + videoPlaybackPath(mediaPath, selectedQuality)).build(),
+                if (adaptive && playbackUri != null) replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(media.id)
+                    .setUri(playbackUri).setMimeType(if (hls) androidx.media3.common.MimeTypes.APPLICATION_M3U8 else androidx.media3.common.MimeTypes.VIDEO_MP4).build(),
                     keepPosition = true, requested = owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
                 else player.prepare()
             }
@@ -478,9 +502,10 @@ private fun InlineFeedVideo(
     }
     if (settingsOpen) VideoPlaybackSettingsSheet(
         preference = quality, currentQuality = actualQuality,
-        availableQualities = NativeVideoQualityPolicy.availableQualities(metadata), speed = speed,
+        availableQualities = if (hls) streamQualities.ifEmpty { streamSource?.qualities.orEmpty() }
+            else NativeVideoQualityPolicy.availableQualities(metadata), speed = speed,
         onQuality = { quality = it }, onSpeed = { speed = it }, onDismiss = { settingsOpen = false },
-        qualityEnabled = adaptive)
+        qualityEnabled = adaptive, adaptiveStream = hls)
 }
 
 /** Only callers that already validated a published media path may append a rendition. */

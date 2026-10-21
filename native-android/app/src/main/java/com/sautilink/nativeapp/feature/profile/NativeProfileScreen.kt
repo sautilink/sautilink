@@ -44,6 +44,10 @@ import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.home.AuthorizedImage
+import com.sautilink.nativeapp.feature.stories.NativeStoriesClient
+import com.sautilink.nativeapp.feature.stories.NativeStoryGroup
+import com.sautilink.nativeapp.feature.stories.StoryAvatarRing
+import com.sautilink.nativeapp.feature.stories.NativeStoryPolicy
 import com.sautilink.nativeapp.feature.safety.MemberSafetyState
 import com.sautilink.nativeapp.feature.safety.NativeReportDialog
 import com.sautilink.nativeapp.feature.safety.NativeSafetyClient
@@ -76,6 +80,7 @@ fun NativeProfileScreen(
     onOpenPosts: () -> Unit = {},
     onOpenDashboard: () -> Unit = {},
     onStartMessage: (String) -> Unit = {},
+    onOpenStories: (String) -> Unit = {},
     onOpenPost: (String) -> Unit = {}
 ) {
     val client = remember(auth) { NativeProfilesClient(auth) }
@@ -90,6 +95,13 @@ fun NativeProfileScreen(
     val ownerRoute = username == null
     var refresh by remember(username, account?.id) { mutableIntStateOf(0) }
     var profile by remember(username, account?.id) { mutableStateOf<NativeProfile?>(null) }
+    var storyGroup by remember(username, account?.id) { mutableStateOf<NativeStoryGroup?>(null) }
+    LaunchedEffect(profile?.username, account?.id) {
+        val handle = profile?.username ?: return@LaunchedEffect
+        storyGroup = try { NativeStoriesClient(auth).profile(handle) }
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { null }
+    }
     var loading by remember(username, account?.id) { mutableStateOf(false) }
     var loaded by remember(username, account?.id) { mutableStateOf(false) }
     var error by remember(username, account?.id) { mutableStateOf<String?>(null) }
@@ -321,7 +333,11 @@ fun NativeProfileScreen(
                                     color = MaterialTheme.colorScheme.surface,
                                     border = BorderStroke(3.dp, MaterialTheme.colorScheme.surface)
                                 ) {
-                                    ProfileAvatar(auth, member, 86, revision = refresh)
+                                    StoryAvatarRing(active = storyGroup?.stories?.any {
+                                        NativeStoryPolicy.active(it.expiresAt, System.currentTimeMillis())
+                                    } == true, onOpen = { onOpenStories(member.username) }) {
+                                        ProfileAvatar(auth, member, 86, revision = refresh)
+                                    }
                                 }
                             }
                             Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),

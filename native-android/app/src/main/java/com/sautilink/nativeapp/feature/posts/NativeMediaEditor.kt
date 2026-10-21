@@ -35,10 +35,13 @@ import kotlinx.coroutines.*
 
 @Composable
 internal fun NativeMediaEditor(uri: Uri, video: Boolean, onCancel: () -> Unit,
-    onExportActivity: (Boolean) -> Unit, onUse: (NativeEditedMedia) -> Unit) {
+    onExportActivity: (Boolean) -> Unit, onUse: (NativeEditedMedia) -> Unit,
+    maximumVideoMs: Long = NativeMediaEditPolicy.MAX_VIDEO_MS, storyPhoto: Boolean = false) {
+    require(maximumVideoMs in 1..NativeMediaEditPolicy.MAX_VIDEO_MS)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var edits by remember(uri) { mutableStateOf(NativeImageEdits()) }
+    var filter by remember(uri) { mutableStateOf(NativePhotoFilter.Original) }
     var source by remember(uri) { mutableStateOf<Bitmap?>(null) }
     var duration by remember(uri) { mutableLongStateOf(0L) }
     var trim by remember(uri) { mutableStateOf(NativeMediaEditPolicy.Trim(0, 0)) }
@@ -48,7 +51,7 @@ internal fun NativeMediaEditor(uri: Uri, video: Boolean, onCancel: () -> Unit,
     var exportJob by remember { mutableStateOf<Job?>(null) }
     LaunchedEffect(uri) {
         try {
-            if (video) { duration = localVideoDuration(context, uri); trim = NativeMediaEditPolicy.trim(duration) }
+            if (video) { duration = localVideoDuration(context, uri); trim = NativeMediaEditPolicy.trim(duration, lengthMs = maximumVideoMs, maximumMs = maximumVideoMs) }
             else source = loadEditableBitmap(context, uri, 1024)
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) { failure = error.message ?: "This media could not be opened." }
@@ -71,7 +74,7 @@ internal fun NativeMediaEditor(uri: Uri, video: Boolean, onCancel: () -> Unit,
                         exportJob = scope.launch {
                             var unusedExport: NativeEditedMedia? = null
                             try {
-                                val result = if (video) exportTrimmedVideo(context, uri, duration, trim) { progress = it }
+                                val result = if (video) exportTrimmedVideo(context, uri, duration, trim, maximumVideoMs) { progress = it }
                                 else {
                                     val original = loadEditableBitmap(context, uri)
                                     try { exportEditedImage(context, original, edits) } finally { original.recycle() }
@@ -91,15 +94,15 @@ internal fun NativeMediaEditor(uri: Uri, video: Boolean, onCancel: () -> Unit,
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (video && duration > 0) {
                         LocalVideoPlayer(uri, trim.startMs, trim.endMs, Modifier.fillMaxWidth().height(280.dp))
-                        Text("Select up to 60 seconds. Only your selected clip will upload.", style = MaterialTheme.typography.bodyMedium)
+                        Text("Select up to ${maximumVideoMs / 1000} seconds. Only your selected clip will upload.", style = MaterialTheme.typography.bodyMedium)
                         Text("${mediaTime(trim.startMs)} — ${mediaTime(trim.endMs)} · ${mediaTime(trim.durationMs)} selected",
                             style = MaterialTheme.typography.titleMedium)
                         if (duration > 1_000L) {
                             MediaEditorSlider("Start", trim.startMs.toFloat(), 0f..(duration - 1_000L).toFloat(), !exporting) {
-                                trim = NativeMediaEditPolicy.trim(duration, it.toLong(), trim.durationMs)
+                                trim = NativeMediaEditPolicy.trim(duration, it.toLong(), trim.durationMs, maximumVideoMs)
                             }
                             val endMinimum = trim.startMs + minOf(1_000L, duration)
-                            val endMaximum = minOf(duration, trim.startMs + NativeMediaEditPolicy.MAX_VIDEO_MS)
+                            val endMaximum = minOf(duration, trim.startMs + maximumVideoMs)
                             if (endMaximum > endMinimum) MediaEditorSlider("End", trim.endMs.toFloat(), endMinimum.toFloat()..endMaximum.toFloat(), !exporting) {
                                 trim = trim.copy(endMs = it.toLong())
                             }
@@ -110,16 +113,26 @@ internal fun NativeMediaEditor(uri: Uri, video: Boolean, onCancel: () -> Unit,
                             modifier = Modifier.fillMaxWidth().height(280.dp).clip(SautiShape.Card).background(MaterialTheme.colorScheme.surfaceContainer))
                         else Box(Modifier.fillMaxWidth().height(240.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("Original" to null, "Square" to 1f, "Portrait" to .8f, "Wide" to (16f / 9f)).forEach { (label, ratio) ->
+                            listOf("Original" to null, "Square" to 1f, "Portrait" to .8f, "Story" to (9f / 16f), "Wide" to (16f / 9f)).forEach { (label, ratio) ->
                                 FilterChip(selected = edits.aspect == ratio, onClick = { edits = edits.copy(aspect = ratio, zoom = 1f, panX = 0f, panY = 0f) },
                                     enabled = !exporting, label = { Text(label) }, leadingIcon = { Icon(Icons.Rounded.Crop, null, Modifier.size(18.dp)) })
+                            }
+                        }
+                        if (storyPhoto) {
+                            Text("Photo filters", style = MaterialTheme.typography.titleSmall)
+                            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                NativePhotoFilter.entries.forEach { preset ->
+                                    FilterChip(selected = filter == preset, onClick = { filter = preset; edits = preset.applyTo(edits) },
+                                        enabled = !exporting, label = { Text(preset.label) },
+                                        leadingIcon = { Icon(Icons.Rounded.AutoAwesome, null, Modifier.size(17.dp)) })
+                                }
                             }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = { edits = edits.copy(rotation = (edits.rotation + 90) % 360) }, enabled = !exporting) {
                                 Icon(Icons.Rounded.RotateRight, null, Modifier.size(19.dp)); Spacer(Modifier.width(6.dp)); Text("Rotate")
                             }
-                            TextButton(onClick = { edits = NativeImageEdits() }, enabled = !exporting) { Text("Reset") }
+                            TextButton(onClick = { edits = NativeImageEdits(); filter = NativePhotoFilter.Original }, enabled = !exporting) { Text("Reset") }
                         }
                         MediaEditorSlider("Zoom / crop", edits.zoom, 1f..3f, !exporting) { edits = edits.copy(zoom = it) }
                         MediaEditorSlider("Horizontal framing", edits.panX, -1f..1f, !exporting) { edits = edits.copy(panX = it) }

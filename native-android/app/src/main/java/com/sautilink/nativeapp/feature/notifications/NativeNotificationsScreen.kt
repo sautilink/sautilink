@@ -42,6 +42,7 @@ fun NativeNotificationsScreen(
     auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () -> Unit,
     onOpenProfile: (String) -> Unit, onOpenRoom: (String) -> Unit,
     onOpenPost: (String) -> Unit, onOpenInbox: () -> Unit,
+    onOpenStory: (String) -> Unit = {},
     onUnreadChanged: (Int) -> Unit = {}
 ) {
     val client = remember(auth) { NativeNotificationsClient(auth) }
@@ -142,7 +143,8 @@ fun NativeNotificationsScreen(
                 }
             }
             items(shown, key = { it.id }) { item ->
-                val actor = if (item.actorHandle.isNotBlank()) "@${item.actorHandle}" else item.actorName
+                val actor = if (item.type in setOf("story_like", "story_dislike")) item.actorName
+                    else if (item.actorHandle.isNotBlank()) "@${item.actorHandle}" else item.actorName
                 val allowedHandle = Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(item.actorHandle)
                 val initials = item.actorName.split(" ").filter { it.isNotBlank() }
                     .take(2).map { it.first().uppercaseChar() }.joinToString("").ifBlank { "SL" }
@@ -158,6 +160,7 @@ fun NativeNotificationsScreen(
                                     items = items.map { if (it.id == item.id) it.copy(isRead = true) else it }
                                     onUnreadChanged(items.count { !it.isRead })
                                     when {
+                                        item.storyId.isNotBlank() -> onOpenStory(item.storyId)
                                         item.type == "circle" && item.circleSlug.isNotBlank() ->
                                             onOpenRoom(item.circleSlug)
                                         item.postId.isNotBlank() -> onOpenPost(item.postId)
@@ -188,6 +191,8 @@ fun NativeNotificationsScreen(
                             Icon(when (item.type) {
                                 "follow" -> Icons.Rounded.PersonAdd
                                 "like" -> Icons.Rounded.FavoriteBorder
+                                "story_like" -> Icons.Rounded.FavoriteBorder
+                                "story_dislike" -> Icons.Rounded.ThumbDownOffAlt
                                 "reply" -> Icons.Rounded.ChatBubbleOutline
                                 "mention" -> Icons.Rounded.AlternateEmail
                                 "reshare" -> Icons.Rounded.Repeat
@@ -235,6 +240,8 @@ private fun notificationActionCopy(item: NativeNotification): String {
     return when (item.type) {
         "follow" -> "followed you."
         "like" -> "liked your post."
+        "story_like" -> "liked your story."
+        "story_dislike" -> "disliked your story."
         "reply" -> "commented on your post."
         "mention" -> "mentioned you."
         "reshare" -> "reposted your post."

@@ -6,10 +6,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -31,6 +37,7 @@ import com.sautilink.nativeapp.ui.components.VideoSettingsButton
 import com.sautilink.nativeapp.ui.components.ShortVideoProgressControls
 import com.sautilink.nativeapp.ui.components.videoTimeLabel
 import com.sautilink.nativeapp.ui.components.rememberVideoPlaybackQuality
+import com.sautilink.nativeapp.ui.components.ThinVideoSeekBar
 import com.sautilink.nativeapp.ui.theme.SautiTheme
 import org.junit.Assert.*
 import org.junit.Rule
@@ -40,17 +47,83 @@ import java.io.File
 
 /** Offline controls use a bundled decoder fixture: no account, upload, or network request. */
 @RunWith(AndroidJUnit4::class)
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class NativeVideoPlaybackControlsTest {
     @get:Rule val compose = createComposeRule()
 
-    private fun screenshot(name: String) {
+    private fun screenshot(name: String, tag: String = "short-timeline-capture") {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val supplied = InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")
         val directory = File(supplied ?: (instrumentation.context.externalCacheDir ?: instrumentation.context.cacheDir).absolutePath,
             "sautilink-video-controls").apply { mkdirs() }
         File(directory, "$name.png").outputStream().use {
-            assertTrue(compose.onNodeWithTag("short-timeline-capture", useUnmergedTree = true)
+            assertTrue(compose.onNodeWithTag(tag, useUnmergedTree = true)
                 .captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it))
+        }
+    }
+
+    @Test fun homeTimeline_isVisuallyThinAndCompactWhileItsSeekTargetRemainsAccessible() {
+        compose.setContent { SautiTheme(darkTheme = true) {
+            Box(Modifier.width(320.dp).height(180.dp).background(Color.Black)) {
+                VideoPlaybackControls(null, false, true, {}, {}, {}, Modifier.align(Alignment.BottomCenter))
+            }
+        } }
+        val density = InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
+        val track = compose.onNodeWithTag("home-video-seek-track", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val row = compose.onNodeWithTag("home-video-control-row", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val controls = compose.onNodeWithTag("home-video-controls", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val target = compose.onNodeWithContentDescription("Video progress").fetchSemanticsNode().boundsInRoot
+        assertTrue("A feed progress track must stay a thin line, got ${track.height / density}dp", track.height <= 4f * density)
+        assertTrue("Transport controls must stay compact", row.height <= 44f * density)
+        assertTrue("There must be no tall blank band between timeline and buttons", row.top - track.bottom in 0f..(8f * density))
+        assertTrue("The complete Home HUD must not consume a large video band", controls.height <= 64f * density)
+        assertTrue("A thin visual line still needs an accessible touch target", target.height >= 43.5f * density)
+        screenshot("home-compact-thin-controls", "home-video-controls")
+    }
+
+    @Test fun thinTimeline_supportsTapHorizontalScrubAccessibilityAndKeyboardSeeking() {
+        var position by mutableLongStateOf(4_000L)
+        var preview by mutableStateOf<Long?>(null)
+        var seeks = 0
+        compose.setContent { SautiTheme(darkTheme = true) {
+            Box(Modifier.width(320.dp).height(100.dp).background(Color.Black)) {
+                ThinVideoSeekBar(preview ?: position, 60_000, true,
+                    onPreview = { preview = it }, onSeek = { position = it; seeks++ })
+            }
+        } }
+        val progress = compose.onNodeWithContentDescription("Video progress")
+        progress.performTouchInput { click(center) }
+        compose.runOnIdle { assertTrue(position in 29_000L..31_000L) }
+        progress.performTouchInput {
+            swipe(Offset(width * .8f, centerY), Offset(width * .25f, centerY), 400)
+        }
+        compose.runOnIdle { assertTrue("Horizontal scrub must seek to the released position", position in 13_000L..16_000L) }
+        progress.performSemanticsAction(SemanticsActions.SetProgress) { it(12_000f) }
+        compose.runOnIdle { assertEquals(12_000L, position) }
+        progress.performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+        progress.performKeyInput { pressKey(Key.DirectionRight) }
+        compose.runOnIdle { assertEquals(17_000L, position); assertTrue(seeks >= 4) }
+    }
+
+    @Test fun thinTimeline_keepsVerticalFeedSwipesOutOfSeeking() {
+        var seeks = 0
+        var scrolled = 0
+        compose.setContent { SautiTheme(darkTheme = true) {
+            val scroll = rememberScrollState()
+            scrolled = scroll.value
+            Column(Modifier.width(320.dp).height(240.dp).verticalScroll(scroll)) {
+                Spacer(Modifier.height(80.dp))
+                ThinVideoSeekBar(5_000, 60_000, true, onSeek = { seeks++ })
+                Spacer(Modifier.height(600.dp))
+            }
+        } }
+        compose.onNodeWithContentDescription("Video progress").performTouchInput {
+            swipe(center, Offset(centerX, centerY - 100f), 400)
+        }
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertEquals("A vertical swipe is navigation, never a seek", 0, seeks)
+            assertTrue("The parent feed must retain its scroll gesture", scrolled > 0)
         }
     }
 
@@ -152,7 +225,7 @@ class NativeVideoPlaybackControlsTest {
             }
             decodedQuality = rememberVideoPlaybackQuality(player)
             SautiTheme(darkTheme = true) {
-                Box(Modifier.width(320.dp).height(240.dp)) {
+                Box(Modifier.width(320.dp).height(240.dp).testTag("home-player-capture")) {
                     AndroidView(factory = { ctx -> PlayerView(ctx).apply {
                         useController = false
                         this.player = player
@@ -171,6 +244,7 @@ class NativeVideoPlaybackControlsTest {
             .performSemanticsAction(SemanticsActions.SetProgress) { set -> set(10_000f) }
         awaitPlayer(5_000) { decoder?.currentPosition?.let { it in 9_000..11_000 } == true }
         awaitPlayer(5_000) { decodedQuality != null }
+        screenshot("home-paused-thin-controls-with-player", "home-player-capture")
         compose.runOnIdle {
             assertFalse("Scrubbing must preserve an explicit pause", decoder!!.playWhenReady)
             assertEquals(Player.REPEAT_MODE_ONE, decoder!!.repeatMode)
@@ -251,6 +325,11 @@ class NativeVideoPlaybackControlsTest {
         var totalLabel = ""
         compose.runOnIdle { totalLabel = videoTimeLabel(decoder!!.duration) }
         compose.onNodeWithText(totalLabel).assertIsDisplayed()
+        val density = instrumentation.targetContext.resources.displayMetrics.density
+        val timeRow = compose.onNodeWithTag("short-video-time-row", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val track = compose.onNodeWithTag("short-video-seek-track", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertTrue("Shorts duration must sit directly above its track", track.top - timeRow.bottom in 0f..(8f * density))
+        assertTrue("Expanded Shorts progress remains a thin line", track.height <= 4f * density)
         screenshot("short-touch-expanded-progress")
         compose.runOnIdle { paused = true; decoder!!.pause() }
         compose.mainClock.advanceTimeBy(64)

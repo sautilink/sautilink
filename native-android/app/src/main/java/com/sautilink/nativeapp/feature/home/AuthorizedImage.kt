@@ -71,6 +71,7 @@ internal fun AuthorizedImage(
     crop: Boolean = true,
     naturalAspectRatio: Boolean = false,
     showFailureFallback: Boolean = true,
+    onReady: () -> Unit = {},
     fallback: @Composable () -> Unit = {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
             Icon(Icons.Rounded.ImageNotSupported, contentDescription = null,
@@ -87,6 +88,8 @@ internal fun AuthorizedImage(
     var transientFailure by remember(auth, accountId, sessionState, route) { mutableStateOf(false) }
     var retryVersion by remember(auth, accountId, sessionState, route) { mutableIntStateOf(0) }
     var sawOffline by remember(auth, accountId, sessionState, route) { mutableStateOf(false) }
+    val readyCallback by rememberUpdatedState(onReady)
+    LaunchedEffect(bitmap) { if (bitmap != null) readyCallback() }
     // Loaded photos never subscribe to network recovery or refetch on resume.
     val recoveryOnline = if (bitmap == null) rememberNetworkAvailable() else true
     val lifecycleOwner = LocalLifecycleOwner.current

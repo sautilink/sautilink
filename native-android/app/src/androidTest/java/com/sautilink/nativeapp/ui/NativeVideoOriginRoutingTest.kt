@@ -9,6 +9,8 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.TransferListener
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.sautilink.nativeapp.ui.components.NativeVideoOriginDataSourceFactory
+import com.sautilink.nativeapp.ui.components.NativeVideoSource
+import com.sautilink.nativeapp.ui.components.NativeHlsGrantRegistry
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -68,5 +70,35 @@ class NativeVideoOriginRoutingTest {
             source.close()
         }
         assertTrue(upstream.opened.isEmpty())
+    }
+
+    @Test fun authorizedHlsUsesRawGatewayTransportWithoutMp4RangeAdapter() {
+        val mp4 = RecordingNetworkFactory()
+        val hls = RecordingNetworkFactory()
+        val grants = NativeHlsGrantRegistry { 1_000L }
+        val url = "https://sautilink.com/api/sauti-media/$id/hls/c2VnbWVudC50cw?c=ZXhhbXBsZQ.${"a".repeat(43)}"
+        grants.authorize(NativeVideoSource(id, url, true, 10_000L))
+        val source = NativeVideoOriginDataSourceFactory("https://sautilink.com", mp4, hls, grants).createDataSource()
+        try {
+            source.open(DataSpec.Builder().setUri(url).build())
+            assertEquals(128, source.read(ByteArray(128), 0, 128))
+        } finally { source.close() }
+        assertTrue(mp4.opened.isEmpty())
+        assertEquals(url, hls.opened.single().uri.toString())
+    }
+
+    @Test fun expiredWrongContentAndForeignGatewayRequestsNeverReachAuthenticatedHls() {
+        var clock = 1_000L
+        val network = RecordingNetworkFactory()
+        val grants = NativeHlsGrantRegistry { clock }
+        val url = "https://sautilink.com/api/sauti-media/$id/hls/c2VnbWVudC50cw?c=ZXhhbXBsZQ.${"a".repeat(43)}"
+        grants.authorize(NativeVideoSource(id, url, true, 2_000L))
+        val source = NativeVideoOriginDataSourceFactory("https://sautilink.com", network, network, grants).createDataSource()
+        listOf(url.replace("sautilink.com", "videodelivery.net"), url.replace(id, "00000000-0000-4000-8000-000000000099"), url + "&redirect=evil").forEach {
+            assertThrows(IOException::class.java) { source.open(DataSpec.Builder().setUri(it).build()) }; source.close()
+        }
+        clock = 2_000L
+        assertThrows(IOException::class.java) { source.open(DataSpec.Builder().setUri(url).build()) }; source.close()
+        assertTrue(network.opened.isEmpty())
     }
 }
