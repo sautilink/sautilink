@@ -72,19 +72,35 @@ function applyPreference(state) {
 }
 function restorePlayback(state, position, wasPlaying, rate) {
   const video = state.video;
+  if (state.restoreListener) video.removeEventListener('loadedmetadata', state.restoreListener);
   const restore = () => {
+    if (state.restoreListener !== restore) return;
+    state.restoreListener = null;
+    state.restoreIntent = null;
+    if (state.destroyed || video.__sautiStreamState !== state || !video.isConnected) return;
     video.playbackRate = rate;
     if (position > 0 && Number.isFinite(video.duration)) video.currentTime = Math.min(position, Math.max(0, video.duration - 0.05));
     if (allowedToResume(video, wasPlaying)) void video.play().catch(() => {});
   };
+  state.restoreListener = restore;
+  state.restoreIntent = { position, wasPlaying };
   video.addEventListener('loadedmetadata', restore, { once: true });
 }
 function fallback(state) {
   const video = state.video;
-  const position = Number(video.currentTime) || state.position || 0;
-  const wasPlaying = !video.paused || state.wasPlaying;
+  const measured = Number(video.currentTime);
+  const pending = state.restoreListener ? state.restoreIntent : null;
+  const position = measured === 0 && pending ? pending.position
+    : Number.isFinite(measured) && measured >= 0 ? measured : state.position || 0;
+  // A previous attach's play state is not current user intent. In particular,
+  // an explicit pause/seek-to-zero must survive a later provider failure.
+  // An attach may have reset currentTime/paused before its metadata event. Only
+  // that still-pending restoration can retain intent; a completed attach cannot.
+  const wasPlaying = !video.paused || Boolean(pending?.wasPlaying);
   const rate = video.playbackRate;
-  state.hls?.destroy(); state.hls = null; state.ready = false;
+  const previous = state.hls;
+  state.hls = null; state.ready = false;
+  previous?.destroy();
   delete video.dataset.sautiStreamManaged;
   mediaLevels.delete(state.mediaId);
   restorePlayback(state, position, wasPlaying, rate);
@@ -93,9 +109,40 @@ function fallback(state) {
   notify(video);
 }
 
-async function resolvePlayback(state, force = false) {
+const FATAL_TYPES = new Set(['networkError', 'mediaError', 'keySystemError', 'muxError', 'otherError']);
+const FATAL_DETAILS = new Set(['manifestLoadError', 'manifestLoadTimeOut', 'manifestParsingError',
+  'manifestIncompatibleCodecsError', 'levelEmptyError', 'levelLoadError', 'levelLoadTimeOut', 'levelParsingError',
+  'levelSwitchError', 'audioTrackLoadError', 'audioTrackLoadTimeOut', 'subtitleTrackLoadError',
+  'subtitleTrackLoadTimeOut', 'fragLoadError', 'fragLoadTimeOut', 'fragDecryptError', 'fragParsingError',
+  'fragGap', 'keyLoadError', 'keyLoadTimeOut', 'bufferAppendError', 'bufferAddingCodecError',
+  'bufferStalledError', 'bufferFullError', 'bufferSeekOverHole', 'bufferNudgeOnStall', 'internalException', 'remuxAllocError']);
+function reportFatal(state, hls, detail) {
+  const type = FATAL_TYPES.has(detail.type) ? detail.type : 'unknown';
+  const details = FATAL_DETAILS.has(detail.details) ? detail.details : 'unknown';
+  const responseStatus = Number(detail.response?.code ?? detail.networkDetails?.status);
+  const status = Number.isInteger(responseStatus) && responseStatus >= 100 && responseStatus <= 599 ? responseStatus : 0;
+  const signature = `${type}:${details}:${status}`;
+  if (state.lastFatal?.hls === hls && state.lastFatal.signature === signature) return;
+  state.lastFatal = { hls, signature };
+  // Never log the SDK error object: it may contain a signed URL, response body,
+  // request headers or a provider token. These fields are enums/status only.
+  console.warn('[SautiLink video] HLS fatal', { type, details, status });
+}
+
+function resolvePlayback(state, force = false) {
+  // A fatal old fragment may arrive while the timer/session already renews its
+  // descriptor. Join that exact request instead of starting another or falling
+  // back before its successful replacement can commit.
+  if (state.resolving) return state.resolvePromise || Promise.resolve(false);
+  const pending = resolvePlaybackAttempt(state, force);
+  state.resolvePromise = pending;
+  const settled = () => { if (state.resolvePromise === pending) state.resolvePromise = null; };
+  void pending.then(settled, settled);
+  return pending;
+}
+async function resolvePlaybackAttempt(state, force = false) {
   const video = state.video;
-  if (state.resolving || state.destroyed || !video.isConnected || (!force && Date.now() - state.checkedAt < 20000)) return;
+  if (state.destroyed || !video.isConnected || (!force && Date.now() - state.checkedAt < 20000)) return false;
   state.resolving = true; state.checkedAt = Date.now();
   const controller = new AbortController();
   state.abort = controller;
@@ -103,12 +150,12 @@ async function resolvePlayback(state, force = false) {
     await window.SautiLinkVideoMediaSession?.ensure?.();
     const response = await fetch(`/api/sauti-media/${state.mediaId}/playback`, { credentials: 'same-origin', cache: 'no-store',
       redirect: 'error', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]) });
-    if (!response.ok || state.destroyed) return;
+    if (!response.ok || state.destroyed) return false;
     const json = await response.json();
     const descriptor = validatedStreamDescriptor(json?.ok === true ? json.data : null, state.mediaId, window.location.origin);
-    if (!descriptor || descriptor.type !== 'hls' || state.destroyed || !video.isConnected) return;
+    if (!descriptor || descriptor.type !== 'hls' || state.destroyed || !video.isConnected) return false;
     const Hls = await loadHlsRuntime();
-    if (state.destroyed || !video.isConnected) return;
+    if (state.destroyed || !video.isConnected) return false;
     const position = Number(video.currentTime) || 0;
     const wasPlaying = !video.paused;
     const rate = video.playbackRate;
@@ -117,7 +164,7 @@ async function resolvePlayback(state, force = false) {
     video.dataset.sautiStreamManaged = 'true';
     restorePlayback(state, position, wasPlaying, rate);
     if (Hls.isSupported()) {
-      state.hls?.destroy();
+      const previous = state.hls;
       const hls = new Hls({ enableWorker: false, autoStartLoad: false, capLevelToPlayerSize: true,
         maxBufferLength: 20, maxMaxBufferLength: 40, backBufferLength: 20, maxBufferSize: 24 * 1024 * 1024,
         startPosition: position, xhrSetup(xhr, requestUrl) {
@@ -126,24 +173,41 @@ async function resolvePlayback(state, force = false) {
           xhr.withCredentials = true;
         } });
       state.hls = hls;
+      state.refreshAttempted = false;
+      state.lastFatal = null;
+      previous?.destroy();
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         if (state.hls !== hls || state.destroyed) return;
         state.ready = true;
         mediaLevels.set(state.mediaId, hlsQualityLevels(hls.levels));
         applyPreference(state);
-        if (allowedToResume(video, wasPlaying)) { hls.startLoad(position); void video.play().catch(() => {}); }
+        if (!video.isConnected || document.visibilityState === 'hidden') hls.stopLoad();
+        else if (allowedToResume(video, wasPlaying)) { hls.startLoad(position); void video.play().catch(() => {}); }
         else hls.startLoad(position); // Load the first frame for a manually paused player.
       });
       hls.on(Hls.Events.LEVEL_SWITCHED, (_event, detail) => {
+        if (state.destroyed || state.hls !== hls) return;
         const current = hls.levels[detail.level];
         state.actualQuality = Math.min(Number(current?.width), Number(current?.height)) || 0;
         notify(video);
       });
       hls.on(Hls.Events.ERROR, (_event, detail) => {
         if (!detail.fatal || state.destroyed || state.hls !== hls) return;
+        reportFatal(state, hls, detail);
+        if (state.fatalRecovery?.hls === hls) return;
         // Token renewal stays bounded; processing/provider outages keep MP4 usable.
-        if (!state.refreshAttempted && Date.now() >= state.expiresAt - 15000) {
-          state.refreshAttempted = true; void resolvePlayback(state, true);
+        if (!state.refreshAttempted && (state.resolving || Date.now() >= state.expiresAt - 15000)) {
+          state.refreshAttempted = true;
+          const pending = resolvePlayback(state, true);
+          const recovery = { hls, pending };
+          state.fatalRecovery = recovery;
+          const complete = () => {
+            if (state.fatalRecovery === recovery) state.fatalRecovery = null;
+            // A successful unrelated/in-flight attempt must actually replace
+            // this failed controller before it counts as recovery.
+            if (!state.destroyed && state.hls === hls) fallback(state);
+          };
+          void pending.then(complete, complete);
         } else fallback(state);
       });
       hls.loadSource(descriptor.url);
@@ -155,7 +219,8 @@ async function resolvePlayback(state, force = false) {
     state.renewTimer = window.setTimeout(() => {
       if (!state.destroyed && !video.paused && document.visibilityState !== 'hidden') void resolvePlayback(state, true);
     }, Math.max(1000, descriptor.expiry - Date.now() - 30000));
-  } catch { /* Existing MP4 delivery remains available while Stream is processing. */ }
+    return video.dataset.sautiStreamManaged === 'true';
+  } catch { return false; /* Existing MP4 delivery remains available while Stream is processing. */ }
   finally { if (state.abort === controller) state.abort = null; state.resolving = false; }
 }
 
@@ -183,6 +248,9 @@ export function streamQualityState(video) {
 function destroyState(state, { clearMedia = false } = {}) {
   if (state.destroyed) return;
   state.destroyed = true; state.abort?.abort(); state.hls?.destroy(); state.video.pause();
+  if (state.restoreListener) state.video.removeEventListener('loadedmetadata', state.restoreListener);
+  state.restoreListener = null;
+  state.restoreIntent = null;
   state.video.removeEventListener('play', state.onPlay);
   state.video.removeEventListener('pause', state.onPause);
   window.clearTimeout(state.renewTimer); mediaLevels.delete(state.mediaId); states.delete(state);

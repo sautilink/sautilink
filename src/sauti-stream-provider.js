@@ -29,8 +29,10 @@ export async function deleteStreamAsset(env, id) {
   if (!STREAM_UID.test(String(id || '')) || !env?.STREAM?.video) return false;
   try { await streamOperation(() => env.STREAM.video(id).delete()); return true; }
   catch (error) {
-    // Binding's typed NotFoundError is an idempotent deletion success.
-    return error?.name === 'NotFoundError' || error?.status === 404 || error?.statusCode === 404;
+    // The real binding can serialize NotFoundError as this exact generic
+    // message. Other errors, including denied/uncertain deletes, retain retries.
+    return error?.name === 'NotFoundError' || error?.status === 404 || error?.statusCode === 404
+      || (error?.name === 'Error' && error?.message === 'Not Found: The requested resource or operation was not found.');
   }
 }
 
