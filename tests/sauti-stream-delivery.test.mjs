@@ -53,7 +53,7 @@ function fixture() {
     async createDirectUpload(params) {
       calls.direct.push(params);
       provider = { id: UID, ...params, duration: 20, readyToStream: false, status: { state: 'pendingupload' } };
-      return { id: UID, uploadURL: `https://upload.videodelivery.net/${UID}` };
+      return { id: UID, uploadURL: `https://upload.cloudflarestream.com/${UID}` };
     },
     videos: { async list() { return provider ? [provider] : []; } },
     video(id) {
@@ -74,6 +74,25 @@ async function readyPost(f) {
   await reconcileSautiStreamJob(f.env, record, NOW + 16);
   return readySautiPostStreamAsset(f.env, row);
 }
+
+test('Story upload provisioning accepts both exact provider origins and rejects URL extras', async () => {
+  for (const host of ['upload.cloudflarestream.com', 'upload.videodelivery.net']) {
+    const valid = `https://${host}/${UID}`;
+    for (const [url, accepted] of [[valid, true], [`http://${host}/${UID}`, false],
+      [`https://${host}:443/${UID}`, false], [`https://${host}:444/${UID}`, false],
+      [`${valid}?extra=1`, false], [`${valid}#fragment`, false], [`${valid}/extra`, false],
+      [`https://user@${host}/${UID}`, false], [`https://sub.${host}/${UID}`, false],
+      [`https://${host}/bad`, false]]) {
+      const f = fixture(); const original = f.env.STREAM.createDirectUpload.bind(f.env.STREAM);
+      f.env.STREAM.createDirectUpload = async params => ({ ...await original(params), uploadURL: url });
+      const result = await createSautiStoryStreamUpload(f.env, { id: ID, owner_id: OWNER }, NOW);
+      assert.equal(Boolean(result), accepted, url);
+      assert.equal(f.calls.direct.length, 1);
+      assert.equal(f.calls.deletes.length, accepted ? 0 : 1);
+      assert.equal((await streamCapacityStatus(f.env)).reserved_seconds, accepted ? 30 : 0);
+    }
+  }
+});
 
 test('one attached canonical source is imported exactly once under concurrent reads', async () => {
   const f = fixture();
