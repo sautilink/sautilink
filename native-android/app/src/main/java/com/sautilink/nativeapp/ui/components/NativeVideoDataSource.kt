@@ -21,10 +21,25 @@ import java.net.ProtocolException
  * No media bytes, credentials or decisions are persisted on disk.
  */
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
-internal class NativeVideoDataSourceFactory(private val http: HttpDataSource.Factory) : DataSource.Factory {
+internal class NativeVideoDataSourceFactory(
+    private val http: HttpDataSource.Factory,
+    private val retainRepresentation: (String) -> Boolean = { false },
+) : DataSource.Factory {
     private data class Representation(val uri: Uri, val total: Long, val etag: String, val variant: String)
-    private val representations = object : LinkedHashMap<String, Representation>(32, .75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Representation>?) = size > 32
+    private val representations = LinkedHashMap<String, Representation>(32, .75f, true)
+
+    /** The byte cache may retain partial original-fallback spans after many clips.
+     * Its admitted identities keep their representation until that cache closes;
+     * only identities without cached bytes participate in the 32-entry LRU.
+     * The callback is a nonblocking memory lookup, never a Cache/SQLite operation.
+     */
+    private fun trimUncachedRepresentations() {
+        var uncached = representations.keys.count { !retainRepresentation(it) }
+        if (uncached <= 32) return
+        val iterator = representations.entries.iterator()
+        while (uncached > 32 && iterator.hasNext()) {
+            if (!retainRepresentation(iterator.next().key)) { iterator.remove(); uncached-- }
+        }
     }
 
     override fun createDataSource(): DataSource = VideoSource(http.createDataSource())
@@ -94,7 +109,10 @@ internal class NativeVideoDataSourceFactory(private val http: HttpDataSource.Fac
                 val remembered = synchronized(representations) {
                     representations[sourceKey]?.also {
                         if (it != selected) throw ProtocolException("Concurrent video representation changed")
-                    } ?: selected.also { representations[checkNotNull(sourceKey)] = it }
+                    } ?: selected.also {
+                        representations[checkNotNull(sourceKey)] = it
+                        trimUncachedRepresentations()
+                    }
                 }
                 representation = remembered
                 uri = remembered.uri

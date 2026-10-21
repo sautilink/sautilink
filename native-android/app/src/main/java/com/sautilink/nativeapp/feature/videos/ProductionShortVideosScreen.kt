@@ -70,6 +70,11 @@ import com.sautilink.nativeapp.feature.home.videoPlaybackPath
 import com.sautilink.nativeapp.feature.home.videoPlaybackRequested
 import com.sautilink.nativeapp.ui.components.NativeVideoMetadata
 import com.sautilink.nativeapp.ui.components.NativeVideoQualityPolicy
+import com.sautilink.nativeapp.ui.components.VideoPlaybackSettingsSheet
+import com.sautilink.nativeapp.ui.components.rememberVideoPlaybackQuality
+import com.sautilink.nativeapp.ui.components.nativeVideoPlaybackResources
+import com.sautilink.nativeapp.ui.components.ShortVideoProgressControls
+import com.sautilink.nativeapp.ui.components.VideoSettingsButton
 import com.sautilink.nativeapp.ui.components.SautiSkeletonBlock
 import com.sautilink.nativeapp.ui.components.SautiVideoGestureSurface
 import com.sautilink.nativeapp.ui.components.videoSeekTarget
@@ -118,6 +123,8 @@ fun ProductionShortVideosScreen(
     var autoplay by remember { mutableStateOf(preferences.getBoolean("autoplay", true)) }
     var quality by remember { mutableStateOf(preferences.getString("quality", "auto") ?: "auto") }
     var qualityOpen by remember { mutableStateOf(false) }
+    var playbackSpeed by remember { mutableFloatStateOf(preferences.getFloat("playback_speed", 1f)
+        .takeIf { it in setOf(.5f, .75f, 1f, 1.25f, 1.5f, 1.75f, 2f) } ?: 1f) }
     // All interaction state is server-confirmed. Unknown state never implies an Unlike/Undo.
     var likeStates by remember(auth, auth.account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var saveStates by remember(auth, auth.account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
@@ -274,23 +281,27 @@ fun ProductionShortVideosScreen(
     }
 
     val clip = clips.getOrNull(pager.settledPage)
+    var timelineExpanded by remember(auth, accountId, clip?.mediaId) { mutableStateOf(false) }
     var playbackIntent by remember(auth, accountId, clip?.mediaId) { mutableStateOf<Boolean?>(null) }
     val wantsPlayback = playbackIntent ?: autoplay
     val accessToken = token
-    val player = remember(auth, accessToken) {
-        if (accessToken == null) null else {
-            val http = DefaultHttpDataSource.Factory()
-                .setDefaultRequestProperties(mapOf("Authorization" to "Bearer $accessToken"))
-                .setAllowCrossProtocolRedirects(false)
+    val resources = remember(auth, accountId, accessToken) {
+        accessToken?.let { nativeVideoPlaybackResources(context, auth.mediaOrigin, it) {
+            accountId != null && auth.account?.id == accountId
+        } }
+    }
+    val player = remember(resources) {
+        resources?.let {
             ExoPlayer.Builder(context)
                 .setBandwidthMeter(androidx.media3.exoplayer.upstream.DefaultBandwidthMeter.getSingletonInstance(context))
-                .setMediaSourceFactory(DefaultMediaSourceFactory(com.sautilink.nativeapp.ui.components.NativeVideoDataSourceFactory(http)))
+                .setMediaSourceFactory(DefaultMediaSourceFactory(it.dataSourceFactory))
                 .setLoadControl(DefaultLoadControl.Builder()
-                    .setBufferDurationsMs(3_000, 15_000, 750, 1_500).build())
+                    .setBufferDurationsMs(3_000, 15_000, 750, 1_500).setBackBuffer(5_000, true).build())
                 .build().apply { repeatMode = Player.REPEAT_MODE_ONE; volume = if (muted) 0f else 1f }
         }
     }
     val playbackOwner = remember(player) { accountId }
+    val actualQuality = rememberVideoPlaybackQuality(player)
     // Error ownership follows this decoder, including Media3's error-clear event after Retry.
     var playbackError by remember(player) {
         mutableStateOf(player?.playerError?.let { "This video could not be played." })
@@ -322,7 +333,7 @@ fun ProductionShortVideosScreen(
                 }
             }
             player.addListener(listener)
-            onDispose { player.removeListener(listener); player.release() }
+            onDispose { player.removeListener(listener); player.release(); resources?.close() }
         }
     }
     DisposableEffect(owner, player) {
@@ -333,6 +344,7 @@ fun ProductionShortVideosScreen(
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
     LaunchedEffect(player, muted) { player?.volume = if (muted) 0f else 1f }
+    LaunchedEffect(player, playbackSpeed) { player?.setPlaybackSpeed(playbackSpeed) }
     LaunchedEffect(auth.account?.id, clip?.post?.id, online) {
         val postId = clip?.post?.id ?: return@LaunchedEffect
         val accountId = auth.account?.id ?: return@LaunchedEffect
@@ -366,7 +378,9 @@ fun ProductionShortVideosScreen(
     val preference = NativeVideoQualityPolicy.normalizePreference(quality)
     var appliedPreference by remember(player, clip?.mediaId) { mutableStateOf<String?>(null) }
     val network = com.sautilink.nativeapp.ui.components.rememberNativeVideoNetwork()
-    val baseQuality = com.sautilink.nativeapp.ui.components.rememberNativeVideoQuality(clip?.mediaId, preference, metadata, network)
+    val baseQuality = remember(clip?.mediaId, preference) {
+        NativeVideoQualityPolicy.selectQuality(preference, metadata, network)
+    }
     val selectedQuality = rememberVideoRecoveryQuality(player, playbackOwner, clip?.mediaId, metadata, preference, baseQuality,
         enabled = preference == "auto", online = online, eligible = online && wantsPlayback &&
             lifecycleState.isAtLeast(Lifecycle.State.STARTED), requested = playbackRequested,
@@ -376,12 +390,13 @@ fun ProductionShortVideosScreen(
             clips.getOrNull(pager.settledPage)?.mediaId == clip?.mediaId &&
             owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
     }
-    LaunchedEffect(player, clip?.mediaId, selectedQuality, preference, online) {
+    val sourceUri = clip?.let { auth.mediaOrigin + videoPlaybackPath("/api/sauti-media/${it.mediaId}", selectedQuality) }
+    LaunchedEffect(player, clip?.mediaId, sourceUri, preference, online) {
         if (player == null || clip == null || !online || auth.account?.id != playbackOwner) {
             player?.pause(); return@LaunchedEffect
         }
         val sameClip = player.currentMediaItem?.mediaId == clip.mediaId
-        val uri = auth.mediaOrigin + videoPlaybackPath("/api/sauti-media/${clip.mediaId}", selectedQuality)
+        val uri = checkNotNull(sourceUri)
         val explicitChoice = appliedPreference != null && appliedPreference != preference
         if (sameClip && player.playerError != null && !explicitChoice) return@LaunchedEffect
         if (sameClip && player.playerError == null && player.currentMediaItem?.localConfiguration?.uri?.toString() == uri) {
@@ -404,7 +419,8 @@ fun ProductionShortVideosScreen(
 
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF07101B))) {
         // Keep full-sized actions below the toolbar when landscape reduces height.
-        val compactRail = maxHeight < 380.dp
+        val compactRail = maxHeight < 456.dp
+        val wideRail = maxHeight < 340.dp
         if (auth.account == null) {
             Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -478,10 +494,11 @@ fun ProductionShortVideosScreen(
                         Text("Offline. Reconnect to play this video.", color = Color.White,
                             modifier = Modifier.align(Alignment.Center).padding(24.dp))
                     }
-                    Box(Modifier.fillMaxWidth().height(160.dp).align(Alignment.BottomCenter)
+                    Box(Modifier.fillMaxWidth().height(190.dp).align(Alignment.BottomCenter)
                         .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .85f)))))
                     Column(Modifier.align(Alignment.BottomStart).padding(start = 16.dp,
-                        end = if (compactRail) 132.dp else 76.dp, bottom = 22.dp),
+                        end = if (wideRail) 188.dp else if (compactRail) 132.dp else 76.dp,
+                        bottom = if (timelineExpanded) 84.dp else 52.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -519,22 +536,28 @@ fun ProductionShortVideosScreen(
                         ) { togglePostAction(post, "repost") }
                         VideoRailAction(SautiPostIcons.Share, "Share") { shareClip(post, false) }
                         VideoRailAction(Icons.Rounded.ContentCopy, "Copy link") { shareClip(post, true) }
+                        VideoSettingsButton(onClick = { qualityOpen = true })
                     }
                     if (compactRail) {
                         FlowRow(Modifier.align(Alignment.BottomEnd)
-                            .padding(end = 4.dp, bottom = 20.dp).width(113.dp),
-                            maxItemsInEachRow = 2,
+                            .padding(end = 4.dp, bottom = if (timelineExpanded) 80.dp else 52.dp).width(if (wideRail) 169.dp else 113.dp),
+                            maxItemsInEachRow = if (wideRail) 3 else 2,
                             horizontalArrangement = Arrangement.spacedBy(0.dp),
                             verticalArrangement = Arrangement.spacedBy(0.dp)) {
                             railActions()
                         }
                     } else {
                         Column(Modifier.align(Alignment.BottomEnd)
-                            .padding(end = 4.dp, bottom = 20.dp),
+                            .padding(end = 4.dp, bottom = if (timelineExpanded) 80.dp else 52.dp),
                             verticalArrangement = Arrangement.spacedBy(0.dp),
                             horizontalAlignment = Alignment.CenterHorizontally) {
                             railActions()
                         }
+                    }
+                    if (page == pager.settledPage && player != null && online) {
+                        ShortVideoProgressControls(player, paused = !playbackRequested,
+                            onExpandedChanged = { timelineExpanded = it },
+                            modifier = Modifier.align(Alignment.BottomCenter))
                     }
                 }
             }
@@ -546,7 +569,6 @@ fun ProductionShortVideosScreen(
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back", tint = Color.White) }
             Text("Short Videos", color = Color.White, style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f))
-            IconButton(onClick = { qualityOpen = true }) { Icon(Icons.Rounded.HighQuality, "Video quality", tint = Color.White) }
             IconButton(onClick = NativePlaybackPreferences::toggleSessionSound) { Icon(if (muted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
                 if (muted) "Unmute" else "Mute", tint = Color.White) }
         }
@@ -571,38 +593,17 @@ fun ProductionShortVideosScreen(
                 }
             })
     }
-    if (qualityOpen) ModalBottomSheet(onDismissRequest = { qualityOpen = false }, shape = SautiShape.Sheet,
-        containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)
-            .padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                Icon(Icons.Rounded.HighQuality, null, tint = MaterialTheme.colorScheme.primary)
-                Text("Playback", style = MaterialTheme.typography.titleLarge)
-            }
-            Text("Quality", style = MaterialTheme.typography.titleSmall)
-            listOf("auto" to "Auto · adjusts for smoother playback", "240" to "240p", "360" to "360p",
-                "480" to "480p", "720" to "720p", "1080" to "1080p", "original" to "Original").forEach { (key, label) ->
-                Row(Modifier.fillMaxWidth().clickable {
-                    quality = key; preferences.edit().putString("quality", key).apply(); qualityOpen = false
-                }.padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = quality == key, onClick = {
-                        quality = key; preferences.edit().putString("quality", key).apply(); qualityOpen = false
-                    })
-                    Text(label)
-                }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.PlayCircleOutline, null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(10.dp))
-                Text("Autoplay", modifier = Modifier.weight(1f))
-                Switch(checked = autoplay, onCheckedChange = {
-                    playbackIntent = null
-                    autoplay = it; preferences.edit().putBoolean("autoplay", it).apply()
-                    if (!it) player?.pause()
-                })
-            }
-        }
-    }
+    if (qualityOpen) VideoPlaybackSettingsSheet(
+        preference = preference, currentQuality = actualQuality,
+        availableQualities = NativeVideoQualityPolicy.availableQualities(metadata), speed = playbackSpeed,
+        onQuality = { quality = it; preferences.edit().putString("quality", it).apply() },
+        onSpeed = { playbackSpeed = it; preferences.edit().putFloat("playback_speed", it).apply() },
+        onDismiss = { qualityOpen = false }, autoplay = autoplay,
+        onAutoplay = {
+            playbackIntent = null
+            autoplay = it; preferences.edit().putBoolean("autoplay", it).apply()
+            if (!it) player?.pause()
+        })
 }
 
 @Composable

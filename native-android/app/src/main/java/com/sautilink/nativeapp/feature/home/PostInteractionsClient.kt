@@ -4,11 +4,15 @@ import com.sautilink.nativeapp.feature.auth.AuthRequestException
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.TimeUnit
 
 /** All writes in this class require an explicit user tap AND a production session.
  *  Website interaction endpoints retain their server-side rate limits and reply permissions.
@@ -30,6 +34,11 @@ data class NativePostComment(
 )
 
 class PostInteractionsClient(private val auth: StagingAuthClient) {
+    companion object {
+        private val followReads = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false)
+            .connectTimeout(5, TimeUnit.SECONDS).readTimeout(6, TimeUnit.SECONDS)
+            .callTimeout(6, TimeUnit.SECONDS).cache(null).build()
+    }
     private val postIdPattern = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
     private val userIdPattern = postIdPattern
     private val rest = auth.restOrigin
@@ -70,13 +79,22 @@ class PostInteractionsClient(private val auth: StagingAuthClient) {
             val active = mutableSetOf<String>()
             // PostgREST IN lists are bounded to avoid oversized requests in a long feed.
             for (batch in authors.chunked(50)) {
-                val rows = readArray(
-                    "${rest}social_follows?follower_id=eq.$userId&followed_id=in.(${batch.joinToString(",")})&select=followed_id", token
-                )
-                for (index in 0 until rows.length()) {
-                    rows.optJSONObject(index)?.optString("followed_id")?.let(active::add)
+                // Token acquisition is outside this retry boundary: auth refresh POSTs
+                // and all interaction mutations remain single-attempt operations.
+                val request = Request.Builder()
+                    .url("${rest}social_follows?follower_id=eq.$userId&followed_id=in.(${batch.joinToString(",")})&select=followed_id")
+                    .header("Authorization", "Bearer $token").header("apikey", auth.publicKeyForRead())
+                    .header("Accept", "application/json").header("Cache-Control", "no-store").get().build()
+                val bytes = followReadBytesWithRetry(newCall = { followReads.newCall(request) },
+                    stillCurrent = { auth.account?.id == userId })
+                val rows = try { JSONArray(bytes.toString(Charsets.UTF_8)) }
+                    catch (_: Exception) { throw FollowReadContentFailure() }
+                val returned = (0 until rows.length()).map { index ->
+                    rows.optJSONObject(index)?.opt("followed_id")
                 }
+                active += validatedFollowReadIds(batch.toSet(), returned)
             }
+            if (auth.account?.id != userId) throw CancellationException("Follow read account changed")
             authors.associateWith { it in active }
         }
     }
@@ -356,10 +374,12 @@ class PostInteractionsClient(private val auth: StagingAuthClient) {
                 throw AuthRequestException("$human ($diagnostic)", status)
             }
             return c.inputStream?.bufferedReader()?.use { it.readText().take(300000) }.orEmpty()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: AuthRequestException) {
             throw e
         } catch (e: Exception) {
-            throw AuthRequestException("Connection failed. Check your internet and retry.")
+            throw AuthRequestException("Connection failed. Check your internet and retry.", cause = e)
         } finally {
             c.disconnect()
         }
