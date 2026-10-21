@@ -348,17 +348,9 @@ class NativeRoomsClient(auth: StagingAuthClient) {
         val target = profile?.roomString("id").orEmpty()
         if (!uuid.matches(target)) throw AuthRequestException("That SautiLink account was not found.")
         if (target == own) throw AuthRequestException("Choose another member to invite.")
-        if (transport.rest(own, "social_circle_members?circle_id=eq.${room.id}&member_id=eq.$target&select=member_id&limit=1").length() != 0)
-            throw AuthRequestException("That person is already a Room member.")
-        val previous = transport.rest(own, "social_room_invitations?room_id=eq.${room.id}&invited_user_id=eq.$target&select=status&limit=1")
-            .optJSONObject(0)?.roomString("status")
-        if (previous == "pending") throw AuthRequestException("That invitation is already pending.")
-        if (previous == "accepted") throw AuthRequestException("That invitation was already accepted.")
-        if (previous == "declined") transport.rest(own,
-            "social_room_invitations?room_id=eq.${room.id}&invited_user_id=eq.$target&status=eq.declined", "DELETE")
-        confirmed(transport.rest(own, "social_room_invitations?select=room_id,invited_user_id,status", "POST",
-            JSONObject().put("room_id", room.id).put("invited_user_id", target).put("invited_by", own).put("status", "pending")),
-            "Invitation could not be confirmed. Refresh before trying again.")
+        sendNativeRoomInvitation(room.id, own, target) { path, method, payload ->
+            transport.rest(own, path, method, payload)
+        }
     }
 
     suspend fun respond(invitation: NativeRoomInvitation, accept: Boolean) {

@@ -45,11 +45,11 @@ jobs:
             throw new Error('Firebase config does not contain the sautilink native preview Android client');
           }
           NODE
-      - name: Build and lint preview
+      - name: Build, test and lint preview
         working-directory: native-android
         # K2 data-flow analysis of the large feed exceeds 4 GiB; public runners have 16 GiB RAM.
         run: >-
-          gradle :app:assemblePreviewDebug :app:lintPreviewDebug --no-daemon
+          gradle :app:assemblePreviewDebug :app:testPreviewDebugUnitTest :app:lintPreviewDebug --no-daemon
           --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process
           '-Dorg.gradle.jvmargs=-Xmx6144m -Dfile.encoding=UTF-8'
       - uses: actions/upload-artifact@v4
