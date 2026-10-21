@@ -21,7 +21,6 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 /** Story chrome owns tap navigation/hold/progress. This player owns only authorized
@@ -32,31 +31,24 @@ import kotlinx.coroutines.delay
 internal fun NativeStoryVideo(auth: StagingAuthClient, storyId: String, playbackPath: String,
     active: Boolean, paused: Boolean, modifier: Modifier = Modifier,
     onProgress: (Long, Long) -> Unit, onEnded: () -> Unit, onError: (String) -> Unit,
-    onReady: () -> Unit = {}) {
+    onReady: () -> Unit = {}, playbackRead: NativePlaybackRead? = null) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     val lifecycle by owner.lifecycle.currentStateAsState()
     val account = auth.account?.id
-    var token by remember(auth, account, storyId) { mutableStateOf<String?>(null) }
     val freshProgress by rememberUpdatedState(onProgress)
     val freshEnded by rememberUpdatedState(onEnded)
     val freshError by rememberUpdatedState(onError)
     val freshReady by rememberUpdatedState(onReady)
     val freshPaused by rememberUpdatedState(paused)
     val eligible = active && lifecycle.isAtLeast(Lifecycle.State.STARTED)
-    LaunchedEffect(auth, account, storyId, eligible) {
-        if (!eligible || account == null || token != null) return@LaunchedEffect
-        try {
-            val value = auth.accessTokenForStagingRead()
-            if (auth.account?.id == account) token = value
-        } catch (cancelled: CancellationException) { throw cancelled }
-        catch (_: Exception) { freshError("Could not load this story. Please retry.") }
-    }
-    val read = rememberNativePlaybackSource(auth, storyId, playbackPath, eligible && token != null)
+    val read = rememberNativePlaybackSource(auth, storyId, playbackPath, eligible, retainedRead = playbackRead)
     val source = read.source
-    val latestBearer by rememberUpdatedState(read.bearer ?: token)
-    val resources = remember(auth, account, storyId, token) {
-        token?.let { nativeVideoPlaybackResources(context, auth.mediaOrigin, it, authorizationToken = { latestBearer }) {
+    val latestBearer by rememberUpdatedState(read.bearer)
+    // Descriptor auth supplies the credential directly; there is no preliminary
+    // token effect/recomposition before starting the descriptor request.
+    val resources = remember(auth, account, storyId, read.bearer != null) {
+        read.bearer?.let { nativeVideoPlaybackResources(context, auth.mediaOrigin, it, authorizationToken = { latestBearer }) {
             account != null && auth.account?.id == account
         } }
     }
@@ -76,7 +68,11 @@ internal fun NativeStoryVideo(auth: StagingAuthClient, storyId: String, playback
     DisposableEffect(player, owner) {
         if (player == null) return@DisposableEffect onDispose { resources?.close() }
         val listener = object : Player.Listener {
-            override fun onRenderedFirstFrame() { firstFrame = true; freshReady() }
+            override fun onRenderedFirstFrame() {
+                firstFrame = true
+                NativeVideoStartupProbe.mark(storyId, NativeVideoStartupStage.FIRST_FRAME)
+                freshReady()
+            }
             override fun onPlaybackStateChanged(playbackState: Int) { if (playbackState == Player.STATE_ENDED && !freshPaused) finish() }
             override fun onPlayerError(error: PlaybackException) { freshError("Could not play this story. Please retry.") }
         }
@@ -88,10 +84,11 @@ internal fun NativeStoryVideo(auth: StagingAuthClient, storyId: String, playback
         if (read.denied) { player?.stop(); freshError("This story is no longer available.") }
         else if (read.failure && source == null && !read.loading) freshError("Could not load this story. Please retry.")
     }
-    LaunchedEffect(player, source) {
-        if (player == null || source == null || auth.account?.id != account || finished) return@LaunchedEffect
+    LaunchedEffect(player, source, eligible) {
+        if (player == null || source == null || !eligible || auth.account?.id != account || finished) return@LaunchedEffect
         resources?.hlsGrants?.authorize(source)
         if (player.currentMediaItem?.localConfiguration?.uri?.toString() != source.url) {
+            NativeVideoStartupProbe.mark(storyId, NativeVideoStartupStage.SOURCE_PREPARE)
             val position = if (player.currentMediaItem?.mediaId == storyId) player.currentPosition.coerceAtLeast(0L) else 0L
             player.setMediaItem(MediaItem.Builder().setMediaId(storyId).setUri(source.url)
                 .setMimeType(if (source.hls) MimeTypes.APPLICATION_M3U8 else MimeTypes.VIDEO_MP4).build(), position)

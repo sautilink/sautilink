@@ -29,6 +29,8 @@ import com.sautilink.nativeapp.feature.home.relativePostTime
 import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.components.NativeStoryVideo
+import com.sautilink.nativeapp.ui.components.NativeStoryPlaybackWindow
+import com.sautilink.nativeapp.ui.components.rememberNativePlaybackSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -66,6 +68,18 @@ internal fun NativeStoryViewer(auth: StagingAuthClient, stories: List<Pair<Nativ
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val foreground = lifecycle.isAtLeast(Lifecycle.State.RESUMED)
     val paused = held || manuallyPaused || options || delete || edit || viewers || busy || !foreground
+    val playbackWindow = remember(auth, accountId) { NativeStoryPlaybackWindow() }
+    val currentPlayback = if (story.kind == "video") playbackWindow.forStory(story.id) else null
+    val nextVideo = stories.getOrNull(index + 1)?.second?.takeIf {
+        it.kind == "video" && NativeStoryPolicy.active(it.expiresAt, System.currentTimeMillis() + serverOffsetMs)
+    }
+    if (nextVideo != null) key(nextVideo.id) {
+        val nextPlayback = playbackWindow.forStory(nextVideo.id)
+        // Wait for current media's first frame before one bounded metadata-only
+        // warm-up. Pause/background/navigation cancels it; no second video loads.
+        rememberNativePlaybackSource(auth, nextVideo.id, nextVideo.playbackPath,
+            enabled = foreground && ready && !paused && error == null, retainedRead = nextPlayback)
+    }
     fun advance() {
         val next = NativeStoryPolicy.next(index, stories.size)
         if (next == null) onClose() else currentId = stories[next].second.id
@@ -117,7 +131,8 @@ internal fun NativeStoryViewer(auth: StagingAuthClient, stories: List<Pair<Nativ
                         NativeStoryVideo(auth, story.id, story.playbackPath,
                             active = foreground, paused = paused, modifier = Modifier.fillMaxSize(),
                             onProgress = { actual, total -> position = actual; if (total > 0) duration = total },
-                            onEnded = { if (!paused) advance() }, onError = { error = it }, onReady = { ready = true })
+                            onEnded = { if (!paused) advance() }, onError = { error = it }, onReady = { ready = true },
+                            playbackRead = currentPlayback)
                     }
                     else if (story.kind == "image" && error == null) AuthorizedImage(auth, story.mediaPath,
                         "${author.displayName}'s story", Modifier.fillMaxSize(), crop = false, onReady = { ready = true })

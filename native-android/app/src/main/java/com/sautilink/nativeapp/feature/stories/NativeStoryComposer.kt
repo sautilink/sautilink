@@ -42,6 +42,7 @@ internal fun NativeStoryComposer(auth: StagingAuthClient, quota: NativeStoryQuot
     var exporting by remember(accountId) { mutableStateOf(false) }
     var publishing by remember(accountId) { mutableStateOf(false) }
     var progress by remember(accountId) { mutableIntStateOf(0) }
+    var publishStage by remember(accountId) { mutableStateOf(NativeStoryPublishStage.PREPARING) }
     var caption by remember(accountId) { mutableStateOf("") }
     var error by remember(accountId) { mutableStateOf<String?>(null) }
     var dismissConfirm by remember { mutableStateOf(false) }
@@ -70,10 +71,11 @@ internal fun NativeStoryComposer(auth: StagingAuthClient, quota: NativeStoryQuot
                     Text("Create story", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     TextButton(onClick = {
                         val media = edited ?: return@TextButton
-                        publishing = true; error = null; progress = 0
+                        publishing = true; error = null; progress = 0; publishStage = NativeStoryPublishStage.PREPARING
                         scope.launch {
                             try {
-                                client.publish(context, media.uri, if (video) "video" else "image", caption, uploadKey) { progress = it }
+                                client.publish(context, media.uri, if (video) "video" else "image", caption, uploadKey,
+                                    onStage = { publishStage = it }) { progress = it }
                                 if (auth.account?.id == accountId) onPublished()
                             } catch (cancelled: CancellationException) { throw cancelled }
                             catch (failure: Exception) { error = failure.message ?: "Your story could not be published. Try again." }
@@ -112,8 +114,16 @@ internal fun NativeStoryComposer(auth: StagingAuthClient, quota: NativeStoryQuot
                     Text("Daily limit: 4 photos and 2 videos. Deleting a story does not reset this limit.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (publishing) {
-                        LinearProgressIndicator(progress = { progress / 100f }, modifier = Modifier.fillMaxWidth())
-                        Text(if (progress < 100) "Uploading your story… $progress%" else "Preparing your story…", style = MaterialTheme.typography.bodySmall)
+                        if (publishStage == NativeStoryPublishStage.UPLOADING)
+                            LinearProgressIndicator(progress = { progress / 100f }, modifier = Modifier.fillMaxWidth())
+                        else LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Text(when (publishStage) {
+                            NativeStoryPublishStage.PREPARING -> "Preparing your upload…"
+                            NativeStoryPublishStage.UPLOADING -> "Uploading your story… $progress%"
+                            NativeStoryPublishStage.CONFIRMING -> "Checking your previous upload…"
+                            NativeStoryPublishStage.PUBLISHING -> "Upload received. Publishing your story…"
+                            NativeStoryPublishStage.PROCESSING -> "Video uploaded. Preparing playback…"
+                        }, style = MaterialTheme.typography.bodySmall)
                     }
                     if (error != null) Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
                     Spacer(Modifier.height(16.dp))

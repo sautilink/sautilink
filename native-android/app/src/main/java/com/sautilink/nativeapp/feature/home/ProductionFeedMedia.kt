@@ -59,6 +59,8 @@ import com.sautilink.nativeapp.ui.components.nativeVideoPlaybackResources
 import com.sautilink.nativeapp.ui.components.rememberNativePlaybackSource
 import com.sautilink.nativeapp.ui.components.NativeHlsQualitySelection
 import com.sautilink.nativeapp.ui.components.rememberNativeHlsQualities
+import com.sautilink.nativeapp.ui.components.NativeVideoStartupProbe
+import com.sautilink.nativeapp.ui.components.NativeVideoStartupStage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
@@ -86,7 +88,7 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
     onDoubleTapLike: (() -> Unit)? = null,
     mediaPath: ((FeedMedia) -> String)? = null,
     bufferingOverlayEnabled: Boolean = false,
-    adaptivePlaybackEnabled: Boolean = bufferingOverlayEnabled) {
+    adaptivePlaybackEnabled: Boolean = true) {
     if (media.isEmpty()) return
     var expandedPhoto by remember(auth) { mutableStateOf<FeedMedia?>(null) }
     val pager = androidx.compose.foundation.pager.rememberPagerState(pageCount = { media.size })
@@ -192,7 +194,7 @@ private fun InlineFeedVideo(
     onDoubleTapLike: (() -> Unit)?,
     mediaPath: String = "/api/sauti-media/${media.id}",
     bufferingOverlayEnabled: Boolean = false,
-    adaptivePlaybackEnabled: Boolean = bufferingOverlayEnabled
+    adaptivePlaybackEnabled: Boolean = true
 ) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
@@ -203,7 +205,7 @@ private fun InlineFeedVideo(
     var settingsOpen by remember(auth, accountId, media.id) { mutableStateOf(false) }
     // Published Home/Profile/Room media share the same rendition API. Protected
     // pending Room submissions remain original-only and never gain a rendition URL.
-    val adaptive = mediaPath == "/api/sauti-media/${media.id}"
+    val adaptive = publishedVideoAdaptivePlayback(media.id, mediaPath, adaptivePlaybackEnabled)
     val recoveryOnline = rememberNetworkAvailable()
     val metadata = NativeVideoMetadata(media.width, media.height, media.durationMs)
     val network = if (adaptive) com.sautilink.nativeapp.ui.components.rememberNativeVideoNetwork()
@@ -223,6 +225,7 @@ private fun InlineFeedVideo(
     LaunchedEffect(accountId, visibleFraction, isCurrent, NativePlaybackPreferences.autoplayEnabled) {
         val visible = visibleFraction >= .58f && isCurrent
         if ((NativePlaybackPreferences.autoplayEnabled || userInitiatedPlayback) && visible && !manualPaused) {
+            if (!started) NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.VIEWPORT_INTENT)
             started = true
             wantsToPlay = true
         } else if (!visible) {
@@ -233,7 +236,10 @@ private fun InlineFeedVideo(
     }
     val sessionReady = auth.sessionState == StagingSessionState.SIGNED_IN
     val tokenRead = rememberFeedVideoTokenRead(auth, accountId, media.id, started, sessionReady, tokenRetryAttempt,
-        stillAccount = { auth.account?.id == accountId }, fetchToken = { auth.accessTokenForStagingRead() })
+        stillAccount = { auth.account?.id == accountId }, fetchToken = {
+            NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.TOKEN_BEGIN)
+            auth.accessTokenForStagingRead().also { NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.TOKEN_READY) }
+        })
     LaunchedEffect(tokenRead.failure) {
         if (tokenRead.failure != null) requestError = if (tokenRead.canRecover)
             "Video could not load. Check your connection and retry."
@@ -264,7 +270,10 @@ private fun InlineFeedVideo(
     val token = tokenRead.token
     val playbackRead = rememberNativePlaybackSource(auth, media.id,
         if (adaptive) "$mediaPath/playback" else null,
-        enabled = adaptive && token != null && started && isCurrent && visibleFraction > 0f &&
+        // Start this authenticated request before the token-driven composition
+        // creates the disk cache/decoder. Cold player creation can take a frame
+        // (or much longer on real devices); network and preparation can overlap.
+        enabled = adaptive && sessionReady && started && isCurrent && visibleFraction > 0f &&
             lifecycleState.isAtLeast(Lifecycle.State.STARTED), fallbackPath = mediaPath)
     val streamSource = playbackRead.source
     val hls = streamSource?.hls == true
@@ -279,13 +288,16 @@ private fun InlineFeedVideo(
     val baseQuality = if (adaptive) autoQuality else "original"
     val latestBearer by rememberUpdatedState(playbackRead.bearer ?: token)
     val resources = remember(auth, accountId, media.id, token, mediaPath) {
-        if (token == null) null else
+        if (token == null) null else {
+            NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.RESOURCES_BEGIN)
             nativeVideoPlaybackResources(context, auth.mediaOrigin, token, authorizationToken = { latestBearer }) {
                 accountId != null && auth.account?.id == accountId
-            }
+            }.also { NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.RESOURCES_READY) }
+        }
     }
     val player = remember(resources) {
         resources?.let {
+            NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.PLAYER_BEGIN)
             ExoPlayer.Builder(context)
                 .setBandwidthMeter(androidx.media3.exoplayer.upstream.DefaultBandwidthMeter.getSingletonInstance(context))
                 .setMediaSourceFactory(DefaultMediaSourceFactory(it.dataSourceFactory))
@@ -301,7 +313,7 @@ private fun InlineFeedVideo(
                         prepare()
                     }
                     playWhenReady = false
-                }
+                }.also { NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.PLAYER_READY) }
         }
     }
     var firstFrame by remember(player) { mutableStateOf(false) }
@@ -328,7 +340,10 @@ private fun InlineFeedVideo(
                 // Let Media3 drain the final samples and repeat. Playback may briefly
                 // pass the rounded timeline end; only explicit seek commands are clamped.
             }
-            override fun onRenderedFirstFrame() { firstFrame = true }
+            override fun onRenderedFirstFrame() {
+                firstFrame = true
+                NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.FIRST_FRAME)
+            }
             override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                 requestError = "Video could not play. Tap retry."
@@ -364,6 +379,7 @@ private fun InlineFeedVideo(
         streamSource?.let { resources?.hlsGrants?.authorize(it) }
         if (player.currentMediaItem?.localConfiguration?.uri?.toString() != uri) {
             requestError = null
+            NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.SOURCE_PREPARE)
             replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(media.id).setUri(uri)
                 .setMimeType(if (hls) androidx.media3.common.MimeTypes.APPLICATION_M3U8 else androidx.media3.common.MimeTypes.VIDEO_MP4).build(),
                 keepPosition = true, requested = wantsToPlay && !manualPaused && isCurrent &&
@@ -433,6 +449,7 @@ private fun InlineFeedVideo(
             requestError = null
             if (tokenRead.token == null && !tokenRead.loading) tokenRetryAttempt++
             if (adaptive) playbackRead.retry()
+            if (!started) NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.VIEWPORT_INTENT)
             started = true
             manualPaused = false
             userInitiatedPlayback = true
@@ -511,6 +528,12 @@ private fun InlineFeedVideo(
 /** Only callers that already validated a published media path may append a rendition. */
 internal fun videoPlaybackPath(path: String, quality: String): String =
     if (quality in setOf("240", "360", "480", "720", "1080")) "$path?quality=$quality" else path
+
+/** Published canonical video adaptation is independent of the surface's loading
+ * chrome. Pending Room submissions and drafts never enter the Stream endpoint.
+ */
+internal fun publishedVideoAdaptivePlayback(mediaId: String, path: String, enabled: Boolean = true): Boolean =
+    enabled && path == "/api/sauti-media/$mediaId"
 
 /** Explicit pause wins over autoplay; connectivity and lifecycle always gate a resume. */
 internal fun videoPlaybackRequested(manualIntent: Boolean?, autoplay: Boolean, online: Boolean,

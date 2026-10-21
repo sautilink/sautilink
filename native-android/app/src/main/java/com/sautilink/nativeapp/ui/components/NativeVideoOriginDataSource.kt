@@ -6,6 +6,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.TransferListener
+import androidx.media3.datasource.ByteArrayDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import okhttp3.OkHttpClient
 import java.io.IOException
@@ -13,7 +14,7 @@ import java.net.URI
 import java.util.concurrent.TimeUnit
 
 /** A shared HTTP/2-capable connection pool. Redirects never carry the account's bearer elsewhere. */
-private val nativePlaybackHttpClient by lazy {
+internal val nativePlaybackHttpClient by lazy {
     OkHttpClient.Builder().followRedirects(false).followSslRedirects(false)
         .connectTimeout(10, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).build()
 }
@@ -49,6 +50,16 @@ internal class NativeVideoOriginDataSourceFactory(
         private var delegate: DataSource? = null
         private var requestedUri: Uri? = null
         private val listeners = mutableListOf<TransferListener>()
+        private var probeMediaId: String? = null
+        private var probeKind = NativeVideoStartupRequest.NONE
+        private var probeId = 0L
+        private var probeStart = 0L
+        private var probeBytes = 0L
+        private fun probe(stage: NativeVideoStartupStage, status: Int = 0,
+            serverTiming: Map<NativeVideoServerTiming, Double> = emptyMap()) {
+            probeMediaId?.let { NativeVideoStartupProbe.mark(it, stage, probeKind, probeId,
+                (System.nanoTime() - probeStart) / 1_000_000L, probeBytes, status, serverTiming) }
+        }
         override fun addTransferListener(transferListener: TransferListener) {
             listeners += transferListener
             delegate?.addTransferListener(transferListener)
@@ -59,16 +70,48 @@ internal class NativeVideoOriginDataSourceFactory(
             if (dataSpec.httpMethod != DataSpec.HTTP_METHOD_GET || dataSpec.httpBody != null ||
                 (!isHls && !authenticatedVideoUrl(mediaOrigin, dataSpec.uri.toString()))) throw IOException("Unsupported video request")
             requestedUri = dataSpec.uri
-            val source = (if (isHls) hls else authenticated).createDataSource()
+            // The outer SessionSource already checked the live account and grant.
+            // Consume only a complete GET of this exact authorized playlist URI.
+            val initialPlaylist = if (isHls && dataSpec.position == 0L && dataSpec.length == androidx.media3.common.C.LENGTH_UNSET.toLong())
+                hlsGrants.consumeBootstrap(dataSpec.uri.toString()) else null
+            if (initialPlaylist != null) NativeVideoStartupProbe.mark(dataSpec.uri.pathSegments.getOrNull(2).orEmpty(),
+                NativeVideoStartupStage.BOOTSTRAP_HIT, NativeVideoStartupRequest.MANIFEST, bytes = initialPlaylist.size.toLong())
+            if (initialPlaylist == null && NativeVideoStartupProbe.observer != null) {
+                val path = dataSpec.uri.path.orEmpty()
+                probeMediaId = path.split('/').getOrNull(3)
+                probeKind = when {
+                    path.substringAfterLast('/').startsWith("m_") -> NativeVideoStartupRequest.MANIFEST
+                    isHls -> NativeVideoStartupRequest.SEGMENT
+                    else -> NativeVideoStartupRequest.MP4
+                }
+                probeId = NativeVideoStartupProbe.nextRequestId(); probeStart = System.nanoTime(); probeBytes = 0L
+                probe(NativeVideoStartupStage.HTTP_BEGIN)
+            }
+            val source = if (initialPlaylist != null) ByteArrayDataSource(initialPlaylist)
+                else (if (isHls) hls else authenticated).createDataSource()
             delegate = source
             listeners.forEach(source::addTransferListener)
-            return source.open(dataSpec)
+            return try { source.open(dataSpec).also { probe(NativeVideoStartupStage.HTTP_HEADERS,
+                serverTiming = if (probeMediaId != null) nativeVideoServerTimings(source.responseHeaders) else emptyMap()) } }
+            catch (error: Exception) {
+                probe(NativeVideoStartupStage.FAILURE,
+                    (error as? androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException)?.responseCode ?: 0)
+                throw error
+            }
         }
-        override fun read(buffer: ByteArray, offset: Int, length: Int): Int = checkNotNull(delegate).read(buffer, offset, length)
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int = checkNotNull(delegate).read(buffer, offset, length).also {
+            if (probeMediaId != null && it > 0) {
+                val first = probeBytes == 0L; probeBytes += it
+                if (first) probe(NativeVideoStartupStage.HTTP_FIRST_BYTE)
+            }
+        }
         override fun getUri(): Uri? = requestedUri
         override fun getResponseHeaders(): Map<String, List<String>> = delegate?.responseHeaders ?: emptyMap()
         override fun close() {
-            try { delegate?.close() } finally { delegate = null; requestedUri = null }
+            try { delegate?.close() } finally {
+                probe(NativeVideoStartupStage.HTTP_COMPLETE)
+                delegate = null; requestedUri = null; probeMediaId = null
+            }
         }
     }
 }

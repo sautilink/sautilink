@@ -78,8 +78,10 @@ internal class NativeStoriesClient(private val auth: StagingAuthClient) {
         }
         return out.toString(Charsets.UTF_8.name())
     }
-    private suspend fun request(path: String, method: String = "GET", payload: JSONObject? = null): JSONObject {
-        val expected = owner()
+    private suspend fun request(path: String, method: String = "GET", payload: JSONObject? = null,
+        expectedOwner: String? = null): JSONObject {
+        val expected = expectedOwner ?: owner()
+        checkOwner(expected)
         val token = auth.accessTokenForStagingRead()
         checkOwner(expected)
         val body = (payload ?: JSONObject()).toString().toRequestBody("application/json".toMediaType())
@@ -149,17 +151,21 @@ internal class NativeStoriesClient(private val auth: StagingAuthClient) {
     }
 
     suspend fun publish(context: Context, uri: Uri, kind: String, caption: String, key: String,
-        onProgress: (Int) -> Unit) = lock.withLock {
+        onStage: (NativeStoryPublishStage) -> Unit = {}, onProgress: (Int) -> Unit) = lock.withLock {
         val expected = owner()
         require(NativeStoryPolicy.uuid.matches(key) && kind in setOf("image", "video") && caption.length <= NativeStoryPolicy.MAX_CAPTION)
-        val mime = localMime(context, uri)
-        require(if (kind == "video") mime == "video/mp4" else mime in setOf("image/jpeg", "image/png", "image/webp")) { "Choose a supported photo or MP4 video." }
-        if (kind == "video") require(localVideoDuration(context, uri) <= NativeStoryPolicy.MAX_VIDEO_MS) { "Trim this story to 30 seconds or less." }
-        val file = File(context.cacheDir, "sauti-story-upload-${UUID.randomUUID()}.${if (kind == "video") "mp4" else "image"}")
-        try {
+        var file: File? = null
+        var prepared: Pair<File, String>? = null
+        suspend fun prepareMedia(): Pair<File, String> {
+            onStage(NativeStoryPublishStage.PREPARING)
+            val mime = withContext(Dispatchers.IO) { localMime(context, uri) }
+            require(if (kind == "video") mime == "video/mp4" else mime in setOf("image/jpeg", "image/png", "image/webp")) { "Choose a supported photo or MP4 video." }
+            if (kind == "video") require(localVideoDuration(context, uri) <= NativeStoryPolicy.MAX_VIDEO_MS) { "Trim this story to 30 seconds or less." }
+            val destination = File(context.cacheDir, "sauti-story-upload-${UUID.randomUUID()}.${if (kind == "video") "mp4" else "image"}")
+            file = destination
             withContext(Dispatchers.IO) {
                 val maximum = if (kind == "video") 100_000_000L else 8L * 1024 * 1024
-                context.contentResolver.openInputStream(uri)?.use { input -> file.outputStream().use { output ->
+                context.contentResolver.openInputStream(uri)?.use { input -> destination.outputStream().use { output ->
                     val bytes = ByteArray(64 * 1024); var total = 0L
                     while (true) {
                         currentCoroutineContext().ensureActive(); checkOwner(expected)
@@ -169,13 +175,18 @@ internal class NativeStoriesClient(private val auth: StagingAuthClient) {
                         output.write(bytes, 0, count)
                     }
                 } } ?: throw AuthRequestException("The selected media could not be opened.")
-                require(file.length() > 0) { "The selected media is empty." }
+                require(destination.length() > 0) { "The selected media is empty." }
             }
+            checkOwner(expected)
+            return (destination to mime).also { prepared = it }
+        }
+        try {
             checkOwner(expected)
             var receipt = pending?.takeIf { it.owner == expected && it.key == key && it.source == uri.toString() && it.kind == kind }
             if (receipt == null) {
+                val (sourceFile, mime) = prepareMedia()
                 val data = request("/api/stories/uploads", "POST", JSONObject().put("media_kind", kind).put("content_type", mime)
-                    .put("size_bytes", file.length()).put("idempotency_key", key))
+                    .put("size_bytes", sourceFile.length()).put("idempotency_key", key), expectedOwner = expected)
                 val id = validId(data.optString("upload_id"))
                 val destination = data.optString("upload_url")
                 val method = data.optString("upload_method")
@@ -186,6 +197,7 @@ internal class NativeStoriesClient(private val auth: StagingAuthClient) {
             }
             if (!receipt.uploaded) {
                 if (receipt.attempted) {
+                    onStage(NativeStoryPublishStage.CONFIRMING)
                     // A timed-out provider POST may already have succeeded. Ask our server;
                     // never repeat a one-time Cloudflare transfer on a network guess.
                     // A cancelled connection may still be settling at the provider.
@@ -195,7 +207,7 @@ internal class NativeStoriesClient(private val auth: StagingAuthClient) {
                     if (kind == "video" && settleFor > 0) delay(settleFor)
                     var checks = 0
                     while (true) {
-                        val status = request("/api/stories/uploads/${receipt.id}")
+                        val status = request("/api/stories/uploads/${receipt.id}", expectedOwner = expected)
                         when (storyUploadRecovery(status, kind,
                             NativeStoryPolicy.active(status.optString("expires_at"), System.currentTimeMillis()))) {
                             StoryUploadRecovery.COMPLETE -> { receipt.uploaded = true; onProgress(100); break }
@@ -209,7 +221,12 @@ internal class NativeStoriesClient(private val auth: StagingAuthClient) {
                 }
             }
             if (!receipt.uploaded) {
-                val source = StoryUploadBody(file, mime, onProgress)
+                // A received upload needs only server confirmation/publishing.
+                // Defer local duration probing and file copying until the server
+                // actually permits a transfer, including uncertain retry cases.
+                val (sourceFile, mime) = prepared ?: prepareMedia()
+                onStage(NativeStoryPublishStage.UPLOADING)
+                val source = StoryUploadBody(sourceFile, mime, onProgress)
                 val builder = Request.Builder().url(receipt.url)
                 if (kind == "image") {
                     val token = auth.accessTokenForStagingRead(); checkOwner(expected)
@@ -225,19 +242,21 @@ internal class NativeStoriesClient(private val auth: StagingAuthClient) {
                 checkOwner(expected); receipt.uploaded = true
             }
             onProgress(100)
+            onStage(NativeStoryPublishStage.PUBLISHING)
             var attempts = 0
             while (true) {
                 checkOwner(expected); currentCoroutineContext().ensureActive()
-                val data = request("/api/stories", "POST", JSONObject().put("upload_id", receipt.id).put("caption", caption.trim()))
+                val data = request("/api/stories", "POST", JSONObject().put("upload_id", receipt.id).put("caption", caption.trim()), expectedOwner = expected)
                 if (!data.optBoolean("processing")) {
                     val confirmed = data.optJSONObject("story")?.optString("id").orEmpty()
                     if (!NativeStoryPolicy.uuid.matches(confirmed)) throw AuthRequestException("Story publishing could not be confirmed.")
                     pending = null; break
                 }
+                onStage(NativeStoryPublishStage.PROCESSING)
                 if (++attempts >= 40) throw AuthRequestException("Your video is still being prepared. Tap Share again shortly; it will reuse this upload.")
                 delay(data.optLong("retry_after", 3).coerceIn(2, 10) * 1_000)
             }
-        } finally { file.delete() }
+        } finally { file?.delete() }
     }
 
     private fun localMime(context: Context, uri: Uri): String {
@@ -282,6 +301,7 @@ internal class NativeStoriesClient(private val auth: StagingAuthClient) {
 }
 
 internal enum class StoryUploadRecovery { COMPLETE, RETRY_TRANSFER, WAIT, FAILED }
+internal enum class NativeStoryPublishStage { PREPARING, UPLOADING, CONFIRMING, PUBLISHING, PROCESSING }
 
 /** Direct video URLs may be reused only after the server freshly confirms that
  * Cloudflare is still waiting for bytes; a local processing receipt proves nothing.
@@ -311,7 +331,7 @@ internal fun storyUploadDestinationAllowed(origin: String, destination: String, 
             }
     }.getOrDefault(false)
 
-private class StoryUploadBody(private val file: File, type: String, private val progress: (Int) -> Unit) : RequestBody() {
+internal class StoryUploadBody(private val file: File, type: String, private val progress: (Int) -> Unit) : RequestBody() {
     private val mediaType = type.toMediaType()
     override fun contentType() = mediaType
     override fun contentLength() = file.length()
@@ -322,8 +342,10 @@ private class StoryUploadBody(private val file: File, type: String, private val 
             while (true) {
                 val count = input.read(bytes); if (count < 0) break
                 sink.write(bytes, 0, count); sent += count
-                val value = ((sent * 100L) / file.length().coerceAtLeast(1)).toInt().coerceIn(0, 100)
-                if (value >= previous + 2 || value == 100) { previous = value; progress(value) }
+                // Bytes handed to Okio are not yet acknowledged by the server.
+                // Only publish() emits100 after a successful transfer response.
+                val value = ((sent * 100L) / file.length().coerceAtLeast(1)).toInt().coerceIn(0, 99)
+                if (value >= previous + 2 || value == 99) { previous = value; progress(value) }
             }
         }
     }

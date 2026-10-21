@@ -51,6 +51,7 @@ class NativeStreamHlsPlaybackTest {
     private class FixtureFactory(private val content: (String) -> ByteArray) : DataSource.Factory {
         val reads = AtomicLong()
         val segmentReads = AtomicLong()
+        val manifestRequests = AtomicLong()
         override fun createDataSource(): DataSource {
             var delegate: ByteArrayDataSource? = null
             var segment = false
@@ -61,6 +62,7 @@ class NativeStreamHlsPlaybackTest {
                     val path = fixtureHlsPaths.firstOrNull { fixtureOpaqueRoute(it) == dataSpec.uri.lastPathSegment }
                         ?: throw IOException("Unknown opaque fixture route")
                     segment = path.endsWith(".ts")
+                    if (path.endsWith(".m3u8")) manifestRequests.incrementAndGet()
                     return ByteArrayDataSource(content(path)).also { source -> delegate = source; listeners.forEach(source::addTransferListener) }.open(dataSpec)
                 }
                 override fun read(buffer: ByteArray, offset: Int, length: Int): Int = checkNotNull(delegate).read(buffer, offset, length).also {
@@ -70,6 +72,50 @@ class NativeStreamHlsPlaybackTest {
                 override fun getResponseHeaders() = emptyMap<String, List<String>>()
                 override fun close() { delegate?.close(); delegate = null }
             }
+        }
+    }
+
+    @Test fun descriptorBootstrapFeedsTheRealHlsDecoder_withoutNetworkManifestRequests() {
+        val fixture = fixtures()
+        val assets = InstrumentationRegistry.getInstrumentation().context.assets
+        fun relative(path: String) = url(path).removePrefix(origin)
+        fun body(path: String) = assets.open("native-hls/$path").bufferedReader().use { it.readLines() }
+            .joinToString("\n", postfix = "\n") { if (it.isBlank() || it.startsWith("#")) it else relative(it) }
+        val master = "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=300000,RESOLUTION=640x360\n${relative("360.m3u8")}\n" +
+            "#EXT-X-STREAM-INF:BANDWIDTH=600000,RESOLUTION=1280x720\n${relative("720.m3u8")}\n"
+        val bundle = org.json.JSONObject().put("playlists", org.json.JSONArray().apply {
+            put(org.json.JSONObject().put("url", url("master.m3u8")).put("body", master))
+            for (path in listOf("360.m3u8", "720.m3u8"))
+                put(org.json.JSONObject().put("url", url(path)).put("body", body(path)))
+        })
+        var decoder: ExoPlayer? = null
+        var rendered = false
+        compose.setContent {
+            val context = LocalContext.current
+            val source = remember {
+                val now = System.currentTimeMillis()
+                NativeVideoSource(id, url("master.m3u8"), true, now + 300_000L, cacheKey = generation,
+                    bootstrap = requireNotNull(parseNativePlaybackBootstrap(origin, "/api/sauti-media/$id", url("master.m3u8"), bundle, now)))
+            }
+            val grants = remember { NativeHlsGrantRegistry().apply { authorize(source) } }
+            val resources = remember { NativeVideoPlaybackResources(context,
+                NativeVideoOriginDataSourceFactory(origin, fixture, fixture, grants), { true }, hlsGrants = grants) }
+            val player = remember { ExoPlayer.Builder(context)
+                .setMediaSourceFactory(DefaultMediaSourceFactory(resources.dataSourceFactory)).build().apply {
+                    volume = 0f
+                    addListener(object : Player.Listener { override fun onRenderedFirstFrame() { rendered = true } })
+                    setMediaItem(MediaItem.Builder().setMediaId(id).setUri(source.url).setMimeType(MimeTypes.APPLICATION_M3U8).build())
+                    prepare(); playWhenReady = true
+                }.also { decoder = it } }
+            DisposableEffect(player) { onDispose { player.release(); resources.close() } }
+            AndroidView(factory = { PlayerView(it).apply { useController = false; this.player = player } }, onRelease = { it.player = null })
+        }
+        await { rendered && decoder!!.currentPosition > 300L }
+        compose.runOnIdle {
+            assertNull(decoder!!.playerError)
+            assertTrue(fixture.segmentReads.get() > 0L)
+            assertEquals("The descriptor already supplied the exact authorized master/rendition", 0L, fixture.manifestRequests.get())
+            decoder!!.pause()
         }
     }
     private fun fixtures(): FixtureFactory {

@@ -17,6 +17,50 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+internal enum class NativeVideoStartupStage { VIEWPORT_INTENT, TOKEN_BEGIN, TOKEN_READY,
+    DESCRIPTOR_BEGIN, DESCRIPTOR_HEADERS, DESCRIPTOR_READY, RESOURCES_BEGIN, RESOURCES_READY, PLAYER_BEGIN, PLAYER_READY, SOURCE_PREPARE, FIRST_FRAME,
+    HTTP_BEGIN, HTTP_HEADERS, HTTP_FIRST_BYTE, HTTP_COMPLETE, BOOTSTRAP_HIT, FAILURE }
+internal enum class NativeVideoStartupRequest { NONE, MANIFEST, SEGMENT, MP4 }
+internal enum class NativeVideoServerTiming { RLS, READY, HLS, EDGE }
+internal data class NativeVideoStartupEvent(val mediaId: String, val stage: NativeVideoStartupStage,
+    val request: NativeVideoStartupRequest, val requestId: Long, val elapsedNanos: Long,
+    val durationMillis: Long, val bytes: Long, val status: Int,
+    val serverTiming: Map<NativeVideoServerTiming, Double> = emptyMap())
+
+internal fun nativeVideoServerTimings(headers: Map<String, List<String>>): Map<NativeVideoServerTiming, Double> {
+    val text = headers.entries.firstOrNull { it.key.equals("Server-Timing", true) }?.value?.joinToString(",") ?: return emptyMap()
+    if (text.length > 4_096) return emptyMap()
+    val result = linkedMapOf<NativeVideoServerTiming, Double>()
+    val metric = Regex("(rls|ready|hls|edge)\\s*;\\s*dur=([0-9]{1,7}(?:\\.[0-9]{1,3})?)")
+    for (part in text.split(',').take(16)) {
+        val match = metric.matchEntire(part.trim()) ?: continue
+        val value = match.groupValues[2].toDoubleOrNull()?.takeIf { it.isFinite() && it in 0.0..600_000.0 } ?: continue
+        val phase = NativeVideoServerTiming.valueOf(match.groupValues[1].uppercase())
+        result.putIfAbsent(phase, value)
+    }
+    return result
+}
+
+/** Disabled unless an operator instrumentation test installs a memory-only sink.
+ * Events have fixed stages/numbers; URLs, queries, credentials and bodies cannot
+ * enter this contract. Normal app runs produce no startup logs or timing work.
+ */
+internal object NativeVideoStartupProbe {
+    @Volatile var observer: ((NativeVideoStartupEvent) -> Unit)? = null
+    private val requests = java.util.concurrent.atomic.AtomicLong()
+    fun mark(mediaId: String, stage: NativeVideoStartupStage,
+        request: NativeVideoStartupRequest = NativeVideoStartupRequest.NONE, requestId: Long = 0L,
+        durationMillis: Long = 0L, bytes: Long = 0L, status: Int = 0,
+        serverTiming: Map<NativeVideoServerTiming, Double> = emptyMap()) {
+        val sink = observer ?: return
+        runCatching { sink(NativeVideoStartupEvent(mediaId, stage, request, requestId,
+            System.nanoTime(), durationMillis.coerceAtLeast(0L), bytes.coerceAtLeast(0L),
+            status.takeIf { it in 100..599 } ?: 0,
+            serverTiming.filterValues { it.isFinite() && it in 0.0..600_000.0 })) }
+    }
+    fun nextRequestId(): Long = if (observer == null) 0L else requests.incrementAndGet()
+}
+
 /** The backend chooses HLS explicitly after processing. A URL suffix never guesses its type. */
 internal data class NativeVideoSource(
     val mediaId: String,
@@ -25,6 +69,7 @@ internal data class NativeVideoSource(
     val expiresAtMillis: Long? = null,
     val qualities: List<Int> = emptyList(),
     val cacheKey: String? = null,
+    val bootstrap: NativePlaybackBootstrap? = null,
 ) {
     val gatewayPrefix: String? get() = if (hls) URI(url).let { it.scheme + "://" + it.host + it.rawPath.substringBeforeLast('/') + "/" } else null
 }
@@ -65,7 +110,8 @@ internal fun parseNativeVideoSource(origin: String, metadataPath: String, body: 
                 (0 until values.length()).map { values.optInt(it, 0) }.filter { it in 144..4320 }.distinct().sorted()
             }.orEmpty().take(16)
             val cacheKey = data.optString("cache_key").takeIf { Regex(playbackUuid).matches(it) }
-            NativeVideoSource(mediaId, url, true, expiry, qualities, cacheKey)
+            NativeVideoSource(mediaId, url, true, expiry, qualities, cacheKey,
+                parseNativePlaybackBootstrap(origin, contentPath, url, data.optJSONObject("bootstrap"), nowMillis))
         }
         "mp4" -> {
             require(metadataPath.startsWith("/api/sauti-media/") && url == origin + contentPath && authenticatedVideoUrl(origin, url)) { "Untrusted MP4 fallback" }
@@ -75,16 +121,73 @@ internal fun parseNativeVideoSource(origin: String, metadataPath: String, body: 
     }
 }
 
+/** A descriptor can carry its already-authorized rewritten playlists once. Never
+ * a segment, persistent cache, alternate origin or generic HTTP response cache.
+ */
+internal class NativePlaybackBootstrap internal constructor(
+    private val entries: MutableMap<String, ByteArray>,
+    private val receivedAtMillis: Long,
+    private val receivedAtNanos: Long = System.nanoTime(),
+) {
+    @Synchronized internal fun consume(url: String, grantExpiry: Long, nowMillis: Long): ByteArray? {
+        val elapsedNanos = System.nanoTime() - receivedAtNanos
+        if (nowMillis < receivedAtMillis || nowMillis >= minOf(receivedAtMillis + 5_000L, grantExpiry) ||
+            elapsedNanos < 0L || elapsedNanos >= 5_000_000_000L) {
+            clear(); return null
+        }
+        return entries.remove(url)
+    }
+    @Synchronized internal fun clear() { entries.values.forEach { it.fill(0) }; entries.clear() }
+}
+
+internal fun parseNativePlaybackBootstrap(origin: String, contentPath: String, masterUrl: String,
+    value: JSONObject?, nowMillis: Long): NativePlaybackBootstrap? {
+    if (value == null) return null
+    return runCatching {
+    val rows = requireNotNull(value.optJSONArray("playlists"))
+    require(rows.length() in 1..9)
+    val entries = linkedMapOf<String, ByteArray>()
+    var total = 0
+    fun canonicalGateway(value: String): String? {
+        val url = if (value.startsWith('/') && !value.startsWith("//")) origin + value else value
+        return url.takeIf { authenticatedHlsUrl(origin, it) && URI(it).rawPath.startsWith("$contentPath/hls/") }
+    }
+    for (index in 0 until rows.length()) {
+        val row = rows.getJSONObject(index)
+        val url = requireNotNull(canonicalGateway(row.getString("url")))
+        val text = row.getString("body")
+        require(URI(url).rawPath.substringAfterLast('/').startsWith("m_") && !entries.containsKey(url))
+        require(text.startsWith("#EXTM3U\n") || text.startsWith("#EXTM3U\r\n"))
+        require(text.length <= 256 * 1024 && !text.contains('\u0000'))
+        val bytes = text.toByteArray(Charsets.UTF_8)
+        total += bytes.size; require(total <= 256 * 1024)
+        for (rawLine in text.lineSequence()) {
+            val line = rawLine.trim()
+            if (line.isEmpty()) continue
+            if (!line.startsWith('#')) require(canonicalGateway(line) != null)
+            else if (line.contains("URI=", ignoreCase = true)) {
+                val attributes = Regex("(?:^|[:,])\\s*URI=\"([^\"]+)\"").findAll(line).toList()
+                require(attributes.size == Regex("URI=", RegexOption.IGNORE_CASE).findAll(line).count())
+                attributes.forEach { require(canonicalGateway(it.groupValues[1]) != null) }
+            }
+        }
+        entries[url] = bytes
+    }
+    require(entries.containsKey(masterUrl))
+    NativePlaybackBootstrap(entries, nowMillis)
+}.getOrNull()
+}
+
 /** Short-lived grant metadata stays in memory; cache reads cannot outlive authorization. */
 internal class NativeHlsGrantRegistry(private val now: () -> Long = System::currentTimeMillis) {
-    private data class Grant(val expiry: Long, val cacheKey: String?)
+    private data class Grant(val expiry: Long, val cacheKey: String?, val bootstrap: NativePlaybackBootstrap?)
     private val grants = linkedMapOf<String, Grant>()
     @Synchronized fun authorize(source: NativeVideoSource) {
         val prefix = source.gatewayPrefix ?: return
         val expiry = source.expiresAtMillis ?: return
         grants.entries.removeAll { it.value.expiry <= now() }
         grants.remove(prefix)
-        if (expiry > now()) grants[prefix] = Grant(expiry, source.cacheKey?.takeIf { Regex(playbackUuid).matches(it) })
+        if (expiry > now()) grants[prefix] = Grant(expiry, source.cacheKey?.takeIf { Regex(playbackUuid).matches(it) }, source.bootstrap)
         while (grants.size > 4) grants.remove(grants.keys.first())
     }
     @Synchronized fun allows(url: String): Boolean {
@@ -105,13 +208,21 @@ internal class NativeHlsGrantRegistry(private val now: () -> Long = System::curr
         // player adds its account-scoped salt, and each read still checks TTL.
         return "$prefix$generation/$opaque"
     }
-    @Synchronized fun clear() { grants.clear() }
+    @Synchronized fun consumeBootstrap(url: String): ByteArray? {
+        if (!allows(url)) return null
+        val uri = URI(url)
+        val prefix = "${uri.scheme}://${uri.host}" + uri.rawPath.substringBeforeLast('/') + "/"
+        val grant = grants[prefix] ?: return null
+        return grant.bootstrap?.consume(url, grant.expiry, now())
+    }
+    @Synchronized fun clear() { grants.values.forEach { it.bootstrap?.clear() }; grants.clear() }
 }
 
 internal class NativePlaybackRead {
     // Memory-only transport credential, replaced together with its authenticated
     // descriptor. Never part of a source URL, data class, cache key or log.
     internal var bearer by mutableStateOf<String?>(null)
+    internal var ownerId: String? = null
     var source by mutableStateOf<NativeVideoSource?>(null)
         internal set
     var loading by mutableStateOf(false)
@@ -124,8 +235,37 @@ internal class NativePlaybackRead {
     fun retry() { attempt++ }
 }
 
+/** Only the open Story viewer owns this two-entry, memory-only handoff. Preparing
+ * the next descriptor never starts a player or downloads its video segments.
+ */
+internal class NativeStoryPlaybackWindow {
+    private val reads = linkedMapOf<String, NativePlaybackRead>()
+    fun forStory(id: String): NativePlaybackRead {
+        require(Regex(playbackUuid).matches(id))
+        val read = reads.remove(id) ?: NativePlaybackRead()
+        reads[id] = read
+        while (reads.size > 2) reads.remove(reads.keys.first())
+        return read
+    }
+}
+
+internal fun nativePlaybackReusableDelay(read: NativePlaybackRead, owner: String, mediaId: String,
+    origin: String, metadataPath: String, now: Long): Long? {
+    val source = read.source ?: return null
+    val token = read.bearer ?: return null
+    if (read.ownerId != owner || source.mediaId != mediaId || !source.hls || read.denied ||
+        !trustedPlaybackMetadataPath(metadataPath) || !authenticatedHlsUrl(origin, source.url) ||
+        !URI(source.url).rawPath.startsWith(metadataPath.removeSuffix("/playback") + "/hls/")) return null
+    val expiry = source.expiresAtMillis ?: return null
+    if (expiry <= now + 45_000L) return null
+    return nativePlaybackRefreshDelay(expiry, token, now).takeIf { it > 5_000L }
+}
+
 private class PlaybackMetadataFailure(val status: Int) : IOException("Playback metadata HTTP $status")
-private val playbackMetadataClient = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false)
+// A descriptor and its first manifest share the same HTTP/2 connection pool.
+// Requests still carry their own current credential; no auth interceptor/cookie
+// state from a particular player is installed on this common transport.
+private val playbackMetadataClient = nativePlaybackHttpClient.newBuilder().followRedirects(false).followSslRedirects(false)
     .connectTimeout(6, TimeUnit.SECONDS).readTimeout(8, TimeUnit.SECONDS).callTimeout(10, TimeUnit.SECONDS)
     .cache(null).build()
 
@@ -134,30 +274,44 @@ private val playbackMetadataClient = OkHttpClient.Builder().followRedirects(fals
  */
 @Composable
 internal fun rememberNativePlaybackSource(auth: StagingAuthClient, mediaId: String?, metadataPath: String?,
-    enabled: Boolean, fallbackPath: String? = null): NativePlaybackRead {
+    enabled: Boolean, fallbackPath: String? = null, retainedRead: NativePlaybackRead? = null): NativePlaybackRead {
     val account = auth.account?.id
-    val state = remember(auth, account, mediaId, metadataPath) { NativePlaybackRead() }
-    LaunchedEffect(auth, account, mediaId, metadataPath, enabled, state.attempt) {
+    val state = remember(auth, account, mediaId, metadataPath, retainedRead) {
+        retainedRead?.takeIf { it.ownerId == null || it.ownerId == account } ?: NativePlaybackRead()
+    }
+    LaunchedEffect(auth, account, mediaId, metadataPath, enabled, state, state.attempt) {
         if (!enabled || account == null || mediaId == null || metadataPath == null) return@LaunchedEffect
         require(trustedPlaybackMetadataPath(metadataPath))
+        if (state.source?.mediaId?.let { it != mediaId } == true) { state.source = null; state.bearer = null }
         if (state.source?.expiresAtMillis?.let { it <= System.currentTimeMillis() } == true) state.source = null
         state.loading = state.source == null
         state.denied = false
         state.failure = false
+        // A preloaded next Story already has a server-authorized descriptor. Do
+        // not repeat that sequential RTT when it becomes current. Every child
+        // request still reauthorizes; near-expiry grants/tokens refresh first.
+        if (retainedRead != null) nativePlaybackReusableDelay(state, account, mediaId,
+            auth.mediaOrigin, metadataPath, System.currentTimeMillis())?.let { delay(it) }
         while (true) {
             try {
+                NativeVideoStartupProbe.mark(mediaId, NativeVideoStartupStage.TOKEN_BEGIN)
                 val token = auth.accessTokenForStagingRead()
                 if (auth.account?.id != account) throw CancellationException("Playback account changed")
+                NativeVideoStartupProbe.mark(mediaId, NativeVideoStartupStage.TOKEN_READY)
                 val request = Request.Builder().url(auth.mediaOrigin + metadataPath)
                     .header("Authorization", "Bearer $token").header("Accept", "application/json")
+                    .header("X-Sauti-Playback-Bootstrap", "1")
                     .header("Cache-Control", "no-store").get().build()
-                val bytes = awaitPlaybackMetadata(playbackMetadataClient.newCall(request))
+                NativeVideoStartupProbe.mark(mediaId, NativeVideoStartupStage.DESCRIPTOR_BEGIN)
+                val bytes = awaitPlaybackMetadata(playbackMetadataClient.newCall(request), mediaId)
                 val source = parseNativeVideoSource(auth.mediaOrigin, metadataPath, bytes, System.currentTimeMillis())
                 if (auth.account?.id != account || source.mediaId != mediaId) throw CancellationException("Playback owner changed")
+                state.ownerId = account
                 state.bearer = token
                 state.source = source
                 state.loading = false
                 state.failure = false
+                NativeVideoStartupProbe.mark(mediaId, NativeVideoStartupStage.DESCRIPTOR_READY)
                 // Processing MP4s are reconsidered only on a new view; do not interrupt a
                 // healthy old video while its background Stream migration completes.
                 if (!source.hls) return@LaunchedEffect
@@ -167,6 +321,7 @@ internal fun rememberNativePlaybackSource(auth: StagingAuthClient, mediaId: Stri
                 if (auth.account?.id != account) throw CancellationException("Playback owner changed")
                 state.loading = false
                 val status = (error as? PlaybackMetadataFailure)?.status
+                NativeVideoStartupProbe.mark(mediaId, NativeVideoStartupStage.FAILURE, status = status ?: 0)
                 state.denied = status == 401 || status == 403 || status == 410
                 state.failure = true
                 if (state.denied) { state.source = null; return@LaunchedEffect }
@@ -200,7 +355,7 @@ internal fun nativePlaybackRefreshDelay(sourceExpiry: Long, token: String, now: 
     return minOf(sourceExpiry - now - 45_000L, tokenExpiry?.minus(now)?.minus(50_000L) ?: Long.MAX_VALUE).coerceIn(5_000L, 255_000L)
 }
 
-private suspend fun awaitPlaybackMetadata(call: Call): String = suspendCancellableCoroutine { continuation ->
+private suspend fun awaitPlaybackMetadata(call: Call, mediaId: String): String = suspendCancellableCoroutine { continuation ->
     continuation.invokeOnCancellation { call.cancel() }
     call.enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
@@ -210,15 +365,18 @@ private suspend fun awaitPlaybackMetadata(call: Call): String = suspendCancellab
             try {
                 val text = response.use {
                     if (!it.isSuccessful) throw PlaybackMetadataFailure(it.code)
+                    NativeVideoStartupProbe.mark(mediaId, NativeVideoStartupStage.DESCRIPTOR_HEADERS,
+                        status = it.code, serverTiming = if (NativeVideoStartupProbe.observer != null && it.code in listOf(200, 206))
+                            nativeVideoServerTimings(it.headers.toMultimap()) else emptyMap())
                     val body = it.body ?: throw IOException("Empty playback response")
-                    if (body.contentLength() > 32_768L) throw IOException("Playback response too large")
+                    if (body.contentLength() > 524_288L) throw IOException("Playback response too large")
                     val bytes = body.byteStream().use { stream ->
                         val output = java.io.ByteArrayOutputStream()
                         val buffer = ByteArray(4096)
                         while (continuation.isActive) {
                             val count = stream.read(buffer)
                             if (count < 0) break
-                            if (output.size() + count > 32_768) throw IOException("Playback response too large")
+                            if (output.size() + count > 524_288) throw IOException("Playback response too large")
                             output.write(buffer, 0, count)
                         }
                         output.toByteArray()
