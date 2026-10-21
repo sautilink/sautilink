@@ -16,9 +16,9 @@ function initHeader() {
 }
 
 async function fixture(run, { children = 2, childSize = 0, fail = false, unsafe = false, stall = false, key = false,
-  maps = false, mapCount = 1, initBytes = initHeader(), stallInit = false } = {}) {
+  maps = false, mapCount = 1, initBytes = initHeader(), stallInit = false, initBehavior } = {}) {
   const previous = globalThis.fetch;
-  const calls = []; let aborts = 0;
+  const calls = []; let aborts = 0; let initIndex = 0;
   const env = { SAUTI_STREAM_ORIGIN: provider, SAUTI_STREAM_SOURCE_KEY: 'A'.repeat(43), STREAM: {
     video: () => ({ generateToken: async () => token }),
   } };
@@ -32,6 +32,11 @@ async function fixture(run, { children = 2, childSize = 0, fail = false, unsafe 
     });
     if (fail) return new Response('provider-failure-private-body', { status: 503 });
     if (/\/init\d*\.mp4$/.test(url.pathname)) {
+      const index = initIndex++;
+      if (initBehavior) {
+        const response = await initBehavior({ index, signal: init.signal, recordAbort: () => { aborts++; } });
+        if (response) return response;
+      }
       if (stallInit) return new Promise((_, reject) => init.signal.addEventListener('abort', () => {
         aborts++; reject(new Error('aborted'));
       }, { once: true }));
@@ -177,7 +182,73 @@ test('a slow MAP header retains the completed playlist bootstrap and aborts all 
   }, { maps: true, stallInit: true });
 });
 
-test('too many MAP headers and decoded combined overflow preserve playlists without oversized initialization data', async () => {
+test('a completed MAP header survives another header missing the startup deadline', async () => {
+  await fixture(async ({ request, descriptor, env, aborts }) => {
+    const started = performance.now();
+    const bundle = await sautiStreamBootstrap(request, env, asset, descriptor, options);
+    assert.equal(bundle.initializations?.length, 1);
+    assert.deepEqual(Buffer.from(bundle.initializations[0].base64, 'base64'), Buffer.from(initHeader()));
+    assert.ok(performance.now() - started < 2500, 'one slow header does not extend the whole budget');
+    assert.ok(Object.isFrozen(bundle));
+    assert.ok(Object.isFrozen(bundle.playlists));
+    assert.ok(bundle.playlists.every(Object.isFrozen));
+    assert.ok(Object.isFrozen(bundle.initializations));
+    assert.ok(bundle.initializations.every(Object.isFrozen));
+    assert.equal(aborts(), 1);
+  }, { maps: true, initBehavior: ({ index, signal, recordAbort }) => index === 0 ? undefined
+    : new Promise((_, reject) => signal.addEventListener('abort', () => {
+      recordAbort(); reject(new Error('aborted'));
+    }, { once: true })) });
+});
+
+test('mixed invalid and failed optional MAP headers retain their valid sibling', async () => {
+  const samples = initHeader(); samples.set(Buffer.from('mdat'), 20);
+  await fixture(async ({ request, descriptor, env, calls }) => {
+    const bundle = await sautiStreamBootstrap(request, env, asset, descriptor, options);
+    assert.equal(bundle.initializations?.length, 1);
+    assert.deepEqual(Buffer.from(bundle.initializations[0].base64, 'base64'), Buffer.from(initHeader()));
+    assert.equal(calls.length, 6);
+    assert.equal(JSON.stringify(bundle).includes('provider-failure-private-body'), false);
+  }, { children: 1, maps: true, mapCount: 4, initBehavior: ({ index }) => {
+    if (index === 1) return new Response(samples);
+    if (index === 2) return new Response('provider-failure-private-body', { status: 503 });
+    if (index === 3) throw new Error('provider network failure');
+  } });
+});
+
+test('late optional MAP completion cannot mutate a snapshot returned at the deadline', async () => {
+  let completeLate;
+  await fixture(async ({ request, descriptor, env }) => {
+    const bundle = await sautiStreamBootstrap(request, env, asset, descriptor, options);
+    const returned = JSON.stringify(bundle);
+    try { assert.equal(bundle.initializations?.length, 1); }
+    finally { completeLate(new Response(initHeader())); }
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(JSON.stringify(bundle), returned);
+    assert.equal(bundle.initializations.length, 1);
+  }, { maps: true, initBehavior: ({ index }) => index === 0 ? undefined
+    : new Promise(resolve => { completeLate = resolve; }) });
+});
+
+test('client disconnect closes partial MAP publication even if a late provider ignores cancellation', async () => {
+  let completeLate;
+  let requestsStarted;
+  const pendingInit = new Promise(resolve => { requestsStarted = resolve; });
+  await fixture(async ({ request, descriptor, env }) => {
+    const controller = new AbortController();
+    const pending = sautiStreamBootstrap(new Request(request, { signal: controller.signal }), env, asset, descriptor, options);
+    await pendingInit;
+    await new Promise(resolve => setTimeout(resolve, 10));
+    controller.abort();
+    const result = await pending;
+    completeLate(new Response(initHeader()));
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(result === null, true, 'a disconnected caller does not receive the partial snapshot');
+  }, { maps: true, initBehavior: ({ index }) => index === 0 ? undefined
+    : new Promise(resolve => { completeLate = resolve; requestsStarted(); }) });
+});
+
+test('too many MAP headers and decoded combined overflow preserve a bounded partial bootstrap', async () => {
   await fixture(async ({ request, descriptor, env, calls }) => {
     const bundle = await sautiStreamBootstrap(request, env, asset, descriptor, options);
     assert.equal(bundle.playlists.length, 2); assert.equal(bundle.initializations, undefined);
@@ -188,6 +259,20 @@ test('too many MAP headers and decoded combined overflow preserve playlists with
   assert.equal(sautiStreamInitializationHeader(large), true);
   await fixture(async ({ request, descriptor, env }) => {
     const bundle = await sautiStreamBootstrap(request, env, asset, descriptor, options);
-    assert.equal(bundle.playlists.length, 3); assert.equal(bundle.initializations, undefined);
+    assert.equal(bundle.playlists.length, 3); assert.equal(bundle.initializations?.length, 1);
+    const decodedSize = bundle.playlists.reduce((size, item) => size + Buffer.byteLength(item.body), 0)
+      + bundle.initializations.reduce((size, item) => size + Buffer.from(item.base64, 'base64').length, 0);
+    assert.ok(decodedSize <= 256 * 1024);
   }, { maps: true, childSize: 120000, initBytes: large });
+  await fixture(async ({ request, descriptor, env }) => {
+    const bundle = await sautiStreamBootstrap(request, env, asset, descriptor, options);
+    assert.equal(bundle.initializations?.length, 2, 'an omitted oversized sibling does not exclude a later fitting header');
+    assert.deepEqual(bundle.initializations.map(item => Buffer.from(item.base64, 'base64').length), [large.length, initHeader().length]);
+    const decodedSize = bundle.playlists.reduce((size, item) => size + Buffer.byteLength(item.body), 0)
+      + bundle.initializations.reduce((size, item) => size + Buffer.from(item.base64, 'base64').length, 0);
+    assert.ok(decodedSize <= 256 * 1024);
+  }, { children: 1, maps: true, mapCount: 3, childSize: 240000, initBehavior: async ({ index }) => {
+    await new Promise(resolve => setTimeout(resolve, index * 10));
+    return new Response(index < 2 ? large : initHeader());
+  } });
 });
