@@ -44,6 +44,11 @@ export class DmRealtimeHub extends ReviewedDmRealtimeHub {
     try { await super.alarm(); }
     finally { console.log(JSON.stringify({runtime_probe:'alarm_exit',now:Date.now(),alarm:await this.ctx.storage.getAlarm()})); }
   }
+  async webSocketClose(socket, code, reason, wasClean) {
+    console.log(JSON.stringify({runtime_probe:'close_enter',now:Date.now(),code,readyState:socket.readyState}));
+    await super.webSocketClose(socket, code, reason, wasClean);
+    console.log(JSON.stringify({runtime_probe:'close_exit',now:Date.now(),code,readyState:socket.readyState}));
+  }
   async fetch(request) {
     if (new URL(request.url).pathname === '/__runtime_probe') {
       return Response.json({now:Date.now(),alarm:await this.ctx.storage.getAlarm(),
@@ -118,6 +123,8 @@ function client(url) {
   });
   const result = { socket, events, probe: () => ({url:url.pathname,now:Date.now(),readyState:socket.readyState,
       closeFrameReceived:socket._closeFrameReceived,closeFrameSent:socket._closeFrameSent,
+      tcpReadableEnded:socket._socket?.readableEnded,tcpWritableEnded:socket._socket?.writableEnded,
+      tcpDestroyed:socket._socket?.destroyed,
       closeResult,error:error?.message,events:events.slice(-10)}),
     opened: withTimeout(opened, 'WebSocket upgrade'),
     closed: () => withTimeout(closed, 'WebSocket close'),
@@ -189,6 +196,13 @@ try {
   first.socket.send(JSON.stringify({ type: 'typing', typing: false }));
   await second.wait(event => event.type === 'typing' && event.typing === false, 'typing stopped', stopAt);
   checks.push('typing true and false traverse the actual Hub');
+
+  const beforeClientClose = second.events.length;
+  first.socket.close(4001, 'Synthetic client closure');
+  assert.equal((await first.closed()).code, 4001);
+  await second.wait(event => event.type === 'presence' && event.peer_online === false,
+    'client-initiated closure removes online presence', beforeClientClose);
+  checks.push('client-initiated close completes its actual transport handshake and removes online presence');
 
   const expires = connect('deadline', { ms: 2500 });
   await ready(expires);

@@ -299,6 +299,44 @@ test('normal close retains recency only within its lease and an idle alarm erase
   assert.equal(fixture.context.storage.alarmAt, null);
 }));
 
+test('hibernation close acknowledges a half-open transport before storage and never reflects the client reason', async () => controlled(async ({ advance }) => {
+  const fixture = hubFixture();
+  await fixture.hub.fetch(connect());
+  advance(500);
+  const socket = fixture.sockets[0];
+  socket.readyState = 2;
+  const replies = [];
+  socket.close = (code, reason) => { replies.push({ code, reason }); socket.readyState = 3; };
+  const put = fixture.context.storage.put;
+  fixture.context.storage.put = async (...args) => {
+    assert.equal(socket.readyState, 3, 'The close reply must not wait for durable storage');
+    return put(...args);
+  };
+  await fixture.hub.webSocketClose(socket, 4001, 'untrusted client reason '.repeat(100), true);
+  assert.deepEqual(replies, [{ code:4001, reason:'' }]);
+  assert.equal(fixture.data.get(`last-seen:${USER}`).at, NOW + 500);
+  assert.equal(fixture.context.storage.alarmAt, NOW + LEASE);
+}));
+
+test('reserved or invalid close codes use a safe reply and a disconnected transport cannot skip presence cleanup', async () => controlled(async ({ advance }) => {
+  for (const code of [undefined, NaN, 999, 1004, 1005, 1006, 1008, 1015, 2999, 5000, '4001']) {
+    const fixture = hubFixture();
+    await fixture.hub.fetch(connect({ deadline:Date.now() + 500 }));
+    const socket = fixture.sockets[0];
+    socket.readyState = 2;
+    socket.close = (replyCode, reason) => {
+      assert.equal(replyCode, 1000);
+      assert.equal(reason, '');
+      socket.readyState = 3;
+      throw new Error('Transport already detached');
+    };
+    advance(500);
+    await fixture.hub.webSocketClose(socket, code, 'private client text', false);
+    assert.equal(fixture.data.size, 0);
+    assert.equal(fixture.context.storage.alarmAt, null);
+  }
+}));
+
 test('expiry during a storage await suppresses stale metadata before it reaches the socket', async () => controlled(async ({ advance }) => {
   const fixture = hubFixture();
   await fixture.hub.fetch(connect({ deadline: NOW + 1000 }));

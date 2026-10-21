@@ -242,7 +242,15 @@ export class DmRealtimeHub extends DurableObject {
     await this.broadcastPresence(socket);
   }
 
-  async webSocketClose(socket) { await this.finishSocket(socket); }
+  async webSocketClose(socket, code) {
+    // Complete the hibernating socket's close handshake before storage awaits.
+    // This is harmless when the runtime already replied, and also works on
+    // runtimes that leave the socket half-open until the handler acknowledges it.
+    // Do not reflect client-provided reasons or reserved/control close codes.
+    const replyCode = Number.isInteger(code) && (code === 1000 || (code >= 3000 && code <= 4999)) ? code : 1000;
+    try { socket.close(replyCode, ''); } catch { /* Already disconnected; still reconcile presence. */ }
+    await this.finishSocket(socket);
+  }
   async webSocketError(socket) { await this.finishSocket(socket); }
   async alarm() { await this.broadcastPresence(); }
 }
