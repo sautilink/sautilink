@@ -1,11 +1,8 @@
 package com.sautilink.nativeapp.feature.home
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,12 +10,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.ImageNotSupported
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.VolumeOff
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.*
@@ -29,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -47,7 +43,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
-import com.sautilink.nativeapp.ui.components.SautiSkeletonBlock
+import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.ui.components.SautiPostGestureSurface
 import com.sautilink.nativeapp.ui.components.SautiVideoGestureSurface
 import com.sautilink.nativeapp.ui.components.videoSeekTarget
@@ -56,101 +52,12 @@ import com.sautilink.nativeapp.ui.components.VideoPlaybackScope
 import com.sautilink.nativeapp.ui.components.logVideoPlaybackFailure
 import com.sautilink.nativeapp.ui.components.NativeVideoMetadata
 import com.sautilink.nativeapp.ui.components.NativeVideoQualityPolicy
+import com.sautilink.nativeapp.ui.components.VideoPlaybackControls
+import com.sautilink.nativeapp.ui.components.VideoPlaybackSettingsSheet
+import com.sautilink.nativeapp.ui.components.rememberVideoPlaybackQuality
+import com.sautilink.nativeapp.ui.components.nativeVideoPlaybackResources
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
-import java.io.ByteArrayOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
-
-/** No image disk cache or persistence: a bounded, per-visible-item loader for RLS-backed media. */
-@Composable
-internal fun AuthorizedImage(
-    auth: StagingAuthClient,
-    route: String,
-    description: String,
-    modifier: Modifier = Modifier,
-    crop: Boolean = true,
-    naturalAspectRatio: Boolean = false,
-    showFailureFallback: Boolean = true,
-    fallback: @Composable () -> Unit = {
-        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.ImageNotSupported, contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
-        }
-    }
-) {
-    var bitmap by remember(auth, route) { mutableStateOf<Bitmap?>(null) }
-    var loading by remember(auth, route) { mutableStateOf(true) }
-    LaunchedEffect(auth, route, auth.account?.id) {
-        bitmap = null
-        loading = true
-        try {
-            val token = auth.accessTokenForStagingRead()
-            bitmap = withContext(Dispatchers.IO) { fetchBoundedBitmap(auth.mediaOrigin + route, token) }
-        } catch (cancelled: CancellationException) { throw cancelled }
-        catch (_: Exception) { bitmap = null }
-        finally { loading = false }
-    }
-    // In-feed single media keeps its actual poster/image proportions rather than
-    // forcing the previous cropped 1.35:1 tile used by the prototype.
-    val naturalAspect = bitmap?.let { image ->
-        if (image.height > 0) (image.width.toFloat() / image.height).coerceIn(.65f, 2.25f) else 1.35f
-    } ?: 1.35f
-    Box(if (naturalAspectRatio) modifier.aspectRatio(naturalAspect) else modifier,
-        contentAlignment = Alignment.Center) {
-        val image = bitmap
-        if (image != null) {
-            Image(image.asImageBitmap(), contentDescription = description,
-                contentScale = if (crop) ContentScale.Crop else ContentScale.Fit,
-                modifier = Modifier.fillMaxSize())
-        } else if (loading) {
-            SautiSkeletonBlock(Modifier.fillMaxSize(), 6.dp)
-        } else if (showFailureFallback) fallback()
-    }
-}
-
-private fun fetchBoundedBitmap(url: String, token: String): Bitmap {
-    val target = URL(url)
-    require(target.protocol == "https" && target.host in setOf("sautilink.com", "test.sautilink.com"))
-    val conn = target.openConnection() as HttpURLConnection
-    try {
-        conn.requestMethod = "GET"
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 15_000
-        conn.useCaches = false
-        conn.instanceFollowRedirects = false
-        conn.setRequestProperty("Authorization", "Bearer $token")
-        conn.setRequestProperty("Accept", "image/*")
-        if (conn.responseCode !in 200..299) throw IllegalStateException("Media unavailable")
-        if (conn.contentType?.substringBefore(';')?.trim()?.lowercase()?.startsWith("image/") != true) {
-            throw IllegalStateException("Response was not an image")
-        }
-        // Hard cap image response size (12 MiB), including for chunked transfer encoding.
-        val bytes = ByteArrayOutputStream()
-        val buf = ByteArray(8192)
-        conn.inputStream.use { stream ->
-            var total = 0
-            while (true) {
-                val n = stream.read(buf)
-                if (n < 0) break
-                total += n
-                if (total > 12 * 1024 * 1024) throw IllegalStateException("Image is too large")
-                bytes.write(buf, 0, n)
-            }
-        }
-        val raw = bytes.toByteArray()
-        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(raw, 0, raw.size, opts)
-        if (opts.outWidth <= 0 || opts.outHeight <= 0) throw IllegalStateException("Invalid image")
-        var sample = 1
-        while (opts.outWidth / sample > 1440 || opts.outHeight / sample > 1440) sample *= 2
-        val decoded = BitmapFactory.decodeByteArray(raw, 0, raw.size,
-            BitmapFactory.Options().apply { inSampleSize = sample; inPreferredConfig = Bitmap.Config.ARGB_8888 })
-        return decoded ?: throw IllegalStateException("Image not supported")
-    } finally { conn.disconnect() }
-}
 
 /** Media dimensions are known from social_post_media before the poster request:
  * ratio >= 4:5 is natural; extra-tall items letterbox inside a fixed 4:5 frame.
@@ -160,6 +67,15 @@ private fun stableFeedAspect(media: FeedMedia): Float {
     val original = if (media.width > 0 && media.height > 0)
         media.width.toFloat() / media.height else .8f
     return original.coerceIn(.8f, 3f)
+}
+
+/** boundsInWindow is clipped; the denominator must remain the full measured media height. */
+internal fun measuredVideoVisibleFraction(coordinates: LayoutCoordinates, windowHeight: Float): Float {
+    val rect = coordinates.boundsInWindow()
+    val shownTop = rect.top.coerceAtLeast(0f)
+    val shownBottom = rect.bottom.coerceAtMost(windowHeight)
+    return ((shownBottom - shownTop).coerceAtLeast(0f) /
+        coordinates.size.height.toFloat().coerceAtLeast(1f)).coerceIn(0f, 1f)
 }
 
 @Composable
@@ -184,7 +100,7 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
                     val path = checkedPostMediaPath(item.id, mediaPath?.invoke(item))
                 Box(
                     Modifier.fillMaxSize()
-                        .background(Color.Black)
+                        .background(if (item.kind == "video") Color.Black else MaterialTheme.colorScheme.surfaceVariant)
                         .clip(RoundedCornerShape(7.dp)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -253,7 +169,7 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
                             Icon(Icons.Rounded.Close, contentDescription = "Close photo")
                         }
                     }
-                    AuthorizedImage(auth, "${checkedPostMediaPath(photo.id, mediaPath?.invoke(photo))}?w=1280",
+                    AuthorizedImage(auth, "${checkedPostMediaPath(photo.id, mediaPath?.invoke(photo))}?w=1440",
                         "Expanded photo", Modifier.fillMaxWidth()
                             .aspectRatio(stableFeedAspect(photo)), crop = false)
                 }
@@ -279,62 +195,104 @@ private fun InlineFeedVideo(
     val owner = LocalLifecycleOwner.current
     val lifecycleState by owner.lifecycle.currentStateAsState()
     val accountId = auth.account?.id
-    val adaptive = adaptivePlaybackEnabled && mediaPath == "/api/sauti-media/${media.id}"
-    val recoveryOnline = if (adaptive) rememberNetworkAvailable() else false
+    var quality by remember(auth, accountId, media.id) { mutableStateOf("auto") }
+    var speed by remember(auth, accountId, media.id) { mutableFloatStateOf(1f) }
+    var settingsOpen by remember(auth, accountId, media.id) { mutableStateOf(false) }
+    // Published Home/Profile/Room media share the same rendition API. Protected
+    // pending Room submissions remain original-only and never gain a rendition URL.
+    val adaptive = mediaPath == "/api/sauti-media/${media.id}"
+    val recoveryOnline = rememberNetworkAvailable()
     val metadata = NativeVideoMetadata(media.width, media.height, media.durationMs)
     val network = if (adaptive) com.sautilink.nativeapp.ui.components.rememberNativeVideoNetwork()
         else com.sautilink.nativeapp.ui.components.NativeVideoNetwork()
-    val autoQuality = com.sautilink.nativeapp.ui.components.rememberNativeVideoQuality(media.id, "auto", metadata, network)
-    val baseQuality = if (adaptive) autoQuality else "original"
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val windowHeight = with(density) { configuration.screenHeightDp.dp.toPx() }
-    var visibleFraction by remember(auth, media.id) { mutableFloatStateOf(0f) }
-    var started by remember(auth, media.id) { mutableStateOf(false) }
-    var wantsToPlay by remember(auth, media.id) { mutableStateOf(false) }
-    var manualPaused by remember(auth, media.id) { mutableStateOf(false) }
-    var accessToken by remember(auth, media.id) { mutableStateOf<String?>(null) }
-    var requestError by remember(auth, media.id) { mutableStateOf<String?>(null) }
+    var visibleFraction by remember(auth, accountId, media.id) { mutableFloatStateOf(0f) }
+    var started by remember(auth, accountId, media.id) { mutableStateOf(false) }
+    var wantsToPlay by remember(auth, accountId, media.id) { mutableStateOf(false) }
+    var manualPaused by remember(auth, accountId, media.id) { mutableStateOf(false) }
+    var userInitiatedPlayback by remember(auth, accountId, media.id) { mutableStateOf(false) }
+    var tokenRetryAttempt by remember(auth, accountId, media.id) { mutableIntStateOf(0) }
+    var tokenSawOffline by remember(auth, accountId, media.id) { mutableStateOf(false) }
+    var requestError by remember(auth, accountId, media.id) { mutableStateOf<String?>(null) }
     val muted = NativePlaybackPreferences.sessionMuted
-    var firstFrame by remember(auth, media.id) { mutableStateOf(false) }
-    LaunchedEffect(visibleFraction, isCurrent, NativePlaybackPreferences.autoplayEnabled) {
+    LaunchedEffect(accountId, visibleFraction, isCurrent, NativePlaybackPreferences.autoplayEnabled) {
         val visible = visibleFraction >= .58f && isCurrent
-        if (NativePlaybackPreferences.autoplayEnabled && visible && !manualPaused) {
+        if ((NativePlaybackPreferences.autoplayEnabled || userInitiatedPlayback) && visible && !manualPaused) {
             started = true
             wantsToPlay = true
         } else if (!visible) {
             wantsToPlay = false
-            manualPaused = false
-        } else if (!NativePlaybackPreferences.autoplayEnabled) {
+        } else if (!NativePlaybackPreferences.autoplayEnabled && !userInitiatedPlayback) {
             wantsToPlay = false
         }
     }
-    LaunchedEffect(started, auth.account?.id, media.id) {
-        if (!started) return@LaunchedEffect
-        try { accessToken = auth.accessTokenForStagingRead() }
-        catch (cancelled: CancellationException) { throw cancelled }
-        catch (_: Exception) { requestError = "Video unavailable. Sign in and try again." }
+    val sessionReady = auth.sessionState == StagingSessionState.SIGNED_IN
+    val tokenRead = rememberFeedVideoTokenRead(auth, accountId, media.id, started, sessionReady, tokenRetryAttempt,
+        stillAccount = { auth.account?.id == accountId }, fetchToken = { auth.accessTokenForStagingRead() })
+    LaunchedEffect(tokenRead.failure) {
+        if (tokenRead.failure != null) requestError = if (tokenRead.canRecover)
+            "Video could not load. Check your connection and retry."
+        else "Video unavailable. Sign in and try again."
     }
-    val token = accessToken
-    val player = remember(auth, media.id, token, mediaPath) {
-        token?.let {
-            val http = DefaultHttpDataSource.Factory()
-                .setDefaultRequestProperties(mapOf("Authorization" to "Bearer $it"))
-                .setAllowCrossProtocolRedirects(false)
+    val recoverFailedToken: () -> Unit = {
+        if (auth.account?.id == accountId && sessionReady && started && tokenRead.token == null &&
+            wantsToPlay && !manualPaused && !tokenRead.loading && tokenRead.canRecover && recoveryOnline && isCurrent && visibleFraction >= .58f) {
+            requestError = null
+            tokenRetryAttempt++
+        }
+    }
+    val currentTokenRecovery by rememberUpdatedState(recoverFailedToken)
+    DisposableEffect(owner, auth, accountId, media.id) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) currentTokenRecovery()
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(recoveryOnline, tokenRead.canRecover, lifecycleState) {
+        if (!recoveryOnline) tokenSawOffline = true
+        else if (tokenSawOffline && lifecycleState.isAtLeast(Lifecycle.State.STARTED) && tokenRead.canRecover) {
+            tokenSawOffline = false
+            currentTokenRecovery()
+        }
+    }
+    val token = tokenRead.token
+    // Snapshot the latest real-network observation at first authorized playback,
+    // not at precomposition. A healthy MP4 keeps that representation mid-view.
+    val autoQuality = remember(auth, accountId, media.id, quality, token != null) {
+        NativeVideoQualityPolicy.selectQuality(quality, metadata, network)
+    }
+    val baseQuality = if (adaptive) autoQuality else "original"
+    val resources = remember(auth, accountId, media.id, token, mediaPath) {
+        if (token == null) null else
+            nativeVideoPlaybackResources(context, auth.mediaOrigin, token) {
+                accountId != null && auth.account?.id == accountId
+            }
+    }
+    val player = remember(resources) {
+        resources?.let {
             ExoPlayer.Builder(context)
                 .setBandwidthMeter(androidx.media3.exoplayer.upstream.DefaultBandwidthMeter.getSingletonInstance(context))
-                .setMediaSourceFactory(DefaultMediaSourceFactory(com.sautilink.nativeapp.ui.components.NativeVideoDataSourceFactory(http)))
+                .setMediaSourceFactory(DefaultMediaSourceFactory(it.dataSourceFactory))
+                .setLoadControl(androidx.media3.exoplayer.DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(3_000, 15_000, 750, 1_500).setBackBuffer(5_000, true).build())
                 .build().apply {
+                    repeatMode = Player.REPEAT_MODE_ONE
                     volume = if (muted) 0f else 1f
-                    setMediaItem(if (adaptive) MediaItem.Builder().setMediaId(media.id)
-                        .setUri(auth.mediaOrigin + videoPlaybackPath(mediaPath, baseQuality)).build()
-                    else MediaItem.fromUri("${auth.mediaOrigin}$mediaPath"))
+                    setMediaItem(MediaItem.Builder().setMediaId(media.id)
+                        .setUri(auth.mediaOrigin + videoPlaybackPath(mediaPath, baseQuality)).build())
                     prepare()
                     playWhenReady = false
                 }
         }
     }
+    var firstFrame by remember(player) { mutableStateOf(false) }
+    var stoppedOffscreen by remember(player) { mutableStateOf(false) }
+    var stoppedPosition by remember(player) { mutableLongStateOf(0L) }
     val playbackOwner = remember(player) { accountId }
+    val actualQuality = rememberVideoPlaybackQuality(player)
     var playing by remember(player) { mutableStateOf(false) }
     var playbackState by remember(player) { mutableIntStateOf(player?.playbackState ?: Player.STATE_IDLE) }
     var playbackRequested by remember(player) { mutableStateOf(player?.playWhenReady == true) }
@@ -368,10 +326,11 @@ private fun InlineFeedVideo(
             owner.lifecycle.removeObserver(observer)
             player.removeListener(listener)
             player.release()
+            resources?.close()
         }
     }
-    val selectedQuality = rememberVideoRecoveryQuality(player, playbackOwner, media.id, metadata, "auto", baseQuality,
-        enabled = adaptive, online = recoveryOnline, eligible = isCurrent && visibleFraction >= .58f &&
+    val selectedQuality = rememberVideoRecoveryQuality(player, playbackOwner, media.id, metadata, quality, baseQuality,
+        enabled = adaptive && quality == "auto", online = recoveryOnline, eligible = isCurrent && visibleFraction >= .58f &&
             lifecycleState.isAtLeast(Lifecycle.State.STARTED) && wantsToPlay && !manualPaused,
         requested = playbackRequested, playing = playing, playbackState = playbackState,
         suppressed = playbackSuppressed, hasError = requestError != null) {
@@ -389,11 +348,25 @@ private fun InlineFeedVideo(
         }
     }
     LaunchedEffect(player, muted) { player?.volume = if (muted) 0f else 1f }
-    LaunchedEffect(player, isCurrent, wantsToPlay, requestError, if (adaptive) lifecycleState else null) {
+    LaunchedEffect(player, speed) { player?.setPlaybackSpeed(speed) }
+    LaunchedEffect(player, isCurrent, visibleFraction, wantsToPlay, requestError, lifecycleState) {
         if (player != null) {
-            if (!isCurrent) player.pause()
-            else if (adaptive && !lifecycleState.isAtLeast(Lifecycle.State.STARTED)) player.pause()
-            else if (wantsToPlay && requestError == null) player.play()
+            if (!isCurrent || visibleFraction < .1f || !lifecycleState.isAtLeast(Lifecycle.State.STARTED)) {
+                if (!stoppedOffscreen && player.playbackState != Player.STATE_IDLE) {
+                    stoppedPosition = player.currentPosition.coerceAtLeast(0L)
+                    player.pause()
+                    player.stop()
+                    stoppedOffscreen = true
+                    firstFrame = false
+                }
+            } else if (wantsToPlay && requestError == null) {
+                if (stoppedOffscreen) {
+                    player.seekTo(stoppedPosition)
+                    player.prepare()
+                    stoppedOffscreen = false
+                }
+                player.play()
+            }
             else if (!wantsToPlay) player.pause()
         }
     }
@@ -403,11 +376,7 @@ private fun InlineFeedVideo(
     val showBufferingOverlay = overlayEligible &&
         (token == null || playbackRequested && playbackState == Player.STATE_BUFFERING)
     Box(modifier.background(Color.Black).onGloballyPositioned { coordinates ->
-        val rect = coordinates.boundsInWindow()
-        val shownTop = rect.top.coerceAtLeast(0f)
-        val shownBottom = rect.bottom.coerceAtMost(windowHeight)
-        visibleFraction = ((shownBottom - shownTop).coerceAtLeast(0f) /
-            rect.height.coerceAtLeast(1f)).coerceIn(0f, 1f)
+        visibleFraction = measuredVideoVisibleFraction(coordinates, windowHeight)
     }, contentAlignment = Alignment.Center) {
         if (player != null) {
             AndroidView(
@@ -435,12 +404,14 @@ private fun InlineFeedVideo(
                 CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
             }
         }
-        val playPrompt = !playing && (firstFrame || bufferingOverlayEnabled && manualPaused ||
+        val playPrompt = !playing && (firstFrame || manualPaused ||
             !NativePlaybackPreferences.autoplayEnabled || requestError != null || !started)
         val startPlayback = {
             requestError = null
+            if (tokenRead.token == null && !tokenRead.loading) tokenRetryAttempt++
             started = true
             manualPaused = false
+            userInitiatedPlayback = true
             wantsToPlay = true
             if (player?.playerError != null) {
                 if (adaptive) replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(media.id)
@@ -454,10 +425,11 @@ private fun InlineFeedVideo(
         val pausePlayback = {
             wantsToPlay = false
             manualPaused = true
+            userInitiatedPlayback = false
             player?.pause()
         }
         val playRadius = with(density) { 30.dp.toPx() }
-        val pauseRequested = playing || bufferingOverlayEnabled && playbackState != Player.STATE_ENDED && requestError == null &&
+        val pauseRequested = playing || playbackState != Player.STATE_ENDED && requestError == null &&
             (playbackRequested || started && wantsToPlay && !manualPaused)
         SautiVideoGestureSurface(Modifier.fillMaxSize(),
             playbackLabel = if (pauseRequested) "Pause video in post" else if (playPrompt) "Play video in post" else null,
@@ -496,19 +468,19 @@ private fun InlineFeedVideo(
                     modifier = Modifier.padding(10.dp))
             }
         }
-        if (player != null && firstFrame) {
-            IconButton(
-                onClick = NativePlaybackPreferences::toggleSessionSound,
-                modifier = Modifier.align(Alignment.BottomStart).padding(7.dp)
-                    .background(Color.Black.copy(alpha = .56f), CircleShape)
-                    .size(44.dp)
-            ) {
-                Icon(if (muted) Icons.Rounded.VolumeOff else Icons.Rounded.VolumeUp,
-                    contentDescription = if (muted) "Unmute video" else "Mute video",
-                    tint = Color.White, modifier = Modifier.size(23.dp))
-            }
+        if (player != null && started && requestError == null) {
+            VideoPlaybackControls(player, playbackRequested && !manualPaused, muted,
+                onTogglePlayback = { if (pauseRequested) pausePlayback() else startPlayback() },
+                onToggleSound = NativePlaybackPreferences::toggleSessionSound,
+                onOpenSettings = { settingsOpen = true },
+                modifier = Modifier.align(Alignment.BottomCenter))
         }
     }
+    if (settingsOpen) VideoPlaybackSettingsSheet(
+        preference = quality, currentQuality = actualQuality,
+        availableQualities = NativeVideoQualityPolicy.availableQualities(metadata), speed = speed,
+        onQuality = { quality = it }, onSpeed = { speed = it }, onDismiss = { settingsOpen = false },
+        qualityEnabled = adaptive)
 }
 
 /** Only callers that already validated a published media path may append a rendition. */

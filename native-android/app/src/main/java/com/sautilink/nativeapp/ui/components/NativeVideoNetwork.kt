@@ -16,6 +16,9 @@ import androidx.core.content.ContextCompat
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.upstream.BandwidthMeter
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
+import kotlinx.coroutines.delay
+
+private val recentVideoTransfers = RecentVideoTransferObservation()
 
 /** Observe existing video transfers, validated connectivity, metering and Android Data Saver.
  * No probes/downloads are started to estimate a connection. The meter's initial guess is
@@ -40,18 +43,16 @@ internal fun rememberNativeVideoNetwork(): NativeVideoNetwork {
             manager.restrictBackgroundStatus == ConnectivityManager.RESTRICT_BACKGROUND_STATUS_ENABLED)
     }
     var connection by remember(manager) { mutableStateOf(current()) }
-    var measuredMbps by remember(meter) { mutableStateOf<Double?>(null) }
-    var measuredAt by remember(meter) { mutableLongStateOf(0L) }
+    var measurement by remember(manager, meter) {
+        mutableStateOf(recentVideoTransfers.observeConnection(connection.handle, connection.online, SystemClock.elapsedRealtime()))
+    }
     DisposableEffect(manager, meter) {
         var observing = true
         fun refresh() {
             if (!observing) return
             val next = current()
-            if (next.handle != connection.handle || !next.online) {
-                measuredMbps = null
-                measuredAt = 0L
-            }
             connection = next
+            measurement = recentVideoTransfers.observeConnection(next.handle, next.online, SystemClock.elapsedRealtime())
         }
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) { handler.post { refresh() } }
@@ -62,10 +63,8 @@ internal fun rememberNativeVideoNetwork(): NativeVideoNetwork {
         }
         val bandwidth = BandwidthMeter.EventListener { elapsedMs, bytes, estimate ->
             refresh()
-            if (observing && connection.online && elapsedMs >= 200 && bytes >= 524_288L && estimate > 0L) {
-                measuredMbps = estimate / 1_000_000.0
-                measuredAt = SystemClock.elapsedRealtime()
-            }
+            if (observing) measurement = recentVideoTransfers.recordTransfer(connection.handle, connection.online,
+                elapsedMs, bytes, estimate, SystemClock.elapsedRealtime())
         }
         val saver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) { refresh() }
@@ -81,8 +80,14 @@ internal fun rememberNativeVideoNetwork(): NativeVideoNetwork {
             context.unregisterReceiver(saver)
         }
     }
+    LaunchedEffect(measurement?.measuredAtMillis, connection.handle, connection.online) {
+        val value = measurement ?: return@LaunchedEffect
+        val remaining = 30_000L - (SystemClock.elapsedRealtime() - value.measuredAtMillis)
+        if (remaining > 0L) delay(remaining)
+        measurement = recentVideoTransfers.observeConnection(connection.handle, connection.online, SystemClock.elapsedRealtime())
+    }
     return NativeVideoNetwork(
-        measuredMbps.takeIf { connection.online && SystemClock.elapsedRealtime() - measuredAt <= 30_000L },
+        measurement?.measuredMbps.takeIf { connection.online },
         connection.metered, connection.saveData)
 }
 

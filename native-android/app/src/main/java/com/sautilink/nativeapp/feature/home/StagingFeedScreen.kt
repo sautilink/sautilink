@@ -68,6 +68,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.TimeoutCancellationException
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
@@ -119,6 +123,10 @@ fun StagingFeedScreen(
     val client = remember(auth) { StagingFeedClient(auth) }
     val actions = remember(auth) { PostInteractionsClient(auth) }
     val canInteract = auth.backend == SautiBackend.PRODUCTION && account != null && online
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val canReadFollow = canInteract && sessionState == StagingSessionState.SIGNED_IN &&
+        lifecycleState.isAtLeast(Lifecycle.State.STARTED)
     // Separate Like and Save state: one slow lookup never disables the other.
     var likeStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var savedStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
@@ -130,6 +138,11 @@ fun StagingFeedScreen(
     val actionStateVersions = remember(auth, accountId) { FeedActionVersions() }
     var followReadError by remember(auth, accountId) { mutableStateOf<String?>(null) }
     var followRetryVersion by remember(auth, accountId) { mutableIntStateOf(0) }
+    var followReadInFlight by remember(auth, accountId) { mutableStateOf(false) }
+    var followReadTransient by remember(auth, accountId) { mutableStateOf(false) }
+    var failedFollowAuthors by remember(auth, accountId) { mutableStateOf<Set<String>>(emptySet()) }
+    var followReadGeneration by remember(auth, accountId) { mutableIntStateOf(0) }
+    var followRefreshKey by remember(auth, accountId) { mutableStateOf<Pair<Int, String>?>(null) }
     var likeReadError by remember(auth, accountId) { mutableStateOf<String?>(null) }
     var savedReadError by remember(auth, accountId) { mutableStateOf<String?>(null) }
     var repostReadError by remember(auth, accountId) { mutableStateOf<String?>(null) }
@@ -204,25 +217,66 @@ fun StagingFeedScreen(
         posts.map { it.authorId }.filter { it.isNotBlank() && it != accountId }.distinct()
     }
     // Independent from Like/Save/Repost: a slow Follow lookup never stalls a post action.
-    LaunchedEffect(auth, accountId, shownAuthorIds, followRetryVersion, canInteract, refreshVersion, mode) {
-        if (!canInteract || shownAuthorIds.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(auth, accountId, shownAuthorIds, followRetryVersion, canReadFollow, refreshVersion, mode) {
+        val generation = ++followReadGeneration
+        followReadInFlight = false
+        if (!canReadFollow || shownAuthorIds.isEmpty()) return@LaunchedEffect
         val expectedAccountId = accountId
+        val expectedMode = mode
         val readVersions = actionStateVersions.snapshot()
-        val missing = shownAuthorIds
+        val refreshKey = refreshVersion to mode
+        val missing = if (followRefreshKey != refreshKey) shownAuthorIds else
+            shownAuthorIds.filter { it !in followingStates || it in failedFollowAuthors }
         if (missing.isEmpty()) return@LaunchedEffect
+        followRefreshKey = refreshKey
+        followReadInFlight = true
+        fun current() = auth.account?.id == expectedAccountId && mode == expectedMode && followReadGeneration == generation
+        fun unmodifiedAuthors(): Set<String> {
+            val now = actionStateVersions.snapshot()
+            return missing.filter { now["follow:$it"] == readVersions["follow:$it"] }.toSet()
+        }
         try {
             val loaded = withTimeout(18_000L) { actions.getFollowingStates(missing) }
-            if (auth.account?.id == expectedAccountId) {
+            if (current()) {
                 // A confirmed tap made while loading takes precedence over a late GET.
                 followingStates = actionStateVersions.reconcile("follow", followingStates, loaded, readVersions)
-                followReadError = null
+                failedFollowAuthors = failedFollowAuthors - missing.toSet()
+                if (failedFollowAuthors.isEmpty()) { followReadError = null; followReadTransient = false }
             }
         } catch (_: TimeoutCancellationException) {
-            followReadError = "Follow status timed out. Tap Retry."
+            if (current() && unmodifiedAuthors().isNotEmpty()) {
+                failedFollowAuthors = failedFollowAuthors + unmodifiedAuthors()
+                followReadTransient = true
+                followReadError = "Follow status timed out. Tap Retry."
+            }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) {
-            followReadError = e.message ?: "Follow status unavailable. Tap Retry."
+            if (current() && unmodifiedAuthors().isNotEmpty()) {
+                failedFollowAuthors = failedFollowAuthors + unmodifiedAuthors()
+                followReadTransient = followReadRetryDelay(e) != null
+                followReadError = e.message ?: "Follow status unavailable. Tap Retry."
+            }
+        } finally {
+            if (current()) followReadInFlight = false
         }
+    }
+
+    // Healthy states never refetch just because the app resumes. Only a failed
+    // transient GET gets one new bounded read cycle when the user returns.
+    val recoverFailedFollow: () -> Unit = {
+        if (canReadFollow && !followReadInFlight && followReadTransient &&
+            failedFollowAuthors.any { it in shownAuthorIds }) {
+            followReadTransient = false
+            followRetryVersion++
+        }
+    }
+    val currentFollowRecovery by rememberUpdatedState(recoverFailedFollow)
+    DisposableEffect(lifecycleOwner, auth, accountId, mode) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) currentFollowRecovery()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     // UI watchdog independent from the network calls: never leave a spinner forever.
@@ -356,6 +410,7 @@ fun StagingFeedScreen(
                 client.invalidateFollowing()
                 actionStateVersions.changed("follow:${post.authorId}")
                 followingStates = followingStates + (post.authorId to desired)
+                failedFollowAuthors = failedFollowAuthors - post.authorId
                 followReadError = null
                 // Following must not continue showing an author the user has just unfollowed.
                 if (mode == "following" && !desired) refreshVersion++
@@ -366,6 +421,8 @@ fun StagingFeedScreen(
                     actionError = "Follow request timed out. Check current status before trying again."
                     actionErrorPostId = post.id
                     followReadError = "Follow state uncertain. Tap Retry."
+                    failedFollowAuthors = failedFollowAuthors + post.authorId
+                    followReadTransient = true
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) {
@@ -608,6 +665,8 @@ fun StagingFeedScreen(
                             followReadError = null
                             actionStateVersions.changed("follow:${post.authorId}")
                             followingStates = followingStates - post.authorId
+                            failedFollowAuthors = failedFollowAuthors + post.authorId
+                            followReadTransient = false
                             followRetryVersion++
                         }
                     )

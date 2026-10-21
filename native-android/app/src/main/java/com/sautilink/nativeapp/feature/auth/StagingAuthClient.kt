@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
@@ -369,6 +370,8 @@ class StagingAuthClient(
         // Refresh-token rotation: save the NEW refresh token before any extra request.
         try {
             withContext(Dispatchers.IO) { vault.save(refresh) }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             throw AuthRequestException("Secure session storage is unavailable on this device.")
         }
@@ -517,7 +520,7 @@ class StagingAuthClient(
                 (System.nanoTime() - started) / 1_000_000, seenStatus, phase)) }
         }
         try {
-            withTimeout(20000L) {
+            authRequestWithinDeadline {
                 val connection = URL(origin + route).openConnection() as HttpURLConnection
                 try {
                     connection.requestMethod = method
@@ -559,12 +562,14 @@ class StagingAuthClient(
                     json
                 } finally { connection.disconnect() }
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: AuthRequestException) {
             if (e.httpStatus != null) recordFailure(e)
             throw e
         } catch (e: Exception) {
             recordFailure(e)
-            throw AuthRequestException("Connection failed. Check internet and ${backend.title.lowercase()} availability.")
+            throw AuthRequestException("Connection failed. Check internet and ${backend.title.lowercase()} availability.", cause = e)
         }
     }
 }
@@ -578,4 +583,4 @@ data class StagingProfile(
     val joinedAt: String,
     val discoverable: Boolean
 )
-class AuthRequestException(message: String, val httpStatus: Int? = null) : Exception(message)
+class AuthRequestException(message: String, val httpStatus: Int? = null, cause: Throwable? = null) : Exception(message, cause)
