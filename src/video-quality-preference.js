@@ -32,9 +32,14 @@ export function resolveVideoQuality(requested, media) {
   return String(qualities.filter((quality) => quality <= target).at(-1) ?? qualities[0]);
 }
 
-export function normalizeVideoQualityPreference(value) {
+export function normalizeVideoQualityPreference(value, { streamLevels = [] } = {}) {
   const normalized = String(value || '').trim().toLowerCase();
-  return VIDEO_QUALITY_VALUES.includes(normalized) ? normalized : 'auto';
+  // Stream can advertise resolutions outside the MP4 transformation whitelist.
+  // Accept those choices only at a caller's current manifest boundary; ordinary
+  // MP4 preferences and source URLs retain their existing supported qualities.
+  const advertised = Array.isArray(streamLevels) && streamLevels.some((edge) =>
+    Number.isInteger(edge) && edge > 0 && edge <= 8192 && String(edge) === normalized);
+  return VIDEO_QUALITY_VALUES.includes(normalized) || advertised ? normalized : 'auto';
 }
 
 export function selectAdaptiveVideoQuality(connection = {}, stallCount = 0) {
@@ -68,17 +73,17 @@ function currentConnection() {
   return navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
 }
 
-export function getVideoQualityPreference() {
+export function getVideoQualityPreference(options) {
   if (typeof localStorage === 'undefined') return 'auto';
   try {
-    return normalizeVideoQualityPreference(localStorage.getItem(VIDEO_QUALITY_STORAGE_KEY));
+    return normalizeVideoQualityPreference(localStorage.getItem(VIDEO_QUALITY_STORAGE_KEY), options);
   } catch {
     return 'auto';
   }
 }
 
-export function setVideoQualityPreference(value) {
-  const preference = normalizeVideoQualityPreference(value);
+export function setVideoQualityPreference(value, options) {
+  const preference = normalizeVideoQualityPreference(value, options);
   try {
     localStorage.setItem(VIDEO_QUALITY_STORAGE_KEY, preference);
   } catch {

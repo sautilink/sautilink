@@ -60,13 +60,17 @@ function allowedToResume(video, wasPlaying) {
     && (getVideoAutoplayPreference() || video.dataset.sautiManualPlay === 'true');
 }
 function notify(video) { video.dispatchEvent(new CustomEvent('sautilink:video-quality-applied')); }
-function selectedPreference(video) { return video.closest('#sauti-short-videos') ? 'auto' : getVideoQualityPreference(); }
+function selectedPreference(video, levels = []) {
+  return video.closest('#sauti-short-videos') ? 'auto' : getVideoQualityPreference({ streamLevels: levels });
+}
 function applyPreference(state) {
   if (!state.hls || !state.ready) return;
-  const preference = selectedPreference(state.video);
+  const preference = selectedPreference(state.video, hlsQualityLevels(state.hls.levels));
   const level = hlsLevelForPreference(state.hls.levels, preference);
-  // A rendition change happens at the next fragment boundary, not by reload.
-  state.hls.loadLevel = level;
+  // Replace later buffered fragments at the next safe switch, without reloading
+  // the video or interrupting its current fragment. loadLevel would wait for the
+  // entire existing buffer, which can outlast a short clip.
+  state.hls.nextLevel = level;
   state.preference = preference;
   notify(state.video);
 }

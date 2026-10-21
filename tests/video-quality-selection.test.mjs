@@ -67,6 +67,24 @@ test('Home respects manual preference while Short Videos always stays adaptive',
   assert.equal(videoQualityForPreference('360', fast, 'short'), '720');
 });
 
+test('only advertised Stream resolutions extend the preference boundary; MP4 qualities stay unchanged', () => {
+  assert.equal(normalizeVideoQualityPreference('540', { streamLevels: [360, 480, 540] }), '540');
+  assert.equal(normalizeVideoQualityPreference('540', { streamLevels: [360, 480] }), 'auto');
+  assert.equal(normalizeVideoQualityPreference('540'), 'auto');
+  for (const value of ['0', '-1', '8193', '540.5', '0540', '5.4e2', 'invalid']) {
+    assert.equal(normalizeVideoQualityPreference(value, { streamLevels: [0, -1, 8193, 540.5, 540] }), 'auto');
+  }
+  const previousWindow = globalThis.window;
+  globalThis.window = { location: { origin: 'https://sautilink.com' } };
+  try {
+    assert.equal(sautiVideoSourceUrl('video-id', '540'), '/api/sauti-media/video-id');
+    assert.equal(videoQualityForPreference('540', { downlink: 12 }, 'home'), '720');
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+});
+
 test('quality choices are derived from original dimensions and transform limits', () => {
   const low = { width: 240, height: 426, duration_ms: 30_000 };
   const medium = { width: 480, height: 854, duration_ms: 30_000 };
