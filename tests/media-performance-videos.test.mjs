@@ -33,7 +33,7 @@ test('video media session renews while visible playback remains on the page', as
     clearTimeout(id) { timers.delete(id); },
   };
   const context = vm.createContext({
-    window, document, URL,
+    window, document, URL, AbortController,
     Date: { now: () => now },
     currentAuthorizationHeader: async () => ({ Authorization: 'Bearer test.token.value' }),
     fetch: async (_url, options) => {
@@ -67,6 +67,279 @@ test('video media session renews while visible playback remains on the page', as
 
   await vm.runInContext('clearSautiVideoSession()', context);
   assert.equal(timers.size, 0);
+});
+
+async function mediaSessionHarness() {
+  const appPath = new URL('../src/app.js', import.meta.url).pathname;
+  const source = await read('src/app.js');
+  const transformed = transformMediaPerformanceSource(appPath, transformPostMediaSource(appPath, source));
+  const start = transformed.indexOf('const SAUTI_MEDIA_VARIANT_WIDTHS =');
+  const end = transformed.indexOf('function selectSautiMediaVariantWidth(', start);
+  const timers = new Map(), listeners = new Map(), videos = [], requests = [];
+  let now = 0, timerId = 0, pendingResponse, responder, authorizationReader, authCallback;
+  let authorization = 'Bearer synthetic.test.token', authorizationReads = 0;
+  const document = {
+    hidden: false,
+    querySelector(selector) {
+      // Minimal attribute-selector semantics: an HLS MediaSource is a blob URL,
+      // while its protected transport is identified by the production marker.
+      return videos.find((video) => selector.split(',').some((part) => {
+        const match = /^video\[([a-z-]+)(\*?=)"([^"]*)"\]$/.exec(part.trim());
+        if (!match) throw new Error(`Unsupported fixture selector: ${part}`);
+        const value = video[match[1]] || '';
+        return match[2] === '*=' ? value.includes(match[3]) : value === match[3];
+      })) || null;
+    },
+    addEventListener(name, listener) { listeners.set(name, listener); },
+  };
+  const window = {
+    location: { origin: 'https://sautilink.com' },
+    setTimeout(callback, delay) { timers.set(++timerId, { callback, delay }); return timerId; },
+    clearTimeout(id) { timers.delete(id); },
+  };
+  const context = vm.createContext({
+    window, document, URL, AbortController, Date: { now: () => now },
+    supabase: { auth: { onAuthStateChange(callback) { authCallback = callback; } } },
+    currentAuthorizationHeader: async () => {
+      authorizationReads++;
+      return authorizationReader ? authorizationReader() : { Authorization: authorization };
+    },
+    fetch: async (url, options) => {
+      assert.equal(url, '/api/sauti-media/session');
+      requests.push(options);
+      return responder ? responder(options) : pendingResponse || new Response(null, { status: 204 });
+    },
+  });
+  vm.runInContext(transformed.slice(start, end), context);
+  const authStart = transformed.indexOf('supabase.auth.onAuthStateChange((event, session) => {');
+  const authEnd = transformed.indexOf("\n  if (event === 'PASSWORD_RECOVERY')", authStart);
+  assert.ok(authStart >= 0 && authEnd > authStart);
+  // Execute the production callback's media-session prefix without unrelated UI.
+  vm.runInContext(`${transformed.slice(authStart, authEnd)}\n});`, context);
+  return {
+    window, document, videos, requests, timers,
+    advance(ms) { now += ms; },
+    pending(response) { pendingResponse = response; },
+    respondWith(callback) { responder = callback; },
+    authorize(value) { authorization = value; },
+    readAuthorizationWith(callback) { authorizationReader = callback; },
+    get authorizationReads() { return authorizationReads; },
+    authEvent(event, token) { return authCallback(event, token ? { access_token: token } : null); },
+    get readyUntil() { return vm.runInContext('sautiVideoSessionReadyUntil', context); },
+    clear() { return vm.runInContext('clearSautiVideoSession()', context); },
+    fireTimer(delay) {
+      const [id, timer] = [...timers.entries()].find(([, timer]) => delay === undefined || timer.delay === delay);
+      timers.delete(id); timer.callback();
+    },
+    visible() { document.hidden = false; listeners.get('visibilitychange')(); },
+    async close() { pendingResponse = null; responder = null; await vm.runInContext('clearSautiVideoSession()', context); },
+  };
+}
+
+function deferred() {
+  let resolve;
+  const promise = new Promise((finish) => { resolve = finish; });
+  return { promise, resolve };
+}
+
+test('HLS blob players keep the protected media cookie refreshed and renew on visibility return', async () => {
+  const h = await mediaSessionHarness();
+  try {
+    h.videos.push({ src: 'blob:current-hls-player', 'data-sauti-stream-managed': 'true' });
+    await h.window.SautiLinkVideoMediaSession.ensure();
+    h.advance(4 * 60 * 1000); h.fireTimer();
+    await new Promise(setImmediate);
+    assert.equal(h.requests.length, 2, 'HLS MediaSource URLs still require a current media-session cookie');
+    h.document.hidden = true;
+    h.advance(4 * 60 * 1000); h.fireTimer();
+    await new Promise(setImmediate);
+    assert.equal(h.requests.length, 2, 'hidden players do not refresh in the background');
+    h.visible(); await new Promise(setImmediate);
+    assert.equal(h.requests.length, 3, 'returning to an HLS-only page refreshes its cookie');
+    delete h.videos[0]['data-sauti-stream-managed'];
+    h.advance(4 * 60 * 1000); h.fireTimer();
+    await new Promise(setImmediate);
+    assert.equal(h.requests.length, 3, 'an ordinary local blob does not keep a protected-media session alive');
+  } finally { await h.close(); }
+});
+
+test('a rejected media cookie can be refreshed once despite the local ready window and concurrent callers join', async () => {
+  const h = await mediaSessionHarness();
+  try {
+    await h.window.SautiLinkVideoMediaSession.ensure();
+    h.advance(1000);
+    await h.window.SautiLinkVideoMediaSession.ensure();
+    assert.equal(h.requests.length, 1, 'ordinary callers retain the readiness window');
+    let finish;
+    h.pending(new Promise((resolve) => { finish = resolve; }));
+    const first = h.window.SautiLinkVideoMediaSession.ensure({ force: true });
+    const second = h.window.SautiLinkVideoMediaSession.ensure({ force: true });
+    const ordinary = h.window.SautiLinkVideoMediaSession.ensure();
+    await new Promise(setImmediate);
+    assert.equal(h.requests.length, 2, 'one fresh authenticated cookie request serves all concurrent callers');
+    finish(new Response(null, { status: 204 }));
+    await Promise.all([first, second, ordinary]);
+    assert.equal(h.requests.every((request) => request.credentials === 'same-origin'), true);
+    assert.equal(h.requests.every((request) => request.headers.Authorization === 'Bearer synthetic.test.token'), true);
+  } finally { await h.close(); }
+});
+
+test('clearing the media session aborts account A and late completion cannot satisfy account B', async () => {
+  const h = await mediaSessionHarness();
+  const oldPost = deferred();
+  try {
+    h.authorize('Bearer synthetic-account-A');
+    h.respondWith((options) => options.method === 'POST' && options.headers.Authorization.endsWith('-A')
+      ? oldPost.promise : new Response(null, { status: 204 }));
+    const first = h.window.SautiLinkVideoMediaSession.ensure({ force: true }).catch((error) => error);
+    await new Promise(setImmediate);
+    h.authorize('');
+    await h.clear();
+    oldPost.resolve(new Response(null, { status: 204 }));
+    await first;
+    assert.equal(h.readyUntil, 0, 'a cleared request cannot restore the readiness window');
+    assert.equal(h.timers.size, 0, 'a cleared request cannot reschedule refresh');
+    assert.equal(h.requests[0].signal.aborted, true, 'the old cookie POST is actually aborted');
+    h.authorize('Bearer synthetic-account-B');
+    await h.window.SautiLinkVideoMediaSession.ensure();
+    assert.deepEqual(h.requests.map((request) => [request.method, request.headers?.Authorization]), [
+      ['POST', 'Bearer synthetic-account-A'], ['DELETE', undefined], ['POST', 'Bearer synthetic-account-B'],
+    ]);
+  } finally { oldPost.resolve(new Response(null, { status: 204 })); await h.close(); }
+});
+
+test('late account A finalization cannot clear or replace account B pending request', async () => {
+  const h = await mediaSessionHarness();
+  const oldPost = deferred(), newPost = deferred();
+  try {
+    h.authorize('Bearer synthetic-account-A');
+    h.respondWith((options) => options.method === 'DELETE' ? new Response(null, { status: 204 })
+      : options.headers.Authorization.endsWith('-A') ? oldPost.promise : newPost.promise);
+    const first = h.window.SautiLinkVideoMediaSession.ensure().catch((error) => error);
+    await new Promise(setImmediate);
+    await h.clear();
+    h.authorize('Bearer synthetic-account-B');
+    const second = h.window.SautiLinkVideoMediaSession.ensure();
+    await new Promise(setImmediate);
+    oldPost.resolve(new Response(null, { status: 204 }));
+    await first;
+    const joined = h.window.SautiLinkVideoMediaSession.ensure({ force: true });
+    await new Promise(setImmediate);
+    assert.equal(h.requests.filter((request) => request.method === 'POST').length, 2,
+      'ordinary and forced B callers join the active B request after A settles');
+    assert.equal(h.readyUntil, 0, 'the unfinished B request cannot be made ready by A');
+    newPost.resolve(new Response(null, { status: 204 }));
+    await Promise.all([second, joined]);
+    assert.ok(h.readyUntil > 0);
+  } finally {
+    oldPost.resolve(new Response(null, { status: 204 }));
+    newPost.resolve(new Response(null, { status: 204 }));
+    await h.close();
+  }
+});
+
+test('media readiness and in-flight dedup follow the current authorization even without an auth event', async () => {
+  const h = await mediaSessionHarness();
+  const oldPost = deferred();
+  try {
+    h.authorize('Bearer synthetic-account-A');
+    await h.window.SautiLinkVideoMediaSession.ensure();
+    h.authorize('Bearer synthetic-account-B');
+    await h.window.SautiLinkVideoMediaSession.ensure();
+    assert.deepEqual(h.requests.map((request) => request.headers.Authorization), [
+      'Bearer synthetic-account-A', 'Bearer synthetic-account-B',
+    ], 'an unexpired local window must not reuse the previous account cookie');
+    h.authorize('Bearer synthetic-account-C');
+    h.respondWith((options) => options.headers?.Authorization.endsWith('-C')
+      ? oldPost.promise : new Response(null, { status: 204 }));
+    const old = h.window.SautiLinkVideoMediaSession.ensure().catch((error) => error);
+    await new Promise(setImmediate);
+    h.authorize('Bearer synthetic-account-D');
+    await h.window.SautiLinkVideoMediaSession.ensure();
+    assert.equal(h.requests[2].signal.aborted, true);
+    assert.equal(h.requests[3].headers.Authorization, 'Bearer synthetic-account-D');
+    oldPost.resolve(new Response(null, { status: 204 }));
+    await old;
+  } finally { oldPost.resolve(new Response(null, { status: 204 })); await h.close(); }
+});
+
+test('auth lifecycle invalidation stays synchronous and rejects an older pending authorization read', async () => {
+  const h = await mediaSessionHarness();
+  const authRead = deferred();
+  try {
+    h.readAuthorizationWith(() => authRead.promise);
+    const first = h.window.SautiLinkVideoMediaSession.ensure().catch((error) => error);
+    const readsBeforeEvent = h.authorizationReads;
+    assert.equal(h.authEvent('SIGNED_OUT'), undefined);
+    assert.equal(h.authEvent('SIGNED_IN', 'synthetic-account-B'), undefined);
+    assert.equal(h.authorizationReads, readsBeforeEvent, 'auth callbacks must not call getSession inline');
+    h.readAuthorizationWith(null);
+    h.authorize('Bearer synthetic-account-B');
+    await h.window.SautiLinkVideoMediaSession.ensure();
+    authRead.resolve({ Authorization: 'Bearer synthetic-account-A' });
+    await first;
+    assert.deepEqual(h.requests.map((request) => request.headers.Authorization), ['Bearer synthetic-account-B'],
+      'a delayed authorization read from before signout cannot start an A POST or disturb B');
+    const readsAfterEnsure = h.authorizationReads;
+    assert.equal(h.authEvent('TOKEN_REFRESHED', 'synthetic-account-B-refreshed'), undefined);
+    assert.equal(h.authorizationReads, readsAfterEnsure);
+    assert.equal(h.readyUntil, 0, 'a changed session token invalidates cookie readiness synchronously');
+  } finally { authRead.resolve({ Authorization: 'Bearer synthetic-account-A' }); await h.close(); }
+});
+
+test('a delayed older authorization read cannot supersede a newer account without a lifecycle event', async () => {
+  const h = await mediaSessionHarness();
+  const oldRead = deferred();
+  try {
+    h.readAuthorizationWith(() => oldRead.promise);
+    const first = h.window.SautiLinkVideoMediaSession.ensure().catch((error) => error);
+    h.readAuthorizationWith(null);
+    h.authorize('Bearer synthetic-account-B');
+    await h.window.SautiLinkVideoMediaSession.ensure();
+    oldRead.resolve({ Authorization: 'Bearer synthetic-account-A' });
+    await first;
+    assert.deepEqual(h.requests.map((request) => request.headers.Authorization), ['Bearer synthetic-account-B']);
+  } finally { oldRead.resolve({ Authorization: 'Bearer synthetic-account-A' }); await h.close(); }
+});
+
+test('a new account waits for the pending cookie DELETE before issuing its POST', async () => {
+  const h = await mediaSessionHarness();
+  const deletion = deferred();
+  try {
+    await h.window.SautiLinkVideoMediaSession.ensure();
+    h.respondWith((options) => options.method === 'DELETE' ? deletion.promise : new Response(null, { status: 204 }));
+    const cleared = h.clear();
+    h.authorize('Bearer synthetic-account-B');
+    const next = h.window.SautiLinkVideoMediaSession.ensure();
+    await new Promise(setImmediate);
+    assert.deepEqual(h.requests.map((request) => request.method), ['POST', 'DELETE'],
+      'a late DELETE must finish before a fresh cookie is issued');
+    deletion.resolve(new Response(null, { status: 204 }));
+    await Promise.all([cleared, next]);
+    assert.deepEqual(h.requests.map((request) => request.method), ['POST', 'DELETE', 'POST']);
+    assert.equal(h.requests[2].headers.Authorization, 'Bearer synthetic-account-B');
+  } finally { deletion.resolve(new Response(null, { status: 204 })); await h.close(); }
+});
+
+test('a stalled cookie POST has a bounded deadline, aborts, and allows a later authenticated retry', async () => {
+  const h = await mediaSessionHarness();
+  const stalled = deferred();
+  try {
+    h.pending(stalled.promise);
+    const first = h.window.SautiLinkVideoMediaSession.ensure().catch((error) => error);
+    await new Promise(setImmediate);
+    h.fireTimer(8000);
+    const failure = await first;
+    assert.equal(failure.message, 'MEDIA_SESSION_CANCELLED');
+    assert.equal(h.requests[0].signal.aborted, true);
+    assert.equal(h.readyUntil, 0);
+    h.pending(null);
+    await h.window.SautiLinkVideoMediaSession.ensure();
+    stalled.resolve(new Response(null, { status: 204 }));
+    await new Promise(setImmediate);
+    assert.equal(h.requests.length, 2);
+    assert.ok(h.readyUntil > 0);
+  } finally { stalled.resolve(new Response(null, { status: 204 })); await h.close(); }
 });
 
 test('a stalled Home stream switches to an authorized blob and keeps the viewer URL usable', async () => {

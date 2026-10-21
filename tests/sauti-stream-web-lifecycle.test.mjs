@@ -32,7 +32,7 @@ async function flush() {
 function harness() {
   const previous = Object.fromEntries(['window', 'document', 'HTMLVideoElement', 'CustomEvent', 'fetch'].map((key) => [key, globalThis[key]]));
   const originalWarn = console.warn;
-  const responses = [], requests = [], warnings = [], instances = [], timers = new Map();
+  const responses = [], requests = [], warnings = [], instances = [], sessionEnsures = [], timers = new Map();
   let timerId = 0, authCallback;
   class FakeVideo {
     constructor() {
@@ -60,7 +60,7 @@ function harness() {
     canPlayType() { return ''; }
   }
   class FakeHls {
-    static Events = { MANIFEST_PARSED: 'manifestParsed', LEVEL_SWITCHED: 'levelSwitched', ERROR: 'error' };
+    static Events = { MANIFEST_PARSED: 'manifestParsed', LEVEL_SWITCHED: 'levelSwitched', FRAG_BUFFERED: 'fragBuffered', ERROR: 'error' };
     static isSupported() { return true; }
     constructor(config) {
       this.config = config; this.handlers = new Map(); this.starts = []; this.stops = 0; this.destroyed = 0;
@@ -79,6 +79,7 @@ function harness() {
   }
   globalThis.window = {
     Hls: FakeHls, location: { origin: ORIGIN },
+    SautiLinkVideoMediaSession: { async ensure(options) { sessionEnsures.push(options?.force === true); } },
     setTimeout(callback, delay) { timers.set(++timerId, { callback, delay }); return timerId; },
     clearTimeout(id) { timers.delete(id); },
   };
@@ -98,7 +99,7 @@ function harness() {
   installSautiStreamAuthLifecycle({ auth: { onAuthStateChange(callback) { authCallback = callback; return {}; } } });
   authCallback('INITIAL_SESSION', session());
   return {
-    responses, requests, warnings, instances, timers, FakeVideo, FakeHls,
+    responses, requests, warnings, instances, sessionEnsures, timers, FakeVideo, FakeHls,
     async start() {
       responses.push(descriptorResponse());
       const video = new FakeVideo(); enhanceSautiStreamPlayback(video); await flush();
@@ -126,7 +127,7 @@ test('an expired fragment joins proactive renewal, repeated errors cannot tear i
     const first = h.instances[0], state = video.__sautiStreamState;
     const renewal = deferred(); h.responses.push(renewal.promise); h.renew(video); await flush();
     assert.equal(state.resolving, true); assert.equal(h.requests.length, 2);
-    first.fatal(); first.fatal();
+    first.fatal({ response: { code: 401 } }); first.fatal({ response: { code: 401 } });
     assert.equal(first.destroyed, 0); assert.equal(video.dataset.sautiStreamManaged, 'true');
     assert.equal(h.requests.length, 2); assert.equal(h.warnings.length, 1);
     renewal.resolve(descriptorResponse('c')); await flush();
@@ -145,6 +146,109 @@ test('an expired fragment joins proactive renewal, repeated errors cannot tear i
     const quality = streamQualityState(video);
     first.emit(h.FakeHls.Events.LEVEL_SWITCHED, { level: 0 });
     assert.deepEqual(streamQualityState(video), quality, 'late events from the replaced controller cannot change current quality');
+  } finally { h.close(); }
+});
+
+test('a 401 before grant expiry renews through the normal descriptor and replacement failures stay bounded', async () => {
+  const h = harness();
+  try {
+    const video = await h.start(), first = h.instances[0], state = video.__sautiStreamState;
+    assert.ok(state.expiresAt > Date.now() + 15000, 'the media cookie can expire before this newer grant');
+    h.responses.push(descriptorResponse('c'));
+    first.fatal({ response: { code: 401 } }); first.fatal({ response: { code: 401 } });
+    await flush();
+    assert.equal(h.requests.length, 2, 'duplicate errors join one authorized descriptor read');
+    assert.equal(h.instances.length, 2); assert.equal(first.destroyed, 1);
+    const second = h.instances[1];
+    second.manifest(); video.emit('loadedmetadata');
+    assert.equal(video.currentTime, 18); assert.equal(video.playbackRate, 1.5); assert.equal(video.paused, false);
+    first.emit(h.FakeHls.Events.FRAG_BUFFERED, {});
+    second.fatal({ response: { code: 401 } }); second.fatal({ response: { code: 401 } });
+    await flush();
+    assert.equal(h.requests.length, 2, 'a replacement that still cannot authorize cannot renew in a loop');
+    assert.equal(h.instances.length, 2); assert.equal(state.hls, null);
+    assert.equal(second.destroyed, 1); assert.equal(video.loads, 1); assert.equal(video.src, MP4);
+  } finally { h.close(); }
+});
+
+test('a later 401 may recover after the current controller has actually buffered an authorized fragment', async () => {
+  const h = harness();
+  try {
+    const video = await h.start();
+    h.responses.push(descriptorResponse('c'));
+    h.instances[0].fatal({ response: { code: 401 } }); await flush();
+    const second = h.instances[1]; assert.ok(second);
+    second.manifest(); video.emit('loadedmetadata');
+    second.emit(h.FakeHls.Events.FRAG_BUFFERED, {});
+    h.responses.push(descriptorResponse('d'));
+    second.fatal({ response: { code: 401 } }); await flush();
+    assert.equal(h.requests.length, 3); assert.equal(h.instances.length, 3);
+    assert.equal(video.__sautiStreamState.hls, h.instances[2]); assert.equal(video.loads, 0);
+  } finally { h.close(); }
+});
+
+test('a descriptor 401 refreshes the media cookie once; a second 401 or 403 remains denied', async () => {
+  for (const deniedStatus of [401, 403]) {
+    const h = harness();
+    try {
+      const video = await h.start();
+      h.responses.push({ ok: false, status: 401 }, { ok: false, status: deniedStatus });
+      h.instances[0].fatal({ response: { code: 401 } }); await flush();
+      assert.equal(h.requests.length, 3, 'one initial read plus one bounded descriptor retry');
+      assert.deepEqual(h.sessionEnsures, [false, false, true]);
+      assert.equal(h.instances.length, 1); assert.equal(video.__sautiStreamState.hls, null);
+      assert.equal(video.dataset.sautiStreamManaged, undefined); assert.equal(video.loads, 1);
+      assert.equal(video.src, MP4, 'the fallback retains the normal protected URL');
+    } finally { h.close(); }
+  }
+});
+
+test('a missing cookie on initial descriptor read is renewed without bypassing normal authorization', async () => {
+  const h = harness();
+  try {
+    h.responses.push({ ok: false, status: 401 }, descriptorResponse());
+    const video = new h.FakeVideo(); enhanceSautiStreamPlayback(video); await flush();
+    assert.equal(h.requests.length, 2); assert.equal(h.instances.length, 1);
+    assert.deepEqual(h.sessionEnsures, [false, true]);
+    assert.equal(video.dataset.sautiStreamManaged, 'true');
+  } finally { h.close(); }
+});
+
+test('pausing during forced media-cookie renewal preserves current pause and seek intent', async () => {
+  const h = harness();
+  try {
+    const video = await h.start(), renewal = deferred();
+    window.SautiLinkVideoMediaSession.ensure = async ({ force = false } = {}) => {
+      if (force) await renewal.promise;
+    };
+    h.responses.push({ ok: false, status: 401 }, descriptorResponse('c'));
+    h.instances[0].fatal({ response: { code: 401 } }); await flush();
+    video.dataset.sautiUserPaused = 'true'; video.pause(); video.currentTime = 7;
+    const plays = video.plays;
+    renewal.resolve(); await flush();
+    h.instances[1].manifest(); video.emit('loadedmetadata');
+    assert.equal(video.currentTime, 7); assert.equal(video.playbackRate, 1.5);
+    assert.equal(video.paused, true); assert.equal(video.plays, plays);
+    assert.equal(video.dataset.sautiStreamManaged, 'true'); assert.equal(video.loads, 0);
+  } finally { h.close(); }
+});
+
+test('account change during cookie renewal prevents the old descriptor retry and clears its media', async () => {
+  const h = harness();
+  try {
+    const video = await h.start(), state = video.__sautiStreamState, renewal = deferred();
+    window.SautiLinkVideoMediaSession.ensure = async ({ force = false } = {}) => {
+      if (force) await renewal.promise;
+    };
+    h.responses.push({ ok: false, status: 401 });
+    h.instances[0].fatal({ response: { code: 401 } }); await flush();
+    assert.equal(h.requests.length, 2);
+    h.signIn(OTHER_USER);
+    renewal.resolve(); await flush();
+    assert.equal(h.requests.length, 2, 'no descriptor retry may start for an ended account');
+    assert.equal(state.destroyed, true); assert.equal(h.requests[1].options.signal.aborted, true);
+    assert.equal(video.__sautiStreamState, undefined); assert.equal(video.src, ''); assert.equal(video.poster, '');
+    assert.equal(h.instances.length, 1);
   } finally { h.close(); }
 });
 

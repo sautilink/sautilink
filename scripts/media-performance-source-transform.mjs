@@ -331,48 +331,125 @@ export function transformMediaPerformanceSource(filePath, source) {
 }`,
     `const SAUTI_MEDIA_VARIANT_WIDTHS = Object.freeze([480, 960, 1440]);
 const SAUTI_VIDEO_SESSION_REFRESH_MS = 4 * 60 * 1000;
+const SAUTI_VIDEO_SESSION_REQUEST_TIMEOUT_MS = 8000;
 let sautiVideoSessionReadyUntil = 0;
-let sautiVideoSessionPromise = null;
 let sautiVideoSessionRefreshTimer = 0;
+let sautiVideoSessionAuthorization = '';
+let sautiVideoSessionGeneration = 0;
+let sautiVideoSessionAuthorizationRead = 0;
+let sautiVideoSessionLatestAuthorizationRead = 0;
+let sautiVideoSessionRequest = null;
+let sautiVideoSessionClearPromise = null;
 
-function scheduleSautiVideoSessionRefresh() {
+function hasSautiVideoSessionConsumer() {
+  // HLS MediaSource players use blob: URLs but still fetch every protected
+  // playlist and fragment with the same short-lived media-session cookie.
+  return Boolean(document.querySelector('video[src*="/api/sauti-media/"], video[data-sauti-stream-managed="true"]'));
+}
+
+function scheduleSautiVideoSessionRefresh(delay = SAUTI_VIDEO_SESSION_REFRESH_MS) {
   window.clearTimeout(sautiVideoSessionRefreshTimer);
   sautiVideoSessionRefreshTimer = window.setTimeout(() => {
     sautiVideoSessionRefreshTimer = 0;
-    if (!document.hidden && document.querySelector('video[src*="/api/sauti-media/"]')) {
+    if (!document.hidden && hasSautiVideoSessionConsumer()) {
       void ensureSautiVideoSession().catch(() => {});
     }
-  }, SAUTI_VIDEO_SESSION_REFRESH_MS);
+  }, delay);
 }
 
-async function ensureSautiVideoSession() {
-  if (Date.now() < sautiVideoSessionReadyUntil) return;
-  if (sautiVideoSessionPromise) return sautiVideoSessionPromise;
+function resetSautiVideoSessionRequest() {
+  window.clearTimeout(sautiVideoSessionRefreshTimer);
+  sautiVideoSessionRefreshTimer = 0;
+  sautiVideoSessionReadyUntil = 0;
+  const previous = sautiVideoSessionRequest;
+  sautiVideoSessionRequest = null;
+  previous?.controller.abort();
+}
 
-  sautiVideoSessionPromise = (async () => {
-    const headers = await currentAuthorizationHeader();
-    if (!headers.Authorization) throw new Error('MEDIA_AUTH_REQUIRED');
-    const response = await fetch('/api/sauti-media/session', {
-      method: 'POST',
-      headers,
+function invalidateSautiVideoSession() {
+  sautiVideoSessionGeneration++;
+  resetSautiVideoSessionRequest();
+  sautiVideoSessionAuthorization = '';
+}
+
+function startSautiVideoSessionMutation(options, waitFor = null) {
+  const controller = new AbortController();
+  let onAbort;
+  const cancelled = new Promise((_, reject) => {
+    onAbort = () => reject(new Error('MEDIA_SESSION_CANCELLED'));
+    controller.signal.addEventListener('abort', onAbort, { once: true });
+  });
+  const timeout = window.setTimeout(() => controller.abort(), SAUTI_VIDEO_SESSION_REQUEST_TIMEOUT_MS);
+  const response = (async () => {
+    // A slow logout DELETE must settle before issuing the next account's cookie.
+    await waitFor;
+    if (controller.signal.aborted) throw new Error('MEDIA_SESSION_CANCELLED');
+    return fetch('/api/sauti-media/session', {
+      ...options,
       credentials: 'same-origin',
+      signal: controller.signal,
     });
+  })();
+  const promise = Promise.race([response, cancelled]).finally(() => {
+    window.clearTimeout(timeout);
+    controller.signal.removeEventListener('abort', onAbort);
+  });
+  return { controller, promise };
+}
+
+async function ensureSautiVideoSession({ force = false } = {}) {
+  const generation = sautiVideoSessionGeneration;
+  const authorizationRead = ++sautiVideoSessionAuthorizationRead;
+  const headers = await currentAuthorizationHeader();
+  const authorization = headers.Authorization || '';
+  if (generation !== sautiVideoSessionGeneration
+    || (authorizationRead < sautiVideoSessionLatestAuthorizationRead
+      && authorization !== sautiVideoSessionAuthorization)) {
+    throw new Error('MEDIA_SESSION_CANCELLED');
+  }
+  sautiVideoSessionLatestAuthorizationRead = Math.max(sautiVideoSessionLatestAuthorizationRead, authorizationRead);
+  // Both readiness and in-flight work belong to the current exact session.
+  // Check it before deduplication, including when the local window is fresh.
+  if (authorization !== sautiVideoSessionAuthorization) {
+    resetSautiVideoSessionRequest();
+    sautiVideoSessionAuthorization = authorization;
+  }
+  if (!authorization) throw new Error('MEDIA_AUTH_REQUIRED');
+  if (sautiVideoSessionRequest) return sautiVideoSessionRequest.promise;
+  if (!force && Date.now() < sautiVideoSessionReadyUntil) return;
+
+  resetSautiVideoSessionRequest();
+  const request = startSautiVideoSessionMutation({
+    method: 'POST', headers: { Authorization: authorization },
+  }, sautiVideoSessionClearPromise);
+  sautiVideoSessionRequest = request;
+  request.promise = request.promise.then((response) => {
+    if (generation !== sautiVideoSessionGeneration || sautiVideoSessionRequest !== request
+      || request.controller.signal.aborted) throw new Error('MEDIA_SESSION_CANCELLED');
     if (!response.ok) throw new Error('MEDIA_SESSION_FAILED');
     sautiVideoSessionReadyUntil = Date.now() + SAUTI_VIDEO_SESSION_REFRESH_MS;
     scheduleSautiVideoSessionRefresh();
-  })();
+  }).finally(() => {
+    if (sautiVideoSessionRequest === request) sautiVideoSessionRequest = null;
+  });
+  return request.promise;
+}
 
-  try {
-    await sautiVideoSessionPromise;
-  } finally {
-    sautiVideoSessionPromise = null;
-  }
+function syncSautiVideoSessionAuthorization(event, session) {
+  const authorization = event !== 'SIGNED_OUT' && session?.access_token
+    ? 'Bearer ' + session.access_token : '';
+  if (event !== 'SIGNED_OUT' && authorization === sautiVideoSessionAuthorization) return;
+  invalidateSautiVideoSession();
+  sautiVideoSessionAuthorization = authorization;
+  // Supabase auth callbacks must remain synchronous. Any getSession work runs
+  // on a later task, outside the auth callback's lock.
+  if (authorization) scheduleSautiVideoSessionRefresh(0);
 }
 
 window.SautiLinkVideoMediaSession = Object.freeze({ ensure: ensureSautiVideoSession });
 
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && document.querySelector('video[src*="/api/sauti-media/"]')) {
+  if (!document.hidden && hasSautiVideoSessionConsumer()) {
     void ensureSautiVideoSession().catch(() => {});
   }
 });
@@ -386,15 +463,14 @@ async function fetchSautiVideoStreamUrl(id, quality = 'original') {
 }
 
 function clearSautiVideoSession() {
-  window.clearTimeout(sautiVideoSessionRefreshTimer);
-  sautiVideoSessionRefreshTimer = 0;
-  sautiVideoSessionReadyUntil = 0;
-  sautiVideoSessionPromise = null;
-  return fetch('/api/sauti-media/session', {
-    method: 'DELETE',
-    credentials: 'same-origin',
-    keepalive: true,
-  }).catch(() => null);
+  invalidateSautiVideoSession();
+  if (sautiVideoSessionClearPromise) return sautiVideoSessionClearPromise;
+  const request = startSautiVideoSessionMutation({ method: 'DELETE', keepalive: true });
+  const promise = request.promise.catch(() => null).finally(() => {
+    if (sautiVideoSessionClearPromise === promise) sautiVideoSessionClearPromise = null;
+  });
+  sautiVideoSessionClearPromise = promise;
+  return promise;
 }
 
 function selectSautiMediaVariantWidth(media, tile) {
@@ -661,6 +737,14 @@ function clearHomeFeedMediaState() {
   content?.querySelectorAll('video').forEach((video) => video.pause());
   content?.replaceChildren();`,
     'the fullscreen media cleanup',
+  );
+
+  output = replaceExactOnce(
+    output,
+    `supabase.auth.onAuthStateChange((event, session) => {`,
+    `supabase.auth.onAuthStateChange((event, session) => {
+  syncSautiVideoSessionAuthorization(event, session);`,
+    'the video media session auth lifecycle',
   );
 
   output = replaceExactOnce(
