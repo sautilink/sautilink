@@ -3,6 +3,9 @@
   "name": "sautilink-social-production",
   "compatibility_date": "2026-08-17",
   "main": "./dist-production-worker/src/worker-entry.js",
+  "placement": {
+    "mode": "smart"
+  },
   "routes": [
     {
       "pattern": "sautilink.com/sw.js*",
