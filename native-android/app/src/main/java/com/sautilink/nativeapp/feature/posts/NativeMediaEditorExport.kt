@@ -64,9 +64,13 @@ internal fun renderEditedBitmap(source: Bitmap, edits: NativeImageEdits): Bitmap
         result.setHasAlpha(source.hasAlpha())
         val contrast = edits.contrast.coerceIn(.7f, 1.3f)
         val offset = 128f * (1f - contrast) + edits.brightness.coerceIn(-.3f, .3f) * 255f
+        val saturation = ColorMatrix().apply { setSaturation(edits.saturation.coerceIn(0f, 1.5f)) }
+        val warmth = edits.warmth.coerceIn(-.2f, .2f)
+        val adjustment = ColorMatrix(floatArrayOf(contrast * (1f + warmth),0f,0f,0f,offset,
+            0f,contrast,0f,0f,offset, 0f,0f,contrast * (1f - warmth),0f,offset, 0f,0f,0f,1f,0f))
+        adjustment.postConcat(saturation)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
-            colorFilter = ColorMatrixColorFilter(floatArrayOf(contrast,0f,0f,0f,offset, 0f,contrast,0f,0f,offset,
-                0f,0f,contrast,0f,offset, 0f,0f,0f,1f,0f))
+            colorFilter = ColorMatrixColorFilter(adjustment)
         }
         Canvas(result).drawBitmap(rotated, Rect(crop.left, crop.top, crop.left + crop.width, crop.top + crop.height), Rect(0, 0, crop.width, crop.height), paint)
         return result
@@ -113,13 +117,51 @@ internal suspend fun localVideoThumbnail(context: Context, uri: Uri): Bitmap? = 
 /** Export only the selected interval; the original picker item is never modified. */
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 internal suspend fun exportTrimmedVideo(context: Context, uri: Uri, durationMs: Long, trim: NativeMediaEditPolicy.Trim,
+    maximumMs: Long = NativeMediaEditPolicy.MAX_VIDEO_MS,
     onProgress: (Int) -> Unit): NativeEditedMedia {
-    val output = File(context.cacheDir, "sauti-edit-${UUID.randomUUID()}.mp4")
+    var pendingOutput: File? = null
     try {
         return withContext(Dispatchers.Main.immediate) {
-            require(NativeMediaEditPolicy.validTrim(durationMs, trim.startMs, trim.endMs)) { "Select a clip of 60 seconds or less." }
-            if (trim.startMs == 0L && trim.endMs == durationMs && context.contentResolver.getType(uri) == "video/mp4")
-                return@withContext NativeEditedMedia(uri)
+            require(NativeMediaEditPolicy.validTrim(durationMs, trim.startMs, trim.endMs, maximumMs)) { "Select a clip of ${maximumMs / 1000} seconds or less." }
+            if (trim.startMs == 0L && trim.endMs == durationMs && context.contentResolver.getType(uri) == "video/mp4" &&
+                localVideoDuration(context, uri) in 1..maximumMs) return@withContext NativeEditedMedia(uri)
+            // AAC packets, edit lists and muxer timestamps can add a few samples
+            // beyond a nominal clipping end (Samsung returned 30,080ms for 30s).
+            // Leave a small margin only near the upload ceiling, then measure the
+            // actual MP4. Never return a clip which the strict server will reject.
+            val safetyMs = 150L
+            var endMs = trim.startMs + minOf(trim.durationMs, (maximumMs - safetyMs).coerceAtLeast(1L))
+            var lastProgress = 0
+            repeat(3) {
+                ensureActive()
+                val output = File(context.cacheDir, "sauti-edit-${UUID.randomUUID()}.mp4")
+                pendingOutput = output
+                exportVideoInterval(context, uri, trim.startMs, endMs, output) { value ->
+                    lastProgress = maxOf(lastProgress, value.coerceIn(0, 95)); onProgress(lastProgress)
+                }
+                ensureActive()
+                val measuredMs = localVideoDuration(context, Uri.fromFile(output))
+                if (measuredMs in 1..maximumMs) {
+                    onProgress(100)
+                    ensureActive()
+                    return@withContext NativeEditedMedia(Uri.fromFile(output), output)
+                }
+                output.delete(); pendingOutput = null
+                check(measuredMs > maximumMs) { "The exported video could not be read. Choose another clip." }
+                endMs -= (measuredMs - maximumMs) + safetyMs
+                check(endMs > trim.startMs) { "Could not prepare this video within the duration limit. Choose a shorter clip." }
+            }
+            error("Could not prepare this video within the duration limit. Choose a slightly shorter clip.")
+        }
+    } catch (error: Throwable) { pendingOutput?.delete(); throw error }
+}
+
+/** One bounded attempt. Retries always read the unchanged original, not a prior
+ * encoded result, so they do not accumulate quality loss or touch source files.
+ */
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+private suspend fun exportVideoInterval(context: Context, uri: Uri, startMs: Long, endMs: Long, output: File,
+    onProgress: (Int) -> Unit): Unit = withContext(Dispatchers.Main.immediate) {
             suspendCancellableCoroutine { continuation ->
                 val handler = Handler(Looper.getMainLooper())
                 var poll: Runnable? = null
@@ -128,7 +170,7 @@ internal suspend fun exportTrimmedVideo(context: Context, uri: Uri, durationMs: 
                     .addListener(object : Transformer.Listener {
                         override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                             poll?.let(handler::removeCallbacks)
-                            if (continuation.isActive) continuation.resume(NativeEditedMedia(Uri.fromFile(output), output)) else output.delete()
+                            if (continuation.isActive) continuation.resume(Unit) else output.delete()
                         }
                         override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
                             poll?.let(handler::removeCallbacks); output.delete()
@@ -146,7 +188,7 @@ internal suspend fun exportTrimmedVideo(context: Context, uri: Uri, durationMs: 
                 continuation.invokeOnCancellation { handler.post { poll?.let(handler::removeCallbacks); transformer.cancel(); output.delete() } }
                 try {
                     val item = MediaItem.Builder().setUri(uri).setClippingConfiguration(MediaItem.ClippingConfiguration.Builder()
-                        .setStartPositionMs(trim.startMs).setEndPositionMs(trim.endMs).build()).build()
+                        .setStartPositionMs(startMs).setEndPositionMs(endMs).build()).build()
                     transformer.start(EditedMediaItem.Builder(item).build(), output.absolutePath)
                     handler.post(poll!!)
                 } catch (error: Exception) {
@@ -154,6 +196,4 @@ internal suspend fun exportTrimmedVideo(context: Context, uri: Uri, durationMs: 
                     if (continuation.isActive) continuation.resumeWithException(error)
                 }
             }
-        }
-    } catch (error: Throwable) { output.delete(); throw error }
 }

@@ -48,8 +48,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "STAGING_SUPABASE_PUBLISHABLE_KEY", "\"${stagingPublishableKey}\"")
         buildConfigField("String", "PRODUCTION_SUPABASE_PUBLISHABLE_KEY", "\"${productionPublishableKey}\"")
-        versionCode = 49
-        versionName = "1.1.4"
+        versionCode = 50
+        versionName = "1.1.5"
     }
     flavorDimensions += "distribution"
     productFlavors {
@@ -112,6 +112,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-text-google-fonts:1.10.0")
     // Tested on-device after Android Studio sync. Keep all Media3 modules on one version.
     implementation("androidx.media3:media3-exoplayer:1.11.1")
+    implementation("androidx.media3:media3-exoplayer-hls:1.11.1")
     implementation("androidx.media3:media3-datasource-okhttp:1.11.1")
     implementation("androidx.media3:media3-ui:1.11.1")
     implementation("androidx.media3:media3-transformer:1.11.1")

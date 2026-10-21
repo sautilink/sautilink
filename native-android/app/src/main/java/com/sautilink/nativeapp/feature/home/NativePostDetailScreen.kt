@@ -234,7 +234,7 @@ fun NativePostDetailScreen(
                     // The identity and caption remain behind the sheet without active media.
                     if (item.media.isNotEmpty() && !commentsMode) item {
                         PostMediaGallery(auth, item.media,
-                            bufferingOverlayEnabled = true, adaptivePlaybackEnabled = false,
+                            bufferingOverlayEnabled = true, adaptivePlaybackEnabled = true,
                             onDoubleTapLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
                     }
                     item {

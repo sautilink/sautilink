@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import com.sautilink.nativeapp.ui.components.sautiActionFeedback
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -72,6 +73,9 @@ import com.sautilink.nativeapp.ui.components.NativeVideoMetadata
 import com.sautilink.nativeapp.ui.components.NativeVideoQualityPolicy
 import com.sautilink.nativeapp.ui.components.VideoPlaybackSettingsSheet
 import com.sautilink.nativeapp.ui.components.rememberVideoPlaybackQuality
+import com.sautilink.nativeapp.ui.components.rememberNativePlaybackSource
+import com.sautilink.nativeapp.ui.components.NativeHlsQualitySelection
+import com.sautilink.nativeapp.ui.components.rememberNativeHlsQualities
 import com.sautilink.nativeapp.ui.components.nativeVideoPlaybackResources
 import com.sautilink.nativeapp.ui.components.ShortVideoProgressControls
 import com.sautilink.nativeapp.ui.components.VideoSettingsButton
@@ -285,8 +289,15 @@ fun ProductionShortVideosScreen(
     var playbackIntent by remember(auth, accountId, clip?.mediaId) { mutableStateOf<Boolean?>(null) }
     val wantsPlayback = playbackIntent ?: autoplay
     val accessToken = token
+    val playbackRead = rememberNativePlaybackSource(auth, clip?.mediaId,
+        clip?.let { "/api/sauti-media/${it.mediaId}/playback" },
+        enabled = accessToken != null && clip != null && online && lifecycleState.isAtLeast(Lifecycle.State.STARTED),
+        fallbackPath = clip?.let { "/api/sauti-media/${it.mediaId}" })
+    val streamSource = playbackRead.source
+    val hls = streamSource?.hls == true
+    val latestBearer by rememberUpdatedState(playbackRead.bearer ?: accessToken)
     val resources = remember(auth, accountId, accessToken) {
-        accessToken?.let { nativeVideoPlaybackResources(context, auth.mediaOrigin, it) {
+        accessToken?.let { nativeVideoPlaybackResources(context, auth.mediaOrigin, it, authorizationToken = { latestBearer }) {
             accountId != null && auth.account?.id == accountId
         } }
     }
@@ -302,6 +313,8 @@ fun ProductionShortVideosScreen(
     }
     val playbackOwner = remember(player) { accountId }
     val actualQuality = rememberVideoPlaybackQuality(player)
+    val streamQualities = rememberNativeHlsQualities(player)
+    NativeHlsQualitySelection(player, hls, NativeVideoQualityPolicy.normalizePreference(quality))
     // Error ownership follows this decoder, including Media3's error-clear event after Retry.
     var playbackError by remember(player) {
         mutableStateOf(player?.playerError?.let { "This video could not be played." })
@@ -313,6 +326,7 @@ fun ProductionShortVideosScreen(
         mutableStateOf((player?.playbackSuppressionReason ?: Player.PLAYBACK_SUPPRESSION_REASON_NONE) != Player.PLAYBACK_SUPPRESSION_REASON_NONE)
     }
     var currentMediaId by remember(player) { mutableStateOf(player?.currentMediaItem?.mediaId) }
+    var renderedMediaId by remember(player) { mutableStateOf<String?>(null) }
     DisposableEffect(player) {
         if (player == null) onDispose { } else {
             val listener = object : Player.Listener {
@@ -327,6 +341,7 @@ fun ProductionShortVideosScreen(
                     // pass the rounded timeline end; only explicit seek commands are clamped.
                 }
                 override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
+                override fun onRenderedFirstFrame() { renderedMediaId = player.currentMediaItem?.mediaId }
                 override fun onPlayerError(e: PlaybackException) {
                     playbackError = "This video could not be played."
                     logVideoPlaybackFailure(VideoPlaybackScope.SHORTS, e, player)
@@ -382,7 +397,7 @@ fun ProductionShortVideosScreen(
         NativeVideoQualityPolicy.selectQuality(preference, metadata, network)
     }
     val selectedQuality = rememberVideoRecoveryQuality(player, playbackOwner, clip?.mediaId, metadata, preference, baseQuality,
-        enabled = preference == "auto", online = online, eligible = online && wantsPlayback &&
+        enabled = !hls && preference == "auto", online = online, eligible = online && wantsPlayback &&
             lifecycleState.isAtLeast(Lifecycle.State.STARTED), requested = playbackRequested,
         playing = playing, playbackState = playbackState, suppressed = playbackSuppressed,
         hasError = playbackError != null) {
@@ -390,30 +405,36 @@ fun ProductionShortVideosScreen(
             clips.getOrNull(pager.settledPage)?.mediaId == clip?.mediaId &&
             owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
     }
-    val sourceUri = clip?.let { auth.mediaOrigin + videoPlaybackPath("/api/sauti-media/${it.mediaId}", selectedQuality) }
-    LaunchedEffect(player, clip?.mediaId, sourceUri, preference, online) {
+    val sourceUri = if (hls) streamSource?.url else clip?.takeIf { streamSource != null }?.let {
+        auth.mediaOrigin + videoPlaybackPath("/api/sauti-media/${it.mediaId}", selectedQuality) }
+    LaunchedEffect(player, clip?.mediaId, sourceUri, preference, online, playbackRead.denied) {
         if (player == null || clip == null || !online || auth.account?.id != playbackOwner) {
             player?.pause(); return@LaunchedEffect
         }
         val sameClip = player.currentMediaItem?.mediaId == clip.mediaId
-        val uri = checkNotNull(sourceUri)
-        val explicitChoice = appliedPreference != null && appliedPreference != preference
-        if (sameClip && player.playerError != null && !explicitChoice) return@LaunchedEffect
+        if (playbackRead.denied) { playbackError = "This video is no longer available."; player.stop(); return@LaunchedEffect }
+        val uri = sourceUri ?: run { if (!sameClip) { player.stop(); player.clearMediaItems(); renderedMediaId = null }; return@LaunchedEffect }
+        streamSource?.let { resources?.hlsGrants?.authorize(it) }
+        val explicitChoice = !hls && appliedPreference != null && appliedPreference != preference
+        val renewedGrant = hls && player.currentMediaItem?.localConfiguration?.uri?.toString() != uri
+        if (sameClip && player.playerError != null && !explicitChoice && !renewedGrant) return@LaunchedEffect
         if (sameClip && player.playerError == null && player.currentMediaItem?.localConfiguration?.uri?.toString() == uri) {
             appliedPreference = preference
             return@LaunchedEffect
         }
         playbackError = null
         appliedPreference = preference
-        replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(clip.mediaId).setUri(uri).build(),
+        if (!sameClip) renderedMediaId = null
+        replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(clip.mediaId).setUri(uri)
+            .setMimeType(if (hls) androidx.media3.common.MimeTypes.APPLICATION_M3U8 else androidx.media3.common.MimeTypes.VIDEO_MP4).build(),
             keepPosition = sameClip, requested = videoPlaybackRequested(playbackIntent, autoplay, online,
                 owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED), currentMedia = true, hasError = false))
     }
-    LaunchedEffect(player, wantsPlayback, online, clip?.mediaId, lifecycleState) {
+    LaunchedEffect(player, wantsPlayback, online, clip?.mediaId, lifecycleState, sourceUri) {
         if (player == null) return@LaunchedEffect
         player.playWhenReady = videoPlaybackRequested(playbackIntent, autoplay, online,
             owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED),
-            currentMedia = clip != null && auth.account?.id == playbackOwner && player.currentMediaItem?.mediaId == clip.mediaId,
+            currentMedia = clip != null && sourceUri != null && auth.account?.id == playbackOwner && player.currentMediaItem?.mediaId == clip.mediaId,
             hasError = player.playerError != null)
     }
 
@@ -450,7 +471,11 @@ fun ProductionShortVideosScreen(
                             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                             this.player = player
                         } }, update = { it.player = player; it.keepScreenOn = playing },
-                            onRelease = { it.player = null }, modifier = Modifier.fillMaxSize())
+                            onRelease = { it.player = null }, modifier = Modifier.fillMaxSize()
+                                .graphicsLayer { alpha = if (renderedMediaId == item.mediaId) 1f else 0f })
+                        if (renderedMediaId != item.mediaId) com.sautilink.nativeapp.feature.home.AuthorizedImage(
+                            auth, "/api/sauti-media/${item.mediaId}?poster=1", "Video cover", Modifier.fillMaxSize(),
+                            crop = false, showFailureFallback = false)
                         SautiVideoGestureSurface(Modifier.fillMaxSize(),
                             playbackLabel = if (playbackRequested) "Pause video" else "Play video",
                             onPlayback = {
@@ -469,9 +494,9 @@ fun ProductionShortVideosScreen(
                             onLike = if (canInteract && "like:${item.post.id}" !in busyActions) ({
                                 if (likeStates[item.post.id] != true) togglePostAction(item.post, "like")
                             }) else null) {
-                            val showBuffering = playbackState == Player.STATE_BUFFERING && playbackRequested &&
+                            val showBuffering = (playbackRead.loading || playbackState == Player.STATE_BUFFERING && playbackRequested &&
                                 !playbackSuppressed && currentMediaId == item.mediaId &&
-                                lifecycleState.isAtLeast(Lifecycle.State.STARTED) && playbackError == null
+                                lifecycleState.isAtLeast(Lifecycle.State.STARTED)) && playbackError == null
                             if (showBuffering) VideoBufferingOverlay(true)
                             else if (!playing && playbackError == null) Icon(Icons.Rounded.PlayArrow,
                                 "Play video", Modifier.size(58.dp), tint = Color.White)
@@ -482,8 +507,9 @@ fun ProductionShortVideosScreen(
                                         clips.getOrNull(pager.settledPage)?.mediaId == item.mediaId) {
                                         playbackIntent = true
                                         playbackError = null
-                                        replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(item.mediaId)
-                                            .setUri(auth.mediaOrigin + videoPlaybackPath("/api/sauti-media/${item.mediaId}", selectedQuality)).build(),
+                                        playbackRead.retry()
+                                        if (sourceUri != null) replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(item.mediaId)
+                                            .setUri(sourceUri).setMimeType(if (hls) androidx.media3.common.MimeTypes.APPLICATION_M3U8 else androidx.media3.common.MimeTypes.VIDEO_MP4).build(),
                                             keepPosition = true, requested = online && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
                                     }
                                 }) { Text("Retry playback") }
@@ -498,7 +524,7 @@ fun ProductionShortVideosScreen(
                         .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .85f)))))
                     Column(Modifier.align(Alignment.BottomStart).padding(start = 16.dp,
                         end = if (wideRail) 188.dp else if (compactRail) 132.dp else 76.dp,
-                        bottom = if (timelineExpanded) 84.dp else 52.dp),
+                        bottom = if (timelineExpanded) 52.dp else 44.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -540,7 +566,7 @@ fun ProductionShortVideosScreen(
                     }
                     if (compactRail) {
                         FlowRow(Modifier.align(Alignment.BottomEnd)
-                            .padding(end = 4.dp, bottom = if (timelineExpanded) 80.dp else 52.dp).width(if (wideRail) 169.dp else 113.dp),
+                            .padding(end = 4.dp, bottom = 48.dp).width(if (wideRail) 169.dp else 113.dp),
                             maxItemsInEachRow = if (wideRail) 3 else 2,
                             horizontalArrangement = Arrangement.spacedBy(0.dp),
                             verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -548,7 +574,7 @@ fun ProductionShortVideosScreen(
                         }
                     } else {
                         Column(Modifier.align(Alignment.BottomEnd)
-                            .padding(end = 4.dp, bottom = if (timelineExpanded) 80.dp else 52.dp),
+                            .padding(end = 4.dp, bottom = 48.dp),
                             verticalArrangement = Arrangement.spacedBy(0.dp),
                             horizontalAlignment = Alignment.CenterHorizontally) {
                             railActions()
@@ -595,7 +621,8 @@ fun ProductionShortVideosScreen(
     }
     if (qualityOpen) VideoPlaybackSettingsSheet(
         preference = preference, currentQuality = actualQuality,
-        availableQualities = NativeVideoQualityPolicy.availableQualities(metadata), speed = playbackSpeed,
+        availableQualities = if (hls) streamQualities.ifEmpty { streamSource?.qualities.orEmpty() }
+            else NativeVideoQualityPolicy.availableQualities(metadata), speed = playbackSpeed,
         onQuality = { quality = it; preferences.edit().putString("quality", it).apply() },
         onSpeed = { playbackSpeed = it; preferences.edit().putFloat("playback_speed", it).apply() },
         onDismiss = { qualityOpen = false }, autoplay = autoplay,
@@ -603,7 +630,7 @@ fun ProductionShortVideosScreen(
             playbackIntent = null
             autoplay = it; preferences.edit().putBoolean("autoplay", it).apply()
             if (!it) player?.pause()
-        })
+        }, adaptiveStream = hls)
 }
 
 @Composable

@@ -58,6 +58,8 @@ import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.menu.AnimatedHamburgerButton
 import com.sautilink.nativeapp.feature.marketplace.MarketplaceButton
+import com.sautilink.nativeapp.feature.stories.StoriesButton
+import com.sautilink.nativeapp.feature.stories.StoryProfileAvatarRing
 import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
 import com.sautilink.nativeapp.ui.components.SautiAvatar
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
@@ -92,6 +94,8 @@ fun StagingFeedScreen(
     onOpenSettings: () -> Unit = {},
     onOpenMenu: () -> Unit = {},
     onOpenMarketplace: () -> Unit = {},
+    onOpenStories: () -> Unit = {},
+    unseenStories: Int = 0,
     onOpenVideos: () -> Unit = {},
     onOpenRooms: () -> Unit = {},
     onOpenProfile: (String) -> Unit = {},
@@ -117,6 +121,12 @@ fun StagingFeedScreen(
     var posts by remember(accountId, mode) { mutableStateOf<List<StagingFeedPost>>(emptyList()) }
     var offset by remember(accountId, mode) { mutableIntStateOf(0) }
     var hasMore by remember(accountId, mode) { mutableStateOf(false) }
+    val feedListState = rememberLazyListState()
+    var userRefreshing by remember(auth, accountId, mode) { mutableStateOf(false) }
+    var scrollAfterRefresh by remember(auth, accountId, mode) { mutableStateOf(false) }
+    var newPostsAvailable by remember(auth, accountId, mode) { mutableStateOf(false) }
+    val newPostsTracker = remember(auth, accountId, mode) { FeedNewPostsTracker() }
+    val farFromTop by remember(feedListState) { derivedStateOf { feedListState.firstVisibleItemIndex >= 3 } }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val online = rememberNetworkAvailable()
@@ -132,6 +142,7 @@ fun StagingFeedScreen(
     var savedStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var repostStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var followingStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var followFeedbackVersion by remember(auth, accountId) { mutableStateOf<Map<String, Int>>(emptyMap()) }
     // Pending intent is separate from the state confirmed by the server.
     var pendingFollowStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     // Keep confirmed artwork across refresh/offline; a late GET cannot undo a confirmed tap.
@@ -396,8 +407,9 @@ fun StagingFeedScreen(
         val key = "follow:${post.authorId}"
         if (key in busyKeys) return
         val previous = followingStates[post.authorId]
-        // Unknown status is always interpreted as an explicit Follow, never Unfollow.
-        val desired = previous != true
+        // A feed tap only adds the relationship. Unfollow stays on the profile.
+        if (previous == true) return
+        val desired = true
         val expectedUserId = auth.account?.id
         busyKeys = busyKeys + key
         pendingFollowStates = pendingFollowStates + (post.authorId to desired)
@@ -410,10 +422,9 @@ fun StagingFeedScreen(
                 client.invalidateFollowing()
                 actionStateVersions.changed("follow:${post.authorId}")
                 followingStates = followingStates + (post.authorId to desired)
+                followFeedbackVersion = followFeedbackVersion + (post.authorId to refreshVersion)
                 failedFollowAuthors = failedFollowAuthors - post.authorId
                 followReadError = null
-                // Following must not continue showing an author the user has just unfollowed.
-                if (mode == "following" && !desired) refreshVersion++
             } catch (_: TimeoutCancellationException) {
                 if (auth.account?.id == expectedUserId) {
                     actionStateVersions.changed("follow:${post.authorId}")
@@ -452,54 +463,101 @@ fun StagingFeedScreen(
         }
     }
 
+    val canRefresh = account != null && sessionState == StagingSessionState.SIGNED_IN && online && !loading && !loadingMore && !userRefreshing
+    fun requestRefresh(scrollToTop: Boolean) {
+        if (!canRefresh || userRefreshing) return
+        userRefreshing = true
+        scrollAfterRefresh = scrollToTop
+        refreshVersion++
+    }
+
     LaunchedEffect(client, accountId, mode, refreshVersion, online) {
-        val cachedPage = if (account == null) null else client.cached(mode)
+        val readScope = FeedReadScope(accountId, mode, refreshVersion)
+        fun current() = readScope.current(auth.account?.id, mode, refreshVersion)
+        val cachedPage = if (account == null) null else client.cached(readScope.mode)
         // Existing rows/counts and confirmed viewer states stay visible during revalidation.
         // remember(account.id, mode) supplies an empty list for a genuinely different feed.
-        if (posts.isEmpty()) posts = cachedPage?.posts.orEmpty()
+        if (posts.isEmpty()) {
+            posts = cachedPage?.posts.orEmpty()
+            offset = cachedPage?.nextOffset ?: 0
+            hasMore = cachedPage?.hasMore ?: false
+        }
         followReadError = null
         likeReadError = null
         savedReadError = null
         repostReadError = null
         actionError = null
         actionErrorPostId = null
-        offset = cachedPage?.nextOffset ?: 0
         error = null
-        hasMore = cachedPage?.hasMore ?: false
-        if (account == null) { client.clearCache(); loading = false; return@LaunchedEffect }
+        if (account == null) { client.clearCache(); loading = false; userRefreshing = false; return@LaunchedEffect }
         if (!online) {
             loading = false
-            error = if (cachedPage == null) "Offline. Reconnect to load posts."
+            userRefreshing = false
+            scrollAfterRefresh = false
+            error = if (posts.isEmpty()) "Offline. Reconnect to load posts."
                 else "Offline. Showing recent posts saved in this session. Reconnect to refresh."
             return@LaunchedEffect
         }
-        if (cachedPage != null && refreshVersion == 0 && (client.cacheAgeMs(mode) ?: Long.MAX_VALUE) < 45_000L) {
+        if (cachedPage != null && refreshVersion == 0 && (client.cacheAgeMs(readScope.mode) ?: Long.MAX_VALUE) < 45_000L) {
             loading = false
             return@LaunchedEffect
         }
+        if (readScope.refreshVersion > 0) client.beginRefresh(readScope.mode)
         loading = true
         try {
-            val page = client.load(mode, 0)
+            val page = client.load(readScope.mode, 0)
+            if (!current()) return@LaunchedEffect
             posts = page.posts
-            if (mode == "saved") {
+            if (readScope.mode == "saved") {
                 // The private saved relationship query itself confirms this state.
                 savedStates = savedStates + page.posts.associate { it.id to true }
             }
             offset = page.nextOffset
             hasMore = page.hasMore
+            followFeedbackVersion = followFeedbackVersion.filterValues { it >= readScope.refreshVersion }
+            newPostsTracker.refreshed()
+            newPostsAvailable = false
+            if (scrollAfterRefresh) {
+                scrollAfterRefresh = false
+                feedListState.scrollToItem(0)
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (exception: Exception) {
-            error = if (cachedPage != null) "Could not refresh. Showing recent posts. ${exception.message.orEmpty()}"
+            if (!current()) return@LaunchedEffect
+            scrollAfterRefresh = false
+            error = if (posts.isNotEmpty()) "Could not refresh. Showing recent posts. ${exception.message.orEmpty()}"
                 else exception.message ?: "Unable to load feed."
         } finally {
-            loading = false
+            if (current()) { loading = false; userRefreshing = false }
         }
     }
 
     // The activity owns system-bar insets. Avoid doubling the status-bar spacer.
-    val feedListState = rememberLazyListState()
-    LaunchedEffect(mode) { feedListState.scrollToItem(0) }
+    LaunchedEffect(accountId, mode) { feedListState.scrollToItem(0) }
+    val pollHome = asHome && mode in setOf("following", "for_you", "trending") &&
+        accountId != null && sessionState == StagingSessionState.SIGNED_IN && online &&
+        lifecycleState.isAtLeast(Lifecycle.State.RESUMED) && !loading
+    LaunchedEffect(auth, accountId, mode, refreshVersion, pollHome) {
+        if (!pollHome) return@LaunchedEffect
+        val readScope = FeedReadScope(accountId, mode, refreshVersion)
+        while (readScope.current(auth.account?.id, mode, refreshVersion)) {
+            var nextPoll = 30_000L
+            if (!loadingMore) try {
+                val head = client.readHead(readScope.mode)
+                if (!readScope.current(auth.account?.id, mode, refreshVersion)) return@LaunchedEffect
+                newPostsAvailable = newPostsTracker.observe(head)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                // Quiet pointer polling never changes rows/errors or replays an action.
+                val status = (error as? FollowReadHttpFailure)?.status
+                    ?: (error as? com.sautilink.nativeapp.feature.auth.AuthRequestException)?.httpStatus
+                if (status == 401 || status == 403) return@LaunchedEffect
+                nextPoll = feedHeadPollDelay(error)
+            }
+            delay(nextPoll)
+        }
+    }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -536,11 +594,12 @@ fun StagingFeedScreen(
                 },
                 actions = {
                     if (!asHome) {
-                        IconButton(onClick = { refreshVersion++ }, enabled = account != null && !loading && !loadingMore) {
+                        IconButton(onClick = { requestRefresh(scrollToTop = true) }, enabled = canRefresh) {
                             Icon(Icons.Rounded.Refresh, "Refresh posts")
                         }
                     } else {
                         // Notifications already has a dedicated bottom-navigation destination.
+                        StoriesButton(unreadCount = unseenStories, onClick = onOpenStories)
                         MarketplaceButton(onClick = onOpenMarketplace)
                         AnimatedHamburgerButton(onClick = onOpenMenu)
                     }
@@ -552,8 +611,12 @@ fun StagingFeedScreen(
           }
         }
     ) { insets ->
+        FeedRefreshContainer(isRefreshing = userRefreshing && loading, refreshEnabled = canRefresh,
+            newPostsAvailable = asHome && farFromTop && newPostsAvailable,
+            onRefresh = { requestRefresh(scrollToTop = false) },
+            onNewPosts = { requestRefresh(scrollToTop = true) }, modifier = Modifier.fillMaxSize().padding(insets)) {
         LazyColumn(
-            Modifier.fillMaxSize().padding(insets),
+            Modifier.fillMaxSize(),
             state = feedListState,
             contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp,
                 bottom = if (asHome) 90.dp else 24.dp),
@@ -580,7 +643,7 @@ fun StagingFeedScreen(
             }
             if (actionError != null && account != null) item {
                 FeedMessageCard(actionError.orEmpty()) {
-                    TextButton(onClick = { actionError = null; actionErrorPostId = null; refreshVersion++ }) {
+                    TextButton(onClick = { actionError = null; actionErrorPostId = null; requestRefresh(scrollToTop = false) }) {
                         Text("Refresh posts")
                     }
                 }
@@ -603,7 +666,7 @@ fun StagingFeedScreen(
             } else {
                 if (loading && posts.isEmpty()) items(3) { SautiPostSkeleton() }
                 if (error != null) item { FeedMessageCard(error.orEmpty()) {
-                    OutlinedButton(onClick = { refreshVersion++ }, shape = SautiShape.Pill) { Text("Try again") }
+                    OutlinedButton(onClick = { requestRefresh(scrollToTop = true) }, shape = SautiShape.Pill) { Text("Try again") }
                 } }
                 if (!loading && error == null && posts.isEmpty()) item {
                     FeedMessageCard(when (mode) {
@@ -621,6 +684,7 @@ fun StagingFeedScreen(
                         online = online,
                         bufferingOverlayEnabled = asHome,
                         following = followingStates[post.authorId],
+                        showFollowingFeedback = post.authorId in followFeedbackVersion,
                         pendingFollow = pendingFollowStates[post.authorId],
                         busyFollow = "follow:${post.authorId}" in busyKeys,
                         followReadError = if (followingStates[post.authorId] == null) followReadError else null,
@@ -698,13 +762,15 @@ fun StagingFeedScreen(
                                     if (auth.account?.id == requestedUserId && mode == requestedMode && refreshVersion == requestedRefresh)
                                         error = exception.message ?: "Unable to load more posts."
                                 } finally {
-                                    loadingMore = false
+                                    if (auth.account?.id == requestedUserId && mode == requestedMode && refreshVersion == requestedRefresh)
+                                        loadingMore = false
                                 }
                             }
                         }, shape = SautiShape.Pill) { Text("Load more posts") }
                     }
                 }
             }
+        }
         }
     }
     val commentStateHolder = key(auth.backend.id, accountId) { rememberSaveableStateHolder() }
@@ -797,16 +863,14 @@ private fun feedLikeGesture(auth: StagingAuthClient, online: Boolean, busy: Bool
 }
 
 @Composable
-private fun FeedFollowButton(following: Boolean?, pending: Boolean?, enabled: Boolean,
+internal fun FeedFollowButton(following: Boolean?, pending: Boolean?, enabled: Boolean,
     onFollow: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
-    val label = when (pending) {
-        true -> "Following…"
-        false -> "Unfollowing…"
-        null -> if (following == true) "Following" else "Follow"
-    }
-    OutlinedButton(onClick = onFollow, enabled = enabled, interactionSource = interaction,
+    val label = if (pending == true) "Following…" else if (following == true) "Following" else "Follow"
+    OutlinedButton(onClick = onFollow, enabled = enabled && following != true && pending != true, interactionSource = interaction,
         modifier = Modifier.heightIn(min = 40.dp), shape = RoundedCornerShape(13.dp),
+        colors = ButtonDefaults.outlinedButtonColors(disabledContentColor = if (following == true)
+            MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant),
         contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp)) {
         Text(label, modifier = Modifier.sautiActionFeedback(interaction),
             style = MaterialTheme.typography.labelMedium, maxLines = 1)
@@ -848,6 +912,7 @@ private fun RealPostCard(
     online: Boolean,
     bufferingOverlayEnabled: Boolean,
     following: Boolean?,
+    showFollowingFeedback: Boolean,
     pendingFollow: Boolean?,
     busyFollow: Boolean,
     followReadError: String?,
@@ -878,7 +943,7 @@ private fun RealPostCard(
     val initials = post.authorName.split(" ").filter { it.isNotBlank() }.take(2)
         .map { it.first().uppercaseChar() }.joinToString("").ifBlank { "SL" }
     val doubleTapLike = feedLikeGesture(auth, online, busyLike, onDoubleTapLike)
-    val showFollow = feedFollowVisible(auth, post)
+    val showFollow = feedFollowVisible(auth, post) && feedFollowButtonVisible(following, showFollowingFeedback, pendingFollow)
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -901,6 +966,7 @@ private fun RealPostCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(9.dp)
             ) {
+                StoryProfileAvatarRing(post.authorHandle) {
                 if (post.hasAvatar && Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(post.authorHandle)) {
                     AuthorizedImage(
                         auth = auth,
@@ -910,6 +976,7 @@ private fun RealPostCard(
                         fallback = { SautiAvatar(initials, Modifier.size(44.dp), SautiColors.Blue) }
                     )
                 } else SautiAvatar(initials, Modifier.size(44.dp), SautiColors.Blue)
+                }
                 Column(
                     modifier = Modifier.weight(1f).clickable(onClick = onOpenProfile),
                     verticalArrangement = Arrangement.spacedBy(2.dp)

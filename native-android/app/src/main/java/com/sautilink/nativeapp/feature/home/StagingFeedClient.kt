@@ -4,6 +4,12 @@ import com.sautilink.nativeapp.feature.auth.AuthRequestException
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -70,6 +76,12 @@ internal class StagingFeedCache {
         generations[cacheKey] = (generations[cacheKey] ?: 0L) + 1L
     }
 
+    fun invalidateFirstPage(backend: String, owner: String?, mode: String) = synchronized(lock) {
+        if (owner == null) return@synchronized
+        val cacheKey = key(backend, owner, mode)
+        generations[cacheKey] = (generations[cacheKey] ?: 0L) + 1L
+    }
+
     /** Call only after the server confirms this owner's removal. Keep offline rows, force revalidation. */
     fun confirmOwnVerificationRemoved(backend: String, owner: String,
         currentOwner: () -> String?): Boolean = synchronized(lock) {
@@ -126,6 +138,9 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
     private val batchSize = 15
     private companion object {
         val cache = StagingFeedCache()
+        val headReads = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false)
+            .connectTimeout(5, TimeUnit.SECONDS).readTimeout(6, TimeUnit.SECONDS)
+            .callTimeout(8, TimeUnit.SECONDS).cache(null).build()
     }
 
     /** Private, memory-only first-page cache. Account changes and sign-out invalidate it. */
@@ -137,6 +152,27 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
     /** A confirmed relationship change makes only this account's Following page stale.
      * Keep recent rows for offline fallback while rejecting older in-flight cache writes. */
     fun invalidateFollowing() = cache.invalidateFollowing(auth.backend.id, auth.account?.id)
+
+    /** Explicit refresh supersedes older first-page work without discarding offline rows. */
+    fun beginRefresh(mode: String) = cache.invalidateFirstPage(auth.backend.id, auth.account?.id, mode)
+
+    /** One cancellable, bounded GET of at most five pointers. Polling never resolves
+     * profiles/media/actions, mutates the first-page cache, or retries a Follow write.
+     */
+    internal suspend fun readHead(mode: String): List<FeedHeadStamp> {
+        val route = feedHeadRoute(mode)
+        val owner = auth.account?.id ?: throw AuthRequestException("Sign in to read posts.")
+        val token = auth.accessTokenForStagingRead()
+        currentCoroutineContext().ensureActive()
+        if (auth.account?.id != owner) throw CancellationException("Feed account changed")
+        val request = Request.Builder().url(endpoint + route)
+            .header("apikey", auth.publicKeyForRead()).header("Authorization", "Bearer $token")
+            .header("Accept", "application/json").header("Cache-Control", "no-store").get().build()
+        val bytes = awaitFollowReadBytes(headReads.newCall(request), limit = 8_192)
+        currentCoroutineContext().ensureActive()
+        if (auth.account?.id != owner) throw CancellationException("Feed account changed")
+        return parseFeedHead(mode, bytes.toString(Charsets.UTF_8))
+    }
 
     fun confirmOwnVerificationRemoved(ownerId: String): Boolean =
         cache.confirmOwnVerificationRemoved(auth.backend.id, ownerId) { auth.account?.id }
@@ -191,12 +227,15 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
         }
         require(offset >= 0) { "Invalid feed offset" }
         // Auth client transparently refreshes a short-lived access token when required.
+        val requestedOwner = auth.account?.id ?: throw AuthRequestException("Sign in to read posts.")
         val token = auth.accessTokenForStagingRead()
+        currentCoroutineContext().ensureActive()
+        if (auth.account?.id != requestedOwner) throw CancellationException("Feed account changed")
         return withContext(Dispatchers.IO) {
             // The standard SECURITY INVOKER feed RPC is chronological and visibility-aware.
             // Saved is a separate, RLS-protected, private bookmark listing for this user only.
             // Both paths only resolve post details through social_posts RLS, so vanished / blocked posts are omitted.
-            val userId = auth.account?.id?.takeIf { uuid.matches(it) }
+            val userId = requestedOwner.takeIf { uuid.matches(it) }
             if (mode == "saved" && userId == null) throw AuthRequestException("Sign in to see Saved posts.")
             val stamp = cache.readStamp(auth.backend.id, userId, mode)
             val pointers = if (mode == "trending") {
@@ -252,6 +291,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
             if (ids.isEmpty()) {
                 val page = StagingFeedPage(emptyList(), offset + pointers.length(),
                     pointers.length() == batchSize && (mode != "trending" || offset + pointers.length() < 20))
+                currentCoroutineContext().ensureActive()
                 return@withContext cache.finishPage(auth.backend.id, userId, mode, offset, page, stamp,
                     { auth.account?.id })
             }
@@ -308,6 +348,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
             }
             val page = StagingFeedPage(results, offset + pointers.length(),
                 pointers.length() == batchSize && (mode != "trending" || offset + pointers.length() < 20))
+            currentCoroutineContext().ensureActive()
             cache.finishPage(auth.backend.id, userId, mode, offset, page, stamp, { auth.account?.id })
         }
     }

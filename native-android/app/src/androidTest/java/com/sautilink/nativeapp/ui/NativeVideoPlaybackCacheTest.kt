@@ -20,6 +20,7 @@ import com.sautilink.nativeapp.ui.components.NativeVideoPlaybackResources
 import com.sautilink.nativeapp.ui.components.cacheableVideoUri
 import com.sautilink.nativeapp.ui.components.NativeVideoDataSourceFactory
 import com.sautilink.nativeapp.ui.components.NativeVideoRepresentationPins
+import com.sautilink.nativeapp.ui.components.NativeVideoOriginDataSourceFactory
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -262,13 +263,12 @@ class NativeVideoPlaybackCacheTest {
         } finally { resources.close() }
     }
 
-    @Test fun protectedAndNoncanonicalRoutesBypassDiskCacheOnEveryRead() = fixture { context ->
+    @Test fun protectedAndNoncanonicalMp4RoutesBypassDiskCacheOnEveryRead() = fixture { context ->
         val protected = "https://sautilink.com/api/rooms/22222222-2222-4222-8222-222222222222/" +
             "post-submissions/33333333-3333-4333-8333-333333333333/media/11111111-1111-4111-8111-111111111111"
         val urls = listOf(protected, "$media?poster=1", "$media?quality=360&extra=1", "$media?quality=360&quality=480",
             "$media#fragment", media.replace("https://", "http://"),
-            "$media/hls/../private.ts", "$media/hls/%2e%2e/private.ts",
-            media.replace("/api/sauti-media/", "/api/%73auti-media/"), "$media/hls//segment.ts")
+            media.replace("/api/sauti-media/", "/api/%73auti-media/"))
         urls.forEach { url ->
             assertFalse("Only canonical immutable video bytes may enter the cache: $url", cacheableVideoUri(Uri.parse(url)))
             val upstream = CountingUpstream(bytes)
@@ -279,6 +279,45 @@ class NativeVideoPlaybackCacheTest {
                 assertEquals(bytes.size.toLong() * 2, upstream.reads.get())
             } finally { resources.close() }
         }
+    }
+
+    @Test fun protectedRoomVideoRetainsItsAuthenticatedRoute_andNeverReplaysFromDisk() = fixture { context ->
+        val protected = "https://sautilink.com/api/rooms/22222222-2222-4222-8222-222222222222/" +
+            "post-submissions/33333333-3333-4333-8333-333333333333/media/11111111-1111-4111-8111-111111111111"
+        val upstream = CountingUpstream(bytes)
+        val session = AtomicBoolean(true)
+        val routed = NativeVideoOriginDataSourceFactory("https://sautilink.com", upstream)
+        val resources = NativeVideoPlaybackResources(context, routed, session::get)
+        try {
+            repeat(2) { assertArrayEquals(bytes, read(resources.dataSourceFactory, spec(protected))) }
+            assertEquals(2, upstream.opens.size)
+            assertEquals(2L * bytes.size, upstream.reads.get())
+            assertTrue(context.root.walkTopDown().none { it.isFile && it.extension == "exo" })
+            session.set(false)
+            assertThrows(IOException::class.java) { read(resources.dataSourceFactory, spec(protected)) }
+            assertEquals(2, upstream.opens.size)
+        } finally { resources.close() }
+    }
+
+    @Test fun malformedOrUngrantedHlsCannotReachUpstreamOrPopulateDiskCache() = fixture { context ->
+        val urls = listOf("$media/hls/../private.ts", "$media/hls/%2e%2e/private.ts", "$media/hls//segment.ts",
+            "$media/hls/s_${"A".repeat(43)}?c=ZXhhbXBsZQ.${"a".repeat(43)}")
+        val upstream = CountingUpstream(bytes)
+        val resources = NativeVideoPlaybackResources(context, upstream, { true })
+        try {
+            urls.forEach { url ->
+                assertFalse(cacheableVideoUri(Uri.parse(url)))
+                repeat(2) { assertThrows(IOException::class.java) { read(resources.dataSourceFactory, spec(url)) } }
+            }
+            assertTrue("Rejected HLS requests must not open any upstream", upstream.opens.isEmpty())
+            assertEquals(0L, upstream.reads.get())
+            assertTrue("Rejected HLS requests must not create cached payloads",
+                context.root.walkTopDown().none { it.isFile && it.extension == "exo" })
+            // Rejection must not poison the same player's allowed canonical cache.
+            assertArrayEquals(bytes, read(resources.dataSourceFactory, spec()))
+            assertArrayEquals(bytes, read(resources.dataSourceFactory, spec()))
+            assertEquals(bytes.size.toLong(), upstream.reads.get())
+        } finally { resources.close() }
     }
 
     @Test fun distinctRenditionsCannotAliasThroughACustomMedia3CacheKey() = fixture { context ->

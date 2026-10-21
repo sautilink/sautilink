@@ -38,6 +38,8 @@
                 <data android:scheme="https" android:host="sautilink.com" android:path="/home"/>
                 <data android:scheme="https" android:host="sautilink.com" android:path="/explore"/>
                 <data android:scheme="https" android:host="sautilink.com" android:path="/videos"/>
+                <data android:scheme="https" android:host="sautilink.com" android:path="/stories"/>
+                <data android:scheme="https" android:host="sautilink.com" android:pathPrefix="/stories/"/>
                 <data android:scheme="https" android:host="sautilink.com" android:path="/profile"/>
                 <data android:scheme="https" android:host="www.sautilink.com" android:pathPrefix="/post/"/>
                 <data android:scheme="https" android:host="www.sautilink.com" android:pathPrefix="/u/"/>
@@ -48,6 +50,8 @@
                 <data android:scheme="https" android:host="www.sautilink.com" android:path="/home"/>
                 <data android:scheme="https" android:host="www.sautilink.com" android:path="/explore"/>
                 <data android:scheme="https" android:host="www.sautilink.com" android:path="/videos"/>
+                <data android:scheme="https" android:host="www.sautilink.com" android:path="/stories"/>
+                <data android:scheme="https" android:host="www.sautilink.com" android:pathPrefix="/stories/"/>
                 <data android:scheme="https" android:host="www.sautilink.com" android:path="/profile"/>
             </intent-filter>
             <intent-filter>
