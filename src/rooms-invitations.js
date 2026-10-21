@@ -182,11 +182,28 @@ async function ensureRoomInvitePanel() {
       const previous = await inviteSelect('social_room_invitations', {
         room_id: `eq.${room.id}`,
         invited_user_id: `eq.${profile.id}`,
-        select: 'status',
+        select: 'status,membership_ended_at,created_at,invited_by',
         limit: 1,
       });
       if (previous[0]?.status === 'pending') throw new Error('That member already has a pending invitation.');
-      if (previous[0]?.status === 'accepted') throw new Error('That member has already accepted a Room invitation.');
+      if (previous[0]?.status === 'accepted' && previous[0].membership_ended_at == null) {
+        throw new Error('That member has already accepted a Room invitation.');
+      }
+      if (previous[0]?.status === 'accepted') {
+        // Compare the receipt we read so a concurrent fresh invitation is never
+        // cleared. The database also protects invitations for current members.
+        const cleared = await inviteWrite('social_room_invitations', 'DELETE', {
+          room_id: `eq.${room.id}`,
+          invited_user_id: `eq.${profile.id}`,
+          status: 'eq.accepted',
+          created_at: `eq.${previous[0].created_at}`,
+          invited_by: `eq.${previous[0].invited_by}`,
+          and: `(membership_ended_at.not.is.null,membership_ended_at.eq.${JSON.stringify(previous[0].membership_ended_at)})`,
+        });
+        if (!Array.isArray(cleared) || cleared.length !== 1) {
+          throw new Error('That Room invitation changed. Please try again.');
+        }
+      }
       if (previous[0]?.status === 'declined') {
         await inviteWrite('social_room_invitations', 'DELETE', {
           room_id: `eq.${room.id}`,

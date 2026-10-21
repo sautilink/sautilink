@@ -21,9 +21,9 @@ function clientFixture({ accept = false, delayedToken = false, missingToken = fa
   const wanted = { conversationId: 'synthetic-thread-one', memberId: 'synthetic-member-one',
     activityEnabled: true, blocked: false };
   const fixture = { accept };
-  function schedule(fn, delay = 0) {
+  function schedule(fn, delay = 0, browser = false) {
     const id = nextTimer++;
-    timers.set(id, { at: now + delay, fn });
+    timers.set(id, { at: now + delay, delay, fn, browser });
     return id;
   }
   function mutation() {
@@ -58,6 +58,8 @@ function clientFixture({ accept = false, delayedToken = false, missingToken = fa
     }
     addEventListener(event, callback) { this.listeners.set(event, callback); }
     send() {}
+    receive(payload) { this.listeners.get('message')?.({ data:JSON.stringify(payload) }); }
+    halfClose() { this.readyState = 2; }
     finish(code) {
       if (this.readyState === 3) return;
       this.readyState = 3;
@@ -66,7 +68,7 @@ function clientFixture({ accept = false, delayedToken = false, missingToken = fa
     close(code) { this.finish(code); }
   }
   const window = { location: { protocol: 'https:', host: 'offline.invalid' },
-    setTimeout: schedule, clearTimeout(id) { timers.delete(id); },
+    setTimeout: (fn, delay) => schedule(fn, delay, true), clearTimeout(id) { timers.delete(id); },
     addEventListener(name, callback) { browserEvents.set(name, callback); },
     __sautilinkDmRealtimeContext: () => ({ ...wanted }),
     __sautilinkDmRealtimeAuthHeaders: async () => {
@@ -92,6 +94,8 @@ function clientFixture({ accept = false, delayedToken = false, missingToken = fa
     assert.fail('synthetic timer loop did not settle');
   }
   return Object.assign(fixture, { attempts, wanted, elements, tokenWaiters, until, flush, mutation,
+    activeBrowserTimers: delay => [...timers.values()].filter(timer => timer.browser && (delay === undefined || timer.delay === delay)).length,
+    setCanonicalRenderer: renderer => { window.__sautilinkRenderDmPeerActivity = renderer; },
     tokenReads: () => tokenReads, event: (name) => browserEvents.get(name)?.() });
 }
 
@@ -203,4 +207,137 @@ test('switching away and back cannot revive the first pending token attempt for 
   client.tokenWaiters[2]({ Authorization: 'Bearer synthetic-current-token' });
   await client.until(500);
   assert.equal(client.attempts.length, 1);
+});
+
+test('an acknowledged CLOSING socket without a final close event clears live activity and reconnects after normal backoff', async () => {
+  const client = clientFixture({ accept:true });
+  await client.until(500);
+  const socket = client.attempts[0].socket;
+  socket.receive({ type:'presence', peer_online:true });
+  socket.receive({ type:'typing', typing:true });
+  await client.until(700);
+  socket.halfClose();
+  await client.until(1059);
+  assert.equal(client.elements.get('messages-surface').dataset.realtimeTransport, 'durable-object');
+  await client.until(1100);
+  assert.equal(client.elements.get('messages-surface').dataset.realtimeTransport, undefined);
+  assert.equal(client.elements.get('message-typing-status').hidden, true);
+  assert.equal(client.elements.get('message-thread-activity').hidden, true);
+  assert.equal(client.tokenReads(), 1);
+  await client.until(2400);
+  assert.equal(client.attempts.length, 1, 'State checks must not bypass the normal 1400ms reconnect backoff');
+  await client.until(2500);
+  assert.equal(client.attempts.length, 2);
+  assert.equal(client.tokenReads(), 2);
+  assert.equal(client.elements.get('messages-surface').dataset.realtimeTransport, 'durable-object');
+});
+
+test('a late close from the old half-open transport cannot clear a replacement socket or its watchdog', async () => {
+  const client = clientFixture({ accept:true });
+  await client.until(700);
+  const old = client.attempts[0].socket;
+  old.halfClose();
+  await client.until(2500);
+  const replacement = client.attempts[1].socket;
+  replacement.receive({ type:'presence', peer_online:true });
+  old.finish(1008);
+  await client.until(2600);
+  assert.equal(client.elements.get('messages-surface').dataset.realtimeTransport, 'durable-object');
+  assert.equal(client.elements.get('message-thread-activity').dataset.state, 'online');
+  assert.equal(client.tokenReads(), 2);
+  replacement.halfClose();
+  await client.until(3500);
+  assert.equal(client.elements.get('messages-surface').dataset.realtimeTransport, undefined);
+  await client.until(4800);
+  assert.equal(client.tokenReads(), 2);
+  await client.until(4900);
+  assert.equal(client.attempts.length, 3, 'The current socket watchdog must survive a stale close callback');
+});
+
+test('context changes and privacy stop cancel old socket-state timers without reviving a prior thread', async () => {
+  const client = clientFixture({ accept:true });
+  await client.until(700);
+  const old = client.attempts[0].socket;
+  old.halfClose();
+  client.wanted.conversationId = 'synthetic-thread-two';
+  client.mutation();
+  await client.until(900);
+  assert.equal(client.attempts.length, 2);
+  assert.match(client.attempts[1].url, /synthetic-thread-two$/);
+  assert.equal(client.activeBrowserTimers(), 1, 'Only the new socket state timer remains after the context settles');
+  client.wanted.activityEnabled = false;
+  client.mutation();
+  await client.until(1200);
+  old.finish(1008);
+  await client.until(60_000);
+  assert.equal(client.activeBrowserTimers(1000), 0, 'No active socket-state timer remains after privacy stop');
+  assert.equal(client.attempts.length, 2);
+  assert.equal(client.tokenReads(), 2);
+  assert.equal(client.elements.get('messages-surface').dataset.realtimeTransport, undefined);
+});
+
+test('an OPEN active-chat socket stays stable without additional token reads or upgrade attempts', async () => {
+  const client = clientFixture({ accept:true });
+  await client.until(29_000);
+  assert.equal(client.attempts.length, 1);
+  assert.equal(client.tokenReads(), 1);
+  assert.equal(client.activeBrowserTimers(), 1);
+  assert.equal(client.elements.get('messages-surface').dataset.realtimeTransport, 'durable-object');
+});
+
+test('DOM and online events that notice CLOSING use the same backoff instead of opening immediately', async () => {
+  const client = clientFixture({ accept:true });
+  await client.until(700);
+  client.attempts[0].socket.halfClose();
+  client.mutation();
+  client.event('online');
+  await client.until(1000);
+  assert.equal(client.tokenReads(), 1);
+  for (let time = 1100; time <= 2100; time += 100) {
+    client.mutation();
+    client.event('online');
+    await client.until(time);
+  }
+  assert.equal(client.attempts.length, 1);
+  await client.until(2200);
+  assert.equal(client.attempts.length, 2);
+  assert.equal(client.tokenReads(), 2);
+});
+
+test('CLOSING and final close without a presence frame clear cached Durable last-seen immediately on disconnect', async () => {
+  for (const halfOpen of [true,false]) {
+    const client = clientFixture({ accept:true });
+    await client.until(500);
+    const socket = client.attempts[0].socket;
+    socket.receive({ type:'presence', peer_online:false, peer_last_seen_at:400 });
+    await client.until(700);
+    assert.equal(client.elements.get('message-thread-activity').textContent, 'Active recently');
+    assert.equal(client.elements.get('message-thread-activity').hidden, false);
+    if (halfOpen) socket.halfClose();
+    else socket.finish(1008);
+    await client.until(1100);
+    assert.equal(client.elements.get('message-thread-activity').hidden, true,
+      'A leased timestamp must not remain visible after its socket authorization ends');
+    assert.equal(client.elements.get('message-thread-activity').dataset.state, undefined);
+    assert.equal(client.tokenReads(), 1);
+  }
+});
+
+test('disconnect still delegates to the separately authorized canonical activity renderer', async () => {
+  const client = clientFixture({ accept:true });
+  await client.until(700);
+  let renders = 0;
+  client.setCanonicalRenderer(() => {
+    renders++;
+    const activity = client.elements.get('message-thread-activity');
+    activity.textContent = 'Canonical activity';
+    activity.hidden = false;
+    activity.dataset.state = 'recent';
+    return true;
+  });
+  client.attempts[0].socket.halfClose();
+  await client.until(1100);
+  assert.equal(renders, 1);
+  assert.equal(client.elements.get('message-thread-activity').textContent, 'Canonical activity');
+  assert.equal(client.elements.get('message-thread-activity').hidden, false);
 });

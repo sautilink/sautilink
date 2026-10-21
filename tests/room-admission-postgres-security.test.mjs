@@ -45,7 +45,7 @@ test('actual PostgreSQL roles block stale Room invitation admission and preserve
     await stage('admission lifecycle migration', await readFile(migration, 'utf8'));
     const results = await stage('role/RLS/trigger/RPC regression', await readFile(regression, 'utf8'));
     const assertions = results.flatMap(result => result.rows ?? []).find(row => 'room_admission_assertions' in row)?.room_admission_assertions;
-    assert.ok(assertions >= 29, 'expected at least 29 executed SQL behavioral assertions');
+    assert.ok(assertions >= 33, 'expected at least 33 executed SQL behavioral assertions');
     t.diagnostic('Both pre-fix replay paths reproduced; ' + assertions + ' post-fix SQL behavioral assertions passed.');
     const unchanged = await db.query(`
       select count(*)::integer as invitation_count,

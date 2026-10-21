@@ -137,6 +137,21 @@ update public.social_circle_join_requests set status='approved'
 where circle_id=pg_temp.admission_room(2) and requester_id=pg_temp.admission_user(3);
 select pg_temp.admission_check(policy_private.is_room_member(pg_temp.admission_room(2),pg_temp.admission_user(3)),
  'staff can approve fresh request despite historical invitation');
+delete from public.social_room_invitations
+where room_id=pg_temp.admission_room(2) and invited_user_id=pg_temp.admission_user(3)
+  and status='accepted' and membership_ended_at is not null;
+select pg_temp.admission_check(exists(select from public.social_room_invitations
+ where room_id=pg_temp.admission_room(2) and invited_user_id=pg_temp.admission_user(3)
+   and status='accepted' and membership_ended_at is not null),
+ 'staff cannot clear ended accepted receipt while fresh approval membership is active');
+select pg_temp.admission_actor(3);
+delete from public.social_room_invitations
+where room_id=pg_temp.admission_room(2) and invited_user_id=auth.uid()
+  and status='accepted' and membership_ended_at is not null;
+select pg_temp.admission_check(exists(select from public.social_room_invitations
+ where room_id=pg_temp.admission_room(2) and invited_user_id=auth.uid()
+   and status='accepted' and membership_ended_at is not null),
+ 'recipient cannot clear ended accepted receipt while fresh approval membership is active');
 
 -- Open leave/rejoin is intentionally unchanged.
 select pg_temp.admission_actor(1);

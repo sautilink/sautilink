@@ -2,6 +2,7 @@ const DM_REALTIME_PROTOCOL = 'sautilink-dm-v1';
 const DM_REALTIME_AUTH_PREFIX = 'sautilink-auth.';
 const DM_REALTIME_RECONNECT_MAX_MS = 15000;
 const DM_REALTIME_TYPING_STOP_MS = 1400;
+const DM_REALTIME_SOCKET_STATE_MS = 1000;
 const DM_REALTIME_RECENT_MS = 5 * 24 * 60 * 60 * 1000;
 
 let durableSocket = null;
@@ -13,6 +14,7 @@ let durableReconnectContext = '';
 let durableOpeningContext = '';
 let durableContextGeneration = 0;
 let durableTypingStopTimer = 0;
+let durableSocketStateTimer = 0;
 let durableTypingState = false;
 let durableSyncTimer = 0;
 let durablePeerOnline = false;
@@ -147,6 +149,11 @@ function clearTypingTimer() {
   durableTypingStopTimer = 0;
 }
 
+function clearSocketStateTimer() {
+  window.clearTimeout(durableSocketStateTimer);
+  durableSocketStateTimer = 0;
+}
+
 function durableSocketOpen() {
   return durableSocket?.readyState === WebSocket.OPEN;
 }
@@ -181,6 +188,7 @@ function sendTyping(typing) {
 function closeDurableSocket({ clearPresence = false } = {}) {
   window.clearTimeout(durableReconnectTimer);
   durableReconnectTimer = 0;
+  clearSocketStateTimer();
   clearTypingTimer();
   durableTypingState = false;
   const socket = durableSocket;
@@ -207,6 +215,41 @@ function scheduleReconnect() {
     durableReconnectTimer = 0;
     if (contextKey === currentRealtimeContextKey()) void syncDurableRealtime();
   }, delay);
+}
+
+function disconnectDurableSocket(socket, contextKey, generation) {
+  if (socket !== durableSocket || generation !== durableContextGeneration ||
+      durableReconnectContext !== contextKey) return;
+  clearSocketStateTimer();
+  durableSocket = null;
+  setTransportState(false);
+  clearTypingTimer();
+  durableTypingState = false;
+  durablePeerTyping = false;
+  durablePeerOnline = false;
+  durablePeerLastSeenAt = 0;
+  renderPeerActivity();
+  scheduleReconnect();
+}
+
+function watchDurableSocketState(socket, contextKey, generation) {
+  clearSocketStateTimer();
+  const check = () => {
+    // A queued old timer must not clear or reschedule a newer connection's timer.
+    if (socket !== durableSocket || generation !== durableContextGeneration ||
+        durableReconnectContext !== contextKey) return;
+    durableSocketStateTimer = 0;
+    if (currentRealtimeContextKey() !== contextKey) return;
+    if (socket.readyState >= WebSocket.CLOSING) {
+      // Some transports acknowledge the Close frame while delaying TCP EOF and
+      // the browser's close event. Stop showing live activity and use the same
+      // bounded reconnect schedule as a completed close; no API is polled here.
+      disconnectDurableSocket(socket, contextKey, generation);
+      return;
+    }
+    durableSocketStateTimer = window.setTimeout(check, DM_REALTIME_SOCKET_STATE_MS);
+  };
+  durableSocketStateTimer = window.setTimeout(check, DM_REALTIME_SOCKET_STATE_MS);
 }
 
 function handleDurableMessage(event) {
@@ -253,6 +296,7 @@ async function openDurableRealtime(conversationId, contextKey, generation) {
 
   durableSocket = socket;
   durableConversationId = conversationId;
+  watchDurableSocketState(socket, contextKey, generation);
 
   socket.addEventListener('open', () => {
     if (socket !== durableSocket || currentRealtimeContextKey() !== contextKey) return;
@@ -268,15 +312,7 @@ async function openDurableRealtime(conversationId, contextKey, generation) {
   });
 
   socket.addEventListener('close', () => {
-    if (socket !== durableSocket) return;
-    durableSocket = null;
-    setTransportState(false);
-    clearTypingTimer();
-    durableTypingState = false;
-    durablePeerTyping = false;
-    durablePeerOnline = false;
-    renderPeerActivity();
-    scheduleReconnect();
+    disconnectDurableSocket(socket, contextKey, generation);
   });
 
   socket.addEventListener('error', () => {
@@ -302,6 +338,10 @@ async function syncDurableRealtime() {
     durableReconnectNotBefore = 0;
     durableReconnectAttempt = 0;
     closeDurableSocket({ clearPresence: true });
+  }
+  if (durableSocket && durableConversationId === wanted && durableSocket.readyState >= WebSocket.CLOSING) {
+    disconnectDurableSocket(durableSocket, contextKey, durableContextGeneration);
+    return;
   }
   // DOM updates, presence rendering and online events must not bypass a failed
   // upgrade's backoff. One pending token read/upgrade owns each account/thread.

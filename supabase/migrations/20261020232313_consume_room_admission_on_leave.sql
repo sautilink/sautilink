@@ -177,14 +177,21 @@ with check (
 
 -- The same actors who may clear declined/pending invitations may clear a
 -- historical accepted invitation, allowing an ordinary fresh pending re-invite.
--- An accepted invitation attached to an active membership remains protected.
+-- An accepted invitation attached to an active membership remains protected,
+-- including a historical receipt retained across a later staff-approved join.
 drop policy social_room_invitations_delete_rooms on public.social_room_invitations;
 create policy social_room_invitations_delete_rooms
 on public.social_room_invitations
 for delete
 to authenticated
 using (
-  (status <> 'accepted' or membership_ended_at is not null)
+  (
+    status <> 'accepted'
+    or (
+      membership_ended_at is not null
+      and not policy_private.is_room_member(room_id, invited_user_id)
+    )
+  )
   and (
     invited_user_id = (select auth.uid())
     or invited_by = (select auth.uid())
