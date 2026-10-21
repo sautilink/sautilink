@@ -5,9 +5,9 @@ import xml.etree.ElementTree as ET
 
 # Immutable source pins for the reviewed native media playback and image experience 1.1.4 (49) candidate.
 # Keep SOURCE identical to the candidate checkout ref in native-media-experience-release49.yml.
-SOURCE = '24318933fce1ce3164c4ccd1255c3d41f037aeed'
-SOURCE_TREE = '6d2a7e6fb00edb76514f09ef0d2bea7dd5c0d6d8'
-REPOSITORY_TREE = '267afdb25e366439aceaaa54fe31d92820aa02bb'
+SOURCE = 'cd2ae3aa056a68cf5eb5bda8d9c4618a38069a17'
+SOURCE_TREE = '07154800181c7d174f1833d0271d83c20d50f5cc'
+REPOSITORY_TREE = 'fcfb0ad4de121b52ee3df7f79cc8067d86606c1c'
 CERT = '31c773a7229a563d92f7047a56735ad7b02027d27a6e020d8923dd5418f4b50f'
 FIREBASE_SHA = 'be30a77f6be106c97b59ecdc6e7cc61100e0d9fd354ac883357e253fb69e6cae'
 BUNDLETOOL_SHA = 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29'

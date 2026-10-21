@@ -34,7 +34,7 @@ jobs:
         with:
           # Build the reviewed, immutable media playback and image experience 1.1.4 (49) source commit.
           # The same SHA and its app/src tree must be pinned in release49.py.
-          ref: 24318933fce1ce3164c4ccd1255c3d41f037aeed
+          ref: cd2ae3aa056a68cf5eb5bda8d9c4618a38069a17
           path: candidate
           persist-credentials: false
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
