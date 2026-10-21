@@ -32,9 +32,9 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          # Build the reviewed, immutable realtime close acknowledgement 1.1.3 (48) source commit.
+          # Build the reviewed, immutable realtime and Room reinvitation 1.1.3 (48) source commit.
           # The same SHA and its app/src tree must be pinned in release48.py.
-          ref: 2ccdfe0162aa47e9d36a2721e6ac13480143a21f
+          ref: 346dca4cbf7312093fd09d96fd917095dd5d5daa
           path: candidate
           persist-credentials: false
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
@@ -69,7 +69,7 @@ jobs:
         run: python3 automation/.github/scripts/play-candidate/release48.py check-caption
       - name: Verify monitor-only integrity behavior and read-only cached authentication
         run: python3 automation/.github/scripts/play-candidate/release48.py check-integrity
-      - name: Verify signed AAB, production manifest, caption, integrity and seven realtime unit tests and full lint
+      - name: Verify signed AAB, production manifest, caption, integrity, eight realtime and eight Room unit tests and full lint
         run: python3 automation/.github/scripts/play-candidate/release48.py seal-aab
       - name: Seal exact artifact allowlist and checksums
         run: python3 automation/.github/scripts/play-candidate/release48.py seal-outputs

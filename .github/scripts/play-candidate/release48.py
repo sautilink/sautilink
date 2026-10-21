@@ -3,11 +3,11 @@ from pathlib import Path
 import base64, hashlib, json, os, re, shutil, struct, subprocess, sys, urllib.request, zipfile
 import xml.etree.ElementTree as ET
 
-# Immutable source pins for the reviewed native realtime close acknowledgement 1.1.3 (48) candidate.
+# Immutable source pins for the reviewed native realtime and Room reinvitation compatibility 1.1.3 (48) candidate.
 # Keep SOURCE identical to the candidate checkout ref in native-realtime-security-release48.yml.
-SOURCE = '2ccdfe0162aa47e9d36a2721e6ac13480143a21f'
-SOURCE_TREE = 'e68471ff4c90254b58bc571372696294921f4f9c'
-REPOSITORY_TREE = '7ddae8751c6e6c897b3d3f4a20cc83cf6721cdfe'
+SOURCE = '346dca4cbf7312093fd09d96fd917095dd5d5daa'
+SOURCE_TREE = '3ee8d8cac92185271840f631b2799889065d4394'
+REPOSITORY_TREE = '77fa8092e54b6c0894bd4e67867acf46843b509d'
 CERT = '31c773a7229a563d92f7047a56735ad7b02027d27a6e020d8923dd5418f4b50f'
 FIREBASE_SHA = 'be30a77f6be106c97b59ecdc6e7cc61100e0d9fd354ac883357e253fb69e6cae'
 BUNDLETOOL_SHA = 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29'
@@ -288,23 +288,12 @@ def check_integrity():
 
 
 
-def verify_realtime_unit_tests():
-    """Fail closed on skipped, missing, duplicate or failed production-adapter tests."""
-    gate('NATIVE_REALTIME_SEVEN_UNIT_TESTS')
-    suite_name = 'com.sautilink.nativeapp.feature.inbox.NativeDmSocketListenerTest'
+def verify_unit_suite(suite_name, expected):
+    """Require every reviewed test, with no skip, failure, duplicate or missing report."""
     report = APP/'build/test-results/testPreviewDebugUnitTest'/('TEST-'+suite_name+'.xml')
     suite = ET.parse(report).getroot()
-    expected = {
-        'server1008GetsAcknowledgedWithoutWaitingForThe25SecondPingFailure',
-        'obsoleteAttemptCannotOpenDeliverMessagesOrDisconnectItsReplacement',
-        'obsoleteClosingStillAcknowledgesTransportWithoutClearingCurrentStateOrEchoingReason',
-        'rejectedCloseCodeCancelsTheTransportAndClearsCurrentState',
-        'currentCloseAndFailureClearStateButInactiveCallbacksAreIgnored',
-        'stalePredicateCannotMutateReplacementAndRetirementInvalidatesBackoffCallbacks',
-        'callbackMutationAndReplacementAreSerializedAcrossThreads',
-    }
     assert suite.tag == 'testsuite' and suite.get('name') == suite_name
-    assert suite.get('tests') == '7'
+    assert suite.get('tests') == str(len(expected))
     assert all(suite.get(key) == '0' for key in ('failures', 'errors', 'skipped'))
     cases = suite.findall('testcase')
     assert len(cases) == len(expected) and {case.get('name') for case in cases} == expected
@@ -312,8 +301,41 @@ def verify_realtime_unit_tests():
                all(case.find(tag) is None for tag in ('failure', 'error', 'skipped')) for case in cases)
     return {'sourceSha': SOURCE, 'appSourceTree': SOURCE_TREE, 'passed': True,
             'checkCount': len(expected), 'suite': suite_name, 'testCases': sorted(expected),
-            'reportSha256': sha(report.read_bytes()), 'actualProductionAdapterTested': True,
-            'loopbackCloseHandshakeTested': True, 'productionNetworkCallsPerformed': False}
+            'reportSha256': sha(report.read_bytes()), 'productionNetworkCallsPerformed': False}
+
+
+def verify_realtime_unit_tests():
+    gate('NATIVE_REALTIME_EIGHT_UNIT_TESTS')
+    expected = {
+        'server1008GetsAcknowledgedWithoutWaitingForThe25SecondPingFailure',
+        'server1008FinishesLocallyEvenWhenServerKeepsTcpOpenAfterTheCloseAcknowledgement',
+        'obsoleteAttemptCannotOpenDeliverMessagesOrDisconnectItsReplacement',
+        'obsoleteClosingStillAcknowledgesTransportWithoutClearingCurrentStateOrEchoingReason',
+        'rejectedCloseCodeCancelsTheTransportAndClearsCurrentState',
+        'currentCloseAndFailureClearStateButInactiveCallbacksAreIgnored',
+        'stalePredicateCannotMutateReplacementAndRetirementInvalidatesBackoffCallbacks',
+        'callbackMutationAndReplacementAreSerializedAcrossThreads',
+    }
+    return {**verify_unit_suite('com.sautilink.nativeapp.feature.inbox.NativeDmSocketListenerTest', expected),
+            'actualProductionAdapterTested': True, 'loopbackCloseHandshakeTested': True,
+            'serverHeldTcpOpenAfterCloseAcknowledgementTested': True}
+
+
+def verify_room_invitation_unit_tests():
+    gate('NATIVE_ROOM_INVITATION_EIGHT_UNIT_TESTS')
+    expected = {
+        'pendingInvitation_neverDeletesOrPosts_evenWhenItHasAnEndedMarker',
+        'acceptedActiveOrLegacyInvitation_cannotBeReusedOrDeleted',
+        'endedAcceptedReceipt_requiresExactOptimisticDeleteBeforeFreshPendingInvitation',
+        'existingMembership_blocksAllInvitationLookupAndWrites_evenWithHistoricalEndedReceipt',
+        'malformedOrIncompleteEndedReceipt_neverAuthorizesDeletion',
+        'staleOrRlsDeniedEndedReceipt_neverContinuesToPost',
+        'declinedInvitation_keepsItsExistingDeleteThenPostBehavior',
+        'firstInvitation_postsOnce_andUnconfirmedPostStillFails',
+    }
+    return {**verify_unit_suite('com.sautilink.nativeapp.feature.rooms.NativeRoomInvitationProtocolTest', expected),
+            'actualProductionInvitationSequenceTested': True, 'syntheticRestResponsesOnly': True,
+            'jsonReferenceImplementation': 'org.json:json:20260814'}
 
 
 def seal_aab():
@@ -335,6 +357,7 @@ def seal_aab():
                for name, value in integrity_source.items())
     assert not ASSET.exists()
     realtime_unit_tests = verify_realtime_unit_tests()
+    room_invitation_unit_tests = verify_room_invitation_unit_tests()
     gate('NATIVE_64BIT_ELF_16KB_ALIGNMENT_AND_PUBLIC_PAYLOAD')
     with safe_zip(AAB) as archive:
         native_libraries = verify_native_libraries(archive)
@@ -362,6 +385,7 @@ def seal_aab():
                'native64BitElf16KbAlignment': native_libraries,
                'nativeTextEntityChecks': caption,
                'nativeRealtimeUnitTests': realtime_unit_tests,
+               'nativeRoomInvitationUnitTests': room_invitation_unit_tests,
                'nativePlayIntegrityChecks': integrity, **integrity_source,
                'lintFatalOrErrors': 0, 'lintWarnings': sum(i.get('severity') == 'Warning' for i in issues),
                'lintInformational': sum(i.get('severity') not in ('Error','Fatal','Warning') for i in issues),
@@ -386,6 +410,7 @@ def seal_outputs():
     with safe_zip(OUT/'sautilink-production-clean.aab') as archive:
         assert bundle['native64BitElf16KbAlignment'] == verify_native_libraries(archive)
     assert bundle['nativeRealtimeUnitTests'] == verify_realtime_unit_tests()
+    assert bundle['nativeRoomInvitationUnitTests'] == verify_room_invitation_unit_tests()
     assert bundle['nativeTextEntityChecks'] == json.loads(TEXT_RECEIPT.read_text(encoding='utf-8'))
     assert bundle['nativePlayIntegrityChecks'] == json.loads(INTEGRITY_RECEIPT.read_text(encoding='utf-8'))
     for metadata in (source, bundle):
