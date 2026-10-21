@@ -243,7 +243,9 @@ export async function createSautiStoryStreamUpload(env, { id, owner_id: ownerId 
   try { url = new URL(upload?.uploadURL); } catch { /* Mark known provider objects for durable deletion below. */ }
   const current = await getSautiStreamJob(env, 'story', id);
   if (!current || current.data.generation !== job.generation) { await deleteStreamAsset(env, uid); return null; }
-  if (!uid || !url || url.origin !== 'https://upload.videodelivery.net' || url.username || url.password || url.hash) {
+  if (!uid || !url || !['https://upload.videodelivery.net', 'https://upload.cloudflarestream.com'].includes(url.origin)
+    || url.username || url.password || url.hash || url.search || !/^\/[A-Za-z0-9_-]{32}$/.test(url.pathname)
+    || !/^https:\/\/(?:upload\.videodelivery\.net|upload\.cloudflarestream\.com)\/[A-Za-z0-9_-]{32}$/.test(String(upload.uploadURL))) {
     const invalid = await updateJob(env, current, { state: uid ? 'delete_pending' : 'unknown', ...(uid ? { stream_uid: uid } : {}) });
     if (invalid?.data.stream_uid) await removeJobAsset(env, invalid);
     return null;
