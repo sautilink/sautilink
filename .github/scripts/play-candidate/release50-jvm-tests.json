@@ -63,6 +63,10 @@
       "retryAfterAndTypedCausesRespectCooldownAndAuthorization",
       "transientHttpFailuresRetryOnlyOnce_andEveryResponseCloses"
     ],
+    "com.sautilink.nativeapp.feature.home.PublishedVideoPlaybackPolicyTest": [
+      "pendingSubmissionsDraftsAndUnrelatedPathsCannotRequestStreamMetadata",
+      "publishedVideoAdaptationDoesNotDependOnTheSurfaceLoadingChrome"
+    ],
     "com.sautilink.nativeapp.feature.inbox.NativeDmSocketListenerTest": [
       "callbackMutationAndReplacementAreSerializedAcrossThreads",
       "currentCloseAndFailureClearStateButInactiveCallbacksAreIgnored",
@@ -72,6 +76,16 @@
       "server1008FinishesLocallyEvenWhenServerKeepsTcpOpenAfterTheCloseAcknowledgement",
       "server1008GetsAcknowledgedWithoutWaitingForThe25SecondPingFailure",
       "stalePredicateCannotMutateReplacementAndRetirementInvalidatesBackoffCallbacks"
+    ],
+    "com.sautilink.nativeapp.feature.profile.ProfileStoryRingStateTest": [
+      "accountAndProfileSwitchesInvalidateOldAsyncResponsesImmediately",
+      "authoritativeStateAndLateResponsesCannotSuppressAnotherAccountsOrProfilesInitialHint",
+      "lateEmptyResponseCannotEraseNewerPublishedStoryPresence",
+      "malformedExpiryAndExactDeadlineNeverLeaveAnActiveRing",
+      "onlyResolvedSignedInProfileCanCreateLookupScope",
+      "refreshKeepsValidatedRingDuringReadButConfirmedEmptyClearsIt",
+      "reusedUsernameOrWrongAuthorCannotAttachAnotherMembersStoryToThisAvatar",
+      "sharedHomePresenceOnlyHelpsUntilThisProfileHasAnAuthoritativeResponse"
     ],
     "com.sautilink.nativeapp.feature.rooms.NativeRoomInvitationProtocolTest": [
       "acceptedActiveOrLegacyInvitation_cannotBeReusedOrDeleted",
@@ -98,10 +112,31 @@
       "currentAndLegacyCloudflareOriginsShareStrictOpaquePathAndNoUrlExtras",
       "exactImageUploadDestinationRetainsBearerOnlyOnFirstParty"
     ],
+    "com.sautilink.nativeapp.feature.stories.NativeStoryUploadProgressTest": [
+      "writingAllBytesCannotClaimProviderAcknowledgementOrReplayTheOneTimePost"
+    ],
     "com.sautilink.nativeapp.feature.stories.NativeStoryUploadRecoveryTest": [
       "aProvisionedOrUncertainUploadNeverCountsAsReceivedBytes",
       "acceptedOrReadyVideoIsNotUploadedAgainAndExpiredMediaCannotResume",
       "onlyFreshServerConfirmationMayRetryAnUnreceivedDirectTransfer"
+    ],
+    "com.sautilink.nativeapp.ui.components.NativePlaybackBootstrapTest": [
+      "badOptionalInitDropsOnlyTheInitExtension_whileMasterAndChildRemainUsable",
+      "countAndActualUtf8BytesAreBounded_andNeverAcceptSegmentPayloads",
+      "exactCapabilityAndLiveGrantAreRequired_evenForInMemoryBytes",
+      "exactRewrittenMasterAndChildAreConsumedOnce_withoutLosingAdaptiveMaster",
+      "isoBoxValidationRejectsMediaFragmentsOverflowAndTrailingBytes",
+      "malformedOptionalBundleIsIgnored_withoutTurningPlaybackIntoAnError",
+      "onlyMapReferencedCodecInitializationCanBeConsumedOnce_withTheSameGrantGuards",
+      "realGatewayRootRelativeUrisResolveOnlyWithinTheExactFirstPartyContent"
+    ],
+    "com.sautilink.nativeapp.ui.components.NativeStartupServerTimingTest": [
+      "onlyFourFixedNumericServerMetricsAreExposedToTheOperator"
+    ],
+    "com.sautilink.nativeapp.ui.components.NativeStoryPlaybackPrefetchTest": [
+      "advancingHandsOffTheSameRead_butOlderThanCurrentAndNextIsEvicted",
+      "denialNearExpiryAndMissingCredentialCannotBeWarmedIntoAPlayer",
+      "freshSameOwnerStoryGrantSkipsOnlyTheRedundantMetadataRoundTrip"
     ],
     "com.sautilink.nativeapp.ui.components.NativeStreamPlaybackPolicyTest": [
       "existingMediaFallbackCannotPointToAnotherVideoOrOrigin",

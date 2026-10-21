@@ -5,11 +5,11 @@ import xml.etree.ElementTree as ET
 
 # Immutable source pins for the reviewed Stream, Stories and feed experience 1.1.5 (50) candidate.
 # Keep SOURCE identical to the candidate checkout ref in native-stream-stories-release50.yml.
-SOURCE = '7b730b42f82db01d1fc203c27701ca7f8f154cfc'
-SOURCE_TREE = '836bca0292905c61802b44014c5a6facd72a7570'
-REPOSITORY_TREE = 'ba48c03487119216d76384d9c1b89d29beaca0ba'
-MAIN_SOURCE_TREE = 'd7e1bb1912105937fd9eea351d504f9d1c98e0eb'
-JVM_MANIFEST_SHA256 = '77518c9c4fa34c84d3f4752514dd5b3a30760b8e0668afd69b8553a87c45ece0'
+SOURCE = 'bbf26ada068742ca86c863cf3385a54572208161'
+SOURCE_TREE = 'c00b7c6518b79d0eb9e02caf9d082d10919069ac'
+REPOSITORY_TREE = '1957e47f7f3dfc4e639a0fa92f81172371f6ba93'
+MAIN_SOURCE_TREE = 'efc8716d80647feff75e4c395c2ced75a1f8f4d8'
+JVM_MANIFEST_SHA256 = '242fd0c8ad52c13e6c11e0dcbb1770049e064b0ae416a7b019dc336a9ae42572'
 CERT = '31c773a7229a563d92f7047a56735ad7b02027d27a6e020d8923dd5418f4b50f'
 FIREBASE_SHA = 'be30a77f6be106c97b59ecdc6e7cc61100e0d9fd354ac883357e253fb69e6cae'
 BUNDLETOOL_SHA = 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29'
@@ -287,6 +287,8 @@ def verify_stream_stories_source():
     client = (native/'feature/stories/NativeStoriesClient.kt').read_text(encoding='utf-8')
     composer = (native/'feature/stories/NativeStoryComposer.kt').read_text(encoding='utf-8')
     viewer = (native/'feature/stories/NativeStoryViewer.kt').read_text(encoding='utf-8')
+    profile = (native/'feature/profile/NativeProfileScreen.kt').read_text(encoding='utf-8')
+    profile_ring = (native/'feature/profile/ProfileStoryRingState.kt').read_text(encoding='utf-8')
     for marker in ('trustedPlaybackMetadataPath', 'authenticatedHlsUrl', 'parseNativeVideoSource',
                    'NativeHlsGrantRegistry', 'nativePlaybackRefreshDelay', 'expires_at',
                    'https://sautilink.com', 'https://test.sautilink.com', 'followRedirects(false)',
@@ -301,6 +303,42 @@ def verify_stream_stories_source():
     for consumer in (feed, shorts, story_player):
         assert 'rememberNativePlaybackSource' in consumer and 'NativeHlsQualitySelection' in consumer
         assert 'DefaultMediaSourceFactory' in consumer
+    # Bootstrap is an explicit descriptor opt-in and a bounded, one-use memory
+    # handoff. It must never become a persistent or generic HTTP response cache.
+    for marker in ('header("X-Sauti-Playback-Bootstrap", "1")', 'class NativePlaybackBootstrap',
+                   'rows.length() in 1..9', 'total <= 256 * 1024', 'entries.remove(url)',
+                   'receivedAtMillis + 5_000L', 'elapsedNanos >= 5_000_000_000L',
+                   'require(entries.containsKey(masterUrl))', 'it.fill(0)',
+                   'class NativeStoryPlaybackWindow', 'while (reads.size > 2)',
+                   'nativePlaybackReusableDelay', 'read.ownerId != owner'):
+        assert marker in resolver
+    # Codec initialization is the only binary bootstrap extension. It must be
+    # referenced by an authorized MAP, contain no top-level samples/fragments,
+    # and retain the same small, short-lived, single-use boundary as playlists.
+    for marker in ('fun nativePlaybackInitialization(bytes: ByteArray)', 'bytes.size !in 24..16_384',
+                   'boxes >= 2', 'type != if (boxes == 0) "ftyp" else "moov"',
+                   'inits.length() <= 8', 'url in mapUris', 'nativePlaybackInitialization(bytes)',
+                   'combined <= 256 * 1024', 'entries.putAll(initializations)'):
+        assert marker in resolver
+    initialization_extension = resolver[resolver.index('val initializations = runCatching {'):
+                                        resolver.index('entries.putAll(initializations)')]
+    assert '}.getOrNull().orEmpty()' in initialization_extension
+    for marker in ('dataSpec.position == 0L', 'dataSpec.length == androidx.media3.common.C.LENGTH_UNSET.toLong()',
+                   'hlsGrants.consumeBootstrap(dataSpec.uri.toString())', 'ByteArrayDataSource(initialPlaylist)'):
+        assert marker in origin
+    assert 'publishedVideoAdaptivePlayback(media.id, mediaPath, adaptivePlaybackEnabled)' in feed
+    for marker in ('NativeStoryPlaybackWindow()', 'currentPlayback =', 'nextVideo =',
+                   'enabled = foreground && ready && !paused && error == null', 'retainedRead = nextPlayback',
+                   'playbackRead = currentPlayback'):
+        assert marker in viewer
+    assert 'retainedRead = playbackRead' in story_player
+    assert 'rememberProfileStoryRingActive(auth, profile, refresh)' in profile and 'ProfileStoryAvatarFrame(' in profile
+    for marker in ('ProfileStoryRingState', 'state.complete(ticket, result)', 'scope == expected',
+                   'StoryAvatarRing(active, onOpen, modifier)', 'Surface(shape = CircleShape',
+                   'delay(60_000)', 'refreshRevision, foreground, online, sharedActive'):
+        assert marker in profile_ring
+    frame = profile_ring[profile_ring.index('internal fun ProfileStoryAvatarFrame('):]
+    assert frame.index('StoryAvatarRing(active, onOpen, modifier)') < frame.index('Surface(shape = CircleShape')
     assert 'VideoPlaybackControls(' in feed and 'ShortVideoProgressControls(' in shorts
     assert controls.count('ThinVideoSeekBar(') == 2 and 'Slider(' not in controls
     assert 'Canvas(' in thin and 'StrokeCap.Round' in thin and 'setProgress' in thin
@@ -321,6 +359,9 @@ def verify_stream_stories_source():
             'media3Version': '1.11.1', 'nativePlaybackUsesFirstPartyGateway': True,
             'nativeStoryVideoLimitSeconds': 30, 'nativeStoryDailyVideoLimit': 2,
             'nativeStoryDailyImageLimit': 4, 'nativeThinAccessibleVideoTimelineIncluded': True,
+            'nativeOneUsePlaybackBootstrapIncluded': True, 'nativeBoundedNextStoryHandoffIncluded': True,
+            'nativeBoundedCodecInitializationIncluded': True,
+            'nativeProfileStoryRingOutsideSurfaceBorder': True,
             'cloudflareStreamActivationVerifiedByCi': False, 'backendDeploymentPerformed': False}
 
 
@@ -341,6 +382,12 @@ def reviewed_jvm_suites():
         'com.sautilink.nativeapp.feature.stories.NativeStoryPolicyTest',
         'com.sautilink.nativeapp.feature.stories.NativeStoryUploadDestinationTest',
         'com.sautilink.nativeapp.feature.stories.NativeStoryUploadRecoveryTest',
+        'com.sautilink.nativeapp.feature.home.PublishedVideoPlaybackPolicyTest',
+        'com.sautilink.nativeapp.feature.profile.ProfileStoryRingStateTest',
+        'com.sautilink.nativeapp.feature.stories.NativeStoryUploadProgressTest',
+        'com.sautilink.nativeapp.ui.components.NativePlaybackBootstrapTest',
+        'com.sautilink.nativeapp.ui.components.NativeStartupServerTimingTest',
+        'com.sautilink.nativeapp.ui.components.NativeStoryPlaybackPrefetchTest',
     }
     assert required <= set(suites)
     for name, cases in suites.items():
@@ -355,6 +402,8 @@ def reviewed_jvm_suites():
 REQUIRED_RUNTIME_DESCRIPTORS = (
     'Landroidx/media3/exoplayer/hls/HlsMediaSource;',
     'Lcom/sautilink/nativeapp/ui/components/NativeStreamPlaybackKt;',
+    'Lcom/sautilink/nativeapp/ui/components/NativePlaybackBootstrap;',
+    'Lcom/sautilink/nativeapp/ui/components/NativeStoryPlaybackWindow;',
     'Lcom/sautilink/nativeapp/ui/components/NativeHlsTrackSelectionKt;',
     'Lcom/sautilink/nativeapp/ui/components/ThinVideoSeekBarKt;',
     'Lcom/sautilink/nativeapp/ui/components/NativeStoryVideoKt;',
@@ -363,6 +412,7 @@ REQUIRED_RUNTIME_DESCRIPTORS = (
     'Lcom/sautilink/nativeapp/feature/stories/NativeStoryComposerKt;',
     'Lcom/sautilink/nativeapp/feature/stories/NativeStoryViewerKt;',
     'Lcom/sautilink/nativeapp/feature/stories/NativeStoriesScreenKt;',
+    'Lcom/sautilink/nativeapp/feature/profile/ProfileStoryRingState;',
 )
 
 

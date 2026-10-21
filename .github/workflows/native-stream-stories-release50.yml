@@ -34,7 +34,7 @@ jobs:
         with:
           # Build the reviewed, immutable Stream, Stories and feed experience 1.1.5 (50) source commit.
           # The same SHA, full tree, app/src and app/src/main trees must be pinned in release50.py.
-          ref: 7b730b42f82db01d1fc203c27701ca7f8f154cfc
+          ref: bbf26ada068742ca86c863cf3385a54572208161
           path: candidate
           persist-credentials: false
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3

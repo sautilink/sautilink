@@ -72,6 +72,9 @@ def suites_fixture():
         'feature.inbox.NativeDmSocketListenerTest', 'feature.rooms.NativeRoomInvitationProtocolTest',
         'ui.components.NativeStreamPlaybackPolicyTest', 'feature.home.FeedFreshnessTest', 'feature.stories.NativeStoryPolicyTest',
         'feature.stories.NativeStoryUploadDestinationTest', 'feature.stories.NativeStoryUploadRecoveryTest',
+        'feature.home.PublishedVideoPlaybackPolicyTest', 'feature.profile.ProfileStoryRingStateTest',
+        'feature.stories.NativeStoryUploadProgressTest', 'ui.components.NativePlaybackBootstrapTest',
+        'ui.components.NativeStartupServerTimingTest', 'ui.components.NativeStoryPlaybackPrefetchTest',
     ): suites['com.sautilink.nativeapp.'+name] = ['syntheticCase']
     return {'schema': 1, 'suites': suites}
 
@@ -97,8 +100,9 @@ class Release50GatesTest(unittest.TestCase):
             receipt = candidate.verify_packaged_runtime(bundle)
             self.assertTrue(receipt['hlsAndStoriesCompiledIntoProductionAab'])
         # A class name appearing as an unrelated string cannot pass as compiled code.
-        with archive([('base/dex/classes.dex', dex(required[1:], [required[0]]))]) as bundle:
-            with self.assertRaises(AssertionError): candidate.verify_packaged_runtime(bundle)
+        for missing in required:
+            with archive([('base/dex/classes.dex', dex([value for value in required if value != missing], [missing]))]) as bundle:
+                with self.subTest(missing=missing), self.assertRaises(AssertionError): candidate.verify_packaged_runtime(bundle)
 
     def test_multidex_classes10_is_not_silently_ignored(self):
         required = candidate.REQUIRED_RUNTIME_DESCRIPTORS
@@ -131,6 +135,14 @@ class Release50GatesTest(unittest.TestCase):
             removed = json.loads(json.dumps(document))
             removed['suites'].pop('com.sautilink.nativeapp.ui.components.NativeStreamPlaybackPolicyTest')
             with self.assertRaises(AssertionError): check(removed)
+            for suite in (
+                'feature.home.PublishedVideoPlaybackPolicyTest', 'feature.profile.ProfileStoryRingStateTest',
+                'feature.stories.NativeStoryUploadProgressTest', 'ui.components.NativePlaybackBootstrapTest',
+                'ui.components.NativeStartupServerTimingTest', 'ui.components.NativeStoryPlaybackPrefetchTest',
+            ):
+                removed = json.loads(json.dumps(document))
+                removed['suites'].pop('com.sautilink.nativeapp.'+suite)
+                with self.subTest(suite=suite), self.assertRaises(AssertionError): check(removed)
             skipped = json.loads(json.dumps(document))
             skipped['suites']['com.sautilink.nativeapp.feature.auth.AuthRequestDeadlineTest'].pop()
             with self.assertRaises(AssertionError): check(skipped)
@@ -186,6 +198,8 @@ class Release50GatesTest(unittest.TestCase):
             'gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a',
             'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02',
             'persist-credentials: false', 'if: always()', 'release50.py cleanup',
+            'timeout-minutes: 90', '--max-workers=2 --no-parallel',
+            '-Pkotlin.compiler.execution.strategy=in-process', '-Xmx6144m',
         ): self.assertIn(expected, workflow)
         source_checkout = re.search(r'\n          ref: ([A-Za-z0-9_]+)\n          path: candidate', workflow)
         self.assertIsNotNone(source_checkout)
