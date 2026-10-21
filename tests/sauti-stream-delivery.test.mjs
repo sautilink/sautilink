@@ -165,7 +165,12 @@ test('direct upload provisioning, accepted bytes and a fresh safe retry are dist
   assert.equal(waiting.awaiting_upload, true);
   assert.equal(waiting.retry_upload, true);
   assert.equal(waiting.uploaded, false);
+  // A fresh two-second poll can now replace an old observation. Simulate an
+  // unavailable provider so this assertion still exercises truly stale proof.
+  const video = f.env.STREAM.video;
+  f.env.STREAM.video = id => ({ ...video(id), details: async () => null });
   const stale = await sautiStoryStreamUploadStatus(f.env, owner, NOW + 22);
+  f.env.STREAM.video = video;
   assert.equal(stale.retry_upload, false, 'Stale pendingupload is insufficient to replay a one-time POST');
   f.provider().status = { state: 'queued' };
   const accepted = await sautiStoryStreamUploadStatus(f.env, owner, NOW + 32);

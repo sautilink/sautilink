@@ -3,6 +3,8 @@ import { createSautiStoryStreamUpload, readySautiStoryStreamAsset, getSautiStrea
   deleteSautiStreamVideo, prepareSautiStreamVideo, sweepSautiStreamJobs, sautiStoryStreamUploadStatus } from './sauti-stream-lifecycle.js';
 import { sautiStreamPlaybackDescriptor, serveSautiStreamHls, serveSautiStreamThumbnail } from './sauti-stream-playback.js';
 import { readStreamJson, writeStreamJson, streamEnabled } from './sauti-stream-provider.js';
+import { createMediaServerTiming } from './media-server-timing.js';
+import { sautiStreamBootstrap } from './sauti-stream-bootstrap.js';
 
 const DB = 'https://rggpyiterdbbugluejcs.supabase.co';
 const KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
@@ -190,16 +192,18 @@ async function serveImage(request, env, row) {
     'Content-Length': String(object.size), 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
     'Content-Security-Policy': "default-src 'none'", 'Referrer-Policy': 'no-referrer' } });
 }
-async function serveVideo(request, env, row, mode, authorization) {
-  const record = await getSautiStreamJob(env, 'story', row.id);
+async function serveVideo(request, env, row, mode, authorization, timing) {
+  const record = await timing.ready(() => getSautiStreamJob(env, 'story', row.id));
   const job = record?.data;
   if (!job || job.state !== 'ready' || job.owner_id !== row.owner_id || job.stream_uid !== row.stream_uid) return fail(404, 'MEDIA_UNAVAILABLE', 'This story is unavailable.');
   const asset = { kind: 'story', id: row.id, stream_uid: job.stream_uid, generation: job.generation };
   const options = { basePath: `/api/stories/${row.id}/hls/`, accessScope: authorization, expiresAt: row.expires_at };
-  if (mode === 'hls') return serveSautiStreamHls(request, env, asset, options);
+  if (mode === 'hls') return timing.response(await timing.hls(() => serveSautiStreamHls(request, env, asset, options)));
   if (mode === 'thumbnail') return serveSautiStreamThumbnail(request, env, asset, options);
-  const descriptor = await sautiStreamPlaybackDescriptor(request, env, asset, options);
-  return descriptor ? json(200, { ok: true, data: descriptor }) : fail(503, 'PLAYBACK_UNAVAILABLE', 'Try this video again shortly.');
+  const descriptor = await timing.hls(() => sautiStreamPlaybackDescriptor(request, env, asset, options));
+  if (!descriptor) return fail(503, 'PLAYBACK_UNAVAILABLE', 'Try this video again shortly.');
+  const bootstrap = await timing.hls(() => sautiStreamBootstrap(request, env, asset, descriptor, options));
+  return timing.response(json(200, { ok: true, data: { ...descriptor, ...(bootstrap ? { bootstrap } : {}) } }));
 }
 
 /** Stories are exposed to the native client; media authorization is checked before every request. */
@@ -226,10 +230,11 @@ export async function handleStoriesRequest(request, env) {
     if (!match || !UUID.test(match[1])) return fail(404, 'NOT_FOUND', 'This Stories route is unavailable.');
     const id = match[1]; const action = match[2] || '';
     if (['GET', 'HEAD'].includes(request.method) && ['media', 'thumbnail', 'playback'].includes(action) || action.startsWith('hls/') && ['GET', 'HEAD'].includes(request.method)) {
-      const row = await assetRow(env, id, authorization);
+      const timing = createMediaServerTiming();
+      const row = await timing.rls(() => assetRow(env, id, authorization));
       if (!Number.isFinite(Date.parse(row.expires_at)) || Date.parse(row.expires_at) <= Date.now()) return fail(404, 'STORY_UNAVAILABLE', 'This story has expired.');
       if (action === 'media') return row.media_kind === 'image' ? await serveImage(request, env, row) : fail(404, 'NOT_FOUND', 'This photo is unavailable.');
-      return row.media_kind === 'video' ? await serveVideo(request, env, row, action.startsWith('hls/') ? 'hls' : action, authorization) : fail(404, 'NOT_FOUND', 'This video is unavailable.');
+      return row.media_kind === 'video' ? await serveVideo(request, env, row, action.startsWith('hls/') ? 'hls' : action, authorization, timing) : fail(404, 'NOT_FOUND', 'This video is unavailable.');
     }
     if (!action && request.method === 'GET') return json(200, { ok: true, data: detail(await storiesRpc('stories_get', { p_id: id }, authorization)) });
     if (!action && request.method === 'PATCH') return json(200, { ok: true, data: detail(await storiesRpc('stories_edit', { p_id: id, p_caption: caption((await body(request)).caption) }, authorization)) });
