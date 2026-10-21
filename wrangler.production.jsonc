@@ -4,7 +4,7 @@
   "compatibility_date": "2026-08-17",
   "main": "./dist-production-worker/src/worker-entry.js",
   "placement": {
-    "region": "aws:eu-west-1"
+    "mode": "smart"
   },
   "routes": [
     {
