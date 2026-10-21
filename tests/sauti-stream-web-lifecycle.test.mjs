@@ -195,13 +195,34 @@ test('fatal diagnostics expose only known enums and bounded HTTP status, never S
       response: { code: 403, text: secret, url: `${ORIGIN}/${secret}` },
       url: `${ORIGIN}/?c=${secret}`, networkDetails: { status: 403, headers: { authorization: secret } }, error: new Error(secret),
     });
-    assert.deepEqual(h.warnings, [['[SautiLink video] HLS fatal', { type: 'unknown', details: 'unknown', status: 403 }]]);
+    assert.equal(h.warnings.length, 1);
+    assert.equal(h.warnings[0].length, 1, 'the diagnostic must be one visible string, never an SDK object');
+    const prefix = '[SautiLink video] HLS fatal ';
+    assert.equal(typeof h.warnings[0][0], 'string');
+    assert.equal(h.warnings[0][0].startsWith(prefix), true);
+    assert.deepEqual(JSON.parse(h.warnings[0][0].slice(prefix.length)), { type: 'unknown', details: 'unknown', status: 403 });
     assert.equal(JSON.stringify(h.warnings).includes(secret), false);
     assert.equal(JSON.stringify(h.warnings).includes(ORIGIN), false);
     assert.equal(video.src, MP4);
     h.instances[0].fatal();
     assert.equal(h.warnings.length, 1, 'stale controllers do not emit extra diagnostics');
   } finally { h.close(); }
+});
+
+test('visible fatal diagnostics retain known enums and only bounded HTTP status', async () => {
+  const prefix = '[SautiLink video] HLS fatal ';
+  for (const [responseStatus, expected] of [[503, 503], ['403', 403], [99, 0], [600, 0], ['token-in-status', 0]]) {
+    const h = harness();
+    try {
+      await h.start();
+      h.instances[0].fatal({ response: { code: responseStatus, text: 'private-response-body', headers: { authorization: 'private-bearer' } } });
+      assert.deepEqual(h.warnings, [[`${prefix}${JSON.stringify({ type: 'networkError', details: 'fragLoadError', status: expected })}`]]);
+      const parsed = JSON.parse(h.warnings[0][0].slice(prefix.length));
+      assert.deepEqual(Object.keys(parsed), ['type', 'details', 'status']);
+      assert.equal(parsed.status, expected);
+      assert.equal(JSON.stringify(h.warnings).includes('private-'), false);
+    } finally { h.close(); }
+  }
 });
 
 test('account changes abort a renewal and remove stale metadata restorers before the element is rebound', async () => {
