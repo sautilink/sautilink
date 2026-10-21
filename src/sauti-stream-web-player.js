@@ -130,7 +130,7 @@ function reportFatal(state, hls, detail) {
   state.lastFatal = { hls, signature };
   // Never log the SDK error object: it may contain a signed URL, response body,
   // request headers or a provider token. These fields are enums/status only.
-  console.warn('[SautiLink video] HLS fatal', { type, details, status });
+  console.warn(`[SautiLink video] HLS fatal ${JSON.stringify({ type, details, status })}`);
 }
 
 function resolvePlayback(state, force = false) {
