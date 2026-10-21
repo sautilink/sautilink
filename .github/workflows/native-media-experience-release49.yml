@@ -53,6 +53,12 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
         run: python3 automation/.github/scripts/play-candidate/release49.py prepare
+      - name: Cache exact Kotlin compiler dependencies and verify caption behavior
+        run: python3 automation/.github/scripts/play-candidate/release49.py check-caption
+      - name: Verify monitor-only integrity behavior and read-only cached authentication
+        run: python3 automation/.github/scripts/play-candidate/release49.py check-integrity
+      - name: Verify actual native MP4 range adapter with cached Media3 APIs and synthetic HTTP fixtures
+        run: python3 automation/.github/scripts/play-candidate/release49.py check-video
       - name: Compile preview, test native media and existing realtime behavior, build clean signed production AAB and run full production lint
         working-directory: candidate/native-android
         env:
@@ -65,12 +71,6 @@ jobs:
           --no-configuration-cache --max-workers=1 --no-parallel
           -Pkotlin.compiler.execution.strategy=in-process
           '-Dorg.gradle.jvmargs=-Xmx6144m -Dfile.encoding=UTF-8'
-      - name: Cache exact Kotlin compiler dependencies and verify caption behavior
-        run: python3 automation/.github/scripts/play-candidate/release49.py check-caption
-      - name: Verify monitor-only integrity behavior and read-only cached authentication
-        run: python3 automation/.github/scripts/play-candidate/release49.py check-integrity
-      - name: Verify actual native MP4 range adapter with cached Media3 APIs and synthetic HTTP fixtures
-        run: python3 automation/.github/scripts/play-candidate/release49.py check-video
       - name: Verify signed AAB, production manifest, caption, integrity, native media, realtime and Room unit tests and full lint
         run: python3 automation/.github/scripts/play-candidate/release49.py seal-aab
       - name: Seal exact artifact allowlist and checksums

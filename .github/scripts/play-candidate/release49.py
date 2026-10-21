@@ -48,7 +48,7 @@ VIDEO_API_COORDINATES = (
     'androidx.media3:media3-common:1.11.1@aar',
     'androidx.media3:media3-datasource:1.11.1@aar',
     'androidx.annotation:annotation-experimental:1.4.1@aar',
-    'com.google.guava:guava:33.3.1-android',
+    'com.google.guava:guava:33.3.1-android@jar',
 )
 
 NATIVE_MEDIA_UNIT_SUITES = {
@@ -130,10 +130,33 @@ def gate(name):
 def sha(data): return hashlib.sha256(data).hexdigest()
 
 
-def command(args, timeout=90):
-    process = subprocess.run(list(map(str, args)), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             timeout=timeout, check=False)
-    if process.returncode != 0: raise RuntimeError('COMMAND_FAILED')
+def command(args, timeout=90, failure_context=None):
+    assert failure_context in (None, 'VIDEO_API_DEPENDENCY_RESOLUTION', 'ACTUAL_NATIVE_VIDEO_TRANSPORT_BEHAVIOR')
+    def diagnostic(reason, exit_code=None):
+        if failure_context is not None:
+            suffix = ('_EXIT_'+str(int(exit_code))) if exit_code is not None else ''
+            # Fixed labels only: never echo arguments, raw output, URLs or environment.
+            print('::error::PLAY_CANDIDATE_COMMAND_'+failure_context+'_'+reason+suffix, file=sys.stderr)
+    try:
+        process = subprocess.run(list(map(str, args)), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 timeout=timeout, check=False)
+    except subprocess.TimeoutExpired:
+        diagnostic('TIMEOUT')
+        raise RuntimeError('COMMAND_TIMEOUT') from None
+    except OSError:
+        diagnostic('TOOL_UNAVAILABLE')
+        raise RuntimeError('COMMAND_TOOL_UNAVAILABLE') from None
+    if process.returncode != 0:
+        output = (process.stdout + process.stderr).lower()
+        reason = 'PROCESS_FAILED'
+        if b'matching variant' in output or b'cannot choose between' in output:
+            reason = 'DEPENDENCY_VARIANT_SELECTION_FAILED'
+        elif b'no cached version' in output or b'expected one cached dependency' in output:
+            reason = 'REQUIRED_DEPENDENCY_NOT_CACHED'
+        elif b'could not resolve' in output or b'could not find' in output:
+            reason = 'DEPENDENCY_RESOLUTION_FAILED'
+        diagnostic(reason, process.returncode)
+        raise RuntimeError('COMMAND_FAILED')
     return process.stdout.decode('utf-8', errors='strict')
 
 
@@ -393,10 +416,12 @@ def check_video():
     assert caption['sourceSha'] == SOURCE and caption['appSourceTree'] == SOURCE_TREE
     assert caption['passed'] is True and caption['kotlinCompilerVersion'] == '2.2.20'
     assert type(caption['checkCount']) is int and caption['checkCount'] >= MIN_TEXT_ENTITY_CHECKS
+    gate('VIDEO_CHECK_OUTPUT_DIRECTORY')
     assert not VIDEO_CHECK.exists()
     VIDEO_CHECK.mkdir(mode=0o700)
     # Clean runners may resolve newer transitive annotations/Guava versions in
     # the app build. Cache the portable runner's exact API artifacts explicitly.
+    gate('VIDEO_API_DEPENDENCY_RESOLUTION')
     init = VIDEO_CHECK/'resolve-video-api.gradle'
     coordinates = ',\n                '.join(json.dumps(c) for c in VIDEO_API_COORDINATES)
     init.write_text('''gradle.projectsEvaluated {
@@ -407,8 +432,20 @@ def check_video():
             ].collect { rootProject.dependencies.create(it) }
             def pinned = rootProject.configurations.detachedConfiguration(*requested)
             pinned.transitive = false
-            if (pinned.resolve().size() != 4) {
-                throw new GradleException("Expected four pinned video API artifacts")
+            // A detached root configuration has no Java/Android consumer attributes.
+            // Guava publishes Android and JRE API/runtime variants of this version.
+            pinned.attributes {
+                attribute(org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE,
+                    rootProject.objects.named(org.gradle.api.attributes.Usage, "java-runtime"))
+                attribute(org.gradle.api.attributes.java.TargetJvmEnvironment.TARGET_JVM_ENVIRONMENT_ATTRIBUTE,
+                    rootProject.objects.named(org.gradle.api.attributes.java.TargetJvmEnvironment, "android"))
+            }
+            def files = pinned.resolve()
+            def expected = ["media3-common-1.11.1.aar", "media3-datasource-1.11.1.aar",
+                "annotation-experimental-1.4.1.aar", "guava-33.3.1-android.jar"] as Set
+            if (files.size() != 4 || files.collect { it.name }.toSet() != expected ||
+                    files.any { !it.isFile() || it.length() <= 0 }) {
+                throw new GradleException("Expected the exact four pinned video API artifacts")
             }
         }
     }
@@ -417,18 +454,22 @@ def check_video():
     command(['gradle', '--project-dir', APP.parent, '--init-script', init,
              ':resolveRelease49VideoApis', '--no-daemon', '--no-configuration-cache',
              '--max-workers=1', '--no-parallel',
-             '-Dorg.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8'], timeout=600)
-    gate('ACTUAL_NATIVE_VIDEO_TRANSPORT_BEHAVIOR')
+             '-Dorg.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8'], timeout=600,
+             failure_context='VIDEO_API_DEPENDENCY_RESOLUTION')
+    gate('VIDEO_RUNTIME_TOOLCHAIN')
     sdk = Path(os.environ.get('ANDROID_HOME') or os.environ['ANDROID_SDK_ROOT'])
     android_jar = sdk/'platforms/android-36/android.jar'
     assert android_jar.is_file()
     java = shutil.which('java')
     assert java is not None
     cache_home = Path(os.environ.get('GRADLE_USER_HOME') or Path.home()/'.gradle').resolve()
+    gate('ACTUAL_NATIVE_VIDEO_TRANSPORT_BEHAVIOR')
     result = command([sys.executable, APP.parent/'validation/run-video-http-check.py',
                       '--java-path', java, '--android-jar', android_jar,
                       '--output-directory', VIDEO_CHECK/'output',
-                      '--gradle-module-cache', cache_home/'caches/modules-2/files-2.1'], timeout=300)
+                      '--gradle-module-cache', cache_home/'caches/modules-2/files-2.1'], timeout=300,
+                      failure_context='ACTUAL_NATIVE_VIDEO_TRANSPORT_BEHAVIOR')
+    gate('VIDEO_TRANSPORT_RESULT_COUNT')
     counts = re.findall(r'^PASS ([0-9]+) native video transport checks .*$', result, re.MULTILINE)
     assert len(counts) == 1 and int(counts[0]) >= MIN_VIDEO_TRANSPORT_CHECKS
     verify_source()
@@ -441,6 +482,7 @@ def check_video():
                'videoAdapterSourceSha256': sha((APP/'src/main/java/com/sautilink/nativeapp/ui/components/NativeVideoDataSource.kt').read_bytes()),
                'portableRunnerSha256': sha((APP.parent/'validation/run-video-http-check.py').read_bytes()),
                **media_source}
+    gate('VIDEO_TRANSPORT_RECEIPT')
     with VIDEO_RECEIPT.open('x', encoding='utf-8') as stream:
         json.dump(receipt, stream, indent=2); stream.write('\n')
     print('NATIVE_VIDEO_TRANSPORT_CHECKS_PASS_COUNT_'+counts[0])
@@ -580,6 +622,19 @@ def seal_aab():
                **signature, 'playConsoleValidationPerformed': False, 'device16KbValidationPerformed': False})
 
 
+def public_artifact_provenance(bundle, aab_sha256):
+    assert all(re.fullmatch(r'[a-f0-9]{40}', value) for value in (SOURCE, SOURCE_TREE, REPOSITORY_TREE))
+    assert re.fullmatch(r'[a-f0-9]{64}', aab_sha256) and bundle['sha256'] == aab_sha256
+    assert bundle['sourceSha'] == SOURCE and bundle['package'] == 'com.sautilink.app'
+    assert bundle['versionCode'] == 49 and bundle['versionName'] == '1.1.4'
+    public = {'sourceSha': SOURCE, 'appSourceTree': SOURCE_TREE, 'repositoryTree': REPOSITORY_TREE,
+              'package': 'com.sautilink.app', 'versionCode': 49, 'versionName': '1.1.4',
+              'aabSha256': aab_sha256}
+    value = json.dumps(public, sort_keys=True, separators=(',', ':'))
+    assert len(value.encode('ascii')) <= 1024
+    return 'PLAY_CANDIDATE_PUBLIC_PROVENANCE_'+value
+
+
 def seal_outputs():
     verify_source()
     integrity_source = verify_integrity_source()
@@ -612,6 +667,9 @@ def seal_outputs():
                    for name, value in media_source.items())
     with (OUT/'SHA256SUMS').open('x', encoding='ascii') as stream:
         for name in sorted(expected): stream.write(sha((OUT/name).read_bytes())+'  '+name+'\n')
+    gate('PUBLIC_SEALED_ARTIFACT_PROVENANCE')
+    assert {p.name for p in OUT.iterdir()} == expected | {'SHA256SUMS'}
+    print(public_artifact_provenance(bundle, sha((OUT/'sautilink-production-clean.aab').read_bytes())))
 
 
 def cleanup():
