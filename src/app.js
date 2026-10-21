@@ -6138,6 +6138,7 @@ async function refreshNotificationBadge() {
   const { count, error } = await supabase
     .from('social_notifications')
     .select('id', { count: 'exact', head: true })
+    .not('notification_type', 'in', '(story_like,story_dislike)')
     .is('read_at', null);
 
   if (!error) syncNotificationBadges(count || 0);
@@ -6236,6 +6237,7 @@ async function loadNotifications() {
   const { data, error } = await supabase
     .from('social_notifications')
     .select('id, actor_id, post_id, circle_id, circle_event, notification_type, read_at, created_at')
+    .not('notification_type', 'in', '(story_like,story_dislike)')
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
     .limit(50);
@@ -6324,6 +6326,7 @@ async function markAllNotificationsRead() {
   const { error } = await supabase
     .from('social_notifications')
     .update({ read_at: new Date().toISOString() })
+    .not('notification_type', 'in', '(story_like,story_dislike)')
     .is('read_at', null);
 
   if (error) {

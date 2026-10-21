@@ -299,6 +299,11 @@
     "run_worker_first": true
   },
   "vars": {
+    "SAUTI_STREAM_ENABLED": "true",
+    "SAUTI_STREAM_ORIGIN": "https://customer-n0oif5aftnykff47.cloudflarestream.com",
+    "SAUTI_STREAM_STORAGE_SECONDS": "60000",
+    "SAUTI_STREAM_INITIAL_SECONDS": "0",
+    "SAUTI_STORIES_ENABLED": "true",
     "SAUTI_MEDIA_VARIANTS_ENABLED": "true",
     "DM_MEDIA_SUPABASE_URL": "https://rggpyiterdbbugluejcs.supabase.co",
     "DM_MEDIA_SUPABASE_KEY": "sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca",
@@ -324,6 +329,12 @@
   },
   "media": {
     "binding": "MEDIA"
+  },
+  "stream": {
+    "binding": "STREAM"
+  },
+  "triggers": {
+    "crons": ["* * * * *"]
   },
   "r2_buckets": [
     {

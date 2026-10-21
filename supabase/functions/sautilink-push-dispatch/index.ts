@@ -242,7 +242,7 @@ function memberNoticeCopy(event: string) {
 async function buildSocialPayload(sourceId: string, recipientId: string) {
   if (!/^\d+$/.test(sourceId)) return null;
   const result = await adminRest(
-    `social_notifications?id=eq.${encodeURIComponent(sourceId)}&recipient_id=eq.${encodeURIComponent(recipientId)}&select=id,recipient_id,actor_id,post_id,notification_type,notification_event,moderation_action_id,verification_case_id&limit=1`,
+    `social_notifications?id=eq.${encodeURIComponent(sourceId)}&recipient_id=eq.${encodeURIComponent(recipientId)}&select=id,recipient_id,actor_id,post_id,story_id,notification_type,notification_event,moderation_action_id,verification_case_id&limit=1`,
     { method: "GET" },
   );
   if (!result.ok || !Array.isArray(result.body) || !result.body[0]) return null;
@@ -251,6 +251,15 @@ async function buildSocialPayload(sourceId: string, recipientId: string) {
   const event = clean(notification.notification_event);
   const moderationActionId = clean(notification.moderation_action_id);
   const actorId = clean(notification.actor_id) || null;
+  const storyId = clean(notification.story_id);
+  const storyReaction = type === "story_like" || type === "story_dislike";
+  if (storyReaction) {
+    if (!isUuid(storyId) || !actorId || !isUuid(actorId) || !isUuid(recipientId)) return null;
+    const access = await adminRest("rpc/stories_push_authorize", { method: "POST", body: JSON.stringify({
+      p_story: storyId, p_actor: actorId, p_recipient: recipientId, p_notification_id: sourceId,
+    }) });
+    if (!access.ok || access.body !== true) return null;
+  }
   const actor = await getActor(actorId);
   const name = actorName(actor);
   const username = clean(actor?.username);
@@ -270,9 +279,13 @@ async function buildSocialPayload(sourceId: string, recipientId: string) {
   else if (!event && type === "reply") body = `${name} replied to your post.`;
   else if (!event && type === "mention") body = `${name} mentioned you.`;
   else if (!event && type === "reshare") body = `${name} reposted your post.`;
+  else if (!event && type === "story_like") body = `${name} liked your story.`;
+  else if (!event && type === "story_dislike") body = `${name} disliked your story.`;
 
   let route = "/notifications";
-  if (["post_removed_author", "comment_removed_author", "visibility_limited_author", "appeal_upheld", "appeal_reversed"].includes(event) && /^\d+$/.test(moderationActionId)) {
+  if (storyReaction) {
+    route = `/stories/${storyId}`;
+  } else if (["post_removed_author", "comment_removed_author", "visibility_limited_author", "appeal_upheld", "appeal_reversed"].includes(event) && /^\d+$/.test(moderationActionId)) {
     route = `/appeals?action=${encodeURIComponent(moderationActionId)}`;
   } else if (event.startsWith("verification_")) {
     route = "/settings";
@@ -297,6 +310,7 @@ async function buildSocialPayload(sourceId: string, recipientId: string) {
     type,
     event,
     sourceId,
+    storyId: storyReaction ? storyId : "",
   };
 }
 
@@ -360,6 +374,7 @@ async function sendFcm(token: string, payload: Record<string, string>) {
               type: payload.type,
               event: payload.event || "",
               source_id: payload.sourceId,
+              story_id: payload.storyId || "",
             },
             android: {
               priority: "high",
@@ -501,7 +516,7 @@ Deno.serve(async (req) => {
       `push_device_tokens?user_id=eq.${encodeURIComponent(recipientId)}&enabled=is.true&select=id,token&order=last_seen_at.desc&limit=10`,
       { method: "GET" },
     ),
-    adminRest(
+    payload.type === "story_like" || payload.type === "story_dislike" ? Promise.resolve({ ok: true, body: [] }) : adminRest(
       `web_push_subscriptions?user_id=eq.${encodeURIComponent(recipientId)}&enabled=is.true&select=id,endpoint,p256dh,auth&order=last_seen_at.desc&limit=10`,
       { method: "GET" },
     ),
