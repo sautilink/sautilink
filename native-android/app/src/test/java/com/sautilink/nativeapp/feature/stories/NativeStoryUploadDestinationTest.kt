@@ -30,4 +30,28 @@ class NativeStoryUploadDestinationTest {
         assertFalse(storyUploadDestinationAllowed(origin, video, "image", id, "PUT"))
         assertFalse(storyUploadDestinationAllowed(origin, image, "video", id, "POST"))
     }
+    @Test fun currentAndLegacyCloudflareOriginsShareStrictOpaquePathAndNoUrlExtras() {
+        listOf("upload.cloudflarestream.com", "upload.videodelivery.net").forEach { host ->
+            val canonical = "https://$host/0123456789abcdef0123456789abcdef"
+            assertTrue("The real direct-upload origin must work: $host", storyUploadDestinationAllowed(origin, canonical, "video", id, "POST"))
+            val rejected = listOf(
+                canonical.replace("https:", "http:"),
+                canonical.replace(host, "$host.evil.example"),
+                canonical.replace(host, "sub.$host"),
+                canonical.replace(host, "$host:444"),
+                canonical.replace(host, "$host:443"),
+                canonical.replace(host, "user@$host"),
+                canonical.replace(host, "@$host"),
+                "$canonical?token=unexpected", "$canonical?", "$canonical#fragment",
+                "$canonical/extra", "$canonical/", canonical.dropLast(1), "${canonical}a",
+                "https://$host/%30${"1".repeat(31)}"
+            )
+            rejected.forEach { destination ->
+                assertFalse("Only the exact direct-upload capability URL is allowed: $destination",
+                    storyUploadDestinationAllowed(origin, destination, "video", id, "POST"))
+            }
+            assertFalse(storyUploadDestinationAllowed(origin, canonical, "video", id, "PUT"))
+            assertFalse(storyUploadDestinationAllowed(origin, canonical, "image", id, "PUT"))
+        }
+    }
 }

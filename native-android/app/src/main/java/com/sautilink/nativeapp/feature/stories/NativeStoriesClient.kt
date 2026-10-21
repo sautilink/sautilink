@@ -301,7 +301,12 @@ internal fun storyUploadDestinationAllowed(origin: String, destination: String, 
         target.isHttps && target.username.isEmpty() && target.password.isEmpty() && target.fragment == null && target.port == 443 &&
             when (kind) {
                 "image" -> method == "PUT" && target.host == firstParty.host && target.encodedPath == "/api/stories/uploads/$id"
-                "video" -> method == "POST" && target.host == "upload.videodelivery.net" && target.encodedPath.matches(Regex("^/[a-zA-Z0-9_-]{16,128}$"))
+                // Stream currently returns upload.cloudflarestream.com; existing
+                // one-time URLs can use upload.videodelivery.net. Both are exact
+                // HTTPS origins with one opaque 32-character ID and no URL extras.
+                "video" -> method == "POST" && target.host in setOf("upload.videodelivery.net", "upload.cloudflarestream.com") &&
+                    target.encodedPath.matches(Regex("^/[a-zA-Z0-9_-]{32}$")) && target.encodedQuery == null &&
+                    destination == "https://${target.host}${target.encodedPath}"
                 else -> false
             }
     }.getOrDefault(false)
