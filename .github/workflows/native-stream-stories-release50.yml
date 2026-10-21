@@ -23,7 +23,7 @@ jobs:
       github.event.head_commit.message == 'ci: build native Stream and Stories release 50' &&
       github.event.forced == false && github.event.deleted == false
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -34,7 +34,7 @@ jobs:
         with:
           # Build the reviewed, immutable Stream, Stories and feed experience 1.1.5 (50) source commit.
           # The same SHA, full tree, app/src and app/src/main trees must be pinned in release50.py.
-          ref: 5df9bc0a5e9dfaf6188cd52ed02392ba19404224
+          ref: 7b730b42f82db01d1fc203c27701ca7f8f154cfc
           path: candidate
           persist-credentials: false
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
@@ -70,7 +70,7 @@ jobs:
           SAUTILINK_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
         run: >-
           gradle :app:compilePreviewDebugKotlin :app:testPreviewDebugUnitTest :app:bundleProductionRelease :app:lintProductionRelease --no-daemon
-          --no-configuration-cache --max-workers=1 --no-parallel
+          --no-configuration-cache --max-workers=2 --no-parallel
           -Pkotlin.compiler.execution.strategy=in-process
           '-Dorg.gradle.jvmargs=-Xmx6144m -Dfile.encoding=UTF-8'
       - name: Verify signed AAB, production manifest, caption, integrity, native Stream, Stories, feed, realtime and Room unit tests and full lint

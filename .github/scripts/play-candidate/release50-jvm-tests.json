@@ -95,6 +95,7 @@
     ],
     "com.sautilink.nativeapp.feature.stories.NativeStoryUploadDestinationTest": [
       "cloudflareOneTimeUploadOnlyAcceptsExactHttpsHostAndPost",
+      "currentAndLegacyCloudflareOriginsShareStrictOpaquePathAndNoUrlExtras",
       "exactImageUploadDestinationRetainsBearerOnlyOnFirstParty"
     ],
     "com.sautilink.nativeapp.feature.stories.NativeStoryUploadRecoveryTest": [
