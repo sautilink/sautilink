@@ -11,30 +11,38 @@ const shorts = await read('src/short-videos-feed.js');
 function playbackHarness() {
   const source = app.slice(
     app.indexOf('function pauseHomeFeedVideos()'),
-    app.indexOf('function ensureHomeVideoObserver()'),
+    app.indexOf('function clearHomeFeedMediaState()'),
   );
+  const conversationRouteSource = app.slice(app.indexOf('function readConversationRoute('), app.indexOf('function threadDraftKey('));
   let resolvePlay;
   let dialogOpen = false;
   let autoplayEnabled = true;
+  const bodyClasses = new Set();
+  const rootClasses = new Set();
+  const listeners = new Map();
   const video = {
     isConnected: true,
     paused: true,
     dataset: {},
+    addEventListener(type, callback) { listeners.set(type, callback); },
     pause() { this.paused = true; this.pauses = (this.pauses || 0) + 1; },
     play() {
       this.paused = false;
+      listeners.get('play')?.();
       return new Promise((resolve) => { resolvePlay = resolve; });
     },
   };
-  const location = { pathname: '/home' };
+  const location = { pathname: '/home', search: '', get href() { return `https://sautilink.com${this.pathname}${this.search}`; } };
   const streamSurface = { hidden: false };
   const memberView = { hidden: false };
   const context = {
     window: { location },
+    URL,
+    IntersectionObserver: class { observe() {} unobserve() {} disconnect() {} },
     document: {
       visibilityState: 'visible',
-      body: { classList: { contains: () => false } },
-      documentElement: { classList: { contains: () => false } },
+      body: { classList: { contains: (name) => bodyClasses.has(name) } },
+      documentElement: { classList: { contains: (name) => rootClasses.has(name) } },
       querySelector: () => dialogOpen ? { open: true } : null,
     },
     streamSurface,
@@ -46,12 +54,14 @@ function playbackHarness() {
     getVideoAutoplayPreference: () => autoplayEnabled,
     applyHomeVideoAudio: (target) => { target.muted ??= true; },
   };
-  runInNewContext(`${source}\nthis.playback = { canPlayHomeFeedVideos, syncHomeFeedVideoPlayback, playHomeFeedVideo };`, context);
+  runInNewContext(`${source}\n${conversationRouteSource}\nthis.playback = { canPlayHomeFeedVideos, syncHomeFeedVideoPlayback, playHomeFeedVideo, observeHomeFeedVideo };`, context);
   return { ...context.playback, video, location, streamSurface, memberView,
     resolvePlay: () => resolvePlay(),
     setDialogOpen: (value) => { dialogOpen = value; },
     setAutoplayEnabled: (value) => { autoplayEnabled = value; },
     setVisibleRatio: (value) => context.homeVideoVisibility.set(video, value),
+    setVisibility: (value) => { context.document.visibilityState = value; },
+    bodyClasses, rootClasses,
   };
 }
 
@@ -61,6 +71,59 @@ test('Home does not start a visible video when autoplay is off', () => {
   state.syncHomeFeedVideoPlayback();
   assert.equal(state.video.paused, true);
   assert.equal(state.video.pauses || 0, 0);
+});
+
+test('readable and legacy single-post surfaces retain manual playback with autoplay disabled', async () => {
+  const postId = '21a80dbf-bf8a-4efc-b1de-75e32cf55274';
+  for (const path of [`/post/${postId}`, `/post/${postId}/`, `/app/sauti/${postId}`]) {
+    const state = playbackHarness();
+    state.location.pathname = path; state.location.search = '?view=post';
+    state.setAutoplayEnabled(false);
+    state.observeHomeFeedVideo(state.video, { closest: (selector) => selector === '#stream-feed' ? {} : null });
+    state.setVisibleRatio(0.9);
+    state.video.dataset.sautiManualPlay = 'true';
+    const playing = state.video.play();
+    state.resolvePlay(); await playing;
+    state.syncHomeFeedVideoPlayback();
+    assert.equal(state.canPlayHomeFeedVideos(), true, path);
+    assert.equal(state.video.paused, false, 'The registered play guard must accept a visible authorized post surface');
+    state.setVisibleRatio(0.1); state.syncHomeFeedVideoPlayback();
+    assert.equal(state.video.paused, true, 'Scrolling away still stops manually played single-post video');
+  }
+});
+
+test('single-post playback keeps background, dialog, signed-out and inactive-surface guards', () => {
+  const postId = '21a80dbf-bf8a-4efc-b1de-75e32cf55274';
+  const cases = [
+    (state) => state.setVisibility('hidden'),
+    (state) => state.setDialogOpen(true),
+    (state) => { state.memberView.hidden = true; },
+    (state) => { state.streamSurface.hidden = true; },
+    (state) => state.bodyClasses.add('profile-editor-open'),
+    (state) => state.rootClasses.add('sauti-short-videos-open'),
+    (state) => { state.location.search = ''; }, // The comments route is a different surface.
+    (state) => { state.location.pathname = '/post/not-a-post-id'; },
+    (state) => { state.location.pathname = `/post/${postId}/extra`; },
+    (state) => { state.location.pathname = '/messages'; },
+  ];
+  for (const cover of cases) {
+    const state = playbackHarness();
+    state.location.pathname = `/post/${postId}`; state.location.search = '?view=post';
+    state.video.paused = false; cover(state); state.syncHomeFeedVideoPlayback();
+    assert.equal(state.canPlayHomeFeedVideos(), false);
+    assert.equal(state.video.paused, true);
+  }
+});
+
+test('an in-flight single-post play cannot restart behind a dialog or after navigation', async () => {
+  for (const cover of [(state) => state.setDialogOpen(true), (state) => { state.location.pathname = '/notifications'; }]) {
+    const state = playbackHarness();
+    state.location.pathname = '/post/21a80dbf-bf8a-4efc-b1de-75e32cf55274'; state.location.search = '?view=post';
+    state.observeHomeFeedVideo(state.video, { closest: () => ({}) });
+    const pending = state.playHomeFeedVideo(state.video);
+    cover(state); state.syncHomeFeedVideoPlayback(); state.resolvePlay(); await pending;
+    assert.equal(state.video.paused, true);
+  }
 });
 
 test('a manually played Home video pauses after scrolling out of view with autoplay off', () => {

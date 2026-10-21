@@ -1190,10 +1190,13 @@ function pauseHomeFeedVideos() {
 }
 
 function canPlayHomeFeedVideos() {
+  const postRoute = readConversationRoute();
+  const streamRoute = /^\/(?:home|app)\/?$/.test(window.location.pathname)
+    || (postRoute?.viewPost === true && !postRoute.invalid);
   return document.visibilityState !== 'hidden'
     && !memberView.hidden
     && !streamSurface.hidden
-    && /^\/(?:home|app)\/?$/.test(window.location.pathname)
+    && streamRoute
     && !document.body.classList.contains('profile-editor-open')
     && !document.querySelector('dialog[open]')
     && !document.documentElement.classList.contains('sauti-short-videos-open');
