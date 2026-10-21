@@ -329,7 +329,7 @@ function enhanceSautiLinkVideo(video) {
           option.setAttribute('role', 'menuitemradio'); option.setAttribute('tabindex', '0');
           option.textContent = text;
           runControlAction(option, () => {
-            window.SautiLinkVideoQuality?.setPreference?.(value);
+            window.SautiLinkVideoQuality?.setPreference?.(value, { streamLevels: stream.levels });
             qualityMenu.hidden = true; quality.setAttribute('aria-expanded', 'false');
             syncQuality(); showControls();
           });
