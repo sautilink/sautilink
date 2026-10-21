@@ -152,8 +152,21 @@ async function resolvePlaybackAttempt(state, force = false) {
   state.abort = controller;
   try {
     await window.SautiLinkVideoMediaSession?.ensure?.();
-    const response = await fetch(`/api/sauti-media/${state.mediaId}/playback`, { credentials: 'same-origin', cache: 'no-store',
-      redirect: 'error', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]) });
+    if (state.destroyed || !video.isConnected || controller.signal.aborted) return false;
+    const requestOptions = { credentials: 'same-origin', cache: 'no-store', redirect: 'error',
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]) };
+    const descriptorUrl = `/api/sauti-media/${state.mediaId}/playback`;
+    let response = await fetch(descriptorUrl, requestOptions);
+    if (response.status === 401 && typeof window.SautiLinkVideoMediaSession?.ensure === 'function'
+      && !state.destroyed && video.isConnected && !requestOptions.signal.aborted) {
+      await response.body?.cancel().catch(() => {});
+      // The HttpOnly cookie can expire before a later-created playback grant.
+      // Recreate it through the existing authenticated endpoint, then retry the
+      // normal authorization lookup once. A second denial stays denied.
+      await window.SautiLinkVideoMediaSession.ensure({ force: true });
+      if (state.destroyed || !video.isConnected || requestOptions.signal.aborted) return false;
+      response = await fetch(descriptorUrl, requestOptions);
+    }
     if (!response.ok || state.destroyed) return false;
     const json = await response.json();
     const descriptor = validatedStreamDescriptor(json?.ok === true ? json.data : null, state.mediaId, window.location.origin);
@@ -195,13 +208,22 @@ async function resolvePlaybackAttempt(state, force = false) {
         state.actualQuality = Math.min(Number(current?.width), Number(current?.height)) || 0;
         notify(video);
       });
+      hls.on(Hls.Events.FRAG_BUFFERED, () => {
+        if (state.destroyed || state.hls !== hls) return;
+        // An attach or manifest alone does not prove protected fragment access.
+        // Preserve the one-shot recovery budget across failed replacements.
+        state.authorizationRecoveryUsed = false;
+      });
       hls.on(Hls.Events.ERROR, (_event, detail) => {
         if (!detail.fatal || state.destroyed || state.hls !== hls) return;
         reportFatal(state, hls, detail);
         if (state.fatalRecovery?.hls === hls) return;
+        const rejectedSession = Number(detail.response?.code ?? detail.networkDetails?.status) === 401;
         // Token renewal stays bounded; processing/provider outages keep MP4 usable.
-        if (!state.refreshAttempted && (state.resolving || Date.now() >= state.expiresAt - 15000)) {
+        if (!state.refreshAttempted && (!rejectedSession || !state.authorizationRecoveryUsed)
+          && (rejectedSession || state.resolving || Date.now() >= state.expiresAt - 15000)) {
           state.refreshAttempted = true;
+          if (rejectedSession) state.authorizationRecoveryUsed = true;
           const pending = resolvePlayback(state, true);
           const recovery = { hls, pending };
           state.fatalRecovery = recovery;
