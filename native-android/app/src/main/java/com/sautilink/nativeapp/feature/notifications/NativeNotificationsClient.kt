@@ -17,7 +17,7 @@ data class NativeNotification(
     val id: String, val type: String, val actorHandle: String, val actorName: String,
     val actorVerified: Boolean, val actorBadgeType: String, val actorHasAvatar: Boolean,
     val circleSlug: String, val circleName: String, val circleEvent: String,
-    val postId: String, val createdAt: String, val isRead: Boolean,
+    val postId: String, val createdAt: String, val isRead: Boolean, val storyId: String = "",
 )
 
 /** RLS-protected notifications; writes are scoped to the current recipient. */
@@ -60,7 +60,7 @@ class NativeNotificationsClient(private val auth: StagingAuthClient) {
 
     suspend fun load(): List<NativeNotification> {
         val own = viewer()
-        val rows = rest("social_notifications?recipient_id=eq.$own&select=id,actor_id,post_id,circle_id,circle_event,notification_type,read_at,created_at&order=created_at.desc,id.desc&limit=50")
+        val rows = rest("social_notifications?recipient_id=eq.$own&select=id,actor_id,post_id,story_id,circle_id,circle_event,notification_type,read_at,created_at&order=created_at.desc,id.desc&limit=50")
             .objects()
         val actorIds = rows.mapNotNull { it.optString("actor_id").takeIf(uuid::matches) }.distinct()
         val circleIds = rows.mapNotNull { it.optString("circle_id").takeIf(uuid::matches) }.distinct()
@@ -84,7 +84,7 @@ class NativeNotificationsClient(private val auth: StagingAuthClient) {
                 actor?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null,
                 circle?.optString("slug").orEmpty(), circle?.optString("name").orEmpty(),
                 row.optString("circle_event"), row.optString("post_id").takeIf(uuid::matches).orEmpty(),
-                row.optString("created_at"), !row.isNull("read_at"))
+                row.optString("created_at"), !row.isNull("read_at"), row.optString("story_id").takeIf(uuid::matches).orEmpty())
         }
     }
 

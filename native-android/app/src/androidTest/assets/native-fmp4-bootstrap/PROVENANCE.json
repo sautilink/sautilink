@@ -1,0 +1,96 @@
+{
+  "purpose": "Synthetic fragmented-MP4 HLS decode and codec-initialization bootstrap regression, with real samples still loaded through the protected data source",
+  "generated_on": "2026-10-21",
+  "source": "Remux of ../native-hls/360.m3u8; original synthetic lavfi H264/AAC, no user media",
+  "ffmpeg_version": "9.0.2-essentials_build-www.gyan.dev",
+  "command": [
+    "ffmpeg",
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-y",
+    "-i",
+    "../native-hls/360.m3u8",
+    "-map",
+    "0:v:0",
+    "-map",
+    "0:a:0",
+    "-c",
+    "copy",
+    "-bsf:a",
+    "aac_adtstoasc",
+    "-map_metadata",
+    "-1",
+    "-f",
+    "hls",
+    "-hls_time",
+    "1",
+    "-hls_list_size",
+    "0",
+    "-hls_playlist_type",
+    "vod",
+    "-hls_segment_type",
+    "fmp4",
+    "-hls_fmp4_init_filename",
+    "init.mp4",
+    "-hls_flags",
+    "independent_segments",
+    "-hls_segment_filename",
+    "part-%02d.m4s",
+    "index.m3u8"
+  ],
+  "software_decode": "Complete index.m3u8 decoded successfully using ffmpeg -hide_banner -loglevel error -i index.m3u8 -f null -",
+  "initialization_boxes": [
+    {
+      "type": "ftyp",
+      "bytes": 28
+    },
+    {
+      "type": "moov",
+      "bytes": 1284
+    }
+  ],
+  "hardware_verification": "Pending root Samsung instrumentation",
+  "files": [
+    {
+      "name": "index.m3u8",
+      "bytes": 347,
+      "sha256": "8962171b269f61426bfd44bbf32b001172f3e1ccc19cbb90c06259abf9b51619"
+    },
+    {
+      "name": "init.mp4",
+      "bytes": 1312,
+      "sha256": "35c757058f86dd520026f30e9e6e3e4f8bec10dd52386200eb76df7fa8af05f6"
+    },
+    {
+      "name": "part-00.m4s",
+      "bytes": 20272,
+      "sha256": "70cd456d605fcf0cc778fa68cd9b852271f11f943bd112f032b8b017ad2b7daa"
+    },
+    {
+      "name": "part-01.m4s",
+      "bytes": 23376,
+      "sha256": "c72e96dbad2a8b606c6b27494dc341e6aa49dbcaf9b24a5c4f53cf86b8923cd7"
+    },
+    {
+      "name": "part-02.m4s",
+      "bytes": 26640,
+      "sha256": "7e9c0b56221f4b1c9fbafc81feaab21446cfc15cc163e9d95467837eca52863b"
+    },
+    {
+      "name": "part-03.m4s",
+      "bytes": 28248,
+      "sha256": "1200f59aebd0eef55e79fdbec9fbbf52d63ef3d0e54a679940991f258fb419fd"
+    },
+    {
+      "name": "part-04.m4s",
+      "bytes": 26347,
+      "sha256": "5740daa187c4a2076a76cf6f96cd0ba248f139ae5c6cb5f8641102f90a328f6c"
+    },
+    {
+      "name": "part-05.m4s",
+      "bytes": 27212,
+      "sha256": "57e497854e13fd60844758ed4b17018c7b2f040ed4b75929e3a1d7ad667e3174"
+    }
+  ]
+}

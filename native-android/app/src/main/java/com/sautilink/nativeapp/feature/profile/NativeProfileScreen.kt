@@ -76,6 +76,7 @@ fun NativeProfileScreen(
     onOpenPosts: () -> Unit = {},
     onOpenDashboard: () -> Unit = {},
     onStartMessage: (String) -> Unit = {},
+    onOpenStories: (String) -> Unit = {},
     onOpenPost: (String) -> Unit = {}
 ) {
     val client = remember(auth) { NativeProfilesClient(auth) }
@@ -90,6 +91,7 @@ fun NativeProfileScreen(
     val ownerRoute = username == null
     var refresh by remember(username, account?.id) { mutableIntStateOf(0) }
     var profile by remember(username, account?.id) { mutableStateOf<NativeProfile?>(null) }
+    val activeProfileStory = rememberProfileStoryRingActive(auth, profile, refresh)
     var loading by remember(username, account?.id) { mutableStateOf(false) }
     var loaded by remember(username, account?.id) { mutableStateOf(false) }
     var error by remember(username, account?.id) { mutableStateOf<String?>(null) }
@@ -314,13 +316,10 @@ fun NativeProfileScreen(
                                         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
                                     ) { }
                                 }
-                                Surface(
+                                ProfileStoryAvatarFrame(active = activeProfileStory,
+                                    onOpen = { onOpenStories(member.username) },
                                     modifier = Modifier.align(Alignment.BottomStart)
-                                        .padding(start = 14.dp),
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.surface,
-                                    border = BorderStroke(3.dp, MaterialTheme.colorScheme.surface)
-                                ) {
+                                        .padding(start = 14.dp)) {
                                     ProfileAvatar(auth, member, 86, revision = refresh)
                                 }
                             }

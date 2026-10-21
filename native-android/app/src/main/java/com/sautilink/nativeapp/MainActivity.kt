@@ -30,10 +30,16 @@ import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.dashboard.NativeDashboardScreen
 import com.sautilink.nativeapp.feature.menu.NativeMenuScreen
 import com.sautilink.nativeapp.feature.marketplace.NativeMarketplaceScreen
+import com.sautilink.nativeapp.feature.stories.NativeStoriesScreen
+import com.sautilink.nativeapp.feature.stories.NativeStoriesClient
+import com.sautilink.nativeapp.feature.stories.NativeStoriesFeed
+import com.sautilink.nativeapp.feature.stories.NativeStoryPresence
+import com.sautilink.nativeapp.feature.stories.LocalNativeStoryPresence
 import com.sautilink.nativeapp.feature.safety.NativeAppealsScreen
 import com.sautilink.nativeapp.feature.verification.NativeVerificationScreen
 import com.sautilink.nativeapp.feature.home.NativePlaybackPreferences
 import com.sautilink.nativeapp.feature.home.StagingFeedScreen
+import com.sautilink.nativeapp.feature.home.StagingFeedClient
 import com.sautilink.nativeapp.feature.home.NativePostDetailScreen
 import com.sautilink.nativeapp.feature.inbox.InboxScreen
 import com.sautilink.nativeapp.feature.inbox.NativeInboxScreen
@@ -126,6 +132,10 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     var postDraft by rememberSaveable { mutableStateOf("") }
     var postsRefresh by remember { mutableIntStateOf(0) }
     var unreadNotifications by remember { mutableIntStateOf(0) }
+    var storiesRevision by remember { mutableIntStateOf(0) }
+    var storyReturn by rememberSaveable { mutableStateOf<String?>(null) }
+    var storyDeepId by rememberSaveable { mutableStateOf<String?>(null) }
+    var storyProfile by rememberSaveable { mutableStateOf<String?>(null) }
     var activityRevision by remember { mutableIntStateOf(0) }
     val lifecycle = LocalLifecycleOwner.current
     var visibleOnScreen by remember(lifecycle) {
@@ -172,6 +182,20 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         context.applicationContext.getSharedPreferences("sautilink_native_welcome_v1", Context.MODE_PRIVATE)
     }
     val activeAccountId = productionAuth.account?.id
+    var storiesFeed by remember(activeAccountId) { mutableStateOf(NativeStoriesFeed()) }
+    var storiesClock by remember(activeAccountId) { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(activeAccountId, visibleOnScreen, appResumeVersion, storiesRevision) {
+        if (activeAccountId == null || !visibleOnScreen) return@LaunchedEffect
+        while (true) {
+            try {
+                val result = NativeStoriesClient(productionAuth).feed()
+                if (productionAuth.account?.id == activeAccountId) storiesFeed = result
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Feed navigation and existing posts do not wait for Stories. */ }
+            storiesClock = System.currentTimeMillis()
+            delay(60_000)
+        }
+    }
     LaunchedEffect(activeAccountId) {
         if (entityExploreActive && entityExploreAccount != activeAccountId) {
             entityExploreActive = false
@@ -241,6 +265,10 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
             path == "/home" -> { detail = null; root = 0 }
             path == "/explore" -> { detail = null; root = 1 }
             path == "/videos" -> detail = "videos"
+            path == "/stories" -> { storyDeepId = null; storyProfile = null; storyReturn = null; detail = "stories" }
+            path.startsWith("/stories/") -> {
+                storyDeepId = path.removePrefix("/stories/"); storyProfile = null; storyReturn = null; detail = "stories"
+            }
             path == "/profile" -> { detail = null; root = 4 }
             path == "/rooms" -> { notificationRoomSlug = null; roomReturn = null; detail = "rooms" }
             path.startsWith("/rooms/") -> {
@@ -347,6 +375,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
             detail == "member-profile" -> detail = memberProfileReturn
             detail == "my-posts" -> detail = null
             detail == "post" -> detail = postReturn
+            detail == "stories" -> { detail = storyReturn; storyDeepId = null; storyProfile = null }
             detail == "rooms" && notificationRoomSlug != null -> {
                 notificationRoomSlug = null; detail = roomReturn
             }
@@ -364,7 +393,10 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
             onUrl = { currentEntityUrl(it) })
     }
     SautiTheme(darkTheme = isDark) {
-      CompositionLocalProvider(LocalSautiTextNavigation provides textNavigation) {
+      CompositionLocalProvider(LocalSautiTextNavigation provides textNavigation,
+          LocalNativeStoryPresence provides NativeStoryPresence(
+              storiesFeed.activeGroups(storiesClock).map { it.author.username }.toSet(),
+              open = { handle -> storyProfile = handle; storyDeepId = null; storyReturn = detail; detail = "stories" })) {
         when {
             // Keep the auth screen mounted during a later Retry session. Replacing it
             // with splash cancels its remembered coroutine scope and aborts the retry.
@@ -482,13 +514,28 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onOpenProfile = { profileReturn = "settings"; detail = "production-profile" },
                         onOpenNotifications = { detail = "notifications" },
                         onOpenAuth = { detail = "production-auth" },
-                        onOpenRecovery = { detail = "production-recovery" }
+                        onOpenRecovery = { detail = "production-recovery" },
+                        onVerificationRemoved = { ownerId ->
+                            // Only a confirmed removal for the still-active owner may update
+                            // local identity. Other profiles and later server reviews stay authoritative.
+                            if (productionAuth.account?.id == ownerId) {
+                                menuProfile = menuProfile?.takeIf { it.id == ownerId }?.copy(
+                                    verified = false, badgeType = "standard", verifiedSince = "")
+                                StagingFeedClient(productionAuth).confirmOwnVerificationRemoved(ownerId)
+                                postsRefresh++
+                            }
+                        }
                     )
                     "verification" -> NativeVerificationScreen(
                         auth = productionAuth,
                         onBack = { detail = "menu" }
                     )
                     "marketplace" -> NativeMarketplaceScreen(onBack = { detail = null })
+                    "stories" -> NativeStoriesScreen(auth = productionAuth,
+                        onBack = { detail = storyReturn; storyDeepId = null; storyProfile = null },
+                        onSignIn = { detail = "production-auth" }, initialStoryId = storyDeepId,
+                        initialUsername = storyProfile, onChanged = { storiesRevision++ },
+                        onOpenProfile = { handle -> viewedProfileHandle = handle; memberProfileReturn = "stories"; detail = "member-profile" })
                     "appeals" -> NativeAppealsScreen(auth = productionAuth,
                         onBack = { menuEntryDestination = null; detail = "menu" },
                         onSignIn = { detail = "production-auth" })
@@ -554,12 +601,14 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onBack = { detail = dashboardReturn },
                         onOpenPost = { id -> notificationPostId = id; postReturn = "dashboard"; detail = "post" })
                     "production-profile" -> NativeProfileScreen(auth = productionAuth,
+                        onOpenStories = { handle -> storyProfile = handle; storyDeepId = null; storyReturn = "production-profile"; detail = "stories" },
                         onBack = { detail = profileReturn }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle -> viewedProfileHandle = handle; memberProfileReturn = "production-profile"; detail = "member-profile" },
                         onOpenPosts = { detail = "my-posts" },
                         onOpenDashboard = { dashboardReturn = "production-profile"; detail = "dashboard" },
                         onOpenPost = { id -> notificationPostId = id; postReturn = "production-profile"; detail = "post" })
                     "member-profile" -> NativeProfileScreen(auth = productionAuth, username = viewedProfileHandle,
+                        onOpenStories = { handle -> storyProfile = handle; storyDeepId = null; storyReturn = "member-profile"; detail = "stories" },
                         onBack = { detail = memberProfileReturn }, onSignIn = { detail = "production-auth" },
                         onStartMessage = { recipientId ->
                             pendingMessagePeerId = recipientId
@@ -579,6 +628,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             viewedProfileHandle = handle; memberProfileReturn = "notifications"; detail = "member-profile"
                         }, onOpenRoom = { slug -> notificationRoomSlug = slug; roomReturn = "notifications"; detail = "rooms" },
                         onOpenPost = { id -> notificationPostId = id; postReturn = "notifications"; detail = "post" },
+                        onOpenStory = { id -> storyDeepId = id; storyProfile = null; storyReturn = "notifications"; detail = "stories" },
                         onOpenInbox = { detail = null; root = 3 })
                     "post" -> NativePostDetailScreen(auth = productionAuth, postId = notificationPostId,
                         onBack = { detail = postReturn }, onSignIn = { detail = "production-auth" },
@@ -610,6 +660,8 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             savedRequestVersion = savedRequestVersion,
                             onOpenMenu = { detail = "menu" },
                             onOpenMarketplace = { detail = "marketplace" },
+                            onOpenStories = { storyReturn = null; storyDeepId = null; storyProfile = null; detail = "stories" },
+                            unseenStories = storiesFeed.unreadCount(activeAccountId, storiesClock),
                             onOpenNotifications = { menuEntryDestination = null; detail = "notifications" },
                             onOpenSettings = { detail = "settings" },
                             onOpenVideos = { detail = "videos" },
@@ -633,6 +685,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             initialConversationId = messageDeepId,
                             onDeepLinkConsumed = { messageDeepId = null })
                         4 -> NativeProfileScreen(auth = productionAuth,
+                            onOpenStories = { handle -> storyProfile = handle; storyDeepId = null; storyReturn = null; detail = "stories" },
                             onSignIn = { detail = "production-auth" },
                             onOpenProfile = { handle -> viewedProfileHandle = handle; memberProfileReturn = null; detail = "member-profile" },
                             onOpenPosts = { detail = "my-posts" },
@@ -644,6 +697,8 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             savedRequestVersion = savedRequestVersion,
                             onOpenMenu = { detail = "menu" },
                             onOpenMarketplace = { detail = "marketplace" },
+                            onOpenStories = { storyReturn = null; storyDeepId = null; storyProfile = null; detail = "stories" },
+                            unseenStories = storiesFeed.unreadCount(activeAccountId, storiesClock),
                             onOpenNotifications = { menuEntryDestination = null; detail = "notifications" },
                             onOpenSettings = { detail = "settings" },
                             onOpenVideos = { detail = "videos" },

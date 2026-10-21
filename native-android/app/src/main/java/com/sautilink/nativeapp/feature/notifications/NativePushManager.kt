@@ -55,10 +55,11 @@ object NativePushManager {
         val allowedQuery = query.isEmpty() || query.matches(Regex("^(?:view=post|from=notification|message=[0-9]{1,20})$"))
         if (!allowedQuery) return null
         return when {
-            path in setOf("/home", "/explore", "/videos", "/rooms", "/profile",
+            path in setOf("/home", "/explore", "/videos", "/stories", "/rooms", "/profile",
                 "/notifications", "/settings", "/messages") -> route
             path.startsWith("/u/") && handle.matches(path.removePrefix("/u/")) -> route
             path.startsWith("/post/") && uuid.matches(path.removePrefix("/post/")) -> route
+            path.startsWith("/stories/") && uuid.matches(path.removePrefix("/stories/")) -> route
             path.startsWith("/rooms/") && roomSlug.matches(path.removePrefix("/rooms/")) -> route
             path.startsWith("/messages/") && uuid.matches(path.removePrefix("/messages/")) -> route
             else -> null

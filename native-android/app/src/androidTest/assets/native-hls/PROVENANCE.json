@@ -1,0 +1,265 @@
+{
+  "purpose": "Synthetic real-resolution Android hardware HLS decode, quality-switch and private-cache regression fixtures",
+  "generated_on": "2026-10-21",
+  "source": "FFmpeg lavfi testsrc2 and anullsrc; no user media",
+  "ffmpeg_version": "9.0.2-essentials_build-www.gyan.dev",
+  "official_download_index": "https://ffmpeg.org/download.html",
+  "binary_provider": "https://www.gyan.dev/ffmpeg/builds/",
+  "package_sha256": "60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba",
+  "executable_sha256": "3256173f3f8bffd7df12227c68adf68025edb1832273a9530688a7bb1ed8edec",
+  "software_decode": "Both complete HLS playlists decoded successfully with ffmpeg -hide_banner -loglevel error -i <playlist> -f null -",
+  "hardware_verification": "Pending root Samsung instrumentation run; software success does not establish hardware support",
+  "total_media_bytes": 547322.0,
+  "probes": [
+    {
+      "quality": 360,
+      "video": {
+        "codec_name": "h264",
+        "profile": "Constrained Baseline",
+        "width": 640,
+        "height": 360,
+        "pix_fmt": "yuv420p",
+        "level": 31,
+        "r_frame_rate": "30/1"
+      },
+      "duration": "6.000000"
+    },
+    {
+      "quality": 720,
+      "video": {
+        "codec_name": "h264",
+        "profile": "Constrained Baseline",
+        "width": 1280,
+        "height": 720,
+        "pix_fmt": "yuv420p",
+        "level": 31,
+        "r_frame_rate": "30/1"
+      },
+      "duration": "6.000000"
+    }
+  ],
+  "commands": [
+    {
+      "executable": "ffmpeg",
+      "cwd": "native-android/app/src/androidTest/assets/native-hls",
+      "arguments": [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        "testsrc2=size=1280x720:rate=30:duration=6",
+        "-f",
+        "lavfi",
+        "-i",
+        "anullsrc=channel_layout=mono:sample_rate=48000",
+        "-t",
+        "6",
+        "-map",
+        "0:v:0",
+        "-map",
+        "1:a:0",
+        "-vf",
+        "scale=640:360:flags=bicubic,format=yuv420p",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-profile:v",
+        "baseline",
+        "-level:v",
+        "3.1",
+        "-pix_fmt",
+        "yuv420p",
+        "-r",
+        "30",
+        "-b:v",
+        "200k",
+        "-maxrate",
+        "220k",
+        "-bufsize",
+        "400k",
+        "-g",
+        "30",
+        "-keyint_min",
+        "30",
+        "-sc_threshold",
+        "0",
+        "-threads",
+        "1",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "48k",
+        "-ar",
+        "48000",
+        "-ac",
+        "1",
+        "-map_metadata",
+        "-1",
+        "-f",
+        "hls",
+        "-hls_time",
+        "1",
+        "-hls_list_size",
+        "0",
+        "-hls_playlist_type",
+        "vod",
+        "-hls_flags",
+        "independent_segments",
+        "-hls_segment_filename",
+        "360-%02d.ts",
+        "360.m3u8"
+      ]
+    },
+    {
+      "executable": "ffmpeg",
+      "cwd": "native-android/app/src/androidTest/assets/native-hls",
+      "arguments": [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        "testsrc2=size=1280x720:rate=30:duration=6",
+        "-f",
+        "lavfi",
+        "-i",
+        "anullsrc=channel_layout=mono:sample_rate=48000",
+        "-t",
+        "6",
+        "-map",
+        "0:v:0",
+        "-map",
+        "1:a:0",
+        "-vf",
+        "scale=1280:720:flags=bicubic,format=yuv420p",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-profile:v",
+        "baseline",
+        "-level:v",
+        "3.1",
+        "-pix_fmt",
+        "yuv420p",
+        "-r",
+        "30",
+        "-b:v",
+        "400k",
+        "-maxrate",
+        "440k",
+        "-bufsize",
+        "800k",
+        "-g",
+        "30",
+        "-keyint_min",
+        "30",
+        "-sc_threshold",
+        "0",
+        "-threads",
+        "1",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "48k",
+        "-ar",
+        "48000",
+        "-ac",
+        "1",
+        "-map_metadata",
+        "-1",
+        "-f",
+        "hls",
+        "-hls_time",
+        "1",
+        "-hls_list_size",
+        "0",
+        "-hls_playlist_type",
+        "vod",
+        "-hls_flags",
+        "independent_segments",
+        "-hls_segment_filename",
+        "720-%02d.ts",
+        "720.m3u8"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "name": "360-00.ts",
+      "bytes": 25192,
+      "sha256": "b3e3820a2bb9433314d50306030d43b9fe3216ec2e88a7d3b88f8f443876ec75"
+    },
+    {
+      "name": "360-01.ts",
+      "bytes": 28388,
+      "sha256": "dd6dc86e0fb0ae7505bb1cd1a17d6adea4f36b1441b8bf7378537e8ea27fc594"
+    },
+    {
+      "name": "360-02.ts",
+      "bytes": 31584,
+      "sha256": "25a46c282193de4acfb00d5cdf6ed7de2063daf5862038e99baa91f85f464b7c"
+    },
+    {
+      "name": "360-03.ts",
+      "bytes": 33088,
+      "sha256": "1594ee150129d6060c80fff0305f2ad94982e104f857727674e6d809e68d4a78"
+    },
+    {
+      "name": "360-04.ts",
+      "bytes": 31396,
+      "sha256": "bbe2c4c7bb19b869ba2a77183c03e007072c0d898f526f75a79a414322b9f160"
+    },
+    {
+      "name": "360-05.ts",
+      "bytes": 32148,
+      "sha256": "98ed7462bed65fed096a007feb9a41607407da7c8a5f5a12ddd588df508edf41"
+    },
+    {
+      "name": "360.m3u8",
+      "bytes": 309,
+      "sha256": "f5948ed47690889ad0533258fbd8871a6952b9fb5fc61ade157e2d1765c42aaf"
+    },
+    {
+      "name": "720-00.ts",
+      "bytes": 59220,
+      "sha256": "ddec21ddd3964b1c691c2530c40391ec2b9448aba423019d506978e159887621"
+    },
+    {
+      "name": "720-01.ts",
+      "bytes": 58844,
+      "sha256": "29c601e4d1411e2f4d312587e98770efa446623693ecf21e09cdef1e4d5283b1"
+    },
+    {
+      "name": "720-02.ts",
+      "bytes": 65988,
+      "sha256": "0a7de5f96b108e3c086f8eff709bc85654fe3d194074097628c53df96586f2f2"
+    },
+    {
+      "name": "720-03.ts",
+      "bytes": 66176,
+      "sha256": "d9d0b59f9ff2b6111b6367025e19bb7916ef861bd3f34570c992fcd2e5429fd6"
+    },
+    {
+      "name": "720-04.ts",
+      "bytes": 58468,
+      "sha256": "0b816b4d9b18a2f74e6b0bdc0ab78ffa4cf9a911298ddd25113729730b42f7ab"
+    },
+    {
+      "name": "720-05.ts",
+      "bytes": 56212,
+      "sha256": "f7a7b2e8060206a00c914714cca10d86722317ca223610d0c673999276d02e0e"
+    },
+    {
+      "name": "720.m3u8",
+      "bytes": 309,
+      "sha256": "b1a00ff67a3d894f14ae65f818f4be00004412e332d3a6f6e0e0aefb3760bbfd"
+    }
+  ]
+}

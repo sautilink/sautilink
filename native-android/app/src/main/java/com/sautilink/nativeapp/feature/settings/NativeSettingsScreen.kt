@@ -33,41 +33,52 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
     focusPrivacy: Boolean = false,
     onBack: () -> Unit, onSignIn: () -> Unit, onOpenAuth: () -> Unit,
     onOpenRecovery: () -> Unit, onOpenProfile: () -> Unit,
-    onOpenNotifications: () -> Unit) {
+    onOpenNotifications: () -> Unit,
+    onVerificationRemoved: (String) -> Unit = {}) {
     val client = remember(auth) { NativeSettingsClient(auth) }
     val context = LocalContext.current
     var autoplay by remember { mutableStateOf(NativePlaybackPreferences.autoplayEnabled) }
     val scope = rememberCoroutineScope()
     val settingsListState = rememberLazyListState()
-    var settings by remember { mutableStateOf<NativeAccountSettings?>(null) }
-    var refresh by remember { mutableIntStateOf(0) }
-    var loading by remember(auth.account?.id) { mutableStateOf(auth.account != null) }
-    var busy by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var note by remember { mutableStateOf<String?>(null) }
-    var deleteDialog by remember { mutableStateOf(false) }
-    var deleteText by remember { mutableStateOf("") }
+    val accountId = auth.account?.id
+    var settings by remember(auth, accountId) { mutableStateOf<NativeAccountSettings?>(null) }
+    var refresh by remember(auth, accountId) { mutableIntStateOf(0) }
+    var loading by remember(auth, accountId) { mutableStateOf(accountId != null) }
+    var actionBusy by remember(auth, accountId) { mutableStateOf(false) }
+    var removalBusy by remember(auth, accountId) { mutableStateOf(false) }
+    val busy = actionBusy || removalBusy
+    var error by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var note by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var deleteDialog by remember(auth, accountId) { mutableStateOf(false) }
+    var deleteText by remember(auth, accountId) { mutableStateOf("") }
 
-    LaunchedEffect(auth.account?.id, refresh) {
-        if (auth.account == null) { settings = null; return@LaunchedEffect }
+    LaunchedEffect(auth, accountId, refresh) {
+        if (accountId == null) { settings = null; loading = false; return@LaunchedEffect }
         loading = true; error = null
-        try { settings = client.load() }
+        try {
+            val loaded = client.load()
+            if (auth.account?.id == accountId && loaded.ownerId == accountId) settings = loaded
+        }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) { error = e.message ?: "Could not load account settings." }
         finally { loading = false }
     }
     fun perform(success: String, action: suspend () -> Unit) {
         if (busy) return
-        busy = true; error = null; note = null
+        val owner = accountId ?: return
+        actionBusy = true; error = null; note = null
         scope.launch {
-            try { action(); note = success; refresh++ }
+            try {
+                action()
+                if (auth.account?.id == owner) { note = success; refresh++ }
+            }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) { error = e.message ?: "Could not save this setting." }
-            finally { busy = false }
+            finally { actionBusy = false }
         }
     }
 
-    val state = settings
+    val state = settings?.takeIf { it.ownerId == accountId }
     LaunchedEffect(focusPrivacy, state != null) {
         if (focusPrivacy && state != null) settingsListState.scrollToItem(3)
     }
@@ -209,6 +220,25 @@ fun NativeSettingsScreen(auth: StagingAuthClient, isDark: Boolean, onToggleTheme
                     SettingNavigationRow("Sign-in & phone", Icons.Rounded.Lock, onOpenAuth)
                     SettingNavigationRow("Password recovery", Icons.Rounded.LockReset, onOpenRecovery)
                 }
+            }
+            item {
+                VerificationRemovalSetting(
+                    ownerId = accountId,
+                    verified = state.ownerId == accountId && state.verified,
+                    loading = loading || error != null,
+                    enabled = !busy && !loading,
+                    gateway = client.verificationRemovalGateway,
+                    onBusyChange = { removalBusy = it },
+                    onRemoved = { owner ->
+                        if (auth.account?.id == owner && settings?.ownerId == owner) {
+                            settings = settings?.copy(verified = false)
+                            note = NativeVerificationRemovalPolicy.success
+                            error = null
+                            onVerificationRemoved(owner)
+                            refresh++
+                        }
+                    }
+                )
             }
             item { SectionTitle("Your data") }
             item { Text("Data export: ${state.exportStatus.ifBlank { "No active request" }}") }

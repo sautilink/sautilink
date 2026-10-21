@@ -93,6 +93,7 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
         finally { busy = false }
     }
     val active = case?.optString("status") in listOf("submitted", "reviewing")
+    val previousVerificationRemoved = verified == false && case?.opt("verification_removed") == true
     val cooldown = case?.optString("status") == "rejected" && case?.optBoolean("can_reapply") != true
     val canApply = auth.account != null && verified == false && !active && !cooldown && !busy
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -129,10 +130,15 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
             if (case != null) {
                 Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
                     Column(Modifier.padding(14.dp)) {
-                        VerificationSectionTitle("Application status", Icons.Rounded.AssignmentTurnedIn)
+                        VerificationSectionTitle(if (previousVerificationRemoved) "Previous application" else "Application status",
+                            Icons.Rounded.AssignmentTurnedIn)
                         Spacer(Modifier.height(8.dp))
                         Text("Application: ${case?.optString("case_number")}", style = MaterialTheme.typography.titleSmall)
                         Text("Status: ${case?.optString("status")}")
+                        if (previousVerificationRemoved) Text(
+                            "This is a historical application. Your checkmark was removed. To get verified again, complete a new application and review; previous approval does not guarantee approval again.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                         case?.optString("staff_message")?.takeIf { it.isNotBlank() && it != "null" }
                             ?.let { Text(it) }
                     }

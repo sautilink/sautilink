@@ -16,6 +16,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import com.sautilink.nativeapp.ui.components.SautiIcon
+import com.sautilink.nativeapp.ui.theme.SautiColors
+import com.sautilink.nativeapp.ui.theme.SautiShape
 
 internal val homeFeedChoices = listOf("following" to "Following", "for_you" to "For You", "trending" to "Trending")
 
@@ -40,6 +48,38 @@ internal fun HomeFeedTabs(mode: String, onSelect: (String) -> Unit, modifier: Mo
                         color = if (active) MaterialTheme.colorScheme.onSurface
                             else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
+        }
+    }
+}
+
+/** Tabs live above this scroll container. A new-post notice overlays the list;
+ * arriving pointers never insert rows or move the reader's scroll position.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun FeedRefreshContainer(isRefreshing: Boolean, refreshEnabled: Boolean, newPostsAvailable: Boolean,
+    onRefresh: () -> Unit, onNewPosts: () -> Unit, modifier: Modifier = Modifier,
+    content: @Composable () -> Unit) {
+    val pullState = rememberPullToRefreshState()
+    PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = { if (refreshEnabled && !isRefreshing) onRefresh() },
+        modifier = modifier, state = pullState,
+        indicator = {
+            PullToRefreshDefaults.Indicator(state = pullState, isRefreshing = isRefreshing,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
+                containerColor = MaterialTheme.colorScheme.surface,
+                color = MaterialTheme.colorScheme.primary)
+        }) {
+        content()
+        if (newPostsAvailable && !isRefreshing) {
+            Button(onClick = onNewPosts, enabled = refreshEnabled, shape = SautiShape.Pill,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 10.dp).heightIn(min = 44.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = SautiColors.Blue, contentColor = androidx.compose.ui.graphics.Color.White),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 5.dp),
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)) {
+                SautiIcon(Icons.Rounded.ArrowUpward, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(7.dp))
+                Text("New Posts", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
             }
         }
     }
