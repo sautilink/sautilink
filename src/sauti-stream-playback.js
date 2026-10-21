@@ -171,11 +171,11 @@ async function boundedManifest(response) {
 }
 
 /** Caller MUST reauthorize its post/Room/story row on every invocation. */
-export async function serveSautiStreamHls(request, env, asset, { basePath, accessScope, expiresAt } = {}, now = Math.floor(Date.now() / 1000)) {
+export async function serveSautiStreamHls(request, env, asset, { basePath, accessScope, expiresAt, manifestOnly = false } = {}, now = Math.floor(Date.now() / 1000)) {
   const unavailable = (status = 404) => new Response(null, { status, headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
   const origin = streamOrigin(env);
   const base = validAsset(asset) && gatewayBase(basePath, asset);
-  if (!origin || !base || !['GET', 'HEAD'].includes(request.method)) return unavailable();
+  if (!origin || !base || request.signal.aborted || !['GET', 'HEAD'].includes(request.method)) return unavailable();
   const url = new URL(request.url);
   if (!url.pathname.startsWith(base) || [...url.searchParams.keys()].some((key) => key !== 'c') || url.searchParams.getAll('c').length !== 1) return unavailable();
   const opaquePath = url.pathname.slice(base.length);
@@ -196,15 +196,17 @@ export async function serveSautiStreamHls(request, env, asset, { basePath, acces
   if (range && !/^bytes=\d+-\d*$/.test(range)) return unavailable(416);
   try {
     const manifest = path.split('?')[0].endsWith('.m3u8');
+    if (manifestOnly && !manifest) return unavailable();
     const token = manifest || claims.r === 'token' ? await providerToken(env, asset.stream_uid, now) : null;
     // Cloudflare signs UID-rooted fragment URLs with their original path.
     // Preserve the validated root sealed in the grant; moving a signed fragment
     // beneath the playback token causes a redirect and invalidates delivery.
     const upstream = `${origin}/${claims.r === 'uid' ? asset.stream_uid : token}/${path}`;
+    if (request.signal.aborted) return unavailable();
     // Workers supports manual/follow redirects. Keep every 3xx un-followed;
     // response.ok below rejects it before any provider bytes are returned.
     const response = await fetch(upstream, { method: manifest ? 'GET' : request.method, redirect: 'manual',
-      signal: AbortSignal.timeout(15000), headers: range && !manifest ? { Range: range } : {} });
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(15000)]), headers: range && !manifest ? { Range: range } : {} });
     if (!response.ok || (manifest && response.status !== 200)) { await response.body?.cancel(); return unavailable(response.status === 429 ? 429 : 502); }
     const headers = new Headers({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': "default-src 'none'" });

@@ -3,6 +3,8 @@ import { VIDEO_VARIANT_QUALITIES, videoVariantDimensions, availableVideoQualitie
 import { prepareSautiStreamVideo, readySautiPostStreamAsset, serveSautiStreamSource, deleteSautiStreamVideo } from './sauti-stream-lifecycle.js';
 import { sautiStreamPlaybackDescriptor, serveSautiStreamHls } from './sauti-stream-playback.js';
 import { streamEnabled } from './sauti-stream-provider.js';
+import { createMediaServerTiming } from './media-server-timing.js';
+import { sautiStreamBootstrap } from './sauti-stream-bootstrap.js';
 
 const SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
@@ -1071,32 +1073,38 @@ async function serveMedia(request, env, id, ctx = null) {
 }
 
 async function servePlaybackDescriptor(request, env, id, ctx) {
+  const timing = createMediaServerTiming();
   if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is unavailable.');
   const auth = mediaDeliveryAuthorization(request);
   if (!auth) return apiError(401, 'AUTH_REQUIRED', 'Sign in to watch this video.');
-  const row = await selectMedia(id, auth);
+  const row = await timing.rls(() => selectMedia(id, auth));
   if (!row || row.media_kind !== 'video' || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
-  const asset = await readySautiPostStreamAsset(env, row);
-  const playback = asset && await sautiStreamPlaybackDescriptor(request, env, asset, {
+  const asset = await timing.ready(() => readySautiPostStreamAsset(env, row));
+  const options = {
     basePath: `/api/sauti-media/${id}/hls/`, accessScope: auth,
-  });
-  if (playback) return json(200, { ok: true, data: playback });
+  };
+  const playback = asset && await timing.hls(() => sautiStreamPlaybackDescriptor(request, env, asset, options));
+  if (playback) {
+    const bootstrap = await timing.hls(() => sautiStreamBootstrap(request, env, asset, playback, options));
+    return timing.response(json(200, { ok: true, data: { ...playback, ...(bootstrap ? { bootstrap } : {}) } }));
+  }
   if (streamEnabled(env) && row.upload_status === 'attached') {
     const preparation = prepareSautiStreamVideo(env, row).catch(() => {});
     if (ctx?.waitUntil) ctx.waitUntil(preparation);
     else await preparation;
   }
-  return json(200, { ok: true, data: { type: 'mp4', url: new URL(`/api/sauti-media/${id}`, request.url).href,
-    qualities: availableVideoQualities(row), expires_in: 300, expires_at: new Date(Date.now() + 300000).toISOString() } });
+  return timing.response(json(200, { ok: true, data: { type: 'mp4', url: new URL(`/api/sauti-media/${id}`, request.url).href,
+    qualities: availableVideoQualities(row), expires_in: 300, expires_at: new Date(Date.now() + 300000).toISOString() } }));
 }
 
 async function serveStreamHls(request, env, id) {
+  const timing = createMediaServerTiming();
   const auth = mediaDeliveryAuthorization(request);
   if (!auth) return apiError(401, 'AUTH_REQUIRED', 'Sign in to watch this video.');
-  const row = await selectMedia(id, auth);
-  const asset = row && await readySautiPostStreamAsset(env, row);
+  const row = await timing.rls(() => selectMedia(id, auth));
+  const asset = row && await timing.ready(() => readySautiPostStreamAsset(env, row));
   if (!asset) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
-  return serveSautiStreamHls(request, env, asset, { basePath: `/api/sauti-media/${id}/hls/`, accessScope: auth });
+  return timing.response(await timing.hls(() => serveSautiStreamHls(request, env, asset, { basePath: `/api/sauti-media/${id}/hls/`, accessScope: auth })));
 }
 
 export async function handleSautiMediaRequest(request, env, ctx = null) {

@@ -6,6 +6,7 @@ const SOURCE_TTL = 15 * 60;
 const SOURCE_MAX_BYTES = 100_000_000;
 const JOB_PREFIX = 'stream-jobs/v2/';
 const POLL_INTERVAL = 15;
+const STORY_POLL_INTERVAL = 2;
 const CANCELLED = new Set(['delete_pending', 'deleted']);
 export const sautiStreamJobKey = (kind, id) => `${JOB_PREFIX}${kind}/${id}.json`;
 const reservationKey = (job) => `${job.kind}/${job.id}/${job.generation}`;
@@ -101,7 +102,10 @@ export async function reconcileSautiStreamJob(env, record, now = Math.floor(Date
     return record;
   }
   if (job.state === 'delete_pending') { await removeJobAsset(env, record); return record; }
-  if (job.state === 'ready' || now - Number(job.updated_at || 0) < POLL_INTERVAL) return record;
+  // Active Story uploads have a known provider ID and can become playable
+  // quickly. Uncertain operations above retain the slower discovery interval.
+  const interval = job.kind === 'story' ? STORY_POLL_INTERVAL : POLL_INTERVAL;
+  if (job.state === 'ready' || now - Number(job.updated_at || 0) < interval) return record;
   const claimed = await updateJob(env, record, { updated_at: now });
   if (!claimed) return null;
   job = claimed.data;
@@ -111,15 +115,19 @@ export async function reconcileSautiStreamJob(env, record, now = Math.floor(Date
     generation: job.generation, sourceEtag: job.source_etag, maxDurationSeconds: job.max_duration_seconds };
   const duration = Number(video.duration);
   if (streamVideoId(video) !== job.stream_uid || !streamAssetMatches(video, expected) || video.status?.state === 'error'
+    || (job.kind === 'story' && Boolean(video.status?.errorReasonCode || video.status?.errReasonCode))
     || (duration > 0 && duration > job.max_duration_seconds)
     || (video.readyToStream && !(duration > 0 && Number.isFinite(duration)))) {
     await deleteSautiStreamVideo(env, job, job.kind);
     return null;
   }
   const observation = { provider_upload_state: String(video.status?.state || '').slice(0, 40), provider_checked_at: now };
-  // Cloudflare sets readyToStream after the first rendition, while state can
-  // remain inprogress until the others finish. Partial encoding is not failure.
-  if (!streamAssetReady(video, expected)) return updateJob(env, claimed, observation);
+  // Cloudflare documents readyToStream as at least one encoded quality. Stories
+  // can use it while remaining qualities encode; posts keep their existing gate.
+  const storyPlayable = job.kind === 'story' && video.readyToStream === true
+    && ['ready', 'inprogress'].includes(video.status?.state)
+    && duration > 0 && Number.isFinite(duration) && duration <= job.max_duration_seconds;
+  if (!streamAssetReady(video, expected) && !storyPlayable) return updateJob(env, claimed, observation);
   return updateJob(env, claimed, { ...observation, state: 'ready', duration_ms: Math.round(duration * 1000),
     width: Number(video.input?.width) || null, height: Number(video.input?.height) || null, upload_url: null });
 }
@@ -173,10 +181,15 @@ export async function prepareSautiStreamVideo(env, row, now = Math.floor(Date.no
 
 export async function readySautiPostStreamAsset(env, row) {
   if (!configured(env) || !canonicalPost(row)) return null;
-  const record = await getSautiStreamJob(env, 'post', row.id);
+  // Both reads remain fresh for every authorized resource request. Their keys
+  // come from the canonical row, so neither read depends on the other's result.
+  const [record, source] = await Promise.all([
+    getSautiStreamJob(env, 'post', row.id),
+    sourceHead(env, row),
+  ]);
   const job = record?.data;
   if (!matches(job, 'post', row.id, row.owner_id) || job.state !== 'ready' || !STREAM_UID.test(String(job.stream_uid || ''))
-    || job.object_key !== row.object_key || !await sourceHead(env, row, job.source_etag)) return null;
+    || job.object_key !== row.object_key || !source || (job.source_etag && source.etag !== job.source_etag)) return null;
   return { kind: 'post', id: row.id, stream_uid: job.stream_uid, generation: job.generation };
 }
 
