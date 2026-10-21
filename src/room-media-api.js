@@ -6,6 +6,8 @@ const COVER_LIMIT = 10 * 1024 * 1024;
 const COVER_VARIANT_WIDTHS = Object.freeze([480, 960, 1440]);
 const COVER_EDGE_TTL_SECONDS = 31536000;
 const COVER_BROWSER_TTL_SECONDS = 604800;
+const COVER_VARIANT_VERSION = 'room-scope-v2';
+const COVER_KEY_PATTERN = /^rooms\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/cover\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png|webp)$/;
 const CONTENT_TYPES = {
   'image/jpeg': { extension: 'jpg' },
   'image/png': { extension: 'png' },
@@ -119,6 +121,14 @@ function normalizeCoverWidth(value) {
   ));
 }
 
+function scopedCoverKey(room, value = room?.cover_key) {
+  if (typeof value !== 'string' || typeof room?.id !== 'string') return '';
+  const match = value.match(COVER_KEY_PATTERN);
+  // Metadata is writable through the Data API. A Room grant is never a grant
+  // to another Room, profile, post or private-message object in the same bucket.
+  return match && match[0] === value && match[1] === room.id ? value : '';
+}
+
 function coverVersionToken(room) {
   const leaf = String(room?.cover_key || '').split('/').pop() || '';
   return leaf.replace(/\.[^.]+$/, '').slice(0, 80);
@@ -126,7 +136,7 @@ function coverVersionToken(room) {
 
 function coverVariantEtag(room, width) {
   const version = coverVersionToken(room) || String(room?.id || 'room');
-  return `"room-cover-${version}-${width}"`;
+  return `"room-cover-${COVER_VARIANT_VERSION}-${version}-${width}"`;
 }
 
 function requestHasEtag(request, etag) {
@@ -159,11 +169,17 @@ function coverVariantCacheKey(request, room, width) {
   url.search = '';
   url.searchParams.set('w', String(width));
   url.searchParams.set('v', coverVersionToken(room) || 'legacy');
+  // Do not reuse variants created before scope validation, even when a planted
+  // cross-scope key had the same filename as a later, well-scoped reference.
+  url.searchParams.set('variant', COVER_VARIANT_VERSION);
+  url.searchParams.set('room', room.id);
   return new Request(url.toString(), { method: 'GET' });
 }
 
 async function serveOriginalCover(request, env, room, width, etag, immutable, cachedObject = null) {
-  const object = cachedObject || await env.PROFILE_MEDIA.get(room.cover_key);
+  const coverKey = scopedCoverKey(room);
+  if (!coverKey) return apiError(404, 'MEDIA_NOT_FOUND', 'This Room cover photo is unavailable.');
+  const object = cachedObject || await env.PROFILE_MEDIA.get(coverKey);
   if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This Room cover photo is unavailable.');
 
   const headers = coverClientHeaders(
@@ -185,6 +201,8 @@ async function serveCover(request, env, slug) {
 
   const room = await roomBySlug(slug, session.auth);
   if (!room?.cover_key) return apiError(404, 'MEDIA_NOT_FOUND', 'This Room does not have a cover photo.');
+  const coverKey = scopedCoverKey(room);
+  if (!coverKey) return apiError(404, 'MEDIA_NOT_FOUND', 'This Room cover photo is unavailable.');
 
   const url = new URL(request.url);
   const width = normalizeCoverWidth(url.searchParams.get('w'));
@@ -209,7 +227,7 @@ async function serveCover(request, env, slug) {
     }
   }
 
-  const original = await env.PROFILE_MEDIA.get(room.cover_key);
+  const original = await env.PROFILE_MEDIA.get(coverKey);
   if (!original) return apiError(404, 'MEDIA_NOT_FOUND', 'This Room cover photo is unavailable.');
 
   const sourceWidth = Math.max(1, Number(original.customMetadata?.width || width));
@@ -277,7 +295,8 @@ async function uploadCover(request, env) {
 
   const extension = CONTENT_TYPES[file.type].extension;
   const objectKey = `rooms/${room.id}/cover/${crypto.randomUUID()}.${extension}`;
-  const oldKey = room.cover_key;
+  const oldKey = scopedCoverKey(room);
+  if (!scopedCoverKey(room, objectKey)) return apiError(409, 'INVALID_ROOM', 'This Room is unavailable.');
 
   try {
     await env.PROFILE_MEDIA.put(objectKey, bytes, {
@@ -319,10 +338,12 @@ async function removeCover(request, env) {
   const room = await roomById(roomId, session.auth);
   if (!room || !(await canManage(room, session))) return apiError(403, 'ROOM_ADMIN_REQUIRED', 'Only Room owners and admins can remove the cover photo.');
   if (!room.cover_key) return json(200, { ok: true, data: { removed: false } });
+  const coverKey = scopedCoverKey(room);
 
   const updated = await patchCoverKey(room.id, session.auth, null);
   if (!updated) return apiError(409, 'MEDIA_REMOVE_FAILED', 'The Room cover photo could not be removed.');
-  await env.PROFILE_MEDIA.delete(room.cover_key).catch(() => {});
+  // Clear an invalid legacy pointer without touching the foreign object.
+  if (coverKey) await env.PROFILE_MEDIA.delete(coverKey).catch(() => {});
   return json(200, { ok: true, data: { removed: true } });
 }
 
