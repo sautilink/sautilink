@@ -73,8 +73,8 @@ class AuthorizedImageRetryUiTest {
                     }
                 }
             }
-            val target = compose.onNodeWithText("Retry image", useUnmergedTree = true)
-            target.assertIsDisplayed()
+            val target = compose.onNode(hasText("Retry image") and hasClickAction())
+            target.assertIsDisplayed().assertHasClickAction()
             val bounds = target.fetchSemanticsNode().boundsInRoot
             assertTrue(bounds.height >= with(compose.density) { 48.dp.toPx() })
             assertTrue(bounds.width >= with(compose.density) { 48.dp.toPx() })

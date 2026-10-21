@@ -24,7 +24,10 @@ class AuthRequestDeadlineTest {
         assertEquals(1, calls)
         val failure = IOException("Synthetic transport failure")
         val thrown = runCatching { authRequestWithinDeadline<Unit> { calls++; throw failure } }.exceptionOrNull()
-        assertSame(failure, thrown)
+        // Coroutine debug stack recovery can copy an exception at a suspension
+        // boundary. Preserve its transport type/message, not object identity.
+        assertEquals(IOException::class.java, thrown?.javaClass)
+        assertEquals(failure.message, thrown?.message)
         assertEquals("The deadline wrapper must never replay a request", 2, calls)
         assertTrue(currentCoroutineContext().isActive)
     }
