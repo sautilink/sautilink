@@ -20,6 +20,7 @@ import java.util.Base64
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
@@ -48,11 +49,20 @@ class NativeDmSocketListenerTest {
         .protocol(Protocol.HTTP_1_1).code(101).message("Synthetic upgrade").build()
 
     @Test fun server1008GetsAcknowledgedWithoutWaitingForThe25SecondPingFailure() {
-        CloseServer().use { server ->
+        verifyServerClose(keepTransportOpenAfterAck = false)
+    }
+
+    @Test fun server1008FinishesLocallyEvenWhenServerKeepsTcpOpenAfterTheCloseAcknowledgement() {
+        verifyServerClose(keepTransportOpenAfterAck = true)
+    }
+
+    private fun verifyServerClose(keepTransportOpenAfterAck: Boolean) {
+        CloseServer(keepTransportOpenAfterAck).use { server ->
             val cleanClosed = CountDownLatch(1)
             val disconnected = CountDownLatch(1)
             val failure = AtomicReference<Throwable?>()
             val closeCode = AtomicInteger()
+            val closedAtNanos = AtomicLong()
             val adapter = NativeDmSocketListener(isCurrent = { true }, onConnected = {}, onText = {},
                 onDisconnected = { disconnected.countDown() })
             // Observe protocol completion while forwarding every callback to actual production code.
@@ -63,6 +73,7 @@ class NativeDmSocketListenerTest {
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                     adapter.onClosed(webSocket, code, reason)
                     closeCode.set(code)
+                    closedAtNanos.set(System.nanoTime())
                     cleanClosed.countDown()
                 }
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
@@ -77,7 +88,15 @@ class NativeDmSocketListenerTest {
             try {
                 assertTrue("Current socket state must clear promptly", disconnected.await(2, TimeUnit.SECONDS))
                 assertTrue("Close frame must be acknowledged promptly", server.acknowledged.await(2, TimeUnit.SECONDS))
+                if (keepTransportOpenAfterAck)
+                    assertTrue("Server must keep its transport open", server.holdingTransportOpen.await(2, TimeUnit.SECONDS))
                 assertTrue("The handshake must finish cleanly", cleanClosed.await(2, TimeUnit.SECONDS))
+                assertTrue("onClosed must not depend on the server sending TCP FIN",
+                    closedAtNanos.get() - server.closeSentAtNanos.get() in 0..TimeUnit.SECONDS.toNanos(2))
+                if (keepTransportOpenAfterAck) {
+                    assertTrue("OkHttp must close its own transport", server.clientClosedInput.await(2, TimeUnit.SECONDS))
+                    assertEquals("Server must still be waiting, not sending FIN", 1L, server.finished.count)
+                }
                 assertNull("A ping timeout is not a successful close", failure.get())
                 assertNull("Synthetic server must finish without error", server.failure.get())
                 assertEquals(1008, closeCode.get())
@@ -202,10 +221,15 @@ class NativeDmSocketListenerTest {
         assertTrue(connected.get())
     }
 
-    private class CloseServer : Closeable {
+    private class CloseServer(private val keepTransportOpenAfterAck: Boolean = false) : Closeable {
         val acknowledged = CountDownLatch(1)
         val acknowledgedCode = AtomicInteger()
         val failure = AtomicReference<Throwable?>()
+        val closeSentAtNanos = AtomicLong()
+        val holdingTransportOpen = CountDownLatch(1)
+        val clientClosedInput = CountDownLatch(1)
+        val finished = CountDownLatch(1)
+        private val releaseTransport = CountDownLatch(1)
         private val server = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))
         @Volatile private var accepted: Socket? = null
         val url = "ws://127.0.0.1:${server.localPort}/synthetic-close"
@@ -231,6 +255,7 @@ class NativeDmSocketListenerTest {
                             "Connection: Upgrade\r\nSec-WebSocket-Accept: $accept\r\n\r\n").toByteArray(Charsets.US_ASCII))
                         output.flush()
                         Thread.sleep(25)
+                        closeSentAtNanos.set(System.nanoTime())
                         output.write(byteArrayOf(0x88.toByte(), 2, 3, 0xf0.toByte())) // close1008
                         output.flush()
                         val first = input.read()
@@ -243,8 +268,15 @@ class NativeDmSocketListenerTest {
                             payload[index] = (payload[index].toInt() xor mask[index % 4].toInt()).toByte()
                         acknowledgedCode.set(((payload[0].toInt() and 255) shl 8) or (payload[1].toInt() and 255))
                         acknowledged.countDown()
+                        if (keepTransportOpenAfterAck) {
+                            holdingTransportOpen.countDown()
+                            check(input.read() == -1)
+                            clientClosedInput.countDown()
+                            check(releaseTransport.await(5, TimeUnit.SECONDS))
+                        }
                     }
                 } catch (error: Throwable) { failure.set(error) }
+                finally { finished.countDown() }
             }
         }
         private fun readLine(input: InputStream): String {
@@ -258,8 +290,10 @@ class NativeDmSocketListenerTest {
             }
         }
         override fun close() {
+            releaseTransport.countDown()
             runCatching { accepted?.close() }
             server.close()
+            finished.await(1, TimeUnit.SECONDS)
         }
     }
 }
