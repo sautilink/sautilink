@@ -470,7 +470,7 @@ async function loadSautiVideoPoster(id, button) {
 }
 
 function enableSautiVideoBlobFallback(video, button, id) {
-  const isStreaming = () => video.src.includes('/api/sauti-media/');
+  const isStreaming = () => video.dataset.sautiStreamManaged !== 'true' && video.src.includes('/api/sauti-media/');
   let timer = 0;
   const startTimer = () => {
     if (timer) return;

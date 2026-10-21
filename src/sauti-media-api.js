@@ -1,5 +1,8 @@
 import { inspectImageBytes } from './profile-media-api.js';
 import { VIDEO_VARIANT_QUALITIES, videoVariantDimensions, availableVideoQualities } from './video-quality-levels.js';
+import { prepareSautiStreamVideo, readySautiPostStreamAsset, serveSautiStreamSource, deleteSautiStreamVideo } from './sauti-stream-lifecycle.js';
+import { sautiStreamPlaybackDescriptor, serveSautiStreamHls } from './sauti-stream-playback.js';
+import { streamEnabled } from './sauti-stream-provider.js';
 
 const SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
@@ -699,6 +702,7 @@ async function removeUpload(request, env, id) {
   if (!row || row.owner_id !== session.user.id || row.post_id) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
   const deleted = await deleteMediaRow(session, id);
   if (!deleted) return apiError(409, 'MEDIA_REMOVE_FAILED', 'The media could not be removed.');
+  await deleteSautiStreamVideo(env, row);
   await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
   return json(200, { ok: true, data: { id, removed: true } });
 }
@@ -949,8 +953,44 @@ async function serveMedia(request, env, id, ctx = null) {
   return serveOriginalMedia(request, env, row, id);
 }
 
+async function servePlaybackDescriptor(request, env, id, ctx) {
+  if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is unavailable.');
+  const auth = mediaDeliveryAuthorization(request);
+  if (!auth) return apiError(401, 'AUTH_REQUIRED', 'Sign in to watch this video.');
+  const row = await selectMedia(id, auth);
+  if (!row || row.media_kind !== 'video' || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
+  const asset = await readySautiPostStreamAsset(env, row);
+  const playback = asset && await sautiStreamPlaybackDescriptor(request, env, asset, {
+    basePath: `/api/sauti-media/${id}/hls/`, accessScope: auth,
+  });
+  if (playback) return json(200, { ok: true, data: playback });
+  if (streamEnabled(env) && row.upload_status === 'attached') {
+    const preparation = prepareSautiStreamVideo(env, row).catch(() => {});
+    if (ctx?.waitUntil) ctx.waitUntil(preparation);
+    else await preparation;
+  }
+  return json(200, { ok: true, data: { type: 'mp4', url: new URL(`/api/sauti-media/${id}`, request.url).href,
+    qualities: availableVideoQualities(row), expires_in: 300, expires_at: new Date(Date.now() + 300000).toISOString() } });
+}
+
+async function serveStreamHls(request, env, id) {
+  const auth = mediaDeliveryAuthorization(request);
+  if (!auth) return apiError(401, 'AUTH_REQUIRED', 'Sign in to watch this video.');
+  const row = await selectMedia(id, auth);
+  const asset = row && await readySautiPostStreamAsset(env, row);
+  if (!asset) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
+  return serveSautiStreamHls(request, env, asset, { basePath: `/api/sauti-media/${id}/hls/`, accessScope: auth });
+}
+
 export async function handleSautiMediaRequest(request, env, ctx = null) {
   const url = new URL(request.url);
+
+  let streamMatch = url.pathname.match(/^\/api\/sauti-media\/([0-9a-f-]{36})\/stream-source$/i);
+  if (streamMatch && ['GET', 'HEAD'].includes(request.method)) return serveSautiStreamSource(request, env, uuid(streamMatch[1]));
+  streamMatch = url.pathname.match(/^\/api\/sauti-media\/([0-9a-f-]{36})\/playback$/i);
+  if (streamMatch && request.method === 'GET') return servePlaybackDescriptor(request, env, uuid(streamMatch[1]), ctx);
+  streamMatch = url.pathname.match(/^\/api\/sauti-media\/([0-9a-f-]{36})\/hls\/[A-Za-z0-9_-]+$/i);
+  if (streamMatch && ['GET', 'HEAD'].includes(request.method)) return serveStreamHls(request, env, uuid(streamMatch[1]));
 
   if (url.pathname === '/api/sauti-media/status' && request.method === 'GET') {
     return json(200, {
@@ -960,6 +1000,7 @@ export async function handleSautiMediaRequest(request, env, ctx = null) {
         responsive_images: responsiveImagesEnabled(env),
         image_variant_widths: IMAGE_VARIANT_WIDTHS,
         adaptive_video: Boolean(env.SAUTI_MEDIA && env.MEDIA),
+        adaptive_stream: streamEnabled(env),
         video_variant_qualities: VIDEO_VARIANT_QUALITIES,
       },
     });

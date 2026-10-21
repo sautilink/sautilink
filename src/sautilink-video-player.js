@@ -1,4 +1,5 @@
 import { rememberHomeVideoAudio } from './home-video-audio-session.js';
+import { enhanceSautiStreamPlayback, streamQualityState } from './sauti-stream-web-player.js';
 
 const SAUTILINK_VIDEO_PLAYER_STYLESHEET = '/app/assets/sautilink-video-player.css?v=20260925-video-quality1';
 const SAUTILINK_VIDEO_PLAYER_STYLESHEET_ID = 'sautilink-video-player-style';
@@ -125,6 +126,7 @@ function enhanceSautiLinkVideo(video) {
   video.removeAttribute('controls');
   host.classList.add('has-sauti-video-player');
   window.SautiLinkVideoQuality?.enhance?.(video, { context: qualityContext });
+  enhanceSautiStreamPlayback(video);
 
   if (mode === 'feed') {
     host.querySelectorAll(':scope > .sauti-video-audio-toggle').forEach((node) => node.remove());
@@ -312,6 +314,59 @@ function enhanceSautiLinkVideo(video) {
 
   const syncQuality = () => {
     if (!quality || !qualityMenu) return;
+    const stream = streamQualityState(video);
+    if (stream) {
+      const signature = stream.levels.join(',');
+      if (qualityMenu.dataset.streamLevels !== signature) {
+        qualityMenu.dataset.streamLevels = signature;
+        qualityMenu.replaceChildren();
+        const choices = [['auto', 'Auto'], ...(stream.levels.length ? [['data-saver', 'Data Saver']] : []),
+          ...stream.levels.map((value) => [String(value), `${value}p`])];
+        choices.forEach(([value, text]) => {
+          const option = document.createElement('span');
+          option.className = 'sauti-video-quality-option';
+          option.dataset.videoQualityOption = value;
+          option.setAttribute('role', 'menuitemradio'); option.setAttribute('tabindex', '0');
+          option.textContent = text;
+          runControlAction(option, () => {
+            window.SautiLinkVideoQuality?.setPreference?.(value);
+            qualityMenu.hidden = true; quality.setAttribute('aria-expanded', 'false');
+            syncQuality(); showControls();
+          });
+          qualityMenu.append(option);
+        });
+      }
+      let labelNode = quality.querySelector(':scope > .sauti-video-quality-label');
+      if (!labelNode) { labelNode = document.createElement('span'); labelNode.className = 'sauti-video-quality-label'; quality.prepend(labelNode); }
+      const label = stream.preference === 'auto' ? `Auto${stream.actual ? ` · ${stream.actual}p` : ''}`
+        : stream.preference === 'data-saver' ? `Saver${stream.actual ? ` · ${stream.actual}p` : ''}`
+          : stream.actual ? `${stream.actual}p` : 'Quality';
+      labelNode.textContent = label; quality.setAttribute('title', `Video quality: ${label}`);
+      qualityMenu.querySelectorAll('[data-video-quality-option]').forEach((option) => {
+        option.setAttribute('aria-checked', String(option.dataset.videoQualityOption === stream.preference));
+      });
+      return;
+    }
+    if (qualityMenu.dataset.streamLevels !== undefined) {
+      delete qualityMenu.dataset.streamLevels;
+      qualityMenu.replaceChildren();
+      const mediaId = video.dataset.sautiMediaId || host.dataset.openMediaId || '';
+      const variants = window.SautiLinkVideoQuality?.availableFor?.(mediaId) || [];
+      const source = window.SautiLinkVideoQuality?.metadataFor?.(mediaId);
+      const sourceEdge = Math.min(Number(source?.width), Number(source?.height));
+      [['auto', 'Auto'], ...(variants.length ? [['data-saver', 'Data Saver']] : []),
+        ...variants.map((value) => [String(value), `${value}p`]),
+        ['original', sourceEdge > 0 ? `Original (${sourceEdge}p)` : 'Original']].forEach(([value, text]) => {
+        const option = document.createElement('span');
+        option.className = 'sauti-video-quality-option'; option.dataset.videoQualityOption = value;
+        option.setAttribute('role', 'menuitemradio'); option.setAttribute('tabindex', '0'); option.textContent = text;
+        runControlAction(option, () => {
+          window.SautiLinkVideoQuality?.setPreference?.(value); qualityMenu.hidden = true;
+          quality.setAttribute('aria-expanded', 'false'); syncQuality(); showControls();
+        });
+        qualityMenu.append(option);
+      });
+    }
     const preference = window.SautiLinkVideoQuality?.getPreference?.() || 'auto';
     const requested = video.dataset.sautiQuality || 'original';
     const applied = window.SautiLinkVideoQuality?.deliveredQuality?.(

@@ -25,8 +25,10 @@ import { transformRuntimePerformanceSource } from './runtime-performance-source-
 import { transformVerificationCaseFlowSource } from './verification-case-flow-source-transform.mjs';
 import { transformVideoPlayerSource } from './video-player-source-transform.mjs';
 import { transformWhatsAppOtpSource } from './whatsapp-otp-source-transform.mjs';
+import { stageStreamHlsRuntime } from './stage-stream-hls-runtime.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+await stageStreamHlsRuntime(projectRoot);
 await import('./build-member-icons.mjs');
 await import('./build-member-controls.mjs');
 const workerRoot = resolve(projectRoot, 'dist-production-worker');

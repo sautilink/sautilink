@@ -86,9 +86,9 @@ function authOnlyHeaders(request) {
   return headers;
 }
 
-async function handleSautiWithOptionalPoll(request, env, url) {
+async function handleSautiWithOptionalPoll(request, env, url, ctx = null) {
   const pollSource = request.method === 'POST' && url.pathname === '/api/sauti' ? request.clone() : null;
-  const response = await handleSautiRequest(request, env);
+  const response = await handleSautiRequest(request, env, ctx);
   if (!response || !pollSource || !response.ok) return response;
 
   const payload = await pollSource.json().catch(() => null);
@@ -284,7 +284,7 @@ async function routeRequest(request, env, url, ctx = null) {
   }
 
   if (url.pathname === '/api/sauti' || url.pathname.startsWith('/api/sauti/')) {
-    const sautiResponse = await handleSautiWithOptionalPoll(request, env, url);
+    const sautiResponse = await handleSautiWithOptionalPoll(request, env, url, ctx);
     if (sautiResponse) return sautiResponse;
     return new Response('Not found', { status: 404 });
   }

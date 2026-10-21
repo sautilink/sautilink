@@ -1,5 +1,6 @@
 import { sautiMediaObjectKeys } from './sauti-media-api.js';
 import { POST_BODY_LIMIT } from './post-text-formatting.js';
+import { deleteSautiStreamVideo, prepareSautiStreamVideo } from './sauti-stream-lifecycle.js';
 
 const SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
@@ -77,7 +78,7 @@ async function consumeLimit(binding, key) {
   return { ready: true, allowed: Boolean(result?.success) };
 }
 
-async function createSauti(request, env) {
+async function createSauti(request, env, ctx = null) {
   const session = await authenticate(request);
   if (!session) return apiError(401, 'AUTH_REQUIRED', 'Sign in before creating a post.');
 
@@ -228,6 +229,10 @@ async function createSauti(request, env) {
     return apiError(409, 'MEDIA_ATTACH_FAILED', 'The post was not published because its media could not be attached safely.');
   }
 
+  const preparation = Promise.all(attached.filter((item) => item.media_kind === 'video').map((item) =>
+    prepareSautiStreamVideo(env, { ...item, post_id: post.id, upload_status: 'attached' }).catch(() => null)));
+  if (ctx?.waitUntil) ctx.waitUntil(preparation);
+  else await preparation;
   return json(201, { ok: true, data: { post, media: attached.map((item) => item.id) } });
 }
 
@@ -306,11 +311,12 @@ async function deleteSauti(request, env, postId) {
   if (!limited.allowed) return apiError(429, 'RATE_LIMITED', 'You are making changes too quickly. Try again shortly.');
 
   let mediaObjects = [];
+  let streamMedia = [];
   if (env.SAUTI_MEDIA) {
     const mediaParams = new URLSearchParams({
       post_id: `eq.${postId}`,
       owner_id: `eq.${session.user.id}`,
-      select: 'object_key,media_kind',
+      select: 'id,owner_id,object_key,media_kind',
     });
     const mediaResponse = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${mediaParams}`, {
       headers: supabaseHeaders(session.auth),
@@ -318,6 +324,7 @@ async function deleteSauti(request, env, postId) {
     if (mediaResponse.ok) {
       const mediaRows = await mediaResponse.json().catch(() => []);
       mediaObjects = Array.isArray(mediaRows) ? mediaRows.flatMap((row) => sautiMediaObjectKeys(row)) : [];
+      streamMedia = Array.isArray(mediaRows) ? mediaRows.filter((row) => row.media_kind === 'video') : [];
     }
   }
 
@@ -343,17 +350,18 @@ async function deleteSauti(request, env, postId) {
   }
 
   if (env.SAUTI_MEDIA && mediaObjects.length) {
+    await Promise.all(streamMedia.map((row) => deleteSautiStreamVideo(env, row).catch(() => false)));
     await Promise.all(mediaObjects.map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
   }
 
   return json(200, { ok: true, data: { id: rows[0].id } });
 }
 
-export async function handleSautiRequest(request, env) {
+export async function handleSautiRequest(request, env, ctx = null) {
   const url = new URL(request.url);
 
   if (url.pathname === '/api/sauti' && request.method === 'POST') {
-    return createSauti(request, env);
+    return createSauti(request, env, ctx);
   }
 
   const postId = postIdFromPath(url.pathname);

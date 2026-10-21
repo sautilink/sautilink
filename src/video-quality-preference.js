@@ -149,6 +149,7 @@ export function shouldResumeVideoAfterQualityChange(video, context) {
 }
 
 async function applyVideoQuality(video, state, quality) {
+  if (video.dataset.sautiStreamManaged === 'true') return;
   if (video.dataset.sautiBlobFallback === 'true') return;
   const source = sautiVideoSourceUrl(state.mediaId, quality);
   const currentSource = relativeVideoUrl(video.currentSrc || video.src);
@@ -168,6 +169,7 @@ async function applyVideoQuality(video, state, quality) {
 
   try {
     await window.SautiLinkVideoMediaSession?.ensure?.();
+    if (video.dataset.sautiStreamManaged === 'true') return;
     await new Promise((resolve, reject) => {
       let timer = 0;
       const finish = (error = null) => {
@@ -251,6 +253,7 @@ export function enhanceSautiVideoQuality(video, { context = 'home' } = {}) {
   managedVideos.add(video);
 
   const markStall = () => {
+    if (video.dataset.sautiStreamManaged === 'true') return;
     if (video.dataset.sautiBlobFallback === 'true') return;
     if (state.switching || (state.context !== 'short' && state.preference !== 'auto')) return;
     state.stalls = Math.min(3, state.stalls + 1);
