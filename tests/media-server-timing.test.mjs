@@ -52,7 +52,7 @@ test('media timing clamps clock rollback nonfinite readings and excessive durati
 });
 
 function fixture(t, kind, { deny = false, providerStatus = 200, missingJob = false, expired = false } = {}) {
-  const calls = []; let authorized = false;
+  const calls = [], providerPaths = []; let authorized = false;
   const row = { id: ID, owner_id: OWNER, post_id: POST, object_key: `sauti/${OWNER}/${ID}.mp4`,
     media_kind: 'video', upload_status: 'attached', duration_ms: 8000, stream_uid: UID,
     expires_at: new Date(Date.now() + (expired ? -1000 : 60000)).toISOString() };
@@ -79,17 +79,20 @@ function fixture(t, kind, { deny = false, providerStatus = 200, missingJob = fal
       }
       assert.equal(url.pathname, '/rest/v1/social_post_media'); return Response.json(deny ? [] : [row]);
     }
-    assert.equal(url.origin, ORIGIN); assert.ok(authorized); calls.push('provider');
+    assert.equal(url.origin, ORIGIN); assert.ok(authorized); calls.push('provider'); providerPaths.push(url.pathname);
     assert.equal(headers.has('Authorization'), false); assert.equal(headers.has('Cookie'), false);
     if (providerStatus !== 200) return new Response('private upstream error', { status: providerStatus });
     if (url.pathname.endsWith('.m3u8')) return new Response('#EXTM3U\n#EXT-X-MAP:URI="../video/init.mp4"\n../video/segment.mp4\n', { headers: { 'Content-Type': 'application/vnd.apple.mpegurl' } });
+    if (url.pathname.endsWith('/init.mp4')) return new Response(Uint8Array.from([
+      0, 0, 0, 16, ...Buffer.from('ftypiso60000'), 0, 0, 0, 16, ...Buffer.from('moov00000000'),
+    ]), { headers: { 'Content-Type': 'video/mp4' } });
     return new Response(binary, { status: 206, headers: { 'Content-Type': 'video/mp4', 'Content-Length': '4', 'Content-Range': 'bytes 0-3/10', 'Accept-Ranges': 'bytes' } });
   });
   const base = kind === 'story' ? '/api/stories/' : '/api/sauti-media/';
   const request = (path, headers = {}) => new Request(new URL(path, 'https://sautilink.com'), {
     headers: { Authorization: TOKEN, Cookie: 'private-cookie', 'X-Request-ID': 'request-id', ...headers } });
   const handle = request => kind === 'story' ? handleStoriesRequest(request, env) : handleSautiMediaRequest(request, env);
-  return { calls, request, handle, path: base + ID + '/playback', env };
+  return { calls, providerPaths, request, handle, path: base + ID + '/playback', env };
 }
 
 for (const kind of ['post', 'story']) {
@@ -123,7 +126,9 @@ for (const kind of ['post', 'story']) {
     assert.doesNotMatch(JSON.stringify(data.bootstrap), /customer-example|aaaa\.bbbb\.cccc|timing-private-token|private-cookie/);
     assert.equal(f.calls.filter(call => call === 'rls').length, 1);
     assert.equal(f.calls.filter(call => call === 'job').length, 1);
-    assert.equal(f.calls.filter(call => call === 'provider').length, 1, 'bootstrap fetches only its rewritten playlist, never fragment bytes');
+    assert.equal(f.calls.filter(call => call === 'provider').length, 2, 'bootstrap fetches the playlist and its validated decoder header');
+    assert.ok(f.providerPaths.every(path => path.endsWith('.m3u8') || path.endsWith('/init.mp4')));
+    assert.equal(data.bootstrap.initializations.length, 1);
     assert.equal(f.calls[0], 'rls');
   });
   test(`${kind} denied opt-in bootstrap cannot reach storage or provider`, async t => {

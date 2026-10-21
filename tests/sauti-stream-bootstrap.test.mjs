@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { sautiStreamBootstrap } from '../src/sauti-stream-bootstrap.js';
+import { sautiStreamBootstrap, sautiStreamInitializationHeader } from '../src/sauti-stream-bootstrap.js';
 import { sautiStreamPlaybackDescriptor } from '../src/sauti-stream-playback.js';
 
 const ID = '11111111-1111-4111-8111-111111111111';
@@ -10,7 +10,13 @@ const provider = 'https://customer-example.cloudflarestream.com';
 const options = { basePath: `/api/sauti-media/${ID}/hls/`, accessScope: 'Bearer authenticated-test-session' };
 const token = 'provider.private.signature';
 
-async function fixture(run, { children = 2, childSize = 0, fail = false, unsafe = false, stall = false, key = false } = {}) {
+function initHeader() {
+  return Uint8Array.from([...Buffer.from([0, 0, 0, 16]), ...Buffer.from('ftypiso60000'),
+    ...Buffer.from([0, 0, 0, 16]), ...Buffer.from('moov00000000')]);
+}
+
+async function fixture(run, { children = 2, childSize = 0, fail = false, unsafe = false, stall = false, key = false,
+  maps = false, mapCount = 1, initBytes = initHeader(), stallInit = false } = {}) {
   const previous = globalThis.fetch;
   const calls = []; let aborts = 0;
   const env = { SAUTI_STREAM_ORIGIN: provider, SAUTI_STREAM_SOURCE_KEY: 'A'.repeat(43), STREAM: {
@@ -20,15 +26,22 @@ async function fixture(run, { children = 2, childSize = 0, fail = false, unsafe 
     const url = new URL(input); calls.push(url.pathname);
     assert.equal(url.origin, provider);
     assert.equal(init.redirect, 'manual');
-    assert.ok(url.pathname.endsWith('.m3u8'), 'bootstrap never requests initialization or media bytes');
+    assert.ok(url.pathname.endsWith('.m3u8') || maps && /\/init\d*\.mp4$/.test(url.pathname), 'only playlists and explicit MAP headers can be requested');
     if (stall) return new Promise((_, reject) => {
       init.signal.addEventListener('abort', () => { aborts++; reject(new Error('aborted')); }, { once: true });
     });
     if (fail) return new Response('provider-failure-private-body', { status: 503 });
+    if (/\/init\d*\.mp4$/.test(url.pathname)) {
+      if (stallInit) return new Promise((_, reject) => init.signal.addEventListener('abort', () => {
+        aborts++; reject(new Error('aborted'));
+      }, { once: true }));
+      return new Response(initBytes, { headers: { 'Content-Type': 'video/mp4' } });
+    }
     const body = url.pathname.endsWith('/video.m3u8')
       ? '#EXTM3U\n' + (key ? '#EXT-X-SESSION-KEY:METHOD=AES-128,URI="secret.key"\n' : '') + Array.from({ length: children }, (_, i) =>
         `#EXT-X-STREAM-INF:BANDWIDTH=${300000 + i}\n${unsafe ? 'https://untrusted.invalid/' : ''}level${i}.m3u8\n`).join('')
-      : '#EXTM3U\n#EXT-X-TARGETDURATION:4\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:4,\nsegment.m4s\n' + '#'.repeat(childSize);
+      : '#EXTM3U\n#EXT-X-TARGETDURATION:4\n' + (maps ? Array.from({ length: mapCount }, (_, i) =>
+        `#EXT-X-MAP:URI="init${mapCount === 1 ? '' : i}.mp4"\n`).join('') : '') + '#EXTINF:4,\nsegment.m4s\n' + '#'.repeat(childSize);
     return new Response(body, { headers: { 'Content-Type': 'application/vnd.apple.mpegurl' } });
   };
   const request = new Request(`${origin}/api/sauti-media/${ID}/playback`, { headers: { 'X-Sauti-Playback-Bootstrap': '1' } });
@@ -120,4 +133,61 @@ test('a disconnected descriptor client cannot start optional provider work', asy
     assert.equal(await sautiStreamBootstrap(disconnected, env, asset, descriptor, options), null);
     assert.equal(calls.length, 0);
   });
+});
+
+test('only explicit MAP configuration headers are bundled and their exact protected URLs remain in playlists', async () => {
+  await fixture(async ({ request, descriptor, env, calls }) => {
+    const bundle = await sautiStreamBootstrap(request, env, asset, descriptor, options);
+    assert.equal(bundle.initializations.length, 2);
+    assert.equal(calls.length, 5);
+    for (const header of bundle.initializations) {
+      const url = new URL(header.url);
+      assert.equal(url.origin, origin); assert.ok(url.pathname.startsWith(options.basePath + 's_'));
+      assert.ok(bundle.playlists.some(item => item.body.includes(`URI="${url.pathname}${url.search}"`)));
+      assert.deepEqual(Buffer.from(header.base64, 'base64'), Buffer.from(initHeader()));
+    }
+    assert.equal(calls.some(path => path.endsWith('.m4s')), false, 'no sample data is prefetched');
+  }, { maps: true });
+});
+
+test('initialization validation rejects sample boxes, duplicates, malformed lengths and trailing bytes', async () => {
+  assert.equal(sautiStreamInitializationHeader(initHeader()), true);
+  const invalid = [new Uint8Array(), new Uint8Array(16385), initHeader().slice(0, -1),
+    Uint8Array.from([...initHeader(), 0]), Uint8Array.from([...initHeader(), ...initHeader()])];
+  for (const type of ['mdat', 'moof', 'free', 'sidx', 'ftyp']) {
+    const bytes = initHeader(); bytes.set(Buffer.from(type), 20); invalid.push(bytes);
+  }
+  const zeroSize = initHeader(); zeroSize.fill(0, 0, 4); invalid.push(zeroSize);
+  const extended = initHeader(); extended[3] = 1; invalid.push(extended);
+  for (const bytes of invalid) assert.equal(sautiStreamInitializationHeader(bytes), false);
+  for (const initBytes of invalid.slice(0, 5)) await fixture(async ({ request, descriptor, env }) => {
+    const bundle = await sautiStreamBootstrap(request, env, asset, descriptor, options);
+    assert.equal(bundle.playlists.length, 3); assert.equal(bundle.initializations, undefined);
+  }, { maps: true, initBytes });
+});
+
+test('a slow MAP header retains the completed playlist bootstrap and aborts all optional header requests', async () => {
+  await fixture(async ({ request, descriptor, env, calls, aborts }) => {
+    const started = performance.now();
+    const bundle = await sautiStreamBootstrap(request, env, asset, descriptor, options);
+    assert.equal(bundle.playlists.length, 3); assert.equal(bundle.initializations, undefined);
+    assert.ok(performance.now() - started < 2500);
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(aborts(), 2); assert.equal(calls.length, 5);
+  }, { maps: true, stallInit: true });
+});
+
+test('too many MAP headers and decoded combined overflow preserve playlists without oversized initialization data', async () => {
+  await fixture(async ({ request, descriptor, env, calls }) => {
+    const bundle = await sautiStreamBootstrap(request, env, asset, descriptor, options);
+    assert.equal(bundle.playlists.length, 2); assert.equal(bundle.initializations, undefined);
+    assert.equal(calls.length, 2, 'more than eight MAP headers never fan out');
+  }, { children: 1, maps: true, mapCount: 9 });
+  const large = new Uint8Array(16384); large.set(initHeader().slice(0, 16));
+  new DataView(large.buffer).setUint32(16, large.length - 16, false); large.set(Buffer.from('moov'), 20);
+  assert.equal(sautiStreamInitializationHeader(large), true);
+  await fixture(async ({ request, descriptor, env }) => {
+    const bundle = await sautiStreamBootstrap(request, env, asset, descriptor, options);
+    assert.equal(bundle.playlists.length, 3); assert.equal(bundle.initializations, undefined);
+  }, { maps: true, childSize: 120000, initBytes: large });
 });
