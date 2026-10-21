@@ -13,6 +13,7 @@ const require = createRequire(import.meta.url);
 // installs its transitive dependencies in a nested node_modules directory.
 const wranglerRequire = createRequire(require.resolve('wrangler/package.json'));
 const miniflareEntry = wranglerRequire.resolve('miniflare');
+const miniflareVersion = wranglerRequire('miniflare/package.json').version;
 const miniflareRequire = createRequire(miniflareEntry);
 const { Miniflare, convertV4MiniflareOptions } = await import(pathToFileURL(miniflareEntry).href);
 const WebSocket = miniflareRequire('ws');
@@ -21,6 +22,7 @@ const hubSha256 = createHash('sha256').update(await readFile(hubPath)).digest('h
 const scratch = await mkdtemp(join(resolve(tmpdir()), 'sautilink-realtime-runtime-'));
 const clients = [];
 const checks = [];
+const diagnosticIssues = [];
 let runtime;
 let runtimeOrigin;
 let runtimeStarted = false;
@@ -125,7 +127,7 @@ function client(url) {
       closeFrameReceived:socket._closeFrameReceived,closeFrameSent:socket._closeFrameSent,
       tcpReadableEnded:socket._socket?.readableEnded,tcpWritableEnded:socket._socket?.writableEnded,
       tcpDestroyed:socket._socket?.destroyed,
-      closeResult,error:error?.message,events:events.slice(-10)}),
+      closeCode:socket._closeCode,closeResult,error:error?.message,events:events.slice(-10)}),
     opened: withTimeout(opened, 'WebSocket upgrade'),
     closed: () => withTimeout(closed, 'WebSocket close'),
     wait(predicate, label, after = 0) {
@@ -157,6 +159,11 @@ try {
     rootPath: scratch, modulesRoot: scratch,
     scriptPath: join(scratch, 'fixture.mjs'), modules: true, compatibilityDate: '2026-08-17',
     host: '127.0.0.1', port: 0, inspectorHost: '127.0.0.1',
+    // The ordinary Miniflare entry Worker adds a forwarding context pinned to
+    // compatibilityDate 2025-03-17, before automatic close replies. Bind a real
+    // workerd HTTP socket directly to our production-date fixture so the required
+    // transport gate tests the reviewed Worker rather than Miniflare's wrapper.
+    unsafeDirectSockets: [{ host:'127.0.0.1', port:0 }],
     durableObjects: { DM_REALTIME_HUB: { className: 'DmRealtimeHub', useSQLite: true } },
     resourcePersistencePath: join(scratch, 'state'), resourceTmpPath: join(scratch, 'tmp'),
     outboundService: async () => { outboundAttempts++; throw new Error('Hosted network access is disabled in runtime verification'); },
@@ -166,12 +173,17 @@ try {
   assert.equal(manifest.mainModule, 'fixture.mjs');
   assert.deepEqual(Object.keys(manifest.modules), ['fixture.mjs']);
   runtime = new Miniflare(runtimeOptions);
-  const origin = await runtime.ready;
+  const entryOrigin = await runtime.ready;
+  const origin = await runtime.unsafeGetDirectURL('sautilink-realtime-runtime-local');
   runtimeOrigin = origin;
   runtimeStarted = true;
   assert.equal(origin.hostname, '127.0.0.1');
-  function connect(name, { actor = 'one', ms = 20000, ...query } = {}) {
-    const url = new URL(`/connect/${name}`, origin);
+  assert.equal(entryOrigin.hostname, '127.0.0.1');
+  assert.notEqual(origin.port, entryOrigin.port);
+  diagnostics.push({phase:'runtime_endpoints',required:'direct_workerd_user_worker',
+    user_worker_compatibility_date:'2026-08-17',miniflare_entry_compatibility_date:'2025-03-17'});
+  function connect(name, { actor = 'one', ms = 20000, ...query } = {}, endpoint = origin) {
+    const url = new URL(`/connect/${name}`, endpoint);
     url.protocol = 'ws:';
     for (const [key, value] of Object.entries({ actor, ms, ...query })) url.searchParams.set(key, String(value));
     return client(url);
@@ -248,6 +260,44 @@ try {
   const fresh = connect('deadline');
   await ready(fresh);
   checks.push('fresh reciprocal authorization can reconnect after revocation');
+
+  // Retain the older Miniflare entry proxy as an explicit diagnostic. Its only
+  // tolerated divergence is the already-observed TCP half-close after both
+  // close frames, provided real Hub authorization/presence cleanup succeeded.
+  // Direct workerd deadlines/revocation above must still complete cleanly.
+  const proxyExpires = connect('entry-proxy-deadline', {ms:2500}, entryOrigin);
+  await ready(proxyExpires);
+  const proxySurvivor = connect('entry-proxy-deadline', {actor:'two'}, entryOrigin);
+  await ready(proxySurvivor);
+  await proxySurvivor.wait(event=>event.type === 'presence' && event.peer_online === true, 'entry-proxy peer online');
+  const afterProxyExpiry = proxySurvivor.events.length;
+  try {
+    assert.equal((await proxyExpires.closed()).code, 1008);
+    diagnostics.push({phase:'miniflare_entry_proxy',transport_close:'complete'});
+  } catch (error) {
+    if (error.message !== 'Realtime runtime timeout: WebSocket close') throw error;
+    assert.equal(miniflareVersion,'5.20260820.0-alpha',
+      'A different Miniflare version requires investigation of any transport failure');
+    const snapshot = proxyExpires.probe();
+    assert.equal(snapshot.closeCode,1008);
+    assert.equal(snapshot.closeFrameReceived,true);
+    assert.equal(snapshot.closeFrameSent,true);
+    assert.equal(snapshot.readyState,2);
+    assert.equal(snapshot.tcpWritableEnded,true);
+    assert.equal(snapshot.tcpReadableEnded,false);
+    const probe = await fetch(new URL('/diagnostic/entry-proxy-deadline', origin), {redirect:'error'});
+    assert.equal(probe.status,200);
+    const state = await probe.json();
+    assert.ok(!state.sockets.some(value=>value.attachment?.userId === '11111111-1111-4111-8111-111111111111' &&
+      value.attachment.authorizationExpiresAt > state.now));
+    assert.ok(!state.lastSeen.some(([key])=>key === 'last-seen:11111111-1111-4111-8111-111111111111'));
+    diagnosticIssues.push('Miniflare 5 entry wrapper leaves TCP half-open after acknowledged server close; direct workerd closes cleanly');
+    diagnostics.push({phase:'miniflare_entry_proxy',transport_close:'half_open_after_both_close_frames',
+      expected_diagnostic_only:true,client:snapshot,server:state});
+  }
+  const proxyOffline = await proxySurvivor.wait(event=>event.type === 'presence' && event.peer_online === false,
+    'entry-proxy expired peer removed',afterProxyExpiry);
+  assert.equal(proxyOffline.peer_last_seen_at,null);
   assert.equal(outboundAttempts, 0, 'The fixture must never contact hosted resources');
   assert.equal(createHash('sha256').update(await readFile(hubPath)).digest('hex'), hubSha256,
     'The reviewed Hub source must remain unchanged during runtime verification');
@@ -255,7 +305,7 @@ try {
   failed = error;
   diagnostics.push({phase:'failed_client_snapshot',clients:clients.map(value=>value.probe())});
   if (runtimeStarted && runtimeOrigin) {
-    for (const name of ['deadline','pair']) {
+    for (const name of ['deadline','pair','entry-proxy-deadline']) {
       try {
         const response = await withTimeout(fetch(new URL(`/diagnostic/${name}`, runtimeOrigin), { redirect:'error' }),
           `failure diagnostic ${name}`, 2000);
@@ -273,6 +323,8 @@ try {
 }
 
 const report = { ok: !failed, local_only: true, real_workerd_runtime: true, runtime_started: runtimeStarted,
+  required_websocket_endpoint:'direct_workerd_user_worker',diagnostic_issues:diagnosticIssues,
+  miniflare_version:miniflareVersion,
   synthetic_data_only: true, hosted_network_requests: outboundAttempts,
   hub_sha256: hubSha256,
   elapsed_ms: Date.now() - started, checks, diagnostics };
