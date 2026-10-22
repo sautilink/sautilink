@@ -54,23 +54,6 @@ test('Replies stay local, enforce limits and keep visible hierarchy bounded', as
   assert.doesNotMatch(conversation, /fetch\(|XMLHttpRequest|WebSocket/i);
 });
 
-test('Conversation architecture requires canonical adjacency and bounded retrieval', async () => {
-  const architecture = await read('docs/architecture/conversations-threads-preview.md');
-
-  for (const term of [
-    'parent_post_id',
-    'root_post_id',
-    'idempotency',
-    'RLS',
-    'rate limits',
-    'cursor pagination',
-    'bounded depth',
-    'moderation',
-  ]) {
-    assert.match(architecture, new RegExp(term, 'i'));
-  }
-  assert.match(architecture, /does not create a database table, Worker route or production notification/);
-});
 
 test('Conversation UI stays restrained with no decorative gradients', async () => {
   const conversation = await read('preview-src/app-shell/ConversationPreview.jsx');

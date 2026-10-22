@@ -1,46 +1,49 @@
 # SautiLink
 
-SautiLink is a modern digital platform designed for open communication and free expression, while maintaining responsibility, safety, and user control.
+SautiLink is a digital community platform from SautiLink Corporation for sharing
+content, connecting with people and taking part in conversations.
 
-## Overview
+- **Official service:** [sautilink.com](https://sautilink.com)
+- **Help:** [Help Centre](https://sautilink.com/help)
+- **Contact:** [SautiLink Contact](https://sautilink.com/contact)
+- **Privacy:** [Privacy Policy](https://sautilink.com/privacy)
+- **Terms:** [Terms of Service](https://sautilink.com/terms)
 
-SautiLink aims to provide a structured and scalable environment for users to connect, share content, and engage in meaningful discussions. The platform is built with a focus on simplicity, performance, and long-term scalability.
+## Get started
 
-## Mission
+Visit the official service to create an account or sign in. Complete the
+verification steps shown, set up your profile and review your account and
+privacy preferences.
 
-To build an open communication platform that balances freedom of expression with responsible digital interaction.
+You can share supported content, follow people, join conversations and use
+available messaging and community features. Follow the community rules and
+respect other people's rights when posting.
 
-## Key Focus Areas
+For an account or service problem, use the Help Centre or contact page.
+Never post your password, login code, recovery link or other private
+credentials in a public issue.
 
-- User-driven content sharing
-- Privacy and data protection
-- Scalable web infrastructure
-- Clean and modern user experience
+## Integrations and other SautiLink services
 
-## Project Status
+For partnership or integration access, contact SautiLink through the official
+contact page. An internal application endpoint is not a public API permission.
 
-SautiLink is currently under active development.
+- [SautiLink Pilot](https://pilot.sautilink.com) helps manage Telegram groups.
+  Group admins and developers can use its
+  [published integration guide](https://pilot.sautilink.com/developers).
+- [SautiLink Cloud Engine](https://cloudengine.sautilink.com) provides public
+  website, domain and network tools.
+- [SautiLink Router](https://router.sautilink.com) provides router setup guidance.
 
-## Website
+## Ownership and permitted use
 
-https://sautilink.com
+Copyright © 2026 SautiLink Corporation. All rights reserved.
 
-## Contact
+This project is proprietary. Copying, reusing, distributing or repackaging its
+protected implementation requires prior written permission, subject to
+[LICENSE](LICENSE). Access to the hosted service or a public repository does
+not grant a general license to its implementation.
 
-For inquiries or collaboration:
-https://sautilink.com/contact
-
-<!--
-**sautilink/sautilink** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-
-Here are some ideas to get you started:
-
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+Third-party components retain their own licenses. See
+[Third-party notices](THIRD_PARTY_NOTICES.md) and the notices accompanying
+individual components.

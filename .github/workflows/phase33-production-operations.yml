@@ -9,16 +9,12 @@ on:
     paths:
       - "scripts/check-production-readiness.mjs"
       - "tests/phase33-production-operations.test.mjs"
-      - "docs/operations/production-runbook.md"
-      - "docs/architecture/phase33-post-mvp-production-operations.md"
       - ".github/workflows/phase33-production-operations.yml"
   push:
     branches: [main]
     paths:
       - "scripts/check-production-readiness.mjs"
       - "tests/phase33-production-operations.test.mjs"
-      - "docs/operations/production-runbook.md"
-      - "docs/architecture/phase33-post-mvp-production-operations.md"
       - ".github/workflows/phase33-production-operations.yml"
 
 permissions:

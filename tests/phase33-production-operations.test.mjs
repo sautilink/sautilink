@@ -56,22 +56,3 @@ test('Phase 33 readiness probe protects production boundaries, responsive images
   assert.match(script, /mediaTimingProbe\.response\.status === 404/);
   assert.match(script, /!\/\(\?:owner_id\|object_key\|authorization\|bearer\|token\)\/i\.test\(serverTiming\)/);
 });
-
-test('Phase 33 operations documentation preserves the launch architecture', async () => {
-  const phase = await read('docs/architecture/phase33-post-mvp-production-operations.md');
-  const runbook = await read('docs/operations/production-runbook.md');
-
-  assert.match(phase, /Post-MVP Production Operations & Reliability/);
-  assert.match(phase, /No Supabase schema migration/);
-  assert.match(phase, /No product UI redesign/);
-  assert.match(phase, /every six hours/i);
-
-  for (const marker of [
-    'sautilink-social-production',
-    'sautilink-media-production',
-    'rggpyiterdbbugluejcs',
-    'bbrydwzlhweuqxpgbahu',
-    'Do not point production at staging',
-    'account-entry root',
-  ]) assert.ok(runbook.includes(marker), `runbook missing ${marker}`);
-});

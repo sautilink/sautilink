@@ -13,10 +13,6 @@ import {
 
 const html = fs.readFileSync(new URL('../app/index.html', import.meta.url), 'utf8');
 const app = fs.readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
-const contractDoc = fs.readFileSync(
-  new URL('../docs/architecture/auth-email-flow-contract.md', import.meta.url),
-  'utf8',
-);
 
 test('email OTP contract is one exact eight-digit code across SautiLink auth surfaces', () => {
   assert.equal(EMAIL_OTP_LENGTH, 8);
@@ -74,22 +70,6 @@ test('current password recovery website instructions are recovery-link based', (
   assert.match(app, /Request a fresh recovery link/i);
 });
 
-test('contract documents all supported Supabase email flows and forbids drift', () => {
-  for (const label of [
-    'Confirm signup',
-    'Magic Link / Email OTP',
-    'Change email address',
-    'Reset password',
-    'Reauthentication',
-    'Invite user',
-  ]) {
-    assert.ok(contractDoc.includes(label), `missing flow documentation: ${label}`);
-  }
-
-  assert.match(contractDoc, /No authentication surface may invent a different delivery method, code length, or instruction copy/i);
-  assert.match(contractDoc, /no UI may say "click a link" for an OTP-only flow/i);
-  assert.match(contractDoc, /no UI may ask for a code for a link-only flow/i);
-});
 
 
 test('canonical hosted templates match their delivery modes and one SautiLink brand contract', () => {

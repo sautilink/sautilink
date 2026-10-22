@@ -53,13 +53,3 @@ test('Basic Messages build stays within the web preview budget', async () => {
   assert.ok((await stat(new URL(javascript, assetDirectory))).size < 330_000, 'Messages JavaScript bundle exceeds 330 kB raw');
   assert.ok((await stat(new URL(stylesheet, assetDirectory))).size < 80_000, 'Messages CSS bundle exceeds 80 kB raw');
 });
-
-test('Basic Messages architecture records the seeded privacy boundary', async () => {
-  const architecture = await read('docs/architecture/basic-messages-preview.md');
-
-  assert.match(architecture, /fictional seeded conversations/);
-  assert.match(architecture, /row-level security/);
-  assert.match(architecture, /rate limits/);
-  assert.match(architecture, /retention/);
-  assert.match(architecture, /Group chat/);
-});
