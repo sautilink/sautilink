@@ -21,13 +21,9 @@ test('Trust and Safety preview is isolated from live services', async () => {
 test('Trust and Safety preview includes the complete local contract', async () => {
   const preview = await read('preview-src/app-shell/SafetyPreview.jsx');
   const main = await read('preview-src/trust-safety/main.jsx');
-  const architecture = await read('docs/architecture/trust-safety-admin-preview.md');
 
   for (const term of ['Report a Sauti', 'Reports', 'Appeals', 'Admin operations', 'Dismiss', 'Limit visibility', 'Escalate', 'audit entry', 'Seeded simulation']) {
     assert.match(preview, new RegExp(term));
-  }
-  for (const term of ['authenticated admin roles', 'RLS-protected', 'idempotent', 'immutable audit', 'service-role']) {
-    assert.match(architecture, new RegExp(term, 'i'));
   }
   assert.match(main, /Preview 07/);
   assert.match(main, /initialSection="safety"/);

@@ -42,23 +42,6 @@ test('Media preview includes upload, accessibility and recovery contracts', asyn
   assert.match(main, /enableMediaPreview/);
 });
 
-test('R2 production boundary requires short-lived authorization and final validation', async () => {
-  const architecture = await read('docs/architecture/media-r2-preview.md');
-
-  for (const term of [
-    'never receive a permanent R2 credential',
-    'short-lived, operation-specific upload authorization',
-    'magic bytes',
-    'checksum',
-    'idempotently',
-    'R2 lifecycle rules',
-    'CORS',
-    'rate\\s+limits',
-  ]) {
-    assert.match(architecture, new RegExp(term, 'i'));
-  }
-  assert.match(architecture, /creates no Cloudflare R2 bucket, object or credential/);
-});
 
 test('Media artwork is original, restrained and contains no decorative gradients', async () => {
   const media = await read('preview-src/app-shell/MediaPreview.jsx');

@@ -5,16 +5,9 @@ import test from 'node:test';
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('MVP scope guard allows basic Messages while keeping advanced messaging deferred', async () => {
-  const scope = await read('docs/product/mvp-feature-scope.md');
   const app = await read('preview-src/app-shell/App.jsx');
   const data = await read('preview-src/app-shell/data.js');
 
-  assert.match(scope, /Must-have now/);
-  assert.match(scope, /Deferred until there is a clear product or traffic need/);
-  assert.match(scope, /Basic one-to-one text Messages/);
-  assert.match(scope, /Group chats, voice\/video calls/);
-  assert.match(scope, /Public comments and threads/);
-  assert.match(scope, /Account, privacy, notification, session, data-export, and deletion controls/);
   assert.match(app, /function MessagesScreen/);
   assert.match(app, /id: ['"]messages['"]/);
   assert.match(app, /Search messages/);

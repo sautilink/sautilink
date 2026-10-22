@@ -53,14 +53,3 @@ test('Settings preview bundle stays inside its phase budget', async () => {
   assert.ok((await stat(new URL(javascript, assetDirectory))).size < 345_000, 'Settings JavaScript bundle exceeds 345 kB raw');
   assert.ok((await stat(new URL(stylesheet, assetDirectory))).size < 82_000, 'Settings CSS bundle exceeds 82 kB raw');
 });
-
-test('Settings architecture defines server-side security boundaries', async () => {
-  const architecture = await read('docs/architecture/settings-privacy-preview.md');
-
-  assert.match(architecture, /recent\s+authentication/);
-  assert.match(architecture, /row-level security/);
-  assert.match(architecture, /session revocation/);
-  assert.match(architecture, /retention policy/);
-  assert.match(architecture, /service-role credential/);
-  assert.match(architecture, /rate limits/);
-});

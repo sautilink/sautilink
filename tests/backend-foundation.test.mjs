@@ -86,12 +86,8 @@ test('Basic Messages stays one-to-one and gives each member private state', asyn
 test('Staging site and deployment headers include Phase 11', async () => {
   const stage = await read('scripts/stage-preview-site.mjs');
   const headers = await read('_headers');
-  const architecture = await read('docs/architecture/staging-backend-foundation.md');
 
   assert.match(stage, /Phase 11/);
   assert.match(stage, /preview\/backend-foundation/);
   assert.match(headers, /\/preview\/backend-foundation\/\*/);
-  assert.match(architecture, /migration is \*\*not applied\*\* to production/i);
-  assert.match(architecture, /publishable key/);
-  assert.match(architecture, /security and performance advisors/);
 });

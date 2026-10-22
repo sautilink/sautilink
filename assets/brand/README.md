@@ -1,11 +1,11 @@
-# SautiLink Brand System
+# SautiLink brand permissions
 
-SautiLink Corporation uses **Inter as the single font family** across product UI, content, navigation, forms, headings, brand labels, and footer/copyright surfaces.
+The SautiLink names, logos and original brand artwork identify official services
+from SautiLink Corporation. Do not use them to imply affiliation, sponsorship
+or approval without permission, except as permitted by applicable law.
 
-- Self-hosted variable normal face: `assets/fonts/inter/InterVariable.woff2`
-- Self-hosted variable italic face: `assets/fonts/inter/InterVariable-Italic.woff2`
-- Weight range: `100–900`
-- License: SIL Open Font License 1.1 (`assets/fonts/inter/OFL.txt`)
-- Canonical colors: Primary Blue `#2563EB`, Light Blue `#60A5FA`, White `#FFFFFF`
+For partnership or brand-use requests, use
+[SautiLink Contact](https://sautilink.com/contact).
 
-Brand distinction should come from weight, scale, spacing, color, layout, and the SautiLink logo—not from a secondary typeface.
+The repository [license](../../LICENSE) applies to SautiLink-owned materials.
+Third-party assets retain their respective licenses and required notices.

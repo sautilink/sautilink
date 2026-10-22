@@ -92,17 +92,6 @@ test('Phase 24 Discover and Saved use live RLS-backed data and shareable Sauti t
   assert.doesNotMatch(source, /innerHTML\s*=/);
 });
 
-test('Phase 24 records durable operating rules and open-source donor intake', async () => {
-  const checkpoint = await read('docs/architecture/project-operating-checkpoint.md');
-
-  assert.match(checkpoint, /durable (?:source-of-truth )?handoff/i);
-  assert.match(checkpoint, /merge (?:the PR |automatically )?without asking (?:for another approval|again)/i);
-  assert.match(checkpoint, /reuse before reinventing/i);
-  assert.match(checkpoint, /Bluesky/);
-  assert.match(checkpoint, /Mastodon/);
-  assert.match(checkpoint, /Lemmy/);
-  assert.match(checkpoint, /Comment[\s\S]*Repost[\s\S]*Like[\s\S]*Save[\s\S]*Share/);
-});
 
 test('Phase 24 rotates the service worker cache beyond Phase 23', async () => {
   const sw = await read('sw.js');

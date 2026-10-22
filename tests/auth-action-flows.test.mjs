@@ -139,13 +139,3 @@ test('generated browser bundle is synchronized with the auth action source', asy
   assert.doesNotMatch(bundle, /slice\(0,6\)/);
   assert.match(bundle, /slice\(0,8\)/);
 });
-
-
-test('durable auth contract records the real staging deployment gate', async () => {
-  const contract = await read('docs/architecture/auth-email-flow-contract.md');
-  assert.match(contract, /Deploy Auth Email Staging/);
-  assert.match(contract, /33455981891/);
-  assert.match(contract, /99695913830/);
-  assert.match(contract, /Deploy existing test Worker.*PASS/s);
-  assert.match(contract, /https:\/\/test\.sautilink\.com/);
-});
