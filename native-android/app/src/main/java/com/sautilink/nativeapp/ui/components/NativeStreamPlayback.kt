@@ -6,6 +6,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
 import okhttp3.Callback
@@ -239,9 +241,13 @@ internal fun parseNativePlaybackBootstrap(origin: String, contentPath: String, m
 }
 
 /** Short-lived grant metadata stays in memory; cache reads cannot outlive authorization. */
-internal class NativeHlsGrantRegistry(private val now: () -> Long = System::currentTimeMillis) {
+internal class NativeHlsGrantRegistry(private val maxGrants: Int = 8,
+    private val now: () -> Long = System::currentTimeMillis) {
+    // Keep the original clock-only ABI for existing fixture/player consumers.
+    constructor(now: () -> Long) : this(8, now)
     private data class Grant(val expiry: Long, val cacheKey: String?, val bootstrap: NativePlaybackBootstrap?)
     private val grants = linkedMapOf<String, Grant>()
+    init { require(maxGrants in 1..8) }
     @Synchronized fun authorize(source: NativeVideoSource) {
         val prefix = source.gatewayPrefix ?: return
         val expiry = source.expiresAtMillis ?: return
@@ -251,7 +257,7 @@ internal class NativeHlsGrantRegistry(private val now: () -> Long = System::curr
         grants.entries.removeAll { it.value.expiry <= now() }
         grants.remove(prefix)
         if (expiry > now()) grants[prefix] = Grant(expiry, source.cacheKey?.takeIf { Regex(playbackUuid).matches(it) }, source.bootstrap)
-        while (grants.size > 4) grants.remove(grants.keys.first())
+        while (grants.size > maxGrants) grants.remove(grants.keys.first())
     }
     @Synchronized fun allows(url: String): Boolean {
         val uri = runCatching { URI(url) }.getOrNull() ?: return false
@@ -382,7 +388,8 @@ private val playbackMetadataClient = nativePlaybackHttpClient.newBuilder().follo
  */
 @Composable
 internal fun rememberNativePlaybackSource(auth: StagingAuthClient, mediaId: String?, metadataPath: String?,
-    enabled: Boolean, fallbackPath: String? = null, retainedRead: NativePlaybackRead? = null): NativePlaybackRead {
+    enabled: Boolean, fallbackPath: String? = null, retainedRead: NativePlaybackRead? = null,
+    metadataPermit: Semaphore? = null): NativePlaybackRead {
     val account = auth.account?.id
     val latestEnabled by rememberUpdatedState(enabled)
     val state = remember(auth, account, mediaId, metadataPath, retainedRead) {
@@ -419,8 +426,14 @@ internal fun rememberNativePlaybackSource(auth: StagingAuthClient, mediaId: Stri
                     .header("Authorization", "Bearer $token").header("Accept", "application/json")
                     .header("X-Sauti-Playback-Bootstrap", "1")
                     .header("Cache-Control", "no-store").get().build()
-                NativeVideoStartupProbe.mark(mediaId, NativeVideoStartupStage.DESCRIPTOR_BEGIN)
-                val bytes = awaitPlaybackMetadata(playbackMetadataClient.newCall(request), mediaId)
+                suspend fun fetchMetadata(): String {
+                    currentCoroutineContext().ensureActive()
+                    if (auth.account?.id != account || !latestEnabled || state.attempt != requestAttempt)
+                        throw CancellationException("Playback account changed")
+                    NativeVideoStartupProbe.mark(mediaId, NativeVideoStartupStage.DESCRIPTOR_BEGIN)
+                    return awaitPlaybackMetadata(playbackMetadataClient.newCall(request), mediaId)
+                }
+                val bytes = if (metadataPermit == null) fetchMetadata() else metadataPermit.withPermit { fetchMetadata() }
                 val source = parseNativeVideoSource(auth.mediaOrigin, metadataPath, bytes, System.currentTimeMillis())
                 currentCoroutineContext().ensureActive()
                 if (auth.account?.id != account || !latestEnabled || state.attempt != requestAttempt || source.mediaId != mediaId)

@@ -1,0 +1,88 @@
+name: Native media readiness Play release candidate 52
+
+on:
+  push:
+    branches: [fix/native-media-readiness-20261023]
+    paths:
+      - .github/workflows/native-media-readiness-release52.yml
+      - .github/scripts/play-candidate/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-media-readiness-release52
+  cancel-in-progress: false
+
+jobs:
+  artifacts:
+    if: >-
+      github.repository == 'sautilink/sautilink' &&
+      github.ref == 'refs/heads/fix/native-media-readiness-20261023' &&
+      github.event_name == 'push' && github.run_attempt == 1 &&
+      github.event.head_commit.message == 'ci: build native media readiness release 52' &&
+      github.event.forced == false && github.event.deleted == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: automation
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          # Build the reviewed, immutable media readiness and upload recovery 1.1.7 (52) source commit.
+          # The same SHA, full tree, app/src and app/src/main trees must be pinned in release52.py.
+          ref: ec3cb0cc4008d0e907318e5017dc79b684241a7a
+          path: candidate
+          persist-credentials: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          gradle-version: '8.13'
+          cache-disabled: true
+      - name: Validate release gate fixtures without secrets
+        run: python3 automation/.github/scripts/play-candidate/release52-gates-test.py
+      - name: Prepare pinned source, Firebase, existing signer and official bundletool
+        env:
+          FIREBASE_CONFIG: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON_BASE64 }}
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: python3 automation/.github/scripts/play-candidate/release52.py prepare
+      - name: Cache exact Kotlin compiler dependencies and verify caption behavior
+        run: python3 automation/.github/scripts/play-candidate/release52.py check-caption
+      - name: Verify monitor-only integrity behavior and read-only cached authentication
+        run: python3 automation/.github/scripts/play-candidate/release52.py check-integrity
+      - name: Verify actual native MP4 range adapter with cached Media3 APIs and synthetic HTTP fixtures
+        run: python3 automation/.github/scripts/play-candidate/release52.py check-video
+      - name: Compile preview, test native Stream, Stories, feed and existing realtime behavior, build clean signed production AAB and run full production lint
+        working-directory: candidate/native-android
+        env:
+          SAUTILINK_KEYSTORE_PATH: ${{ runner.temp }}/sautilink-play-release52-upload.jks
+          SAUTILINK_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}
+          SAUTILINK_KEY_ALIAS: ${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}
+          SAUTILINK_KEY_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}
+        run: >-
+          gradle :app:compilePreviewDebugKotlin :app:testPreviewDebugUnitTest :app:bundleProductionRelease :app:lintProductionRelease --no-daemon
+          --no-configuration-cache --max-workers=2 --no-parallel
+          -Pkotlin.compiler.execution.strategy=in-process
+          '-Dorg.gradle.jvmargs=-Xmx6144m -Dfile.encoding=UTF-8'
+      - name: Verify signed AAB, production manifest, caption, integrity, native Stream, Stories, feed, realtime and Room unit tests and full lint
+        run: python3 automation/.github/scripts/play-candidate/release52.py seal-aab
+      - name: Seal exact artifact allowlist and checksums
+        run: python3 automation/.github/scripts/play-candidate/release52.py seal-outputs
+      - name: Remove transient signing, Firebase and behavior-check inputs
+        if: always()
+        run: python3 automation/.github/scripts/play-candidate/release52.py cleanup
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: SautiLink-Play-Release52-${{ github.run_id }}
+          path: ${{ runner.temp }}/sautilink-release52-public/
+          if-no-files-found: error
+          retention-days: 7

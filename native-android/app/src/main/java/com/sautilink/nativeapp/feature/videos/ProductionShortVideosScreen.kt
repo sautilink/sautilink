@@ -115,33 +115,40 @@ private fun rememberShortsInitialPresentation(auth: StagingAuthClient, client: S
 
 @Composable
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
-private fun PrepareNextShort(auth: StagingAuthClient, nextMediaId: String?, retained: NativePlaybackRead?,
-    token: String?, player: ExoPlayer?, resources: com.sautilink.nativeapp.ui.components.NativeVideoPlaybackResources?,
-    preloading: NativeShortsPreloading?, index: Int, currentId: String?,
+private fun PrepareNextShort(auth: StagingAuthClient, candidates: List<Pair<Int, String>>,
+    retained: Map<String, NativePlaybackRead>, token: String?, player: ExoPlayer?,
+    resources: NativeVideoPlaybackResources?, preloading: NativeShortsPreloading?, index: Int, currentId: String?,
     network: com.sautilink.nativeapp.ui.components.NativeVideoNetwork, foreground: Boolean,
     online: Boolean, playbackAllowed: Boolean, autoQuality: Boolean, denied: Boolean, currentIsMp4: Boolean) {
     val context = LocalContext.current
     var mayPreload by remember(player, currentId) { mutableStateOf(false) }
+    var stressed by remember(context) { mutableStateOf(videoDeviceStressed(context)) }
     LaunchedEffect(player, currentId, foreground, online, playbackAllowed, network, autoQuality) {
         while (player != null && currentId != null && foreground) {
+            stressed = videoDeviceStressed(context)
             mayPreload = shortsPreloadEligible(true, online, playbackAllowed,
                 player.isPlaying && player.currentMediaItem?.mediaId == currentId,
-                player.totalBufferedDuration, network.saveData, network.isMetered, network.measuredMbps,
-                videoDeviceStressed(context), autoQuality)
+                com.sautilink.nativeapp.ui.components.videoPreloadRunway(player.totalBufferedDuration,mayPreload),
+                network.saveData, network.isMetered, network.measuredMbps,
+                stressed, autoQuality)
             kotlinx.coroutines.delay(500L)
         }
         mayPreload = false
     }
-    val metadataPath = if (nextMediaId != null) "/api/sauti-media/$nextMediaId/playback" else null
-    val nextRead = rememberNativePlaybackSource(auth, nextMediaId, metadataPath,
-        enabled = mayPreload && token != null && nextMediaId != null && online && foreground, retainedRead = retained)
-    LaunchedEffect(preloading, index, nextRead.source, nextRead.denied, mayPreload, foreground,
-        online, playbackAllowed, denied, currentIsMp4) {
-        val source = nextRead.source
-        val next = if (source != null && source.hls && !nextRead.denied) source else null
-        if (next != null && resources != null) resources.hlsGrants.authorize(next)
-        preloading?.update(index, next, mayPreload && online && foreground,
-            retainIncoming = online && playbackAllowed && foreground && !denied && !currentIsMp4)
+    val metadataAllowed = token != null && com.sautilink.nativeapp.ui.components.videoMetadataWarmupEligible(
+        foreground, online, playbackAllowed, network.saveData, stressed, denied || currentIsMp4)
+    val reads = com.sautilink.nativeapp.ui.components.rememberVideoLookaheadReads(auth,
+        candidates.map { it.second }, retained, metadataAllowed)
+    val sources = reads.mapNotNull { (id, read) ->
+        read.source?.takeIf { it.hls && !read.denied }?.let { source ->
+            candidates.first { it.second == id }.first to source
+        }
+    }
+    LaunchedEffect(preloading, index, sources, mayPreload, foreground, online, playbackAllowed, denied, currentIsMp4,
+        metadataAllowed, autoQuality) {
+        sources.forEach { (_, source) -> resources?.hlsGrants?.authorize(source) }
+        preloading?.updateWindow(index, sources, mayPreload && online && foreground,
+            retainIncoming = metadataAllowed && autoQuality && online && playbackAllowed && foreground && !denied && !currentIsMp4)
     }
 }
 
@@ -364,12 +371,14 @@ fun ProductionShortVideosScreen(
     var playbackIntent by remember(auth, accountId, clip?.mediaId) { mutableStateOf<Boolean?>(null) }
     val wantsPlayback = playbackIntent ?: autoplay
     val accessToken = token
-    // The current and one next descriptor may hand off within this open viewer.
-    // Returning to an older clip still obtains a fresh descriptor; its validated
-    // immutable segment bytes can be reused by the session replay pool.
+    // Current + five upcoming grants, with two recent entries retained only
+    // within this open viewer and their original owner/credential/deadline.
+    // Immutable bytes remain separately bounded by the session replay pool.
     val handoff = remember(auth, accountId) { linkedMapOf<String, NativePlaybackRead>() }
-    val nextMediaId = clips.getOrNull(pager.settledPage + 1)?.mediaId
-    val retainedIds = setOfNotNull(clip?.mediaId, nextMediaId)
+    val upcoming = com.sautilink.nativeapp.ui.components.videoLookaheadIndices(pager.settledPage, clips.size)
+        .map { it to clips[it].mediaId }
+    val retainedIds = ((pager.settledPage - 2).coerceAtLeast(0)..minOf(clips.lastIndex, pager.settledPage + 5))
+        .mapNotNull { clips.getOrNull(it)?.mediaId }.toSet()
     handoff.keys.toList().filterNot(retainedIds::contains).forEach(handoff::remove)
     val currentRead = clip?.let { handoff.getOrPut(it.mediaId) { NativePlaybackRead() } }
     val playbackRead = rememberNativePlaybackSource(auth, clip?.mediaId,
@@ -477,8 +486,8 @@ fun ProductionShortVideosScreen(
     val preference = NativeVideoQualityPolicy.normalizePreference(quality)
     var appliedPreference by remember(player, clip?.mediaId) { mutableStateOf<String?>(null) }
     val network = com.sautilink.nativeapp.ui.components.rememberNativeVideoNetwork()
-    val nextRead = nextMediaId?.let { handoff.getOrPut(it) { NativePlaybackRead() } }
-    PrepareNextShort(auth, nextMediaId, nextRead, accessToken, player, resources, preloading,
+    upcoming.forEach { (_, id) -> handoff.getOrPut(id) { NativePlaybackRead() } }
+    PrepareNextShort(auth, upcoming, handoff, accessToken, player, resources, preloading,
         pager.settledPage, clip?.mediaId, network, lifecycleState.isAtLeast(Lifecycle.State.STARTED),
         online, autoplay && wantsPlayback, preference == "auto", playbackRead.denied, streamSource?.hls == false)
     val baseQuality = remember(clip?.mediaId, preference) {

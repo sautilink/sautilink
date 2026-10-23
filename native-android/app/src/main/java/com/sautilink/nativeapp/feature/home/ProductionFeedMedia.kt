@@ -198,6 +198,7 @@ private fun InlineFeedVideo(
     adaptivePlaybackEnabled: Boolean = true
 ) {
     val context = LocalContext.current
+    val lookahead = LocalFeedVideoLookahead.current
     val overlayBlocked = com.sautilink.nativeapp.ui.components.LocalNativePlaybackBlocked.current
     val owner = LocalLifecycleOwner.current
     val lifecycleState by owner.lifecycle.currentStateAsState()
@@ -333,6 +334,17 @@ private fun InlineFeedVideo(
     val streamQualities = rememberNativeHlsQualities(player)
     NativeHlsQualitySelection(player, hls, quality)
     var playing by remember(player) { mutableStateOf(false) }
+    LaunchedEffect(lookahead, player, isCurrent, visibleFraction, lifecycleState, manualPaused, quality, overlayBlocked) {
+        if (lookahead == null) return@LaunchedEffect
+        try {
+            while (isCurrent && visibleFraction >= .58f && lifecycleState.isAtLeast(Lifecycle.State.STARTED)) {
+                lookahead.report(FeedVideoHealth(media.id,
+                    player?.isPlaying == true && !manualPaused && !overlayBlocked,
+                    player?.totalBufferedDuration ?: 0L, quality == "auto", android.os.SystemClock.elapsedRealtime(), manualPaused))
+                kotlinx.coroutines.delay(500L)
+            }
+        } finally { lookahead.clear(media.id) }
+    }
     var playbackState by remember(player) { mutableIntStateOf(player?.playbackState ?: Player.STATE_IDLE) }
     var playbackRequested by remember(player) { mutableStateOf(player?.playWhenReady == true) }
     var playbackSuppressed by remember(player) {

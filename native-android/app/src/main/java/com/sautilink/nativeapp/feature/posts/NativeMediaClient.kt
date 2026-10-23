@@ -45,7 +45,8 @@ private data class PreparedMedia(val file: File, val type: String, val kind: Str
 
 /** Android picker media -> bounded local file -> SautiLink begin/upload/finalize protocol. */
 class NativeMediaClient(private val auth: StagingAuthClient, private val context: Context) {
-    private val http = OkHttpClient.Builder().callTimeout(180, TimeUnit.SECONDS)
+    private val http = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(90, TimeUnit.SECONDS).writeTimeout(90, TimeUnit.SECONDS).callTimeout(300, TimeUnit.SECONDS)
         .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build()
     private val uploads = Mutex()
     private val main = Handler(Looper.getMainLooper())
@@ -53,6 +54,21 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
 
     private suspend fun request(path: String, method: String, token: String, body: RequestBody? = null): JSONObject =
         suspendCancellableCoroutine { continuation ->
+        val started = System.nanoTime()
+        fun diagnostic(status: Int?, failed: Boolean = false) {
+            if (!BuildConfig.DEBUG) return
+            val stage = when {
+                path.endsWith("/begin") -> "BEGIN"
+                path.contains("/finalize/") -> "FINALIZE"
+                path.endsWith("?complete=1") -> "COMPLETE"
+                method == "PUT" -> "TRANSFER"
+                method == "DELETE" -> "REMOVE"
+                else -> "READ"
+            }
+            // Fixed phase/status/timing only. No URL, ID, body or authorization.
+            Log.d("SautiNativeMedia", "stage=$stage elapsed_ms=${(System.nanoTime() - started) / 1_000_000} " +
+                "status=${status ?: 0} failed=$failed")
+        }
         val builder = Request.Builder().url("${auth.backend.siteOrigin}$path")
             .header("Authorization", "Bearer $token")
             .header("Accept", "application/json")
@@ -67,9 +83,10 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, error: IOException) {
-                if (BuildConfig.DEBUG) Log.e("SautiNativeMedia", "Media request failed: $method $path", error)
+                diagnostic(null, true)
                 if (continuation.isActive) continuation.resumeWithException(
-                    error.cause as? AuthRequestException ?: AuthRequestException("Could not connect to the media service.")
+                    error.cause as? AuthRequestException ?: AuthRequestException(
+                        "The upload connection was interrupted. Check your connection and retry.", cause = error)
                 )
             }
             override fun onResponse(call: Call, response: okhttp3.Response) {
@@ -82,10 +99,12 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
                         }
                         json.optJSONObject("data") ?: throw AuthRequestException("Media response was incomplete.")
                     }
+                    diagnostic(response.code)
                     if (continuation.isActive) continuation.resume(data)
                 } catch (error: Exception) {
+                    diagnostic(response.code, true)
                     if (continuation.isActive) continuation.resumeWithException(
-                        if (error is AuthRequestException) error else AuthRequestException("Media response was incomplete.")
+                        if (error is AuthRequestException) error else AuthRequestException("Media response was incomplete.", cause = error)
                     )
                 }
             }
@@ -219,6 +238,7 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
                     return current
                 }
                 try {
+                    main.post { if (auth.account?.id == expectedOwner && uploadContext.isActive) onProgress(0) }
                     val begin = request("/api/sauti-media/begin", "POST", freshToken(),
                         JSONObject().put("content_type", prepared.type).put("size_bytes", prepared.file.length())
                             .toString().toRequestBody("application/json".toMediaType()))
@@ -231,16 +251,21 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
                     } catch (error: IllegalArgumentException) {
                         throw AuthRequestException(error.message ?: "The upload session was invalid.")
                     }
-                    for (part in 1..plan.partCount) {
-                        val token = freshToken()
-                        val body = NativePostFileRangeBody(prepared.file, prepared.type.toMediaType(),
-                            plan.offset(part), plan.length(part), checkActiveOwner) { value ->
-                            main.post { if (auth.account?.id == expectedOwner && uploadContext.isActive) onProgress(value) }
-                        }
-                        request(plan.path(part), "PUT", token, body)
-                    }
-                    if (plan.chunked) request(plan.completePath, "PUT", freshToken(), ByteArray(0).toRequestBody(prepared.type.toMediaType()))
-                    val finalized = request("/api/sauti-media/finalize/$id", "POST", freshToken())
+                    var highestProgress = 0
+                    val finalized = finishNativePostUpload(plan, checkActiveOwner,
+                        transfer = { part ->
+                            val token = freshToken()
+                            val body = NativePostFileRangeBody(prepared.file, prepared.type.toMediaType(),
+                                plan.offset(part), plan.length(part), checkActiveOwner) { value ->
+                                // A retry may resend a part but never moves the visible progress backwards.
+                                highestProgress = maxOf(highestProgress, value)
+                                val progress = highestProgress
+                                main.post { if (auth.account?.id == expectedOwner && uploadContext.isActive) onProgress(progress) }
+                            }
+                            request(plan.path(part), "PUT", token, body)
+                        },
+                        complete = { request(plan.completePath, "PUT", freshToken(), ByteArray(0).toRequestBody(prepared.type.toMediaType())); Unit },
+                        finalize = { request("/api/sauti-media/finalize/$id", "POST", freshToken()) })
                     if (!finalized.optBoolean("ready") || finalized.optString("id") != id)
                         throw AuthRequestException("Upload was not finalized.")
                     checkActiveOwner()

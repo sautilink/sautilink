@@ -69,7 +69,7 @@ class NativeVideoReplayCacheTest {
     private fun url(media: String = id, segment: Boolean = true, capability: String = "first") =
         "$origin/api/sauti-media/$media/hls/${if (segment) "s_${"a".repeat(43)}" else "m_master"}?c=$capability.${"a".repeat(43)}"
     private fun grants(media: String = id, gen: String = generation, capability: String = "first",
-        clock: () -> Long = { 1_000L }) = NativeHlsGrantRegistry(clock).apply {
+        clock: () -> Long = { 1_000L }) = NativeHlsGrantRegistry(now = clock).apply {
         authorize(NativeVideoSource(media, url(media, false, capability), true, 301_000L, cacheKey = gen))
     }
     private fun resource(context: Context, upstream: DataSource.Factory, pool: NativeVideoReplayPool,
@@ -212,7 +212,7 @@ class NativeVideoReplayCacheTest {
 
     @Test fun activeStoreLimitFallsThroughWithoutEvictingReaders_thenIdleLruCanBeReplaced() = fixture { context ->
         val network = Counting(payload)
-        val pool = NativeVideoReplayPool(context, scope, { true }, maxBytes = 768L * 1024)
+        val pool = NativeVideoReplayPool(context, scope, { true }, maxStores = 3, maxBytes = 768L * 1024)
         val mounted = mutableListOf<NativeVideoPlaybackResources>()
         val readers = mutableListOf<DataSource>()
         try {
@@ -238,7 +238,7 @@ class NativeVideoReplayCacheTest {
 
     @Test fun oneShortsResourceCanRetireFiveSequentialClips_andReplayRecentOnesBeyondMp4PinBudget() = fixture { context ->
         val network = Counting(payload)
-        val pool = NativeVideoReplayPool(context, scope, { true }, maxBytes = 768L * 1024)
+        val pool = NativeVideoReplayPool(context, scope, { true }, maxStores = 3, maxBytes = 768L * 1024)
         val registry = NativeHlsGrantRegistry { 1_000L }
         val mounted = NativeVideoPlaybackResources(context, network, { true },
             representationPins = NativeVideoRepresentationPins(0), hlsGrants = registry,
@@ -262,6 +262,32 @@ class NativeVideoReplayCacheTest {
             read(mounted, authorize(1))
             assertEquals("An older evicted clip remains playable via fresh upstream", 6L * payload.size, network.transferred.get())
         } finally { mounted.close(); pool.close() }
+    }
+
+    @Test fun defaultEightStoresRetainFiveFutureClipsAcrossAuthorizedRemount_andNinthReplacesOldIdleBytes() = fixture { context ->
+        val network=Counting(payload)
+        val pool=NativeVideoReplayPool(context,scope,{ true },maxBytes=2L*1024*1024)
+        fun media(number: Int)="00000000-0000-4000-8000-${number.toString().padStart(12,'0')}"
+        fun load(number: Int, capability: String) {
+            resource(context,network,pool,registry=grants(media(number),capability=capability)).use {
+                assertArrayEquals(payload,read(it,url(media(number),capability=capability)))
+            }
+        }
+        try {
+            // Two recent + current + five future stores. Every new resource
+            // has its own fresh registry/capability before opening cached bytes.
+            for(number in 1..8) load(number,"initial")
+            assertEquals(8L*payload.size,network.transferred.get())
+            assertEquals(8,directories(context).size)
+            for(number in 4..8) load(number,"renewed")
+            assertEquals("All five upcoming clips reuse their immutable bytes after remount",
+                8L*payload.size,network.transferred.get())
+            load(9,"ninth")
+            assertEquals(9L*payload.size,network.transferred.get())
+            assertEquals("Moving the window cannot retain a ninth disk store",8,directories(context).size)
+            load(1,"reauthorized")
+            assertEquals("The old idle LRU was evicted and can still load normally",10L*payload.size,network.transferred.get())
+        } finally { pool.close() }
     }
 
     @Test fun unavailableReplayDiskNeverPreventsAuthorizedOnlinePlayback() = fixture { context ->

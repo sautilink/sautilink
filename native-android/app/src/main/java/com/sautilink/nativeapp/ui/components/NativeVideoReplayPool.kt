@@ -46,7 +46,7 @@ internal fun nativeVideoReplayIdentity(identity: String): NativeVideoReplayIdent
 
 /** Replay stores contain HLS bytes only. Authorization remains with EACH new
  * resource's fresh descriptor/registry; this pool never retains a grant.
- * Limits are aggregate across at most three media-generation stores, not per
+ * Limits are aggregate across at most eight media-generation stores, not per
  * player. Each closed loader releases its lease; idle bytes survive <=2 minutes.
  */
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
@@ -54,7 +54,7 @@ internal class NativeVideoReplayPool(
     context: Context,
     private val scope: NativeVideoReplayScope,
     private val sessionActive: () -> Boolean,
-    private val maxStores: Int = 3,
+    private val maxStores: Int = 8,
     private val maxBytes: Long = 64L * 1024 * 1024,
     private val idleTtlMillis: Long = 120_000L,
     private val clock: () -> Long = SystemClock::elapsedRealtime,
@@ -74,7 +74,7 @@ internal class NativeVideoReplayPool(
         val diagnosticEpoch: Long = NativeVideoReplayProbe.nextEpoch())
 
     init {
-        require(maxStores in 1..3 && maxBytes in maxStores.toLong()..64L * 1024 * 1024)
+        require(maxStores in 1..8 && maxBytes in maxStores.toLong()..64L * 1024 * 1024)
         require(idleTtlMillis in 1L..120_000L)
         NativeVideoReplayProbe.mark(NativeVideoReplayStage.POOL_CREATE,
             ownerEpoch = diagnosticOwnerEpoch, poolEpoch = diagnosticEpoch)

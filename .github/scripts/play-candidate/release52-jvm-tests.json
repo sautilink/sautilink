@@ -1,0 +1,339 @@
+{
+  "schema": 1,
+  "suites": {
+    "com.sautilink.nativeapp.feature.auth.AuthRequestDeadlineTest": [
+      "explicitJobCancellationRemainsCancellation_andCleansUp",
+      "outerDeadlineRemainsCancellation_andNeverBecomesTransportFailure",
+      "ownDeadlineBecomesSocketTimeout_andLeavesCallerActive",
+      "successAndOrdinaryTransportFailurePassThroughWithoutRetry"
+    ],
+    "com.sautilink.nativeapp.feature.dashboard.CreatorContentMediaTest": [
+      "ForeignRowsAndUnsupportedMalformedMediaCannotBecomeDashboardThumbnails",
+      "realFirstAttachedMediaIsSelectedWithoutDependingOnResponseOrder"
+    ],
+    "com.sautilink.nativeapp.feature.explore.DiscoverTrendingPresentationTest": [
+      "discoverKeepsTheExistingRankOrderAndShowsOnlyFiveDistinctPosts",
+      "displayedIdentityAndCountsComeFromTheRankedPostWithoutInventedFallbackRows"
+    ],
+    "com.sautilink.nativeapp.feature.home.AuthorizedImagePreviewPolicyTest": [
+      "absoluteUrls_fragments_ambiguousWidths_andInvalidMedia_areRejected",
+      "accountSwitchErasesPreviews_andOldCompletionsCannotPolluteNewSession",
+      "alreadySmallRequests_andVideoPosters_doNotDoubleDownload",
+      "boundedMemoryEvictsLeastRecentlyUsed_andOversizedImagesAreNotStored",
+      "postPhotoUsesExisting480Width_andKeepsVersionEncoding",
+      "previewExpiryDoesNotExtendOnRead_andClockRollbackFailsClosed",
+      "roomCoverUses480_andPreservesImmutableRevision",
+      "sessionTokenRefreshAndBackendSwitchClearOldPreviews",
+      "signOutCancelsCacheOwnership_evenWhenSameAccountSignsInAgain",
+      "unsupportedProtectedEndpoints_neverInventPreviewRoutes"
+    ],
+    "com.sautilink.nativeapp.feature.home.AuthorizedImageRequestTest": [
+      "authEnvironmentRecoveryRequiresTransientStatus_andNeverBypassesDeniedOrMissingSessions",
+      "authMissingAndRedirectStatusesNeverRetry",
+      "cancellingDuringBackoffNeverStartsAReplacementCall",
+      "chunkedResponsesCannotBypassTheByteLimit",
+      "declaredOversizedNonImageAndDeniedResponsesFailBeforeDecoding",
+      "invalidBodyAndOversizeNeverRetry",
+      "longOrOverflowingRetryAfterDoesNotCreateAnEarlyRequest",
+      "lostAccountEligibilityDuringBackoffStopsBeforeRetry",
+      "obsoleteScopeAndNonGetRequestsNeverStartImageTransport",
+      "recycledCellCancelsSocket_andDisposesAnyLateResponseWithoutReading",
+      "repeatedTransientFailureStopsAtTwoAttempts",
+      "retryAfterSecondsAndHttpDatesAreHonouredWithinBudget",
+      "transientHttpStatusesRetryOnce_andCloseEveryFailedBody",
+      "transientNetworkFailureRetriesOnlyOnceThenReturnsImageBytes",
+      "validAuthenticatedImageBodyIsReturnedAndClosed",
+      "wrappedAuthTransportFailureAllowsEnvironmentRecovery_withoutAutomaticRequestRetry"
+    ],
+    "com.sautilink.nativeapp.feature.home.FeedFreshnessTest": [
+      "accountTabAndRefreshChangesRejectLateHeadAndPageCompletions",
+      "explicitRefreshCannotBeOverwrittenByAnOlderFirstPageCacheWrite",
+      "followFeedbackIsTemporaryAndNeverAddsAFeedUnfollowControl",
+      "initialPointersAndRankChangesDoNotInterruptReading",
+      "malformedOrOversizedHeadNeverBecomesAFakeNewPost",
+      "newerPostNoticeSurvivesRemovalsUntilASuccessfulRefresh",
+      "quietPollingHonorsServerCooldownRatherThanRetryingImmediately",
+      "realHeadProjectionsParseWithoutLoadingContent",
+      "timestampTiesAndPreviouslyEmptyFeedDoNotMissNewIds"
+    ],
+    "com.sautilink.nativeapp.feature.home.FeedReturnPresentationTest": [
+      "emptyDefaultsDoNotPretendThatAReturnSnapshotWasRestored",
+      "headRevalidationUpdatesArtworkWithoutReplacingLoadedTailOrMovingReader",
+      "leavingDuringAnUnacknowledgedWriteForcesItsStateToBeReadAgain"
+    ],
+    "com.sautilink.nativeapp.feature.home.FeedVideoMetadataWarmupTest": [
+      "aNewMountedScopeHasItsOwnOneShotButTheOldScopeCannotReplayIt",
+      "actualVisibleAutoplayPageCanReadMetadataBeforeTheExistingPlayThreshold",
+      "autoplayOffAndExplicitPauseDoNotCreateSpeculativeReads",
+      "denialMissingSessionAndUnavailableAdaptivePathCannotBeRetriedByWarmupHandoff",
+      "failedAbsentOrStaleGrantCanRecoverWithoutExtendingItsAuthorization",
+      "failedPreIntentFallbackGetsOneAutoplayRecoveryWithoutPreparingThatFallback",
+      "firstIntentConsumesAnInflightWarmupAndNeverRestartsItsLaterFailure",
+      "foreignOwnerOrMediaStateIsNotMutatedByTheNewIntent",
+      "healthyWarmGrantAndFailedRefreshOfAStillUsableGrantNeverRetryAtIntent",
+      "manualFirstIntentLeavesExistingExplicitRetryBehaviorInCharge",
+      "metadataWarmupRequiresSessionForegroundCurrentPageAndCanonicalPublishedMedia",
+      "successfulMp4ProcessingDescriptorIsKeptWithoutAnAutomaticRetry"
+    ],
+    "com.sautilink.nativeapp.feature.home.FollowReadRecoveryTest": [
+      "aConfirmedFollowDuringReadRecoveryCannotBeOverwrittenByLateGet",
+      "accountChangeDuringBackoffPreventsAnotherGet",
+      "cancellationDuringBackoffPreventsAnotherGet",
+      "cancelledFeedCancelsSocket_andClosesUnreadLateBody",
+      "denialMissingAndRedirectStatusesNeverRetryOrInventFollowState",
+      "invalidOrOversizedJsonIsNotRetried_andChunkedBytesRemainBounded",
+      "lateResponseFromPreviousAccountIsDiscarded",
+      "malformedOrCrossBatchRowsStayUnknown_insteadOfBecomingFalse",
+      "mutationCallsCannotEnterTheReadRetryBoundary",
+      "oneTransientGetFailureRetriesThenReturnsOnlySuccessfulResponseBytes",
+      "persistentNetworkFailureStopsAfterTwoAttempts",
+      "retryAfterAndTypedCausesRespectCooldownAndAuthorization",
+      "transientHttpFailuresRetryOnlyOnce_andEveryResponseCloses"
+    ],
+    "com.sautilink.nativeapp.feature.home.NativeFeedDetailReadsTest": [
+      "detailReaderCannotSendAMutation_andValidArrayIsReturnedOnceAndClosed",
+      "httpFailureMessagesAndStatusesRemainUnchanged_andNoGetIsRetried",
+      "invalidDeclaredOrChunkedOversizeJsonFailsClosed_andClosesEveryBody",
+      "mediaFailureCancelsProfilesEvenAfterPostsSucceed_withoutReturningHalfAFeed",
+      "ownerChangeAfterPostResponsePreventsProfiles_andCancelsTheOtherRead",
+      "parentCancellationCancelsBothSockets_andNeverReadsLateBodies",
+      "postAndMediaStartTogether_whileProfilesWaitForTheReturnedPostAuthors",
+      "postDenialCancelsIndependentMedia_andLateBodiesCloseWithoutReadingOrPartialProjection"
+    ],
+    "com.sautilink.nativeapp.feature.home.PostActionFeedCacheTest": [
+      "actionAcknowledgementCannotInvalidateAnotherAccountOrBackend",
+      "confirmedActionRetainsRowsButRejectsOldFirstPageWritesInEveryMode"
+    ],
+    "com.sautilink.nativeapp.feature.home.PublishedVideoPlaybackPolicyTest": [
+      "pendingSubmissionsDraftsAndUnrelatedPathsCannotRequestStreamMetadata",
+      "publishedVideoAdaptationDoesNotDependOnTheSurfaceLoadingChrome"
+    ],
+    "com.sautilink.nativeapp.feature.inbox.InboxReturnPresentationTest": [
+      "freshConversationStartsAtTailButReturnKeepsItsHistoryAnchor",
+      "logoutAndBackgroundCannotStartEitherInboxReader",
+      "readingHistoryDoesNotJumpForIncomingActivity",
+      "searchResultsNeverForceTailScrolling",
+      "selectedThreadDoesNotReloadHiddenInboxButForwardCanFetchItsMissingDestinations"
+    ],
+    "com.sautilink.nativeapp.feature.inbox.NativeDmSocketListenerTest": [
+      "callbackMutationAndReplacementAreSerializedAcrossThreads",
+      "currentCloseAndFailureClearStateButInactiveCallbacksAreIgnored",
+      "obsoleteAttemptCannotOpenDeliverMessagesOrDisconnectItsReplacement",
+      "obsoleteClosingStillAcknowledgesTransportWithoutClearingCurrentStateOrEchoingReason",
+      "rejectedCloseCodeCancelsTheTransportAndClearsCurrentState",
+      "server1008FinishesLocallyEvenWhenServerKeepsTcpOpenAfterTheCloseAcknowledgement",
+      "server1008GetsAcknowledgedWithoutWaitingForThe25SecondPingFailure",
+      "stalePredicateCannotMutateReplacementAndRetirementInvalidatesBackoffCallbacks"
+    ],
+    "com.sautilink.nativeapp.feature.posts.NativePostMediaBoundariesTest": [
+      "laterTrimUsesUnchangedOriginalTimeline",
+      "threeMinutePostAllowsLongerClipsButKeepsStoryOverrideStrict"
+    ],
+    "com.sautilink.nativeapp.feature.posts.NativePostUploadPolicyTest": [
+      "cancellationOrOwnerChangeStopsBeforeNextWriteAndClosesFile",
+      "exactImageVideoAndDurationBoundariesAreEnforced",
+      "maximumVideoHas32OrderedBoundedPartsAnd2MiBFinalPart",
+      "pathOrIdChangesAndMalformedCountsCannotAcquireUploadAuthority",
+      "rangeBodyWritesOnlyRequestedBytesAndKeepsTransportProgressMonotonic",
+      "smallVideosAndImagesKeepTheirSinglePutPath",
+      "uploadResponsesAreBoundedBeforeJsonParsing"
+    ],
+    "com.sautilink.nativeapp.feature.posts.NativePostUploadRecoveryTest": [
+      "chunkFailureResendsOnlyFailedPartAndCompletionAndFinalizationCanRecover",
+      "interruptedSinglePutRetriesSameTransferOnlyAfterServerConfirmsItIsNotReady",
+      "lostSinglePutResponseConfirmsCommitWithoutResendingBytes",
+      "ownerChangeWhileWaitingPreventsAnotherAuthenticatedRequest",
+      "retriesAreBoundedAndNeverHideAuthorizationOrValidationFailures",
+      "serverValidationFailureAfterLostPutDoesNotResendTheFile"
+    ],
+    "com.sautilink.nativeapp.feature.profile.ProfileStoryRingStateTest": [
+      "accountAndProfileSwitchesInvalidateOldAsyncResponsesImmediately",
+      "authoritativeStateAndLateResponsesCannotSuppressAnotherAccountsOrProfilesInitialHint",
+      "lateEmptyResponseCannotEraseNewerPublishedStoryPresence",
+      "malformedExpiryAndExactDeadlineNeverLeaveAnActiveRing",
+      "onlyResolvedSignedInProfileCanCreateLookupScope",
+      "refreshKeepsValidatedRingDuringReadButConfirmedEmptyClearsIt",
+      "reusedUsernameOrWrongAuthorCannotAttachAnotherMembersStoryToThisAvatar",
+      "sharedHomePresenceOnlyHelpsUntilThisProfileHasAnAuthoritativeResponse"
+    ],
+    "com.sautilink.nativeapp.feature.rooms.NativeRoomInvitationProtocolTest": [
+      "acceptedActiveOrLegacyInvitation_cannotBeReusedOrDeleted",
+      "declinedInvitation_keepsItsExistingDeleteThenPostBehavior",
+      "endedAcceptedReceipt_requiresExactOptimisticDeleteBeforeFreshPendingInvitation",
+      "existingMembership_blocksAllInvitationLookupAndWrites_evenWithHistoricalEndedReceipt",
+      "firstInvitation_postsOnce_andUnconfirmedPostStillFails",
+      "malformedOrIncompleteEndedReceipt_neverAuthorizesDeletion",
+      "pendingInvitation_neverDeletesOrPosts_evenWhenItHasAnEndedMarker",
+      "staleOrRlsDeniedEndedReceipt_neverContinuesToPost"
+    ],
+    "com.sautilink.nativeapp.feature.stories.NativeStoryPolicyTest": [
+      "applyingPhotoFilterPreservesFramingAndResetReturnsOriginalColors",
+      "dailyQuotaBoundariesAndUnknownKindAreRejected",
+      "expiredStoriesAndOwnStoriesNeverInflateUnreadBadge",
+      "expiryIsExclusiveAndMalformedExpiryFailsClosed",
+      "navigationStopsAtLastStoryAndPreviousNeverUnderflows",
+      "progressNeverExceedsSegmentAndUnknownDurationStaysAtZero",
+      "reactionsToggleOrReplaceWithoutImpossibleCombination",
+      "storyTrimCapsActualExportSelectionAtThirtySeconds"
+    ],
+    "com.sautilink.nativeapp.feature.stories.NativeStoryUploadDestinationTest": [
+      "cloudflareOneTimeUploadOnlyAcceptsExactHttpsHostAndPost",
+      "currentAndLegacyCloudflareOriginsShareStrictOpaquePathAndNoUrlExtras",
+      "exactImageUploadDestinationRetainsBearerOnlyOnFirstParty"
+    ],
+    "com.sautilink.nativeapp.feature.stories.NativeStoryUploadProgressTest": [
+      "writingAllBytesCannotClaimProviderAcknowledgementOrReplayTheOneTimePost"
+    ],
+    "com.sautilink.nativeapp.feature.stories.NativeStoryUploadRecoveryTest": [
+      "aProvisionedOrUncertainUploadNeverCountsAsReceivedBytes",
+      "acceptedOrReadyVideoIsNotUploadedAgainAndExpiredMediaCannotResume",
+      "onlyFreshServerConfirmationMayRetryAnUnreceivedDirectTransfer"
+    ],
+    "com.sautilink.nativeapp.feature.verification.VerificationApplicantPolicyTest": [
+      "accountTypesUseOnlyTheServerApprovedWireValues",
+      "allEntityTypesRequireAnArticleEvenWhenSocialProfilesExist",
+      "individualsKeepSocialOrArticleEvidenceWithoutAnArticleMandate",
+      "malformedOrCredentialBearingLinksCannotCountAsRequiredEvidence",
+      "maximumFiveArticlesIsValidatedInsteadOfSilentlyTruncatingTheSubmission",
+      "socialLinksRequireHttpsWhileIndependentArticlesMayUseHttp"
+    ],
+    "com.sautilink.nativeapp.feature.videos.NativeShortVideoDownloadPolicyTest": [
+      "accountChangeDuringReadStopsBeforeWritingThatChunk",
+      "cancelBetweenChunksDoesNotReadOrWriteAgain",
+      "cleanupMatchesOnlyOurExactOldPendingDownload",
+      "copyIsExactAndEachNetworkReadIsAtMost64KiB",
+      "destinationIsOnlyAnExactFirstPartyMediaRoute",
+      "lateAccountChangeAtEofPreventsCompletionAndFlush",
+      "responseMustBeCompleteMp4WithBoundedSizeAndStrongVersion",
+      "truncatedExtraAndNonMp4BodiesCannotComplete"
+    ],
+    "com.sautilink.nativeapp.feature.videos.ShortsAuthorPoliciesTest": [
+      "duplicateCandidateListsDoNotConsumeRanksAndBlockedMutedAuthorsAreExcluded",
+      "followingAppearsOnlyAfterTheConfirmedMutationNotDuringTheRequest",
+      "newSessionOrRefreshHidesAlreadyFollowedAuthorsAndNeverOffersUnfollow",
+      "onlyAnActualTopTwentyPostRankCanBeDisplayed",
+      "onlyTwentyValidServerCandidatesCanReceiveRankMetadata",
+      "optionalRanksWaitForForegroundMotionAndHealthyBufferedRunway",
+      "ownerAndRefreshGenerationBoundEveryAsyncRead",
+      "rankingUsesExistingHomeWeightsAndPostIdentityRatherThanAuthorIdentity",
+      "readFailureIsRetryableButAnUnconfirmedWriteNeverClaimsFollowing",
+      "staleReadsAndActionResponsesCannotUndoAConfirmedNewerAction"
+    ],
+    "com.sautilink.nativeapp.ui.components.NativePlaybackBootstrapTest": [
+      "badOptionalInitDropsOnlyTheInitExtension_whileMasterAndChildRemainUsable",
+      "countAndActualUtf8BytesAreBounded_andNeverAcceptSegmentPayloads",
+      "exactCapabilityAndLiveGrantAreRequired_evenForInMemoryBytes",
+      "exactRewrittenMasterAndChildAreConsumedOnce_withoutLosingAdaptiveMaster",
+      "isoBoxValidationRejectsMediaFragmentsOverflowAndTrailingBytes",
+      "malformedOptionalBundleIsIgnored_withoutTurningPlaybackIntoAnError",
+      "onlyMapReferencedCodecInitializationCanBeConsumedOnce_withTheSameGrantGuards",
+      "realGatewayRootRelativeUrisResolveOnlyWithinTheExactFirstPartyContent"
+    ],
+    "com.sautilink.nativeapp.ui.components.NativePlaybackResumeReuseTest": [
+      "actualManualRecoveryRetainsItsRetryTriggers",
+      "authRenewalDeadlineCanRequireAnEarlierDescriptorThanCapabilityExpiry",
+      "changedAccountRetryOrSourceDuringTheWaitCannotLaunchAStaleRefresh",
+      "deniedFailedMp4AndNearExpirySourcesNeverDelayARecoveryRequest",
+      "disablingTheMountedPlayerCancelsItsScheduledDescriptorRequest",
+      "explicitRetryBypassesReuseEvenThoughTheOldSourceIsStillUsable",
+      "healthyHlsAndMp4ManualResumeDoNotRetryOrChangeTheSource",
+      "missingChangedOrBlankCurrentCredentialCannotReuseEvenWithTheSameOwner",
+      "mountedReturnKeepsTheSameSourceUntilItsOriginalRefreshDeadline",
+      "newMountedReadCannotReuseAnotherPlayersGrant",
+      "repeatedViewportReturnsNeverExtendTheOriginalAuthorization",
+      "wrongAccountContentOriginAndEndpointCannotReuseAnExistingSource"
+    ],
+    "com.sautilink.nativeapp.ui.components.NativeShortsPreloadingTest": [
+      "backgroundAndOfflineNeverSpeculate",
+      "bufferingVisibleVideoOwnsNetwork",
+      "currentHandoffRetainsItsPeriodEvenWhenNextSpeculationIsDisabled",
+      "dataSaverOverridesFastConnection",
+      "explicitCancellationAndCloseReleaseUnclaimedCurrentSamples",
+      "explicitPauseAndAutoplayOffNeverSpeculate",
+      "healthyUnmeteredPlaybackMayPrepareOneAdjacentSource",
+      "invalidMeasurementsCannotEnableMeteredSpeculation",
+      "manualQualityDoesNotDownloadAnUnmatchedAutoTrack",
+      "memoryHeatAndBatteryPressureDisablePreparation",
+      "meteredNeedsRecentMeasuredCapacity",
+      "onlyAdjacentNextMayLoadAndOlderSourcesAreNotRetained"
+    ],
+    "com.sautilink.nativeapp.ui.components.NativeStartupServerTimingTest": [
+      "onlyFourFixedNumericServerMetricsAreExposedToTheOperator"
+    ],
+    "com.sautilink.nativeapp.ui.components.NativeStoryPlaybackPrefetchTest": [
+      "advancingHandsOffTheSameRead_butOlderThanCurrentAndNextIsEvicted",
+      "denialNearExpiryAndMissingCredentialCannotBeWarmedIntoAPlayer",
+      "freshSameOwnerStoryGrantSkipsOnlyTheRedundantMetadataRoundTrip"
+    ],
+    "com.sautilink.nativeapp.ui.components.NativeStreamPlaybackPolicyTest": [
+      "defaultRegistryRetainsCurrentFiveUpcomingAndTwoRecentGrantsOnly",
+      "existingMediaFallbackCannotPointToAnotherVideoOrOrigin",
+      "expiredAndUnexpectedlyLongGrantsAreRejected",
+      "foreignCdnRedirectAndUnrelatedContentNeverReceiveAuthorization",
+      "grantAllowsOnlyItsContentUntilExpiryAndClearRevokesIt",
+      "longPlaybackRefreshesBeforeBothCapabilityAndAuthExpiry_withoutTreatingClaimsAsAuthorization",
+      "malformedCapabilityEncodedPathAndExtraQueryAreRejected",
+      "metadataRouteCannotBeAnAccountOrArbitraryWebUrl",
+      "onlyVideoSegmentsEnterCacheAndManifestsAlwaysReauthorize",
+      "readyHlsIsExplicitSameOriginAndHasBoundedExpiry",
+      "registryRetainsOnlyFourLiveContentGrants",
+      "storySourceIsBoundToStoryGatewayAndCannotUsePublishedMp4Fallback"
+    ],
+    "com.sautilink.nativeapp.ui.components.NativeVideoLookaheadTest": [
+      "EmptyInvalidAndExtremeInventoryCannotCreateUnboundedOrOverflowingWork",
+      "allFiveFutureTargetsLoadButUnknownPastSixthAndClosedTargetsDoNot",
+      "bufferingSampleNewerThanThePreviousCoordinatorTickCannotEnableIdleSpeculation",
+      "coldHistoryWaitsForHealthyCurrent_butPreparedMetadataSurvivesBufferingUntilExpiryOrOptOut",
+      "completedFutureQueuesSurviveCurrentStartupWithoutStartingUnpreparedSources",
+      "continuingQueueAvoidsThresholdChurnButYieldsBeforeRunwayIsExhausted",
+      "currentPreparedSampleHandoffSurvivesSpeculationPause",
+      "historyDeadlineNeverExtendsTheOriginalGrant_andCapsMemoryRetentionAtTwoMinutes",
+      "historyOptOutCanResumeOnlyTheExactStillMountedPlayerRevision_withoutAnotherAttach",
+      "historyRetainsOnlyTwoParsedSources_withoutSelectingTracksOrLoadingPastSamples",
+      "idleTextReadingMayWarmButVisibleBufferingAlwaysOwnsTheNetwork",
+      "metadataCanStartBeforeMotionButNotDuringPrivacyOrResourceOptOut",
+      "networkSaverAndUnmeasuredMeteredConnectionNeverWarmSampleBytes",
+      "openingAndRollingWindowPrepareFiveWithinTheLoadedInventory",
+      "pendingVisibleHandoffRetainsOnlyItsPartialQueuesAndStopsTheOldFutureWork",
+      "textAndImageRowsDoNotConsumeTheFiveVideoWindow"
+    ],
+    "com.sautilink.nativeapp.ui.components.NativeVideoReplayPolicyTest": [
+      "accountAuthObjectAndExactCredentialAllSeparateReplayNamespaces",
+      "onlyGenerationBoundPublishedOpaqueHlsIdentitiesEnterReplayPool"
+    ],
+    "com.sautilink.nativeapp.ui.components.NativeVideoReplayProbeTest": [
+      "disabledProbeDoesNoWorkAndThrowingDiagnosticSinkCannotBreakPlayback",
+      "numericTagsCompareWithinRun_butNeverExposeInputAndChangeWithObserver"
+    ],
+    "com.sautilink.nativeapp.ui.components.RecentVideoTransferObservationTest": [
+      "aNewVideoCellCanReuseRecentActualTransferOnTheSameNetwork",
+      "clockRollbackDiscardsTheOldMeasurement_andPreRollbackSamplesCannotRepopulateIt",
+      "dataSaverAndMeteringOverrideRecentFastCapacityForTheNextVideo",
+      "delayedTransferThatOverlapsNetworkHandoffIsNotAssignedToTheNewNetwork",
+      "measurementExpiresAtThirtySeconds_andReadsNeverExtendItsLifetime",
+      "networkHandoffForgetsOldCapacity_andReturningToWifiDoesNotResurrectIt",
+      "newSubstantialTransferUpdatesTheCapacity_andTheNextCellUsesIt",
+      "offlineUnvalidatedOrUnknownNetworksCannotRetainOrCreateAMeasurement",
+      "startupAndConnectionSignalsNeverBecomeAnInitialBandwidthGuess",
+      "tinyFastInvalidAndEmptySamplesCannotReplaceOrExtendAnActualMeasurement"
+    ],
+    "com.sautilink.nativeapp.ui.components.VerificationBadgeCopyTest": [
+      "blueProfileMessagesRemainUnchangedForOwnerAndOtherViewer",
+      "orangeProfileDescribesReviewedAuthenticEntityWithoutStaffMembershipClaim"
+    ],
+    "com.sautilink.nativeapp.ui.components.VideoPlaybackLabelsTest": [
+      "autoLabelRequiresMeasuredDecodedQuality_manualChoiceRemainsExplicit",
+      "timelineUsesMinutesAndHours_andNeverDisplaysNegativeUnsetTime"
+    ],
+    "com.sautilink.nativeapp.ui.state.SessionScreenPresentationStoreTest": [
+      "anonymousOwnerNeverRetainsPresentation",
+      "boundsEvictLeastRecentlyReadAndRejectWrongSnapshotType",
+      "destinationKeysSeparateMembersAndKeepEachPrimaryTabIndependent",
+      "expiryAndMemoryTrimDoNotLeaveAnAuthorizationLikeFallback",
+      "explicitInvalidationCannotBeUndoneByDisposedScreen",
+      "nonnullableDefaultsPreserveMissHitAndInvalidationRevision",
+      "optionalHostAccessPreservesNoopAndRevisionGuards",
+      "ownerChangeAndCloseRejectLateWritesAndReads"
+    ]
+  }
+}
