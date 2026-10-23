@@ -8,6 +8,31 @@ const SHORT_VIDEOS_ROOT_ID = 'sauti-short-videos';
 const SHORT_VIDEO_PREFETCH_DISTANCE = 1;
 const SHORT_VIDEO_ROUTE = /^\/(?:app\/)?videos(?:\/[^/?#]+)?\/?$/;
 const SVG_NS = 'http://www.w3.org/2000/svg';
+const SHORT_SOURCE_STRUCTURE = '.sauti-card, .sauti-media-gallery, .sauti-media-tile[data-media-kind="video"][data-open-media-id]';
+const SHORT_SOURCE_ACTION = '[data-sauti-action], [data-home-follow]';
+const SHORT_SOURCE_COUNT = '[data-count-for], [data-home-follow], [data-sauti-action]';
+
+function changesShortVideoStructure(change) {
+  return change.type === 'childList' && [...change.addedNodes, ...change.removedNodes].some((node) =>
+    node.nodeType === Node.ELEMENT_NODE && (node.matches?.(SHORT_SOURCE_STRUCTURE) || node.querySelector?.(SHORT_SOURCE_STRUCTURE)));
+}
+
+function shortVideoMutationPostId(change) {
+  const target = change.target.nodeType === Node.ELEMENT_NODE ? change.target : change.target.parentElement;
+  if (!target || target.closest?.('svg, .sauti-video-player')) return '';
+  if (change.type === 'attributes') {
+    if (['data-media-object-url', 'data-media-poster-object-url'].includes(change.attributeName)) {
+      if (!target.matches?.('.sauti-media-tile[data-media-kind="video"][data-open-media-id]')) return '';
+    } else if (!target.matches?.(SHORT_SOURCE_ACTION)) return '';
+  } else if (change.type === 'childList' || change.type === 'characterData') {
+    const count = target.closest?.('[data-count-for]');
+    const follow = target.matches?.('[data-home-follow]');
+    const changedControl = change.type === 'childList' && [...change.addedNodes, ...change.removedNodes].some((node) =>
+      node.nodeType === Node.ELEMENT_NODE && (node.matches?.(SHORT_SOURCE_COUNT) || node.querySelector?.(SHORT_SOURCE_COUNT)));
+    if (!count && !follow && !changedControl) return '';
+  } else return '';
+  return target.closest?.('.sauti-card')?.dataset.postId || '';
+}
 
 const SHORT_ICONS = Object.freeze({
   close: '<path d="m6 6 12 12M18 6 6 18"></path>',
@@ -332,6 +357,7 @@ function syncSlideFromSource(slide) {
 
   const follow = slide.querySelector('[data-short-follow]');
   const sourceFollow = card.querySelector('[data-home-follow]');
+  if (follow) follow.hidden = !sourceFollow;
   if (follow && sourceFollow) {
     const following = sourceFollow.dataset.following === 'true';
     follow.textContent = following ? 'Following' : 'Follow';
@@ -390,11 +416,15 @@ function installShortVideosFeed() {
   const track = root.querySelector('.sauti-short-videos-track');
   const close = root.querySelector('.sauti-short-close');
   const slides = new Map();
+  const slideSources = new Map();
   let restoreFocus = null;
   let observer = null;
   let sourceObserver = null;
   let streamStateObserver = null;
   let loadTimer = 0;
+  let sourceTimer = 0;
+  let sourceStructureChanged = false;
+  const sourcePostIds = new Set();
   let loadingMore = false;
   let endSlide = null;
   let pausedHomeVideos = [];
@@ -429,24 +459,30 @@ function installShortVideosFeed() {
     observer?.observe(slide);
   }
 
-  function addAvailableSlides() {
-    removeEndSlide();
-    const availableTiles = [...document.querySelectorAll(HOME_VIDEO_TILE_SELECTOR)];
-    const availableKeys = new Set(availableTiles.map((tile) => {
+  function currentSourceTiles() {
+    return new Map([...document.querySelectorAll(HOME_VIDEO_TILE_SELECTOR)].map((tile) => {
       const card = tile.closest('.sauti-card');
-      return `${card?.dataset.postId || ''}:${tile.dataset.openMediaId || tile.dataset.mediaObjectUrl || 'video'}`;
+      return [`${card?.dataset.postId || ''}:${tile.dataset.openMediaId || tile.dataset.mediaObjectUrl || 'video'}`, tile];
     }));
+  }
+
+  function pruneUnavailableSlides(availableTiles = currentSourceTiles()) {
     slides.forEach((slide, key) => {
-      if (availableKeys.has(key)) return;
+      if (availableTiles.get(key) === slideSources.get(key)) return;
       observer?.unobserve(slide);
       slide.querySelectorAll('video').forEach((video) => video.pause());
       slide.remove();
-      slides.delete(key);
+      slides.delete(key); slideSources.delete(key);
     });
-    availableTiles.forEach((tile) => {
-      const card = tile.closest('.sauti-card');
-      if (!card) return;
-      const key = `${card.dataset.postId || ''}:${tile.dataset.openMediaId || tile.dataset.mediaObjectUrl || 'video'}`;
+    if (!slides.size) removeEndSlide();
+  }
+
+  function addAvailableSlides({ opening = false } = {}) {
+    if (root.hidden && !opening) return;
+    removeEndSlide();
+    const availableTiles = currentSourceTiles();
+    pruneUnavailableSlides(availableTiles);
+    availableTiles.forEach((tile, key) => {
       if (slides.has(key)) {
         syncSlideFromSource(slides.get(key));
         return;
@@ -454,11 +490,54 @@ function installShortVideosFeed() {
       const slide = createShortVideoSlide(tile);
       if (!slide) return;
       slides.set(key, slide);
+      slideSources.set(key, tile);
       track.append(slide);
       observeSlide(slide);
       syncSlideFromSource(slide);
     });
     ensureEndSlide();
+  }
+
+  function cancelPendingOpen() {
+    pendingOpenRequest = null;
+    window.clearTimeout(loadTimer); loadTimer = 0; loadingMore = false;
+  }
+
+  function pendingOpenIsCurrent() {
+    if (!pendingOpenRequest) return false;
+    return pendingOpenRequest.path === window.location.pathname
+      && pendingOpenRequest.trigger?.getAttribute?.('aria-selected') !== 'false'
+      && !document.getElementById('member-view')?.hidden;
+  }
+
+  function clearSourceSync() {
+    window.clearTimeout(sourceTimer); sourceTimer = 0;
+    sourceStructureChanged = false; sourcePostIds.clear();
+  }
+
+  function refreshSourceSlides() {
+    sourceTimer = 0;
+    if (pendingOpenRequest && !pendingOpenIsCurrent()) cancelPendingOpen();
+    if (root.hidden && !pendingOpenRequest) { sourceStructureChanged = false; sourcePostIds.clear(); return; }
+    if (!root.hidden) {
+      if (sourceStructureChanged) addAvailableSlides();
+      else for (const slide of slides.values()) if (sourcePostIds.has(slide.dataset.postId)) syncSlideFromSource(slide);
+    }
+    sourceStructureChanged = false; sourcePostIds.clear();
+    if (pendingOpenRequest) { loadingMore = false; continuePendingOpen(); }
+    if (!root.hidden) { loadingMore = false; requestMoreIfNeeded(); }
+  }
+
+  function sourceChanged(changes) {
+    const structural = changes.some(changesShortVideoStructure);
+    if (structural && slides.size) pruneUnavailableSlides();
+    if (pendingOpenRequest && !pendingOpenIsCurrent()) cancelPendingOpen();
+    if (root.hidden && !pendingOpenRequest) return;
+    const posts = changes.map(shortVideoMutationPostId).filter(Boolean);
+    if (!structural && !posts.length) return;
+    sourceStructureChanged ||= structural;
+    posts.forEach((id) => sourcePostIds.add(id));
+    if (!sourceTimer) sourceTimer = window.setTimeout(refreshSourceSlides, 180);
   }
 
   function pauseShortVideos(except = null) {
@@ -548,6 +627,7 @@ function installShortVideosFeed() {
     window.clearTimeout(loadTimer);
     loadTimer = window.setTimeout(() => {
       loadingMore = false;
+      if (root.hidden) return;
       addAvailableSlides();
       if (!endIsKnown() && activeSlideIndex() >= videoSlides().length - 1 - SHORT_VIDEO_PREFETCH_DISTANCE) {
         requestMoreIfNeeded();
@@ -598,7 +678,8 @@ function installShortVideosFeed() {
   }
 
   function openShortVideos(tile, { restoreTarget = tile, returnFeed = '' } = {}) {
-    addAvailableSlides();
+    cancelPendingOpen();
+    addAvailableSlides({ opening: true });
     const card = tile.closest('.sauti-card');
     const key = `${card?.dataset.postId || ''}:${tile.dataset.openMediaId || tile.dataset.mediaObjectUrl || 'video'}`;
     const slide = slides.get(key);
@@ -629,7 +710,7 @@ function installShortVideosFeed() {
 
   function continuePendingOpen() {
     if (!pendingOpenRequest) return;
-    addAvailableSlides();
+    if (!pendingOpenIsCurrent()) { cancelPendingOpen(); return; }
     const tile = findVideoTile(pendingOpenRequest.postId);
     if (tile) {
       const request = pendingOpenRequest;
@@ -667,13 +748,13 @@ function installShortVideosFeed() {
 
   function openFirstShortVideo(trigger = null, postId = '', returnFeed = 'for-you') {
     if (trigger?.getAttribute?.('aria-selected') === 'false') {
-      pendingOpenRequest = null;
+      cancelPendingOpen();
       return;
     }
-    addAvailableSlides();
+    cancelPendingOpen();
     const tile = findVideoTile(postId);
     if (!tile) {
-      pendingOpenRequest = { trigger, postId, returnFeed };
+      pendingOpenRequest = { trigger, postId, returnFeed, path: window.location.pathname };
       continuePendingOpen();
       return;
     }
@@ -682,6 +763,7 @@ function installShortVideosFeed() {
   }
 
   function closeShortVideos({ restore = true } = {}) {
+    cancelPendingOpen(); clearSourceSync();
     if (root.hidden) return;
     pauseShortVideos();
     root.hidden = true;
@@ -718,15 +800,7 @@ function installShortVideosFeed() {
 
   const streamFeed = document.getElementById('stream-feed');
   if (streamFeed) {
-    sourceObserver = new MutationObserver(() => {
-      window.clearTimeout(loadTimer);
-      loadTimer = window.setTimeout(() => {
-        loadingMore = false;
-        addAvailableSlides();
-        if (pendingOpenRequest) continuePendingOpen();
-        if (!root.hidden) requestMoreIfNeeded();
-      }, 180);
-    });
+    sourceObserver = new MutationObserver(sourceChanged);
     sourceObserver.observe(streamFeed, {
       subtree: true,
       childList: true,
@@ -739,7 +813,9 @@ function installShortVideosFeed() {
   const streamMore = document.getElementById('stream-more');
   if (streamMore) {
     streamStateObserver = new MutationObserver(() => {
-      addAvailableSlides();
+      if (pendingOpenRequest) { loadingMore = false; continuePendingOpen(); }
+      if (root.hidden) return;
+      ensureEndSlide();
       if (!root.hidden) requestMoreIfNeeded();
     });
     streamStateObserver.observe(streamMore, { attributes: true, attributeFilter: ['hidden'] });
@@ -773,6 +849,7 @@ function installShortVideosFeed() {
   }, true);
 
   const syncShortVideoForeground = () => {
+    if (pendingOpenRequest && !pendingOpenIsCurrent()) cancelPendingOpen();
     if (root.hidden) return;
     if (!SHORT_VIDEO_ROUTE.test(window.location.pathname)) {
       const previousFeed = returnHomeFeed || 'for-you';
@@ -893,7 +970,17 @@ function installShortVideosFeed() {
   });
 
   window.addEventListener('popstate', syncShortVideoForeground);
-  addAvailableSlides();
+  const memberView = document.getElementById('member-view');
+  if (memberView) new MutationObserver(() => {
+    if (!memberView.hidden) return;
+    closeShortVideos({ restore: false });
+    slides.forEach((slide) => {
+      observer?.unobserve(slide);
+      slide.querySelectorAll('video').forEach((video) => video.pause());
+      slide.remove();
+    });
+    slides.clear(); slideSources.clear(); removeEndSlide();
+  }).observe(memberView, { attributes: true, attributeFilter: ['hidden'] });
 }
 
 if (document.readyState === 'loading') {

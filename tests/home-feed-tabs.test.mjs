@@ -94,7 +94,8 @@ test('Short Videos tab filters video posts and opens the existing canonical view
   assert.match(source, /sautilink:open-short-videos/);
   assert.match(shortVideos, /addEventListener\('sautilink:open-short-videos'/);
   assert.match(shortVideos, /openFirstShortVideo/);
-  assert.match(shortVideos, /availableKeys/);
+  assert.match(shortVideos, /function addAvailableSlides/);
+  assert.match(shortVideos, /pruneUnavailableSlides/);
   assert.match(migration, /p_mode <> 'short_videos'[\s\S]*media_kind = 'video'/);
   assert.doesNotMatch(source, /createShortVideoSlide/);
 });

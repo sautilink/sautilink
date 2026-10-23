@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
 import { createMemberSurfaceRetention } from '../src/member-surface-retention.js';
+import { createHomeFeedStartupRead } from '../src/home-feed-startup-read.js';
 import { transformPostMediaSource } from '../scripts/post-media-source-transform.mjs';
 import { transformMediaPerformanceSource } from '../scripts/media-performance-source-transform.mjs';
 import { transformMemberBootstrapResilienceSource } from '../scripts/member-bootstrap-resilience-source-transform.mjs';
@@ -303,13 +304,18 @@ for (const [label, source] of [['source', raw], ['built transform', transformed]
 test('explicit Home refresh still performs the normal fresh query even inside the navigation freshness window', async () => {
   const waiting = deferred();
   let reads = 0, commits = 0;
-  const h = context({ streamLoading: false, streamRequest: 0, streamCursor: null, streamOffset: 0,
+  const h = context({ streamLoading: false, streamRequest: 0, streamCursor: null, streamOffset: 0, recoverySession: false,
     streamHasMore: false, STREAM_PAGE_SIZE: 20, HOME_FEED_COPY: { 'for-you': { rpcMode: 'for_you' } },
     syncHomeFeedModeUi() {}, clearHomeFeedMediaState() {},
     resilientRead: (operation) => operation(), READ_RETRY_ATTEMPTS: 3, READ_RETRY_TIMEOUT_MS: 8000,
     supabase: { rpc() { reads++; return waiting.promise; } }, hydrateStreamEvents: async (rows) => rows,
     renderStreamRows: (_rows, options) => { commits++; assert.equal(options.reset, true); } });
   h.byId('stream-feed').append({ id: 'existing' });
+  h.initialHomeFeedRead = createHomeFeedStartupRead({
+    request() { assert.fail('explicit refresh must not begin a speculative startup read'); },
+    context: () => ({ pathname: '/home', mode: h.activeHomeFeed, memberId: h.currentMemberId,
+      requestEpoch: h.streamRequest, hasFeed: true, recovery: h.recoverySession }),
+  });
   h.memberSurfaceRetention.completed('stream', 'owner', 'for-you');
   vm.runInContext(block(transformed, 'async function loadStream(', 'function sautiCardsForPost('), h);
   const pending = vm.runInContext('loadStream({reset:true})', h);

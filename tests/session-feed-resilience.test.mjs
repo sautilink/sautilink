@@ -47,7 +47,8 @@ test('Home feed retries transient reads and preserves an already-rendered feed',
 
   assert.ok(start >= 0 && end > start);
   assert.match(block, /const hadRenderedFeed = feed\.childElementCount > 0/);
-  assert.match(block, /await resilientRead\(\s*\(\) => supabase\.rpc\('social_home_feed'/);
+  assert.match(block, /const fetchFeedPage = \(\) => \{[\s\S]*return supabase\.rpc\('social_home_feed'/);
+  assert.match(block, /await resilientRead\(\s*\(\) => initialHomeFeedRead\.take/);
   assert.match(block, /\(\) => hydrateStreamEvents\(page\)/);
   assert.match(block, /if \(hadRenderedFeed\)/);
   assert.match(block, /error\.hidden = true/);

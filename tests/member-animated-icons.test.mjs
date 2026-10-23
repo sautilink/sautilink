@@ -15,7 +15,9 @@ const hugeManifest = JSON.parse(await read('app/assets/huge-icons/manifest.json'
 // This DOM harness runs the actual presentation script. Mutation callbacks and
 // bubbling are shared with the production send function below, so the tests
 // exercise the integration rather than a second implementation of icon state.
-function harness({ reduced = false, auth = false, hidden = false, runtimeAvailable = true, adapter = source } = {}) {
+function harness({ reduced = false, auth = false, hidden = false, runtimeAvailable = true, adapter = source, initiallyIntersecting = true } = {}) {
+  const measures = { bodyScans: 0, geometryReads: 0, rendered: 0 };
+  let tileScans = 0;
   const observers = new Set();
   const players = [];
   const requests = [];
@@ -225,6 +227,8 @@ function harness({ reduced = false, auth = false, hidden = false, runtimeAvailab
     }
     closest(selector) { return this.matches(selector) ? this : this.parentElement?.closest(selector) || null; }
     querySelectorAll(selector) {
+      if (this.classList.contains('sauti-media-tile')) tileScans++;
+      if (this === document.body && (selector === 'svg' || selector === 'svg[data-sl-icon-name]' || textIconRules.some(rule => rule.selector === selector))) measures.bodyScans++;
       const direct = selector.startsWith(':scope > ');
       const result = [];
       for (const child of this.children) {
@@ -235,7 +239,7 @@ function harness({ reduced = false, auth = false, hidden = false, runtimeAvailab
     }
     querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
     getBoundingClientRect() { return { top: 10, bottom: 42, left: 10, right: 42, width: 32, height: 32 }; }
-    getClientRects() { return this.closest('[hidden]') ? [] : [this.getBoundingClientRect()]; }
+    getClientRects() { measures.geometryReads++; return this.closest('[hidden]') ? [] : [this.getBoundingClientRect()]; }
     focus() { document.activeElement = this; this.dispatchEvent(new Event('focusin')); }
     click() { if (!this.disabled) this.dispatchEvent(new Event('click')); }
     addEventListener(type, callback, options = {}) {
@@ -359,6 +363,7 @@ function harness({ reduced = false, auth = false, hidden = false, runtimeAvailab
     assert.ok(actual?.renderIcon && actual?.catalog, 'the real vendored Huge renderer loaded');
     window.SautiHugeIcons = {
       ...actual,
+      renderIcon(...args) { measures.rendered++; return actual.renderIcon(...args); },
       play(svg, name, options) {
         const player = {
           svg, name, options, calls: [], destroyed: false,
@@ -388,7 +393,7 @@ function harness({ reduced = false, auth = false, hidden = false, runtimeAvailab
     },
     IntersectionObserver: class {
       constructor(callback) { this.callback = callback; this.targets = new Set(); intersections.add(this); }
-      observe(target) { this.targets.add(target); enqueueMicrotask(() => this.callback([{ target, isIntersecting: true, intersectionRatio: 1 }], this)); }
+      observe(target) { this.targets.add(target); enqueueMicrotask(() => this.callback([{ target, isIntersecting: initiallyIntersecting, intersectionRatio: initiallyIntersecting ? 1 : 0 }], this)); }
       unobserve(target) { this.targets.delete(target); }
       disconnect() { this.targets.clear(); }
     },
@@ -416,8 +421,83 @@ function harness({ reduced = false, auth = false, hidden = false, runtimeAvailab
     }
   }
   const start = () => runInNewContext(adapter, context);
-  return { context, document, window, node, Event, member, rail, nav, feed, card, like, save, bell, badge, mic, send, composer, body, error, preview, requests, players, playerFor, media, mediaListeners, start, flush, intersect };
+  return { context, document, window, node, Event, member, rail, nav, feed, card, like, save, bell, badge, mic, send, composer, body, error, preview, requests, players, playerFor, media, mediaListeners, start, flush, intersect, measures, tileScans: () => tileScans };
 }
+
+test('video clock and irrelevant player mutations never rescan the member body or read icon geometry', async () => {
+  const state = harness({ adapter: adapterSource });
+  const tile = state.node('button', { class: 'sauti-media-tile' }, state.card);
+  const host = state.node('div', { class: 'sauti-video-player' }, tile);
+  const clock = state.node('span', { class: 'sauti-video-time' }, host);
+  const timeline = state.node('div', { role: 'slider' }, host);
+  state.start(); await state.flush();
+  const priorTileScans = state.tileScans();
+  state.measures.bodyScans = state.measures.geometryReads = state.measures.rendered = 0;
+  for (let frame = 0; frame < 30; frame++) {
+    clock.textContent = `0:${frame} / 0:30`;
+    timeline.setAttribute('aria-valuenow', String(frame));
+    timeline.setAttribute('aria-label', `Seek to ${frame}`);
+    host.setAttribute('class', 'sauti-video-player');
+    await state.flush();
+  }
+  assert.deepEqual(state.measures, { bodyScans: 0, geometryReads: 0, rendered: 0 });
+  assert.equal(state.tileScans(), priorTileScans, 'clock updates cannot climb to the outer Home media button');
+  state.like.setAttribute('data-active', 'true'); await state.flush();
+  assert.equal(startedFor(state, state.like), 1, 'a real changed control still animates');
+  assert.equal(state.measures.bodyScans, 0, 'the affected control is refreshed without a body scan');
+  assert.equal(state.measures.geometryReads, 0);
+});
+
+test('revealing text-only settings and modal panels discovers only their descendant glyph hosts', async () => {
+  const state = harness({ adapter: adapterSource });
+  const panel = state.node('section', { hidden: '' }, state.member);
+  const heading = state.node('h3', { id: 'account-security-title' }, panel); heading.textContent = 'Security';
+  const dialog = state.node('dialog', {}, state.member);
+  const title = state.node('h3', { id: 'profile-editor-title' }, dialog); title.textContent = 'Edit profile';
+  state.start(); await state.flush();
+  assert.equal(heading.querySelector('svg'), null);
+  assert.equal(title.querySelector('svg'), null);
+  state.measures.bodyScans = 0;
+  panel.hidden = false; await state.flush();
+  assert.equal(heading.querySelector('svg')?.getAttribute('data-sl-huge-icon'), 'shield-check');
+  dialog.setAttribute('open', ''); await state.flush();
+  assert.equal(title.querySelector('svg')?.getAttribute('data-sl-huge-icon'), 'edit-0-2');
+  assert.equal(state.measures.bodyScans, 0);
+});
+
+test('offscreen and unopened panels defer icon drawing until visible without layout probes', async () => {
+  const state = harness({ adapter: adapterSource, initiallyIntersecting: false });
+  const panel = state.node('section', { hidden: '' }, state.member);
+  const hiddenButton = state.node('button', {}, panel);
+  const hiddenSvg = state.node('svg', { 'data-sl-icon-name': 'heart' }, hiddenButton);
+  state.start(); await state.flush();
+  assert.equal(state.measures.rendered, 0, 'offscreen icons do not create replacement drawings at boot');
+  assert.equal(state.measures.geometryReads, 0);
+  assert.equal(hiddenSvg.getAttribute('data-sl-huge-icon'), null);
+  state.intersect(state.like, true); await state.flush();
+  assert.equal(state.like.querySelector('svg').getAttribute('data-sl-huge-icon'), 'heart');
+  panel.hidden = false; await state.flush();
+  assert.equal(hiddenSvg.getAttribute('data-sl-huge-icon'), null, 'revealed but offscreen icons wait for intersection');
+  state.intersect(hiddenButton, true); await state.flush();
+  assert.equal(hiddenSvg.getAttribute('data-sl-huge-icon'), 'heart');
+  assert.equal(state.measures.geometryReads, 0);
+  state.document.body.classList.add('auth-entry'); await state.flush();
+  assert.equal(hiddenSvg.getAttribute('data-sl-huge-icon'), null, 'account entry restores native SVGs');
+});
+
+test('an offscreen action icon remembers its latest shape until it reenters the viewport', async () => {
+  const state = harness({ adapter: adapterSource });
+  const button = state.node('button', { class: 'sauti-video-control play-pause', 'aria-label': 'Play video' }, state.member);
+  const svg = state.node('svg', {}, button);
+  state.start(); await state.flush();
+  assert.equal(svg.getAttribute('data-sl-huge-icon'), 'play');
+  state.intersect(button, false);
+  button.setAttribute('aria-label', 'Pause video'); await state.flush();
+  assert.equal(svg.getAttribute('data-sl-huge-icon'), 'play', 'offscreen changes do not draw');
+  state.intersect(button, true); await state.flush();
+  assert.equal(svg.getAttribute('data-sl-huge-icon'), 'pause');
+  assert.equal(state.measures.geometryReads, 0);
+});
 
 // Parse real shell markup into the same minimal DOM used by the runtime tests.
 // This checks icon coverage independently of the authored selector/signature map.

@@ -216,6 +216,10 @@ async function hydrateStreamEvents(events) {`,
     button.dataset.mediaAlt = media.alt_text || '';
     button.setAttribute('aria-label', media.alt_text ? \`Open media: \${media.alt_text}\` : 'Open post media');
     button.setAttribute('aria-busy', 'true');
+    if (media.media_kind === 'video' && Number.isInteger(media.duration_ms)
+      && media.duration_ms > 0 && media.duration_ms <= 180000) {
+      button.dataset.mediaDurationMs = String(media.duration_ms);
+    }
 
     // Append every tile before starting protected-byte requests. The existing tile
     // sizing rules now hold the final feed geometry while media loads.

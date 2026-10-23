@@ -16,6 +16,14 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
   let intersection;
   let queued = false;
   let profileScrollTimer;
+  let previousSurface;
+  let discoverAll = true;
+  let syncAll = false;
+  let cleanup = false;
+  const roots = new Set();
+  const changedRecords = new Set();
+  const controls = 'button, a, summary, [role="button"], label';
+  const textSelector = textIconRules.map(rule => rule.selector).join(', ');
 
   function memberVisible() {
     const member = document.getElementById('member-view');
@@ -30,7 +38,7 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
   }
   function visible(record) {
     return Boolean(activeSurface()?.contains(record.svg)) && record.svg.isConnected && !record.svg.closest('[hidden]')
-      && document.visibilityState !== 'hidden' && record.svg.getClientRects().length > 0 && record.inView;
+      && !record.svg.closest('dialog:not([open])') && document.visibilityState !== 'hidden' && record.inView;
   }
   function busy(button) { return button?.getAttribute('aria-busy') === 'true' || button?.dataset.sending === 'true'; }
   function selected(button) {
@@ -180,12 +188,21 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
     if (record.kind === 'toggle' && previous !== record.state) record.wantsReplay = true;
     const changed = name !== record.name;
     record.name = name;
+    if (changed) record.dirty = true;
     if (!playerRuntime) return;
+    // IntersectionObserver supplies visibility without a layout read for every
+    // icon. Hidden/offscreen controls keep their original static drawing until
+    // they enter the viewport, including controls in unopened feature panels.
+    if (!visible(record)) {
+      record.wantsReplay = false;
+      if (record.player) { stop(record); record.dirty = true; }
+      return;
+    }
     if (!record.drawn || changed || record.dirty) {
       record.dirty = false;
       try { draw(record); } catch (_) { restore(record); record.failed = true; return; }
     }
-    if (!visible(record) || motion.matches) {
+    if (motion.matches) {
       record.wantsReplay = false;
       if (record.player) draw(record);
       return;
@@ -194,6 +211,7 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
     else if (record.wantsReplay && !isBusy) play(record);
   }
   function makeRecord(svg) {
+    if (svg.closest('[hidden], dialog:not([open])')) return;
     const name = resolve(svg);
     if (!name) return;
     const control = svg.closest('button, a, summary, [role="button"], label') || svg.parentElement;
@@ -217,7 +235,10 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
   }
   function glyphs(surface) {
     for (const rule of textIconRules) {
-      for (const host of surface.querySelectorAll(rule.selector)) {
+      const hosts = [...surface.querySelectorAll(rule.selector)];
+      if (surface.matches?.(rule.selector)) hosts.unshift(surface);
+      for (const host of hosts) {
+        if (host.closest('[hidden], dialog:not([open])')) continue;
         if (excluded(host) || textRecords.has(host) || host.querySelector('svg[data-sl-huge-text]')) continue;
         const text = [...host.childNodes].find(node => node.nodeType === 3 && rule.glyph && node.nodeValue.includes(rule.glyph));
         if (!rule.pseudo && rule.glyph && !text) continue;
@@ -242,27 +263,66 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
   function scan() {
     queued = false;
     const surface = activeSurface();
+    if (surface !== previousSurface) {
+      previousSurface = surface;
+      discoverAll = true;
+      syncAll = true;
+      cleanup = true;
+    }
     if (!surface) {
       [...records.values()].forEach(record => destroy(record));
       restoreText();
+      roots.clear(); changedRecords.clear();
+      discoverAll = syncAll = cleanup = false;
       return;
     }
-    for (const [host, item] of textRecords) if (!surface.contains(host) || !host.isConnected || !item.svg.isConnected || !host.matches(item.rule.selector)) {
+    if (cleanup || discoverAll) for (const record of [...records.values()]) {
+      if (!record.svg.isConnected || !surface.contains(record.svg)) destroy(record, record.svg.isConnected);
+    }
+    for (const [host, item] of textRecords) if ((cleanup || discoverAll || roots.has(host)) && (!surface.contains(host) || !host.isConnected || !item.svg.isConnected || !host.matches(item.rule.selector))) {
       item.svg.remove();
       if (item.text?.isConnected && item.text.nodeValue === item.replacement) item.text.nodeValue = item.original;
       if (item.flag) host.removeAttribute(item.flag);
       textRecords.delete(host);
     }
-    if (playerRuntime && surface === document.body) glyphs(surface);
-    const selector = surface === document.body ? 'svg' : 'svg[data-sl-icon-name]';
-    for (const svg of surface.querySelectorAll(selector)) if (!records.has(svg)) makeRecord(svg);
-    for (const record of [...records.values()]) sync(record);
-    if (!playerRuntime && records.size) void ensureRuntime().then(schedule).catch(() => {});
+    const pending = discoverAll ? [surface] : [...roots];
+    roots.clear();
+    for (const root of pending) {
+      if (!root.isConnected || !surface.contains(root) || root.closest?.('[hidden], dialog:not([open])')) continue;
+      if (playerRuntime && surface === document.body) glyphs(root);
+      const selector = surface === document.body ? 'svg' : 'svg[data-sl-icon-name]';
+      const svgs = [...root.querySelectorAll(selector)];
+      if (root.matches?.(selector)) svgs.unshift(root);
+      for (const svg of svgs) {
+        const record = records.get(svg) || makeRecord(svg);
+        if (record) changedRecords.add(record);
+      }
+    }
+    const pendingRecords = syncAll ? [...records.values()] : [...changedRecords];
+    changedRecords.clear();
+    discoverAll = syncAll = cleanup = false;
+    for (const record of pendingRecords) if (records.has(record.svg)) sync(record);
+    if (!playerRuntime && records.size) void ensureRuntime().then(() => { discoverAll = true; syncAll = true; schedule(); }).catch(() => {});
   }
   function schedule() {
     if (queued) return;
     queued = true;
     queueMicrotask(scan);
+  }
+  function scheduleAll() { syncAll = true; schedule(); }
+  function queueRoot(root) {
+    if (!(root instanceof Element) || root.nodeType !== 1) return;
+    roots.add(root);
+    schedule();
+  }
+  function queueControl(element) {
+    if (element && (textRecords.has(element) || element.matches(textSelector))) { queueRoot(element); return; }
+    const control = element?.closest(controls);
+    const player = element?.closest('.sauti-video-player');
+    // Home media itself is a button. Its clock/seek HUD is not that button's
+    // icon state, so never climb out of the player to rescan the whole tile.
+    if (player && (!control || !player.contains(control))) return;
+    if (control) queueRoot(control);
   }
   function interactions(event) {
     const surface = activeSurface();
@@ -312,9 +372,10 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
   function install() {
     if (!document.getElementById('member-view') && !document.getElementById('sautilink-guest-post-gate')) return;
     observer = new MutationObserver(changes => {
-      let relevant = false;
       for (const change of changes) {
         const element = change.target instanceof Element ? change.target : change.target.parentElement;
+        if (!element) continue;
+        if (change.type === 'attributes' && change.oldValue === element.getAttribute(change.attributeName)) continue;
         if (change.attributeName === 'aria-selected' && element) revealProfileTab(element);
         const svg = element?.closest('svg[data-sl-huge-icon]');
         if (svg) {
@@ -329,16 +390,30 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
               record.drawn = false;
               record.dirty = true;
             }
-            relevant = true;
+            queueRoot(svg);
           }
           continue;
         }
-        relevant = true;
+        if (change.type === 'attributes') {
+          if (element === document.body || element.id === 'member-view' || element.id === 'sautilink-guest-post-gate') {
+            // A theme class does not require rediscovering every icon. Surface
+            // transitions are detected once in scan; CSS owns theme colors.
+            scheduleAll();
+          } else if (['hidden', 'open', 'class'].includes(change.attributeName)) {
+            if (element.querySelector('svg') || element.matches(textSelector) || element.querySelector(textSelector)) queueRoot(element);
+            for (const record of records.values()) if (element.contains(record.svg)) changedRecords.add(record);
+          } else queueControl(element);
+        } else {
+          // Text clocks/captions do not introduce icons. Only the affected
+          // control (e.g. unread count) or newly inserted element is relevant.
+          queueControl(element);
+          for (const node of change.addedNodes || []) if (node.nodeType === 1) queueRoot(node);
+          if ([...change.removedNodes || []].some(node => node.nodeType === 1)) { cleanup = true; schedule(); }
+        }
       }
-      if (relevant) schedule();
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true,
-      attributeFilter: ['hidden', 'class', 'aria-pressed', 'aria-selected', 'aria-current', 'aria-checked', 'aria-busy', 'aria-expanded', 'aria-label', 'title', 'data-active', 'data-sending'] });
+      attributeFilter: ['hidden', 'open', 'class', 'aria-pressed', 'aria-selected', 'aria-current', 'aria-checked', 'aria-busy', 'aria-expanded', 'aria-label', 'title', 'data-active', 'data-sending'], attributeOldValue: true });
     if (typeof IntersectionObserver === 'function') intersection = new IntersectionObserver(entries => {
       for (const entry of entries) {
         const record = records.get(entry.target);
@@ -353,10 +428,10 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
       if (activeSurface() !== document.body || event.target?.id !== 'message-composer') return;
       for (const record of records.values()) if (record.kind === 'send') record.intent = !record.control.disabled && !busy(record.control);
     }, true);
-    document.addEventListener('visibilitychange', schedule);
-    window.addEventListener('popstate', schedule);
-    window.addEventListener('sautilink:routechange', schedule);
-    motion.addEventListener?.('change', schedule);
+    document.addEventListener('visibilitychange', scheduleAll);
+    window.addEventListener('popstate', scheduleAll);
+    window.addEventListener('sautilink:routechange', scheduleAll);
+    motion.addEventListener?.('change', scheduleAll);
     scan();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });

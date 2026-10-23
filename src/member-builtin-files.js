@@ -4,6 +4,10 @@
   const fields = new Map();
   let sequence = 0;
   let queued = false;
+  let previousMemberVisible;
+  let refreshAll = false;
+  const refreshRoots = new Set();
+  const selector = 'input[type="file"]';
   const setAttribute = (node, name, value) => {
     if (node.getAttribute(name) !== String(value)) node.setAttribute(name, String(value));
   };
@@ -39,11 +43,13 @@
     const description = names.length ? names.join(', ') : (input.multiple ? 'No files chosen' : 'No file chosen');
     if (summary.textContent !== description) summary.textContent = description;
   }
-  function enhance(input) {
+  function enhance(input, styleChecked = false) {
     // Hidden file inputs already have purpose-built composer/avatar triggers.
     if (fields.has(input) || input.hidden || input.closest('[hidden]') || excluded(input)) return;
-    const style = window.getComputedStyle(input);
-    if (style.display === 'none' || style.visibility === 'hidden') return;
+    if (!styleChecked) {
+      const style = window.getComputedStyle(input);
+      if (style.display === 'none' || style.visibility === 'hidden') return;
+    }
     const wrapper = document.createElement('span');
     wrapper.className = 'sl-file';
     wrapper.setAttribute('data-sl-built-in', 'file');
@@ -82,27 +88,69 @@
     input.addEventListener('input', field.onChange);
     sync(field);
   }
-  function refresh() {
+  function refresh(scopes = [document]) {
     const active = memberVisible();
     for (const field of fields.values()) {
       if (!active || !field.input.isConnected || field.input.parentNode !== field.wrapper || excluded(field.input)) restore(field);
-      else sync(field);
     }
-    if (active) document.querySelectorAll('input[type="file"]').forEach(enhance);
+    if (!active) return;
+    const candidates = new Set();
+    for (const root of scopes) {
+      if (root !== document && !root.isConnected) continue;
+      if (root.matches?.(selector)) candidates.add(root);
+      root.querySelectorAll(selector).forEach(input => candidates.add(input));
+    }
+    // Read styles together before inserting any branded wrappers. On mobile a
+    // read after each preceding input's DOM writes forces repeated layouts.
+    const visible = [...candidates].filter(input => {
+      if (fields.has(input) || input.hidden || input.closest('[hidden]') || excluded(input)) return false;
+      const style = window.getComputedStyle(input);
+      return style.display !== 'none' && style.visibility !== 'hidden';
+    });
+    for (const field of fields.values()) {
+      if (scopes.some(root => root === document || root === field.input || root.contains(field.input))) sync(field);
+    }
+    visible.forEach(input => enhance(input, true));
   }
-  function schedule() {
+  function schedule(root) {
+    if (root?.nodeType === 1) refreshRoots.add(root);
+    else refreshAll = true;
     if (queued) return;
     queued = true;
-    queueMicrotask(() => { queued = false; refresh(); });
+    queueMicrotask(() => {
+      queued = false;
+      const scopes = refreshAll ? [document] : [...refreshRoots];
+      refreshAll = false; refreshRoots.clear();
+      refresh(scopes);
+    });
+  }
+  function containsFile(root) { return root?.nodeType === 1 && (root.matches(selector) || root.querySelector(selector)); }
+  function observeChanges(mutations) {
+    const active = memberVisible();
+    if (active !== previousMemberVisible) { previousMemberVisible = active; schedule(); }
+    for (const mutation of mutations) {
+      const target = mutation.target;
+      if (target?.nodeType !== 1 || target.closest('svg')) continue;
+      if (mutation.type === 'attributes' && mutation.oldValue === target.getAttribute(mutation.attributeName)) continue;
+      if (target.closest('[data-sl-built-in="file"]') && !target.matches(selector) && mutation.type !== 'childList') continue;
+      if (mutation.type === 'attributes') {
+        if (containsFile(target)) schedule(target);
+      } else {
+        for (const node of mutation.addedNodes || []) if (containsFile(node)) schedule(node);
+        if ([...mutation.removedNodes || []].some(containsFile)) schedule(target);
+      }
+    }
   }
   function start() {
+    previousMemberVisible = memberVisible();
     refresh();
-    new MutationObserver(schedule).observe(document.body, {
+    new MutationObserver(observeChanges).observe(document.body, {
       subtree: true, childList: true, attributes: true,
       attributeFilter: ['hidden', 'class', 'style', 'disabled', 'multiple', 'accept', 'aria-label'],
+      attributeOldValue: true,
     });
-    document.addEventListener('reset', schedule, true);
-    document.addEventListener('focusin', schedule, true);
+    document.addEventListener('reset', event => schedule(event.target), true);
+    document.addEventListener('focusin', event => { if (containsFile(event.target)) schedule(event.target); }, true);
     window.SautiMemberFiles = Object.freeze({ refresh });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });

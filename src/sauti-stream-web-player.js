@@ -7,6 +7,7 @@ import { setMediaPreviewPlaybackWaiting } from './media-preview-queue.js';
 const states = new Set();
 const mediaLevels = new Map();
 let runtimePromise;
+let readinessRuntimeAttempted = false;
 const authClients = new WeakSet();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 function announceReadiness(mediaId, state) {
@@ -27,6 +28,14 @@ function syncReadiness() {
     || ['slow-2g', '2g'].includes(connection?.effectiveType) || bufferingVideos.size > 0
     || Boolean(document.querySelector?.('dialog[open]'));
   readiness.update(readinessIds, { suspended });
+  const hasWantedVideo = readinessIds.some((id) => typeof id === 'string' && UUID.test(id));
+  if (!hasWantedVideo) readinessRuntimeAttempted = false;
+  else if (!suspended && !readinessRuntimeAttempted && (window.MediaSource || window.ManagedMediaSource)) {
+    // Overlap the pinned public code with an already requested media window.
+    // This creates no player/worker and never retries on observer churn.
+    readinessRuntimeAttempted = true;
+    void loadHlsRuntime().catch(() => {});
+  }
 }
 
 export function updateSautiStreamReadiness(ids = []) { readinessIds = ids; syncReadiness(); }
@@ -354,7 +363,11 @@ export function enhanceSautiStreamPlayback(video) {
   state.onPlay = () => {
     if (!streamPlaybackEligible(video)) { video.pause(); return; }
     state.firstFrameOnly = false;
-    if ((state.hls || state.nativeHls) && state.expiresAt > Date.now() + 30000) state.hls?.startLoad(-1);
+    if ((state.hls || state.nativeHls) && state.expiresAt > Date.now() + 30000) {
+      // startLoad restarts the pinned SDK's active fragment/init/transmux work.
+      // Manifest preparation may already be loading when native play fires.
+      if (state.hls?.loadingEnabled !== true) state.hls?.startLoad(-1);
+    }
     else void resolvePlayback(state, Boolean(state.hls || state.nativeHls));
   };
   state.onPause = () => {
@@ -444,7 +457,7 @@ export function installSautiStreamAuthLifecycle(client) {
     const changed = identity !== undefined && identity !== next;
     if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT' || changed) {
       for (const video of bufferingVideos) setMediaPreviewPlaybackWaiting(video, false);
-      readiness.clear(); readinessIds = []; bufferingVideos.clear();
+      readiness.clear(); readinessIds = []; bufferingVideos.clear(); readinessRuntimeAttempted = false;
       if (event !== 'INITIAL_SESSION') states.forEach((state) => destroyState(state, { clearMedia: true }));
     }
     identity = next;
