@@ -61,7 +61,7 @@ test('concurrent post Stream reads preserve source ETag, size and validation den
     ['changed ETag', f => { f.source.etag = 'replaced'; }],
     ['zero size', f => { f.source.size = 0; }],
     ['negative size', f => { f.source.size = -1; }],
-    ['oversized source', f => { f.source.size = 100_000_001; }],
+    ['oversized source', f => { f.source.size = 262_144_001; }],
     ['wrong owner', f => { f.source.customMetadata.ownerId = POST; }],
     ['wrong media', f => { f.source.customMetadata.mediaId = POST; }],
     ['unvalidated bytes', f => { f.source.customMetadata.validated = 'false'; }],
@@ -90,7 +90,7 @@ test('concurrent post Stream reads preserve every ready-job identity gate', asyn
 
 test('invalid canonical rows never start either storage read', async () => {
   for (const patch of [{ id: 'invalid' }, { owner_id: 'invalid' }, { post_id: null }, { upload_status: 'pending' },
-    { media_kind: 'image' }, { object_key: 'foreign/key.mp4' }, { duration_ms: 0 }, { duration_ms: 120001 }]) {
+    { media_kind: 'image' }, { object_key: 'foreign/key.mp4' }, { duration_ms: 0 }, { duration_ms: 180001 }]) {
     const f = fixture();
     assert.equal(await readySautiPostStreamAsset(f.env, { ...row, ...patch }), null);
     assert.deepEqual(f.calls, []);

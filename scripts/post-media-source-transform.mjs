@@ -1,23 +1,24 @@
 const APP_REPLACEMENTS = Object.freeze([
-  ['return composerMedia\n    .slice(0, 4)', 'return composerMedia\n    .slice(0, 5)'],
-  ['? items.slice(0, 4).filter', '? items.slice(0, 5).filter'],
-  ['`${composerMedia.length} / 4`', '`${composerMedia.length} / 5`'],
-  ['composerMedia.length >= 4', 'composerMedia.length >= 5'],
-  ['Math.max(0, 4 - composerMedia.length)', 'Math.max(0, 5 - composerMedia.length)'],
-  ["A post can include up to four media items.", "A post can include up to five media items."],
-  ['return Array.isArray(data) ? data.slice(0, 4) : [];', 'return Array.isArray(data) ? data.slice(0, 5) : [];'],
-  ['composerMedia.length > 4', 'composerMedia.length > 5'],
-  ['composerMedia.length < 4', 'composerMedia.length < 5'],
+  ['return composerMedia\n    .slice(0, 4)', 'return composerMedia\n    .slice(0, 10)'],
+  ['? items.slice(0, 4).filter', '? items.slice(0, 10).filter'],
+  ['`${composerMedia.length} / 4`', '`${composerMedia.length} / 10`'],
+  ['composerMedia.length >= 4', 'composerMedia.length >= 10'],
+  ['Math.max(0, 4 - composerMedia.length)', 'Math.max(0, 10 - composerMedia.length)'],
+  ["A post can include up to four media items.", "A post can include up to ten media items."],
+  ['return Array.isArray(data) ? data.slice(0, 4) : [];', 'return Array.isArray(data) ? data.slice(0, 10) : [];'],
+  ['composerMedia.length > 4', 'composerMedia.length > 10'],
+  ['composerMedia.length + files.length > 4', 'composerMedia.length + files.length > 10'],
+  ['composerMedia.length < 4', 'composerMedia.length < 10'],
 ]);
 
 const POST_API_REPLACEMENTS = Object.freeze([
-  ['requestedMedia.length > 4', 'requestedMedia.length > 5'],
-  ["A post can include up to four media items.", "A post can include up to five media items."],
+  ['requestedMedia.length > 4', 'requestedMedia.length > 10'],
+  ["A post can include up to four media items.", "A post can include up to ten media items."],
 ]);
 
 const PROFILE_ACTIVITY_REPLACEMENTS = Object.freeze([
   ['const rows = Array.isArray(mediaRows) ? mediaRows.slice(0, 4) : [];',
-   'const rows = Array.isArray(mediaRows) ? mediaRows.slice(0, 5) : [];'],
+   'const rows = Array.isArray(mediaRows) ? mediaRows.slice(0, 10) : [];'],
 ]);
 
 function replaceAllExact(source, replacements) {
@@ -56,7 +57,7 @@ function transformMediaReservation(source) {
   (data || []).forEach((row) => {
     if (!row?.post_id) return;
     const bucket = mediaMap.get(row.post_id) || [];
-    if (bucket.length >= 5) return;
+    if (bucket.length >= 10) return;
     bucket.push(row);
     mediaMap.set(row.post_id, bucket);
   });

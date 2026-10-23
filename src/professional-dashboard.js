@@ -21,6 +21,10 @@ let pollTimer = 0;
 let refreshTimer = 0;
 let lastSeries = [];
 const recordedProfiles = new Set();
+const dashboardPreviewUrls = new Map();
+const dashboardPreviewRequests = new Set();
+let dashboardOwnerId = '';
+let dashboardRequest = 0;
 
 function byId(id) {
   return document.getElementById(id);
@@ -35,7 +39,7 @@ function ensureStylesheet() {
   document.head.append(link);
 }
 
-function icon(paths, className = '') {
+function icon(paths, className = '', animatedName = '') {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('fill', 'none');
@@ -45,6 +49,7 @@ function icon(paths, className = '') {
   svg.setAttribute('stroke-linejoin', 'round');
   svg.setAttribute('aria-hidden', 'true');
   if (className) svg.setAttribute('class', className);
+  if (animatedName) svg.dataset.slIconName = animatedName;
   for (const d of paths) {
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', d);
@@ -287,7 +292,15 @@ function createDashboardSurface() {
   const trackingNote = document.createElement('small');
   trackingNote.className = 'professional-tracking-note';
   trackingNote.textContent = 'Profile visits and follow-change history start from the launch of this analytics dashboard; older values are not estimated.';
-  copy.append(h3, intro, trackingNote);
+  const info = document.createElement('details');
+  info.className = 'professional-insights-info';
+  const infoToggle = document.createElement('summary');
+  infoToggle.setAttribute('aria-label', 'How profile visits and analytics are counted');
+  infoToggle.append(icon(['M12 11v6M12 7h.01', 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0']));
+  const visitDefinition = document.createElement('p');
+  visitDefinition.textContent = 'Profile visits count unique signed-in members who open your profile each day. Your own visits do not count; repeated visits by the same member on the same day count once. A member returning on a different day can count again.';
+  info.append(infoToggle, visitDefinition, trackingNote);
+  copy.append(h3, intro, info);
 
   const controls = document.createElement('div');
   controls.className = 'professional-insights-controls';
@@ -370,7 +383,29 @@ function createDashboardSurface() {
   moneyTitle.textContent = 'Monetisation is coming soon';
   const moneyCopy = document.createElement('p');
   moneyCopy.textContent = 'We are preparing creator monetisation for SautiLink. Eligibility, payouts and earning tools are not active yet.';
-  monetisation.append(moneyIcon, moneyTitle, moneyCopy, createEarningsBlock('professional-zero-earnings'));
+  const programmes = document.createElement('div');
+  programmes.className = 'professional-programmes';
+  for (const [title, description, glyph, paths] of [
+    ['Ads on Shorts', 'Short-video creator programme.', 'video-0-1', ['M3 6h12v12H3Z', 'm15 10 6-3v10l-6-3']],
+    ['Ads on Stories', 'Story creator programme.', 'image-0-1', ['M3 3h18v18H3Z', 'm3 16 5-5 5 5 4-4 4 4', 'M7 7h.01']],
+    ['Ads on Demand', 'Home photos, text posts and long videos.', 'play', ['M8 5v14l11-7Z']],
+  ]) {
+    const programme = document.createElement('article');
+    programme.className = 'professional-programme';
+    const graphic = document.createElement('span');
+    graphic.className = 'professional-programme-icon';
+    graphic.append(icon(paths, '', glyph));
+    const text = document.createElement('div');
+    const name = document.createElement('h4'); name.textContent = title;
+    const note = document.createElement('p'); note.textContent = description;
+    const state = document.createElement('span'); state.className = 'professional-programme-state';
+    state.append(icon(['M7 10V7a5 5 0 0 1 10 0v3', 'M5 10h14v11H5Z'], '', 'lock-keyhole'), document.createTextNode('Not available yet'));
+    text.append(name, note, state);
+    const soon = document.createElement('span'); soon.className = 'professional-coming-soon-pill'; soon.textContent = 'Coming soon';
+    programme.append(graphic, text, soon);
+    programmes.append(programme);
+  }
+  monetisation.append(moneyIcon, moneyTitle, moneyCopy, programmes);
 
   for (const tab of [insightsTab, moneyTab]) {
     tab.addEventListener('click', () => {
@@ -549,9 +584,50 @@ function stat(label, value) {
   return node;
 }
 
+function clearDashboardPreviews() {
+  dashboardPreviewRequests.forEach((controller) => controller.abort());
+  dashboardPreviewRequests.clear();
+  dashboardPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+  dashboardPreviewUrls.clear();
+}
+
+async function hydrateDashboardPreview(media, host, userId) {
+  if (!media?.id || !userId) return;
+  const image = document.createElement('img');
+  image.alt = media.alt_text || ''; image.loading = 'lazy'; image.decoding = 'async';
+  const active = () => dashboardOpen && dashboardOwnerId === userId
+    && String(getCurrentMemberId() || '') === userId && host.isConnected;
+  const cached = dashboardPreviewUrls.get(media.id);
+  if (cached && active()) { image.src = cached; host.replaceChildren(image); return; }
+  const controller = new AbortController();
+  dashboardPreviewRequests.add(controller);
+  const timeout = window.setTimeout(() => controller.abort(), 10000);
+  try {
+    const { data } = await analyticsClient.auth.getSession();
+    const token = data?.session?.access_token;
+    if (!token || !active()) return;
+    const suffix = media.media_kind === 'video' ? '?poster=1' : '?w=320';
+    const response = await fetch(`/api/sauti-media/${encodeURIComponent(media.id)}${suffix}`, {
+      headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
+    });
+    if (!response.ok) return;
+    const blob = await response.blob();
+    if (!active() || controller.signal.aborted) return;
+    const url = URL.createObjectURL(blob);
+    const previous = dashboardPreviewUrls.get(media.id);
+    if (previous) URL.revokeObjectURL(previous);
+    dashboardPreviewUrls.set(media.id, url);
+    image.src = url; host.replaceChildren(image);
+    if (media.media_kind === 'video') host.append(icon(['M8 5v14l11-7Z'], 'professional-preview-video', 'play'));
+  } catch { /* Keep the real caption visible when a protected thumbnail is unavailable. */ }
+  finally { window.clearTimeout(timeout); dashboardPreviewRequests.delete(controller); }
+}
+
 function renderTopPosts(posts) {
   const list = byId('professional-top-content-list');
   if (!list) return;
+  dashboardPreviewRequests.forEach((controller) => controller.abort());
+  dashboardPreviewRequests.clear();
   list.replaceChildren();
   if (!posts.length) {
     const empty = document.createElement('p');
@@ -564,18 +640,29 @@ function renderTopPosts(posts) {
   for (const post of posts) {
     const card = document.createElement('article');
     card.className = 'professional-top-post';
+    const content = document.createElement('a');
+    content.className = 'professional-content-preview';
+    content.href = `/post/${encodeURIComponent(post.id)}?view=post`;
+    content.setAttribute('aria-label', 'Open this post');
+    const preview = document.createElement('div');
+    preview.className = 'professional-top-post-preview';
+    const plainText = postTextPlainText(post.body).trim();
+    preview.textContent = plainText.slice(0, 180) || (post.media?.media_kind === 'video' ? 'Video post' : 'Photo post');
     const text = document.createElement('div');
+    text.className = 'professional-top-post-caption';
     const body = document.createElement('strong');
     body.textContent = postTextPlainText(post.body).trim().slice(0, 110) || 'Media post';
     const date = document.createElement('span');
     date.textContent = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(post.created_at));
     text.append(body, date);
+    content.append(preview, text);
 
     const stats = document.createElement('div');
     stats.className = 'professional-top-post-stats';
     stats.append(stat('views', post.views), stat('engagements', post.engagement));
-    card.append(text, stats);
+    card.append(content, stats);
     list.append(card);
+    if (post.media) void hydrateDashboardPreview(post.media, preview, dashboardOwnerId);
   }
 }
 
@@ -600,21 +687,25 @@ async function loadTopPosts(userId) {
   if (error || !posts?.length) return [];
 
   const ids = posts.map((post) => post.id);
-  const { data: metrics } = await analyticsClient
-    .from('social_post_metrics')
-    .select('post_id,view_count')
-    .in('post_id', ids);
+  const [{ data: metrics }, { data: mediaRows }] = await Promise.all([
+    analyticsClient.from('social_post_metrics').select('post_id,view_count').in('post_id', ids),
+    analyticsClient.from('social_post_media').select('id,post_id,media_kind,alt_text,position')
+      .in('post_id', ids).eq('upload_status', 'attached').order('position', { ascending: true }),
+  ]);
+  const firstMedia = new Map();
+  (mediaRows || []).forEach((media) => { if (!firstMedia.has(media.post_id)) firstMedia.set(media.post_id, media); });
   const views = new Map((metrics || []).map((row) => [String(row.post_id), number(row.view_count)]));
 
   return posts.map((post) => {
     const engagement = number(post.like_count) + number(post.comment_count) + number(post.repost_count);
     const viewCount = views.get(String(post.id)) || 0;
-    return { ...post, views: viewCount, engagement, score: viewCount + engagement };
+    return { ...post, media: firstMedia.get(post.id) || null, views: viewCount, engagement, score: viewCount + engagement };
   }).sort((a, b) => b.score - a.score || new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
 }
 
 async function refreshDashboard() {
   if (!dashboardOpen || !analyticsClient) return;
+  const requestId = ++dashboardRequest;
   const surface = byId(DASHBOARD_ID);
   const loading = surface?.querySelector('.professional-dashboard-loading');
   const firstLoad = lastSeries.length === 0;
@@ -628,6 +719,12 @@ async function refreshDashboard() {
     if (surface && loading) { delete surface.dataset.loading; loading.hidden = true; }
     return;
   }
+  if (dashboardOwnerId !== userId) {
+    clearDashboardPreviews(); lastSeries = []; dashboardOwnerId = userId;
+    byId('professional-top-content-list')?.replaceChildren();
+  }
+  const ownsRequest = () => requestId === dashboardRequest && dashboardOpen
+    && dashboardOwnerId === userId && String(getCurrentMemberId() || '') === userId;
   setStatus('');
 
   const start = dayStart(activeWindow * 2 - 1);
@@ -638,6 +735,7 @@ async function refreshDashboard() {
     .gte('metric_date', start)
     .order('metric_date', { ascending: true });
 
+  if (!ownsRequest()) return;
   if (error) {
     setStatus('Analytics could not be loaded right now. Your statistics have not been replaced with estimates.', true);
     if (surface && loading) { delete surface.dataset.loading; loading.hidden = true; }
@@ -647,7 +745,13 @@ async function refreshDashboard() {
   lastSeries = fillSeries(data || []);
   updateMetricCards(lastSeries);
   renderChart(lastSeries);
-  renderTopPosts(await loadTopPosts(userId));
+  const posts = await loadTopPosts(userId);
+  if (!ownsRequest()) return;
+  const mediaIds = new Set(posts.map((post) => post.media?.id).filter(Boolean));
+  for (const [id, url] of dashboardPreviewUrls) {
+    if (!mediaIds.has(id)) { URL.revokeObjectURL(url); dashboardPreviewUrls.delete(id); }
+  }
+  renderTopPosts(posts);
   const updated = byId('professional-dashboard-updated');
   if (updated) updated.textContent = `Live · updated ${new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date())}`;
   if (surface && loading) { delete surface.dataset.loading; loading.hidden = true; }
@@ -684,6 +788,8 @@ function startPolling() {
 }
 
 function stopLiveUpdates() {
+  dashboardRequest += 1;
+  clearDashboardPreviews();
   window.clearInterval(pollTimer);
   pollTimer = 0;
   window.clearTimeout(refreshTimer);
@@ -700,6 +806,12 @@ async function openDashboard() {
   const surface = createDashboardSurface();
   const profile = byId('profile-surface');
   if (!surface || !profile) return;
+  if (dashboardOwnerId !== String(getCurrentMemberId() || '')) {
+    clearDashboardPreviews(); lastSeries = [];
+    document.querySelectorAll('[data-metric-value], [data-metric-delta]').forEach((node) => { node.textContent = '—'; });
+    byId('professional-top-content-list')?.replaceChildren();
+    byId('professional-dashboard-chart')?.replaceChildren();
+  }
 
   dashboardOpen = true;
   profile.hidden = true;

@@ -64,7 +64,7 @@ test('Phase 21 browser source reads, writes and interacts within Circle Stream w
     assert.ok(source.includes(marker), `source missing Phase 21 marker: ${marker}`);
   }
 
-  assert.match(source, /JSON\.stringify\(\{ body, circle_id: circle\.id, reply_access: replyAccess \}\)/);
+  assert.match(source, /JSON\.stringify\(\{ body, circle_id: circle\.id, reply_access: replyAccess, client_request_id: roomPublishRequestId\(snapshot\) \}\)/);
   assert.doesNotMatch(source, /innerHTML\s*=/);
   assert.doesNotMatch(source, /service_role|sb_secret_|SUPABASE_SECRET/i);
 });

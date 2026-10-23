@@ -14,42 +14,39 @@ test('composer presents Photo, reels-style Video and a live Poll control', async
   assert.match(source, /M4 9h16M7 4l3 5M13 4l3 5/);
   assert.match(source, /document\.createTextNode\('Poll'\)/);
   assert.match(source, /Ask your question above\. Add 2–4 choices below\./);
-  assert.match(source, /SHORT_VIDEO_LIMIT_SECONDS = 60/);
-  assert.match(source, /MAX_TRIMMABLE_VIDEO_SECONDS = 120/);
+  assert.match(source, /POST_VIDEO_LIMIT_SECONDS = 180/);
+  assert.match(source, /POST_VIDEO_MAX_BYTES = 250 \* 1024 \* 1024/);
   assert.match(source, /promptVideoTrim/);
   assert.match(source, /supportedMp4RecorderType/);
   assert.match(source, /Use clip/);
-  assert.match(source, /Videos longer than 2 minutes cannot be trimmed here/);
-  assert.match(source, /Select a clip up to 60 seconds/);
-  assert.match(source, /maximum 1:00/);
+  assert.match(source, /preparePostComposerFiles/);
+  assert.match(source, /Select a clip up to 3 minutes/);
+  assert.match(source, /maximum 3:00/);
   assert.match(build.scripts['build:app'], /composer-formats\.js/);
 });
 
-test('server rejects and cleans short-video uploads beyond 60 seconds before storage', async () => {
+test('post MP4 uploads enforce the 180-second inspected duration before storage', async () => {
   const source = await read('src/sauti-media-api.js');
-  const router = await read('src/asset-router.js');
-  assert.match(source, /SHORT_VIDEO_DURATION_MS = 60_000/);
+  const policy = await read('src/post-media-policy.js');
+  assert.match(policy, /POST_VIDEO_DURATION_MS = 180_000/);
+  assert.match(source, /MAX_VIDEO_DURATION_MS = POST_VIDEO_DURATION_MS/);
   assert.match(source, /inspectMp4Bytes\(bytes\)/);
-  assert.match(source, /VIDEO_TOO_LONG/);
-  assert.match(source, /Trim it in the composer before uploading/);
+  assert.match(source, /durationMs > MAX_VIDEO_DURATION_MS/);
   assert.match(source, /deleteMediaRow\(session, id\)/);
-  assert.doesNotMatch(router, /handleBoundedMediaUpload/);
+  assert.doesNotMatch(source, /SHORT_VIDEO_DURATION_MS/);
 });
 
-test('post videos allow 100 MB while image uploads stay capped at 8 MiB', async () => {
+test('post uploads allow250MiB video and5MiB images with bounded chunk delivery', async () => {
   const source = await read('src/sauti-media-api.js');
-  const app = await read('src/app.js');
-  const composer = await read('src/composer-formats.js');
-  const migration = await read('supabase/migrations/20261006193442_raise_post_video_upload_size_to_100mb.sql');
-
-  assert.match(source, /VIDEO_LIMIT = 100_000_000/);
-  assert.match(source, /IMAGE_LIMIT = 8 \* 1024 \* 1024/);
-  assert.match(source, /Videos must be 100 MB or smaller/);
-  assert.match(app, /const limit = image \? 8 \* 1024 \* 1024 : 100_000_000/);
-  assert.match(composer, /blob\.size > 100_000_000/);
-  assert.match(composer, /Videos: MP4 up to 100 MB/);
-  assert.match(migration, /size_bytes between 1 and 100000000/i);
-  assert.match(migration, /media_kind <> 'image' or size_bytes <= 8388608/i);
+  const policy = await read('src/post-media-policy.js');
+  const migration = await read('supabase/migrations/20261023043819_expand_post_media_policy.sql');
+  assert.match(policy, /POST_VIDEO_LIMIT = 250 \* 1024 \* 1024/);
+  assert.match(policy, /POST_IMAGE_LIMIT = 5 \* 1024 \* 1024/);
+  assert.match(source, /Videos must be 250 MiB or smaller/);
+  assert.match(source, /mediaChunkContract/);
+  assert.match(source, /boundedMediaUploadBody/);
+  assert.match(migration, /size_bytes between 1 and 262144000/i);
+  assert.match(migration, /new\.media_kind <> 'image' or new\.size_bytes <= 5242880/i);
 });
 
 test('poll API covers creation, batch reads and one-vote submission routes', async () => {

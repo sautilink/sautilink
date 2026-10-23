@@ -53,6 +53,8 @@ function context(extra = {}) {
     byId: dom.byId, normalizeDiscoverQuery: (value) => value.trim(),
     renderNotificationItem: (row) => ({ id: row.id }),
     renderDiscoverProfile: (row) => ({ id: row.id }),
+    loadDiscoverTrendingCandidates: async () => ({ data: [{ id: 'post' }] }),
+    rankTrendingPosts: (rows) => rows.slice(0, 5), loadTrendingPostDetails: async (rows) => rows,
     createSautiCard: (row) => ({ id: row.id }), hydrateDirectPosts: async (rows) => rows,
     syncNotificationBadges() {}, syncMessageBadges() {}, messageBadgesEnabled: () => true,
     window: { location: { href: 'https://sautilink.com/home', pathname: '/home', search: '' },

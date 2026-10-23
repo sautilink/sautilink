@@ -4688,3 +4688,7 @@ body:not(.auth-entry) select {
 :root[data-theme="light"] .menu-page-sidebar.primary-rail {
   background: var(--app-panel);
 }
+
+.home-feed-tabs:has([data-home-feed-tab="trending"]) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.discover-trending-more { display: inline-flex; margin: 16px 0 4px; }
+@media (max-width: 420px) { .home-feed-tabs:has([data-home-feed-tab="trending"]) { gap: 2px; padding-inline: 4px; } .home-feed-tabs:has([data-home-feed-tab="trending"]) .home-feed-tab { min-width: 0; padding-inline: 5px; font-size: 12px; } }

@@ -490,17 +490,17 @@
 
               <div class="composer-upload-zone" id="composer-upload-zone" aria-label="Add photos or video">
                 <div class="composer-upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path></svg></div>
-                <div class="composer-upload-copy"><strong>Add photos or video</strong><span>Choose files or drag them here · Up to 5 items</span></div>
+                <div class="composer-upload-copy"><strong>Add photos or video</strong><span>Choose files or drag them here · Up to 10 items</span></div>
                 <div class="composer-upload-buttons"><button id="composer-upload-photo" type="button">Photo</button><button id="composer-upload-video" type="button">Video</button></div>
               </div>
 
               <section class="composer-media-queue" id="sauti-media-queue" aria-label="Post media attachments" hidden>
                 <div class="composer-media-heading">
                   <strong>Media</strong>
-                  <span id="sauti-media-count">0 / 5</span>
+                  <span id="sauti-media-count">0 / 10</span>
                 </div>
                 <div class="composer-media-list" id="sauti-media-list"></div>
-                <p class="composer-media-note">JPEG, PNG or WebP up to 8 MB; MP4 up to 100 MB. Videos up to 2 minutes can be trimmed to 60 seconds. Add alternative text for accessibility.</p>
+                <p class="composer-media-note">Up to 10 photos, 5 MiB each. MP4 videos up to 3 minutes and 250 MiB; trim a longer video before uploading. Add alternative text for accessibility.</p>
               </section>
               <input id="sauti-media-file" type="file" accept="image/jpeg,image/png,image/webp,video/mp4" multiple hidden>
               <input id="sauti-camera-file" type="file" accept="image/jpeg" capture="environment" hidden>
@@ -566,6 +566,7 @@
             <button class="home-feed-tab active" id="home-feed-tab-for-you" type="button" role="tab" aria-selected="true" aria-controls="stream-feed" data-home-feed-tab="for-you">
               <span>For You</span>
             </button>
+            <button class="home-feed-tab" id="home-feed-tab-trending" type="button" role="tab" aria-selected="false" aria-controls="stream-feed" tabindex="-1" data-home-feed-tab="trending"><span>Trending</span></button>
             <button class="home-feed-tab" id="home-feed-tab-short-videos" type="button" role="tab" aria-selected="false" aria-controls="stream-feed" tabindex="-1" data-home-feed-tab="short-videos">
               <span>Short Videos</span>
             </button>
@@ -674,10 +675,11 @@
 
             <section class="discover-section discover-sauti-section" aria-labelledby="discover-sauti-title">
               <div class="discover-section-heading">
-                <div><p class="section-label">Posts</p><h3 id="discover-sauti-title">Recent public conversation</h3></div>
+                <div><p class="section-label">Posts</p><h3 id="discover-sauti-title">Trending Posts</h3></div>
               </div>
-              <section class="stream-feed discover-sauti-feed" id="discover-sauti-feed" aria-label="Discovered public posts"></section>
-              <p class="discover-section-empty" id="discover-sauti-empty" hidden>No matching public posts.</p>
+              <section class="stream-feed discover-sauti-feed" id="discover-sauti-feed" aria-label="Trending public posts"></section>
+              <a class="secondary-action discover-trending-more" id="discover-trending-more" href="/home?feed=trending">See more trending posts</a>
+              <p class="discover-section-empty" id="discover-sauti-empty" hidden>No matching trending posts in the last seven days.</p>
             </section>
           </div>
         </section>
@@ -1493,8 +1495,19 @@
 
       <div class="verification-request-grid two-columns">
         <label>
-          <span>Full legal name</span>
-          <small>Enter it exactly as it appears on your government ID.</small>
+          <span>Account type</span>
+          <small>Choose the identity this profile represents.</small>
+          <select id="verification-account-type" name="account_type" required>
+            <option value="individual">Individual</option>
+            <option value="business">Business</option>
+            <option value="brand">Brand</option>
+            <option value="entity">Entity or government body</option>
+            <option value="organisation">Organisation</option>
+          </select>
+        </label>
+        <label>
+          <span id="verification-name-label">Full legal name</span>
+          <small id="verification-name-help">Your full name, matching your public identity.</small>
           <input id="verification-legal-name" name="legal_name" type="text" autocomplete="name" maxlength="100" required>
         </label>
         <label>
@@ -1533,7 +1546,7 @@
 
       <fieldset class="verification-social-fieldset">
         <legend>Public accounts and references</legend>
-        <p>Add at least one social profile or a full news/blog article URL that helps us confirm your public presence.</p>
+        <p id="verification-evidence-help">Add at least one social profile or a full news/blog article URL that helps us confirm your public presence.</p>
         <div class="verification-social-grid">
           <label class="verification-social-input">
             <span class="verification-social-icon facebook" aria-hidden="true">f</span>
@@ -1557,7 +1570,7 @@
           </label>
         </div>
         <label class="verification-articles-label">
-          <span>News or blog articles</span>
+          <span>News or blog articles <i id="verification-articles-required" hidden>Required</i></span>
           <small>Use full links, one per line. You can add up to five.</small>
           <textarea id="verification-articles" name="articles" rows="3" maxlength="1500" placeholder="https://example.com/article-about-you"></textarea>
         </label>
@@ -1571,8 +1584,8 @@
       </label>
 
       <aside class="verification-id-note">
-        <strong>Do not send or upload your ID.</strong>
-        <span>This request only asks you to type the matching legal name. Our team will contact you if another safe verification step is needed.</span>
+        <strong>Do not send or upload your ID or business licence.</strong>
+        <span>This profile-verification form uses the name and public references you provide. Marketplace merchant certification is a separate process.</span>
       </aside>
 
       <label class="verification-consent">
@@ -1645,7 +1658,7 @@
         </button>
       </header>
       <p class="verification-info-message" id="verification-info-message"></p>
-      <p class="verification-team-wordmark" id="verification-team-wordmark" hidden>SautiLink Team</p>
+      <p class="verification-team-wordmark" id="verification-team-wordmark" hidden>Verified by SautiLink Corporation</p>
     </div>
   </dialog>
 

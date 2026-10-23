@@ -23,7 +23,7 @@ test('existing verification wording and dialog behavior remain intact', async ()
   const app = await read('src/app.js');
 
   assert.match(app, /This profile was verified as belonging to \$\{displayName\}\./);
-  assert.match(app, /This profile was verified as belonging to \$\{displayName\}, a member of the SautiLink Team\./);
+  assert.match(app, /This profile represents \$\{displayName\}, a business, brand, government body/);
   assert.match(app, /This profile is verified\. Verification may be removed at any time if you violate SautiLink rules or policies\./);
   assert.match(app, /if \(typeof dialog\.showModal === 'function'\) dialog\.showModal\(\)/);
 });

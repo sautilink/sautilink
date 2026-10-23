@@ -485,3 +485,9 @@
     scroll-behavior: auto;
   }
 }
+
+.sauti-short-metadata { display: flex; align-items: center; min-width: 0; }
+.sauti-short-metadata .sauti-short-username { flex: 0 1 auto; }
+.sauti-short-trending-rank { flex: 0 0 auto; margin-left: 3px; color: rgba(255,255,255,.9); font-size: 11px; white-space: nowrap; }
+.sauti-short-trending-rank strong { color: #ffda62; font-size: inherit; font-weight: 760; }
+.sauti-short-follow:disabled.following { opacity: 1; }

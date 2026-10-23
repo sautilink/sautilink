@@ -237,6 +237,8 @@ function verificationSubmissionError(error) {
   if (message.includes('PROFILE_UNAVAILABLE')) return 'Your SautiLink profile is unavailable. Refresh and try again.';
   if (message.includes('VERIFICATION_REAPPLY_COOLDOWN')) return 'Your previous request is still in the 30-day reapplication period. Return to Verification settings to see when you can apply again.';
   if (message.includes('VERIFICATION_EVIDENCE_REQUIRED')) return 'Add at least one social profile or article link.';
+  if (message.includes('VERIFICATION_ARTICLE_REQUIRED') || message.includes('VERIFICATION_ARTICLES_REQUIRED')) return 'Add at least one independent news or blog article about this entity.';
+  if (message.includes('VERIFICATION_ACCOUNT_TYPE_INVALID')) return 'Choose the type of account being verified.';
   if (message.includes('VERIFICATION_REASON_INVALID')) return 'Add a verification reason between 20 and 2,000 characters.';
   if (message.includes('SOCIAL_LINKS_INVALID')) return 'Check the social profile usernames and try again.';
   if (message.includes('ARTICLE_LINKS_INVALID')) return 'Use up to five complete http:// or https:// article links.';
@@ -285,6 +287,7 @@ const replacementSubmit = `async function submitVerificationRequest(event) {
       p_reason: byId('verification-reason').value.trim(),
       p_terms_accepted: Boolean(byId('verification-consent').checked),
       p_social_proof_confirmed: verificationSocialProofSelected(),
+      p_account_type: verificationAccountType(byId('verification-account-type')?.value),
     });
     if (error) throw error;
 

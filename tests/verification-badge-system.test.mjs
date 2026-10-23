@@ -76,12 +76,12 @@ test('light theme keeps identity and content text readable across social surface
 test('profile verification badge opens owner-aware and viewer-aware information', () => {
   assert.match(html, /id="profile-verified-badge"[^>]*aria-haspopup="dialog"/);
   assert.match(html, /id="verification-info-dialog"/);
-  assert.match(html, /id="verification-team-wordmark"[^>]*>SautiLink Team</);
+  assert.match(html, /id="verification-team-wordmark"[^>]*>Verified by SautiLink Corporation</);
   assert.match(app, /function openVerificationInfoDialog/);
   assert.match(app, /This profile was verified as belonging to \$\{displayName\}\./);
-  assert.match(app, /a member of the SautiLink Team/);
+  assert.match(app, /business, brand, government body, organisation or other entity verified by SautiLink Corporation/);
   assert.match(app, /Verification may be removed at any time if you violate SautiLink rules or policies/);
-  assert.match(app, /This profile is verified as a SautiLink Team profile/);
+  assert.match(app, /This profile represents a business, brand, government body/);
 });
 
 test('verified state and badge type are hydrated on core social name surfaces', () => {

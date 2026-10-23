@@ -212,12 +212,12 @@ test('native composer arrangement retains the original submit, media actions and
   document.hidden = true; documentEvents.get('visibilitychange')(); assert.equal(video.pauseCalls, 2);
 });
 
-test('native composer styling stays scoped, compact and keeps the existing upload limits', async () => {
+test('native composer styling stays scoped, compact and keeps the current post upload limits', async () => {
   const css = await read('app/assets/composer-native.css');
   assert.match(css, /#sauti-body[\s\S]*?font-size: 16px;[\s\S]*?line-height: 22px;/);
   assert.match(css, /\.composer-media-preview :is\(img, video\)[\s\S]*?height: 210px;[\s\S]*?object-fit: contain/);
-  assert.match(formats, /SHORT_VIDEO_LIMIT_SECONDS = 60/);
-  assert.match(formats, /MAX_TRIMMABLE_VIDEO_SECONDS = 120/);
+  assert.match(formats, /POST_VIDEO_LIMIT_SECONDS = 180/);
+  assert.match(formats, /POST_VIDEO_MAX_BYTES = 250 \* 1024 \* 1024/);
   assert.match(formats, /fileInput\.addEventListener\('change', validateSelectedShortVideo, true\)/);
   assert.match(formats, /installNativeComposerPresentation\(\)/);
   assert.match(formats, /footer\.append\(submit\)/);
@@ -269,10 +269,10 @@ test('preparing several existing video attachments retains every selected trimme
   const first = { name: 'first.mp4', type: 'video/mp4' }; const second = { name: 'second.mp4', type: 'video/mp4' };
   const photo = { name: 'photo.webp', type: 'image/webp' }; const trimmed = [];
   const input = { files: [first, photo, second], dataset: {}, value: 'selection', dispatchEvent(event) { this.event = event; } };
-  const code = formats.slice(formats.indexOf('async function validateSelectedShortVideo('), formats.indexOf('function updateMediaCopy('));
+  const code = formats.slice(formats.indexOf('export async function preparePostComposerFiles('), formats.indexOf('function updateMediaCopy(')).replace('export ', '');
   const validate = runInNewContext(`${code}\nvalidateSelectedShortVideo;`, {
-    SHORT_VIDEO_LIMIT_SECONDS: 60, MAX_TRIMMABLE_VIDEO_SECONDS: 120,
-    videoDuration: async () => 62,
+    POST_VIDEO_LIMIT_SECONDS: 180, POST_VIDEO_MAX_BYTES: 262144000, preparedPostVideos: new WeakSet(),
+    videoDuration: async () => 182,
     promptVideoTrim: async (file) => { const clip = { ...file, name: `${file.name}-trimmed` }; trimmed.push(clip); return clip; },
     DataTransfer: class { constructor() { this.files = []; this.items = { add: (file) => this.files.push(file) }; } },
     Event: class { constructor(type) { this.type = type; } }, composerMessage: () => assert.fail('valid clips should prepare'),
@@ -300,9 +300,9 @@ test('the shared trim dialog can export consecutive clips while keeping controls
     showModal() { this.open = true; opens += 1; },
     close() { this.open = false; closes += 1; },
   };
-  const code = formats.slice(formats.indexOf('function promptVideoTrim('), formats.indexOf('async function validateSelectedShortVideo('));
+  const code = formats.slice(formats.indexOf('function promptVideoTrim('), formats.indexOf('export async function preparePostComposerFiles('));
   const prompt = runInNewContext(`${code}\npromptVideoTrim;`, {
-    trimDialog: () => dialog, MIN_TRIM_SECONDS: 1, SHORT_VIDEO_LIMIT_SECONDS: 60,
+    trimDialog: () => dialog, MIN_TRIM_SECONDS: 1, POST_VIDEO_LIMIT_SECONDS: 180, POST_VIDEO_MAX_BYTES: 262144000,
     formatTrimTime: String,
     URL: { createObjectURL: (file) => `blob:${file.name}`, revokeObjectURL: (url) => revoked.push(url) },
     trimVideoFile: (file, start, end, onProgress) => {
@@ -338,8 +338,8 @@ test('the shared trim dialog can export consecutive clips while keeping controls
   assert.equal(closes, 2);
   assert.equal(preview.pauseCalls, 2);
   assert.deepEqual(exports, [
-    { file: { name: 'first.mp4' }, start: 0, end: 60 },
-    { file: { name: 'second.mp4' }, start: 0, end: 60 },
+    { file: { name: 'first.mp4' }, start: 0, end: 90 },
+    { file: { name: 'second.mp4' }, start: 0, end: 95 },
   ]);
   assert.deepEqual(revoked, ['blob:first.mp4', 'blob:second.mp4']);
 });

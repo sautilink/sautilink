@@ -106,7 +106,7 @@ test('one attached canonical source is imported exactly once under concurrent re
 
 test('pending, unattached, invalid duration and unvalidated objects do not import', async () => {
   const f = fixture();
-  for (const patch of [{ upload_status: 'ready' }, { post_id: null }, { duration_ms: 120001 }, { duration_ms: 0 }, { object_key: 'https://evil.test/file.mp4' }]) {
+  for (const patch of [{ upload_status: 'ready' }, { post_id: null }, { duration_ms: 180001 }, { duration_ms: 0 }, { object_key: 'https://evil.test/file.mp4' }]) {
     assert.equal(await prepareSautiStreamVideo(f.env, { ...row, ...patch }, NOW), null);
   }
   f.objects.get(row.object_key).metadata.validated = 'false';

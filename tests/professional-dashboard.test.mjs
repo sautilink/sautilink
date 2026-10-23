@@ -15,6 +15,7 @@ test('dashboard top-content captions show plain formatted text, retain literal m
   class Element {
     constructor(tag) { this.tagName = tag; this.children = []; this.textContent = ''; }
     append(...nodes) { this.children.push(...nodes); }
+    setAttribute() {}
     replaceChildren(...nodes) { this.children = nodes; }
   }
   const list = new Element('div');
@@ -24,7 +25,7 @@ test('dashboard top-content captions show plain formatted text, retain literal m
     byId: (id) => { assert.equal(id, 'professional-top-content-list'); return list; },
     postTextPlainText,
     stat: (label, value) => { stats.push({ label, value }); return new Element('span'); },
-    Intl, Date,
+    Intl, Date, dashboardPreviewRequests: new Set(), dashboardOwnerId: 'owner',
   });
   const cases = [
     [' **A fresh perspective.** *One* __two__ ~~three~~ ***both*** ', 'A fresh perspective. One two three both'],
@@ -36,13 +37,13 @@ test('dashboard top-content captions show plain formatted text, retain literal m
     [undefined, 'Media post'],
   ];
   for (const [body, expected] of cases) {
-    const post = { body, created_at: '2026-10-20T12:00:00Z', views: 12, engagement: 3 };
+    const post = { id: 'actual-post', body, created_at: '2026-10-20T12:00:00Z', views: 12, engagement: 3 };
     render([post]);
     assert.equal(list.children.length, 1);
     const card = list.children[0];
     assert.equal(card.className, 'professional-top-post');
-    assert.equal(card.children[0].children[0].textContent, expected);
-    assert.equal(card.children[0].children[1].textContent,
+    assert.equal(card.children[0].children[1].children[0].textContent, expected);
+    assert.equal(card.children[0].children[1].children[1].textContent,
       new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(post.created_at)));
     assert.deepEqual(stats.splice(0), [{ label: 'views', value: 12 }, { label: 'engagements', value: 3 }]);
     assert.equal(post.body, body, 'presentation must not alter the stored caption');
@@ -127,4 +128,41 @@ test('production source transform installs the professional dashboard with the e
   assert.match(output, /import \{ installProfessionalDashboard \} from '\.\/professional-dashboard\.js'/);
   assert.match(output, /installPostViewMetrics\(\{[\s\S]*supabase,[\s\S]*getCurrentMemberId/);
   assert.match(output, /installProfessionalDashboard\(\{[\s\S]*supabase,[\s\S]*getCurrentMemberId/);
+});
+
+test('a protected dashboard preview cannot appear after an owner change or dashboard close', async () => {
+  const source = await read('src/professional-dashboard.js');
+  const start = source.indexOf('function clearDashboardPreviews('), end = source.indexOf('function renderTopPosts(', start);
+  for (const close of [false, true]) {
+    const state = { member: 'owner', fetches: [], attached: [], created: [] };
+    let release;
+    const response = new Promise((resolve) => { release = resolve; });
+    let fetched;
+    const entered = new Promise((resolve) => { fetched = resolve; });
+    const context = {
+      document: { createElement: () => ({}) },
+      dashboardPreviewRequests: new Set(), dashboardPreviewUrls: new Map(),
+      dashboardOpen: true, dashboardOwnerId: 'owner', getCurrentMemberId: () => state.member,
+      analyticsClient: { auth: { getSession: async () => ({ data: { session: { access_token: 'private-token' } } }) } },
+      AbortController, window: { setTimeout: () => 1, clearTimeout() {} },
+      URL: { createObjectURL: (blob) => { state.created.push(blob); return 'blob:private-preview'; }, revokeObjectURL() {} },
+      fetch: async (url, options) => { state.fetches.push({ url, options }); fetched(); return response; },
+    };
+    const api = runInNewContext(`${source.slice(start, end)}\n({hydrateDashboardPreview,clearDashboardPreviews});`, context);
+    const host = { isConnected: true, replaceChildren: (...children) => state.attached.push(children) };
+    const pending = api.hydrateDashboardPreview({ id: 'real-media', media_kind: 'image' }, host, 'owner');
+    await entered;
+    assert.equal(state.fetches[0].url, '/api/sauti-media/real-media?w=320');
+    assert.equal(state.fetches[0].options.headers.Authorization, 'Bearer private-token');
+    if (close) {
+      context.dashboardOpen = false;
+      api.clearDashboardPreviews();
+      assert.equal(state.fetches[0].options.signal.aborted, true);
+    } else { state.member = 'other-owner'; context.dashboardOwnerId = 'other-owner'; }
+    release({ ok: true, blob: async () => ({ type: 'image/jpeg' }) });
+    await pending;
+    assert.equal(state.created.length, 0);
+    assert.equal(state.attached.length, 0);
+    assert.equal(context.dashboardPreviewRequests.size, 0);
+  }
 });

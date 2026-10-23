@@ -97,14 +97,14 @@ test('trex and tfhd default durations and consecutive runs are honored with vers
   assert.equal(inspectMp4Bytes(bytes)?.durationMs, 4000);
 });
 
-test('duration includes composition offsets and rejects presentation or decode timelines over the 120-second container limit', () => {
+test('duration includes composition offsets and rejects presentation or decode timelines over the 180-second container limit', () => {
   const make = (durations, flags, offsets, version = 1) => mp4(movie([track({ initial: 0 })]),
     moof(fragment({ runs: [run(durations, { flags, offsets, version })] })));
   assert.equal(inspectMp4Bytes(make([30000], 0x900, [30000]))?.durationMs, 2000);
   assert.equal(inspectMp4Bytes(make([30000], 0x900, [-15000]))?.durationMs, 1000);
-  assert.equal(inspectMp4Bytes(make([3600000], 0x100, []))?.durationMs, 120000);
-  assert.equal(inspectMp4Bytes(make([3600001], 0x100, [])), null);
-  assert.equal(inspectMp4Bytes(make([3600000], 0x900, [1], 0)), null);
+  assert.equal(inspectMp4Bytes(make([5400000], 0x100, []))?.durationMs, 180000);
+  assert.equal(inspectMp4Bytes(make([5400001], 0x100, [])), null);
+  assert.equal(inspectMp4Bytes(make([5400000], 0x900, [1], 0)), null);
 });
 
 test('normal MP4 duration includes movie and audio durations rather than only the largest video track', () => {
@@ -114,7 +114,7 @@ test('normal MP4 duration includes movie and audio durations rather than only th
   ], [], { extendsBox: false, duration: movieDuration, version: 0 }));
   assert.equal(inspectMp4Bytes(make(30001))?.durationMs, 30001);
   assert.equal(inspectMp4Bytes(make(20000, 45000))?.durationMs, 45000);
-  assert.equal(inspectMp4Bytes(make(120001)), null);
+  assert.equal(inspectMp4Bytes(make(180001)), null);
 });
 
 test('malformed or incomplete fragments fail closed instead of falling back to misleading initialization durations', () => {
