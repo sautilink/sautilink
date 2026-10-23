@@ -82,6 +82,17 @@ internal class StagingFeedCache {
         generations[cacheKey] = (generations[cacheKey] ?: 0L) + 1L
     }
 
+    /** An acknowledged post action makes other screens' artwork stale, retaining their rows. */
+    fun invalidatePostActions(backend: String, owner: String,
+        currentOwner: () -> String?): Boolean = synchronized(lock) {
+        if (owner.isBlank() || currentOwner() != owner) return@synchronized false
+        listOf("for_you", "following", "short_videos", "saved", "trending").forEach { mode ->
+            val cacheKey = key(backend, owner, mode)
+            generations[cacheKey] = (generations[cacheKey] ?: 0L) + 1L
+        }
+        true
+    }
+
     /** Call only after the server confirms this owner's removal. Keep offline rows, force revalidation. */
     fun confirmOwnVerificationRemoved(backend: String, owner: String,
         currentOwner: () -> String?): Boolean = synchronized(lock) {
@@ -156,6 +167,9 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
     /** Explicit refresh supersedes older first-page work without discarding offline rows. */
     fun beginRefresh(mode: String) = cache.invalidateFirstPage(auth.backend.id, auth.account?.id, mode)
 
+    fun invalidatePostActions(expectedOwner: String): Boolean =
+        cache.invalidatePostActions(auth.backend.id, expectedOwner) { auth.account?.id }
+
     /** One cancellable, bounded GET of at most five pointers. Polling never resolves
      * profiles/media/actions, mutates the first-page cache, or retries a Follow write.
      */
@@ -193,8 +207,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                 "social_profiles?id=eq.$authorId&select=id,username,display_name,is_verified,verification_badge_type,avatar_key&limit=1", token
             ).optJSONObject(0) else null
             val handle = author?.optString("username").orEmpty()
-            // Rooms already support five images; preserve the existing bound for other posts.
-            val mediaLimit = if (uuid.matches(post.optString("circle_id"))) 5 else 4
+            val mediaLimit = com.sautilink.nativeapp.feature.posts.NativePostMediaPolicy.MAX_ATTACHMENTS
             val mediaRows = getJsonArray(
                 "social_post_media?post_id=eq.$postId&upload_status=eq.attached&select=id,media_kind,position,width,height,duration_ms&order=position.asc&limit=$mediaLimit", token
             )
@@ -322,7 +335,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                         if (kind !in listOf("image", "video")) null
                         else FeedMedia(media.optString("id"), kind, media.optInt("position", 0),
                             media.optInt("width"), media.optInt("height"), media.optLong("duration_ms", 0L))
-                    }.sortedBy { it.position }.take(4) }
+                    }.sortedBy { it.position }.take(com.sautilink.nativeapp.feature.posts.NativePostMediaPolicy.MAX_ATTACHMENTS) }
             }
             val results = ids.mapNotNull { postId ->
                 val p = byId[postId] ?: return@mapNotNull null // May disappear due to RLS/moderation after RPC.

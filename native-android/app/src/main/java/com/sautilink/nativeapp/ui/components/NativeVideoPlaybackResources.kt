@@ -18,9 +18,10 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.ConcurrentHashMap
 
-/** Private, bounded bytes for this live player only. Fresh players reauthorize;
- * disposal removes the bytes. Index keys are salted hashes, never credentials,
- * accounts, signed URLs or Media3's caller-provided custom cache keys.
+/** Every player owns its live authorization. An optional session replay binding
+ * retains only HLS bytes after disposal; each new player must first obtain its
+ * own descriptor/grant. MP4 bytes remain private to this player. Index keys are
+ * salted hashes, never credentials, accounts, signed URLs or caller cache keys.
  */
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 internal class NativeVideoPlaybackResources(
@@ -30,28 +31,75 @@ internal class NativeVideoPlaybackResources(
     maxBytes: Long = 32L * 1024 * 1024,
     private val representationPins: NativeVideoRepresentationPins = NativeVideoRepresentationPins(),
     val hlsGrants: NativeHlsGrantRegistry = NativeHlsGrantRegistry(),
+    private val replay: NativeVideoReplayBinding? = null,
 ) : Closeable {
     private val active = AtomicBoolean(true)
     private val salt = UUID.randomUUID().toString()
-    private val directory = runCatching { ActiveVideoCacheDirectories.reserve(context.cacheDir) }.getOrNull()
+    private val directory = lazy { runCatching { ActiveVideoCacheDirectories.reserve(context.cacheDir) }.getOrNull() }
     private data class Store(val cache: SimpleCache, val database: StandaloneDatabaseProvider)
-    private val store: Store? = directory?.let { createStore(context, it, maxBytes) }
-    private val cached: DataSource.Factory? = store?.let {
+    private val store = lazy { directory.value?.let { createStore(context, it, maxBytes) } }
+    private val cached: DataSource.Factory? by lazy { store.value?.let {
         CacheDataSource.Factory()
             .setCache(it.cache)
             .setUpstreamDataSourceFactory(RequestUriSourceFactory(upstream))
             .setCacheKeyFactory { spec -> hashCacheIdentity(salt, checkNotNull(spec.key)) }
             .setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE or CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-    }
+    } }
+    private data class CacheRoute(val factory: DataSource.Factory, val identity: String,
+        val allowed: () -> Boolean = { true }, val release: () -> Unit = {})
+    init { if (replay == null) store.value } // Preserve default per-player behavior.
 
     val dataSourceFactory = DataSource.Factory {
-        SessionSource(cached, upstream, ::identityFor, ::allowedRequest) { active.get() && sessionActive() }
+        SessionSource(upstream, { spec -> cacheRoute(spec, upstream) }, ::allowedRequest) { active.get() && sessionActive() }
+    }
+
+    private fun cacheRoute(spec: DataSpec, upstream: DataSource.Factory): CacheRoute? {
+        val identity = identityFor(spec) ?: return null
+        if (replay != null && spec.uri.path?.contains("/hls/") == true) {
+            // cacheIdentity is available only through THIS resource's currently
+            // authorized registry. Neither an old URL nor a caller key can open
+            // pooled bytes before a new descriptor has populated that registry.
+            val lease = replay.pool.acquire(replay.scope, identity) ?: return null
+            if (!active.get() || !lease.admit(identity)) { lease.close(); return null }
+            return try {
+                val factory = CacheDataSource.Factory().setCache(lease.cache)
+                    .setUpstreamDataSourceFactory(RequestUriSourceFactory(upstream))
+                    .setCacheKeyFactory { data -> hashCacheIdentity(lease.salt, checkNotNull(data.key)) }
+                    .setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE or CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+                if (NativeVideoReplayProbe.enabled) {
+                    val replayIdentity = nativeVideoReplayIdentity(identity)
+                    fun report(stage: NativeVideoReplayStage, bytes: Long = 0L, cacheBytes: Long = -1L, detail: Int = 0) {
+                        NativeVideoReplayProbe.mark(stage, mediaId = replayIdentity?.content?.substringAfterLast('/'),
+                            ownerEpoch = lease.diagnosticOwnerEpoch, poolEpoch = lease.diagnosticPoolEpoch,
+                            storeEpoch = lease.diagnosticStoreEpoch, generation = replayIdentity?.generation,
+                            identity = identity, bytes = bytes, cacheBytes = cacheBytes, detail = detail)
+                    }
+                    factory.setEventListener(object : CacheDataSource.EventListener {
+                        override fun onCachedBytesRead(cacheSizeBytes: Long, cachedBytesRead: Long) {
+                            report(NativeVideoReplayStage.CACHE_HIT, cachedBytesRead, cacheSizeBytes)
+                        }
+                        override fun onCacheIgnored(reason: Int) {
+                            report(NativeVideoReplayStage.CACHE_IGNORED, detail = reason)
+                        }
+                    })
+                }
+                CacheRoute(factory, identity, lease::active, release = lease::close)
+            } catch (error: Exception) {
+                lease.close()
+                throw error
+            }
+        }
+        return cached?.let { CacheRoute(it, identity) }
     }
 
     private fun identityFor(spec: DataSpec): String? {
         if (spec.httpMethod != DataSpec.HTTP_METHOD_GET || spec.httpBody != null) return null
-        val identity = spec.uri.toString().takeIf { cacheableVideoUri(spec.uri) } ?: hlsGrants.cacheIdentity(spec.uri.toString())
-        return identity?.takeIf { representationPins.admit(it) }
+        val mp4 = spec.uri.toString().takeIf { cacheableVideoUri(spec.uri) }
+        if (mp4 != null) return mp4.takeIf { representationPins.admit(it) }
+        val hls = hlsGrants.cacheIdentity(spec.uri.toString()) ?: return null
+        // Generation-bound pooled HLS has its own per-store identity budget.
+        // The viewer-wide MP4 pins must not permanently exclude later clips.
+        return if (replay != null) hls else hls.takeIf { representationPins.admit(it) }
     }
 
     private fun allowedRequest(spec: DataSpec): Boolean =
@@ -77,24 +125,31 @@ internal class NativeVideoPlaybackResources(
 
     override fun close() {
         if (!active.compareAndSet(true, false)) return
-        // Caller releases the player first, so no loader still owns a cache span.
-        runCatching { store?.cache?.release() }
-        runCatching { if (store != null && directory != null) SimpleCache.delete(directory, store.database) }
-        runCatching { store?.database?.close() }
-        directory?.let { ActiveVideoCacheDirectories.release(it) }
+        NativeVideoReplayProbe.mark(NativeVideoReplayStage.RESOURCE_CLOSE,
+            ownerEpoch = replay?.pool?.diagnosticOwnerEpoch ?: 0L, poolEpoch = replay?.pool?.diagnosticEpoch ?: 0L)
+        // Pooled leases belong to DataSource.open/close. Mark reads invalid now,
+        // but let each loader close its delegate before releasing its lease:
+        // asynchronous player teardown must not evict a still-open cache span.
+        val privateStore = if (store.isInitialized()) store.value else null
+        val privateDirectory = if (directory.isInitialized()) directory.value else null
+        runCatching { privateStore?.cache?.release() }
+        runCatching { if (privateStore != null && privateDirectory != null) SimpleCache.delete(privateDirectory, privateStore.database) }
+        runCatching { privateStore?.database?.close() }
+        privateDirectory?.let { ActiveVideoCacheDirectories.release(it) }
         representationPins.clear()
         hlsGrants.clear()
     }
 
     private class SessionSource(
-        private val cached: DataSource.Factory?,
         private val upstream: DataSource.Factory,
-        private val cacheIdentity: (DataSpec) -> String?,
+        private val cachedRoute: (DataSpec) -> CacheRoute?,
         private val requestAllowed: (DataSpec) -> Boolean,
         private val allowed: () -> Boolean,
     ) : DataSource {
         private var delegate: DataSource? = null
         private var request: DataSpec? = null
+        private var cacheAllowed: (() -> Boolean)? = null
+        private var cacheLease: CacheRoute? = null
         private val listeners = mutableListOf<TransferListener>()
 
         override fun addTransferListener(transferListener: TransferListener) {
@@ -106,18 +161,22 @@ internal class NativeVideoPlaybackResources(
             check(delegate == null)
             request = dataSpec
             checkSession()
-            val identity = if (cached != null) cacheIdentity(dataSpec) else null
-            val source = (if (identity != null) checkNotNull(cached) else upstream).createDataSource()
-            delegate = source
-            listeners.forEach(source::addTransferListener)
             return try {
+                val route = cachedRoute(dataSpec)
+                cacheLease = route
+                cacheAllowed = route?.allowed
+                checkSession()
+                val source = (route?.factory ?: upstream).createDataSource()
+                delegate = source
+                listeners.forEach(source::addTransferListener)
                 // The caller's DataSpec.key cannot alias qualities or distinct videos.
-                val opened = source.open(if (identity != null) dataSpec.buildUpon().setKey(identity).build() else dataSpec)
+                val opened = source.open(if (route != null) dataSpec.buildUpon().setKey(route.identity).build() else dataSpec)
                 checkSession()
                 opened
             } catch (error: Exception) {
-                runCatching { source.close() }
+                runCatching { delegate?.close() }
                 delegate = null
+                cacheLease?.release?.invoke(); cacheLease = null; cacheAllowed = null
                 throw error
             }
         }
@@ -125,7 +184,7 @@ internal class NativeVideoPlaybackResources(
         override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
             checkSession()
             val count = checkNotNull(delegate).read(buffer, offset, length)
-            if (!allowed() || request?.let(requestAllowed) == false) {
+            if (!allowed() || request?.let(requestAllowed) == false || cacheAllowed?.invoke() == false) {
                 if (count > 0) buffer.fill(0, offset, offset + count)
                 throw IOException("Video playback session ended")
             }
@@ -135,10 +194,14 @@ internal class NativeVideoPlaybackResources(
         override fun getUri(): Uri? = delegate?.uri
         override fun getResponseHeaders(): Map<String, List<String>> = delegate?.responseHeaders ?: emptyMap()
         override fun close() {
-            try { delegate?.close() } finally { delegate = null; request = null }
+            try { delegate?.close() } finally {
+                delegate = null; request = null
+                cacheLease?.release?.invoke(); cacheLease = null; cacheAllowed = null
+            }
         }
         private fun checkSession() {
-            if (!allowed() || request?.let(requestAllowed) == false) throw IOException("Video playback authorization ended")
+            if (!allowed() || request?.let(requestAllowed) == false || cacheAllowed?.invoke() == false)
+                throw IOException("Video playback authorization ended")
         }
     }
 }

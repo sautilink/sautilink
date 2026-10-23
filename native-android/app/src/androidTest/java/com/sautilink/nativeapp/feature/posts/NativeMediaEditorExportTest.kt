@@ -47,7 +47,7 @@ class NativeMediaEditorExportTest {
             assertNotNull(exported.ownedFile)
             val file = exported.ownedFile!!
             assertEquals(context.cacheDir.canonicalFile, file.canonicalFile.parentFile)
-            assertTrue(file.name.startsWith("sauti-edit-")); assertTrue(file.length() in 1..(8L * 1024 * 1024))
+            assertTrue(file.name.startsWith("sauti-edit-")); assertTrue(file.length() in 1..NativePostMediaPolicy.MAX_IMAGE_BYTES)
             val bitmap = BitmapFactory.decodeFile(file.path)
             assertNotNull(bitmap); assertEquals(40, bitmap.width); assertEquals(40, bitmap.height)
             assertEquals(80, original.width); assertFalse(original.isRecycled)
@@ -66,7 +66,7 @@ class NativeMediaEditorExportTest {
         try {
             val sourceUri = Uri.fromFile(original)
             val duration = localVideoDuration(context, sourceUri)
-            assertTrue("Fixture must exercise the existing over-60-second restriction", duration > 60_000L)
+            assertTrue("Fixture must contain a selectable later interval beyond one minute", duration > 60_000L)
             val firstFrame = localVideoThumbnail(context, sourceUri)!!
             try { assertTrue(Color.red(firstFrame.getPixel(20, 20)) > Color.blue(firstFrame.getPixel(20, 20)) + 80) }
             finally { firstFrame.recycle() }
@@ -75,7 +75,7 @@ class NativeMediaEditorExportTest {
             }
             val result = exported!!
             assertNotNull(result.ownedFile)
-            assertTrue(result.ownedFile!!.length() in 1..100_000_000L)
+            assertTrue(result.ownedFile!!.length() in 1..NativePostMediaPolicy.MAX_VIDEO_BYTES)
             val clippedDuration = localVideoDuration(context, result.uri)
             assertTrue("Selected clip must be approximately 1.5 seconds, got $clippedDuration", clippedDuration in 1_200L..1_800L)
             val thumbnail = localVideoThumbnail(context, result.uri)

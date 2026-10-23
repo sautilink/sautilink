@@ -64,6 +64,7 @@ fun NativeDashboardScreen(
     var loading by remember(auth.account?.id) { mutableStateOf(auth.account != null) }
     var error by remember { mutableStateOf<String?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
+    var analyticsInfo by remember { mutableStateOf(false) }
     LaunchedEffect(auth.account?.id, window, refresh) {
         if (auth.account == null) { data = null; return@LaunchedEffect }
         loading = true
@@ -101,6 +102,10 @@ fun NativeDashboardScreen(
                 "Unique signed-in visitors per day.")
         )
     }
+    if (analyticsInfo) AlertDialog(onDismissRequest = { analyticsInfo = false },
+        title = { Text("About these insights") },
+        text = { Text("Profile visits and follow-change history start from this analytics dashboard's launch; older values are not estimated. Content statistics use recorded SautiLink views and engagement.") },
+        confirmButton = { TextButton(onClick = { analyticsInfo = false }) { Text("Close") } })
     Column(Modifier.fillMaxSize().background(lightBackground)) {
         Row(
             Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
@@ -134,8 +139,7 @@ fun NativeDashboardScreen(
                             style = MaterialTheme.typography.titleSmall)
                         if (key == "monetisation") {
                             Spacer(Modifier.width(5.dp))
-                            Text("Coming soon", color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.labelSmall)
+                            ComingSoonBadge()
                         }
                     }
                     Spacer(Modifier.width(80.dp).height(3.dp)
@@ -151,44 +155,14 @@ fun NativeDashboardScreen(
         ) {
             if (tab == "monetisation") {
                 item {
-                    Column(
-                        Modifier.fillMaxWidth().padding(top = 32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Surface(shape = RoundedCornerShape(22.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = .1f),
-                            modifier = Modifier.size(72.dp)) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Rounded.AttachMoney, null,
-                                    tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(34.dp))
-                            }
-                        }
-                        Text("Monetisation is coming soon",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold)
-                        Text("We are preparing creator monetisation for SautiLink. " +
-                            "Eligibility, payouts and earning tools are not active yet.",
-                            style = MaterialTheme.typography.bodyLarge,
+                    Column(Modifier.fillMaxWidth().padding(top = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text("Programmes", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("Creator monetisation is coming soon. Programme eligibility, earnings and payouts are not available yet.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            color = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(Modifier.padding(20.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Estimated earnings",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("\$0.00", style = MaterialTheme.typography.headlineLarge,
-                                    fontWeight = FontWeight.Bold)
-                                Text("Monetisation inactive",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
                     }
                 }
+                items(creatorProgrammes, key = { it.title }) { programme -> CreatorProgrammeCard(programme) }
             } else {
                 item {
                     DashboardSectionHeading("Analytics", Icons.Rounded.TrendingUp)
@@ -219,11 +193,14 @@ fun NativeDashboardScreen(
                 if (data != null) {
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            DashboardSectionHeading("Insights", Icons.Rounded.Visibility)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                DashboardSectionHeading("Insights", Icons.Rounded.Visibility)
+                                Spacer(Modifier.weight(1f))
+                                IconButton(onClick = { analyticsInfo = true }) {
+                                    Icon(Icons.Rounded.Info, "About dashboard insights", Modifier.size(21.dp))
+                                }
+                            }
                             Text("See how your profile and content are performing with live SautiLink data.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("Profile visits and follow-change history start from this analytics dashboard's launch; older values are not estimated.",
-                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -292,21 +269,7 @@ fun NativeDashboardScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                     items(data?.topContent.orEmpty(), key = { it.id }) { post ->
-                        Surface(onClick = { onOpenPost(post.id) },
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                        ) {
-                            Column(Modifier.fillMaxWidth().padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(post.text.ifBlank { "Media post" },
-                                    maxLines = 3, overflow = TextOverflow.Ellipsis,
-                                    style = MaterialTheme.typography.bodyMedium)
-                                Text("${post.views} views · ${post.engagement} engagements · ${relativePostTime(post.createdAt)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
+                        CreatorContentCard(auth, post) { onOpenPost(post.id) }
                     }
                 }
             }

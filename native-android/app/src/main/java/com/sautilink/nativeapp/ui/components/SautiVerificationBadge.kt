@@ -45,21 +45,17 @@ fun SautiVerificationBadge(
     val context = LocalContext.current
     val image = remember(art) { BadgeArtwork.load(context.resources, art) }
     val label = if (!interactive) "Illustrative SautiLink verification artwork" else
-        if (team) "Verified SautiLink Team account" else "Verified account"
+        if (team) "Verified brand or entity profile" else "Verified account"
     var showInfo by rememberSaveable { mutableStateOf(false) }
     Image(bitmap = image, contentDescription = label,
         modifier = modifier.size(size).then(if (interactive)
             Modifier.clickable(onClickLabel = "About this verified profile") { showInfo = true }
             else Modifier))
+    val info = verificationBadgeCopy(team, profileOwner, displayName)
     if (showInfo) AlertDialog(
         onDismissRequest = { showInfo = false },
-        title = { Text(if (team) "Official team profile" else "Verified profile") },
-        text = { Text(when {
-            profileOwner && team -> "This is a verified SautiLink Team profile. Verification may be removed if you no longer meet Team requirements or violate SautiLink rules or policies."
-            profileOwner -> "This profile is verified. Verification may be removed if you violate SautiLink rules or policies."
-            team -> "This profile was verified as belonging to $displayName, a member of the SautiLink Team."
-            else -> "This profile was verified as belonging to $displayName."
-        }) },
+        title = { Text(info.title) },
+        text = { Text(info.description) },
         confirmButton = { TextButton(onClick = { showInfo = false }) { Text("Close") } },
     )
 }

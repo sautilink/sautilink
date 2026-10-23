@@ -109,7 +109,7 @@ internal class NativeRoomSubmissionsClient(
             state !in states || version < 1 || published != null && !uuid.matches(published))
             throw AuthRequestException("Submission details could not be read. Refresh and try again.")
         val mediaRows = row.optJSONArray("media")?.roomObjects().orEmpty()
-        if (mediaRows.size > 5) throw AuthRequestException("Submission media could not be read.")
+        if (mediaRows.size > 10) throw AuthRequestException("Submission media could not be read.")
         val media = mediaRows.map { item ->
             val mediaId = item.roomString("id")
             val kind = item.roomString("media_kind")
@@ -120,7 +120,7 @@ internal class NativeRoomSubmissionsClient(
                 item.optInt("height").coerceAtLeast(0), item.optLong("duration_ms").coerceAtLeast(0))
         }.sortedBy { it.position }
         return NativeRoomSubmission(id, room.id, author, row.roomString("body"), row.roomString("reply_access"),
-            row.optInt("media_count").coerceIn(0, 5), state, version, row.roomString("created_at"),
+            row.optInt("media_count").coerceIn(0, 10), state, version, row.roomString("created_at"),
             row.roomString("decided_at").ifBlank { null }, row.roomString("decision_reason"), published, media)
     }
 

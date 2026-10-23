@@ -73,7 +73,7 @@ class NativePostsClient(private val auth: StagingAuthClient) {
         accountId()
         if (visibility !in setOf("public", "followers") || replyAccess !in setOf("everyone", "following"))
             throw AuthRequestException("Invalid audience or comment setting.")
-        if (media.size > 4 || media.any { !uuid.matches(it.id) || it.altText.length > 1000 })
+        if (media.size > NativePostMediaPolicy.MAX_ATTACHMENTS || media.any { !uuid.matches(it.id) || it.altText.length > 1000 })
             throw AuthRequestException("One or more media items are invalid.")
         val mediaPayload = JSONArray().apply { media.forEach { put(JSONObject()
             .put("id", it.id).put("alt_text", it.altText.trim())) } }

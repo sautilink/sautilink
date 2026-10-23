@@ -3,7 +3,9 @@ package com.sautilink.nativeapp.ui.components
 import androidx.compose.runtime.*
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
 import okhttp3.Callback
@@ -243,6 +245,9 @@ internal class NativeHlsGrantRegistry(private val now: () -> Long = System::curr
     @Synchronized fun authorize(source: NativeVideoSource) {
         val prefix = source.gatewayPrefix ?: return
         val expiry = source.expiresAtMillis ?: return
+        NativeVideoReplayProbe.mark(NativeVideoReplayStage.DESCRIPTOR, mediaId = source.mediaId,
+            generation = source.cacheKey,
+            reason = if (source.cacheKey == null) NativeVideoReplayReason.MISSING_GENERATION else NativeVideoReplayReason.NONE)
         grants.entries.removeAll { it.value.expiry <= now() }
         grants.remove(prefix)
         if (expiry > now()) grants[prefix] = Grant(expiry, source.cacheKey?.takeIf { Regex(playbackUuid).matches(it) }, source.bootstrap)
@@ -261,10 +266,18 @@ internal class NativeHlsGrantRegistry(private val now: () -> Long = System::curr
         val opaque = uri.rawPath.substringAfterLast('/')
         if (!Regex("s_[A-Za-z0-9_-]{43}").matches(opaque)) return null
         val prefix = "${uri.scheme}://${uri.host}" + uri.rawPath.substringBeforeLast('/') + "/"
-        val generation = grants[prefix]?.cacheKey ?: return null
+        val generation = grants[prefix]?.cacheKey ?: run {
+            NativeVideoReplayProbe.mark(NativeVideoReplayStage.RESOURCE_DENIED,
+                mediaId = uri.rawPath.substringBefore("/hls/").substringAfterLast('/'),
+                reason = NativeVideoReplayReason.MISSING_GENERATION)
+            return null
+        }
         // No provider path/query or bearer enters the cache identity. The private
         // player adds its account-scoped salt, and each read still checks TTL.
-        return "$prefix$generation/$opaque"
+        val identity = "$prefix$generation/$opaque"
+        if (NativeVideoReplayProbe.enabled) NativeVideoReplayProbe.mark(NativeVideoReplayStage.RESOURCE_IDENTITY,
+            mediaId = uri.rawPath.substringBefore("/hls/").substringAfterLast('/'), generation = generation, identity = identity)
+        return identity
     }
     @Synchronized fun consumeBootstrap(url: String): ByteArray? {
         if (!allows(url)) return null
@@ -287,6 +300,7 @@ internal class NativePlaybackRead {
     // descriptor. Never part of a source URL, data class, cache key or log.
     internal var bearer by mutableStateOf<String?>(null)
     internal var ownerId: String? = null
+    internal var sourceAttempt: Int = -1
     var source by mutableStateOf<NativeVideoSource?>(null)
         internal set
     var loading by mutableStateOf(false)
@@ -325,6 +339,36 @@ internal fun nativePlaybackReusableDelay(read: NativePlaybackRead, owner: String
     return nativePlaybackRefreshDelay(expiry, token, now).takeIf { it > 5_000L }
 }
 
+/** Same mounted player only. A refreshed/different credential conservatively
+ * requires a fresh descriptor; this never treats JWT claims as authorization.
+ * Explicit Retry also bypasses reuse. Cancellation cannot run a later refresh.
+ */
+internal suspend fun waitForNativePlaybackResume(read: NativePlaybackRead, owner: String, mediaId: String,
+    origin: String, metadataPath: String, currentToken: String, now: Long,
+    current: () -> Boolean, wait: suspend (Long) -> Unit = { delay(it) }): Boolean {
+    currentCoroutineContext().ensureActive()
+    val source = read.source
+    val attempt = read.attempt
+    if (!current() || read.denied || read.failure || read.sourceAttempt != read.attempt ||
+        currentToken.isBlank() || read.bearer != currentToken) return false
+    val duration = nativePlaybackReusableDelay(read, owner, mediaId, origin, metadataPath, now) ?: return false
+    read.loading = false
+    wait(duration)
+    currentCoroutineContext().ensureActive()
+    if (!current() || read.attempt != attempt || read.source !== source)
+        throw CancellationException("Playback owner changed")
+    return true
+}
+
+/** A healthy pause/resume is not an upload/source Retry. Keep the current item,
+ * authorization and byte cache; actual failures/expiry still request recovery.
+ */
+internal fun nativePlaybackNeedsRetry(read: NativePlaybackRead, now: Long, playerFailed: Boolean): Boolean {
+    val source = read.source ?: return true
+    return playerFailed || read.denied || read.failure || source.hls &&
+        (read.bearer.isNullOrBlank() || (source.expiresAtMillis ?: 0L) <= now)
+}
+
 private class PlaybackMetadataFailure(val status: Int) : IOException("Playback metadata HTTP $status")
 // A descriptor and its first manifest share the same HTTP/2 connection pool.
 // Requests still carry their own current credential; no auth interceptor/cookie
@@ -340,28 +384,37 @@ private val playbackMetadataClient = nativePlaybackHttpClient.newBuilder().follo
 internal fun rememberNativePlaybackSource(auth: StagingAuthClient, mediaId: String?, metadataPath: String?,
     enabled: Boolean, fallbackPath: String? = null, retainedRead: NativePlaybackRead? = null): NativePlaybackRead {
     val account = auth.account?.id
+    val latestEnabled by rememberUpdatedState(enabled)
     val state = remember(auth, account, mediaId, metadataPath, retainedRead) {
         retainedRead?.takeIf { it.ownerId == null || it.ownerId == account } ?: NativePlaybackRead()
     }
     LaunchedEffect(auth, account, mediaId, metadataPath, enabled, state, state.attempt) {
         if (!enabled || account == null || mediaId == null || metadataPath == null) return@LaunchedEffect
+        val requestAttempt = state.attempt
         require(trustedPlaybackMetadataPath(metadataPath))
         if (state.source?.mediaId?.let { it != mediaId } == true) { state.source = null; state.bearer = null }
         if (state.source?.expiresAtMillis?.let { it <= System.currentTimeMillis() } == true) state.source = null
         state.loading = state.source == null
-        state.denied = false
-        state.failure = false
-        // A preloaded next Story already has a server-authorized descriptor. Do
-        // not repeat that sequential RTT when it becomes current. Every child
-        // request still reauthorizes; near-expiry grants/tokens refresh first.
-        if (retainedRead != null) nativePlaybackReusableDelay(state, account, mediaId,
-            auth.mediaOrigin, metadataPath, System.currentTimeMillis())?.let { delay(it) }
+        var mayReuse = true
         while (true) {
             try {
                 NativeVideoStartupProbe.mark(mediaId, NativeVideoStartupStage.TOKEN_BEGIN)
                 val token = auth.accessTokenForStagingRead()
-                if (auth.account?.id != account) throw CancellationException("Playback account changed")
+                if (auth.account?.id != account || !latestEnabled || state.attempt != requestAttempt)
+                    throw CancellationException("Playback account changed")
                 NativeVideoStartupProbe.mark(mediaId, NativeVideoStartupStage.TOKEN_READY)
+                if (mayReuse) {
+                    mayReuse = false
+                    // Returning to this mounted player (or the next Story's
+                    // bounded handoff) must not replace a healthy live source.
+                    // Fresh players have no read/source and still reauthorize.
+                    if (waitForNativePlaybackResume(state, account, mediaId, auth.mediaOrigin, metadataPath,
+                            token, System.currentTimeMillis(), current = {
+                                auth.account?.id == account && latestEnabled && state.attempt == requestAttempt
+                            })) continue
+                }
+                state.denied = false
+                state.failure = false
                 val request = Request.Builder().url(auth.mediaOrigin + metadataPath)
                     .header("Authorization", "Bearer $token").header("Accept", "application/json")
                     .header("X-Sauti-Playback-Bootstrap", "1")
@@ -369,10 +422,13 @@ internal fun rememberNativePlaybackSource(auth: StagingAuthClient, mediaId: Stri
                 NativeVideoStartupProbe.mark(mediaId, NativeVideoStartupStage.DESCRIPTOR_BEGIN)
                 val bytes = awaitPlaybackMetadata(playbackMetadataClient.newCall(request), mediaId)
                 val source = parseNativeVideoSource(auth.mediaOrigin, metadataPath, bytes, System.currentTimeMillis())
-                if (auth.account?.id != account || source.mediaId != mediaId) throw CancellationException("Playback owner changed")
+                currentCoroutineContext().ensureActive()
+                if (auth.account?.id != account || !latestEnabled || state.attempt != requestAttempt || source.mediaId != mediaId)
+                    throw CancellationException("Playback owner changed")
                 state.ownerId = account
                 state.bearer = token
                 state.source = source
+                state.sourceAttempt = requestAttempt
                 state.loading = false
                 state.failure = false
                 NativeVideoStartupProbe.mark(mediaId, NativeVideoStartupStage.DESCRIPTOR_READY)

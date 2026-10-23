@@ -107,8 +107,8 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
             finally { uploadJobs.remove(id) }
         }
     }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(4)) { selected ->
-        val available = (4 - mediaItems.size).coerceAtLeast(0)
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(NativePostMediaPolicy.MAX_ATTACHMENTS)) { selected ->
+        val available = (NativePostMediaPolicy.MAX_ATTACHMENTS - mediaItems.size).coerceAtLeast(0)
         selected.take(available).forEach { uri ->
             val localId = UUID.randomUUID().toString()
             val video = context.contentResolver.getType(uri)?.startsWith("video/") == true
@@ -151,10 +151,10 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
                     }, editorFocus, keyboard)
                 }, onPreviewToggle = { previewOpen = !previewOpen })
             OutlinedButton(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
-                shape = SautiShape.Pill, enabled = !busy && mediaItems.size < 4) {
+                shape = SautiShape.Pill, enabled = !busy && mediaItems.size < NativePostMediaPolicy.MAX_ATTACHMENTS) {
                 Icon(Icons.Rounded.PhotoLibrary, null, Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Add images or video (${mediaItems.size}/4)")
+                Text("Add images or video (${mediaItems.size}/${NativePostMediaPolicy.MAX_ATTACHMENTS})")
             }
             if (previousUploads.isNotEmpty()) {
                 Text("Unfinished uploads", style = MaterialTheme.typography.titleSmall)
@@ -165,12 +165,12 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(pending.kind.replaceFirstChar { it.uppercase() }, modifier = Modifier.weight(1f))
                         TextButton(onClick = {
-                            if (mediaItems.size < 4) {
+                            if (mediaItems.size < NativePostMediaPolicy.MAX_ATTACHMENTS) {
                                 mediaItems = mediaItems + ComposerMediaItem(UUID.randomUUID().toString(), Uri.EMPTY,
                                     "Recovered ${pending.kind}", status = "Ready", progress = 100, ready = pending)
                                 previousUploads = previousUploads.filterNot { it.id == pending.id }
                             }
-                        }, enabled = mediaItems.size < 4) { Text("Use") }
+                        }, enabled = mediaItems.size < NativePostMediaPolicy.MAX_ATTACHMENTS) { Text("Use") }
                         TextButton(onClick = {
                             previousUploads = previousUploads.filterNot { it.id == pending.id }
                             scope.launch { mediaClient.remove(pending.id) }
@@ -299,7 +299,8 @@ private fun PostComposerTextEditor(editor: TextFieldValue, draftLength: Int,
 }
 
 @Composable
-fun NativeOwnPostsScreen(auth: StagingAuthClient, refreshKey: Int, onBack: () -> Unit, onCreate: () -> Unit) {
+fun NativeOwnPostsScreen(auth: StagingAuthClient, refreshKey: Int, onBack: () -> Unit, onCreate: () -> Unit,
+    onChanged: () -> Unit = {}) {
     val client = remember(auth) { NativePostsClient(auth) }
     val scope = rememberCoroutineScope()
     var refresh by remember { mutableIntStateOf(0) }
@@ -365,6 +366,7 @@ fun NativeOwnPostsScreen(auth: StagingAuthClient, refreshKey: Int, onBack: () ->
                         val updated = client.edit(post, editBody)
                         posts = posts.map { if (it.id == post.id) updated else it }
                         editTarget = null
+                        onChanged()
                     } catch (e: Exception) { error = e.message ?: "Could not edit post."; editTarget = null }
                     finally { busyId = null }
                 }
@@ -380,7 +382,7 @@ fun NativeOwnPostsScreen(auth: StagingAuthClient, refreshKey: Int, onBack: () ->
             confirmButton = { TextButton(onClick = {
                 busyId = post.id; error = null
                 scope.launch {
-                    try { client.delete(post); posts = posts.filterNot { it.id == post.id }; deleteTarget = null }
+                    try { client.delete(post); posts = posts.filterNot { it.id == post.id }; deleteTarget = null; onChanged() }
                     catch (e: Exception) { error = e.message ?: "Could not delete post."; deleteTarget = null }
                     finally { busyId = null }
                 }

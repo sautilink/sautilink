@@ -24,7 +24,7 @@ object NativeVideoQualityPolicy {
 
     fun variantDimensions(media: NativeVideoMetadata?, quality: Int): NativeVideoDimensions? {
         if (media == null || quality !in variantQualities || media.width <= 0 || media.height <= 0 ||
-            media.durationMs <= 0L || media.durationMs > 60_000L) return null
+            media.durationMs <= 0L || media.durationMs > 180_000L) return null
         val shortEdge = minOf(media.width, media.height)
         if (shortEdge <= quality) return null
         val longEdge = maxOf(media.width, media.height)

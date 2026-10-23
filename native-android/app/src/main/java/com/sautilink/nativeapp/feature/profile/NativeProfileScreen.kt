@@ -42,6 +42,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import com.sautilink.nativeapp.ui.state.rememberSessionScreenPresentationAccess
+import com.sautilink.nativeapp.feature.home.StagingFeedClient
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.home.AuthorizedImage
 import com.sautilink.nativeapp.feature.safety.MemberSafetyState
@@ -83,42 +88,58 @@ fun NativeProfileScreen(
     val safety = remember(auth) { NativeSafetyClient(auth) }
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
+    val account = auth.account
+    val accountId = account?.id
     var moreOpen by remember { mutableStateOf(false) }
     var aboutOpen by remember { mutableStateOf(false) }
-    var canMessage by remember(username, auth.account?.id) { mutableStateOf(false) }
+    var canMessage by remember(username, accountId) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val account = auth.account
     val ownerRoute = username == null
-    var refresh by remember(username, account?.id) { mutableIntStateOf(0) }
-    var profile by remember(username, account?.id) { mutableStateOf<NativeProfile?>(null) }
-    val activeProfileStory = rememberProfileStoryRingActive(auth, profile, refresh)
-    var loading by remember(username, account?.id) { mutableStateOf(false) }
-    var loaded by remember(username, account?.id) { mutableStateOf(false) }
-    var error by remember(username, account?.id) { mutableStateOf<String?>(null) }
-    var edit by remember(username, account?.id) { mutableStateOf(false) }
-    var connectionList by remember(username, account?.id) { mutableStateOf<String?>(null) }
-    var connections by remember(username, account?.id) { mutableStateOf<List<NativeProfile>>(emptyList()) }
-    var listLoading by remember(username, account?.id) { mutableStateOf(false) }
-    var listError by remember(username, account?.id) { mutableStateOf<String?>(null) }
-    var following by remember(username, account?.id) { mutableStateOf<Boolean?>(null) }
-    var followBusy by remember(username, account?.id) { mutableStateOf(false) }
-    var actionError by remember(username, account?.id) { mutableStateOf<String?>(null) }
-    var safetyState by remember(username, account?.id) { mutableStateOf<MemberSafetyState?>(null) }
-    var safetyBusy by remember(username, account?.id) { mutableStateOf(false) }
-    var reportOpen by remember(username, account?.id) { mutableStateOf(false) }
-    var blockConfirm by remember(username, account?.id) { mutableStateOf(false) }
-    var safetyNote by remember(username, account?.id) { mutableStateOf<String?>(null) }
-    var categoryCatalog by remember(username, account?.id) {
-        mutableStateOf<List<ProfileProfessionalCategory>>(emptyList())
+    val presentations = rememberSessionScreenPresentationAccess()
+    val returnKey = "profile-navigation:${username ?: "own"}"
+    val returnInitial = remember(presentations, accountId, username) { readProfileReturnPresentation(presentations.store, returnKey) }
+    val catalogInitial = remember(presentations, accountId) { readProfileCatalogPresentation(presentations.store) }
+    val profileScroll = rememberScrollState()
+    var returnScrollRestored by remember(username, accountId) { mutableStateOf(!returnInitial.restored) }
+    var activityReady by remember(username, accountId) { mutableStateOf(false) }
+    DisposableEffect(presentations, username, accountId) {
+        onDispose { presentations.save(returnKey, returnInitial.revision, ProfileReturnPresentation(profileScroll.value)) }
     }
-    var categoryEditing by remember(username, account?.id) { mutableStateOf(false) }
-    var categoryInfo by remember(username, account?.id) { mutableStateOf(false) }
-    var categorySaving by remember(username, account?.id) { mutableStateOf(false) }
-    var categoryError by remember(username, account?.id) { mutableStateOf<String?>(null) }
+    var refresh by remember(username, accountId) { mutableIntStateOf(0) }
+    var profile by remember(username, accountId) { mutableStateOf<NativeProfile?>(null) }
+    val activeProfileStory = rememberProfileStoryRingActive(auth, profile, refresh)
+    var loading by remember(username, accountId) { mutableStateOf(false) }
+    var loaded by remember(username, accountId) { mutableStateOf(false) }
+    var error by remember(username, accountId) { mutableStateOf<String?>(null) }
+    var edit by remember(username, accountId) { mutableStateOf(false) }
+    var connectionList by remember(username, accountId) { mutableStateOf<String?>(null) }
+    var connections by remember(username, accountId) { mutableStateOf<List<NativeProfile>>(emptyList()) }
+    var listLoading by remember(username, accountId) { mutableStateOf(false) }
+    var listError by remember(username, accountId) { mutableStateOf<String?>(null) }
+    var following by remember(username, accountId) { mutableStateOf<Boolean?>(null) }
+    var followBusy by remember(username, accountId) { mutableStateOf(false) }
+    var actionError by remember(username, accountId) { mutableStateOf<String?>(null) }
+    var safetyState by remember(username, accountId) { mutableStateOf<MemberSafetyState?>(null) }
+    var safetyBusy by remember(username, accountId) { mutableStateOf(false) }
+    var reportOpen by remember(username, accountId) { mutableStateOf(false) }
+    var blockConfirm by remember(username, accountId) { mutableStateOf(false) }
+    var safetyNote by remember(username, accountId) { mutableStateOf<String?>(null) }
+    var categoryCatalog by remember(username, accountId) {
+        mutableStateOf<List<ProfileProfessionalCategory>>(catalogInitial.snapshot.categories)
+    }
+    var categoryEditing by remember(username, accountId) { mutableStateOf(false) }
+    var categoryInfo by remember(username, accountId) { mutableStateOf(false) }
+    var categorySaving by remember(username, accountId) { mutableStateOf(false) }
+    var categoryError by remember(username, accountId) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(profile?.id) {
-        if (profile != null) {
-            categoryCatalog = runCatching { client.categoryCatalog() }.getOrDefault(emptyList())
+        if (profile != null && categoryCatalog.isEmpty()) {
+            try {
+                categoryCatalog = client.categoryCatalog()
+                presentations.save("profile-category-labels", catalogInitial.revision,
+                    ProfileCatalogPresentation(categoryCatalog.take(1000)))
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* The profile does not wait for optional taxonomy labels. */ }
         }
     }
 
@@ -130,23 +151,35 @@ fun NativeProfileScreen(
         }
     }
 
-    LaunchedEffect(auth, account?.id, username, refresh) {
+    LaunchedEffect(auth, accountId, username, refresh) {
         if (account == null) return@LaunchedEffect
         loading = true
         error = null
         try {
             val result = if (ownerRoute) client.own() else client.byHandle(username)
             profile = result
-            following = if (result != null && result.id != account.id) client.following(result.id) else null
-            canMessage = result != null && result.id != account.id &&
-                runCatching { client.canMessage(result) }.getOrDefault(false)
+            coroutineScope {
+                val relation = async { if (result != null && result.id != account.id) client.following(result.id) else null }
+                val messaging = async { result != null && result.id != account.id &&
+                    runCatching { client.canMessage(result) }.getOrDefault(false) }
+                following = relation.await()
+                canMessage = messaging.await()
+            }
             loaded = true
-        } catch (e: Exception) {
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (e: Exception) {
             error = e.message ?: "Could not load profile."
         } finally { loading = false }
     }
+    LaunchedEffect(profile?.id, activityReady) {
+        if (profile == null || !activityReady || returnScrollRestored) return@LaunchedEffect
+        // Fresh authorization precedes restoring content position; no old privacy grant is reused.
+        withFrameNanos { }; withFrameNanos { }
+        profileScroll.scrollTo(returnInitial.snapshot.scroll.coerceAtMost(profileScroll.maxValue))
+        returnScrollRestored = true
+    }
 
-    LaunchedEffect(auth, account?.id, connectionList, refresh) {
+    LaunchedEffect(auth, accountId, connectionList, refresh) {
         val kind = connectionList ?: return@LaunchedEffect
         if (!ownerRoute || account == null) return@LaunchedEffect
         listLoading = true
@@ -156,7 +189,7 @@ fun NativeProfileScreen(
         finally { listLoading = false }
     }
 
-    LaunchedEffect(auth, account?.id, profile?.id, refresh) {
+    LaunchedEffect(auth, accountId, profile?.id, refresh) {
         val member = profile ?: return@LaunchedEffect
         if (account == null || member.id == account.id) { safetyState = null; return@LaunchedEffect }
         try { safetyState = safety.memberState(member.username) }
@@ -164,7 +197,7 @@ fun NativeProfileScreen(
     }
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-        .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
+        .verticalScroll(profileScroll).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(15.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null || edit || connectionList != null) {
@@ -423,6 +456,8 @@ fun NativeProfileScreen(
                                         scope.launch {
                                             try {
                                                 client.setFollowing(member, desired)
+                                                presentations.invalidate("feed:")
+                                                StagingFeedClient(auth).invalidateFollowing()
                                                 following = client.following(member.id)
                                                 refresh++
                                             } catch (e: Exception) {
@@ -451,7 +486,8 @@ fun NativeProfileScreen(
                     ProfileActivitySection(
                         auth = auth, profile = member, owner = ownerRoute,
                         refreshKey = refresh, onOpenPost = onOpenPost,
-                        onManagePosts = onOpenPosts, onOpenProfile = onOpenProfile
+                        onManagePosts = onOpenPosts, onOpenProfile = onOpenProfile,
+                        onContentReady = { activityReady = true }
                     )
                     if (!ownerRoute && member.id != account.id) {
                         Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
@@ -469,6 +505,8 @@ fun NativeProfileScreen(
                                         scope.launch {
                                             try {
                                                 safety.setMuted(member.username, desired)
+                                                presentations.invalidate("feed:")
+                                                StagingFeedClient(auth).clearCache()
                                                 safetyState = safety.memberState(member.username)
                                                 safetyNote = if (desired) "Member muted." else "Member unmuted."
                                             } catch (e: Exception) { actionError = e.message ?: "Could not change mute." }
@@ -620,6 +658,8 @@ fun NativeProfileScreen(
             scope.launch {
                 try {
                     safety.setBlocked(member.username, desired)
+                    presentations.invalidate()
+                    StagingFeedClient(auth).clearCache()
                     safetyState = MemberSafetyState(desired, false)
                     if (desired) onBack?.invoke() else safetyNote = "Member unblocked."
                 } catch (e: Exception) { actionError = e.message ?: "Could not change block." }

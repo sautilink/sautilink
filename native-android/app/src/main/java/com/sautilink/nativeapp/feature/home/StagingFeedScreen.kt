@@ -56,6 +56,8 @@ import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
+import com.sautilink.nativeapp.feature.auth.AuthRequestException
+import com.sautilink.nativeapp.ui.state.rememberSessionScreenPresentationAccess
 import com.sautilink.nativeapp.feature.menu.AnimatedHamburgerButton
 import com.sautilink.nativeapp.feature.marketplace.MarketplaceButton
 import com.sautilink.nativeapp.feature.stories.StoriesButton
@@ -90,6 +92,8 @@ fun StagingFeedScreen(
     onSignIn: () -> Unit,
     asHome: Boolean = false,
     savedRequestVersion: Int = 0,
+    requestedFeed: HomeFeedRequest? = null,
+    onFeedRequestConsumed: (HomeFeedRequest) -> Unit = {},
     onOpenNotifications: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenMenu: () -> Unit = {},
@@ -105,7 +109,7 @@ fun StagingFeedScreen(
     val accountId = account?.id
     val sessionState = auth.sessionState
     var mode by rememberSaveable(auth.backend.id) {
-        mutableStateOf(if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION)
+        mutableStateOf(requestedFeed?.takeIf { it.ownerId == accountId }?.mode ?: if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION)
             "saved" else "for_you")
     }
     LaunchedEffect(savedRequestVersion) {
@@ -113,15 +117,31 @@ fun StagingFeedScreen(
         if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION) mode = "saved"
     }
     var refreshVersion by remember { mutableIntStateOf(0) }
+    val requested = requestedFeed?.takeIf { it.ownerId == accountId }
+    var appliedRequest by remember(auth, accountId) { mutableStateOf(requested) }
+    LaunchedEffect(requested) {
+        if (requested != null) {
+            val laterIntent = appliedRequest !== requested
+            appliedRequest = requested
+            mode = requested.mode
+            if (laterIntent) refreshVersion++
+        }
+    }
+    val presentations = rememberSessionScreenPresentationAccess()
+    val returnKey = "feed:$mode"
+    val returnInitial: FeedReturnInitialState = remember(presentations, accountId, mode) {
+        readFeedReturnPresentation(presentations.store, returnKey)
+    }
     // A new feed/account must start with its own loading state. Otherwise one frame can
     // show the previous tab's posts or the empty-state card before LaunchedEffect runs.
     var loading by remember(accountId, mode) { mutableStateOf(account != null) }
     var loadingMore by remember(accountId, mode) { mutableStateOf(false) }
     var error by remember(accountId, mode) { mutableStateOf<String?>(null) }
-    var posts by remember(accountId, mode) { mutableStateOf<List<StagingFeedPost>>(emptyList()) }
-    var offset by remember(accountId, mode) { mutableIntStateOf(0) }
-    var hasMore by remember(accountId, mode) { mutableStateOf(false) }
-    val feedListState = rememberLazyListState()
+    var posts by remember(accountId, mode) { mutableStateOf<List<StagingFeedPost>>(returnInitial.snapshot.posts) }
+    var offset by remember(accountId, mode) { mutableIntStateOf(returnInitial.snapshot.nextOffset) }
+    var hasMore by remember(accountId, mode) { mutableStateOf(returnInitial.snapshot.hasMore) }
+    val feedListState = rememberLazyListState(returnInitial.snapshot.firstIndex, returnInitial.snapshot.firstOffset)
+    var lastPresentedMode by rememberSaveable(auth.backend.id, accountId) { mutableStateOf(mode) }
     var userRefreshing by remember(auth, accountId, mode) { mutableStateOf(false) }
     var scrollAfterRefresh by remember(auth, accountId, mode) { mutableStateOf(false) }
     var newPostsAvailable by remember(auth, accountId, mode) { mutableStateOf(false) }
@@ -138,15 +158,17 @@ fun StagingFeedScreen(
     val canReadFollow = canInteract && sessionState == StagingSessionState.SIGNED_IN &&
         lifecycleState.isAtLeast(Lifecycle.State.STARTED)
     // Separate Like and Save state: one slow lookup never disables the other.
-    var likeStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
-    var savedStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
-    var repostStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
-    var followingStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
-    var followFeedbackVersion by remember(auth, accountId) { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var likeStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(returnInitial.snapshot.liked) }
+    var savedStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(returnInitial.snapshot.saved) }
+    var repostStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(returnInitial.snapshot.reposted) }
+    var followingStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(returnInitial.snapshot.following) }
+    var followFeedbackVersion by remember(auth, accountId) { mutableStateOf<Map<String, Int>>(returnInitial.snapshot.followFeedback) }
     // Pending intent is separate from the state confirmed by the server.
     var pendingFollowStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     // Keep confirmed artwork across refresh/offline; a late GET cannot undo a confirmed tap.
     val actionStateVersions = remember(auth, accountId) { FeedActionVersions() }
+    var actionReadKey by remember(auth, accountId) { mutableStateOf<Triple<String, Int, Int>?>(
+        if (returnInitial.restored && (client.cacheAgeMs(mode) ?: Long.MAX_VALUE) < 45_000L) Triple(mode, 0, 0) else null) }
     var followReadError by remember(auth, accountId) { mutableStateOf<String?>(null) }
     var followRetryVersion by remember(auth, accountId) { mutableIntStateOf(0) }
     var followReadInFlight by remember(auth, accountId) { mutableStateOf(false) }
@@ -164,6 +186,17 @@ fun StagingFeedScreen(
     var busyKeys by remember(auth, accountId) { mutableStateOf<Set<String>>(emptySet()) }
     var commentsFor by remember(auth, accountId) { mutableStateOf<StagingFeedPost?>(null) }
     var commentCountSyncVersion by remember(auth, accountId) { mutableIntStateOf(0) }
+    DisposableEffect(presentations, accountId, mode) {
+        onDispose {
+            if (accountId != null && auth.account?.id == accountId && posts.size <= MAX_RETURN_FEED_POSTS && posts.isNotEmpty()) {
+                presentations.save(returnKey, returnInitial.revision, buildFeedReturnPresentation(
+                    posts, offset, hasMore, feedListState.firstVisibleItemIndex,
+                    feedListState.firstVisibleItemScrollOffset,
+                    likeStates, savedStates, repostStates, followingStates, followFeedbackVersion,
+                    busyKeys, pendingFollowStates))
+            } else if (posts.size > MAX_RETURN_FEED_POSTS) presentations.invalidate(returnKey)
+        }
+    }
 
     val shownPostIds = remember(posts) { posts.map { it.id } }
     // Each request has a deadline and its own result/error. No mutation happens here.
@@ -171,9 +204,12 @@ fun StagingFeedScreen(
         if (!canInteract || shownPostIds.isEmpty()) return@LaunchedEffect
         val expectedId = accountId
         val readVersions = actionStateVersions.snapshot()
-        val missingLikes = shownPostIds
-        val missingSaved = shownPostIds
-        val missingReposts = shownPostIds
+        val key = Triple(mode, refreshVersion, actionRetryVersion)
+        val force = actionReadKey != key
+        actionReadKey = key
+        val missingLikes = shownPostIds.filter { force || it !in likeStates }
+        val missingSaved = shownPostIds.filter { force || it !in savedStates }
+        val missingReposts = shownPostIds.filter { force || it !in repostStates }
         if (missingLikes.isNotEmpty()) {
             launch {
                 try {
@@ -472,6 +508,7 @@ fun StagingFeedScreen(
     }
 
     LaunchedEffect(client, accountId, mode, refreshVersion, online) {
+        if (requested != null && mode != requested.mode) return@LaunchedEffect
         val readScope = FeedReadScope(accountId, mode, refreshVersion)
         fun current() = readScope.current(auth.account?.id, mode, refreshVersion)
         val cachedPage = if (account == null) null else client.cached(readScope.mode)
@@ -498,7 +535,7 @@ fun StagingFeedScreen(
                 else "Offline. Showing recent posts saved in this session. Reconnect to refresh."
             return@LaunchedEffect
         }
-        if (cachedPage != null && refreshVersion == 0 && (client.cacheAgeMs(readScope.mode) ?: Long.MAX_VALUE) < 45_000L) {
+        if (requested == null && cachedPage != null && refreshVersion == 0 && (client.cacheAgeMs(readScope.mode) ?: Long.MAX_VALUE) < 45_000L) {
             loading = false
             return@LaunchedEffect
         }
@@ -507,24 +544,40 @@ fun StagingFeedScreen(
         try {
             val page = client.load(readScope.mode, 0)
             if (!current()) return@LaunchedEffect
-            posts = page.posts
+            val retainReadingPosition = requested == null && returnInitial.restored && posts.isNotEmpty() && !userRefreshing
+            if (retainReadingPosition) {
+                if (page.posts.any { fresh -> posts.none { it.id == fresh.id } }) newPostsAvailable = true
+                posts = mergeReturningFeedRows(posts, page.posts)
+            } else posts = page.posts
+            if (requested?.postId != null && readScope.mode == "for_you") {
+                // The server/RLS confirms the newly published row before it is pinned.
+                val ownPost = client.loadOne(requested.postId)
+                if (!current()) return@LaunchedEffect
+                if (ownPost != null && ownPost.authorId == accountId) posts = listOf(ownPost) + posts.filterNot { it.id == ownPost.id }
+            }
             if (readScope.mode == "saved") {
                 // The private saved relationship query itself confirms this state.
                 savedStates = savedStates + page.posts.associate { it.id to true }
             }
-            offset = page.nextOffset
-            hasMore = page.hasMore
+            if (!retainReadingPosition) { offset = page.nextOffset; hasMore = page.hasMore }
             followFeedbackVersion = followFeedbackVersion.filterValues { it >= readScope.refreshVersion }
             newPostsTracker.refreshed()
-            newPostsAvailable = false
-            if (scrollAfterRefresh) {
+            if (!retainReadingPosition) newPostsAvailable = false
+            if (scrollAfterRefresh || requested != null) {
                 scrollAfterRefresh = false
                 feedListState.scrollToItem(0)
             }
+            requested?.let(onFeedRequestConsumed)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (exception: Exception) {
             if (!current()) return@LaunchedEffect
+            if ((exception as? AuthRequestException)?.httpStatus in listOf(401, 403)) {
+                presentations.invalidate("feed:")
+                client.clearCache()
+                posts = emptyList(); likeStates = emptyMap(); savedStates = emptyMap(); repostStates = emptyMap()
+                followingStates = emptyMap(); offset = 0; hasMore = false
+            }
             scrollAfterRefresh = false
             error = if (posts.isNotEmpty()) "Could not refresh. Showing recent posts. ${exception.message.orEmpty()}"
                 else exception.message ?: "Unable to load feed."
@@ -534,7 +587,12 @@ fun StagingFeedScreen(
     }
 
     // The activity owns system-bar insets. Avoid doubling the status-bar spacer.
-    LaunchedEffect(accountId, mode) { feedListState.scrollToItem(0) }
+    LaunchedEffect(accountId, mode) {
+        // A route round trip restores its anchor. An explicit feed-tab change starts at the top.
+        if (lastPresentedMode != mode || !returnInitial.restored) feedListState.scrollToItem(0)
+        else feedListState.scrollToItem(returnInitial.snapshot.firstIndex, returnInitial.snapshot.firstOffset)
+        lastPresentedMode = mode
+    }
     val pollHome = asHome && mode in setOf("following", "for_you", "trending") &&
         accountId != null && sessionState == StagingSessionState.SIGNED_IN && online &&
         lifecycleState.isAtLeast(Lifecycle.State.RESUMED) && !loading

@@ -72,8 +72,10 @@ internal fun SautiVideoGestureSurface(
     onTap: (Offset, IntSize) -> Unit,
     onSeek: (Long) -> Boolean,
     onLike: (() -> Unit)?,
+    onLongPress: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit = {}
 ) {
+    val longPress by rememberUpdatedState(onLongPress)
     val playback by rememberUpdatedState(onPlayback)
     val tap by rememberUpdatedState(onTap)
     val seek by rememberUpdatedState(onSeek)
@@ -99,6 +101,10 @@ internal fun SautiVideoGestureSurface(
                 if (!tryAwaitRelease()) firstTapAction = null
             },
             onTap = { firstTapAction = null; tap(it, size) },
+            onLongPress = if (onLongPress == null) null else { position ->
+                firstTapAction = null
+                if (videoDoubleTapAction(position.x, size.width) == VideoDoubleTapAction.LIKE) longPress?.invoke()
+            },
             onDoubleTap = { position ->
                 val action = videoDoubleTapAction(position.x, size.width)
                 if (firstTapAction == action) perform(action)
@@ -107,6 +113,7 @@ internal fun SautiVideoGestureSurface(
     }.semantics {
         if (playbackLabel != null) onClick(playbackLabel) { playback(); true }
         customActions = buildList {
+            if (onLongPress != null) add(CustomAccessibilityAction("Download video") { longPress?.invoke(); true })
             add(CustomAccessibilityAction("Back 5 seconds") { perform(VideoDoubleTapAction.BACKWARD) })
             add(CustomAccessibilityAction("Forward 5 seconds") { perform(VideoDoubleTapAction.FORWARD) })
             if (onLike != null) add(CustomAccessibilityAction("Like post") { perform(VideoDoubleTapAction.LIKE) })

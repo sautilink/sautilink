@@ -77,7 +77,7 @@ internal fun NativeMediaEditor(uri: Uri, video: Boolean, onCancel: () -> Unit,
                                 val result = if (video) exportTrimmedVideo(context, uri, duration, trim, maximumVideoMs) { progress = it }
                                 else {
                                     val original = loadEditableBitmap(context, uri)
-                                    try { exportEditedImage(context, original, edits) } finally { original.recycle() }
+                                    try { exportEditedImage(context, original, edits, if (storyPhoto) 8L * 1024 * 1024 else NativePostMediaPolicy.MAX_IMAGE_BYTES) } finally { original.recycle() }
                                 }
                                 unusedExport = result
                                 ensureActive()

@@ -146,7 +146,7 @@ class PostInteractionsClient(private val auth: StagingAuthClient) {
 
     suspend fun setLike(id: String, active: Boolean) {
         val postId = checkedPostId(id)
-        val (_, token) = writingAccess()
+        val (userId, token) = writingAccess()
         withContext(Dispatchers.IO) {
             val method = if (active) "POST" else "DELETE"
             val body = if (active) "{}" else null
@@ -155,13 +155,14 @@ class PostInteractionsClient(private val auth: StagingAuthClient) {
             if (!obj.optBoolean("ok") || obj.optJSONObject("data")?.optBoolean("liked") != active) {
                 throw AuthRequestException("Like could not be confirmed. Refresh and try again.")
             }
+            StagingFeedClient(auth).invalidatePostActions(userId)
         }
     }
 
     /** Server owns the actual repost relationship, access checks and rate limit. */
     suspend fun setRepost(id: String, active: Boolean) {
         val postId = checkedPostId(id)
-        val (_, token) = writingAccess()
+        val (userId, token) = writingAccess()
         withContext(Dispatchers.IO) {
             val method = if (active) "POST" else "DELETE"
             val result = JSONObject(request("${auth.backend.siteOrigin}/api/social/posts/$postId/repost", method, token,
@@ -171,6 +172,7 @@ class PostInteractionsClient(private val auth: StagingAuthClient) {
                 response?.optBoolean("reposted") != active) {
                 throw AuthRequestException("Repost could not be confirmed. Refresh and try again.")
             }
+            StagingFeedClient(auth).invalidatePostActions(userId)
         }
     }
 
@@ -199,6 +201,7 @@ class PostInteractionsClient(private val auth: StagingAuthClient) {
             } else {
                 request("${rest}social_saved_posts?post_id=eq.$postId&user_id=eq.$userId", "DELETE", token)
             }
+            StagingFeedClient(auth).invalidatePostActions(userId)
         }
     }
 

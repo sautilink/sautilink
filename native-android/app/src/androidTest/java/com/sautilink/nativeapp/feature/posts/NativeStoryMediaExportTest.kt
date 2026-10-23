@@ -77,9 +77,9 @@ class NativeStoryMediaExportTest {
             val uri = Uri.fromFile(original)
             val duration = localVideoDuration(context, uri)
             exported = withTimeout(90_000) { exportTrimmedVideo(context, uri, duration,
-                NativeMediaEditPolicy.Trim(1_000, 61_000)) {} }
+                NativeMediaEditPolicy.Trim(1_000, 61_000), maximumMs = 60_000L) {} }
             val resultDuration = localVideoDuration(context, exported!!.uri)
-            assertTrue("The existing 60-second upload limit must also be strict, was $resultDuration", resultDuration in 59_700L..60_000L)
+            assertTrue("An explicitly configured 60-second clip cap must be strict after encoding, was $resultDuration", resultDuration in 59_700L..60_000L)
             assertEquals(before, MessageDigest.getInstance("SHA-256").digest(original.readBytes()).toList())
         } finally { exported?.ownedFile?.delete(); original.delete() }
     }

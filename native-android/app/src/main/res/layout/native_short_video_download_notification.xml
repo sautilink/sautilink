@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="48dp"
+    android:orientation="horizontal" android:gravity="center_vertical"
+    android:paddingStart="4dp" android:paddingEnd="4dp">
+    <ImageView android:layout_width="32dp" android:layout_height="32dp"
+        android:src="@drawable/sautilink_notification_mark" android:contentDescription="SautiLink"/>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+        android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="10dp">
+        <TextView android:id="@+id/short_download_title" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Downloading video"
+            android:textAppearance="@android:style/TextAppearance.Material.Notification.Title"
+            android:maxLines="1" android:ellipsize="end"/>
+        <TextView android:id="@+id/short_download_status" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Preparing download"
+            android:textAppearance="@android:style/TextAppearance.Material.Notification"
+            android:textSize="12sp" android:maxLines="1" android:ellipsize="end"/>
+        <ProgressBar android:id="@+id/short_download_progress" style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent" android:layout_height="3dp"
+            android:layout_marginTop="2dp" android:max="100" android:progress="0"
+            android:progressDrawable="@drawable/native_short_video_download_progress"/>
+    </LinearLayout>
+    <ImageButton android:id="@+id/short_download_cancel" android:layout_width="36dp"
+        android:layout_height="36dp" android:layout_marginStart="6dp"
+        android:background="@android:color/transparent" android:padding="8dp"
+        android:src="@android:drawable/ic_menu_close_clear_cancel" android:contentDescription="Cancel download"/>
+</LinearLayout>

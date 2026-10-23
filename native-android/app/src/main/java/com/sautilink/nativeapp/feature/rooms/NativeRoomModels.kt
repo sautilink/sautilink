@@ -127,8 +127,8 @@ data class NativeRoomSubmissionMedia(val id: String, val kind: String, val posit
 data class NativeRoomSubmissionPage(val submissions: List<NativeRoomSubmission>, val nextCursor: String?)
 
 object NativeRoomRules {
-    // Existing web Room composer/build contract supports a fifth photo; native video selection keeps its existing bound.
-    fun mediaLimit(kinds: List<String>): Int = if (kinds.all { it == "image" }) 5 else 4
+    // Post attachments share the public post limit; Stories and DMs have separate policies.
+    fun mediaLimit(@Suppress("UNUSED_PARAMETER") kinds: List<String>): Int = com.sautilink.nativeapp.feature.posts.NativePostMediaPolicy.MAX_ATTACHMENTS
 
     val uuid = Regex("^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
     val slug = Regex("^[a-z0-9][a-z0-9-]{2,49}$")

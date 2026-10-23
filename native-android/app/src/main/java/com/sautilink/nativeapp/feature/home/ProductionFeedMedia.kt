@@ -61,6 +61,7 @@ import com.sautilink.nativeapp.ui.components.NativeHlsQualitySelection
 import com.sautilink.nativeapp.ui.components.rememberNativeHlsQualities
 import com.sautilink.nativeapp.ui.components.NativeVideoStartupProbe
 import com.sautilink.nativeapp.ui.components.NativeVideoStartupStage
+import com.sautilink.nativeapp.ui.components.nativePlaybackNeedsRetry
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
@@ -197,6 +198,7 @@ private fun InlineFeedVideo(
     adaptivePlaybackEnabled: Boolean = true
 ) {
     val context = LocalContext.current
+    val overlayBlocked = com.sautilink.nativeapp.ui.components.LocalNativePlaybackBlocked.current
     val owner = LocalLifecycleOwner.current
     val lifecycleState by owner.lifecycle.currentStateAsState()
     val accountId = auth.account?.id
@@ -222,18 +224,6 @@ private fun InlineFeedVideo(
     var tokenSawOffline by remember(auth, accountId, media.id) { mutableStateOf(false) }
     var requestError by remember(auth, accountId, media.id) { mutableStateOf<String?>(null) }
     val muted = NativePlaybackPreferences.sessionMuted
-    LaunchedEffect(accountId, visibleFraction, isCurrent, NativePlaybackPreferences.autoplayEnabled) {
-        val visible = visibleFraction >= .58f && isCurrent
-        if ((NativePlaybackPreferences.autoplayEnabled || userInitiatedPlayback) && visible && !manualPaused) {
-            if (!started) NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.VIEWPORT_INTENT)
-            started = true
-            wantsToPlay = true
-        } else if (!visible) {
-            wantsToPlay = false
-        } else if (!NativePlaybackPreferences.autoplayEnabled && !userInitiatedPlayback) {
-            wantsToPlay = false
-        }
-    }
     val sessionReady = auth.sessionState == StagingSessionState.SIGNED_IN
     val tokenRead = rememberFeedVideoTokenRead(auth, accountId, media.id, started, sessionReady, tokenRetryAttempt,
         stillAccount = { auth.account?.id == accountId }, fetchToken = {
@@ -270,11 +260,28 @@ private fun InlineFeedVideo(
     val token = tokenRead.token
     val playbackRead = rememberNativePlaybackSource(auth, media.id,
         if (adaptive) "$mediaPath/playback" else null,
-        // Start this authenticated request before the token-driven composition
-        // creates the disk cache/decoder. Cold player creation can take a frame
-        // (or much longer on real devices); network and preparation can overlap.
-        enabled = adaptive && sessionReady && started && isCurrent && visibleFraction > 0f &&
-            lifecycleState.isAtLeast(Lifecycle.State.STARTED), fallbackPath = mediaPath)
+        // One partly visible current page may obtain metadata before playback.
+        // The token/resource/player path above remains strictly started-only.
+        enabled = feedVideoMetadataEligible(adaptive, sessionReady && accountId != null,
+            lifecycleState.isAtLeast(Lifecycle.State.STARTED), isCurrent, visibleFraction,
+            NativePlaybackPreferences.autoplayEnabled, started, userInitiatedPlayback, manualPaused), fallbackPath = mediaPath)
+    val warmupHandoff = remember(auth, accountId, media.id, mediaPath) { FeedVideoWarmupHandoff() }
+    LaunchedEffect(accountId, visibleFraction, isCurrent, NativePlaybackPreferences.autoplayEnabled) {
+        val visible = visibleFraction >= .58f && isCurrent
+        if ((NativePlaybackPreferences.autoplayEnabled || userInitiatedPlayback) && visible && !manualPaused) {
+            if (!started) {
+                NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.VIEWPORT_INTENT)
+                warmupHandoff.onAutoplayIntent(playbackRead, accountId, media.id,
+                    auth.mediaOrigin, "$mediaPath/playback", System.currentTimeMillis(), allowed = adaptive && sessionReady)
+            }
+            started = true
+            wantsToPlay = true
+        } else if (!visible) {
+            wantsToPlay = false
+        } else if (!NativePlaybackPreferences.autoplayEnabled && !userInitiatedPlayback) {
+            wantsToPlay = false
+        }
+    }
     val streamSource = playbackRead.source
     val hls = streamSource?.hls == true
     LaunchedEffect(playbackRead.denied) {
@@ -287,10 +294,12 @@ private fun InlineFeedVideo(
     }
     val baseQuality = if (adaptive) autoQuality else "original"
     val latestBearer by rememberUpdatedState(playbackRead.bearer ?: token)
-    val resources = remember(auth, accountId, media.id, token, mediaPath) {
+    val replayOwner = com.sautilink.nativeapp.ui.components.LocalNativeVideoReplayOwner.current
+    val resources = remember(auth, accountId, media.id, token, mediaPath, replayOwner) {
         if (token == null) null else {
             NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.RESOURCES_BEGIN)
-            nativeVideoPlaybackResources(context, auth.mediaOrigin, token, authorizationToken = { latestBearer }) {
+            nativeVideoPlaybackResources(context, auth.mediaOrigin, token, authorizationToken = { latestBearer },
+                replay = accountId?.let { replayOwner?.bindingFor(auth, it, token) }) {
                 accountId != null && auth.account?.id == accountId
             }.also { NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.RESOURCES_READY) }
         }
@@ -382,18 +391,24 @@ private fun InlineFeedVideo(
             NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.SOURCE_PREPARE)
             replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(media.id).setUri(uri)
                 .setMimeType(if (hls) androidx.media3.common.MimeTypes.APPLICATION_M3U8 else androidx.media3.common.MimeTypes.VIDEO_MP4).build(),
-                keepPosition = true, requested = wantsToPlay && !manualPaused && isCurrent &&
+                keepPosition = true, requested = !overlayBlocked && wantsToPlay && !manualPaused && isCurrent &&
                     owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
         }
     }
     LaunchedEffect(player, muted) { player?.volume = if (muted) 0f else 1f }
     LaunchedEffect(player, speed) { player?.setPlaybackSpeed(speed) }
-    LaunchedEffect(player, isCurrent, visibleFraction, wantsToPlay, requestError, lifecycleState, streamSource) {
+    LaunchedEffect(player, isCurrent, visibleFraction, wantsToPlay, requestError, lifecycleState, streamSource, overlayBlocked) {
         if (player != null) {
-            if (!isCurrent || visibleFraction < .1f || !lifecycleState.isAtLeast(Lifecycle.State.STARTED)) {
+            if (overlayBlocked) {
+                player.pause() // Retain the prepared source and its samples while composing.
+            } else if (!isCurrent || visibleFraction < .1f || !lifecycleState.isAtLeast(Lifecycle.State.STARTED)) {
                 if (!stoppedOffscreen && player.playbackState != Player.STATE_IDLE) {
-                    stoppedPosition = player.currentPosition.coerceAtLeast(0L)
                     player.pause()
+                    // A quick scroll past and back keeps its decoder/buffer.
+                    // Cancellation when visible again preserves this same source;
+                    // longer absences still release decoder buffers promptly.
+                    if (lifecycleState.isAtLeast(Lifecycle.State.STARTED)) kotlinx.coroutines.delay(1_500L)
+                    stoppedPosition = player.currentPosition.coerceAtLeast(0L)
                     player.stop()
                     stoppedOffscreen = true
                     firstFrame = false
@@ -446,9 +461,10 @@ private fun InlineFeedVideo(
         val playPrompt = !playing && (firstFrame || manualPaused ||
             !NativePlaybackPreferences.autoplayEnabled || requestError != null || !started)
         val startPlayback = {
+            warmupHandoff.consumeManualIntent()
             requestError = null
             if (tokenRead.token == null && !tokenRead.loading) tokenRetryAttempt++
-            if (adaptive) playbackRead.retry()
+            if (adaptive && nativePlaybackNeedsRetry(playbackRead, System.currentTimeMillis(), player?.playerError != null)) playbackRead.retry()
             if (!started) NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.VIEWPORT_INTENT)
             started = true
             manualPaused = false
