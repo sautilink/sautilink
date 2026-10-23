@@ -1060,16 +1060,21 @@ async function serveVideoVariant(request, env, row, id, quality, ctx = null) {
 
 async function serveVideoPoster(request, env, row, id) {
   if (row.media_kind !== 'video') return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
+  const unavailable = () => apiError(404, 'POSTER_UNAVAILABLE', 'This video has no preview image yet.');
+  if (request.signal.aborted) return unavailable();
   const objectKey = sautiVideoPosterObjectKey(row.object_key);
   let available = await env.SAUTI_MEDIA.head(objectKey).catch(() => null);
+  if (request.signal.aborted) return unavailable();
   if (!available) {
     // The caller has already read this row through the normal media ACL. A
     // ready private Stream asset can supply its encoded JPEG without reading
     // and transforming the original MP4 again. Strict mapping/source identity
     // checks also keep synthetic public-index rows on their existing path.
     const asset = await readySautiPostStreamAsset(env, row).catch(() => null);
+    if (request.signal.aborted) return unavailable();
     if (asset) {
       const thumbnail = await serveSautiStreamThumbnail(request, env, asset);
+      if (request.signal.aborted) { await thumbnail.body?.cancel().catch(() => {}); return unavailable(); }
       if (thumbnail.ok) {
         const headers = new Headers(thumbnail.headers);
         headers.set('Cache-Control', 'private, no-store, max-age=0');
@@ -1081,6 +1086,8 @@ async function serveVideoPoster(request, env, row, id) {
       await thumbnail.body?.cancel().catch(() => {});
     }
   }
+  // A disconnected thumbnail must not become a full-source legacy transform.
+  if (request.signal.aborted) return unavailable();
   if (!available && request.method === 'GET') {
     const generated = await createSautiVideoPoster(env, row, id);
     if (generated) available = await env.SAUTI_MEDIA.head(generated).catch(() => null);

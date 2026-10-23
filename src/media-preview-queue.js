@@ -42,6 +42,20 @@ export function createMediaPreviewQueue(limit = 2) {
 export const runMediaPreviewRequest = createMediaPreviewQueue(2);
 export const wakeMediaPreviewRequests = () => runMediaPreviewRequest.wake();
 
+const waitingPlayback = new Set();
+export function setMediaPreviewPlaybackWaiting(video, waiting) {
+  if (waiting) waitingPlayback.add(video); else waitingPlayback.delete(video);
+  wakeMediaPreviewRequests();
+}
+
+function playbackNeedsNetwork() {
+  for (const video of waitingPlayback) {
+    if (!video.isConnected || video.ended || video.error
+      || (video.paused && video.dataset?.sautiPreparing !== 'true')) waitingPlayback.delete(video);
+  }
+  return waitingPlayback.size > 0;
+}
+
 export function mediaPreviewPriority(tile) {
   if (!tile) return 0;
   if (!tile.isConnected || tile.closest('[hidden]')) return Infinity;
@@ -51,6 +65,9 @@ export function mediaPreviewPriority(tile) {
   const bounds = tile.getBoundingClientRect();
   const height = window.innerHeight || 720;
   if (bounds.bottom > 0 && bounds.top < height) return 0;
+  // A visible video's first frame/audio must not queue behind future posters.
+  // Keep visible image requests available; park only speculative offscreen work.
+  if (playbackNeedsNetwork()) return Infinity;
   const connection = globalThis.navigator?.connection;
   if (connection?.saveData || ['slow-2g', '2g'].includes(connection?.effectiveType)) return Infinity;
   if (tile.dataset.sautiReadiness === 'true') return 1;

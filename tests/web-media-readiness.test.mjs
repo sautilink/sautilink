@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
-import { createMediaPreviewQueue, readMediaPreviewBlob } from '../src/media-preview-queue.js';
+import { createMediaPreviewQueue, readMediaPreviewBlob, mediaPreviewPriority, setMediaPreviewPlaybackWaiting } from '../src/media-preview-queue.js';
 import { nextMediaReadinessItems } from '../src/web-media-readiness.js';
 import { bindVideoBuffering } from '../src/video-buffering-state.js';
 import { transformPostMediaSource } from '../scripts/post-media-source-transform.mjs';
@@ -19,6 +19,59 @@ test('five-item readiness advances with the viewport, excludes the current item,
   assert.deepEqual(nextMediaReadinessItems(items, 400).map((x) => x.id), [401, 402, 403, 404, 405]);
   assert.deepEqual(nextMediaReadinessItems(items, 998).map((x) => x.id), [999]);
   assert.deepEqual(nextMediaReadinessItems(items, -1), []);
+});
+
+test('player clock updates do not repeatedly re-index a long feed, but tile insertion and removal do', async () => {
+  const source = (await read('src/web-media-readiness.js'))
+    .replace(/^import .*;\r?\n/gm, '').replaceAll('export function ', 'function ');
+  const observers = [], observed = new Set(), queued = [];
+  const tile = () => ({ nodeType: 1, dataset: {}, matches: () => true, querySelector: () => null });
+  let tiles = Array.from({ length: 1000 }, tile), scans = 0;
+  const feed = { querySelectorAll() { scans++; return tiles; } };
+  const doc = { readyState: 'loading', documentElement: {}, body: {}, addEventListener() {},
+    getElementById(id) { return id === 'stream-feed' ? feed : null; } };
+  runInNewContext(`${source}\ninstallHomeMediaReadiness();`, {
+    document: doc, updateSautiStreamReadiness() {}, wakeMediaPreviewRequests() {},
+    STREAM_READINESS_AHEAD: 5, queueMicrotask(fn) { queued.push(fn); },
+    MutationObserver: class {
+      constructor(callback) { this.callback = callback; }
+      observe(target) { observers.push({ target, callback: this.callback }); }
+    },
+    IntersectionObserver: class {
+      observe(item) { observed.add(item); }
+      unobserve(item) { observed.delete(item); }
+    },
+  });
+  assert.equal(scans, 1); assert.equal(observed.size, 1000);
+  const notify = observers.find((item) => item.target === feed).callback;
+  for (let i = 0; i < 1000; i++) notify([{ addedNodes: [{ nodeType: 3 }], removedNodes: [{ nodeType: 3 }] }]);
+  assert.equal(scans, 1, 'timeupdate text must not scan the entire feed');
+  const control = { nodeType: 1, matches: () => false, querySelector: () => null };
+  notify([{ addedNodes: [control], removedNodes: [] }]); assert.equal(scans, 1);
+  const added = tile(); tiles = [...tiles, added];
+  const card = { nodeType: 1, matches: () => false, querySelector: () => added };
+  notify([{ addedNodes: [card], removedNodes: [] }]);
+  assert.equal(scans, 2); assert.equal(observed.size, 1001); assert.ok(observed.has(added));
+  tiles = tiles.filter((item) => item !== added);
+  notify([{ addedNodes: [], removedNodes: [card] }]);
+  assert.equal(scans, 3); assert.equal(observed.size, 1000); assert.ok(!observed.has(added));
+  assert.equal(queued.length, 1, 'structural changes join the existing pending refresh');
+});
+
+test('unchanged readiness windows keep their tile markers and remove only departed tiles', async () => {
+  const source = (await read('src/web-media-readiness.js'))
+    .replace(/^import .*;\r?\n/gm, '').replaceAll('export function ', 'function ');
+  const writes = [], removals = [];
+  const tile = (id) => ({ dataset: new Proxy({}, {
+    set(object, key, value) { writes.push(id); object[key] = value; return true; },
+    deleteProperty(object, key) { removals.push(id); delete object[key]; return true; },
+  }) });
+  const a = tile('a'), b = tile('b'), c = tile('c');
+  const mark = runInNewContext(`${source}\nmarkPreparedTiles;`, { wakeMediaPreviewRequests() {} });
+  mark([a, b]); mark([a, b]);
+  assert.deepEqual(writes, ['a', 'b']); assert.deepEqual(removals, []);
+  mark([b, c]); assert.deepEqual(writes, ['a', 'b', 'c']); assert.deepEqual(removals, ['a']);
+  mark([]); assert.deepEqual(removals, ['a', 'b', 'c']);
 });
 
 test('preview slots cover body completion and failures cannot strand the next image behind a slot', async () => {
@@ -59,6 +112,30 @@ test('owner-changed queued preview work is cancelled before opening its network 
   const old = queue(() => { opened++; }, { isCurrent: () => owner === 'A' }).catch((error) => error.message);
   owner = 'B'; queue.wake(); assert.equal(await old, 'MEDIA_PREVIEW_CANCELLED'); assert.equal(opened, 0);
   active.resolve(); await first;
+});
+
+test('buffering video gets network priority over future posters while visible images remain available', () => {
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  const current = { isConnected: true, paused: true, ended: false, error: null, dataset: { sautiPreparing: 'true' } };
+  const tile = (top) => ({ isConnected: true, dataset: { sautiReadiness: 'true' }, closest: () => null,
+    getBoundingClientRect: () => ({ top, bottom: top + 200 }) });
+  try {
+    globalThis.document = { visibilityState: 'visible', querySelector: () => null,
+      documentElement: { classList: { contains: () => false } } };
+    globalThis.window = { innerHeight: 720 };
+    assert.equal(mediaPreviewPriority(tile(1000)), 1);
+    setMediaPreviewPlaybackWaiting(current, true);
+    assert.equal(mediaPreviewPriority(tile(1000)), Infinity, 'offscreen poster must wait for first frame');
+    assert.equal(mediaPreviewPriority(tile(100)), 0, 'visible image must still be able to load');
+    setMediaPreviewPlaybackWaiting(current, false);
+    assert.equal(mediaPreviewPriority(tile(1000)), 1, 'normal preparation resumes when playback is ready');
+    setMediaPreviewPlaybackWaiting(current, true); current.isConnected = false;
+    assert.equal(mediaPreviewPriority(tile(1000)), 1, 'removed player cannot strand the queue');
+  } finally {
+    setMediaPreviewPlaybackWaiting(current, false);
+    if (previousDocument === undefined) delete globalThis.document; else globalThis.document = previousDocument;
+    if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow;
+  }
 });
 
 function fakeVideo() {

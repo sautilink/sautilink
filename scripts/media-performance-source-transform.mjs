@@ -566,7 +566,8 @@ async function loadSautiVideoPoster(id, button) {
 }
 
 function enableSautiVideoBlobFallback(video, button, id) {
-  const isStreaming = () => video.dataset.sautiStreamManaged !== 'true' && video.src.includes('/api/sauti-media/');
+  const isStreaming = () => video.dataset.sautiStreamManaged !== 'true' && video.dataset.sautiPreparing !== 'true'
+    && video.src.includes('/api/sauti-media/');
   let timer = 0;
   const startTimer = () => {
     if (timer) return;
@@ -598,6 +599,20 @@ function enableSautiVideoBlobFallback(video, button, id) {
   else video.addEventListener('play', startTimer, { once: true });
 }`,
     'the protected Sauti media fetch helper',
+  );
+
+  output = replaceExactOnce(
+    output,
+    `  applyHomeVideoAudio(video);
+  try {
+    await video.play();`,
+    `  applyHomeVideoAudio(video);
+  try {
+    await window.SautiLinkStreamPlayback?.prepare?.(video);
+    if (!canPlayHomeFeedVideos() || !getVideoAutoplayPreference() || video.dataset.sautiUserPaused === 'true'
+      || window.SautiLinkStreamPlayback?.eligible?.(video) === false) return;
+    await video.play();`,
+    'Home adaptive preparation before legacy playback',
   );
 
   output = replaceExactOnce(

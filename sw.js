@@ -1,7 +1,4 @@
-const CACHE_NAME = "sautilink-shell-v94";
-const APP_RELEASE = "20260930-swala-otp2";
-const APP_CSS_RELEASE = "20260927-page-headers1";
-const APP_FEATURE_RELEASE = "20260918-signup2";
+const CACHE_NAME = "sautilink-shell-v95";
 const PWA_RELEASE = "20260930-swala-otp2";
 const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.css",
@@ -11,11 +8,8 @@ const CORE_ASSET_PATHS = new Set([
 const APP_SHELL = [
   "/",
   "/app/",
-  `/app/assets/app.css?v=${APP_CSS_RELEASE}`,
-  `/app/assets/app.js?v=${APP_RELEASE}&feature=${APP_FEATURE_RELEASE}&signup=20261003-phone2&messages=20261003-search1&thread=20261003-thread1`,
-  "/app/assets/profile-x-ui.css?v=20260918-profile2",
-  "/app/assets/profile-settings-ui.css?v=20260927-page-headers1",
-  "/app/assets/theme-init.js?v=20260904-account2",
+  // UI code is cached by its final content version when actually requested.
+  // Preloading legacy core URLs here duplicates the page's hashed downloads.
   "/manifest.json",
   "/logo.png",
   "/assets/favicon.png",
@@ -50,6 +44,30 @@ async function matchCachedPath(pathname) {
     }
   });
   return request ? cache.match(request) : undefined;
+}
+
+async function immutableCodeMatches(response, version) {
+  if (!response.ok || response.type === "opaque" || response.redirected || !response.body) return false;
+  // Code is public but still bounded; never allocate an unbounded response merely
+  // to validate its version. Protected media never reaches this helper.
+  const reader = response.clone().body.getReader(), chunks = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > 4 * 1024 * 1024) { void reader.cancel().catch(() => {}); return false; }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return hash.slice(0, 12) === version.toLowerCase();
+  } catch { return false; }
+  finally { reader.releaseLock(); }
 }
 
 self.addEventListener("install", (event) => {
@@ -187,6 +205,32 @@ self.addEventListener("fetch", (event) => {
   }
 
   const isAppCodeAsset = url.pathname.startsWith("/app/assets/") && /\.(?:css|js)$/i.test(url.pathname);
+  // Production v tokens identify the final bytes. Exact-URL reuse is safe across
+  // accounts because this branch caches only public code, never API/media data.
+  // Legacy version strings still revalidate below so deployments cannot strand UI.
+  const immutableAppCodeAsset = url.origin === self.location.origin && isAppCodeAsset
+    && url.searchParams.getAll("v").length === 1
+    && /^[a-f0-9]{12}$/i.test(url.searchParams.get("v") || "");
+  if (immutableAppCodeAsset) {
+    let persistence = Promise.resolve();
+    const responsePromise = (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(event.request);
+      if (cached) return cached;
+      const response = await fetch(event.request);
+      // Deliver the network stream immediately. Hashing and disk persistence
+      // use a clone and remain alive through the registered background task.
+      const copy = response.clone();
+      persistence = immutableCodeMatches(copy, url.searchParams.get("v")).then((matches) => {
+        if (matches) return cache.put(event.request, copy);
+        void copy.body?.cancel().catch(() => {});
+      }).catch(() => {});
+      return response;
+    })();
+    event.respondWith(responsePromise);
+    event.waitUntil(responsePromise.then(() => persistence).catch(() => {}));
+    return;
+  }
   if (url.origin === self.location.origin && (
     CORE_ASSET_PATHS.has(url.pathname) ||
     isAppCodeAsset ||

@@ -9,5 +9,7 @@ export async function stageStreamHlsRuntime(root) {
   const runtime = await readFile(resolve(root, 'node_modules/hls.js/dist/hls.min.js'), 'utf8');
   // Public artifacts never ship source maps or dangling source-map references.
   await writeFile(resolve(target, 'hls-1.7.3.min.js'), runtime.replace(/^\/\/# sourceMappingURL=[^\r\n]+$/gm, ''));
+  const worker = await readFile(resolve(root, 'node_modules/hls.js/dist/hls.worker.js'), 'utf8');
+  await writeFile(resolve(target, 'hls.worker-1.7.3.js'), worker.replace(/^\/\/# sourceMappingURL=[^\r\n]+$/gm, ''));
   await copyFile(resolve(root, 'node_modules/hls.js/LICENSE'), resolve(target, 'hls-1.7.3.LICENSE.txt'));
 }

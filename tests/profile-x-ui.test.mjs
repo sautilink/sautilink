@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { createHash } from 'node:crypto';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -115,11 +116,14 @@ test('profile stylesheet keeps desktop and mobile X-style hierarchy', async () =
 });
 
 test('profile visitor actions use an accessible resilient overflow menu without changing action ids', async () => {
-  const [shell, source, css, serviceWorker] = await Promise.all([
+  const [shell, source, css, serviceWorker, productionShell, manifestText, productionProfileCss] = await Promise.all([
     read('app/index.html'),
     read('src/profile-x-ui.js'),
     read('app/assets/profile-settings-ui.css'),
     read('sw.js'),
+    read('dist-production-site/app/index.html'),
+    read('dist-production-site/app/assets/ui-asset-versions.json'),
+    read('dist-production-site/app/assets/profile-x-ui.css'),
   ]);
 
   assert.match(shell, /id="sautilink-profile-x-ui"[^>]+profile-x-ui\.css\?v=20260918-profile2/);
@@ -134,6 +138,11 @@ test('profile visitor actions use an accessible resilient overflow menu without 
   assert.match(source, /moreButton\.setAttribute\('aria-expanded', 'false'\)/);
   assert.match(css, /\.profile-surface \.profile-more-popover\[hidden\]/);
   assert.match(css, /width: min\(236px, calc\(100vw - 24px\)\)/);
-  assert.match(serviceWorker, /profile-x-ui\.css\?v=20260918-profile2/);
-  assert.match(serviceWorker, /profile-settings-ui\.css\?v=20260927-page-headers1/);
+  const version = JSON.parse(manifestText)['profile-x-ui.css'];
+  assert.equal(version, createHash('sha256').update(productionProfileCss).digest('hex').slice(0, 12));
+  assert.match(productionShell, new RegExp(`id="sautilink-profile-x-ui"[^>]+profile-x-ui\\.css\\?v=${version}`));
+  assert.match(serviceWorker, /immutableAppCodeAsset/);
+  assert.match(serviceWorker, /immutableCodeMatches/);
+  const precache = serviceWorker.slice(serviceWorker.indexOf('const APP_SHELL'), serviceWorker.indexOf('async function cacheAppShell'));
+  assert.doesNotMatch(precache, /profile-(?:x|settings)-ui\.css/, 'profile styles load by their verified version, without duplicate legacy install downloads');
 });

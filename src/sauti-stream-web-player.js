@@ -2,6 +2,7 @@ import { getVideoAutoplayPreference } from './video-autoplay-preference.js';
 import { getVideoQualityPreference } from './video-quality-preference.js';
 import { getActivePlaybackVideo } from './video-playback-coordinator.js';
 import { createStreamReadiness, readinessLoader } from './sauti-stream-readiness.js';
+import { setMediaPreviewPlaybackWaiting } from './media-preview-queue.js';
 
 const states = new Set();
 const mediaLevels = new Map();
@@ -15,7 +16,7 @@ const bufferingVideos = new Set();
 
 function syncReadiness() {
   const connection = globalThis.navigator?.connection;
-  for (const video of bufferingVideos) if (!video.isConnected || video.paused) bufferingVideos.delete(video);
+  for (const video of bufferingVideos) if (!video.isConnected || (video.paused && video.dataset.sautiPreparing !== 'true')) bufferingVideos.delete(video);
   const suspended = document.visibilityState === 'hidden' || connection?.saveData
     || ['slow-2g', '2g'].includes(connection?.effectiveType) || bufferingVideos.size > 0
     || Boolean(document.querySelector?.('dialog[open]'));
@@ -25,6 +26,7 @@ function syncReadiness() {
 export function updateSautiStreamReadiness(ids = []) { readinessIds = ids; syncReadiness(); }
 export function setSautiStreamBuffering(video, waiting) {
   if (waiting) bufferingVideos.add(video); else bufferingVideos.delete(video);
+  setMediaPreviewPlaybackWaiting(video, waiting);
   syncReadiness();
 }
 
@@ -65,19 +67,38 @@ function loadHlsRuntime() {
   if (window.Hls) return Promise.resolve(window.Hls);
   if (!runtimePromise) runtimePromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
+    let timer;
+    const failed = () => { window.clearTimeout(timer); script.remove(); runtimePromise = null; reject(new Error('HLS_RUNTIME_FAILED')); };
     script.src = '/app/assets/vendor/hls-1.7.3.min.js';
     script.async = true;
-    script.onload = () => window.Hls ? resolve(window.Hls) : reject(new Error('HLS_RUNTIME_MISSING'));
-    script.onerror = () => { script.remove(); runtimePromise = null; reject(new Error('HLS_RUNTIME_FAILED')); };
+    script.onload = () => { window.clearTimeout(timer); if (window.Hls) resolve(window.Hls); else failed(); };
+    script.onerror = failed;
+    timer = window.setTimeout(failed, 8000);
     document.head.append(script);
   });
   return runtimePromise;
 }
 function allowedToResume(video, wasPlaying) {
   const active = getActivePlaybackVideo();
-  return wasPlaying && video.isConnected && document.visibilityState !== 'hidden'
+  return wasPlaying && streamPlaybackEligible(video)
     && video.dataset.sautiUserPaused !== 'true' && (!active || active === video)
     && (getVideoAutoplayPreference() || video.dataset.sautiManualPlay === 'true');
+}
+export function streamPlaybackEligible(video) {
+  if (!video?.isConnected || document.visibilityState === 'hidden' || video.closest?.('[hidden]')) return false;
+  const dialog = video.closest?.('dialog');
+  if (dialog) return dialog.open === true;
+  if (document.querySelector?.('dialog[open]')) return false;
+  const slide = video.closest?.('.sauti-short-video-slide');
+  if (slide) return slide.classList.contains('active') && video.closest('#sauti-short-videos')?.hidden === false;
+  if (video.closest?.('#stream-feed') && document.documentElement?.classList.contains('sauti-short-videos-open')) return false;
+  if (document.pictureInPictureElement === video || document.fullscreenElement?.contains(video)) return true;
+  const bounds = video.getBoundingClientRect?.();
+  const height = window.innerHeight || document.documentElement?.clientHeight || 720;
+  return !bounds || (bounds.bottom > 0 && bounds.top < height);
+}
+function validDescriptor(state) {
+  return state.descriptor?.expiry > Date.now() + 15000 ? state.descriptor : null;
 }
 function notify(video) { video.dispatchEvent(new CustomEvent('sautilink:video-quality-applied')); }
 function selectedPreference(video, levels = []) {
@@ -123,7 +144,7 @@ function fallback(state) {
   const wasPlaying = !video.paused || Boolean(pending?.wasPlaying);
   const rate = video.playbackRate;
   const previous = state.hls;
-  state.hls = null; state.ready = false;
+  state.hls = null; state.nativeHls = false; state.ready = false;
   previous?.destroy();
   delete video.dataset.sautiStreamManaged;
   mediaLevels.delete(state.mediaId);
@@ -166,7 +187,7 @@ function resolvePlayback(state, force = false) {
 }
 async function resolvePlaybackAttempt(state, force = false) {
   const video = state.video;
-  if (state.destroyed || !video.isConnected || (!force && Date.now() - state.checkedAt < 20000)) return false;
+  if (state.destroyed || !video.isConnected || (!force && !validDescriptor(state) && Date.now() - state.checkedAt < 20000)) return false;
   state.resolving = true; state.checkedAt = Date.now();
   const controller = new AbortController();
   state.abort = controller;
@@ -175,7 +196,7 @@ async function resolvePlaybackAttempt(state, force = false) {
     if (state.destroyed || !video.isConnected || controller.signal.aborted) return false;
     const requestOptions = { credentials: 'same-origin', cache: 'no-store', redirect: 'error',
       signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]) };
-    let descriptor = force ? null : readiness.descriptor(state.mediaId);
+    let descriptor = force ? null : validDescriptor(state) || readiness.descriptor(state.mediaId);
     if (!descriptor) {
       const descriptorUrl = `/api/sauti-media/${state.mediaId}/playback`;
       let response = await fetch(descriptorUrl, requestOptions);
@@ -194,8 +215,14 @@ async function resolvePlaybackAttempt(state, force = false) {
       descriptor = validatedStreamDescriptor(json?.ok === true ? json.data : null, state.mediaId, window.location.origin);
     }
     if (!descriptor || descriptor.type !== 'hls' || state.destroyed || !video.isConnected) return false;
-    const Hls = await loadHlsRuntime();
-    if (state.destroyed || !video.isConnected) return false;
+    state.descriptor = descriptor;
+    // A descriptor may finish after a swipe or navigation. Keep only its
+    // original short-lived grant; do not start an offscreen SDK/segment load.
+    if (!streamPlaybackEligible(video)) return false;
+    const nativeOnly = video.canPlayType('application/vnd.apple.mpegurl')
+      && !window.MediaSource && !window.ManagedMediaSource;
+    const Hls = nativeOnly ? null : await loadHlsRuntime();
+    if (state.destroyed || controller.signal.aborted || !streamPlaybackEligible(video)) return false;
     const position = Number(video.currentTime) || 0;
     const wasPlaying = !video.paused;
     const rate = video.playbackRate;
@@ -203,9 +230,10 @@ async function resolvePlaybackAttempt(state, force = false) {
     state.expiresAt = descriptor.expiry;
     video.dataset.sautiStreamManaged = 'true';
     restorePlayback(state, position, wasPlaying, rate);
-    if (Hls.isSupported()) {
+    if (Hls?.isSupported()) {
       const previous = state.hls;
-      const hls = new Hls({ enableWorker: false, autoStartLoad: false, capLevelToPlayerSize: true,
+      const hls = new Hls({ enableWorker: true, workerPath: '/app/assets/vendor/hls.worker-1.7.3.js',
+        autoStartLoad: false, capLevelToPlayerSize: true,
         maxBufferLength: 20, maxMaxBufferLength: 40, backBufferLength: 60, maxBufferSize: 24 * 1024 * 1024,
         ...(selectedPreference(video) === 'auto' ? { startLevel: 0 } : {}),
         ...(Hls.DefaultConfig?.loader ? { loader: readinessLoader(Hls.DefaultConfig.loader, readiness, state.mediaId) } : {}),
@@ -215,6 +243,7 @@ async function resolvePlaybackAttempt(state, force = false) {
           xhr.withCredentials = true;
         } });
       state.hls = hls;
+      state.nativeHls = false;
       state.refreshAttempted = false;
       state.lastFatal = null;
       previous?.destroy();
@@ -223,9 +252,12 @@ async function resolvePlaybackAttempt(state, force = false) {
         state.ready = true;
         mediaLevels.set(state.mediaId, hlsQualityLevels(hls.levels));
         applyPreference(state);
-        if (!video.isConnected || document.visibilityState === 'hidden') hls.stopLoad();
+        if (!streamPlaybackEligible(video)) hls.stopLoad();
         else if (allowedToResume(video, wasPlaying)) { hls.startLoad(position); void video.play().catch(() => {}); }
-        else hls.startLoad(position); // Load the first frame for a manually paused player.
+        else {
+          state.firstFrameOnly = video.paused;
+          hls.startLoad(position);
+        }
       });
       hls.on(Hls.Events.LEVEL_SWITCHED, (_event, detail) => {
         if (state.destroyed || state.hls !== hls) return;
@@ -233,11 +265,14 @@ async function resolvePlaybackAttempt(state, force = false) {
         state.actualQuality = Math.min(Number(current?.width), Number(current?.height)) || 0;
         notify(video);
       });
-      hls.on(Hls.Events.FRAG_BUFFERED, () => {
+      hls.on(Hls.Events.FRAG_BUFFERED, (_event, detail) => {
         if (state.destroyed || state.hls !== hls) return;
         // An attach or manifest alone does not prove protected fragment access.
         // Preserve the one-shot recovery budget across failed replacements.
         state.authorizationRecoveryUsed = false;
+        if (state.firstFrameOnly && video.paused && detail?.frag?.type === 'main') {
+          state.firstFrameOnly = false; hls.stopLoad();
+        }
       });
       hls.on(Hls.Events.ERROR, (_event, detail) => {
         if (!detail.fatal || state.destroyed || state.hls !== hls) return;
@@ -264,7 +299,7 @@ async function resolvePlaybackAttempt(state, force = false) {
       hls.loadSource(descriptor.url);
       hls.attachMedia(video);
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = descriptor.url; video.load(); state.ready = true;
+      video.src = descriptor.url; video.load(); state.ready = true; state.nativeHls = true;
     } else fallback(state);
     window.clearTimeout(state.renewTimer);
     state.renewTimer = window.setTimeout(() => {
@@ -272,7 +307,17 @@ async function resolvePlaybackAttempt(state, force = false) {
     }, Math.max(1000, descriptor.expiry - Date.now() - 30000));
     return video.dataset.sautiStreamManaged === 'true';
   } catch { return false; /* Existing MP4 delivery remains available while Stream is processing. */ }
-  finally { if (state.abort === controller) state.abort = null; state.resolving = false; }
+  finally {
+    // Leaving a clip cancels preparation, rather than recording a failed
+    // provider. An immediate return may retry normally instead of waiting for
+    // the error backoff and starting its original MP4 in the meantime.
+    if (controller.signal.aborted && !state.destroyed) state.checkedAt = 0;
+    if (state.abort === controller) state.abort = null;
+    state.resolving = false;
+    if (!state.destroyed && streamPlaybackEligible(video) && video.dataset.sautiStreamManaged !== 'true') {
+      video.dispatchEvent(new CustomEvent('sautilink:stream-availability'));
+    }
+  }
 }
 
 export function enhanceSautiStreamPlayback(video) {
@@ -282,13 +327,43 @@ export function enhanceSautiStreamPlayback(video) {
   const state = { video, mediaId, hls: null, ready: false, checkedAt: 0, resolving: false, destroyed: false, renewTimer: 0 };
   video.__sautiStreamState = state; states.add(state);
   state.onPlay = () => {
-    if (state.hls && state.expiresAt > Date.now() + 30000) state.hls.startLoad(-1);
-    else void resolvePlayback(state, Boolean(state.hls));
+    if (!streamPlaybackEligible(video)) { video.pause(); return; }
+    state.firstFrameOnly = false;
+    if ((state.hls || state.nativeHls) && state.expiresAt > Date.now() + 30000) state.hls?.startLoad(-1);
+    else void resolvePlayback(state, Boolean(state.hls || state.nativeHls));
   };
-  state.onPause = () => state.hls?.stopLoad();
+  state.onPause = () => {
+    state.hls?.stopLoad();
+    if (!state.hls) state.abort?.abort();
+  };
   video.addEventListener('play', state.onPlay);
   video.addEventListener('pause', state.onPause);
   if (!video.paused) void resolvePlayback(state);
+}
+
+/** Resolve/attach adaptive playback before a caller starts the legacy MP4.
+ * Replays retain their live controller and original grant, never extending it. */
+export async function prepareSautiStreamPlayback(video) {
+  enhanceSautiStreamPlayback(video);
+  const state = video?.__sautiStreamState;
+  if (!state || state.destroyed || !streamPlaybackEligible(video)) return false;
+  if ((state.hls || state.nativeHls) && state.expiresAt > Date.now() + 30000) return true;
+  state.prepareConsumers = (state.prepareConsumers || 0) + 1;
+  video.dataset.sautiPreparing = 'true';
+  video.dispatchEvent(new CustomEvent('sautilink:video-preparing', { detail: { active: true } }));
+  let timer;
+  try {
+    return await Promise.race([resolvePlayback(state, Boolean(state.hls || state.nativeHls)), new Promise((resolve) => {
+      timer = window.setTimeout(() => { state.abort?.abort(); resolve(false); }, 8000);
+    })]);
+  } finally {
+    window.clearTimeout(timer);
+    state.prepareConsumers--;
+    if (video.__sautiStreamState === state && state.prepareConsumers === 0) {
+      delete video.dataset.sautiPreparing;
+      video.dispatchEvent(new CustomEvent('sautilink:video-preparing', { detail: { active: false } }));
+    }
+  }
 }
 
 export function streamQualityState(video) {
@@ -299,9 +374,13 @@ export function streamQualityState(video) {
 function destroyState(state, { clearMedia = false } = {}) {
   if (state.destroyed) return;
   state.destroyed = true; state.abort?.abort(); state.hls?.destroy(); state.video.pause();
+  bufferingVideos.delete(state.video);
+  setMediaPreviewPlaybackWaiting(state.video, false);
   if (state.restoreListener) state.video.removeEventListener('loadedmetadata', state.restoreListener);
   state.restoreListener = null;
   state.restoreIntent = null;
+  state.descriptor = null;
+  delete state.video.dataset.sautiPreparing;
   state.video.removeEventListener('play', state.onPlay);
   state.video.removeEventListener('pause', state.onPause);
   window.clearTimeout(state.renewTimer); mediaLevels.delete(state.mediaId); states.delete(state);
@@ -335,6 +414,7 @@ export function installSautiStreamAuthLifecycle(client) {
     const next = event === 'SIGNED_OUT' ? null : authIdentity(session);
     const changed = identity !== undefined && identity !== next;
     if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT' || changed) {
+      for (const video of bufferingVideos) setMediaPreviewPlaybackWaiting(video, false);
       readiness.clear(); readinessIds = []; bufferingVideos.clear();
       if (event !== 'INITIAL_SESSION') states.forEach((state) => destroyState(state, { clearMedia: true }));
     }
@@ -347,6 +427,8 @@ export function installSautiStreamAuthLifecycle(client) {
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  window.SautiLinkStreamPlayback = Object.freeze({ prepare: prepareSautiStreamPlayback,
+    enhance: enhanceSautiStreamPlayback, eligible: streamPlaybackEligible });
   document.addEventListener('sautilink:video-quality-preference', () => states.forEach(applyPreference));
   document.addEventListener('visibilitychange', () => {
     syncReadiness();

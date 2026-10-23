@@ -4,10 +4,19 @@ import { wakeMediaPreviewRequests } from './media-preview-queue.js';
 
 let preparedTiles = new Set();
 function markPreparedTiles(tiles) {
-  for (const tile of preparedTiles) delete tile.dataset.sautiReadiness;
-  preparedTiles = new Set(tiles);
-  for (const tile of preparedTiles) tile.dataset.sautiReadiness = 'true';
+  const next = new Set(tiles);
+  for (const tile of preparedTiles) if (!next.has(tile)) delete tile.dataset.sautiReadiness;
+  for (const tile of next) if (!preparedTiles.has(tile)) tile.dataset.sautiReadiness = 'true';
+  preparedTiles = next;
   wakeMediaPreviewRequests();
+}
+
+const MEDIA_TILE_SELECTOR = '.sauti-media-tile[data-open-media-id]';
+function changesMediaTiles(changes) {
+  // Player clocks, seek bars and loading controls update inside this subtree.
+  // Re-index the feed only when an actual media tile was inserted or removed.
+  return changes.some((change) => [...change.addedNodes, ...change.removedNodes].some((node) =>
+    node.nodeType === 1 && (node.matches(MEDIA_TILE_SELECTOR) || node.querySelector(MEDIA_TILE_SELECTOR))));
 }
 
 export function nextMediaReadinessItems(items, index) {
@@ -58,13 +67,14 @@ function installHomeMediaReadiness() {
     schedule();
   }, { threshold: [0, 0.15, 0.5, 0.85] });
   const scan = () => {
-    items = [...feed.querySelectorAll('.sauti-media-tile[data-open-media-id]')];
+    items = [...feed.querySelectorAll(MEDIA_TILE_SELECTOR)];
     const present = new Set(items);
     for (const tile of observed) if (!present.has(tile)) { observer.unobserve(tile); observed.delete(tile); visible.delete(tile); }
     for (const tile of items) if (!observed.has(tile)) { observed.add(tile); observer.observe(tile); }
     schedule();
   };
-  new MutationObserver(scan).observe(feed, { childList: true, subtree: true });
+  new MutationObserver((changes) => { if (changesMediaTiles(changes)) scan(); })
+    .observe(feed, { childList: true, subtree: true });
   new MutationObserver(schedule).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
   new MutationObserver((changes) => {
     if (changes.some((change) => change.target.tagName === 'DIALOG' || change.target === document.body)) schedule();

@@ -126,8 +126,8 @@ function enhanceSautiLinkVideo(video) {
   video.controls = false;
   video.removeAttribute('controls');
   host.classList.add('has-sauti-video-player');
-  window.SautiLinkVideoQuality?.enhance?.(video, { context: qualityContext });
   enhanceSautiStreamPlayback(video);
+  window.SautiLinkVideoQuality?.enhance?.(video, { context: qualityContext });
 
   if (mode === 'feed') {
     host.querySelectorAll(':scope > .sauti-video-audio-toggle').forEach((node) => node.remove());
@@ -426,7 +426,10 @@ function enhanceSautiLinkVideo(video) {
       delete video.dataset.sautiUserPaused;
       video.dataset.sautiManualPlay = 'true';
       if (video.ended && !video.loop) video.currentTime = 0;
-      video.play().catch(() => {});
+      // Keep play inside the actual gesture for browsers with transient audio
+      // activation. Ready HLS reuses its controller; an unprepared manual first
+      // tap may start the existing MP4 while the play listener attaches Stream.
+      void video.play().catch(() => {});
     } else {
       video.dataset.sautiUserPaused = 'true';
       delete video.dataset.sautiManualPlay;

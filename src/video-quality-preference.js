@@ -154,6 +154,9 @@ export function shouldResumeVideoAfterQualityChange(video, context) {
 }
 
 async function applyVideoQuality(video, state, quality) {
+  const adaptive = video.__sautiStreamState;
+  if (adaptive && (!adaptive.checkedAt || adaptive.resolving)) return;
+  if (window.SautiLinkStreamPlayback?.eligible?.(video) === false) return;
   if (video.dataset.sautiStreamManaged === 'true') return;
   if (video.dataset.sautiBlobFallback === 'true') return;
   const source = sautiVideoSourceUrl(state.mediaId, quality);
@@ -174,6 +177,9 @@ async function applyVideoQuality(video, state, quality) {
 
   try {
     await window.SautiLinkVideoMediaSession?.ensure?.();
+    const currentAdaptive = video.__sautiStreamState;
+    if (currentAdaptive && (!currentAdaptive.checkedAt || currentAdaptive.resolving)) return;
+    if (window.SautiLinkStreamPlayback?.eligible?.(video) === false) return;
     if (video.dataset.sautiStreamManaged === 'true') return;
     await new Promise((resolve, reject) => {
       let timer = 0;
@@ -277,6 +283,7 @@ export function enhanceSautiVideoQuality(video, { context = 'home' } = {}) {
   video.addEventListener('stalled', markStall);
   video.addEventListener('playing', markStable);
   video.addEventListener('pause', () => window.clearTimeout(state.stableTimer));
+  video.addEventListener('sautilink:stream-availability', () => { void applyVideoQuality(video, state, targetQuality(state)); });
   void applyVideoQuality(video, state, targetQuality(state));
 }
 

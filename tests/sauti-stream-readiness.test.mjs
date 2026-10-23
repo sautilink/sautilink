@@ -69,6 +69,64 @@ async function idle(cache) {
   assert.fail('readiness jobs did not settle');
 }
 
+function separateAudioMaster(media = id()) {
+  return master(media).replace('#EXTM3U', `#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="voice",DEFAULT=YES,URI="${resource(media, 'audio')}"`)
+    .replace('BANDWIDTH=300000', 'BANDWIDTH=300000,AUDIO="voice"');
+}
+function audioPlaylist(media = id()) {
+  return playlist(media).replaceAll(resource(media, 'init'), resource(media, 'audio-init'))
+    .replaceAll(resource(media, 'first'), resource(media, 'audio-first')).replaceAll(resource(media, 'second'), resource(media, 'audio-second'));
+}
+
+test('selected low variant warms only its referenced audio group with unchanged capabilities', async () => {
+  const h = harness({ reply(call) {
+    if (call.name === 'master') return new Response(separateAudioMaster(call.media));
+    if (call.name === 'audio') return new Response(audioPlaylist(call.media));
+    if (['audio-init', 'audio-first'].includes(call.name)) return new Response(new Uint8Array(8));
+  } });
+  try {
+    h.cache.update([id()]); await idle(h.cache);
+    assert.deepEqual(h.requests.map((x) => x.name), ['descriptor', 'master', 'low', 'init', 'first', 'audio', 'audio-init', 'audio-first']);
+    assert.equal(h.cache.resource(id(), resource(id(), 'audio-first')).data.byteLength, 8);
+    const unsafe = separateAudioMaster().replace(resource(id(), 'audio'), 'https://foreign.invalid/audio');
+    assert.equal(initialHlsResources(unsafe, resource(), id(), ORIGIN), null);
+  } finally { h.cache.clear(); }
+});
+
+test('video and referenced audio share the same two MiB clip budget', async () => {
+  const progress = {};
+  const h = harness({ segmentSize: 1200000, reply(call) {
+    if (call.name === 'master') return new Response(separateAudioMaster(call.media));
+    if (call.name === 'audio') return new Response(audioPlaylist(call.media));
+    if (call.name === 'audio-init') return new Response(new Uint8Array(8));
+    if (call.name === 'audio-first') return streamingResponse(new Uint8Array(1200000), { declared: 1200000, progress });
+  } });
+  try {
+    h.cache.update([id()]); await idle(h.cache);
+    assert.ok(h.cache.snapshot().bytes <= 2 * 1024 * 1024);
+    assert.equal(h.cache.resource(id(), resource(id(), 'audio-first')), null);
+    assert.equal(progress.cancelled, 1, 'an oversized declared body is cancelled before a reader is acquired');
+    assert.ok((progress.bytes || 0) <= 4096, 'the stream may queue its initial chunk, but must not drain the oversized body');
+  } finally { h.cache.clear(); }
+});
+
+test('visible playback suspension cancels an in-flight selected audio body without starting farther clips', async () => {
+  const progress = {};
+  const h = harness({ reply(call) {
+    if (call.name === 'master') return new Response(separateAudioMaster(call.media));
+    if (call.name === 'audio') return new Response(audioPlaylist(call.media));
+    if (call.name === 'audio-init') return new Response(new Uint8Array(8));
+    if (call.name === 'audio-first') return streamingResponse(new Uint8Array(), { stalled: true, signal: call.options.signal, progress });
+  } });
+  try {
+    h.cache.update([id()]);
+    for (let attempt = 0; attempt < 30 && !h.requests.some((x) => x.name === 'audio-first'); attempt++) await tick();
+    assert.ok(h.requests.some((x) => x.name === 'audio-first'));
+    h.cache.update([id(), id(2)], { suspended: true }); await idle(h.cache);
+    assert.equal(progress.aborted, 1); assert.ok(!h.requests.some((x) => x.media === id(2)));
+  } finally { h.cache.clear(); }
+});
+
 test('plans the lowest advertised master level and only the first VOD init/fragment with exact capabilities', () => {
   assert.deepEqual(initialHlsResources(master(), resource(), id(), ORIGIN), { playlist: resource(id(), 'low') });
   assert.deepEqual(initialHlsResources(playlist(), resource(id(), 'low'), id(), ORIGIN), {

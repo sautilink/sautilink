@@ -122,6 +122,14 @@ jobs:
           app_body="$(mktemp)"
           app_headers="$(mktemp)"
           app_js_body="$(mktemp)"
+          app_css_body="$(mktemp)"
+          theme_js_body="$(mktemp)"
+          app_js_version="$(sha256sum dist-production-site/app/assets/app.js | cut -c1-12)"
+          app_css_version="$(sha256sum dist-production-site/app/assets/app.css | cut -c1-12)"
+          theme_js_version="$(sha256sum dist-production-site/app/assets/theme-init.js | cut -c1-12)"
+          for version in "$app_js_version" "$app_css_version" "$theme_js_version"; do
+            [[ "$version" =~ ^[a-f0-9]{12}$ ]] || exit 1
+          done
           login_body="$(mktemp)"
           signup_body="$(mktemp)"
           home_body="$(mktemp)"
@@ -146,7 +154,11 @@ jobs:
               "https://sautilink.com/app/?release=$GITHUB_RUN_ID-$attempt")"
             app_js_code="$(curl -sS -o "$app_js_body" -w '%{http_code}' \
               -H 'Cache-Control: no-cache' \
-              "https://sautilink.com/app/assets/app.js?v=20260930-swala-otp2&release=$GITHUB_RUN_ID-$attempt")"
+              "https://sautilink.com/app/assets/app.js?v=$app_js_version&release=$GITHUB_RUN_ID-$attempt")"
+            app_css_code="$(curl -sS -o "$app_css_body" -w '%{http_code}' \
+              "https://sautilink.com/app/assets/app.css?v=$app_css_version&release=$GITHUB_RUN_ID-$attempt")"
+            theme_js_code="$(curl -sS -o "$theme_js_body" -w '%{http_code}' \
+              "https://sautilink.com/app/assets/theme-init.js?v=$theme_js_version&release=$GITHUB_RUN_ID-$attempt")"
             www_app_code="$(curl -sS -L -o "$www_app_body" -w '%{http_code}' \
               -H 'Cache-Control: no-cache' \
               "https://www.sautilink.com/app/?release=$GITHUB_RUN_ID-$attempt")"
@@ -173,6 +185,11 @@ jobs:
               && [ "$realtime_code" = "200" ] \
               && [ "$app_code" = "200" ] \
               && [ "$app_js_code" = "200" ] \
+              && [ "$app_css_code" = "200" ] \
+              && [ "$theme_js_code" = "200" ] \
+              && cmp -s dist-production-site/app/assets/app.js "$app_js_body" \
+              && cmp -s dist-production-site/app/assets/app.css "$app_css_body" \
+              && cmp -s dist-production-site/app/assets/theme-init.js "$theme_js_body" \
               && [ "$www_app_code" = "200" ] \
               && [ "$login_code" = "200" ] \
               && [ "$signup_code" = "200" ] \
@@ -187,9 +204,9 @@ jobs:
               && ! grep -Fqi 'x-robots-tag: noindex' "$health_headers" \
               && ! grep -Fqi 'x-robots-tag: noindex' "$app_headers" \
               && grep -Fq 'id="settings-surface"' "$app_body" \
-              && grep -Fq 'theme-init.js?v=20260904-account2' "$app_body" \
-              && grep -Fq 'app.css?v=20260927-page-headers1' "$app_body" \
-              && grep -Fq 'app.js?v=20260930-swala-otp2' "$app_body" \
+              && grep -Fq "theme-init.js?v=$theme_js_version" "$app_body" \
+              && grep -Fq "app.css?v=$app_css_version" "$app_body" \
+              && grep -Fq "app.js?v=$app_js_version" "$app_body" \
               && grep -Fq 'pwa.js?v=20260930-swala-otp2' "$app_body" \
               && grep -Fq 'sautilink-profile-x-ui' "$app_js_body" \
               && ! grep -Fq 'Private preview' "$app_body" \

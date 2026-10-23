@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { enhanceSautiStreamPlayback, installSautiStreamAuthLifecycle, streamQualityState } from '../src/sauti-stream-web-player.js';
+import { enhanceSautiStreamPlayback, prepareSautiStreamPlayback, installSautiStreamAuthLifecycle, streamQualityState } from '../src/sauti-stream-web-player.js';
 
 const MEDIA = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
@@ -42,6 +42,7 @@ function harness() {
       this.src = MP4; this.poster = 'poster'; this.plays = 0; this.loads = 0;
     }
     closest() { return null; }
+    getBoundingClientRect() { return this.bounds || { top: 0, bottom: 400, height: 400 }; }
     addEventListener(type, callback, options = {}) {
       const entries = this.listeners.get(type) || new Map(); entries.set(callback, options); this.listeners.set(type, entries);
     }
@@ -119,6 +120,135 @@ function harness() {
     },
   };
 }
+
+test('adaptive preparation finishes before native play and a valid replay keeps the same controller and grant', async () => {
+  const h = harness();
+  try {
+    const pending = deferred(); h.responses.push(pending.promise);
+    const video = new h.FakeVideo(); video.paused = true;
+    const preparing = prepareSautiStreamPlayback(video); await flush();
+    assert.equal(video.plays, 0); assert.equal(video.src, MP4);
+    assert.equal(video.dataset.sautiPreparing, 'true');
+    pending.resolve(descriptorResponse()); assert.equal(await preparing, true);
+    assert.match(video.src, /^blob:hls-/); assert.equal(video.plays, 0);
+    const hls = h.instances[0];
+    assert.equal(hls.config.enableWorker, true);
+    assert.equal(hls.config.workerPath, '/app/assets/vendor/hls.worker-1.7.3.js');
+    hls.manifest(); video.emit('loadedmetadata');
+    const expiry = video.__sautiStreamState.expiresAt;
+    video.play(); video.pause();
+    assert.equal(await prepareSautiStreamPlayback(video), true);
+    assert.equal(h.requests.length, 1); assert.equal(h.instances.length, 1);
+    assert.equal(video.__sautiStreamState.expiresAt, expiry, 'replay must not extend the original authorization');
+  } finally { h.close(); }
+});
+
+test('a late descriptor cannot start offscreen segments; returning reuses only its unexpired descriptor', async () => {
+  const h = harness();
+  try {
+    const pending = deferred(); h.responses.push(pending.promise);
+    const video = new h.FakeVideo(); enhanceSautiStreamPlayback(video); await flush();
+    video.bounds = { top: 900, bottom: 1300, height: 400 }; video.pause();
+    pending.resolve(descriptorResponse()); await flush();
+    assert.equal(h.instances.length, 0); assert.equal(video.plays, 0);
+    video.bounds = { top: 0, bottom: 400, height: 400 };
+    assert.equal(await prepareSautiStreamPlayback(video), true);
+    assert.equal(h.requests.length, 1); assert.equal(h.instances.length, 1);
+  } finally { h.close(); }
+});
+
+test('departing after SDK attach but before manifest completion cannot restart offscreen loading', async () => {
+  const h = harness();
+  try {
+    h.responses.push(descriptorResponse());
+    const video = new h.FakeVideo(); enhanceSautiStreamPlayback(video); await flush();
+    const hls = h.instances[0];
+    video.bounds = { top: -500, bottom: -100, height: 400 }; video.pause();
+    hls.manifest(); video.emit('loadedmetadata');
+    assert.equal(hls.starts.length, 0); assert.ok(hls.stops >= 1);
+    assert.equal(video.plays, 0); assert.equal(video.paused, true);
+  } finally { h.close(); }
+});
+
+test('a visible manually paused player gets one first fragment without a continuing buffer download', async () => {
+  const h = harness();
+  try {
+    h.responses.push(descriptorResponse());
+    const video = new h.FakeVideo(); enhanceSautiStreamPlayback(video); await flush();
+    video.dataset.sautiUserPaused = 'true'; video.pause();
+    const hls = h.instances[0], stopped = hls.stops;
+    hls.manifest(); video.emit('loadedmetadata');
+    assert.equal(video.plays, 0); assert.equal(hls.starts.length, 1);
+    hls.emit(h.FakeHls.Events.FRAG_BUFFERED, { frag: { type: 'audio' } });
+    assert.equal(hls.stops, stopped, 'separate audio cannot cancel the first main video frame');
+    hls.emit(h.FakeHls.Events.FRAG_BUFFERED, { frag: { type: 'main' } });
+    assert.equal(hls.stops, stopped + 1);
+  } finally { h.close(); }
+});
+
+test('adaptive preflight has a bounded deadline and cannot attach after its caller falls back', async () => {
+  const h = harness();
+  try {
+    const pending = deferred(); h.responses.push(pending.promise);
+    const video = new h.FakeVideo(); video.paused = true;
+    const preparing = prepareSautiStreamPlayback(video); await flush();
+    const deadline = [...h.timers.values()].find((timer) => timer.delay === 8000);
+    assert.ok(deadline); deadline.callback(); assert.equal(await preparing, false);
+    assert.equal(h.requests[0].options.signal.aborted, true);
+    pending.resolve(descriptorResponse()); await flush();
+    assert.equal(h.instances.length, 0); assert.equal(video.dataset.sautiPreparing, undefined);
+  } finally { h.close(); }
+});
+
+test('native HLS without a MediaSource runtime avoids loading the SDK and retains the same grant expiry', async () => {
+  const h = harness();
+  try {
+    h.responses.push(descriptorResponse());
+    const video = new h.FakeVideo(); video.paused = true;
+    video.canPlayType = () => 'probably';
+    assert.equal(await prepareSautiStreamPlayback(video), true);
+    assert.equal(h.instances.length, 0); assert.equal(h.requests.length, 1);
+    assert.match(video.src, /\/hls\//); assert.equal(video.dataset.sautiStreamManaged, 'true');
+    assert.ok(video.__sautiStreamState.expiresAt <= Date.now() + 300000);
+    const expiry = video.__sautiStreamState.expiresAt, loads = video.loads;
+    video.emit('loadedmetadata'); video.play(); video.pause();
+    assert.equal(await prepareSautiStreamPlayback(video), true);
+    video.play(); await flush();
+    assert.equal(video.loads, loads); assert.equal(h.requests.length, 1);
+    assert.equal(video.__sautiStreamState.expiresAt, expiry);
+  } finally { h.close(); }
+});
+
+test('a real cancellation is not a provider failure backoff on an immediate return', async () => {
+  const h = harness();
+  try {
+    const pending = deferred(); h.responses.push(pending.promise);
+    const video = new h.FakeVideo(); enhanceSautiStreamPlayback(video); await flush();
+    video.bounds = { top: 900, bottom: 1300, height: 400 }; video.pause();
+    pending.resolve(Promise.reject(new DOMException('aborted', 'AbortError'))); await flush();
+    assert.equal(video.__sautiStreamState.checkedAt, 0);
+    h.responses.push(descriptorResponse()); video.bounds = { top: 0, bottom: 400, height: 400 };
+    assert.equal(await prepareSautiStreamPlayback(video), true);
+    assert.equal(h.requests.length, 2); assert.equal(h.instances.length, 1);
+  } finally { h.close(); }
+});
+
+test('an owned Picture-in-Picture player may resume outside the viewport, while an ordinary offscreen player stays paused', async () => {
+  const h = harness();
+  try {
+    const video = await h.start();
+    video.bounds = { top: 900, bottom: 1300, height: 400 }; video.pause();
+    const starts = h.instances[0].starts.length;
+    video.play(); assert.equal(video.paused, true);
+    assert.equal(h.instances[0].starts.length, starts);
+    document.pictureInPictureElement = video;
+    video.play(); assert.equal(video.paused, false);
+    assert.equal(h.instances[0].starts.length, starts + 1);
+    assert.equal(h.requests.length, 1);
+    document.visibilityState = 'hidden';
+    video.play(); assert.equal(video.paused, true, 'the existing hidden-document policy still applies');
+  } finally { h.close(); }
+});
 
 test('an expired fragment joins proactive renewal, repeated errors cannot tear it down, and later grants can renew again', async () => {
   const h = harness();
