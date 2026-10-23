@@ -204,7 +204,13 @@ async function resolvePlaybackAttempt(state, force = false) {
     if (state.destroyed || !video.isConnected || controller.signal.aborted) return false;
     const requestOptions = { credentials: 'same-origin', cache: 'no-store', redirect: 'error',
       signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]) };
-    let descriptor = force ? null : validDescriptor(state) || readiness.descriptor(state.mediaId);
+    const warmedDescriptor = force ? null : readiness.descriptor(state.mediaId);
+    // A cancelled offscreen preflight can retain another valid grant without
+    // ever attaching a controller. Prefer the already warmed grant for this
+    // new attach so its exact signed playlists/fragments remain reusable.
+    // Live controllers keep their existing grant; forced renewal stays fresh.
+    let descriptor = force ? null : ((!state.hls && !state.nativeHls && warmedDescriptor)
+      || validDescriptor(state) || warmedDescriptor);
     if (!descriptor) {
       const descriptorUrl = `/api/sauti-media/${state.mediaId}/playback`;
       let response = await fetch(descriptorUrl, requestOptions);
