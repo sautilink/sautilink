@@ -278,7 +278,9 @@ test('failed, unsupported and unsafe descriptors back off instead of repumping c
     try {
       h.cache.update([id()]); await idle(h.cache); h.cache.update([id()]); await idle(h.cache);
       assert.equal(h.requests.length, 1); assert.equal(h.cache.snapshot().records, 0);
-      h.setTime(NOW + 20001); h.cache.update([id()]); await idle(h.cache); assert.equal(h.requests.length, 2);
+      h.setTime(NOW + 20001); h.cache.update([id()]); await idle(h.cache);
+      assert.equal(h.requests.length, body.data?.type === 'mp4' ? 2 : 1,
+        'only a processing/transient result can retry; unsafe descriptors stay terminal');
     } finally { h.cache.clear(); }
   }
 });

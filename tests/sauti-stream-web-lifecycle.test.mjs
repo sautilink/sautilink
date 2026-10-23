@@ -143,6 +143,17 @@ test('adaptive preparation finishes before native play and a valid replay keeps 
   } finally { h.close(); }
 });
 
+test('disposing an owner clears readiness attributes from its video even while that node is detached', async () => {
+  const h = harness();
+  try {
+    const video = await h.start(); video.isConnected = false;
+    video.dataset.sautiWarmState = 'ready'; video.dataset.sautiWarmHits = '4';
+    h.signIn(OTHER_USER);
+    assert.equal(video.dataset.sautiWarmState, undefined); assert.equal(video.dataset.sautiWarmHits, undefined);
+    assert.equal(video.__sautiStreamState, undefined);
+  } finally { h.close(); }
+});
+
 test('a late descriptor cannot start offscreen segments; returning reuses only its unexpired descriptor', async () => {
   const h = harness();
   try {

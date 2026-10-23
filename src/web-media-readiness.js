@@ -1,12 +1,44 @@
-import { updateSautiStreamReadiness } from './sauti-stream-web-player.js';
+import { updateSautiStreamReadiness, sautiStreamReadinessState, forgetSautiStreamReadinessState } from './sauti-stream-web-player.js';
 import { STREAM_READINESS_AHEAD } from './sauti-stream-readiness.js';
 import { wakeMediaPreviewRequests } from './media-preview-queue.js';
 
 let preparedTiles = new Set();
+const WARM_ATTRIBUTES = ['sautiWarmState', 'sautiWarmReason', 'sautiWarmHttp', 'sautiWarmBytes', 'sautiWarmResources',
+  'sautiWarmRetry', 'sautiWarmElapsedMs', 'sautiWarmHits', 'sautiWarmMisses'];
+const WARM_STATES = new Set(['idle', 'warming', 'partial', 'ready', 'backoff', 'failed', 'suspended', 'expired']);
+const WARM_REASONS = new Set(['none', 'suspended', 'window', 'expired', 'cancelled', 'network', 'timeout', 'http',
+  'auth-denied', 'processing', 'clip-budget', 'metadata-budget', 'invalid-descriptor', 'invalid-playlist',
+  'byte-range', 'encrypted', 'non-vod', 'unsafe-playlist', 'nested-playlist']);
+export function applyStreamReadinessDiagnostics(node, state) {
+  if (!node?.dataset) return;
+  if (!state) { for (const key of WARM_ATTRIBUTES) if (key in node.dataset) delete node.dataset[key]; return; }
+  const number = (value, maximum) => String(Math.max(0, Math.min(maximum, Math.floor(Number(value) || 0))));
+  const values = [WARM_STATES.has(state.state) ? state.state : 'idle', WARM_REASONS.has(state.reason) ? state.reason : 'none',
+    number(state.http, 599), number(state.bytes, 2 * 1024 * 1024), number(state.resources, 16), number(state.retry, 1),
+    number(state.elapsedMs, 3600000), number(state.hits, 1000000), number(state.misses, 1000000)];
+  WARM_ATTRIBUTES.forEach((key, index) => { if (node.dataset[key] !== values[index]) node.dataset[key] = values[index]; });
+}
+function diagnoseTile(tile, state = undefined) {
+  const id = tile?.dataset?.openMediaId || tile?.dataset?.mediaId || tile?.dataset?.sautiMediaId;
+  if (!id) return;
+  const value = state === undefined ? sautiStreamReadinessState(id) : state;
+  applyStreamReadinessDiagnostics(tile, value);
+  for (const video of tile.querySelectorAll?.('video') || []) applyStreamReadinessDiagnostics(video, value);
+}
+function readinessChanged(event) {
+  const { mediaId, state } = event.detail || {};
+  // Compare existing IDs rather than interpolating any event payload in CSS.
+  for (const tile of document.querySelectorAll('.sauti-media-tile[data-open-media-id], .sauti-short-video-slide[data-media-id]')) {
+    if ((tile.dataset.openMediaId || tile.dataset.mediaId) === mediaId) diagnoseTile(tile, state);
+  }
+}
 function markPreparedTiles(tiles) {
   const next = new Set(tiles);
   for (const tile of preparedTiles) if (!next.has(tile)) delete tile.dataset.sautiReadiness;
-  for (const tile of next) if (!preparedTiles.has(tile)) tile.dataset.sautiReadiness = 'true';
+  for (const tile of next) {
+    if (!preparedTiles.has(tile)) tile.dataset.sautiReadiness = 'true';
+    diagnoseTile(tile);
+  }
   preparedTiles = next;
   wakeMediaPreviewRequests();
 }
@@ -69,8 +101,12 @@ function installHomeMediaReadiness() {
   const scan = () => {
     items = [...feed.querySelectorAll(MEDIA_TILE_SELECTOR)];
     const present = new Set(items);
-    for (const tile of observed) if (!present.has(tile)) { observer.unobserve(tile); observed.delete(tile); visible.delete(tile); }
-    for (const tile of items) if (!observed.has(tile)) { observed.add(tile); observer.observe(tile); }
+    for (const tile of observed) if (!present.has(tile)) {
+      observer.unobserve(tile); observed.delete(tile); visible.delete(tile);
+      diagnoseTile(tile, null);
+      if (tile.dataset.openMediaId) forgetSautiStreamReadinessState(tile.dataset.openMediaId);
+    }
+    for (const tile of items) if (!observed.has(tile)) { observed.add(tile); observer.observe(tile); diagnoseTile(tile); }
     schedule();
   };
   new MutationObserver((changes) => { if (changesMediaTiles(changes)) scan(); })
@@ -89,6 +125,7 @@ function installHomeMediaReadiness() {
 }
 
 if (typeof document !== 'undefined') {
+  document.addEventListener('sautilink:stream-readiness-state', readinessChanged);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installHomeMediaReadiness, { once: true });
   else queueMicrotask(installHomeMediaReadiness);
 }
