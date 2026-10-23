@@ -47,15 +47,20 @@ jobs:
           NODE
       - name: Build, test and lint preview
         working-directory: native-android
-        # K2 data-flow analysis of the large feed exceeds 4 GiB; public runners have 16 GiB RAM.
+        # Keep one compiler on the 16 GiB runner; include device-test APKs so
+        # hardware validation uses this same compiled preview and source.
         run: >-
-          gradle :app:assemblePreviewDebug :app:testPreviewDebugUnitTest :app:lintPreviewDebug --no-daemon
+          gradle :app:assemblePreviewDebug :app:assemblePreviewDebugAndroidTest :app:testPreviewDebugUnitTest :app:lintPreviewDebug --no-daemon
           --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process
-          '-Dorg.gradle.jvmargs=-Xmx6144m -Dfile.encoding=UTF-8'
+          '-Dorg.gradle.jvmargs=-Xmx10240m -Dfile.encoding=UTF-8'
       - uses: actions/upload-artifact@v4
         with:
           name: SautiLink-Native-Preview-${{ github.sha }}
-          path: native-android/app/build/outputs/apk/preview/debug/app-preview-debug.apk
+          path: |
+            native-android/app/build/outputs/apk/preview/debug/app-preview-debug.apk
+            native-android/app/build/outputs/apk/androidTest/preview/debug/app-preview-debug-androidTest.apk
+            native-android/app/build/test-results/testPreviewDebugUnitTest/TEST-*.xml
+            native-android/app/build/reports/lint-results-previewDebug.html
           if-no-files-found: error
 
   release:
