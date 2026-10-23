@@ -49,8 +49,8 @@ class NativeStoryPolicyTest {
         assertEquals(110_000L, moved.endMs)
         assertTrue(NativeMediaEditPolicy.validTrim(120_000, moved.startMs, moved.endMs, NativeStoryPolicy.MAX_VIDEO_MS))
         assertFalse(NativeMediaEditPolicy.validTrim(120_000, 0, 30_001, NativeStoryPolicy.MAX_VIDEO_MS))
-        // Existing post editor keeps its independent 60-second limit.
-        assertEquals(60_000L, NativeMediaEditPolicy.trim(120_000).durationMs)
+        // Post editing now allows up to three minutes; Story remains capped at thirty seconds.
+        assertEquals(120_000L, NativeMediaEditPolicy.trim(120_000).durationMs)
     }
     @Test fun applyingPhotoFilterPreservesFramingAndResetReturnsOriginalColors() {
         val crop = NativeImageEdits(rotation = 90, aspect = 9f / 16f, zoom = 1.8f, panX = .4f, panY = -.3f)
