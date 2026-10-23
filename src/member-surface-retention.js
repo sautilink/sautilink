@@ -9,8 +9,15 @@ export function createMemberSurfaceRetention({ now = Date.now, freshForMs = 3000
     owns,
     isFresh(surface, memberId, context = '') {
       if (!owns(surface, memberId, context)) return false;
-      const age = now() - rendered.get(surface).completedAt;
-      return age >= 0 && age < freshForMs;
+      const entry = rendered.get(surface);
+      const current = now();
+      return [entry.completedAt, entry.leftAt].some((timestamp) => {
+        const age = current - timestamp;
+        return age >= 0 && age < freshForMs;
+      });
+    },
+    left(surface, memberId, context = '') {
+      if (owns(surface, memberId, context)) rendered.get(surface).leftAt = now();
     },
     completed(surface, memberId, context = '') {
       if (!memberId) return;
