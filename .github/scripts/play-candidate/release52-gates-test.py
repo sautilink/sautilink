@@ -158,12 +158,12 @@ class Release52GatesTest(unittest.TestCase):
             cases.append(cases[0])
             with self.assertRaises(AssertionError): check(duplicate)
 
-    def test_reviewed_release52_snapshot_requires_all_243_cases_and_new_security_checks(self):
+    def test_reviewed_release52_snapshot_requires_all_256_cases_and_new_security_checks(self):
         payload = (HERE/'release52-jvm-tests.json').read_bytes()
         with override(JVM_MANIFEST_SHA256=candidate.sha(payload)):
             suites = candidate.reviewed_jvm_suites()
-        self.assertEqual(len(suites), 38)
-        self.assertEqual(sum(map(len, suites.values())), 243)
+        self.assertEqual(len(suites), 39)
+        self.assertEqual(sum(map(len, suites.values())), 256)
         name = 'com.sautilink.nativeapp.ui.components.NativePlaybackResumeReuseTest'
         self.assertEqual(suites[name], candidate.NATIVE_MEDIA_UNIT_SUITES[name])
         self.assertEqual(len(suites[name]), 12)
@@ -175,8 +175,23 @@ class Release52GatesTest(unittest.TestCase):
         self.assertEqual(sum(map(len,old.values())),225)
         for name,cases in old.items():
             self.assertLessEqual(set(cases),candidate.NATIVE_MEDIA_UNIT_SUITES[name])
-        self.assertEqual(len(candidate.NATIVE_MEDIA_UNIT_SUITES['com.sautilink.nativeapp.ui.components.NativeVideoLookaheadTest']),11)
+        self.assertEqual(len(candidate.NATIVE_MEDIA_UNIT_SUITES['com.sautilink.nativeapp.ui.components.NativeVideoLookaheadTest']),16)
+        self.assertEqual(len(candidate.NATIVE_MEDIA_UNIT_SUITES['com.sautilink.nativeapp.feature.home.NativeFeedDetailReadsTest']),8)
         self.assertEqual(len(candidate.NATIVE_MEDIA_UNIT_SUITES['com.sautilink.nativeapp.feature.posts.NativePostUploadRecoveryTest']),6)
+
+    def test_prior_243_reviewed_cases_are_preserved_exactly_before_the_thirteen_new_cases(self):
+        prior = json.loads((HERE/'release52-jvm-tests.json').read_text(encoding='utf-8'))
+        self.assertEqual(len(prior['suites'].pop('com.sautilink.nativeapp.feature.home.NativeFeedDetailReadsTest')),8)
+        cases = prior['suites']['com.sautilink.nativeapp.ui.components.NativeVideoLookaheadTest']
+        for name in (
+            'bufferingSampleNewerThanThePreviousCoordinatorTickCannotEnableIdleSpeculation',
+            'historyRetainsOnlyTwoParsedSources_withoutSelectingTracksOrLoadingPastSamples',
+            'coldHistoryWaitsForHealthyCurrent_butPreparedMetadataSurvivesBufferingUntilExpiryOrOptOut',
+            'historyDeadlineNeverExtendsTheOriginalGrant_andCapsMemoryRetentionAtTwoMinutes',
+            'historyOptOutCanResumeOnlyTheExactStillMountedPlayerRevision_withoutAnotherAttach',
+        ): cases.remove(name)
+        payload = (json.dumps(prior,indent=2)+'\n').encode('utf-8')
+        self.assertEqual(candidate.sha(payload),'18417a7d3cadfcaf3f5dd2371bae51e4e4c70c5412abbdfb760853b3b77880a4')
 
     def test_junit_failures_skips_duplicates_and_extra_suites_are_rejected(self):
         with tempfile.TemporaryDirectory(prefix='release52-offline-') as directory:
@@ -256,7 +271,8 @@ class Release52ExperienceGatesTest(unittest.TestCase):
             'ui/components/NativeVideoReplayPool.kt','ui/components/NativeStreamPlayback.kt',
             'ui/components/NativeShortsPreloading.kt','ui/components/NativeVideoLookahead.kt',
             'feature/home/FeedVideoLookahead.kt','feature/home/StagingFeedScreen.kt',
-            'feature/home/ProductionFeedMedia.kt',
+            'feature/home/ProductionFeedMedia.kt','feature/home/StagingFeedClient.kt',
+            'feature/home/NativeFeedDetailReads.kt',
         )
         with tempfile.TemporaryDirectory(prefix='release52-source-fixture-') as directory:
             app = Path(directory)/'app'
@@ -288,6 +304,11 @@ class Release52ExperienceGatesTest(unittest.TestCase):
             self.assertEqual(receipt['nativeReplayTotalByteLimit'],64*1024*1024)
             self.assertEqual(receipt['nativeReplayPerStoreByteLimit'],8*1024*1024)
             self.assertEqual(receipt['nativeReplayIdleMilliseconds'],120000)
+            self.assertEqual(receipt['nativePastParsedSourceLimit'],2)
+            self.assertEqual(receipt['nativePastParsedSourceMaxMilliseconds'],120000)
+            self.assertFalse(receipt['nativePastParsedSourceLoadsTracksOrSamples'])
+            self.assertEqual(receipt['nativeFeedDetailReadMaxBytes'],400000)
+            self.assertTrue(receipt['nativeFeedDetailsParallelMediaOnly'])
             self.assertEqual(receipt['nativeUploadReadWriteTimeoutSeconds'],90)
             self.assertEqual(receipt['nativeUploadRetryAttemptLimit'],3)
             self.assertFalse(receipt['nativeFeedWarmupBuildsOffscreenPlayer'])
@@ -315,11 +336,69 @@ class Release52ExperienceGatesTest(unittest.TestCase):
             ('ui/components/NativeShortsPreloading.kt','NATIVE_VIDEO_RETAIN_BEHIND = 2','NATIVE_VIDEO_RETAIN_BEHIND = 3'),
             ('ui/components/NativeShortsPreloading.kt','if (createPlayer)','if (true)'),
             ('ui/components/NativeShortsPreloading.kt','incoming != null && ownedPlayer','ownedPlayer'),
-            ('ui/components/NativeShortsPreloading.kt','permitted = false\n            manager.invalidate()','permitted = true\n            manager.invalidate()'),
+            ('ui/components/NativeShortsPreloading.kt','permitted = false\n            historyPermitted = false\n            manager.invalidate()',
+             'permitted = true\n            historyPermitted = false\n            manager.invalidate()'),
             ('ui/components/NativeVideoLookahead.kt','Semaphore(2)','Semaphore(5)'),
             ('ui/components/NativeVideoLookahead.kt','!saveData && !stressed && !denied','!saveData'),
             ('feature/home/FeedVideoLookahead.kt','createPlayer=false','createPlayer=true'),
             ('feature/home/FeedVideoLookahead.kt','visible?.manualPaused != true','true'),
+        )
+        with self.source_fixture() as native:
+            for relative,old,new in mutations:
+                target=native/relative;original=target.read_text(encoding='utf-8')
+                self.assertIn(old,original)
+                try:
+                    target.write_text(original.replace(old,new),encoding='utf-8')
+                    with self.subTest(relative=relative,mutation=new),self.assertRaises((AssertionError,SyntaxError,ValueError)):
+                        candidate.verify_native_readiness_source(native)
+                finally:target.write_text(original,encoding='utf-8')
+
+    def test_past_parsed_source_cannot_load_samples_extend_expiry_or_survive_opt_out(self):
+        mutations=(
+            ('elapsedNow + (expiresAtMillis-wallNow-5_000L).coerceIn(0L,120_000L)',
+             'elapsedNow + 300_000L'),
+            ('now >= 0L && now < deadline && (prepared || permitted)',
+             'now >= 0L && (prepared || permitted)'),
+            ('ShortsPreloadTarget.RETAIN_SOURCE -> DefaultPreloadManager.PreloadStatus.PRELOAD_STATUS_SOURCE_PREPARED',
+             'ShortsPreloadTarget.RETAIN_SOURCE -> DefaultPreloadManager.PreloadStatus.PRELOAD_STATUS_TRACKS_SELECTED'),
+            ('sourceGenerations[source.mediaId] == source.cacheKey','true'),
+            ('.setTag(Any())',''),
+            ('takeIf { it.first == mediaItem }','takeIf { true }'),
+            ('retainIncoming && (wasRetained || playerOwnsExactIncoming)','wasRetained || playerOwnsExactIncoming'),
+            ('incomingItem != null && ownedPlayer?.currentMediaItem == incomingItem',
+             'incomingItem != null && ownedPlayer?.currentMediaItem?.mediaId == incomingItem.mediaId'),
+            ('entry.second < currentIndex && id != playing','entry.second <= currentIndex'),
+            ('removePastSources(expiredOnly=true)','historyPrepared.clear()'),
+            ('removePastSources(expiredOnly=false)','historyPrepared.clear()'),
+        )
+        with self.source_fixture() as native:
+            target=native/'ui/components/NativeShortsPreloading.kt';original=target.read_text(encoding='utf-8')
+            for old,new in mutations:
+                self.assertIn(old,original)
+                try:
+                    target.write_text(original.replace(old,new),encoding='utf-8')
+                    with self.subTest(mutation=new),self.assertRaises((AssertionError,SyntaxError,ValueError)):
+                        candidate.verify_native_readiness_source(native)
+                finally:target.write_text(original,encoding='utf-8')
+
+    def test_parallel_feed_reads_preserve_owner_cancellation_dependencies_and_bounded_gets(self):
+        mutations=(
+            ('feature/home/FeedVideoLookahead.kt','feedVideoHealthAt(state.health, SystemClock.elapsedRealtime())',
+             'feedVideoHealthAt(state.health, tick)'),
+            ('feature/home/FeedVideoLookahead.kt','now >= it.sampledAt && now - it.sampledAt <= 1_250L',
+             'now - it.sampledAt <= 1_250L'),
+            ('feature/home/NativeFeedDetailReads.kt','= coroutineScope {','= supervisorScope {'),
+            ('feature/home/NativeFeedDetailReads.kt','val authors = readAuthors(posts)',
+             'val authors = readAuthors(JSONArray())'),
+            ('feature/home/NativeFeedDetailReads.kt','currentCoroutineContext().ensureActive(); checkOwner()',
+             'currentCoroutineContext().ensureActive()'),
+            ('feature/home/NativeFeedDetailReads.kt','continuation.invokeOnCancellation { call.cancel() }',''),
+            ('feature/home/NativeFeedDetailReads.kt','require(call.request().method == "GET" && call.request().body == null)',''),
+            ('feature/home/NativeFeedDetailReads.kt','if (!continuation.isActive) return',''),
+            ('feature/home/NativeFeedDetailReads.kt','bytes.size() + count > 400_000','bytes.size() + count > 4_000_000'),
+            ('feature/home/StagingFeedClient.kt','.retryOnConnectionFailure(false).cache(null)',
+             '.retryOnConnectionFailure(true).cache(null)'),
+            ('feature/home/StagingFeedClient.kt','val postRows = details.posts','val postRows = JSONArray()'),
         )
         with self.source_fixture() as native:
             for relative,old,new in mutations:

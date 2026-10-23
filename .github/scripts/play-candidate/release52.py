@@ -5,11 +5,11 @@ import xml.etree.ElementTree as ET
 
 # Immutable source pins for the reviewed native media readiness and upload recovery 1.1.7 (52) candidate.
 # Keep SOURCE identical to the candidate checkout ref in native-media-readiness-release52.yml.
-SOURCE = 'f5df862c409372c073c33eae4152185a5e4b7d9a'
-SOURCE_TREE = '388aa125d999cc97cb808dd695113fc81feecf0b'
-REPOSITORY_TREE = '86099b51fd13666ad3789b3a73b660ed4d3d030f'
-MAIN_SOURCE_TREE = '917961e35c692f1b102bbb36025bfcf1f9a7ac15'
-JVM_MANIFEST_SHA256 = '18417a7d3cadfcaf3f5dd2371bae51e4e4c70c5412abbdfb760853b3b77880a4'
+SOURCE = 'ec3cb0cc4008d0e907318e5017dc79b684241a7a'
+SOURCE_TREE = 'b2f6cdc83c4c74c40c488fa284d8453fbc6efb3a'
+REPOSITORY_TREE = 'bfcf073143703c422c95fdef773dd409fc305011'
+MAIN_SOURCE_TREE = '2f40888886476ae669226f21e58252af67978909'
+JVM_MANIFEST_SHA256 = '6c3c6f7308f3f635d2870b2bda5c3b005231a488f38665a7ae6476487ecf7cd8'
 CERT = '31c773a7229a563d92f7047a56735ad7b02027d27a6e020d8923dd5418f4b50f'
 FIREBASE_SHA = 'be30a77f6be106c97b59ecdc6e7cc61100e0d9fd354ac883357e253fb69e6cae'
 BUNDLETOOL_SHA = 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29'
@@ -124,6 +124,14 @@ NATIVE_MEDIA_UNIT_SUITES = {'com.sautilink.nativeapp.feature.auth.AuthRequestDea
                                                                  'persistentNetworkFailureStopsAfterTwoAttempts',
                                                                  'retryAfterAndTypedCausesRespectCooldownAndAuthorization',
                                                                  'transientHttpFailuresRetryOnlyOnce_andEveryResponseCloses'},
+ 'com.sautilink.nativeapp.feature.home.NativeFeedDetailReadsTest': {'detailReaderCannotSendAMutation_andValidArrayIsReturnedOnceAndClosed',
+                                                                    'httpFailureMessagesAndStatusesRemainUnchanged_andNoGetIsRetried',
+                                                                    'invalidDeclaredOrChunkedOversizeJsonFailsClosed_andClosesEveryBody',
+                                                                    'mediaFailureCancelsProfilesEvenAfterPostsSucceed_withoutReturningHalfAFeed',
+                                                                    'ownerChangeAfterPostResponsePreventsProfiles_andCancelsTheOtherRead',
+                                                                    'parentCancellationCancelsBothSockets_andNeverReadsLateBodies',
+                                                                    'postAndMediaStartTogether_whileProfilesWaitForTheReturnedPostAuthors',
+                                                                    'postDenialCancelsIndependentMedia_andLateBodiesCloseWithoutReadingOrPartialProjection'},
  'com.sautilink.nativeapp.feature.home.PostActionFeedCacheTest': {'actionAcknowledgementCannotInvalidateAnotherAccountOrBackend',
                                                                   'confirmedActionRetainsRowsButRejectsOldFirstPageWritesInEveryMode'},
  'com.sautilink.nativeapp.feature.home.PublishedVideoPlaybackPolicyTest': {'pendingSubmissionsDraftsAndUnrelatedPathsCannotRequestStreamMetadata',
@@ -261,9 +269,14 @@ NATIVE_MEDIA_UNIT_SUITES = {'com.sautilink.nativeapp.feature.auth.AuthRequestDea
                                                                           'storySourceIsBoundToStoryGatewayAndCannotUsePublishedMp4Fallback'},
  'com.sautilink.nativeapp.ui.components.NativeVideoLookaheadTest': {'EmptyInvalidAndExtremeInventoryCannotCreateUnboundedOrOverflowingWork',
                                                                     'allFiveFutureTargetsLoadButUnknownPastSixthAndClosedTargetsDoNot',
+                                                                    'bufferingSampleNewerThanThePreviousCoordinatorTickCannotEnableIdleSpeculation',
+                                                                    'coldHistoryWaitsForHealthyCurrent_butPreparedMetadataSurvivesBufferingUntilExpiryOrOptOut',
                                                                     'completedFutureQueuesSurviveCurrentStartupWithoutStartingUnpreparedSources',
                                                                     'continuingQueueAvoidsThresholdChurnButYieldsBeforeRunwayIsExhausted',
                                                                     'currentPreparedSampleHandoffSurvivesSpeculationPause',
+                                                                    'historyDeadlineNeverExtendsTheOriginalGrant_andCapsMemoryRetentionAtTwoMinutes',
+                                                                    'historyOptOutCanResumeOnlyTheExactStillMountedPlayerRevision_withoutAnotherAttach',
+                                                                    'historyRetainsOnlyTwoParsedSources_withoutSelectingTracksOrLoadingPastSamples',
                                                                     'idleTextReadingMayWarmButVisibleBufferingAlwaysOwnsTheNetwork',
                                                                     'metadataCanStartBeforeMotionButNotDuringPrivacyOrResourceOptOut',
                                                                     'networkSaverAndUnmeasuredMeteredConnectionNeverWarmSampleBytes',
@@ -791,6 +804,67 @@ def verify_native_readiness_source(native):
     assert 'createShortsPlaybackEngine(' in shorts and 'rememberVideoLookaheadReads(' in shorts
     assert 'preloading?.updateWindow(index, sources' in shorts and 'retainIncoming = metadataAllowed && autoQuality' in shorts
 
+    # Recent player health must be compared with the current monotonic clock,
+    # rather than an older coordinator tick that could hide a buffering sample.
+    for marker in ('now >= it.sampledAt && now - it.sampledAt <= 1_250L',
+                   'remember(state.health, tick, inventory)',
+                   'feedVideoHealthAt(state.health, SystemClock.elapsedRealtime())'):
+        assert marker in feed, 'FEED_HEALTH_MUST_USE_CURRENT_MONOTONIC_AGE'
+
+    # Retain parsed source/timeline only for two past items. The original grant
+    # is never extended, history never creates tracks/sample periods, and actual
+    # manager holders must be removed on expiry/opt-out (clear() is insufficient).
+    for marker in ('elapsedNow + (expiresAtMillis-wallNow-5_000L).coerceIn(0L,120_000L)',
+                   'now >= 0L && now < deadline && (prepared || permitted)',
+                   'ownedPlayer != null && keepPreparedNext && retainCurrent',
+                   'historyPermitted,item.mediaId in historyPrepared',
+                   'sourceGenerations[source.mediaId] == source.cacheKey',
+                   '.setTag(Any())', 'takeIf { it.first == mediaItem }',
+                   'retainIncoming && (wasRetained || playerOwnsExactIncoming)',
+                   'retainCurrent = videoRetainCurrentAfterUpdate(retainIncoming, retainCurrent,',
+                   'incomingItem != null && ownedPlayer?.currentMediaItem == incomingItem',
+                   'historyHandler.removeCallbacks(expireHistory)'):
+        assert marker in preload, 'PAST_SOURCE_OWNER_GENERATION_OR_DEADLINE_DRIFT'
+    history_target = re.search(r'ShortsPreloadTarget\.RETAIN_SOURCE -> ([^\n]+)', preload)
+    assert history_target and history_target[1] == 'DefaultPreloadManager.PreloadStatus.PRELOAD_STATUS_SOURCE_PREPARED', 'PAST_HISTORY_CANNOT_PREPARE_TRACKS_OR_SAMPLES'
+    past_remove = preload[preload.index('private fun removePastSources('):preload.index('fun sourceFor(')]
+    for marker in ('entry.second < currentIndex && id != playing',
+                   '(historyDeadlines[id] ?: 0L) <= now', 'forEach(::removeSource)'):
+        assert marker in past_remove, 'PAST_HOLDER_MUST_RELEASE_WITHOUT_REMOVING_CURRENT'
+    expiry = preload[preload.index('private fun expireHistorySources()'):preload.index('private fun removePastSources(')]
+    assert expiry.index('removePastSources(expiredOnly=true)') < expiry.index('manager.invalidate()'), 'EXPIRED_PARSED_SOURCE_MUST_BE_RELEASED'
+    opt_out = preload[preload.index('if (!retainIncoming) {'):preload.index('keepPreparedNext = true')]
+    assert 'removePastSources(expiredOnly=false)' in opt_out, 'OPT_OUT_MUST_RELEASE_PAST_PARSED_SOURCE'
+    assert 'historyHandler.removeCallbacks(expireHistory)' in opt_out
+
+    # Only independent attached-media metadata runs alongside posts. Authors
+    # still depend on returned post rows, both branches must finish, and a failed
+    # or cancelled owner cannot publish half a projection or keep a socket alive.
+    details = source('feature/home/NativeFeedDetailReads.kt')
+    client = source('feature/home/StagingFeedClient.kt')
+    for marker in ('= coroutineScope {', 'val postAndAuthors = async {',
+                   'val posts = readPosts()', 'val authors = readAuthors(posts)',
+                   'val media = async { guard(); readMedia().also { guard() } }',
+                   'val (posts, authors) = postAndAuthors.await()', 'val mediaRows = media.await()',
+                   'currentCoroutineContext().ensureActive(); checkOwner()',
+                   'require(call.request().method == "GET" && call.request().body == null)',
+                   'continuation.invokeOnCancellation { call.cancel() }',
+                   'response.use {', 'if (!continuation.isActive) return',
+                   'body.contentLength() > 400_000L', 'bytes.size() + count > 400_000'):
+        assert marker in details, 'PARALLEL_FEED_DEPENDENCY_CANCELLATION_OR_SIZE_DRIFT'
+    assert details.index('val posts = readPosts()') < details.index('val authors = readAuthors(posts)'), 'AUTHORS_MUST_FOLLOW_POST_ROWS'
+    assert details.index('val mediaRows = media.await()') < details.index('NativeFeedDetails(posts, authors, mediaRows)'), 'PARTIAL_FEED_DETAILS_CANNOT_ESCAPE'
+    for marker in ('.connectTimeout(10, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS)',
+                   '.retryOnConnectionFailure(false).cache(null)',
+                   'val details = readNativeFeedDetails(',
+                   'awaitNativeFeedDetailRows(detailReads.newCall(request))',
+                   'auth.account?.id != requestedOwner', 'val postRows = details.posts',
+                   'val authors = details.authors', 'val mediaRows = details.media',
+                   'upload_status=eq.attached'):
+        assert marker in client, 'FEED_DETAIL_AUTH_OR_PROJECTION_DRIFT'
+    detail_client = client[client.index('val detailReads = OkHttpClient.Builder()'):client.index('/** Private, memory-only')]
+    assert '.followRedirects(false).followSslRedirects(false)' in detail_client, 'FEED_DETAIL_CREDENTIALS_CANNOT_REDIRECT'
+
     upload = source('feature/posts/NativeMediaClient.kt')
     recovery = source('feature/posts/NativePostUploadRecovery.kt')
     for marker in ('.readTimeout(90, TimeUnit.SECONDS)', '.writeTimeout(90, TimeUnit.SECONDS)',
@@ -813,6 +887,9 @@ def verify_native_readiness_source(native):
             'nativeSpeculativeMetadataConcurrency':2, 'nativeUpcomingSampleTargetMilliseconds':2000,
             'nativeReplayStoreLimit':8, 'nativeReplayTotalByteLimit':64*1024*1024,
             'nativeReplayPerStoreByteLimit':8*1024*1024, 'nativeReplayIdleMilliseconds':120000,
+            'nativePastParsedSourceLimit':2, 'nativePastParsedSourceMaxMilliseconds':120000,
+            'nativePastParsedSourceLoadsTracksOrSamples':False,
+            'nativeFeedDetailReadMaxBytes':400000, 'nativeFeedDetailsParallelMediaOnly':True,
             'nativeFeedWarmupBuildsOffscreenPlayer':False, 'nativeUploadReadWriteTimeoutSeconds':90,
             'nativeUploadRetryAttemptLimit':3, 'nativeUploadSameIdRecoveryIncluded':True,
             'nativeLiveReadinessOrPlaybackSpeedAttestedBySourceContract':False}
@@ -893,7 +970,9 @@ REQUIRED_RUNTIME_DESCRIPTORS = ('Landroidx/media3/exoplayer/hls/HlsMediaSource;'
  'Lcom/sautilink/nativeapp/ui/components/NativeVideoLookaheadKt;',
  'Lcom/sautilink/nativeapp/feature/home/FeedVideoLookaheadKt;',
  'Lcom/sautilink/nativeapp/feature/home/FeedVideoLookaheadState;',
- 'Lcom/sautilink/nativeapp/feature/posts/NativePostUploadRecoveryKt;')
+ 'Lcom/sautilink/nativeapp/feature/posts/NativePostUploadRecoveryKt;',
+ 'Lcom/sautilink/nativeapp/feature/home/NativeFeedDetailReadsKt;',
+ 'Lcom/sautilink/nativeapp/feature/home/NativeFeedDetails;')
 
 
 def dex_class_descriptors(data):

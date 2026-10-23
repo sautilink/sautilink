@@ -90,6 +90,16 @@
       "retryAfterAndTypedCausesRespectCooldownAndAuthorization",
       "transientHttpFailuresRetryOnlyOnce_andEveryResponseCloses"
     ],
+    "com.sautilink.nativeapp.feature.home.NativeFeedDetailReadsTest": [
+      "detailReaderCannotSendAMutation_andValidArrayIsReturnedOnceAndClosed",
+      "httpFailureMessagesAndStatusesRemainUnchanged_andNoGetIsRetried",
+      "invalidDeclaredOrChunkedOversizeJsonFailsClosed_andClosesEveryBody",
+      "mediaFailureCancelsProfilesEvenAfterPostsSucceed_withoutReturningHalfAFeed",
+      "ownerChangeAfterPostResponsePreventsProfiles_andCancelsTheOtherRead",
+      "parentCancellationCancelsBothSockets_andNeverReadsLateBodies",
+      "postAndMediaStartTogether_whileProfilesWaitForTheReturnedPostAuthors",
+      "postDenialCancelsIndependentMedia_andLateBodiesCloseWithoutReadingOrPartialProjection"
+    ],
     "com.sautilink.nativeapp.feature.home.PostActionFeedCacheTest": [
       "actionAcknowledgementCannotInvalidateAnotherAccountOrBackend",
       "confirmedActionRetainsRowsButRejectsOldFirstPageWritesInEveryMode"
@@ -272,9 +282,14 @@
     "com.sautilink.nativeapp.ui.components.NativeVideoLookaheadTest": [
       "EmptyInvalidAndExtremeInventoryCannotCreateUnboundedOrOverflowingWork",
       "allFiveFutureTargetsLoadButUnknownPastSixthAndClosedTargetsDoNot",
+      "bufferingSampleNewerThanThePreviousCoordinatorTickCannotEnableIdleSpeculation",
+      "coldHistoryWaitsForHealthyCurrent_butPreparedMetadataSurvivesBufferingUntilExpiryOrOptOut",
       "completedFutureQueuesSurviveCurrentStartupWithoutStartingUnpreparedSources",
       "continuingQueueAvoidsThresholdChurnButYieldsBeforeRunwayIsExhausted",
       "currentPreparedSampleHandoffSurvivesSpeculationPause",
+      "historyDeadlineNeverExtendsTheOriginalGrant_andCapsMemoryRetentionAtTwoMinutes",
+      "historyOptOutCanResumeOnlyTheExactStillMountedPlayerRevision_withoutAnotherAttach",
+      "historyRetainsOnlyTwoParsedSources_withoutSelectingTracksOrLoadingPastSamples",
       "idleTextReadingMayWarmButVisibleBufferingAlwaysOwnsTheNetwork",
       "metadataCanStartBeforeMotionButNotDuringPrivacyOrResourceOptOut",
       "networkSaverAndUnmeasuredMeteredConnectionNeverWarmSampleBytes",

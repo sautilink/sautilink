@@ -34,7 +34,7 @@ jobs:
         with:
           # Build the reviewed, immutable media readiness and upload recovery 1.1.7 (52) source commit.
           # The same SHA, full tree, app/src and app/src/main trees must be pinned in release52.py.
-          ref: f5df862c409372c073c33eae4152185a5e4b7d9a
+          ref: ec3cb0cc4008d0e907318e5017dc79b684241a7a
           path: candidate
           persist-credentials: false
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
