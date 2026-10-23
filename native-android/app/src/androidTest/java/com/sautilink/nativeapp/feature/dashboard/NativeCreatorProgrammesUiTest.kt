@@ -1,5 +1,7 @@
 package com.sautilink.nativeapp.feature.dashboard
 
+import android.graphics.Bitmap
+import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.rememberScrollState
@@ -14,12 +16,15 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.sautilink.nativeapp.ui.theme.SautiTheme
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class NativeCreatorProgrammesUiTest {
@@ -44,6 +49,20 @@ class NativeCreatorProgrammesUiTest {
             compose.onNodeWithText(programme.title, useUnmergedTree = true)
                 .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
             assertTrue(layouts.isNotEmpty())
+            val ordinal = creatorProgrammes.indexOf(programme) + 1
+            layouts.forEach { layout -> Log.i("SautiProgrammeUi",
+                "dark=$dark programme=$ordinal width_px=${layout.size.width} height_px=${layout.size.height} " +
+                    "lines=${layout.lineCount} overflow_width=${layout.didOverflowWidth} overflow_height=${layout.didOverflowHeight}") }
+            // Synthetic fixture only. Capture before the assertion so a real
+            // device failure retains the evidence instead of only its message.
+            val directory = File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, "programme-proof")
+            check(directory.isDirectory || directory.mkdir())
+            val screenshot = compose.onRoot().captureToImage().asAndroidBitmap()
+            try {
+                File(directory, "${if (dark) "dark" else "light"}-$ordinal.png").outputStream().use {
+                    check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, it))
+                }
+            } finally { screenshot.recycle() }
             assertTrue("Programme title must fit at enlarged text size", layouts.none { it.didOverflowWidth || it.didOverflowHeight })
         }
         compose.onAllNodesWithText("Not available yet", useUnmergedTree = true).assertCountEquals(3)

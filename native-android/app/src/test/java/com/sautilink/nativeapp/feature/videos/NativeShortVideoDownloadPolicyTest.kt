@@ -12,6 +12,26 @@ class NativeShortVideoDownloadPolicyTest {
     private val post = "22222222-2222-4222-8222-222222222222"
     private val etag = "\"0123456789abcdef-2\""
 
+    @Test fun cleanupMatchesOnlyOurExactOldPendingDownload() {
+        val now = 2_000_000_000_000L
+        val name = "SautiLink-$media-abcdef12.mp4"
+        val old = (now - SHORT_VIDEO_DOWNLOAD_PENDING_TTL_MS - 1000) / 1000
+        fun candidate(file: String? = name, path: String? = "Movies/SautiLink/", owner: String? = "our.package",
+            pending: Int = 1, added: Long = old) = abandonedNativeShortVideoDownload(file, path, owner,
+            "our.package", pending, added, now)
+        assertTrue(candidate())
+        assertFalse(candidate(pending = 0))
+        assertFalse(candidate(owner = "another.package"))
+        assertFalse(candidate(owner = null))
+        assertFalse(candidate(file = "personal.mp4"))
+        assertFalse(candidate(file = "SautiLink-$media.mp4"))
+        assertFalse(candidate(path = "Movies/Other/"))
+        assertFalse(candidate(added = (now - SHORT_VIDEO_DOWNLOAD_PENDING_TTL_MS) / 1000))
+        assertFalse(candidate(added = now / 1000))
+        assertFalse(candidate(added = 0))
+        assertFalse(candidate(added = Long.MAX_VALUE))
+    }
+
     @Test fun destinationIsOnlyAnExactFirstPartyMediaRoute() {
         assertEquals("https://sautilink.com/api/sauti-media/$media/download", nativeShortVideoDownloadUrl("https://sautilink.com", media))
         assertEquals("https://test.sautilink.com/api/sauti-media/$media/download", nativeShortVideoDownloadUrl("https://test.sautilink.com", media))

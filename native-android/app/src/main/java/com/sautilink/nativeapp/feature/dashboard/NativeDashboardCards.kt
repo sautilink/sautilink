@@ -43,27 +43,49 @@ internal fun CreatorProgrammeCard(programme: CreatorProgramme) {
     Surface(Modifier.fillMaxWidth().semantics(mergeDescendants = true) { disabled() },
         shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .65f))) {
-        Row(Modifier.padding(18.dp), horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.Top) {
-            Box(Modifier.size(54.dp), contentAlignment = Alignment.Center) {
-                Surface(shape = RoundedCornerShape(17.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                    SautiGlyph(programme.glyph, null, Modifier.padding(12.dp).size(26.dp),
-                        tint = MaterialTheme.colorScheme.primary)
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(18.dp)) {
+            // Large text gets the card's full width. Keeping a fixed leading
+            // artwork column at that scale needlessly constrains the title.
+            val stack = maxWidth < 264.dp || LocalDensity.current.fontScale > 1.3f
+            if (stack) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    CreatorProgrammeArtwork(programme)
+                    CreatorProgrammeDescription(programme, Modifier.fillMaxWidth())
                 }
-                Surface(Modifier.align(Alignment.BottomEnd), shape = RoundedCornerShape(7.dp),
-                    color = MaterialTheme.colorScheme.surface) {
-                    SautiGlyph("lock-keyhole", "Locked", Modifier.padding(3.dp).size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
+                    CreatorProgrammeArtwork(programme)
+                    CreatorProgrammeDescription(programme, Modifier.weight(1f))
                 }
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                Text(programme.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text(programme.description, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Not available yet", style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+}
+
+@Composable
+private fun CreatorProgrammeArtwork(programme: CreatorProgramme) {
+    Box(Modifier.size(54.dp), contentAlignment = Alignment.Center) {
+        Surface(shape = RoundedCornerShape(17.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+            SautiGlyph(programme.glyph, null, Modifier.padding(12.dp).size(26.dp),
+                tint = MaterialTheme.colorScheme.primary)
+        }
+        Surface(Modifier.align(Alignment.BottomEnd), shape = RoundedCornerShape(7.dp),
+            color = MaterialTheme.colorScheme.surface) {
+            SautiGlyph("lock-keyhole", "Locked", Modifier.padding(3.dp).size(14.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun CreatorProgrammeDescription(programme: CreatorProgramme, modifier: Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Text(programme.title, Modifier.fillMaxWidth(), style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold, softWrap = true)
+        Text(programme.description, Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Not available yet", Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

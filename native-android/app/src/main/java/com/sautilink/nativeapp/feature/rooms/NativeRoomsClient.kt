@@ -228,7 +228,7 @@ class NativeRoomsClient(auth: StagingAuthClient) {
                 author?.roomString("username").orEmpty(), row.roomString("body"), row.roomString("created_at"),
                 author?.optBoolean("is_verified", false) == true, author.badge(),
                 row.optInt("like_count").coerceAtLeast(0), row.optInt("comment_count").coerceAtLeast(0),
-                row.optInt("repost_count").coerceAtLeast(0), row.optInt("media_count").coerceIn(0, 5),
+                row.optInt("repost_count").coerceAtLeast(0), row.optInt("media_count").coerceIn(0, 10),
                 mediaByPost[row.roomString("id")].orEmpty(), author.hasAvatar())
         }
     }

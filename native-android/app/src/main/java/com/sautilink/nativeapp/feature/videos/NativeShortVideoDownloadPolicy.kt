@@ -6,6 +6,15 @@ import java.io.OutputStream
 import java.net.URI
 
 internal const val SHORT_VIDEO_DOWNLOAD_MAX_BYTES = 250L * 1024 * 1024
+internal const val SHORT_VIDEO_DOWNLOAD_PENDING_TTL_MS = 24L * 60 * 60 * 1000
+private val pendingDownloadName = Regex("SautiLink-[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}-[a-f0-9]{8}\\.mp4")
+internal fun abandonedNativeShortVideoDownload(displayName: String?, relativePath: String?,
+    ownerPackage: String?, appPackage: String, pending: Int, addedSeconds: Long, nowMillis: Long): Boolean {
+    if (pending != 1 || appPackage.isBlank() || ownerPackage != appPackage || relativePath != "Movies/SautiLink/" ||
+        displayName == null || !pendingDownloadName.matches(displayName) || addedSeconds <= 0 ||
+        addedSeconds > Long.MAX_VALUE / 1000 || nowMillis < SHORT_VIDEO_DOWNLOAD_PENDING_TTL_MS) return false
+    return addedSeconds * 1000 < nowMillis - SHORT_VIDEO_DOWNLOAD_PENDING_TTL_MS
+}
 private val downloadUuid = Regex("[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}")
 internal fun nativeShortVideoDownloadUrl(origin: String, mediaId: String): String {
     require(origin in setOf("https://sautilink.com", "https://test.sautilink.com") && downloadUuid.matches(mediaId))

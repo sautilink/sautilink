@@ -188,15 +188,28 @@ class NativeShortVideoDownloadService : Service() {
     @RequiresApi(29)
     private fun createMediaStoreVideo(name: String): PendingVideo {
         val collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        // A killed process cannot restore its ticket or credentials. Purge only
-        // this package's abandoned hidden outputs before beginning a new one.
+        // A killed process cannot restore its ticket or credentials. Clean only
+        // our exact named, app-owned pending rows older than 24 hours. Published
+        // rows, other apps' files and unrelated user files are never candidates.
         runCatching {
-            contentResolver.query(collection, arrayOf(MediaStore.Video.Media._ID),
-                "${MediaStore.Video.Media.IS_PENDING}=1 AND ${MediaStore.Video.Media.RELATIVE_PATH}=? AND ${MediaStore.Video.Media.OWNER_PACKAGE_NAME}=?",
-                arrayOf("Movies/SautiLink/", packageName), null)?.use { cursor ->
-                var removed = 0
-                while (cursor.moveToNext() && removed++ < 20) contentResolver.delete(
-                    android.content.ContentUris.withAppendedId(collection, cursor.getLong(0)), null, null)
+            val now = System.currentTimeMillis()
+            val columns = arrayOf(MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME,
+                MediaStore.Video.Media.RELATIVE_PATH, MediaStore.Video.Media.OWNER_PACKAGE_NAME,
+                MediaStore.Video.Media.IS_PENDING, MediaStore.Video.Media.DATE_ADDED)
+            contentResolver.query(collection, columns,
+                "${MediaStore.Video.Media.IS_PENDING}=1 AND ${MediaStore.Video.Media.RELATIVE_PATH}=? AND ${MediaStore.Video.Media.OWNER_PACKAGE_NAME}=? AND ${MediaStore.Video.Media.DATE_ADDED}<?",
+                arrayOf("Movies/SautiLink/", packageName, ((now - SHORT_VIDEO_DOWNLOAD_PENDING_TTL_MS) / 1000).toString()),
+                "${MediaStore.Video.Media.DATE_ADDED} ASC")?.use { cursor ->
+                var scanned = 0; var removed = 0
+                while (cursor.moveToNext() && scanned++ < 128 && removed < 20) {
+                    if (abandonedNativeShortVideoDownload(cursor.getString(1), cursor.getString(2), cursor.getString(3),
+                            packageName, cursor.getInt(4), cursor.getLong(5), now)) {
+                        contentResolver.delete(android.content.ContentUris.withAppendedId(collection, cursor.getLong(0)),
+                            "${MediaStore.Video.Media.IS_PENDING}=1 AND ${MediaStore.Video.Media.OWNER_PACKAGE_NAME}=? AND ${MediaStore.Video.Media.RELATIVE_PATH}=? AND ${MediaStore.Video.Media.DISPLAY_NAME}=? AND ${MediaStore.Video.Media.DATE_ADDED}<?",
+                            arrayOf(packageName, "Movies/SautiLink/", cursor.getString(1), ((now - SHORT_VIDEO_DOWNLOAD_PENDING_TTL_MS) / 1000).toString()))
+                        removed++
+                    }
+                }
             }
         }
         val uri = contentResolver.insert(collection, ContentValues().apply {
