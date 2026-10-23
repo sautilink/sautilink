@@ -3,10 +3,9 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
 import { uploadPostMedia } from '../src/post-media-upload.js';
-import { verificationAccountType, verificationEvidenceReady, rankTrendingPosts } from '../src/verification-request-policy.js';
+import { verificationAccountType, verificationEvidenceReady } from '../src/verification-request-policy.js';
 import { transformPostMediaSource } from '../scripts/post-media-source-transform.mjs';
 import { transformVerificationCaseFlowSource } from '../scripts/verification-case-flow-source-transform.mjs';
-import { transformMemberBootstrapResilienceSource } from '../scripts/member-bootstrap-resilience-source-transform.mjs';
 
 const read = (file) => readFile(new URL(`../${file}`, import.meta.url), 'utf8');
 const app = await read('src/app.js');
@@ -118,20 +117,6 @@ test('verification form switches the actual required field when the identity typ
   assert.equal(byId('verification-request-send').disabled, false);
 });
 
-test('Trending uses the native engagement score, excludes blocked/muted authors and bounds results', () => {
-  const posts = Array.from({ length: 12 }, (_, n) => ({ id: String(n), author_id: `author-${n}`, like_count: n,
-    comment_count: 0, repost_count: 0, created_at: '2026-10-23T00:00:00Z' }));
-  posts[0].comment_count = 10;
-  const result = rankTrendingPosts([...posts, posts[0]], { blocked: new Set(['author-11']), muted: new Set(['author-10']) });
-  assert.deepEqual(result.map((row) => row.id), ['0', '9', '8', '7', '6']);
-  assert.equal(rankTrendingPosts(posts, { limit: 20 }).length, 12);
-  const candidates = extract(app, 'async function loadDiscoverTrendingCandidates(', 'async function loadTrendingPostDetails(');
-  assert.match(candidates, /7 \* 24 \* 60 \* 60 \* 1000/);
-  for (const marker of [".eq('visibility', 'public')", ".is('circle_id', null)", ".eq('post_status', 'published')", ".is('deleted_at', null)", '.limit(250)']) assert.ok(candidates.includes(marker));
-  const built = transformMemberBootstrapResilienceSource('/repo/src/app.js', app);
-  assert.match(built, /async function loadStream[^]*?if \(activeHomeFeed === 'trending'\) return loadTrendingStream/);
-});
-
 test('post media runtime admits ten items at 5 MiB/photo and preserves the full gallery count', () => {
   const runtime = transformPostMediaSource('/repo/src/app.js', app);
   assert.match(runtime, /Math\.max\(0, 10 - composerMedia\.length\)/);
@@ -178,23 +163,11 @@ test('after publishing, Home is selected and an authoritative own post is prepen
   context.currentMemberId = 'other'; await navigate(id, 'owner'); assert.equal(changes.length, 4);
 });
 
-test('Shorts labels contain only ranks returned by the real top20 and never manufacture a rank', async () => {
+test('web Shorts keep creator identity and Follow without app-only Trending ranks', async () => {
   const shorts = await read('src/short-videos-feed.js');
-  let suffix;
-  class Node {
-    constructor() { this.children = []; }
-    replaceChildren(...children) { this.children = children; }
-    remove() { suffix = undefined; }
-  }
-  const username = { after(node) { suffix = node; } };
-  const slide = { dataset: { postId: id }, querySelector(selector) { return selector === '.sauti-short-username' ? username : suffix; } };
-  const render = runInNewContext(`${extract(shorts, 'function syncShortTrendingRank(', 'function syncSlideFromSource(')}\nsyncShortTrendingRank;`, {
-    document: { createElement: () => new Node(), createTextNode: (text) => ({ textContent: text }) },
-  });
-  for (const value of [undefined, 0, -1, 21, 1.5, '11']) { render(slide, { [id]: value }); assert.equal(suffix, undefined); }
-  render(slide, { [id]: 11 });
-  assert.deepEqual(suffix.children.map((node) => node.textContent), [' • ', '#11', ' on trending']);
-  render(slide, {}); assert.equal(suffix, undefined);
+  assert.doesNotMatch(shorts, /trending|Trending/);
+  assert.match(shorts, /sauti-short-username/);
+  assert.match(shorts, /sauti-short-avatar/);
   assert.match(shorts, /if \(sourceFollow && sourceFollow\.dataset\.following !== 'true'\)/);
   assert.match(shorts, /follow\.disabled = sourceFollow\.disabled \|\| following/);
 });

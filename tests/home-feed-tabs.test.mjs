@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import vm from 'node:vm';
+import { transformMemberBootstrapResilienceSource } from '../scripts/member-bootstrap-resilience-source-transform.mjs';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -15,10 +17,52 @@ test('Home exposes three accessible feeds with For You selected by default', asy
   assert.match(html, /data-home-feed-tab="following"/);
   assert.match(html, /<button[^>]*aria-selected="true"[^>]*data-home-feed-tab="for-you"/);
   assert.match(html, /data-home-feed-tab="short-videos"/);
+  assert.deepEqual([...html.matchAll(/data-home-feed-tab="([^"]+)"/g)].map((match) => match[1]),
+    ['following', 'for-you', 'short-videos']);
   assert.match(source, /let activeHomeFeed = 'for-you'/);
   assert.match(source, /ArrowLeft.*ArrowRight.*Home.*End/);
   assert.match(css, /\.home-feed-tabs[\s\S]*grid-template-columns: repeat\(3/);
   assert.match(css, /\.home-feed-tab\.active::after/);
+});
+
+test('legacy Home feed links keep other URL state without reviving an unsupported feed', async () => {
+  const source = await read('src/app.js');
+  const start = source.indexOf('function normalizeHomeFeedRoute(');
+  const end = source.indexOf('async function applyLocationRoute(', start);
+  for (const path of ['/home', '/home/', '/app', '/app/']) {
+    const route = new URL(`https://sautilink.com${path}?feed=trending&theme=dark#post`);
+    const historyState = { retained: true };
+    const replacements = [];
+    const normalize = vm.runInNewContext(`${source.slice(start, end)}\nnormalizeHomeFeedRoute;`, {
+      URL, window: { location: route, history: { state: historyState,
+        replaceState(state, title, target) { replacements.push({ state, target }); } } },
+    });
+    normalize();
+    assert.deepEqual(replacements, [{ state: historyState, target: `${path}?theme=dark#post` }]);
+  }
+  for (const url of ['https://sautilink.com/home?theme=dark', 'https://sautilink.com/discover?feed=trending']) {
+    const normalize = vm.runInNewContext(`${source.slice(start, end)}\nnormalizeHomeFeedRoute;`, {
+      URL, window: { location: new URL(url), history: { replaceState() { assert.fail('unrelated routes must not change'); } } },
+    });
+    normalize();
+  }
+});
+
+test('raw and built Home reject app-only feed selection before navigation or network reads', async () => {
+  const raw = await read('src/app.js');
+  const built = transformMemberBootstrapResilienceSource('/repo/src/app.js', raw);
+  for (const source of [raw, built]) {
+    const copyStart = source.indexOf('const HOME_FEED_COPY =');
+    const copyEnd = source.indexOf('const COMPOSER_DRAFT_LIMIT', copyStart);
+    const start = source.indexOf('async function selectHomeFeed(');
+    const end = source.indexOf('function authorFromPost(', start);
+    const context = vm.createContext({ currentMember: { id: 'owner' }, activeHomeFeed: 'for-you' });
+    vm.runInContext(`${source.slice(copyStart, copyEnd)}\n${source.slice(start, end)}`, context);
+    await vm.runInContext("selectHomeFeed('trending')", context);
+    assert.equal(context.activeHomeFeed, 'for-you');
+    assert.deepEqual(Array.from(vm.runInContext('Object.keys(HOME_FEED_COPY)', context)), ['for-you', 'following', 'short-videos']);
+    assert.doesNotMatch(source, /loadTrendingStream|loadDiscoverTrendingCandidates|__sautilinkShortVideoTrendingRanks/);
+  }
 });
 
 test('Home feeds are chronological and apply only the requested audience filter', async () => {
