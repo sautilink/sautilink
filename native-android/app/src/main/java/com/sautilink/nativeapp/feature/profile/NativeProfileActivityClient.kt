@@ -106,7 +106,7 @@ internal class NativeProfileActivityClient(private val auth: StagingAuthClient) 
                         if (kind !in listOf("image", "video")) null
                         else FeedMedia(media.optString("id"), kind, media.optInt("position"),
                             media.optInt("width"), media.optInt("height"))
-                    }.sortedBy { it.position }.take(4)
+                    }.sortedBy { it.position }.take(com.sautilink.nativeapp.feature.posts.NativePostMediaPolicy.MAX_ATTACHMENTS)
                 )
             },
             hashtags = if (tab != "hashtags") emptyList() else (0 until rows.length()).mapNotNull {

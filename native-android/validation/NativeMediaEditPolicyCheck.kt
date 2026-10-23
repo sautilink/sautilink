@@ -1,10 +1,10 @@
 package com.sautilink.nativeapp.feature.posts
 
 fun main() {
-    check(NativeMediaEditPolicy.trim(180_000) == NativeMediaEditPolicy.Trim(0, 60_000))
+    check(NativeMediaEditPolicy.trim(240_000) == NativeMediaEditPolicy.Trim(0, 180_000))
     check(NativeMediaEditPolicy.trim(180_000, 120_000) == NativeMediaEditPolicy.Trim(120_000, 180_000))
     check(NativeMediaEditPolicy.trim(500) == NativeMediaEditPolicy.Trim(0, 500))
-    check(!NativeMediaEditPolicy.validTrim(180_000, 0, 60_001))
+    check(!NativeMediaEditPolicy.validTrim(240_000, 0, 180_001))
     check(!NativeMediaEditPolicy.validTrim(60_000, -1, 10_000))
     check(!NativeMediaEditPolicy.validTrim(60_000, 20_000, 10_000))
     check(!NativeMediaEditPolicy.validTrim(60_000, 10_000, 60_001))

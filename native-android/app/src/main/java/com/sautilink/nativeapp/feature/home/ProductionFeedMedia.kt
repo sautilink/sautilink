@@ -198,6 +198,7 @@ private fun InlineFeedVideo(
     adaptivePlaybackEnabled: Boolean = true
 ) {
     val context = LocalContext.current
+    val overlayBlocked = com.sautilink.nativeapp.ui.components.LocalNativePlaybackBlocked.current
     val owner = LocalLifecycleOwner.current
     val lifecycleState by owner.lifecycle.currentStateAsState()
     val accountId = auth.account?.id
@@ -390,15 +391,17 @@ private fun InlineFeedVideo(
             NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.SOURCE_PREPARE)
             replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(media.id).setUri(uri)
                 .setMimeType(if (hls) androidx.media3.common.MimeTypes.APPLICATION_M3U8 else androidx.media3.common.MimeTypes.VIDEO_MP4).build(),
-                keepPosition = true, requested = wantsToPlay && !manualPaused && isCurrent &&
+                keepPosition = true, requested = !overlayBlocked && wantsToPlay && !manualPaused && isCurrent &&
                     owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
         }
     }
     LaunchedEffect(player, muted) { player?.volume = if (muted) 0f else 1f }
     LaunchedEffect(player, speed) { player?.setPlaybackSpeed(speed) }
-    LaunchedEffect(player, isCurrent, visibleFraction, wantsToPlay, requestError, lifecycleState, streamSource) {
+    LaunchedEffect(player, isCurrent, visibleFraction, wantsToPlay, requestError, lifecycleState, streamSource, overlayBlocked) {
         if (player != null) {
-            if (!isCurrent || visibleFraction < .1f || !lifecycleState.isAtLeast(Lifecycle.State.STARTED)) {
+            if (overlayBlocked) {
+                player.pause() // Retain the prepared source and its samples while composing.
+            } else if (!isCurrent || visibleFraction < .1f || !lifecycleState.isAtLeast(Lifecycle.State.STARTED)) {
                 if (!stoppedOffscreen && player.playbackState != Player.STATE_IDLE) {
                     player.pause()
                     // A quick scroll past and back keeps its decoder/buffer.

@@ -32,8 +32,10 @@ import java.util.concurrent.TimeUnit
 
 private class VerificationApi(private val auth: StagingAuthClient) {
     private val http = OkHttpClient.Builder().callTimeout(25, TimeUnit.SECONDS).build()
-    suspend fun rpc(name: String, payload: JSONObject): JSONObject? {
+    suspend fun rpc(name: String, payload: JSONObject, expectedOwner: String? = auth.account?.id): JSONObject? {
+        if (expectedOwner == null || auth.account?.id != expectedOwner) throw CancellationException("Verification account changed")
         val token = auth.accessTokenForStagingRead()
+        if (auth.account?.id != expectedOwner) throw CancellationException("Verification account changed")
         return withContext(Dispatchers.IO) {
             val request = Request.Builder()
                 .url(auth.restOrigin + "rpc/$name")
@@ -48,11 +50,14 @@ private class VerificationApi(private val auth: StagingAuthClient) {
                     throw IllegalStateException(when {
                         code.contains("ALREADY_VERIFIED") -> "Your account is already verified."
                         code.contains("COOLDOWN") -> "Your reapplication waiting period has not ended."
+                        code.contains("VERIFICATION_ARTICLE_REQUIRED") || code.contains("VERIFICATION_ARTICLES_REQUIRED") ->
+                            "Add at least one independent news or blog article about this entity."
                         code.contains("EVIDENCE") -> "Add at least one public social link or article."
                         code.contains("INVALID") -> "Please check your application details."
                         else -> "Unable to complete this request. Please review your information."
                     })
                 }
+                if (auth.account?.id != expectedOwner) throw CancellationException("Verification account changed")
                 if (body.isBlank() || body == "null") null else JSONObject(body)
             }
         }
@@ -65,29 +70,32 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
     val client = remember(auth) { VerificationApi(auth) }
     val profileClient = remember(auth) { NativeProfilesClient(auth) }
     val scope = rememberCoroutineScope()
-    var verified by remember(auth.account?.id) { mutableStateOf<Boolean?>(null) }
-    var case by remember(auth.account?.id) { mutableStateOf<JSONObject?>(null) }
-    var busy by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
-    var legalName by remember { mutableStateOf("") }
-    var publicName by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("") }
-    var country by remember { mutableStateOf("") }
-    var facebook by remember { mutableStateOf("") }
-    var instagram by remember { mutableStateOf("") }
-    var tiktok by remember { mutableStateOf("") }
-    var youtube by remember { mutableStateOf("") }
-    var article by remember { mutableStateOf("") }
-    var reason by remember { mutableStateOf("") }
-    var accepted by remember { mutableStateOf(false) }
-    var revision by remember { mutableIntStateOf(0) }
+    val accountId = auth.account?.id
+    var applicantType by remember(accountId) { mutableStateOf(VerificationApplicantType.INDIVIDUAL) }
+    var typeMenu by remember(accountId) { mutableStateOf(false) }
+    var verified by remember(accountId) { mutableStateOf<Boolean?>(null) }
+    var case by remember(accountId) { mutableStateOf<JSONObject?>(null) }
+    var busy by remember(accountId) { mutableStateOf(false) }
+    var message by remember(accountId) { mutableStateOf<String?>(null) }
+    var legalName by remember(accountId) { mutableStateOf("") }
+    var publicName by remember(accountId) { mutableStateOf("") }
+    var category by remember(accountId) { mutableStateOf("") }
+    var country by remember(accountId) { mutableStateOf("") }
+    var facebook by remember(accountId) { mutableStateOf("") }
+    var instagram by remember(accountId) { mutableStateOf("") }
+    var tiktok by remember(accountId) { mutableStateOf("") }
+    var youtube by remember(accountId) { mutableStateOf("") }
+    var article by remember(accountId) { mutableStateOf("") }
+    var reason by remember(accountId) { mutableStateOf("") }
+    var accepted by remember(accountId) { mutableStateOf(false) }
+    var revision by remember(accountId) { mutableIntStateOf(0) }
 
-    LaunchedEffect(auth.account?.id, revision) {
+    LaunchedEffect(accountId, revision) {
         if (auth.account == null) { verified = false; return@LaunchedEffect }
         busy = true
         try {
             verified = profileClient.own()?.verified == true
-            case = if (verified == true) null else client.rpc("get_my_verification_case", JSONObject())
+            case = if (verified == true) null else client.rpc("get_my_verification_case", JSONObject(), accountId)
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (e: Exception) { message = e.message ?: "Could not check verification status." }
         finally { busy = false }
@@ -145,17 +153,39 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
                 }
             }
             if (message != null) Text(message.orEmpty(), color = MaterialTheme.colorScheme.error)
+            VerificationSectionTitle("Applicant type", Icons.Rounded.Category)
+            Box(Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = { typeMenu = true }, enabled = canApply,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = RoundedCornerShape(16.dp)) {
+                    Icon(if (applicantType.requiresArticle) Icons.Rounded.Business else Icons.Rounded.PersonOutline,
+                        null, Modifier.size(21.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text(applicantType.label, Modifier.weight(1f))
+                    Icon(Icons.Rounded.ExpandMore, null)
+                }
+                DropdownMenu(expanded = typeMenu, onDismissRequest = { typeMenu = false }) {
+                    VerificationApplicantType.entries.forEach { type ->
+                        DropdownMenuItem(text = { Text(type.label) }, onClick = { applicantType = type; typeMenu = false },
+                            leadingIcon = { Icon(if (type.requiresArticle) Icons.Rounded.Business else Icons.Rounded.PersonOutline, null) },
+                            trailingIcon = { if (applicantType == type) Icon(Icons.Rounded.Check, null) })
+                    }
+                }
+            }
+            Text(if (applicantType.requiresArticle)
+                "For brands, businesses, organisations and other entities. Provide public details and independent articles so we can understand and review the applicant."
+                else "For individuals, public figures and politicians. Provide public identity and evidence for review.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             VerificationSectionTitle("Identity details", Icons.Rounded.PersonOutline)
             OutlinedTextField(legalName, { legalName = it.take(120) }, Modifier.fillMaxWidth(),
-                label = { Text("Full legal name *") },
+                label = { Text(if (applicantType.requiresArticle) "Legal business / entity name *" else "Full legal name *") },
                 leadingIcon = { Icon(Icons.Rounded.PersonOutline, null, Modifier.size(21.dp)) },
                 shape = RoundedCornerShape(16.dp), enabled = canApply, singleLine = true)
             OutlinedTextField(publicName, { publicName = it.take(120) }, Modifier.fillMaxWidth(),
-                label = { Text("Public name / organisation (optional)") },
+                label = { Text(if (applicantType.requiresArticle) "Public / trading name (optional)" else "Public name (optional)") },
                 leadingIcon = { Icon(Icons.Rounded.Badge, null, Modifier.size(21.dp)) },
                 shape = RoundedCornerShape(16.dp), enabled = canApply)
             OutlinedTextField(category, { category = it.take(100) }, Modifier.fillMaxWidth(),
-                label = { Text("Account category *") },
+                label = { Text(if (applicantType.requiresArticle) "Business sector / entity category *" else "Profession / account category *") },
                 leadingIcon = { Icon(Icons.Rounded.Category, null, Modifier.size(21.dp)) },
                 shape = RoundedCornerShape(16.dp), enabled = canApply)
             OutlinedTextField(country, { country = it.take(100) }, Modifier.fillMaxWidth(),
@@ -180,7 +210,7 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
                 leadingIcon = { Icon(Icons.Rounded.PlayCircleOutline, null, Modifier.size(21.dp)) },
                 shape = RoundedCornerShape(16.dp), enabled = canApply)
             OutlinedTextField(article, { article = it.take(5500) }, Modifier.fillMaxWidth(),
-                label = { Text("Independent article URLs, up to 5 (one per line)") },
+                label = { Text(if (applicantType.requiresArticle) "Independent article URLs * (1â€“5, one per line)" else "Independent article URLs (optional, up to 5)") },
                 leadingIcon = { Icon(Icons.Rounded.Article, null, Modifier.size(21.dp)) },
                 shape = RoundedCornerShape(16.dp),
                 minLines = 3, enabled = canApply)
@@ -202,22 +232,29 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
                         if (url.trim().isNotBlank()) social.put(key, url.trim())
                     }
                     val articles = JSONArray()
-                    article.lines().map { it.trim() }.filter { it.isNotEmpty() }
-                        .take(5).forEach { articles.put(it) }
+                    val articleUrls = article.lines().map { it.trim() }.filter { it.isNotEmpty() }
+                    val socialUrls = listOf(facebook, instagram, tiktok, youtube).map { it.trim() }.filter { it.isNotEmpty() }
+                    val evidenceError = verificationEvidenceError(applicantType, socialUrls, articleUrls)
+                    if (evidenceError != null) { message = evidenceError; return@Button }
+                    articleUrls.forEach { articles.put(it) }
                     if (legalName.trim().length < 2 || category.trim().length < 2 ||
                         country.trim().length < 2 || reason.trim().length < 20 ||
                         !accepted || (social.length() == 0 && articles.length() == 0)) {
                         message = "Complete the required details, consent and at least one evidence link."
                         return@Button
                     }
+                    val requestedOwner = accountId ?: return@Button
                     busy = true; message = null
                     scope.launch {
                         try {
+                            if (auth.account?.id != requestedOwner) throw CancellationException("Verification account changed")
                             val latestVerified = profileClient.own()?.verified == true
+                            if (auth.account?.id != requestedOwner) throw CancellationException("Verification account changed")
                             if (latestVerified) {
                                 verified = true; message = "Your account is already verified."
                             } else {
                                 val data = JSONObject()
+                                    .put("p_account_type", applicantType.wire)
                                     .put("p_legal_name", legalName.trim())
                                     .put("p_public_name", publicName.trim())
                                     .put("p_account_category", category.trim())
@@ -227,13 +264,14 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
                                     .put("p_reason", reason.trim())
                                     .put("p_terms_accepted", true)
                                     .put("p_social_proof_confirmed", false)
-                                client.rpc("submit_verification_case", data)
+                                client.rpc("submit_verification_case", data, requestedOwner)
                                 message = "Verification application received for review."
                                 revision++
                             }
+                        } catch (cancelled: CancellationException) { throw cancelled
                         } catch (e: Exception) {
-                            message = e.message ?: "Could not submit the request."
-                        } finally { busy = false }
+                            if (auth.account?.id == requestedOwner) message = e.message ?: "Could not submit the request."
+                        } finally { if (auth.account?.id == requestedOwner) busy = false }
                     }
                 },
                 enabled = canApply,
@@ -242,10 +280,10 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
             ) {
                 Icon(Icons.Rounded.VerifiedUser, null, Modifier.size(21.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(if (busy) "Checking…" else "Submit verification request")
+                Text(if (busy) "Checkingâ€¦" else "Submit verification request")
             }
             if (verified == true) {
-                Text("Already verified — request unavailable",
+                Text("Already verified â€” request unavailable",
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

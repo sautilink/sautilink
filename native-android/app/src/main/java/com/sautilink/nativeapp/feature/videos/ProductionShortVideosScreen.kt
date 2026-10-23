@@ -1,7 +1,5 @@
 package com.sautilink.nativeapp.feature.videos
 
-import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
-
 import android.content.Context
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -442,6 +440,10 @@ fun ProductionShortVideosScreen(
     }
     LaunchedEffect(player, muted) { player?.volume = if (muted) 0f else 1f }
     LaunchedEffect(player, playbackSpeed) { player?.setPlaybackSpeed(playbackSpeed) }
+    val authorMetadata = rememberShortsAuthorMetadata(auth, actions, reload, player,
+        lifecycleState.isAtLeast(Lifecycle.State.STARTED), online, clip?.post,
+        currentFrameReady = clip != null && renderedMediaId == clip.mediaId,
+        wantsPlayback = wantsPlayback)
     LaunchedEffect(auth.account?.id, clip?.post?.id, online) {
         val postId = clip?.post?.id ?: return@LaunchedEffect
         val accountId = auth.account?.id ?: return@LaunchedEffect
@@ -569,6 +571,7 @@ fun ProductionShortVideosScreen(
                         if (renderedMediaId != item.mediaId) com.sautilink.nativeapp.feature.home.AuthorizedImage(
                             auth, "/api/sauti-media/${item.mediaId}?poster=1", "Video cover", Modifier.fillMaxSize(),
                             crop = false, showFailureFallback = false)
+                        val downloadVideo = rememberShortVideoDownloadAction(auth, item.mediaId, item.post.id)
                         SautiVideoGestureSurface(Modifier.fillMaxSize(),
                             playbackLabel = if (playbackRequested) "Pause video" else "Play video",
                             onPlayback = {
@@ -586,7 +589,8 @@ fun ProductionShortVideosScreen(
                             },
                             onLike = if (canInteract && "like:${item.post.id}" !in busyActions) ({
                                 if (likeStates[item.post.id] != true) togglePostAction(item.post, "like")
-                            }) else null) {
+                            }) else null,
+                            onLongPress = downloadVideo) {
                             val showBuffering = (playbackRead.loading || playbackState == Player.STATE_BUFFERING && playbackRequested &&
                                 !playbackSuppressed && currentMediaId == item.mediaId &&
                                 lifecycleState.isAtLeast(Lifecycle.State.STARTED)) && playbackError == null
@@ -619,17 +623,21 @@ fun ProductionShortVideosScreen(
                         end = if (wideRail) 188.dp else if (compactRail) 132.dp else 76.dp,
                         bottom = if (timelineExpanded) 52.dp else 44.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text(item.post.authorName, color = Color.White,
-                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false).clickable(enabled = item.post.authorHandle.isNotBlank()) {
-                                    onOpenProfile(item.post.authorHandle)
-                                })
-                            SautiVerificationBadge(item.post.verified, item.post.badgeType,
-                                item.post.authorName, size = 13.dp, onDarkSurface = true)
-                        }
+                        ShortsAuthorIdentityRow(auth, item.post, authorMetadata.ranks[item.post.id],
+                            authorMetadata.followFor(item.post.authorId),
+                            enabled = canInteract && page == pager.settledPage && lifecycleState.isAtLeast(Lifecycle.State.STARTED),
+                            onOpenProfile = onOpenProfile,
+                            onFollow = {
+                                if (canInteract && page == pager.settledPage) scope.launch {
+                                    if (authorMetadata.follow(item.post) == ShortsFollowResult.FAILED) feedback.showSnackbar(
+                                        "Follow could not be confirmed. Check status before trying again.")
+                                }
+                            },
+                            onRetryRead = {
+                                if (canInteract && page == pager.settledPage) scope.launch {
+                                    authorMetadata.readFollow(item.post.authorId)
+                                }
+                            })
                         if (item.post.body.isNotBlank()) com.sautilink.nativeapp.ui.components.SautiPostText(item.post.body, color = Color.White,
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
                             maxLines = 2, overflow = TextOverflow.Ellipsis)

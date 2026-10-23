@@ -19,8 +19,10 @@ internal data class CreatorDaily(
 
 internal data class CreatorPost(
     val id: String, val text: String, val createdAt: String, val views: Long,
-    val engagement: Long, val likes: Long, val comments: Long
+    val engagement: Long, val likes: Long, val comments: Long,
+    val media: CreatorPostMedia? = null
 )
+internal data class CreatorPostMedia(val id: String, val kind: String)
 internal data class CreatorAnalytics(
     val days: List<CreatorDaily>, val topContent: List<CreatorPost>
 )
@@ -54,6 +56,7 @@ internal class CreatorAnalyticsClient(private val auth: StagingAuthClient) {
         val own = auth.account?.id?.takeIf(idRegex::matches)
             ?: throw AuthRequestException("Sign in to view your Dashboard.")
         val token = auth.accessTokenForStagingRead()
+        if (auth.account?.id != own) throw kotlinx.coroutines.CancellationException("Dashboard account changed")
         val start = LocalDate.now().minusDays(window * 2L - 1)
         return withContext(Dispatchers.IO) {
             try {
@@ -93,7 +96,14 @@ internal class CreatorAnalyticsClient(private val auth: StagingAuthClient) {
                         likes + comments + reposts, likes, comments)
                 }.sortedWith(compareByDescending<CreatorPost> { it.views + it.engagement }
                     .thenByDescending { it.createdAt }).take(5)
-                CreatorAnalytics(days, content)
+                val media = if (content.isEmpty()) emptyMap() else {
+                    val rows = fetch("social_post_media?post_id=in.(${content.joinToString(",") { it.id }})" +
+                        "&upload_status=eq.attached&select=id,post_id,media_kind,position&order=position.asc&limit=50", token)
+                    creatorContentMedia(rows, content.map { it.id }.toSet())
+                }
+                if (auth.account?.id != own) throw kotlinx.coroutines.CancellationException("Dashboard account changed")
+                CreatorAnalytics(days, content.map { it.copy(media = media[it.id]) })
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled
             } catch (e: AuthRequestException) { throw e }
             catch (_: Exception) { throw AuthRequestException(
                 "Dashboard analytics are temporarily unavailable. No values have been estimated."

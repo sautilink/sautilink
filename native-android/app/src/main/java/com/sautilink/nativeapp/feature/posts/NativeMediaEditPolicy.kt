@@ -4,7 +4,7 @@ import kotlin.math.roundToInt
 
 /** Local editing limits mirror the existing upload validator; they grant no server permissions. */
 internal object NativeMediaEditPolicy {
-    const val MAX_VIDEO_MS = 60_000L
+    const val MAX_VIDEO_MS = NativePostMediaPolicy.MAX_VIDEO_MS
     data class Crop(val left: Int, val top: Int, val width: Int, val height: Int)
     data class Trim(val startMs: Long, val endMs: Long) {
         val durationMs get() = endMs - startMs

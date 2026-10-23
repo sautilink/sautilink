@@ -45,7 +45,8 @@ fun NativeExploreScreen(
     onOpenProfile: (String) -> Unit,
     onOpenPost: (String) -> Unit = {},
     initialQuery: String = "",
-    onBack: (() -> Unit)? = null
+    onBack: (() -> Unit)? = null,
+    onOpenTrending: (() -> Unit)? = null
 ) {
     val client = remember(auth) { NativeExploreClient(auth) }
     var query by rememberSaveable(initialQuery) { mutableStateOf(normalizeExploreQuery(initialQuery)) }
@@ -189,16 +190,24 @@ fun NativeExploreScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         Icon(Icons.Rounded.Article, null, tint = MaterialTheme.colorScheme.primary)
-                        Text("Discover public posts", fontWeight = FontWeight.SemiBold,
+                        Text(if (committedQuery.isBlank()) "Trending Posts" else "Search results", fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.titleMedium)
+                        if (committedQuery.isBlank() && onOpenTrending != null) {
+                            TextButton(onClick = onOpenTrending) { Text("View all") }
+                        }
                     }
                 }
+            }
+            if (committedQuery.isBlank() && onOpenTrending == null) item {
+                Text("See more in Home’s Trending tab", Modifier.padding(horizontal = 18.dp, vertical = 2.dp),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (loading && results.posts.isEmpty()) {
                 items(2) { SautiExploreSkeleton() }
             }
             if (!loading && error == null && results.posts.isEmpty()) {
-                item { Text("No matching public posts", Modifier.padding(20.dp),
+                item { Text(if (committedQuery.isBlank()) "No trending public posts available in the last 7 days." else "No matching public posts", Modifier.padding(20.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
             items(results.posts, key = { "post:${it.id}" }) { post ->

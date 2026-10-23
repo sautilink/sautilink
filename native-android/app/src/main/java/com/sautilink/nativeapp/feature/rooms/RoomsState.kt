@@ -522,7 +522,7 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
         val kinds = uris.map { if (context.contentResolver.getType(it)?.startsWith("video/") == true) "video" else "image" }
         val limit = NativeRoomRules.mediaLimit(draft.media.map { it.kind } + kinds)
         val available = (limit - draft.media.size).coerceAtLeast(0)
-        if (uris.size > available) draft.error = "Use up to five photos, or four attachments with video. Remove an attachment first."
+        if (uris.size > available) draft.error = "Use up to 10 attachments. Remove an attachment first."
         uris.take(available).forEachIndexed { index, uri ->
             val id = UUID.randomUUID().toString()
             draft.media = draft.media + RoomDraftMedia(id, "Attachment ${draft.media.size + 1}", kinds[index])

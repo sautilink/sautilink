@@ -66,6 +66,23 @@ internal class NativeVideoPlaybackResources(
                     .setUpstreamDataSourceFactory(RequestUriSourceFactory(upstream))
                     .setCacheKeyFactory { data -> hashCacheIdentity(lease.salt, checkNotNull(data.key)) }
                     .setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE or CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+                if (NativeVideoReplayProbe.enabled) {
+                    val replayIdentity = nativeVideoReplayIdentity(identity)
+                    fun report(stage: NativeVideoReplayStage, bytes: Long = 0L, cacheBytes: Long = -1L, detail: Int = 0) {
+                        NativeVideoReplayProbe.mark(stage, mediaId = replayIdentity?.content?.substringAfterLast('/'),
+                            ownerEpoch = lease.diagnosticOwnerEpoch, poolEpoch = lease.diagnosticPoolEpoch,
+                            storeEpoch = lease.diagnosticStoreEpoch, generation = replayIdentity?.generation,
+                            identity = identity, bytes = bytes, cacheBytes = cacheBytes, detail = detail)
+                    }
+                    factory.setEventListener(object : CacheDataSource.EventListener {
+                        override fun onCachedBytesRead(cacheSizeBytes: Long, cachedBytesRead: Long) {
+                            report(NativeVideoReplayStage.CACHE_HIT, cachedBytesRead, cacheSizeBytes)
+                        }
+                        override fun onCacheIgnored(reason: Int) {
+                            report(NativeVideoReplayStage.CACHE_IGNORED, detail = reason)
+                        }
+                    })
+                }
                 CacheRoute(factory, identity, lease::active, release = lease::close)
             } catch (error: Exception) {
                 lease.close()
@@ -108,6 +125,8 @@ internal class NativeVideoPlaybackResources(
 
     override fun close() {
         if (!active.compareAndSet(true, false)) return
+        NativeVideoReplayProbe.mark(NativeVideoReplayStage.RESOURCE_CLOSE,
+            ownerEpoch = replay?.pool?.diagnosticOwnerEpoch ?: 0L, poolEpoch = replay?.pool?.diagnosticEpoch ?: 0L)
         // Pooled leases belong to DataSource.open/close. Mark reads invalid now,
         // but let each loader close its delegate before releasing its lease:
         // asynchronous player teardown must not evict a still-open cache span.

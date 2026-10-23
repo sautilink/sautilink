@@ -2,6 +2,8 @@ package com.sautilink.nativeapp.feature.explore
 
 import com.sautilink.nativeapp.feature.auth.AuthRequestException
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import com.sautilink.nativeapp.feature.home.StagingFeedClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
@@ -20,7 +22,13 @@ data class ExplorePerson(val id: String, val username: String, val name: String,
 data class ExplorePost(val id: String, val authorHandle: String, val authorName: String,
     val body: String, val createdAt: String, val likes: Int, val comments: Int, val mediaCount: Int,
     val verified: Boolean, val badgeType: String)
-data class ExploreResults(val people: List<ExplorePerson>, val posts: List<ExplorePost>)
+data class ExploreResults(val people: List<ExplorePerson>, val posts: List<ExplorePost>, val trending: Boolean = false)
+
+internal fun discoveryTrendingPosts(posts: List<com.sautilink.nativeapp.feature.home.StagingFeedPost>): List<ExplorePost> =
+    posts.distinctBy { it.id }.take(5).map { post ->
+        ExplorePost(post.id, post.authorHandle, post.authorName, post.body, post.createdAt,
+            post.likes, post.comments, post.mediaCount, post.verified, post.badgeType)
+    }
 
 /** Search mirrors production Discover filters; every read is still subject to PostgREST RLS. */
 class NativeExploreClient(private val auth: StagingAuthClient) {
@@ -85,6 +93,13 @@ class NativeExploreClient(private val auth: StagingAuthClient) {
                         row.optString("verification_badge_type", "standard"),
                         row.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" } != null)
                 }.toList()
+            if (query.isBlank()) {
+                // Use Home's existing public/RLS/block/mute-aware ranking, not a
+                // chronological list presented as trending or invented metrics.
+                val page = StagingFeedClient(auth).load("trending", 0)
+                if (auth.account?.id != ownId) throw CancellationException("Explore account changed")
+                return@withContext ExploreResults(people, discoveryTrendingPosts(page.posts), trending = true)
+            }
             val postRows = rows(url("social_posts") {
                 addQueryParameter("select", "id,author_id,body,created_at,like_count,comment_count,media_count")
                 addQueryParameter("visibility", "eq.public")
@@ -115,6 +130,7 @@ class NativeExploreClient(private val auth: StagingAuthClient) {
                     author?.optBoolean("is_verified", false) == true,
                     author?.optString("verification_badge_type", "standard") ?: "standard")
             }
+            if (auth.account?.id != ownId) throw CancellationException("Explore account changed")
             ExploreResults(people, posts)
         }
     }

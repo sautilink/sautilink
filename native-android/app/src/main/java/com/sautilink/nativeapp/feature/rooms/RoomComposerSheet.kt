@@ -73,7 +73,7 @@ internal fun RoomComposerSheet(room: NativeRoom, state: RoomsState, onDismiss: (
             Icon(Icons.Rounded.AddPhotoAlternate, null); Spacer(Modifier.width(8.dp))
             Text("Add media (${draft.media.size}/$limit)")
         }
-        Text("Up to five photos, or four attachments when including video.", style = MaterialTheme.typography.bodySmall,
+        Text("Up to 10 attachments. Images: 5 MB each. Videos: 3 minutes, 250 MB each.", style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         draft.media.forEach { item ->
             RoomDraftMediaRow(room, state, item, publishing)

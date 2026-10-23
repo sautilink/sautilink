@@ -21,30 +21,38 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.isActive
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import okio.BufferedSink
 import org.json.JSONObject
 import org.json.JSONArray
 import java.io.File
+import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 data class NativeReadyMedia(val id: String, val kind: String, val altText: String = "")
 private data class PreparedMedia(val file: File, val type: String, val kind: String)
 
 /** Android picker media -> bounded local file -> SautiLink begin/upload/finalize protocol. */
 class NativeMediaClient(private val auth: StagingAuthClient, private val context: Context) {
-    private val http = OkHttpClient.Builder().callTimeout(180, TimeUnit.SECONDS).build()
+    private val http = OkHttpClient.Builder().callTimeout(180, TimeUnit.SECONDS)
+        .followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false).build()
     private val uploads = Mutex()
     private val main = Handler(Looper.getMainLooper())
     private val uuid = Regex("^[0-9a-fA-F-]{36}$")
 
-    private fun request(path: String, method: String, token: String, body: RequestBody? = null): JSONObject {
+    private suspend fun request(path: String, method: String, token: String, body: RequestBody? = null): JSONObject =
+        suspendCancellableCoroutine { continuation ->
         val builder = Request.Builder().url("${auth.backend.siteOrigin}$path")
             .header("Authorization", "Bearer $token")
             .header("Accept", "application/json")
@@ -55,25 +63,39 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
             "DELETE" -> builder.delete()
             else -> builder.get()
         }
-        try {
-            http.newCall(builder.build()).execute().use { response ->
-                val json = runCatching { JSONObject(response.body?.string()?.take(16_384).orEmpty()) }.getOrElse { JSONObject() }
-                if (!response.isSuccessful || !json.optBoolean("ok")) {
-                    val message = json.optJSONObject("error")?.optString("message")?.takeIf { it.length in 1..220 }
-                    throw AuthRequestException(message ?: "Media request failed (HTTP ${response.code}).", response.code)
-                }
-                return json.optJSONObject("data") ?: throw AuthRequestException("Media response was incomplete.")
+        val call = http.newCall(builder.build())
+        continuation.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, error: IOException) {
+                if (BuildConfig.DEBUG) Log.e("SautiNativeMedia", "Media request failed: $method $path", error)
+                if (continuation.isActive) continuation.resumeWithException(
+                    error.cause as? AuthRequestException ?: AuthRequestException("Could not connect to the media service.")
+                )
             }
-        } catch (e: AuthRequestException) { throw e }
-        catch (e: Exception) {
-            if (BuildConfig.DEBUG) Log.e("SautiNativeMedia", "Media request failed: $method $path", e)
-            throw AuthRequestException("Could not connect to the media service.")
-        }
+            override fun onResponse(call: Call, response: okhttp3.Response) {
+                try {
+                    val data = response.use {
+                        val json = it.body?.byteStream()?.use(::readBoundedPostUploadJson) ?: JSONObject()
+                        if (!it.isSuccessful || !json.optBoolean("ok")) {
+                            val message = json.optJSONObject("error")?.optString("message")?.takeIf { text -> text.length in 1..220 }
+                            throw AuthRequestException(message ?: "Media request failed (HTTP ${it.code}).", it.code)
+                        }
+                        json.optJSONObject("data") ?: throw AuthRequestException("Media response was incomplete.")
+                    }
+                    if (continuation.isActive) continuation.resume(data)
+                } catch (error: Exception) {
+                    if (continuation.isActive) continuation.resumeWithException(
+                        if (error is AuthRequestException) error else AuthRequestException("Media response was incomplete.")
+                    )
+                }
+            }
+        })
     }
 
     private fun tempFile(extension: String): File = File(context.cacheDir, "sauti-media-${UUID.randomUUID()}.$extension")
 
-    private fun prepareImage(uri: Uri): PreparedMedia {
+    private fun prepareImage(uri: Uri, checkActiveOwner: () -> Unit): PreparedMedia {
+        checkActiveOwner()
         val resolver = context.contentResolver
         val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             decodeModernImage(uri)
@@ -88,19 +110,22 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
                 BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
             } ?: throw AuthRequestException("Could not open image.")
         }
+        var output: File? = null
         try {
             val alpha = bitmap.hasAlpha()
-            val output = tempFile(if (alpha) "png" else "jpg")
-            output.outputStream().use { stream ->
+            val image = tempFile(if (alpha) "png" else "jpg")
+            output = image
+            image.outputStream().use { stream ->
                 if (!bitmap.compress(if (alpha) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG,
                         if (alpha) 100 else 84, stream)) throw AuthRequestException("Image compression failed.")
             }
-            if (output.length() !in 1..(8L * 1024 * 1024)) {
-                output.delete()
-                throw AuthRequestException("The compressed image is still above 8 MB. Choose a smaller image.")
+            checkActiveOwner()
+            if (!NativePostUploadPolicy.imageSizeAllowed(image.length())) {
+                throw AuthRequestException("The compressed image is still above 5 MiB. Choose a smaller image.")
             }
-            return PreparedMedia(output, if (alpha) "image/png" else "image/jpeg", "image")
-        } finally { bitmap.recycle() }
+            return PreparedMedia(image, if (alpha) "image/png" else "image/jpeg", "image")
+        } catch (error: Exception) { output?.delete(); throw error }
+        finally { bitmap.recycle() }
     }
 
     @androidx.annotation.RequiresApi(Build.VERSION_CODES.P)
@@ -116,7 +141,8 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
         }
     }
 
-    private fun prepareVideo(uri: Uri): PreparedMedia {
+    private fun prepareVideo(uri: Uri, checkActiveOwner: () -> Unit): PreparedMedia {
+        checkActiveOwner()
         val resolver = context.contentResolver
         if (mediaType(uri) != "video/mp4")
             throw AuthRequestException("Choose an MP4 video.")
@@ -125,7 +151,8 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
             retriever.setDataSource(context, uri)
             val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
                 ?: throw AuthRequestException("Could not read video duration.")
-            if (duration > 60_000L) throw AuthRequestException("Short videos must be 60 seconds or less.")
+            if (!NativePostUploadPolicy.videoDurationAllowed(duration))
+                throw AuthRequestException("Videos must be between 1 millisecond and 3 minutes. Trim the video before uploading.")
         } finally { retriever.release() }
         val output = tempFile("mp4")
         try {
@@ -134,10 +161,12 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
                     val buffer = ByteArray(64 * 1024)
                     var total = 0L
                     while (true) {
+                        checkActiveOwner()
                         val read = input.read(buffer)
                         if (read < 0) break
+                        checkActiveOwner()
                         total += read
-                        if (total > 100_000_000L) throw AuthRequestException("Videos must be 100 MB or smaller.")
+                        if (!NativePostUploadPolicy.videoSizeAllowed(total)) throw AuthRequestException("Videos must be 250 MiB or smaller.")
                         out.write(buffer, 0, read)
                     }
                 }
@@ -147,11 +176,11 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
         } catch (e: Exception) { output.delete(); throw e }
     }
 
-    private fun prepare(uri: Uri): PreparedMedia {
+    private fun prepare(uri: Uri, checkActiveOwner: () -> Unit): PreparedMedia {
         val type = mediaType(uri)
         return when {
-            type.startsWith("image/") -> prepareImage(uri)
-            type == "video/mp4" -> prepareVideo(uri)
+            type.startsWith("image/") -> prepareImage(uri, checkActiveOwner)
+            type == "video/mp4" -> prepareVideo(uri, checkActiveOwner)
             else -> throw AuthRequestException("Choose a JPEG, PNG, WebP image or MP4 video.")
         }
     }
@@ -176,43 +205,52 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
         }
         return uploads.withLock {
             withContext(Dispatchers.IO) {
-                currentCoroutineContext().ensureActive()
-                checkOwner()
-                val prepared = prepare(uri)
+                val uploadContext = currentCoroutineContext()
+                val checkActiveOwner = { uploadContext.ensureActive(); checkOwner() }
+                checkActiveOwner()
+                val prepared = prepare(uri, checkActiveOwner)
                 var remoteId: String? = null
                 var uploadToken: String? = null
+                suspend fun freshToken(): String {
+                    checkActiveOwner()
+                    val current = auth.accessTokenForStagingRead()
+                    checkActiveOwner()
+                    uploadToken = current
+                    return current
+                }
                 try {
-                    currentCoroutineContext().ensureActive()
-                    checkOwner()
-                    val token = auth.accessTokenForStagingRead()
-                    checkOwner()
-                    uploadToken = token
-                    val begin = request("/api/sauti-media/begin", "POST", token,
+                    val begin = request("/api/sauti-media/begin", "POST", freshToken(),
                         JSONObject().put("content_type", prepared.type).put("size_bytes", prepared.file.length())
                             .toString().toRequestBody("application/json".toMediaType()))
                     val id = begin.optString("id")
                     if (!uuid.matches(id)) throw AuthRequestException("Upload reference was invalid.")
                     remoteId = id
-                    currentCoroutineContext().ensureActive()
-                    checkOwner()
-                    val body = ProgressFileBody(prepared.file, prepared.type.toMediaType()) { value ->
-                        main.post { if (auth.account?.id == expectedOwner) onProgress(value) }
+                    checkActiveOwner()
+                    val plan = try {
+                        NativePostUploadPolicy.plan(id,prepared.file.length(),prepared.kind,prepared.type,begin)
+                    } catch (error: IllegalArgumentException) {
+                        throw AuthRequestException(error.message ?: "The upload session was invalid.")
                     }
-                    request("/api/sauti-media/upload/$id", "PUT", token, body)
-                    currentCoroutineContext().ensureActive()
-                    checkOwner()
-                    val finalized = request("/api/sauti-media/finalize/$id", "POST", token)
+                    for (part in 1..plan.partCount) {
+                        val token = freshToken()
+                        val body = NativePostFileRangeBody(prepared.file, prepared.type.toMediaType(),
+                            plan.offset(part), plan.length(part), checkActiveOwner) { value ->
+                            main.post { if (auth.account?.id == expectedOwner && uploadContext.isActive) onProgress(value) }
+                        }
+                        request(plan.path(part), "PUT", token, body)
+                    }
+                    if (plan.chunked) request(plan.completePath, "PUT", freshToken(), ByteArray(0).toRequestBody(prepared.type.toMediaType()))
+                    val finalized = request("/api/sauti-media/finalize/$id", "POST", freshToken())
                     if (!finalized.optBoolean("ready") || finalized.optString("id") != id)
                         throw AuthRequestException("Upload was not finalized.")
-                    currentCoroutineContext().ensureActive()
-                    checkOwner()
-                    main.post { if (auth.account?.id == expectedOwner) onProgress(100) }
+                    checkActiveOwner()
+                    main.post { if (auth.account?.id == expectedOwner && uploadContext.isActive) onProgress(100) }
                     NativeReadyMedia(id, prepared.kind)
                 } catch (e: Exception) {
                     val cleanupToken = uploadToken
                     if (remoteId != null && cleanupToken != null) withContext(NonCancellable) {
                         runCatching {
-                            request("/api/sauti-media/$remoteId", "DELETE", cleanupToken)
+                            withTimeout(10_000) { request("/api/sauti-media/$remoteId", "DELETE", cleanupToken) }
                         }
                     }
                     throw e
@@ -249,28 +287,6 @@ class NativeMediaClient(private val auth: StagingAuthClient, private val context
                 }
             } catch (e: AuthRequestException) { throw e }
             catch (_: Exception) { throw AuthRequestException("Could not load unfinished uploads.") }
-        }
-    }
-}
-
-private class ProgressFileBody(private val file: File, private val type: MediaType,
-    private val onProgress: (Int) -> Unit) : RequestBody() {
-    override fun contentType(): MediaType = type
-    override fun contentLength(): Long = file.length()
-    override fun writeTo(sink: BufferedSink) {
-        val total = file.length().coerceAtLeast(1)
-        var sent = 0L
-        var last = -1
-        file.inputStream().use { input ->
-            val buffer = ByteArray(64 * 1024)
-            while (true) {
-                val read = input.read(buffer)
-                if (read < 0) break
-                sink.write(buffer, 0, read)
-                sent += read
-                val progress = ((sent * 100) / total).toInt().coerceIn(0, 100)
-                if (progress >= last + 2 || progress == 100) { last = progress; onProgress(progress) }
-            }
         }
     }
 }

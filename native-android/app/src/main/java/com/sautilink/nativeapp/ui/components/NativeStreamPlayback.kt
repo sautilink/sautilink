@@ -245,6 +245,9 @@ internal class NativeHlsGrantRegistry(private val now: () -> Long = System::curr
     @Synchronized fun authorize(source: NativeVideoSource) {
         val prefix = source.gatewayPrefix ?: return
         val expiry = source.expiresAtMillis ?: return
+        NativeVideoReplayProbe.mark(NativeVideoReplayStage.DESCRIPTOR, mediaId = source.mediaId,
+            generation = source.cacheKey,
+            reason = if (source.cacheKey == null) NativeVideoReplayReason.MISSING_GENERATION else NativeVideoReplayReason.NONE)
         grants.entries.removeAll { it.value.expiry <= now() }
         grants.remove(prefix)
         if (expiry > now()) grants[prefix] = Grant(expiry, source.cacheKey?.takeIf { Regex(playbackUuid).matches(it) }, source.bootstrap)
@@ -263,10 +266,18 @@ internal class NativeHlsGrantRegistry(private val now: () -> Long = System::curr
         val opaque = uri.rawPath.substringAfterLast('/')
         if (!Regex("s_[A-Za-z0-9_-]{43}").matches(opaque)) return null
         val prefix = "${uri.scheme}://${uri.host}" + uri.rawPath.substringBeforeLast('/') + "/"
-        val generation = grants[prefix]?.cacheKey ?: return null
+        val generation = grants[prefix]?.cacheKey ?: run {
+            NativeVideoReplayProbe.mark(NativeVideoReplayStage.RESOURCE_DENIED,
+                mediaId = uri.rawPath.substringBefore("/hls/").substringAfterLast('/'),
+                reason = NativeVideoReplayReason.MISSING_GENERATION)
+            return null
+        }
         // No provider path/query or bearer enters the cache identity. The private
         // player adds its account-scoped salt, and each read still checks TTL.
-        return "$prefix$generation/$opaque"
+        val identity = "$prefix$generation/$opaque"
+        if (NativeVideoReplayProbe.enabled) NativeVideoReplayProbe.mark(NativeVideoReplayStage.RESOURCE_IDENTITY,
+            mediaId = uri.rawPath.substringBefore("/hls/").substringAfterLast('/'), generation = generation, identity = identity)
+        return identity
     }
     @Synchronized fun consumeBootstrap(url: String): ByteArray? {
         if (!allows(url)) return null

@@ -58,7 +58,9 @@ internal class NativeVideoReplayPool(
     private val maxBytes: Long = 64L * 1024 * 1024,
     private val idleTtlMillis: Long = 120_000L,
     private val clock: () -> Long = SystemClock::elapsedRealtime,
+    internal val diagnosticOwnerEpoch: Long = 0L,
 ) : Closeable {
+    internal val diagnosticEpoch = NativeVideoReplayProbe.nextEpoch()
     private val context = context.applicationContext
     private val cacheRoot = context.cacheDir
     private val entries = linkedMapOf<NativeVideoReplayIdentity, Entry>()
@@ -68,11 +70,14 @@ internal class NativeVideoReplayPool(
         val cache: SimpleCache, val database: StandaloneDatabaseProvider,
         val salt: String = UUID.randomUUID().toString(), var references: Int = 0,
         var idleAt: Long? = null, var expiry: Job? = null,
-        val identities: MutableSet<String> = hashSetOf())
+        val identities: MutableSet<String> = hashSetOf(),
+        val diagnosticEpoch: Long = NativeVideoReplayProbe.nextEpoch())
 
     init {
         require(maxStores in 1..3 && maxBytes in maxStores.toLong()..64L * 1024 * 1024)
         require(idleTtlMillis in 1L..120_000L)
+        NativeVideoReplayProbe.mark(NativeVideoReplayStage.POOL_CREATE,
+            ownerEpoch = diagnosticOwnerEpoch, poolEpoch = diagnosticEpoch)
     }
 
     internal class Lease internal constructor(private val pool: NativeVideoReplayPool,
@@ -80,6 +85,9 @@ internal class NativeVideoReplayPool(
         private val released = AtomicBoolean(false)
         val cache: SimpleCache get() = entry.cache
         val salt: String get() = entry.salt
+        val diagnosticOwnerEpoch: Long get() = pool.diagnosticOwnerEpoch
+        val diagnosticPoolEpoch: Long get() = pool.diagnosticEpoch
+        val diagnosticStoreEpoch: Long get() = entry.diagnosticEpoch
         fun active(): Boolean = !released.get() && pool.valid(entry)
         fun admit(identity: String): Boolean = !released.get() && pool.admit(entry, identity)
         override fun close() { if (released.compareAndSet(false, true)) pool.release(entry) }
@@ -87,32 +95,58 @@ internal class NativeVideoReplayPool(
 
     @Synchronized internal fun accepts(candidate: NativeVideoReplayScope): Boolean {
         if (closed || !scope.matches(candidate)) return false
-        if (!sessionActive()) { invalidate(); return false }
+        if (!sessionActive()) { invalidate(NativeVideoReplayReason.SESSION_END); return false }
         return true
     }
 
     @Synchronized internal fun acquire(candidate: NativeVideoReplayScope, identity: String): Lease? {
-        if (!accepts(candidate)) return null
-        val key = nativeVideoReplayIdentity(identity) ?: return null
+        if (!accepts(candidate)) {
+            NativeVideoReplayProbe.mark(NativeVideoReplayStage.ACQUIRE_DENIED,
+                reason = if (closed) NativeVideoReplayReason.CLOSED_POOL else NativeVideoReplayReason.SESSION_END,
+                ownerEpoch = diagnosticOwnerEpoch, poolEpoch = diagnosticEpoch, identity = identity)
+            return null
+        }
+        val key = nativeVideoReplayIdentity(identity) ?: run {
+            NativeVideoReplayProbe.mark(NativeVideoReplayStage.ACQUIRE_DENIED, reason = NativeVideoReplayReason.INVALID_IDENTITY,
+                ownerEpoch = diagnosticOwnerEpoch, poolEpoch = diagnosticEpoch, identity = identity)
+            return null
+        }
         pruneExpired()
         var entry = entries[key]
         if (entry == null) {
             if (entries.size >= maxStores) {
                 val oldest = entries.values.filter { it.references == 0 }.minByOrNull { it.idleAt ?: Long.MAX_VALUE }
-                    ?: return null // Active loaders are never evicted to admit another video.
-                entries.remove(oldest.identity); dispose(oldest)
+                    ?: run {
+                        NativeVideoReplayProbe.mark(NativeVideoReplayStage.ACQUIRE_DENIED,
+                            mediaId = key.content.substringAfterLast('/'), reason = NativeVideoReplayReason.ACTIVE_STORE_LIMIT,
+                            ownerEpoch = diagnosticOwnerEpoch, poolEpoch = diagnosticEpoch, generation = key.generation, identity = identity)
+                        return null // Active loaders are never evicted to admit another video.
+                    }
+                entries.remove(oldest.identity); dispose(oldest, NativeVideoReplayReason.LRU)
             }
-            entry = create(key) ?: return null
+            entry = create(key) ?: run {
+                NativeVideoReplayProbe.mark(NativeVideoReplayStage.ACQUIRE_DENIED,
+                    mediaId = key.content.substringAfterLast('/'), reason = NativeVideoReplayReason.STORAGE_UNAVAILABLE,
+                    ownerEpoch = diagnosticOwnerEpoch, poolEpoch = diagnosticEpoch, generation = key.generation, identity = identity)
+                return null
+            }
             entries[key] = entry
+            report(NativeVideoReplayStage.STORE_CREATE, entry, identity = identity)
+        } else {
+            report(NativeVideoReplayStage.STORE_REUSE, entry, identity = identity)
         }
-        if (!admit(entry, identity, requireLease = false)) return null
+        if (!admit(entry, identity, requireLease = false)) {
+            report(NativeVideoReplayStage.ACQUIRE_DENIED, entry, NativeVideoReplayReason.IDENTITY_LIMIT, identity)
+            return null
+        }
         entry.expiry?.cancel(); entry.expiry = null; entry.idleAt = null; entry.references++
+        report(NativeVideoReplayStage.STORE_ACQUIRE, entry, identity = identity)
         return Lease(this, entry)
     }
 
     @Synchronized private fun valid(entry: Entry): Boolean {
         if (closed) return false
-        if (!sessionActive()) { invalidate(); return false }
+        if (!sessionActive()) { invalidate(NativeVideoReplayReason.SESSION_END); return false }
         return entries[entry.identity] === entry && entry.references > 0
     }
 
@@ -128,9 +162,10 @@ internal class NativeVideoReplayPool(
     @Synchronized private fun release(entry: Entry) {
         if (entries[entry.identity] !== entry || entry.references <= 0) return
         entry.references--
+        report(NativeVideoReplayStage.STORE_RELEASE, entry)
         if (entry.references > 0) return
         if (closed || !sessionActive()) {
-            entries.remove(entry.identity); dispose(entry)
+            entries.remove(entry.identity); dispose(entry, if (closed) NativeVideoReplayReason.CLOSED_POOL else NativeVideoReplayReason.SESSION_END)
         } else {
             entry.idleAt = clock()
             entry.expiry = cleanup.launch {
@@ -145,15 +180,17 @@ internal class NativeVideoReplayPool(
         val expired = entries.values.filter { entry -> entry.references == 0 && entry.idleAt?.let {
             now < it || now - it >= idleTtlMillis
         } == true }
-        expired.forEach { entries.remove(it.identity); dispose(it) }
+        expired.forEach { entries.remove(it.identity); dispose(it, NativeVideoReplayReason.IDLE_TTL) }
     }
 
     /** Background/memory trimming must not invalidate a mounted player's open
      * CacheDataSource. Only closed-loader, zero-lease stores can be discarded.
      */
-    @Synchronized internal fun trimIdle() {
+    @Synchronized internal fun trimIdle(reason: NativeVideoReplayReason = NativeVideoReplayReason.MEMORY_TRIM, detail: Int = 0) {
+        NativeVideoReplayProbe.mark(NativeVideoReplayStage.TRIM, reason = reason,
+            ownerEpoch = diagnosticOwnerEpoch, poolEpoch = diagnosticEpoch, detail = detail)
         entries.values.filter { it.references == 0 }.toList().forEach {
-            entries.remove(it.identity); dispose(it)
+            entries.remove(it.identity); dispose(it, reason)
         }
     }
 
@@ -175,7 +212,17 @@ internal class NativeVideoReplayPool(
         }
     }
 
-    private fun dispose(entry: Entry) {
+    private fun report(stage: NativeVideoReplayStage, entry: Entry,
+        reason: NativeVideoReplayReason = NativeVideoReplayReason.NONE, identity: String? = null) {
+        if (!NativeVideoReplayProbe.enabled) return
+        val cacheBytes = runCatching { entry.cache.cacheSpace }.getOrDefault(-1L)
+        NativeVideoReplayProbe.mark(stage, mediaId = entry.identity.content.substringAfterLast('/'), reason = reason,
+            ownerEpoch = diagnosticOwnerEpoch, poolEpoch = diagnosticEpoch, storeEpoch = entry.diagnosticEpoch,
+            generation = entry.identity.generation, identity = identity, cacheBytes = cacheBytes, detail = entry.references)
+    }
+
+    private fun dispose(entry: Entry, reason: NativeVideoReplayReason) {
+        report(NativeVideoReplayStage.STORE_DISPOSE, entry, reason)
         entry.expiry?.cancel(); entry.expiry = null
         runCatching { entry.cache.release() }
         runCatching { SimpleCache.delete(entry.directory, entry.database) }
@@ -183,17 +230,20 @@ internal class NativeVideoReplayPool(
         ActiveReplayDirectories.release(entry.directory)
     }
 
-    private fun invalidate() {
+    private fun invalidate(reason: NativeVideoReplayReason) {
         if (closed) return
+        NativeVideoReplayProbe.mark(NativeVideoReplayStage.POOL_CLOSE, reason = reason,
+            ownerEpoch = diagnosticOwnerEpoch, poolEpoch = diagnosticEpoch)
         closed = true
         cleanup.cancel()
         // Each data source closes its loader before releasing a lease. Invalidation
         // denies reads immediately, but only unused stores can be deleted now.
         entries.values.filter { it.references == 0 }.toList().forEach {
-            entries.remove(it.identity); dispose(it)
+            entries.remove(it.identity); dispose(it, reason)
         }
     }
-    @Synchronized override fun close() { invalidate() }
+    @Synchronized internal fun closeFor(reason: NativeVideoReplayReason) { invalidate(reason) }
+    @Synchronized override fun close() { invalidate(NativeVideoReplayReason.OWNER_DISPOSE) }
 }
 
 internal class NativeVideoReplayBinding internal constructor(internal val pool: NativeVideoReplayPool,
@@ -208,16 +258,25 @@ internal class NativeVideoReplayOwner(context: Context, private val authOwner: A
     private val context = context.applicationContext
     private var binding: NativeVideoReplayBinding? = null
     private var closed = false
+    private val diagnosticEpoch = NativeVideoReplayProbe.nextEpoch()
+    init { NativeVideoReplayProbe.mark(NativeVideoReplayStage.OWNER_CREATE, ownerEpoch = diagnosticEpoch) }
     @Synchronized fun bindingFor(owner: Any, account: String?, bearer: String): NativeVideoReplayBinding? {
         if (closed || owner !== authOwner || account != accountId || bearer.isBlank() || !sessionActive()) return null
         val candidate = NativeVideoReplayScope(owner, accountId, bearer)
-        binding?.takeIf { it.pool.accepts(candidate) }?.let { return it }
-        binding?.pool?.close()
-        return NativeVideoReplayBinding(NativeVideoReplayPool(context, candidate, sessionActive), candidate).also { binding = it }
+        binding?.takeIf { it.pool.accepts(candidate) }?.let {
+            NativeVideoReplayProbe.mark(NativeVideoReplayStage.POOL_REUSE, ownerEpoch = diagnosticEpoch,
+                poolEpoch = it.pool.diagnosticEpoch)
+            return it
+        }
+        val previous = binding
+        if (previous != null) previous.pool.closeFor(if (!previous.scope.matches(candidate))
+            NativeVideoReplayReason.CREDENTIAL_ROTATION else NativeVideoReplayReason.OWNER_CLEAR)
+        return NativeVideoReplayBinding(NativeVideoReplayPool(context, candidate, sessionActive,
+            diagnosticOwnerEpoch = diagnosticEpoch), candidate).also { binding = it }
     }
-    @Synchronized fun clear() { binding?.pool?.close(); binding = null }
-    @Synchronized fun trimIdle() { binding?.pool?.trimIdle() }
-    @Synchronized override fun close() { if (!closed) { closed = true; clear() } }
+    @Synchronized fun clear(reason: NativeVideoReplayReason = NativeVideoReplayReason.OWNER_CLEAR) { binding?.pool?.closeFor(reason); binding = null }
+    @Synchronized fun trimIdle(reason: NativeVideoReplayReason = NativeVideoReplayReason.MEMORY_TRIM, detail: Int = 0) { binding?.pool?.trimIdle(reason, detail) }
+    @Synchronized override fun close() { if (!closed) { closed = true; clear(NativeVideoReplayReason.OWNER_DISPOSE) } }
 }
 
 internal val LocalNativeVideoReplayOwner = staticCompositionLocalOf<NativeVideoReplayOwner?> { null }
@@ -240,12 +299,12 @@ internal fun NativeVideoReplaySession(auth: StagingAuthClient, content: @Composa
     SideEffect { if (!signedIn) replayOwner?.clear() }
     DisposableEffect(replayOwner, lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) replayOwner?.trimIdle()
-            if (event == Lifecycle.Event.ON_DESTROY) replayOwner?.clear()
+            if (event == Lifecycle.Event.ON_STOP) replayOwner?.trimIdle(NativeVideoReplayReason.BACKGROUND)
+            if (event == Lifecycle.Event.ON_DESTROY) replayOwner?.clear(NativeVideoReplayReason.DESTROY)
         }
         val trim = object : ComponentCallbacks2 {
-            override fun onTrimMemory(level: Int) { replayOwner?.trimIdle() }
-            override fun onLowMemory() { replayOwner?.trimIdle() }
+            override fun onTrimMemory(level: Int) { replayOwner?.trimIdle(NativeVideoReplayReason.MEMORY_TRIM, level) }
+            override fun onLowMemory() { replayOwner?.trimIdle(NativeVideoReplayReason.LOW_MEMORY) }
             override fun onConfigurationChanged(newConfig: Configuration) = Unit
         }
         lifecycle.addObserver(observer)

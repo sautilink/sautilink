@@ -77,7 +77,7 @@ internal fun renderEditedBitmap(source: Bitmap, edits: NativeImageEdits): Bitmap
     } finally { if (rotated !== source) rotated.recycle() }
 }
 
-internal suspend fun exportEditedImage(context: Context, bitmap: Bitmap, edits: NativeImageEdits): NativeEditedMedia {
+internal suspend fun exportEditedImage(context: Context, bitmap: Bitmap, edits: NativeImageEdits, maximumBytes: Long = NativePostMediaPolicy.MAX_IMAGE_BYTES): NativeEditedMedia {
     val output = File(context.cacheDir, "sauti-edit-${UUID.randomUUID()}.${if (bitmap.hasAlpha()) "png" else "jpg"}")
     try {
         return withContext(Dispatchers.IO) {
@@ -85,7 +85,7 @@ internal suspend fun exportEditedImage(context: Context, bitmap: Bitmap, edits: 
             try {
                 ensureActive()
                 output.outputStream().use { check(result.compress(if (result.hasAlpha()) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG, 90, it)) { "Could not save the edited image." } }
-                check(output.length() in 1..(8L * 1024 * 1024)) { "The edited image is above 8 MB. Crop it further or choose another image." }
+                check(output.length() in 1..maximumBytes) { "The edited image is above ${maximumBytes / (1024 * 1024)} MB. Crop it further or choose another image." }
                 ensureActive()
                 NativeEditedMedia(Uri.fromFile(output), output)
             } finally { result.recycle() }

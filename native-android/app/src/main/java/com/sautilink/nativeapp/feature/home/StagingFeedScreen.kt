@@ -92,6 +92,8 @@ fun StagingFeedScreen(
     onSignIn: () -> Unit,
     asHome: Boolean = false,
     savedRequestVersion: Int = 0,
+    requestedFeed: HomeFeedRequest? = null,
+    onFeedRequestConsumed: (HomeFeedRequest) -> Unit = {},
     onOpenNotifications: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenMenu: () -> Unit = {},
@@ -107,7 +109,7 @@ fun StagingFeedScreen(
     val accountId = account?.id
     val sessionState = auth.sessionState
     var mode by rememberSaveable(auth.backend.id) {
-        mutableStateOf(if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION)
+        mutableStateOf(requestedFeed?.takeIf { it.ownerId == accountId }?.mode ?: if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION)
             "saved" else "for_you")
     }
     LaunchedEffect(savedRequestVersion) {
@@ -115,6 +117,16 @@ fun StagingFeedScreen(
         if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION) mode = "saved"
     }
     var refreshVersion by remember { mutableIntStateOf(0) }
+    val requested = requestedFeed?.takeIf { it.ownerId == accountId }
+    var appliedRequest by remember(auth, accountId) { mutableStateOf(requested) }
+    LaunchedEffect(requested) {
+        if (requested != null) {
+            val laterIntent = appliedRequest !== requested
+            appliedRequest = requested
+            mode = requested.mode
+            if (laterIntent) refreshVersion++
+        }
+    }
     val presentations = rememberSessionScreenPresentationAccess()
     val returnKey = "feed:$mode"
     val returnInitial: FeedReturnInitialState = remember(presentations, accountId, mode) {
@@ -496,6 +508,7 @@ fun StagingFeedScreen(
     }
 
     LaunchedEffect(client, accountId, mode, refreshVersion, online) {
+        if (requested != null && mode != requested.mode) return@LaunchedEffect
         val readScope = FeedReadScope(accountId, mode, refreshVersion)
         fun current() = readScope.current(auth.account?.id, mode, refreshVersion)
         val cachedPage = if (account == null) null else client.cached(readScope.mode)
@@ -522,7 +535,7 @@ fun StagingFeedScreen(
                 else "Offline. Showing recent posts saved in this session. Reconnect to refresh."
             return@LaunchedEffect
         }
-        if (cachedPage != null && refreshVersion == 0 && (client.cacheAgeMs(readScope.mode) ?: Long.MAX_VALUE) < 45_000L) {
+        if (requested == null && cachedPage != null && refreshVersion == 0 && (client.cacheAgeMs(readScope.mode) ?: Long.MAX_VALUE) < 45_000L) {
             loading = false
             return@LaunchedEffect
         }
@@ -531,11 +544,17 @@ fun StagingFeedScreen(
         try {
             val page = client.load(readScope.mode, 0)
             if (!current()) return@LaunchedEffect
-            val retainReadingPosition = returnInitial.restored && posts.isNotEmpty() && !userRefreshing
+            val retainReadingPosition = requested == null && returnInitial.restored && posts.isNotEmpty() && !userRefreshing
             if (retainReadingPosition) {
                 if (page.posts.any { fresh -> posts.none { it.id == fresh.id } }) newPostsAvailable = true
                 posts = mergeReturningFeedRows(posts, page.posts)
             } else posts = page.posts
+            if (requested?.postId != null && readScope.mode == "for_you") {
+                // The server/RLS confirms the newly published row before it is pinned.
+                val ownPost = client.loadOne(requested.postId)
+                if (!current()) return@LaunchedEffect
+                if (ownPost != null && ownPost.authorId == accountId) posts = listOf(ownPost) + posts.filterNot { it.id == ownPost.id }
+            }
             if (readScope.mode == "saved") {
                 // The private saved relationship query itself confirms this state.
                 savedStates = savedStates + page.posts.associate { it.id to true }
@@ -544,10 +563,11 @@ fun StagingFeedScreen(
             followFeedbackVersion = followFeedbackVersion.filterValues { it >= readScope.refreshVersion }
             newPostsTracker.refreshed()
             if (!retainReadingPosition) newPostsAvailable = false
-            if (scrollAfterRefresh) {
+            if (scrollAfterRefresh || requested != null) {
                 scrollAfterRefresh = false
                 feedListState.scrollToItem(0)
             }
+            requested?.let(onFeedRequestConsumed)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (exception: Exception) {

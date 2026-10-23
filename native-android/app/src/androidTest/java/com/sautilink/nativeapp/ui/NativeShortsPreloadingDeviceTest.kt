@@ -239,6 +239,11 @@ class NativeShortsPreloadingDeviceTest {
         val h = Harness()
         try {
             h.mount()
+            // Isolate the initial handoff period. Repeat-one may legitimately
+            // preload later loop periods (even from disk) before this assertion;
+            // those loads do not mean the initial sample queues were discarded.
+            // Production and the separate real looping regressions retain ONE.
+            compose.runOnIdle { h.preload.player.repeatMode = Player.REPEAT_MODE_OFF }
             assertEquals(0, h.factory.opens(2)); assertEquals(0, h.factory.opens(3))
             var prepared: androidx.media3.exoplayer.source.MediaSource? = null
             var before = 0L

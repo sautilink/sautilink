@@ -220,7 +220,7 @@ class NativeRoomsClient(auth: StagingAuthClient) {
                 val kind = item.roomString("media_kind")
                 if (kind !in setOf("image", "video")) null else FeedMedia(item.roomString("id"), kind,
                     item.optInt("position").coerceAtLeast(0), item.optInt("width").coerceAtLeast(0), item.optInt("height").coerceAtLeast(0))
-            }.sortedBy { it.position }.take(5) }
+            }.sortedBy { it.position }.take(10) }
         transport.checkViewer(own)
         return rows.map { row ->
             val author = authors[row.roomString("author_id")]

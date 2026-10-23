@@ -172,6 +172,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         context.applicationContext.getSharedPreferences("sautilink_native_welcome_v1", Context.MODE_PRIVATE)
     }
     val activeAccountId = productionAuth.account?.id
+    var homeRequest by remember(activeAccountId) { mutableStateOf<com.sautilink.nativeapp.feature.home.HomeFeedRequest?>(null) }
     DisposableEffect(productionAuth, activeAccountId) {
         onDispose { StagingFeedClient(productionAuth).clearCache() }
     }
@@ -387,6 +388,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     }
     SautiTheme(darkTheme = isDark) {
       CompositionLocalProvider(LocalSautiTextNavigation provides textNavigation,
+          com.sautilink.nativeapp.ui.components.LocalNativePlaybackBlocked provides composerOpen,
           LocalNativeStoryPresence provides NativeStoryPresence(
               storiesFeed.activeGroups(storiesClock).map { it.author.username }.toSet(),
               open = { handle -> storyProfile = handle; storyDeepId = null; storyReturn = detail; detail = "stories" })) {
@@ -638,6 +640,8 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             onSignIn = { detail = "production-auth" },
                             asHome = true,
                             savedRequestVersion = savedRequestVersion,
+                            requestedFeed = homeRequest,
+                            onFeedRequestConsumed = { consumed -> if (homeRequest === consumed) homeRequest = null },
                             onOpenMenu = { detail = "menu" },
                             onOpenMarketplace = { detail = "marketplace" },
                             onOpenStories = { storyReturn = null; storyDeepId = null; storyProfile = null; detail = "stories" },
@@ -650,6 +654,10 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             onOpenPost = { id -> notificationPostId = id; postReturn = null; detail = "post" }
                         )
                         1 -> NativeExploreScreen(auth = productionAuth,
+                            onOpenTrending = {
+                                activeAccountId?.let { homeRequest = com.sautilink.nativeapp.feature.home.HomeFeedRequest(it, "trending") }
+                                detail = null; root = 0
+                            },
                             onSignIn = { detail = "production-auth" },
                             onOpenProfile = { handle ->
                                 viewedProfileHandle = handle; memberProfileReturn = null; detail = "member-profile"
@@ -675,6 +683,8 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             auth = productionAuth, onBack = {}, onSignIn = { detail = "production-auth" },
                             asHome = true,
                             savedRequestVersion = savedRequestVersion,
+                            requestedFeed = homeRequest,
+                            onFeedRequestConsumed = { consumed -> if (homeRequest === consumed) homeRequest = null },
                             onOpenMenu = { detail = "menu" },
                             onOpenMarketplace = { detail = "marketplace" },
                             onOpenStories = { storyReturn = null; storyDeepId = null; storyProfile = null; detail = "stories" },
@@ -696,8 +706,11 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             }, shape = SautiShape.Sheet) {
                                 NativePostComposer(auth = productionAuth, draft = postDraft, onDraftChange = { postDraft = it },
                                     onDismiss = { composerOpen = false },
-                                    onPublished = { postDraft = ""; StagingFeedClient(productionAuth).clearCache(); postsRefresh++;
-                                        composerOpen = false; detail = "my-posts"; root = 4; notice("Post published") },
+                                    onPublished = { publishedId ->
+                                        postDraft = ""; StagingFeedClient(productionAuth).clearCache(); postsRefresh++
+                                        activeAccountId?.let { homeRequest = com.sautilink.nativeapp.feature.home.HomeFeedRequest(it, "for_you", publishedId) }
+                                        composerOpen = false; detail = null; root = 0; notice("Post published")
+                                    },
                                     onSignIn = { composerOpen = false; detail = "production-auth" },
                                     onUploadActivity = { composerInFlight = it })
                             }
