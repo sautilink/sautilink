@@ -60,9 +60,13 @@ test('non-critical member services are deferred so Home feed gets first network 
   const render = app.slice(renderStart, renderEnd);
 
   assert.ok(renderStart >= 0 && renderEnd > renderStart);
-  assert.match(render, /void loadStream\(\{ reset: true \}\);/);
-  assert.match(render, /startDeferredMemberServices\(\);/);
-  assert.match(app, /function startDeferredMemberServices\(\)/);
+  assert.match(render, /const firstFeed = loadStream\(\{ reset: true \}\);/);
+  assert.match(render, /startDeferredMemberServices\(firstFeed\);/);
+  assert.ok(render.indexOf('const firstFeed = loadStream') < render.indexOf('prepareComposer()'));
+  assert.match(app, /function startDeferredMemberServices\(firstFeed\)/);
+  assert.match(app, /Promise\.resolve\(firstFeed\)\.then\(feedSettled, feedSettled\)/);
+  assert.match(app, /deadline = window\.setTimeout\(start, 5000\)/);
+  assert.match(app, /currentMemberId !== memberId/);
   assert.match(app, /MEMBER_REFRESH_DELAY_MS = 700/);
 });
 

@@ -20,12 +20,12 @@ test('Phase 32 production artifact targets production Supabase and removes previ
   assert.doesNotMatch(bundle, /profile-x-ui\.css\?v=20260918-profile2/);
   assert.doesNotMatch(html, /Private preview|Phase 31/);
   assert.doesNotMatch(html, /name="robots"[^>]+noindex/i);
-  assert.match(html, /app\.css\?v=20260927-page-headers1/);
+  assert.match(html, /app\.css\?v=[a-f0-9]{12}/);
   assert.match(html, /id="sautilink-profile-x-ui"[^>]+profile-x-ui\.css\?v=[a-f0-9]{12}/);
   assert.match(html, /profile-settings-ui\.css\?v=[a-f0-9]{12}/);
   assert.doesNotMatch(html, /profile-(?:x|settings)-ui\.css\?v=20260918-profile2/);
-  assert.match(html, /app\.js\?v=20260930-swala-otp2/);
-  assert.match(html, /theme-init\.js\?v=20260904-account2/);
+  assert.match(html, /app\.js\?v=[a-f0-9]{12}/);
+  assert.match(html, /theme-init\.js\?v=[a-f0-9]{12}/);
   assert.match(html, /\/logo\.png/);
   assert.doesNotMatch(html, /logo-compact\.webp/);
   assert.match(router, /environment: isStaging\(url\) \? 'staging' : 'production'/);
@@ -98,7 +98,9 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   const hashVerifyScript = await read('scripts/verify-production-ui-asset-hashes.mjs');
   const serviceWorker = await read('sw.js');
 
-  assert.match(workflow, /app\.css\?v=20260927-page-headers1/);
+  assert.match(workflow, /app\.css\?v=\$app_css_version/);
+  assert.match(workflow, /cmp -s dist-production-site\/app\/assets\/app\.js "\$app_js_body"/);
+  assert.match(workflow, /cmp -s dist-production-site\/app\/assets\/app\.css "\$app_css_body"/);
 
   assert.match(pkg.scripts['build:production'], /build-production-release\.mjs/);
   assert.match(pkg.scripts['build:production'], /stamp-production-ui-assets\.mjs/);
@@ -124,7 +126,7 @@ test('Phase 32 production build and verifier are permanent repository gates', as
     'https://sautilink.com/home',
     'https://sautilink.com/menu',
     'id="menu-surface"',
-    'app.js?v=20260930-swala-otp2',
+    'app.js?v=$app_js_version',
     'pwa.js?v=20260930-swala-otp2',
     'sautilink-profile-x-ui',
   ]) assert.ok(workflow.includes(marker), `production workflow missing ${marker}`);
@@ -141,7 +143,7 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   assert.match(stampScript, /createHash\('sha256'\)/);
   assert.match(stampScript, /profile-x-ui\.css/);
   assert.match(hashVerifyScript, /content-hashed production UI stylesheets/);
-  assert.match(serviceWorker, /sautilink-shell-v94/);
+  assert.match(serviceWorker, /sautilink-shell-v95/);
   assert.match(serviceWorker, /20260930-swala-otp2/);
 });
 

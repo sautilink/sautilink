@@ -31,7 +31,8 @@ test('member shell opens before optional profile decoration', async () => {
   assert.ok(renderStart >= 0 && renderEnd > renderStart);
   assert.ok(render.indexOf('loadingView.hidden = true;') < render.indexOf('renderProfile(currentMember)'));
   assert.match(render, /showMemberSurface\('stream', \{ syncUrl: false \}\)/);
-  assert.match(render, /void loadStream\(\{ reset: true \}\)/);
+  assert.match(render, /const firstFeed = loadStream\(\{ reset: true \}\)/);
+  assert.ok(render.indexOf('const firstFeed = loadStream') < render.indexOf('prepareComposer()'));
 });
 
 test('production member bootstrap preserves the new signup admission gate', async () => {

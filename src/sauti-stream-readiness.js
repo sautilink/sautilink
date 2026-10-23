@@ -25,9 +25,25 @@ export function initialHlsResources(text, base, mediaId, origin) {
     if (!lines[index].startsWith('#EXT-X-STREAM-INF:')) continue;
     const bandwidth = Number(lines[index].match(/(?:^|[:,])BANDWIDTH=(\d+)/)?.[1]);
     const url = resourceUrl(lines[index + 1], base, mediaId, origin);
-    if (url && bandwidth > 0) variants.push({ url, bandwidth });
+    if (url && bandwidth > 0) variants.push({ url, bandwidth,
+      audioGroup: lines[index].match(/(?:^|[:,])AUDIO="([^"]+)"/)?.[1] });
   }
-  if (variants.length) return { playlist: variants.sort((a, b) => a.bandwidth - b.bandwidth)[0].url };
+  if (variants.length) {
+    const selected = variants.sort((a, b) => a.bandwidth - b.bandwidth)[0];
+    const plan = { playlist: selected.url };
+    if (selected.audioGroup) {
+      const audio = lines.filter((line) => line.startsWith('#EXT-X-MEDIA:') && /(?:^|[:,])TYPE=AUDIO(?:,|$)/.test(line)
+        && line.match(/(?:^|[:,])GROUP-ID="([^"]+)"/)?.[1] === selected.audioGroup)
+        .sort((a, b) => Number(/(?:^|[:,])DEFAULT=YES(?:,|$)/.test(b)) - Number(/(?:^|[:,])DEFAULT=YES(?:,|$)/.test(a)))
+        .find((line) => /(?:^|[:,])URI="/.test(line));
+      if (audio) {
+        const url = resourceUrl(audio.match(/(?:^|[:,])URI="([^"]+)"/)?.[1], base, mediaId, origin);
+        if (!url) return null;
+        plan.audioPlaylist = url;
+      }
+    }
+    return plan;
+  }
   // Do not speculate on live, encrypted or ranged objects. Their normal SDK
   // loader remains authoritative; a guessed whole-file range can be enormous.
   if (!lines.includes('#EXT-X-ENDLIST')) return null;
@@ -61,7 +77,7 @@ export function createStreamReadiness({ origin, ensureSession, validateDescripto
   }
   function current(job) { return !job.controller.signal.aborted && job.generation === generation && wanted.includes(job.id) && !paused; }
   async function read(job, url, limit, text = false) {
-    if (!current(job)) throw new Error('READINESS_CANCELLED');
+    if (!current(job) || limit <= 0) throw new Error('READINESS_CANCELLED');
     const started = now();
     const response = await fetcher(url, { credentials: 'same-origin', cache: 'no-store', redirect: 'error', priority: 'low',
       signal: AbortSignal.any([job.controller.signal, AbortSignal.timeout(8000)]) });
@@ -101,14 +117,24 @@ export function createStreamReadiness({ origin, ensureSession, validateDescripto
     const record = { id: job.id, descriptor, expiry: descriptor.expiry, generation, resources: new Map(), bytes: 0, complete: false };
     remove(job.id); records.set(job.id, record); trim();
     let url = descriptor.url;
+    let audioPlaylist = null;
     for (let depth = 0; depth < 2; depth++) {
-      const playlist = await read(job, url, 65536, true);
+      const playlist = await read(job, url, Math.min(65536, MAX_CLIP_BYTES - record.bytes), true);
       const plan = initialHlsResources(playlist.data, url, job.id, origin());
       if (!plan || !save(record, url, playlist)) return;
-      if (plan.playlist) { url = plan.playlist; continue; }
+      if (plan.playlist) { url = plan.playlist; audioPlaylist = plan.audioPlaylist || null; continue; }
       for (const resource of plan.resources) {
         const result = await read(job, resource, MAX_CLIP_BYTES - record.bytes);
         if (!save(record, resource, result)) return;
+      }
+      if (audioPlaylist) {
+        const audio = await read(job, audioPlaylist, Math.min(65536, MAX_CLIP_BYTES - record.bytes), true);
+        const audioPlan = initialHlsResources(audio.data, audioPlaylist, job.id, origin());
+        if (!audioPlan?.resources || !save(record, audioPlaylist, audio)) return;
+        for (const resource of audioPlan.resources) {
+          const result = await read(job, resource, MAX_CLIP_BYTES - record.bytes);
+          if (!save(record, resource, result)) return;
+        }
       }
       record.complete = true; return;
     }

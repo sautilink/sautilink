@@ -19,7 +19,7 @@ function fixture(t) {
     stream_uid: uid, state: 'ready', source_etag: 'original-etag' };
   const source = { size: 100, etag: 'original-etag', customMetadata: { ownerId: OWNER, mediaId: id, validated: 'true' } };
   const calls = { sourceGets: 0, sourceHeads: 0, jobGets: 0, transforms: 0, provider: 0, tokens: 0, posterPuts: 0, authReads: 0 };
-  const state = { allowed: true, poster: null, providerStatus: 200, providerType: 'image/jpeg', providerBytes: JPEG };
+  const state = { allowed: true, poster: null, providerStatus: 200, providerType: 'image/jpeg', providerBytes: JPEG, providerResponse: null };
   const posterKey = sautiVideoPosterObjectKey(row.object_key);
   const env = { SAUTI_STREAM_ENABLED: 'true', SAUTI_STREAM_ORIGIN: ORIGIN, SAUTI_STREAM_SOURCE_KEY: 'a'.repeat(43),
     STREAM: { upload() {}, video(actual) { assert.equal(actual, uid); return { async generateToken() { calls.tokens++; return 'aaaa.bbbb.cccc'; } }; } },
@@ -46,6 +46,7 @@ function fixture(t) {
     assert.equal(target.pathname, '/aaaa.bbbb.cccc/thumbnails/thumbnail.jpg');
     assert.equal(new Headers(options.headers).has('Authorization'), false);
     assert.equal(options.redirect, 'manual');
+    if (state.providerResponse) return state.providerResponse(options);
     return new Response(options.method === 'HEAD' ? null : state.providerBytes, { status: state.providerStatus, headers: { 'Content-Type': state.providerType } });
   });
   const request = (method = 'GET') => new Request(`https://sautilink.com/api/sauti-media/${id}?poster=1`, { method, headers: { Authorization: `Bearer viewer-${id}` } });
@@ -114,4 +115,22 @@ test('the synthetic public-index row keeps its legacy path without weakening str
   const response = await servePublicSautiMediaPreview(new Request(`https://sautilink.com/media/${f.id}?poster=1`), f.env, f.row);
   assert.equal(response.status, 200); assert.deepEqual(new Uint8Array(await response.arrayBuffer()), LEGACY_JPEG);
   assert.equal(f.calls.provider + f.calls.tokens + f.calls.jobGets, 0); assert.equal(f.calls.transforms, 1);
+});
+
+test('a disconnected Stream poster aborts provider reads without starting the legacy source transform', async t => {
+  const f = fixture(t), controller = new AbortController();
+  let bodyController, signal, cancelled = 0, startRead;
+  const reading = new Promise(resolve => { startRead = resolve; });
+  f.state.providerResponse = options => {
+    signal = options.signal;
+    return new Response(new ReadableStream({ start(c) { bodyController = c; }, pull() { startRead(); }, cancel() { cancelled++; } }),
+      { headers: { 'Content-Type': 'image/jpeg' } });
+  };
+  const pending = handleSautiMediaRequest(new Request(f.request(), { signal: controller.signal }), f.env);
+  await reading; controller.abort(); assert.equal(signal.aborted, true);
+  bodyController.enqueue(JPEG);
+  const response = await pending;
+  assert.equal(response.status, 404); assert.equal(cancelled, 1);
+  assert.equal(f.calls.provider, 1);
+  assert.equal(f.calls.sourceGets + f.calls.transforms + f.calls.posterPuts, 0);
 });

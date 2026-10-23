@@ -209,9 +209,16 @@ function refreshMemberProfileAfterFallback(user) {
   }, MEMBER_REFRESH_DELAY_MS);
 }
 
-function startDeferredMemberServices() {
-  window.setTimeout(() => {
-    if (!currentMemberId) return;
+function startDeferredMemberServices(firstFeed) {
+  const memberId = currentMemberId;
+  const earliest = Date.now() + MEMBER_REFRESH_DELAY_MS;
+  let started = false;
+  let deadline;
+  const start = () => {
+    if (started) return;
+    started = true;
+    window.clearTimeout(deadline);
+    if (!memberId || currentMemberId !== memberId) return;
     void ensureDmInboxRealtime();
     void ensureSettingsPreferences()
       .then((preferences) => {
@@ -224,7 +231,14 @@ function startDeferredMemberServices() {
     void refreshNotificationBadge();
     void refreshMessageBadge();
     void syncModerationAccess();
-  }, MEMBER_REFRESH_DELAY_MS);
+  };
+  // Feed hydration has priority on cold opens. Badge/settings/inbox services
+  // still start after a bounded deadline if the feed is slow or unavailable.
+  deadline = window.setTimeout(start, 5000);
+  const feedSettled = () => {
+    if (!started) window.setTimeout(start, Math.max(0, earliest - Date.now()));
+  };
+  Promise.resolve(firstFeed).then(feedSettled, feedSettled);
 }
 
 function renderMember(profile, userId = currentMemberId) {
@@ -258,12 +272,12 @@ function renderMember(profile, userId = currentMemberId) {
     // Identity decoration is non-critical to opening Home.
   }
 
+  const firstFeed = loadStream({ reset: true });
+  startDeferredMemberServices(firstFeed);
   try { renderProfile(currentMember); } catch { /* Profile card can hydrate later. */ }
   try { void prepareComposer(); } catch { /* Composer preparation is best effort at boot. */ }
   try { syncComposerOnlineState(); } catch { /* Home feed must still open. */ }
 
-  void loadStream({ reset: true });
-  startDeferredMemberServices();
 }
 
 ${signupRequirementsHelper}
@@ -276,6 +290,16 @@ async function loadMemberOnce(user) {
 
   currentAccountEmail = normalizeEmail(user?.email || '');
   syncAccountSecurityEmail();
+
+  // These existing owner-scoped reads are independent. Start the social read
+  // now, but retain the account/onboarding decision and every fallback below.
+  // Capture rejection immediately: the account gate may return before this settles.
+  const socialProfileRead = resilientRead(() => supabase
+    .from('social_profiles')
+    .select('id, username, display_name, bio, avatar_key, updated_at, location, website_url, is_discoverable, is_verified, verification_badge_type, followers_count, following_count')
+    .eq('id', user.id)
+    .maybeSingle(), { timeoutMs: MEMBER_BOOT_TIMEOUT_MS })
+    .then((value) => ({ value }), (error) => ({ error }));
 
   let accountResult;
   try {
@@ -322,11 +346,9 @@ ${signupRequirementsGate}    const suggestedUsername = normalizeUsername(user.us
 
   let socialResult;
   try {
-    socialResult = await resilientRead(() => supabase
-      .from('social_profiles')
-      .select('id, username, display_name, bio, avatar_key, updated_at, location, website_url, is_discoverable, is_verified, verification_badge_type, followers_count, following_count')
-      .eq('id', user.id)
-      .maybeSingle(), { timeoutMs: MEMBER_BOOT_TIMEOUT_MS });
+    const outcome = await socialProfileRead;
+    if ('error' in outcome) throw outcome.error;
+    socialResult = outcome.value;
   } catch {
     const fallback = memberFallbackProfile(user, account);
     if (fallback) {

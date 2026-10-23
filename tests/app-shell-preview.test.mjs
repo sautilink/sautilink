@@ -245,6 +245,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/verified-identity-controls.css',
     'app/assets/theme-init.js',
     'app/assets/vendor/hls-1.7.3.min.js',
+    'app/assets/vendor/hls.worker-1.7.3.js',
     'app/assets/vendor/hls-1.7.3.LICENSE.txt',
     'logo.png',
     'assets/favicon.png',

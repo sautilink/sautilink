@@ -42,6 +42,17 @@ function shortVideoPlaybackAllowed(root) {
     && !document.querySelector('dialog[open]');
 }
 
+async function playActiveShortVideo(video, slide) {
+  const root = slide.closest(`#${SHORT_VIDEOS_ROOT_ID}`);
+  const allowed = () => slide.classList.contains('active') && shortVideoPlaybackAllowed(root)
+    && video.dataset.sautiUserPaused !== 'true' && getVideoAutoplayPreference();
+  if (!allowed()) return;
+  await window.SautiLinkStreamPlayback?.prepare?.(video);
+  if (!allowed()) return;
+  await video.play().catch(() => {});
+  if (!allowed()) video.pause();
+}
+
 function currentShortVideoReturnPath() {
   const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
   return SHORT_VIDEO_ROUTE.test(window.location.pathname) ? '/home' : current;
@@ -308,15 +319,14 @@ function syncSlideFromSource(slide) {
   const loadVideo = !slide.closest(`#${SHORT_VIDEOS_ROOT_ID}`)?.hidden
     && (slide.classList.contains('active') || slide.classList.contains('prefetch'));
   if (video && loadVideo && mediaUrl && video.dataset.sautiQualityManaged !== 'true' && video.src !== mediaUrl) {
-    video.preload = 'metadata';
+    video.preload = 'none';
     video.src = mediaUrl;
+    window.SautiLinkStreamPlayback?.enhance?.(video);
     window.SautiLinkVideoQuality?.enhance?.(video, { context: 'short' });
     if (slide.classList.contains('active') && video.dataset.sautiUserPaused !== 'true'
       && shortVideoPlaybackAllowed(slide.closest(`#${SHORT_VIDEOS_ROOT_ID}`))
       && getVideoAutoplayPreference()) {
-      video.play().then(() => {
-        if (!shortVideoPlaybackAllowed(slide.closest(`#${SHORT_VIDEOS_ROOT_ID}`)) || !getVideoAutoplayPreference()) video.pause();
-      }).catch(() => {});
+      void playActiveShortVideo(video, slide);
     }
   }
 
@@ -562,9 +572,7 @@ function installShortVideosFeed() {
     pauseShortVideos(video);
     syncActiveShortVideoRoute(slide);
     if (video?.src && video.dataset.sautiUserPaused !== 'true' && shortVideoPlaybackAllowed(root) && getVideoAutoplayPreference()) {
-      video.play().then(() => {
-        if (!shortVideoPlaybackAllowed(root) || !getVideoAutoplayPreference()) video.pause();
-      }).catch(() => {});
+      void playActiveShortVideo(video, slide);
     }
     requestMoreIfNeeded(index);
   }
@@ -780,9 +788,7 @@ function installShortVideosFeed() {
     }
     const video = track.querySelector('.sauti-short-video-slide.active .sauti-short-video-frame video');
     if (video?.src && video.paused && video.dataset.sautiUserPaused !== 'true' && getVideoAutoplayPreference()) {
-      video.play().then(() => {
-        if (!shortVideoPlaybackAllowed(root) || !getVideoAutoplayPreference()) video.pause();
-      }).catch(() => {});
+      void playActiveShortVideo(video, video.closest('.sauti-short-video-slide'));
     }
   };
   document.addEventListener(VIDEO_AUTOPLAY_EVENT, (event) => {

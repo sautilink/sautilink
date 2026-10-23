@@ -46,13 +46,13 @@ function safeRelativePath(path) {
   } catch { return false; }
 }
 
-async function capabilityUrl(env, asset, base, path, expiry, scopeHash, root = 'token') {
+async function capabilityUrl(env, asset, base, path, expiry, scopeHash, root = 'token', encryptionKey = null) {
   if (!safeRelativePath(path) || !['token', 'uid'].includes(root)) throw new Error('UNSAFE_HLS_PATH');
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const claims = new TextEncoder().encode(JSON.stringify({ v: 2, k: asset.kind, id: asset.id, g: asset.generation,
     u: asset.stream_uid, p: path, r: root, e: expiry, a: scopeHash }));
   const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv,
-    additionalData: capabilityContext(asset) }, await capabilityKey(env), claims));
+    additionalData: capabilityContext(asset) }, encryptionKey || await capabilityKey(env), claims));
   const sealed = new Uint8Array(iv.length + ciphertext.length); sealed.set(iv); sealed.set(ciphertext, iv.length);
   const payload = streamBase64url(sealed);
   return `${base}${await pathIdentity(path, root, asset.stream_uid)}?c=${payload}.${await streamHmac(env, payload)}`;
@@ -74,12 +74,12 @@ async function pathIdentity(path, root, uid, legacy = false) {
   const contentPath = legacy ? path : sautiStreamContentIdentityPath(path, root, uid);
   return `${segment ? 's' : 'm'}_${streamBase64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${root}\n${contentPath}`)))}`;
 }
-async function openCapability(env, asset, payload) {
+async function openCapability(env, asset, payload, encryptionKey) {
   if (!/^[A-Za-z0-9_-]{40,4096}$/.test(String(payload || ''))) throw new Error('INVALID_HLS_CAPABILITY');
   const bytes = Uint8Array.from(atob(payload.replaceAll('-', '+').replaceAll('_', '/') + '='.repeat((4 - payload.length % 4) % 4)), (char) => char.charCodeAt(0));
   if (bytes.length < 29) throw new Error('INVALID_HLS_CAPABILITY');
   const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.slice(0, 12),
-    additionalData: capabilityContext(asset) }, await capabilityKey(env), bytes.slice(12));
+    additionalData: capabilityContext(asset) }, encryptionKey, bytes.slice(12));
   return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plaintext));
 }
 
@@ -98,13 +98,27 @@ export async function sautiStreamPlaybackDescriptor(request, env, asset, { baseP
 
 async function providerToken(env, uid, now) {
   const prior = providerTokens.get(uid);
-  if (prior && prior.until > now + 10) return prior.token;
-  const token = await streamOperation(() => env.STREAM.video(uid).generateToken());
-  // Tokens remain solely inside the Worker, never in a rewritten manifest.
-  if (typeof token !== 'string' || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token) || token.length > 4096) throw new Error('STREAM_TOKEN_INVALID');
-  providerTokens.set(uid, { token, until: now + TOKEN_TTL });
+  const origin = streamOrigin(env);
+  if (prior?.binding === env.STREAM && prior.origin === origin) {
+    if (prior.pending) return prior.pending;
+    if (prior.until > now + 10) return prior.token;
+  }
+  // Only the private provider operation is shared. Every caller still checks
+  // its own current row, capability, owner and expiry before reaching this path.
+  const entry = { binding: env.STREAM, origin, until: now + TOKEN_TTL, token: null, pending: null };
+  entry.pending = streamOperation(() => env.STREAM.video(uid).generateToken()).then(token => {
+    // Tokens remain solely inside the Worker, never in a rewritten manifest.
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token) || token.length > 4096) throw new Error('STREAM_TOKEN_INVALID');
+    entry.token = token;
+    entry.pending = null;
+    return token;
+  }).catch(error => {
+    if (providerTokens.get(uid) === entry) providerTokens.delete(uid);
+    throw error;
+  });
+  providerTokens.set(uid, entry);
   if (providerTokens.size > PLAYBACK_TOKEN_LIMIT) providerTokens.delete(providerTokens.keys().next().value);
-  return token;
+  return entry.pending;
 }
 
 function providerRelativePath(uri, manifestUrl, expectedOrigin, token, uid) {
@@ -184,9 +198,13 @@ export async function serveSautiStreamHls(request, env, asset, { basePath, acces
   const cap = String(url.searchParams.get('c') || '').split('.');
   let claims;
   let path;
+  let encryptionKey;
   try {
     if (cap.length !== 2 || !await verifyStreamHmac(env, cap[0], cap[1])) return unavailable();
-    claims = await openCapability(env, asset, cap[0]);
+    // A key belongs only to this request and this exact signing secret. Reuse
+    // it for child capabilities rather than deriving it for every playlist URI.
+    encryptionKey = await capabilityKey(env);
+    claims = await openCapability(env, asset, cap[0], encryptionKey);
     path = claims.p;
   } catch { return unavailable(); }
   const hash = await accessHash(accessScope);
@@ -221,7 +239,7 @@ export async function serveSautiStreamHls(request, env, asset, { basePath, acces
     if (manifest) {
       const rewritten = await rewriteSautiStreamManifest(await boundedManifest(response), {
         manifestUrl: upstream, providerOrigin: origin, providerToken: token, uid: asset.stream_uid,
-        rewrite: (relative, root) => capabilityUrl(env, asset, base, relative, claims.e, hash, root),
+        rewrite: (relative, root) => capabilityUrl(env, asset, base, relative, claims.e, hash, root, encryptionKey),
       });
       headers.set('Content-Type', 'application/vnd.apple.mpegurl');
       return new Response(request.method === 'HEAD' ? null : rewritten, { status: 200, headers });
@@ -238,13 +256,15 @@ export async function serveSautiStreamThumbnail(request, env, asset, { expiresAt
   const headers = new Headers({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff' });
   const unavailable = (status = 404) => new Response(null, { status, headers });
   const origin = streamOrigin(env);
-  if (!origin || !validAsset(asset) || !['GET', 'HEAD'].includes(request.method)
+  if (!origin || !validAsset(asset) || request.signal.aborted || !['GET', 'HEAD'].includes(request.method)
     || (expiresAt != null && (!Number.isFinite(new Date(expiresAt).getTime()) || new Date(expiresAt).getTime() <= now * 1000))) return unavailable();
   try {
     const token = await providerToken(env, asset.stream_uid, now);
+    if (request.signal.aborted) return unavailable();
     const response = await fetch(`${origin}/${token}/thumbnails/thumbnail.jpg?time=0s&height=480`, {
-      method: request.method, redirect: 'manual', signal: AbortSignal.timeout(10000),
+      method: request.method, redirect: 'manual', signal: AbortSignal.any([request.signal, AbortSignal.timeout(10000)]),
     });
+    if (request.signal.aborted) { await response.body?.cancel(); return unavailable(); }
     if (!response.ok || !/^image\/jpeg(?:;|$)/i.test(response.headers.get('Content-Type') || '')
       || Number(response.headers.get('Content-Length') || 0) > 2 * 1024 * 1024) { await response.body?.cancel(); return unavailable(502); }
     headers.set('Content-Type', 'image/jpeg');
@@ -256,13 +276,14 @@ export async function serveSautiStreamThumbnail(request, env, asset, { expiresAt
     try {
       while (true) {
         const { done, value } = await reader.read(); if (done) break;
+        if (request.signal.aborted) throw new Error('THUMBNAIL_ABORTED');
         size += value.length; if (size > 2 * 1024 * 1024) throw new Error('THUMBNAIL_TOO_LARGE');
         chunks.push(value);
       }
     } finally { await reader.cancel().catch(() => {}); }
     const bytes = new Uint8Array(size); let offset = 0;
     for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-    if (bytes.length < 3 || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[2] !== 0xff) return unavailable(502);
+    if (request.signal.aborted || bytes.length < 3 || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[2] !== 0xff) return unavailable(502);
     headers.set('Content-Length', String(bytes.length));
     return new Response(bytes, { status: 200, headers });
   } catch { return unavailable(502); }

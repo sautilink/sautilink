@@ -11,7 +11,7 @@ test('deferred member services avoid duplicate message badge refresh at startup'
   const source = await read('src/app.js');
   const resilient = transformMemberBootstrapResilienceSource('/repo/src/app.js', source);
   const transformed = transformRuntimePerformanceSource('/repo/src/app.js', resilient);
-  const start = transformed.indexOf('function startDeferredMemberServices()');
+  const start = transformed.indexOf('function startDeferredMemberServices(');
   const end = transformed.indexOf('\nfunction renderMember(', start);
   const block = transformed.slice(start, end);
 
