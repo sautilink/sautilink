@@ -34,7 +34,7 @@ test('PostgreSQL Story discovery separates official default publishers from oran
         [uid(n),`member${n}`,`Member ${n}`,n===1||n===5,n===1?'team':'standard']);
     }
     const priorAcl=(await db.query("select proacl from pg_proc where oid='private.stories_feed_v1(text)'::regprocedure")).rows[0].proacl;
-    await db.exec(await read('supabase/migrations/20261023045902_separate_story_default_publishers.sql'));
+    await db.exec(await read('supabase/migrations/20261023055815_separate_story_default_publishers.sql'));
     assert.deepEqual((await db.query('select user_id from private.story_default_publishers')).rows.map(row=>row.user_id),[uid(1)],'seed only currently verified team accounts');
     assert.deepEqual((await db.query("select proacl from pg_proc where oid='private.stories_feed_v1(text)'::regprocedure")).rows[0].proacl,priorAcl);
     // Simulate a later business/brand approval and a later badge recolouring.

@@ -35,7 +35,7 @@ test('PostgreSQL post limits allow10/180s/250MiB, reject bypasses and preserve o
       insert into public.social_post_media(id,owner_id,object_key,media_kind,content_type,size_bytes,post_id,position,upload_status,finalized_at,attached_at)
       values('${id(99)}','${OWNER}','sauti/${OWNER}/${id(99)}.jpg','image','image/jpeg',8388608,'${LEGACY_POST}',0,'attached',now(),now()),
       ('${id(98)}','${OWNER}','sauti/${OWNER}/${id(98)}.jpg','image','image/jpeg',8388608,'${DELETE_POST}',0,'attached',now(),now());`);
-    await db.exec(await read('supabase/migrations/20261023043819_expand_post_media_policy.sql'));
+    await db.exec(await read('supabase/migrations/20261023055718_expand_post_media_policy.sql'));
     assert.equal((await db.query('select size_bytes from public.social_post_media')).rows[0].size_bytes,8388608);
     // Retaining reads alone is insufficient: the old NOT VALID CHECK still
     // rejected these ordinary updates to an unchanged historical payload.

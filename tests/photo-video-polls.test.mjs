@@ -39,7 +39,7 @@ test('post MP4 uploads enforce the 180-second inspected duration before storage'
 test('post uploads allow250MiB video and5MiB images with bounded chunk delivery', async () => {
   const source = await read('src/sauti-media-api.js');
   const policy = await read('src/post-media-policy.js');
-  const migration = await read('supabase/migrations/20261023043819_expand_post_media_policy.sql');
+  const migration = await read('supabase/migrations/20261023055718_expand_post_media_policy.sql');
   assert.match(policy, /POST_VIDEO_LIMIT = 250 \* 1024 \* 1024/);
   assert.match(policy, /POST_IMAGE_LIMIT = 5 \* 1024 \* 1024/);
   assert.match(source, /Videos must be 250 MiB or smaller/);

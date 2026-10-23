@@ -37,7 +37,7 @@ async function fixture() {
   await db.exec(setter.slice(setter.indexOf('CREATE OR REPLACE FUNCTION private.set_social_verification_privileged_v2'),setter.indexOf('-- Historical case outcome')));
   await db.exec(`revoke all on function private.set_social_verification_privileged_v2(text,boolean,text,text) from public,anon,authenticated;
     grant execute on function private.set_social_verification_privileged_v2(text,boolean,text,text) to authenticated;`);
-  await db.exec(await read('supabase/migrations/20261023043820_verification_account_types.sql'));
+  await db.exec(await read('supabase/migrations/20261023055730_verification_account_types.sql'));
   return db;
 }
 async function asUser(db,user,sql,args=[]) {

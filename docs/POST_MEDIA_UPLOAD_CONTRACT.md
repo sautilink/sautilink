@@ -100,10 +100,10 @@ not require registry membership.
 Apply these migrations, in order, before publishing clients that use the new
 limits/type parameter:
 
-1. `20261023043819_expand_post_media_policy.sql`
-2. `20261023043820_verification_account_types.sql`
-3. `20261023045902_separate_story_default_publishers.sql`
-4. `20261023052959_expand_room_post_media_policy.sql`
+1. `20261023055718_expand_post_media_policy.sql`
+2. `20261023055730_verification_account_types.sql`
+3. `20261023055815_separate_story_default_publishers.sql`
+4. `20261023055827_expand_room_post_media_policy.sql`
 
 The image storage CHECK retains the historical 8 MiB ceiling. An invoker trigger
 enforces 5 MiB for every new or changed image payload; it grandfathers only the

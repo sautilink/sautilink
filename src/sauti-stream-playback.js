@@ -1,4 +1,5 @@
 import { STREAM_UID, STREAM_UUID, streamOrigin, streamSourceKey, streamHmac, verifyStreamHmac, streamBase64url, streamOperation } from './sauti-stream-provider.js';
+import { sautiStreamContentIdentityPath } from './sauti-stream-content-identity.js';
 
 const TOKEN_TTL = 300;
 const MANIFEST_LIMIT = 256 * 1024;
@@ -54,7 +55,7 @@ async function capabilityUrl(env, asset, base, path, expiry, scopeHash, root = '
     additionalData: capabilityContext(asset) }, await capabilityKey(env), claims));
   const sealed = new Uint8Array(iv.length + ciphertext.length); sealed.set(iv); sealed.set(ciphertext, iv.length);
   const payload = streamBase64url(sealed);
-  return `${base}${await pathIdentity(path, root)}?c=${payload}.${await streamHmac(env, payload)}`;
+  return `${base}${await pathIdentity(path, root, asset.stream_uid)}?c=${payload}.${await streamHmac(env, payload)}`;
 }
 
 function capabilityContext(asset) { return new TextEncoder().encode(`sautilink-hls-capability-v2\n${asset.kind}\n${asset.id}`); }
@@ -66,11 +67,12 @@ async function capabilityKey(env) {
     salt: new TextEncoder().encode('sautilink-stream-v2'),
     info: new TextEncoder().encode('opaque-hls-provider-paths') }, material, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
 }
-async function pathIdentity(path, root) {
+async function pathIdentity(path, root, uid, legacy = false) {
   // The harmless type hint lets private clients cache only binary segments;
   // expiring manifests and their child capabilities always reauthorize.
   const segment = /\.(?:ts|m4s|mp4|aac)$/.test(path.split('?')[0]);
-  return `${segment ? 's' : 'm'}_${streamBase64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${root}\n${path}`)))}`;
+  const contentPath = legacy ? path : sautiStreamContentIdentityPath(path, root, uid);
+  return `${segment ? 's' : 'm'}_${streamBase64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${root}\n${contentPath}`)))}`;
 }
 async function openCapability(env, asset, payload) {
   if (!/^[A-Za-z0-9_-]{40,4096}$/.test(String(payload || ''))) throw new Error('INVALID_HLS_CAPABILITY');
@@ -188,7 +190,12 @@ export async function serveSautiStreamHls(request, env, asset, { basePath, acces
     path = claims.p;
   } catch { return unavailable(); }
   const hash = await accessHash(accessScope);
-  if (!safeRelativePath(path) || !['token', 'uid'].includes(claims.r) || await pathIdentity(path, claims.r) !== opaquePath || claims.v !== 2 || claims.k !== asset.kind || claims.id !== asset.id
+  // The old full-path identity remains valid only with its original sealed,
+  // unexpired capability, so already-issued five-minute grants survive rollout.
+  const boundPath = safeRelativePath(path) && ['token', 'uid'].includes(claims.r)
+    && (await pathIdentity(path, claims.r, asset.stream_uid) === opaquePath
+      || await pathIdentity(path, claims.r, asset.stream_uid, true) === opaquePath);
+  if (!boundPath || claims.v !== 2 || claims.k !== asset.kind || claims.id !== asset.id
     || claims.g !== asset.generation || claims.u !== asset.stream_uid || claims.p !== path || !hash || claims.a !== hash
     || !Number.isSafeInteger(claims.e) || claims.e <= now || claims.e > now + TOKEN_TTL
     || (expiresAt != null && new Date(expiresAt).getTime() <= now * 1000)) return unavailable(401);

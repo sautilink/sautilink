@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
-const migrationPath = 'supabase/migrations/20261023052959_expand_room_post_media_policy.sql';
+const migrationPath = 'supabase/migrations/20261023055827_expand_room_post_media_policy.sql';
 const id = (kind, n) => `${kind}0000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const OWNER = id(1, 1), AUTHOR = id(1, 2), OTHER = id(1, 3), OUTSIDER = id(1, 4), ROOM = id(2, 1);
 const media = (n = 10) => Array.from({ length: n }, (_, i) => ({ id: id(3, i + 1), alt_text: `Fixture ${i + 1}` }));
@@ -30,7 +30,7 @@ async function fixture() {
   // Current production already exposes private-schema usage for an existing
   // staff helper. Queue table grants/RLS must still deny direct client access.
   await db.exec('grant usage on schema private to authenticated');
-  await db.exec(await read('supabase/migrations/20261023043819_expand_post_media_policy.sql'));
+  await db.exec(await read('supabase/migrations/20261023055718_expand_post_media_policy.sql'));
   await db.query('insert into public.social_profiles(id,username) values($1,$2),($3,$4),($5,$6),($7,$8)',
     [OWNER,'room_owner',AUTHOR,'room_author',OTHER,'room_other',OUTSIDER,'room_outsider']);
   await db.query('insert into public.social_circles(id,owner_id,name,slug,post_approval_required) values($1,$2,$3,$4,true)',

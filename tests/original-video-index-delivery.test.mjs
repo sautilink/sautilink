@@ -21,7 +21,7 @@ after(async () => {
   await rm(temporary, { recursive: true, force: true });
 });
 await writeFile(join(temporary, 'package.json'), '{"type":"module"}');
-for (const path of ['profile-media-api.js', 'video-quality-levels.js', 'original-video-index-delivery.js', 'sauti-stream-lifecycle.js', 'sauti-stream-provider.js', 'sauti-stream-playback.js', 'media-server-timing.js', 'sauti-stream-bootstrap.js', 'post-media-policy.js', 'sauti-media-chunks.js']) {
+for (const path of ['profile-media-api.js', 'video-quality-levels.js', 'original-video-index-delivery.js', 'sauti-stream-lifecycle.js', 'sauti-stream-provider.js', 'sauti-stream-playback.js', 'sauti-stream-content-identity.js', 'media-server-timing.js', 'sauti-stream-bootstrap.js', 'post-media-policy.js', 'sauti-media-chunks.js']) {
   await copyFile(new URL(`../src/${path}`, import.meta.url), join(temporary, path));
 }
 await writeFile(join(temporary, 'sauti-media-api.js'), transformMediaPerformanceSource('src/sauti-media-api.js', apiSource));
