@@ -292,6 +292,7 @@ class NativeShortVideoDownloadService : Service() {
             .setContentTitle(if (finished) "SautiLink video download" else "Downloading SautiLink video").setContentText(status)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle()).setCustomContentView(view).setCustomBigContentView(view)
             .setContentIntent(content).setOngoing(!finished).setAutoCancel(finished).setOnlyAlertOnce(true).setSilent(true)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setCategory(NotificationCompat.CATEGORY_PROGRESS).build()
     }
 
