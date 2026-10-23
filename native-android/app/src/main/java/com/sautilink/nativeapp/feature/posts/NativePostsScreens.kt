@@ -299,7 +299,8 @@ private fun PostComposerTextEditor(editor: TextFieldValue, draftLength: Int,
 }
 
 @Composable
-fun NativeOwnPostsScreen(auth: StagingAuthClient, refreshKey: Int, onBack: () -> Unit, onCreate: () -> Unit) {
+fun NativeOwnPostsScreen(auth: StagingAuthClient, refreshKey: Int, onBack: () -> Unit, onCreate: () -> Unit,
+    onChanged: () -> Unit = {}) {
     val client = remember(auth) { NativePostsClient(auth) }
     val scope = rememberCoroutineScope()
     var refresh by remember { mutableIntStateOf(0) }
@@ -365,6 +366,7 @@ fun NativeOwnPostsScreen(auth: StagingAuthClient, refreshKey: Int, onBack: () ->
                         val updated = client.edit(post, editBody)
                         posts = posts.map { if (it.id == post.id) updated else it }
                         editTarget = null
+                        onChanged()
                     } catch (e: Exception) { error = e.message ?: "Could not edit post."; editTarget = null }
                     finally { busyId = null }
                 }
@@ -380,7 +382,7 @@ fun NativeOwnPostsScreen(auth: StagingAuthClient, refreshKey: Int, onBack: () ->
             confirmButton = { TextButton(onClick = {
                 busyId = post.id; error = null
                 scope.launch {
-                    try { client.delete(post); posts = posts.filterNot { it.id == post.id }; deleteTarget = null }
+                    try { client.delete(post); posts = posts.filterNot { it.id == post.id }; deleteTarget = null; onChanged() }
                     catch (e: Exception) { error = e.message ?: "Could not delete post."; deleteTarget = null }
                     finally { busyId = null }
                 }

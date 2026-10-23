@@ -73,7 +73,7 @@ internal class NativeProfileActivityClient(private val auth: StagingAuthClient) 
                 query.put("p_tab", tab).put("p_limit", if (tab == "pins") 3 else limit.coerceIn(1, 50))
                     .put("p_offset", offset.coerceIn(0, 500)))
         }
-        if (!result.optBoolean("allowed")) throw AuthRequestException("This profile activity is private.")
+        if (!result.optBoolean("allowed")) throw AuthRequestException("This profile activity is private.", 403)
         val rows = result.optJSONArray("items") ?: JSONArray()
         return ProfileActivityFeed(
             entries = if (tab == "hashtags") emptyList() else (0 until rows.length()).mapNotNull {

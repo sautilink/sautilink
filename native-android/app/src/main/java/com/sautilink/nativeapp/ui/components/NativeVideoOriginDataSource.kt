@@ -22,6 +22,7 @@ internal val nativePlaybackHttpClient by lazy {
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 internal fun nativeVideoPlaybackResources(context: Context, mediaOrigin: String, token: String,
     authorizationToken: () -> String? = { token },
+    replay: NativeVideoReplayBinding? = null,
     sessionActive: () -> Boolean): NativeVideoPlaybackResources {
     val credentialed = nativePlaybackHttpClient.newBuilder().addInterceptor { chain ->
         val request = chain.request()
@@ -35,7 +36,7 @@ internal fun nativeVideoPlaybackResources(context: Context, mediaOrigin: String,
     val pins = NativeVideoRepresentationPins()
     val grants = NativeHlsGrantRegistry()
     val routed = NativeVideoOriginDataSourceFactory(mediaOrigin, NativeVideoDataSourceFactory(authorized, pins::retains), authorized, grants)
-    return NativeVideoPlaybackResources(context, routed, sessionActive, representationPins = pins, hlsGrants = grants)
+    return NativeVideoPlaybackResources(context, routed, sessionActive, representationPins = pins, hlsGrants = grants, replay = replay)
 }
 
 /** Only already-validated SautiLink media routes can reach the authenticated HTTP client. */

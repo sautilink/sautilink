@@ -42,6 +42,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import com.sautilink.nativeapp.ui.state.LocalSessionScreenPresentation
+import com.sautilink.nativeapp.feature.home.StagingFeedClient
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.home.AuthorizedImage
 import com.sautilink.nativeapp.feature.safety.MemberSafetyState
@@ -89,6 +94,16 @@ fun NativeProfileScreen(
     val scope = rememberCoroutineScope()
     val account = auth.account
     val ownerRoute = username == null
+    val presentations = LocalSessionScreenPresentation.current
+    val returnKey = "profile-navigation:${username ?: "own"}"
+    val returnInitial = remember(presentations, account?.id, username) { readProfileReturnPresentation(presentations, returnKey) }
+    val catalogInitial = remember(presentations, account?.id) { readProfileCatalogPresentation(presentations) }
+    val profileScroll = rememberScrollState()
+    var returnScrollRestored by remember(username, account?.id) { mutableStateOf(!returnInitial.restored) }
+    var activityReady by remember(username, account?.id) { mutableStateOf(false) }
+    DisposableEffect(presentations, username, account?.id) {
+        onDispose { presentations?.save(returnKey, returnInitial.revision, ProfileReturnPresentation(profileScroll.value)) }
+    }
     var refresh by remember(username, account?.id) { mutableIntStateOf(0) }
     var profile by remember(username, account?.id) { mutableStateOf<NativeProfile?>(null) }
     val activeProfileStory = rememberProfileStoryRingActive(auth, profile, refresh)
@@ -109,7 +124,7 @@ fun NativeProfileScreen(
     var blockConfirm by remember(username, account?.id) { mutableStateOf(false) }
     var safetyNote by remember(username, account?.id) { mutableStateOf<String?>(null) }
     var categoryCatalog by remember(username, account?.id) {
-        mutableStateOf<List<ProfileProfessionalCategory>>(emptyList())
+        mutableStateOf(catalogInitial.snapshot.categories)
     }
     var categoryEditing by remember(username, account?.id) { mutableStateOf(false) }
     var categoryInfo by remember(username, account?.id) { mutableStateOf(false) }
@@ -117,8 +132,13 @@ fun NativeProfileScreen(
     var categoryError by remember(username, account?.id) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(profile?.id) {
-        if (profile != null) {
-            categoryCatalog = runCatching { client.categoryCatalog() }.getOrDefault(emptyList())
+        if (profile != null && categoryCatalog.isEmpty()) {
+            try {
+                categoryCatalog = client.categoryCatalog()
+                presentations?.save("profile-category-labels", catalogInitial.revision,
+                    ProfileCatalogPresentation(categoryCatalog.take(1000)))
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* The profile does not wait for optional taxonomy labels. */ }
         }
     }
 
@@ -137,13 +157,25 @@ fun NativeProfileScreen(
         try {
             val result = if (ownerRoute) client.own() else client.byHandle(username)
             profile = result
-            following = if (result != null && result.id != account.id) client.following(result.id) else null
-            canMessage = result != null && result.id != account.id &&
-                runCatching { client.canMessage(result) }.getOrDefault(false)
+            coroutineScope {
+                val relation = async { if (result != null && result.id != account.id) client.following(result.id) else null }
+                val messaging = async { result != null && result.id != account.id &&
+                    runCatching { client.canMessage(result) }.getOrDefault(false) }
+                following = relation.await()
+                canMessage = messaging.await()
+            }
             loaded = true
-        } catch (e: Exception) {
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (e: Exception) {
             error = e.message ?: "Could not load profile."
         } finally { loading = false }
+    }
+    LaunchedEffect(profile?.id, activityReady) {
+        if (profile == null || !activityReady || returnScrollRestored) return@LaunchedEffect
+        // Fresh authorization precedes restoring content position; no old privacy grant is reused.
+        withFrameNanos { }; withFrameNanos { }
+        profileScroll.scrollTo(returnInitial.snapshot.scroll.coerceAtMost(profileScroll.maxValue))
+        returnScrollRestored = true
     }
 
     LaunchedEffect(auth, account?.id, connectionList, refresh) {
@@ -164,7 +196,7 @@ fun NativeProfileScreen(
     }
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-        .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
+        .verticalScroll(profileScroll).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(15.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null || edit || connectionList != null) {
@@ -423,6 +455,8 @@ fun NativeProfileScreen(
                                         scope.launch {
                                             try {
                                                 client.setFollowing(member, desired)
+                                                presentations?.invalidate("feed:")
+                                                StagingFeedClient(auth).invalidateFollowing()
                                                 following = client.following(member.id)
                                                 refresh++
                                             } catch (e: Exception) {
@@ -451,7 +485,8 @@ fun NativeProfileScreen(
                     ProfileActivitySection(
                         auth = auth, profile = member, owner = ownerRoute,
                         refreshKey = refresh, onOpenPost = onOpenPost,
-                        onManagePosts = onOpenPosts, onOpenProfile = onOpenProfile
+                        onManagePosts = onOpenPosts, onOpenProfile = onOpenProfile,
+                        onContentReady = { activityReady = true }
                     )
                     if (!ownerRoute && member.id != account.id) {
                         Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
@@ -469,6 +504,8 @@ fun NativeProfileScreen(
                                         scope.launch {
                                             try {
                                                 safety.setMuted(member.username, desired)
+                                                presentations?.invalidate("feed:")
+                                                StagingFeedClient(auth).clearCache()
                                                 safetyState = safety.memberState(member.username)
                                                 safetyNote = if (desired) "Member muted." else "Member unmuted."
                                             } catch (e: Exception) { actionError = e.message ?: "Could not change mute." }
@@ -620,6 +657,8 @@ fun NativeProfileScreen(
             scope.launch {
                 try {
                     safety.setBlocked(member.username, desired)
+                    presentations?.invalidate()
+                    StagingFeedClient(auth).clearCache()
                     safetyState = MemberSafetyState(desired, false)
                     if (desired) onBack?.invoke() else safetyNote = "Member unblocked."
                 } catch (e: Exception) { actionError = e.message ?: "Could not change block." }

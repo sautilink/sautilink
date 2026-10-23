@@ -82,6 +82,17 @@ internal class StagingFeedCache {
         generations[cacheKey] = (generations[cacheKey] ?: 0L) + 1L
     }
 
+    /** An acknowledged post action makes other screens' artwork stale, retaining their rows. */
+    fun invalidatePostActions(backend: String, owner: String,
+        currentOwner: () -> String?): Boolean = synchronized(lock) {
+        if (owner.isBlank() || currentOwner() != owner) return@synchronized false
+        listOf("for_you", "following", "short_videos", "saved", "trending").forEach { mode ->
+            val cacheKey = key(backend, owner, mode)
+            generations[cacheKey] = (generations[cacheKey] ?: 0L) + 1L
+        }
+        true
+    }
+
     /** Call only after the server confirms this owner's removal. Keep offline rows, force revalidation. */
     fun confirmOwnVerificationRemoved(backend: String, owner: String,
         currentOwner: () -> String?): Boolean = synchronized(lock) {
@@ -155,6 +166,9 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
 
     /** Explicit refresh supersedes older first-page work without discarding offline rows. */
     fun beginRefresh(mode: String) = cache.invalidateFirstPage(auth.backend.id, auth.account?.id, mode)
+
+    fun invalidatePostActions(expectedOwner: String): Boolean =
+        cache.invalidatePostActions(auth.backend.id, expectedOwner) { auth.account?.id }
 
     /** One cancellable, bounded GET of at most five pointers. Polling never resolves
      * profiles/media/actions, mutates the first-page cache, or retries a Follow write.

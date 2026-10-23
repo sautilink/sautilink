@@ -48,6 +48,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
+import com.sautilink.nativeapp.feature.auth.AuthRequestException
+import com.sautilink.nativeapp.ui.state.LocalSessionScreenPresentation
 import com.sautilink.nativeapp.feature.safety.NativeReportDialog
 import com.sautilink.nativeapp.feature.safety.NativeSafetyClient
 import com.sautilink.nativeapp.ui.theme.SautiShape
@@ -68,6 +70,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     onOpenPrivacy: () -> Unit = {},
     onActivityVisibilityChanged: () -> Unit = {}) {
     val client = remember(auth) { NativeMessagesClient(auth) }
+    val presentations = LocalSessionScreenPresentation.current
+    val returnInitial = remember(presentations, auth.account?.id) {
+        readInboxReturnPresentation(presentations)
+    }
+    val draftReturns = remember(presentations) { LinkedHashMap(returnInitial.snapshot.drafts) }
+    val threadAnchors = remember(presentations) { LinkedHashMap(returnInitial.snapshot.anchors) }
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     var selectedMessage by remember { mutableStateOf<NativeMessage?>(null) }
@@ -76,6 +84,9 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var editing by remember { mutableStateOf(false) }
     var editedText by remember { mutableStateOf("") }
     var forwarding by remember { mutableStateOf(false) }
+    var forwardingLoading by remember { mutableStateOf(false) }
+    var forwardingError by remember { mutableStateOf<String?>(null) }
+    var forwardingRetry by remember { mutableIntStateOf(0) }
     var clearConfirm by remember { mutableStateOf(false) }
     var clearEveryone by remember { mutableStateOf(false) }
     var chatMenu by remember { mutableStateOf(false) }
@@ -96,7 +107,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var autoPhotos by remember { mutableStateOf(appearance.autoPhotos && !appearance.dataSaver) }
     val safety = remember(auth) { NativeSafetyClient(auth) }
     var conversations by remember { mutableStateOf<List<NativeConversation>>(emptyList()) }
-    var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedId by rememberSaveable { mutableStateOf(returnInitial.snapshot.selectedId) }
     var peerReceipts by remember(selectedId) {
         mutableStateOf(NativePeerReceipts(null, null))
     }
@@ -119,7 +130,18 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var threadReadIssue by remember(auth.account?.id, selectedId) { mutableStateOf<String?>(null) }
     var inboxError by remember(auth.account?.id) { mutableStateOf<String?>(null) }
     var threadLoading by remember(selectedId) { mutableStateOf(selectedId != null) }
-    var draft by rememberSaveable { mutableStateOf("") }
+    var draft by rememberSaveable(selectedId) { mutableStateOf(draftReturns[selectedId].orEmpty()) }
+    SideEffect {
+        selectedId?.let { id ->
+            draftReturns.remove(id)
+            if (draft.isNotBlank()) draftReturns[id] = draft.take(4000)
+            while (draftReturns.size > 8) draftReturns.remove(draftReturns.keys.first())
+        }
+    }
+    DisposableEffect(presentations) {
+        onDispose { presentations?.save("inbox-navigation", returnInitial.revision,
+            InboxReturnPresentation(selectedId, draftReturns.toMap(), threadAnchors.toMap())) }
+    }
     var sending by remember { mutableStateOf(false) }
     var reportMessageId by remember { mutableStateOf<String?>(null) }
     var reportBusy by remember { mutableStateOf(false) }
@@ -173,9 +195,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         }
     }
     BackHandler(newConversation) { newConversation = false; newQuery = ""; accounts = emptyList() }
-    LaunchedEffect(auth.account?.id, refresh, foreground) {
+    LaunchedEffect(auth.account?.id, refresh, foreground, selectedId) {
         if (auth.account == null) { conversations = emptyList(); selectedId = null; return@LaunchedEffect }
-        if (!foreground) return@LaunchedEffect
+        // The selected thread has its own canonical read; the hidden inbox reconciles on return.
+        if (!inboxReadPlan(true, foreground, selectedId, false, conversations.isNotEmpty()).list) {
+            loading = false; return@LaunchedEffect
+        }
         loading = conversations.isEmpty() && selectedId == null
         inboxError = null
         try {
@@ -192,6 +217,19 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             inboxError = e.message ?: "Could not load messages."
         }
         finally { loading = false }
+    }
+    // Direct thread returns defer the otherwise hidden inbox read until Forward needs its destinations.
+    LaunchedEffect(forwarding, auth.account?.id, forwardingRetry, foreground, selectedId) {
+        if (!inboxReadPlan(auth.account != null, foreground, selectedId, forwarding,
+                conversations.isNotEmpty()).forwardDestinations) return@LaunchedEffect
+        forwardingLoading = true; forwardingError = null
+        try {
+            val destinations = client.inbox()
+            currentCoroutineContext().ensureActive()
+            conversations = destinations
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (e: Exception) { forwardingError = e.message ?: "Could not load forwarding destinations." }
+        finally { forwardingLoading = false }
     }
     // A message may arrive while subscriptions are stopped in the background.
     // Reconcile immediately on resume, retaining the current thread and composer.
@@ -225,7 +263,13 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         catch (e: Exception) {
             // Blocking transports can wrap cancellation as a connection error.
             currentCoroutineContext().ensureActive()
-            if (selectedId == id) threadReadIssue = e.message ?: "Could not open conversation."
+            if (selectedId == id) {
+                if ((e as? AuthRequestException)?.httpStatus in listOf(401, 403, 404)) {
+                    thread = null; mediaByMessage = emptyMap(); peerOnline = false; peerTyping = false
+                    threadAnchors.remove(id)
+                }
+                threadReadIssue = e.message ?: "Could not open conversation."
+            }
         }
         finally { threadLoading = false }
     }
@@ -520,11 +564,32 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 val chatWallpaper = messageWallpaper(wallpaper)
                 val shownMessages = if (threadQuery.isBlank()) active.messages
                     else active.messages.filter { it.body.contains(threadQuery, ignoreCase = true) }
-                val listState = rememberLazyListState()
-                LaunchedEffect(shownMessages.size, searchingThread, peerTyping) {
-                    if (shownMessages.isNotEmpty()) {
-                        listState.animateScrollToItem(shownMessages.lastIndex + if (peerTyping) 1 else 0)
+                val returnAnchor = remember(active.conversation.id) { readConversationReturnAnchor(threadAnchors, active.conversation.id) }
+                val listState = key(active.conversation.id) {
+                    rememberLazyListState(returnAnchor.anchor.index, returnAnchor.anchor.offset)
+                }
+                var previousTail by remember(active.conversation.id) { mutableStateOf<String?>(null) }
+                var previousLastIndex by remember(active.conversation.id) { mutableIntStateOf(0) }
+                DisposableEffect(active.conversation.id, listState) {
+                    onDispose {
+                        threadAnchors.remove(active.conversation.id)
+                        threadAnchors[active.conversation.id] = ConversationReturnAnchor(
+                            listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
+                        while (threadAnchors.size > 8) threadAnchors.remove(threadAnchors.keys.first())
+                        presentations?.save("inbox-navigation", returnInitial.revision,
+                            InboxReturnPresentation(selectedId, draftReturns.toMap(), threadAnchors.toMap()))
                     }
+                }
+                LaunchedEffect(shownMessages.lastOrNull()?.id, searchingThread) {
+                    val tail = shownMessages.lastOrNull()
+                    val nearTail = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                        ?.let { it >= previousLastIndex - 1 } ?: false
+                    if (tail != null && shouldFollowConversationTail(previousTail == null,
+                            returnAnchor.restored, nearTail, tail.id != previousTail && tail.senderId == ownId, searchingThread)) {
+                        listState.animateScrollToItem(shownMessages.lastIndex)
+                    }
+                    previousTail = tail?.id
+                    previousLastIndex = shownMessages.lastIndex
                 }
                 LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth()
                     .background(chatWallpaper),
@@ -804,6 +869,13 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                             "Forwarding attachments is not yet available.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         else {
+                            if (forwardingLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                            if (forwardingError != null) {
+                                Text(forwardingError.orEmpty(), color = MaterialTheme.colorScheme.error)
+                                TextButton(onClick = { forwardingRetry++ }) { Text("Retry") }
+                            } else if (!forwardingLoading && conversations.none { it.id != selectedId }) {
+                                Text("No other conversations yet.")
+                            }
                             conversations.filter { it.id != selectedId }.forEach { conv ->
                                 TextButton(enabled = !sending, onClick = {
                                     sending = true
@@ -845,6 +917,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                         try {
                             if (clearEveryone) client.clearMySentForEveryone(id)
                             client.clearForMe(id)
+                            threadAnchors.remove(id)
                             thread = thread?.copy(messages = emptyList())
                             clearConfirm = false
                         } catch (e: Exception) { error = e.message }

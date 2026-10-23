@@ -84,6 +84,7 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
     private var navigationVersion = 0
     private var metadataVersion = 0
     private var peopleRequested = false
+    private var landingRequested = false
     var tab by mutableStateOf(RoomsTab.DISCOVER)
     var roomTab by mutableStateOf(RoomTab.DISCUSSION); private set
     var search by mutableStateOf("")
@@ -149,6 +150,7 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
 
     fun loadLanding() {
         if (!current()) return
+        landingRequested = true
         capabilityJob?.cancel()
         val capability = ++capabilityVersion
         capabilityJob = scope.launch {
@@ -210,7 +212,10 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) { if (current() && navigation == navigationVersion) openError = e.message ?: "Could not open Room." }
-            finally { if (current() && navigation == navigationVersion) openingSlug = false }
+            finally { if (current() && navigation == navigationVersion) {
+                openingSlug = false
+                if (selected == null && !landingRequested) loadLanding()
+            } }
         }
     }
 
@@ -259,6 +264,7 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
         posts = emptyList(); members = emptyList(); requests = emptyList(); submissions = emptyList()
         postsLoading = false; peopleLoading = false; submissionsLoading = false
         roomError = null; notice = null
+        if (!landingRequested && current()) loadLanding()
     }
 
     fun refreshRoom() {

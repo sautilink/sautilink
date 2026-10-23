@@ -74,6 +74,10 @@ import com.sautilink.nativeapp.ui.text.TextEntityKind
 import com.sautilink.nativeapp.ui.theme.SautiColors
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import com.sautilink.nativeapp.ui.theme.SautiTheme
+import com.sautilink.nativeapp.ui.state.SessionScreenReturnHost
+import com.sautilink.nativeapp.ui.state.sessionDestinationKey
+import com.sautilink.nativeapp.ui.state.LocalSessionScreenPresentation
+import com.sautilink.nativeapp.ui.components.NativeVideoReplaySession
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
@@ -182,6 +186,9 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         context.applicationContext.getSharedPreferences("sautilink_native_welcome_v1", Context.MODE_PRIVATE)
     }
     val activeAccountId = productionAuth.account?.id
+    DisposableEffect(productionAuth, activeAccountId) {
+        onDispose { StagingFeedClient(productionAuth).clearCache() }
+    }
     var storiesFeed by remember(activeAccountId) { mutableStateOf(NativeStoriesFeed()) }
     var storiesClock by remember(activeAccountId) { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(activeAccountId, visibleOnScreen, appResumeVersion, storiesRevision) {
@@ -442,6 +449,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                 })
             }
             else -> {
+                NativeVideoReplaySession(productionAuth) {
                 Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = MaterialTheme.colorScheme.background,
@@ -494,6 +502,15 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
             Box(Modifier.fillMaxSize().padding(insets)) {
                 // Crossfade retains the old destination under the next screen and exposes
                 // stale frames on slower devices. Switch destinations in one composition.
+                val returnEntity = when (detail) {
+                    "member-profile" -> viewedProfileHandle
+                    "post" -> notificationPostId
+                    "entity-explore" -> entityExploreQuery
+                    else -> ""
+                }
+                SessionScreenReturnHost(productionAuth, productionAuth.backend.id, activeAccountId,
+                    sessionDestinationKey(detail, root, returnEntity), { productionAuth.account?.id }, postsRefresh) {
+                val sessionPresentations = checkNotNull(LocalSessionScreenPresentation.current)
                 when (detail) {
                     "entity-explore" -> NativeExploreScreen(auth = productionAuth,
                         initialQuery = entityExploreQuery, onBack = ::closeEntityExplore,
@@ -522,6 +539,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                                 menuProfile = menuProfile?.takeIf { it.id == ownerId }?.copy(
                                     verified = false, badgeType = "standard", verifiedSince = "")
                                 StagingFeedClient(productionAuth).confirmOwnVerificationRemoved(ownerId)
+                                sessionPresentations.invalidate("feed:")
                                 postsRefresh++
                             }
                         }
@@ -617,7 +635,8 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         },
                         onOpenPost = { id -> notificationPostId = id; postReturn = "member-profile"; detail = "post" })
                     "my-posts" -> NativeOwnPostsScreen(auth = productionAuth, refreshKey = postsRefresh,
-                        onBack = { detail = null; root = 4 }, onCreate = { composerOpen = true })
+                        onBack = { detail = null; root = 4 }, onCreate = { composerOpen = true },
+                        onChanged = { StagingFeedClient(productionAuth).clearCache(); postsRefresh++ })
                     "notifications" -> NativeNotificationsScreen(auth = productionAuth,
                         onUnreadChanged = { unreadNotifications = it },
                         onBack = {
@@ -708,6 +727,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         )
                     }
                 }
+                }
             }
         }
         if (composerOpen) {
@@ -716,13 +736,15 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
             }, shape = SautiShape.Sheet) {
                 NativePostComposer(auth = productionAuth, draft = postDraft, onDraftChange = { postDraft = it },
                     onDismiss = { composerOpen = false },
-                    onPublished = { postDraft = ""; postsRefresh++; composerOpen = false; detail = "my-posts"; root = 4; notice("Post published") },
+                    onPublished = { postDraft = ""; StagingFeedClient(productionAuth).clearCache(); postsRefresh++;
+                        composerOpen = false; detail = "my-posts"; root = 4; notice("Post published") },
                     onSignIn = { composerOpen = false; detail = "production-auth" },
                     onUploadActivity = { composerInFlight = it })
             }
         }
                 // Keep the final branch Unit-valued, even when the composer is closed.
                 Unit
+                }
             }
         }
       }

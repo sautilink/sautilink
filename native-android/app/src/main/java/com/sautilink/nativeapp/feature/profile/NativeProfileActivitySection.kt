@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import com.sautilink.nativeapp.feature.auth.AuthRequestException
 import com.sautilink.nativeapp.feature.home.AuthorizedImage
 import com.sautilink.nativeapp.feature.home.PostInteractionsClient
 import com.sautilink.nativeapp.feature.home.PostMediaGallery
@@ -47,6 +48,9 @@ import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.theme.SautiColors
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import com.sautilink.nativeapp.ui.state.LocalSessionScreenPresentation
 
 private val activityTabs = listOf(
     "posts" to "Posts", "reposts" to "Reposts", "replies" to "Replies",
@@ -62,11 +66,16 @@ internal fun ProfileActivitySection(
     refreshKey: Int,
     onOpenPost: (String) -> Unit,
     onManagePosts: () -> Unit,
-    onOpenProfile: (String) -> Unit
+    onOpenProfile: (String) -> Unit,
+    onContentReady: () -> Unit = {},
 ) {
     val client = remember(auth) { NativeProfileActivityClient(auth) }
+    val presentations = LocalSessionScreenPresentation.current
+    val returnKey = "profile-activity-navigation:${profile.id}"
+    val returnInitial = remember(presentations, profile.id) { readProfileActivityReturnPresentation(presentations, returnKey) }
+    val latestContentReady by rememberUpdatedState(onContentReady)
     var state by remember(profile.id) { mutableStateOf<ProfileActivityState?>(null) }
-    var selected by remember(profile.id) { mutableStateOf("posts") }
+    var selected by remember(profile.id) { mutableStateOf(returnInitial.snapshot.tab) }
     var entries by remember(profile.id) { mutableStateOf<List<ProfileActivityEntry>>(emptyList()) }
     var pinned by remember(profile.id) { mutableStateOf<List<ProfileActivityEntry>>(emptyList()) }
     var hashtags by remember(profile.id) { mutableStateOf<List<ProfileHashtag>>(emptyList()) }
@@ -75,28 +84,43 @@ internal fun ProfileActivitySection(
     var revision by remember(profile.id) { mutableIntStateOf(0) }
     var pageIndex by remember(profile.id) { mutableIntStateOf(0) }
     var hasMore by remember(profile.id) { mutableStateOf(false) }
+    var permissionReadKey by remember(profile.id) { mutableStateOf<Pair<Int, Int>?>(null) }
     var privacyDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    DisposableEffect(presentations, profile.id) {
+        onDispose { presentations?.save(returnKey, returnInitial.revision, ProfileActivityReturnPresentation(selected)) }
+    }
 
     LaunchedEffect(client, profile.id, refreshKey, revision) {
+        permissionReadKey = null
         try {
             val next = client.state(profile.username)
             state = next
-            if (next.allowed[selected] != true) selected = "posts"
+            if (next.allowed[selected] != true) {
+                selected = "posts"; entries = emptyList(); pinned = emptyList(); hashtags = emptyList(); pageIndex = 0
+            }
+            permissionReadKey = refreshKey to revision
+            if (next.allowed[selected] != true) { busy = false; latestContentReady() }
         } catch (cancelled: CancellationException) { throw cancelled }
-        catch (e: Exception) { error = e.message ?: "Could not load profile categories."; busy = false }
+        catch (e: Exception) {
+            state = null; entries = emptyList(); pinned = emptyList(); hashtags = emptyList()
+            error = e.message ?: "Could not load profile categories."; busy = false; latestContentReady()
+        }
     }
-    LaunchedEffect(client, profile.id, selected, revision, refreshKey, state, pageIndex) {
+    LaunchedEffect(client, profile.id, selected, revision, refreshKey, state, pageIndex, permissionReadKey) {
+        if (permissionReadKey != (refreshKey to revision)) return@LaunchedEffect
         val permissions = state ?: return@LaunchedEffect
         if (permissions.allowed[selected] != true) return@LaunchedEffect
         busy = true
         error = null
         try {
             // Fetch pins separately, just as the web does, without duplicating posts in the feed.
-            val feed = client.entries(profile.username, selected, limit = 12,
-                offset = pageIndex * 12)
-            val pins = if (selected == "posts" && pageIndex == 0)
-                client.entries(profile.username, "pins").entries else pinned
+            val (feed, pins) = coroutineScope {
+                val feedRead = async { client.entries(profile.username, selected, limit = 12, offset = pageIndex * 12) }
+                val pinsRead = async { if (selected == "posts" && pageIndex == 0)
+                    client.entries(profile.username, "pins").entries else pinned }
+                feedRead.await() to pinsRead.await()
+            }
             pinned = pins
             val excluded = pins.map { it.id }.toSet()
             val newEntries = feed.entries.filter { it.id !in excluded }
@@ -104,8 +128,14 @@ internal fun ProfileActivitySection(
             hashtags = feed.hashtags
             hasMore = selected != "hashtags" && feed.entries.size == 12
         } catch (cancelled: CancellationException) { throw cancelled }
-        catch (e: Exception) { error = e.message ?: "Could not load profile activity." }
-        finally { busy = false }
+        catch (e: Exception) {
+            if ((e as? AuthRequestException)?.httpStatus in listOf(401, 403, 404)) {
+                entries = emptyList(); pinned = emptyList(); hashtags = emptyList()
+                state = state?.let { it.copy(allowed = it.allowed + (selected to false)) }
+            }
+            error = e.message ?: "Could not load profile activity."
+        }
+        finally { busy = false; latestContentReady() }
     }
 
     val permissions = state
@@ -139,7 +169,7 @@ internal fun ProfileActivitySection(
                     }
                     val active = selected == tab
                     TextButton(
-                        onClick = { selected = tab; pageIndex = 0; pinned = emptyList(); entries = emptyList() },
+                        onClick = { if (selected != tab) { selected = tab; pageIndex = 0; pinned = emptyList(); entries = emptyList() } },
                         modifier = Modifier.heightIn(min = 48.dp).animateContentSize()
                             .semantics {
                                 contentDescription = title

@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -18,6 +19,7 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.home.NativePostDetailScreen
 import com.sautilink.nativeapp.feature.home.PostCommentsSheet
 import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
+import com.sautilink.nativeapp.ui.state.LocalSessionScreenPresentation
 
 private enum class RoomsSheet { CREATE, SETTINGS, MANAGE, INVITE, PEOPLE, COMPOSE, APPROVALS, COMMUNITY, OUTGOING, MEMBERSHIP, ANSWERS, POST }
 
@@ -28,7 +30,14 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
     val accountId = auth.account?.id
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val state = remember(auth, accountId) { RoomsState(auth, accountId, context, scope) }
+    val presentations = LocalSessionScreenPresentation.current
+    val returnInitial = remember(presentations, accountId) { readRoomsReturnPresentation(presentations) }
+    val anchors = remember(presentations) { LinkedHashMap(returnInitial.snapshot.anchors) }
+    val state = remember(auth, accountId) { RoomsState(auth, accountId, context, scope).apply {
+        tab = returnInitial.snapshot.tab
+        search = returnInitial.snapshot.search
+        category = returnInitial.snapshot.category
+    } }
     val community = remember(auth, accountId) { RoomManagementState(auth, accountId, scope) }
     val entry = remember(state, initialRoomSlug) { state.restoreEntry(initialRoomSlug) }
     var sheet by remember(accountId) { mutableStateOf<RoomsSheet?>(null) }
@@ -40,7 +49,20 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
     var pendingMembership by remember(accountId) { mutableStateOf<Pair<String, String>?>(null) }
     var answersRequester by remember(accountId, room?.id) { mutableStateOf<String?>(null) }
     var managedPost by remember(accountId, room?.id) { mutableStateOf<NativeRoomPost?>(null) }
-    val listState = remember(accountId, room?.id) { LazyListState() }
+    val listKey = room?.id ?: "landing"
+    val listState = key(accountId, listKey) {
+        val anchor = readRoomReturnAnchor(anchors, listKey)
+        rememberLazyListState(anchor.index, anchor.offset)
+    }
+    DisposableEffect(presentations, listKey, listState) {
+        onDispose {
+            anchors.remove(listKey)
+            anchors[listKey] = RoomReturnAnchor(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
+            while (anchors.size > 5) anchors.remove(anchors.keys.first())
+            presentations?.save("rooms-navigation", returnInitial.revision,
+                RoomsReturnPresentation(state.tab, state.search.take(200), state.category, anchors.toMap()))
+        }
+    }
     DisposableEffect(state, community) { onDispose { state.dispose(); community.dispose() } }
     LaunchedEffect(community, room?.id, room?.role, room?.privacy, room?.viewerId) { community.open(room) }
     val beginMembership: (NativeRoom, String) -> Unit = { target, action ->
@@ -69,7 +91,10 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
         answersRequester = requester; sheet = RoomsSheet.ANSWERS
     }) else null
     LaunchedEffect(state, initialRoomSlug) {
-        if (accountId != null) { state.loadLanding(); entry.slug?.let(state::openSlug) }
+        if (accountId != null) {
+            // A profile round trip opens the canonical Room directly; hidden landing queries wait until Back.
+            if (entry.slug != null) state.openSlug(entry.slug) else state.loadLanding()
+        }
     }
     val openProfile: (String) -> Unit = { handle ->
         state.rememberProfileReturn(initialRoomSlug, detailPost); onOpenProfile(handle)
@@ -92,7 +117,7 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
             accountId == null -> RoomEmpty("Your communities on SautiLink", "Sign in to discover, join and create Rooms.",
                 actionLabel = "Sign in", onAction = onSignIn)
             state.openingSlug && room == null -> Column(Modifier.padding(16.dp)) { repeat(2) { RoomCardSkeleton() } }
-            room == null -> RoomsLanding(state, { sheet = RoomsSheet.CREATE }, { beginMembership(it.room, "accept_invitation") })
+            room == null -> RoomsLanding(state, listState, { sheet = RoomsSheet.CREATE }, { beginMembership(it.room, "accept_invitation") })
             else -> RoomDetail(state, community, room, listState, openProfile, openPost,
                 onComments = { commentPost = it }, onCompose = { sheet = RoomsSheet.COMPOSE },
                 onManage = { sheet = RoomsSheet.MANAGE }, onInvite = { sheet = RoomsSheet.INVITE },
@@ -148,7 +173,7 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
 }
 
 @Composable
-private fun RoomsLanding(state: RoomsState, onCreate: () -> Unit, onAccept: (NativeRoomInvitation) -> Unit) {
+private fun RoomsLanding(state: RoomsState, listState: LazyListState, onCreate: () -> Unit, onAccept: (NativeRoomInvitation) -> Unit) {
     RoomsTabs(state.tab, state.invitations.size) { state.tab = it }
     val loading = when (state.tab) { RoomsTab.DISCOVER -> state.discoverLoading
         RoomsTab.YOURS -> state.yoursLoading; RoomsTab.INVITES -> state.invitesLoading }
@@ -157,7 +182,7 @@ private fun RoomsLanding(state: RoomsState, onCreate: () -> Unit, onAccept: (Nat
     val source = if (state.tab == RoomsTab.YOURS) state.yours else state.discover
     val query = state.search.trim()
     val rooms = source.filter { query.isBlank() || it.name.contains(query, true) || it.description.contains(query, true) }
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    LazyColumn(state = listState, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { Text("Communities, conversations and shared interests.", style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant) }
         if (state.openError != null) item { RoomNotice(state.openError.orEmpty(), true) }
