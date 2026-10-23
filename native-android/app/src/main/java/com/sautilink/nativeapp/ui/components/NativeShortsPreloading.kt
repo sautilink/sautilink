@@ -4,6 +4,9 @@ import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
 import android.os.PowerManager
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
@@ -27,17 +30,27 @@ internal fun shortsPreloadEligible(foreground: Boolean, online: Boolean, autopla
         !saveData && !stressed && autoQuality &&
         (!metered || measuredMbps?.let { it.isFinite() && it >= 3.0 } == true)
 
-internal enum class ShortsPreloadTarget { NONE, RETAIN_CURRENT, LOAD_NEXT }
+internal enum class ShortsPreloadTarget { NONE, RETAIN_CURRENT, RETAIN_SOURCE, LOAD_NEXT }
 
 internal const val NATIVE_VIDEO_LOOKAHEAD = 5
 internal const val NATIVE_VIDEO_RETAIN_BEHIND = 2
 
+internal fun videoHistoryDeadline(expiresAtMillis: Long, wallNow: Long, elapsedNow: Long): Long =
+    elapsedNow + (expiresAtMillis-wallNow-5_000L).coerceIn(0L,120_000L)
+
+internal fun videoHistorySourceEligible(index: Int, current: Int, active: Boolean,
+    permitted: Boolean, prepared: Boolean, now: Long, deadline: Long): Boolean =
+    active && index < current && index.toLong() >= current.toLong()-NATIVE_VIDEO_RETAIN_BEHIND &&
+        now >= 0L && now < deadline && (prepared || permitted)
+
 internal fun videoPreloadTarget(index: Int, current: Int, next: Set<Int>, permitted: Boolean,
     retainCurrent: Boolean, closed: Boolean, preparedNext: Set<Int> = emptySet(),
-    incomingIndex: Int? = null): ShortsPreloadTarget = when {
+    incomingIndex: Int? = null, sourceOnlyPrevious: Set<Int> = emptySet()): ShortsPreloadTarget = when {
     closed -> ShortsPreloadTarget.NONE
     retainCurrent && index == current -> ShortsPreloadTarget.RETAIN_CURRENT
     index == incomingIndex -> ShortsPreloadTarget.RETAIN_CURRENT
+    index in sourceOnlyPrevious && index < current &&
+        index.toLong() >= current.toLong()-NATIVE_VIDEO_RETAIN_BEHIND -> ShortsPreloadTarget.RETAIN_SOURCE
     index in next && index in preparedNext && index > current &&
         index.toLong() <= current.toLong() + NATIVE_VIDEO_LOOKAHEAD && !permitted -> ShortsPreloadTarget.RETAIN_CURRENT
     permitted && index in next && index > current && index.toLong() <= current.toLong() + NATIVE_VIDEO_LOOKAHEAD -> ShortsPreloadTarget.LOAD_NEXT
@@ -73,10 +86,16 @@ internal class NativeShortsPreloading(context: Context, resources: NativeVideoPl
     private var currentIndex = 0
     private var nextIndices: Set<Int> = emptySet()
     private var permitted = false
+    private var historyPermitted = false
     private var closed = false
     private var retainCurrent = false
     private var keepPreparedNext = false
     private val completed = mutableSetOf<String>()
+    private val historyPrepared = mutableSetOf<String>()
+    private val historyDeadlines = mutableMapOf<String, Long>()
+    private val sourceGenerations = mutableMapOf<String, String?>()
+    private val historyHandler = Handler(Looper.getMainLooper())
+    private val expireHistory = Runnable { expireHistorySources() }
     private data class Update(val current: Int, val next: List<Pair<Int, NativeVideoSource>>, val allow: Boolean)
     private var pendingUpdate: Update? = null
     private var incomingHandoffIndex: Int? = null
@@ -88,6 +107,9 @@ internal class NativeShortsPreloading(context: Context, resources: NativeVideoPl
             // NOT_PRELOADED calls clear() even after prepare was enqueued, so
             // retain it until the player actually claims its sample queues.
             ShortsPreloadTarget.RETAIN_CURRENT -> DefaultPreloadManager.PreloadStatus.PRELOAD_STATUS_TRACKS_SELECTED
+            // Keep only the parsed HLS source/timeline. SOURCE_PREPARED stops
+            // before createPeriod, so history never warms tracks or samples.
+            ShortsPreloadTarget.RETAIN_SOURCE -> DefaultPreloadManager.PreloadStatus.PRELOAD_STATUS_SOURCE_PREPARED
             ShortsPreloadTarget.LOAD_NEXT -> DefaultPreloadManager.PreloadStatus.specifiedRangeLoaded(2_000L)
             ShortsPreloadTarget.NONE -> DefaultPreloadManager.PreloadStatus.PRELOAD_STATUS_NOT_PRELOADED
         }
@@ -106,12 +128,15 @@ internal class NativeShortsPreloading(context: Context, resources: NativeVideoPl
     init {
         manager.addListener(object : PreloadManagerListener {
             override fun onCompleted(mediaItem: MediaItem) {
-                val index = items[mediaItem.mediaId]?.second ?: return
+                val entry = items[mediaItem.mediaId]?.takeIf { it.first == mediaItem } ?: return
+                val index = entry.second
                 // TRACKS_SELECTED also emits onCompleted. Retaining a partial
                 // incoming period must not advertise it as two seconds loaded.
                 if (targetFor(index) == ShortsPreloadTarget.LOAD_NEXT) {
                     completed += mediaItem.mediaId
                     onPreloadCompleted(mediaItem.mediaId)
+                } else if (targetFor(index) == ShortsPreloadTarget.RETAIN_SOURCE) {
+                    historyPrepared += mediaItem.mediaId
                 }
             }
         })
@@ -119,17 +144,53 @@ internal class NativeShortsPreloading(context: Context, resources: NativeVideoPl
 
     private fun targetFor(index: Int): ShortsPreloadTarget {
         val prepared = if (keepPreparedNext) items.values.filter { it.first.mediaId in completed }.map { it.second }.toSet() else emptySet()
-        return videoPreloadTarget(index, currentIndex, nextIndices, permitted, retainCurrent, closed, prepared, incomingHandoffIndex)
+        val now = SystemClock.elapsedRealtime()
+        val previous = items.values.filter { (item, position) ->
+            videoHistorySourceEligible(position,currentIndex,ownedPlayer != null && keepPreparedNext && retainCurrent,
+                historyPermitted,item.mediaId in historyPrepared,now,historyDeadlines[item.mediaId] ?: 0L)
+        }.map { it.second }.toSet()
+        return videoPreloadTarget(index, currentIndex, nextIndices, permitted, retainCurrent, closed, prepared, incomingHandoffIndex, previous)
+    }
+
+    internal fun hasPreparedHistorySource(mediaId: String): Boolean =
+        mediaId in historyPrepared && items[mediaId]?.second?.let { targetFor(it) == ShortsPreloadTarget.RETAIN_SOURCE } == true
+
+    private fun scheduleHistoryExpiry() {
+        historyHandler.removeCallbacks(expireHistory)
+        if (closed || !keepPreparedNext || !retainCurrent) return
+        val now = SystemClock.elapsedRealtime()
+        val deadline = items.values.filter { it.second < currentIndex }.mapNotNull { historyDeadlines[it.first.mediaId] }
+            .filter { it > now }.minOrNull() ?: return
+        historyHandler.postDelayed(expireHistory,deadline-now)
+    }
+
+    private fun expireHistorySources() {
+        if (closed) return
+        removePastSources(expiredOnly=true)
+        manager.invalidate()
+        scheduleHistoryExpiry()
+    }
+
+    private fun removePastSources(expiredOnly: Boolean) {
+        val now = SystemClock.elapsedRealtime()
+        val playing = ownedPlayer?.currentMediaItem?.mediaId
+        items.filter { (id, entry) -> entry.second < currentIndex && id != playing &&
+            (!expiredOnly || (historyDeadlines[id] ?: 0L) <= now) }.keys.toList().forEach(::removeSource)
     }
 
     fun sourceFor(source: NativeVideoSource, index: Int): MediaSource? {
         if (closed || !source.hls || (source.expiresAtMillis ?: 0L) <= System.currentTimeMillis() + 5_000L) return null
         val existing = items[source.mediaId]
-        val item = if (existing?.first?.localConfiguration?.uri?.toString() == source.url) existing.first else {
-            existing?.let { completed.remove(it.first.mediaId); manager.remove(it.first) }
-            MediaItem.Builder().setMediaId(source.mediaId).setUri(source.url)
+        val item = if (existing?.first?.localConfiguration?.uri?.toString() == source.url && sourceGenerations[source.mediaId] == source.cacheKey) existing.first else {
+            existing?.let { completed.remove(it.first.mediaId); historyPrepared.remove(it.first.mediaId); manager.remove(it.first) }
+            // The private tag distinguishes late completions even if an updated
+            // generation happens to retain the same ID and capability URI.
+            MediaItem.Builder().setMediaId(source.mediaId).setUri(source.url).setTag(Any())
                 .setMimeType(MimeTypes.APPLICATION_M3U8).build().also {
                     items[source.mediaId] = it to index
+                    sourceGenerations[source.mediaId] = source.cacheKey
+                    historyDeadlines[source.mediaId] = videoHistoryDeadline(source.expiresAtMillis ?: 0L,
+                        System.currentTimeMillis(),SystemClock.elapsedRealtime())
                     manager.add(it, index)
                 }
         }
@@ -144,9 +205,12 @@ internal class NativeShortsPreloading(context: Context, resources: NativeVideoPl
     fun updateWindow(current: Int, next: List<Pair<Int, NativeVideoSource>>, allow: Boolean, retainIncoming: Boolean = true) {
         if (closed) return
         if (!retainIncoming) {
+            historyHandler.removeCallbacks(expireHistory)
+            removePastSources(expiredOnly=false)
             retainCurrent = false
             keepPreparedNext = false
             completed.clear()
+            historyPrepared.clear()
             pendingUpdate = null
             incomingHandoffIndex = null
             applyUpdate(current, emptyList(), false)
@@ -164,6 +228,7 @@ internal class NativeShortsPreloading(context: Context, resources: NativeVideoPl
             // Preserve its existing partial queues without continuing the old
             // page's speculative sample downloads during that gap.
             permitted = false
+            historyPermitted = false
             manager.invalidate()
             return
         }
@@ -201,31 +266,45 @@ internal class NativeShortsPreloading(context: Context, resources: NativeVideoPl
     private fun applyUpdate(current: Int, next: List<Pair<Int, NativeVideoSource>>, allow: Boolean) {
         incomingHandoffIndex = null
         currentIndex = current
+        removePastSources(expiredOnly=true)
         val bounded = next.filter { it.first > current && it.first <= current + NATIVE_VIDEO_LOOKAHEAD }
             .distinctBy { it.first }.distinctBy { it.second.mediaId }.take(NATIVE_VIDEO_LOOKAHEAD)
         desiredNext = bounded
         nextIndices = bounded.map { it.first }.toSet()
+        historyPermitted = allow
         permitted = allow && bounded.isNotEmpty()
         if (permitted) bounded.forEach { (index, source) -> sourceFor(source, index) }
         trim(current)
         manager.setCurrentPlayingIndex(current)
         manager.invalidate()
+        scheduleHistoryExpiry()
     }
 
     private fun trim(current: Int) {
         val remove = items.filterValues { it.second !in current - NATIVE_VIDEO_RETAIN_BEHIND..current + NATIVE_VIDEO_LOOKAHEAD }.keys.toList()
-        remove.forEach { id -> items.remove(id)?.let { completed.remove(it.first.mediaId); manager.remove(it.first) } }
-        while (items.size > 8) items.remove(items.keys.first())?.let { completed.remove(it.first.mediaId); manager.remove(it.first) }
+        remove.forEach(::removeSource)
+        while (items.size > 8) removeSource(items.keys.first())
+    }
+
+    private fun removeSource(id: String) {
+        items.remove(id)?.let { completed.remove(id); historyPrepared.remove(id); manager.remove(it.first) }
+        historyDeadlines.remove(id)
+        sourceGenerations.remove(id)
     }
 
     override fun close() {
         if (closed) return
         closed = true
         permitted = false
+        historyPermitted = false
+        historyHandler.removeCallbacks(expireHistory)
         ownedPlayer?.release()
         manager.release()
         items.clear()
         completed.clear()
+        historyPrepared.clear()
+        historyDeadlines.clear()
+        sourceGenerations.clear()
         pendingUpdate = null
         incomingHandoffIndex = null
         desiredNext = emptyList()

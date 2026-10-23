@@ -83,6 +83,7 @@ class NativeShortsPreloadingDeviceTest {
         private val activeByMedia = ConcurrentHashMap<String, AtomicInteger>()
         private val bytesByMedia = ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicLong>()
         val active = AtomicInteger()
+        val manifestDelayMs = java.util.concurrent.atomic.AtomicLong()
         val blockedMedia = AtomicReference<String?>()
         val blockedReadEntered = CountDownLatch(1)
         val releaseBlockedRead = CountDownLatch(1)
@@ -111,6 +112,12 @@ class NativeShortsPreloadingDeviceTest {
                         .joinToString("\n", postfix = "\n") { line -> if (line.isBlank() || line.startsWith('#')) line else url(number, line) }
                         .toByteArray()
                     else -> assets.open("native-hls/$path").use { it.readBytes() }
+                }
+                if (path.endsWith(".m3u8") && manifestDelayMs.get()>0L) try {
+                    Thread.sleep(manifestDelayMs.get())
+                } catch (interrupted: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw IOException("Synthetic manifest preparation cancelled",interrupted)
                 }
                 media = mediaId; segment = path.endsWith(".ts")
                 val source = ByteArrayDataSource(bytes)
@@ -306,6 +313,93 @@ class NativeShortsPreloadingDeviceTest {
                 assertEquals("Only the selected current clip renders",0,h.frameCount(7))
                 for(number in 3..6) assertEquals("Rolling preserves already prepared future manifests",
                     retainedManifestReads.getValue(number),h.factory.opens(number,"master.m3u8")+h.factory.opens(number,"360.m3u8"))
+            }
+        } finally { h.close() }
+    }
+
+    @Test fun previousParsedSourceReturnsWithoutNewManifestOrSampleOpens_andHistoryNeverWarmsTracks() {
+        val h=Harness()
+        try {
+            h.mount()
+            val onlyPlayer=h.preload.player
+            h.factory.manifestDelayMs.set(75L)
+            compose.runOnIdle { h.preload.update(0,h.sources.getValue(2),true) }
+            await { (h.completedPreloads[id(2)]?.get() ?: 0)>0 && h.factory.readers(2)==0 }
+            compose.runOnIdle {
+                assertTrue(h.preload.attach(h.sources.getValue(2),1,0L,true))
+                h.preload.updateWindow(1,emptyList(),false)
+            }
+            await { h.frameCount(2)>0 && h.preload.player.currentPosition>250L &&
+                h.preload.player.totalBufferedDuration>=6_000L && h.factory.readers(1)==0 }
+            val oldFrames=h.frameCount(1)
+            val oldSampleOpens=paths.filter { it.endsWith(".ts") }.sumOf { h.factory.opens(1,it) }
+            val oldSampleBytes=h.factory.segmentBytes(1)
+            compose.runOnIdle {
+                assertFalse("An unhealthy-current gate must not start cold history metadata",h.preload.hasPreparedHistorySource(id(1)))
+                // No upcoming source is required to retain the previous one.
+                h.preload.updateWindow(1,emptyList(),true)
+            }
+            await { h.preload.hasPreparedHistorySource(id(1)) && h.factory.readers(1)==0 }
+            val masterReads=h.factory.opens(1,"master.m3u8")
+            val variantReads=h.factory.opens(1,"360.m3u8")
+            compose.runOnIdle {
+                assertEquals("SOURCE_PREPARED must not create/load a past media period",oldSampleOpens,
+                    paths.filter { it.endsWith(".ts") }.sumOf { h.factory.opens(1,it) })
+                assertEquals(oldSampleBytes,h.factory.segmentBytes(1))
+                assertEquals("History preparation cannot render offscreen frames",oldFrames,h.frameCount(1))
+                h.preload.updateWindow(0,listOf(1 to h.sources.getValue(2)),false)
+                assertTrue(h.preload.attach(h.sources.getValue(1),0,0L,true))
+            }
+            await { h.frameCount(1)>oldFrames && h.preload.player.currentPosition>250L }
+            compose.runOnIdle {
+                assertSame("History shares the single existing visible decoder",onlyPlayer,h.preload.player)
+                assertNull(h.preload.player.playerError)
+                assertEquals("Returning must reuse the parsed master",masterReads,h.factory.opens(1,"master.m3u8"))
+                assertEquals("Returning must reuse the parsed rendition",variantReads,h.factory.opens(1,"360.m3u8"))
+                assertEquals("Returning reads cached samples without any new upstream sample request",oldSampleOpens,
+                    paths.filter { it.endsWith(".ts") }.sumOf { h.factory.opens(1,it) })
+                assertEquals(oldSampleBytes,h.factory.segmentBytes(1))
+                for(number in 3..7) { assertEquals(0,h.factory.opens(number));assertEquals(0,h.frameCount(number)) }
+            }
+        } finally { h.close() }
+    }
+
+    @Test fun historyOptOutAndGenerationReplacementReleaseParsedState_withoutChangingTheCurrentDecoder() {
+        val h=Harness()
+        try {
+            h.mount()
+            val onlyPlayer=h.preload.player
+            compose.runOnIdle { h.preload.update(0,h.sources.getValue(2),true) }
+            await { (h.completedPreloads[id(2)]?.get() ?: 0)>0 && h.factory.readers(2)==0 }
+            compose.runOnIdle { assertTrue(h.preload.attach(h.sources.getValue(2),1,0L,true)) }
+            await { h.frameCount(2)>0 && h.preload.player.currentPosition>250L && h.preload.player.totalBufferedDuration>=6_000L }
+            compose.runOnIdle { h.preload.updateWindow(1,emptyList(),true) }
+            await { h.preload.hasPreparedHistorySource(id(1)) && h.factory.readers(1)==0 }
+            val firstPrepared=compose.runOnIdle { requireNotNull(h.preload.sourceFor(h.sources.getValue(1),0)) }
+            val masterReads=h.factory.opens(1,"master.m3u8")
+            val sampleOpens=paths.filter { it.endsWith(".ts") }.sumOf { h.factory.opens(1,it) }
+            compose.runOnIdle { h.preload.updateWindow(1,emptyList(),false,retainIncoming=false) }
+            val cleared=compose.runOnIdle {
+                assertFalse(h.preload.hasPreparedHistorySource(id(1)))
+                requireNotNull(h.preload.sourceFor(h.sources.getValue(1),0))
+            }
+            assertNotSame("Opt-out must release the parsed past holder, not merely clear its period",firstPrepared,cleared)
+            compose.runOnIdle { h.preload.updateWindow(1,emptyList(),true) }
+            await { h.preload.hasPreparedHistorySource(id(1)) && h.factory.readers(1)==0 }
+            assertTrue("Re-enabling cold history must use a freshly prepared source",h.factory.opens(1,"master.m3u8")>masterReads)
+            val changed=h.sources.getValue(1).copy(cacheKey="22222222-2222-4222-8222-222222222222")
+            compose.runOnIdle {
+                h.resources.hlsGrants.authorize(changed)
+                val replacement=requireNotNull(h.preload.sourceFor(changed,0))
+                assertNotSame("A new generation cannot reuse parsed state from the same URI",cleared,replacement)
+                assertNotEquals("Late old-generation completion must not equal the replacement item",cleared.mediaItem,replacement.mediaItem)
+                assertFalse(h.preload.hasPreparedHistorySource(id(1)))
+                assertNull(h.preload.sourceFor(changed.copy(expiresAtMillis=System.currentTimeMillis()+1_000L),0))
+                assertSame(onlyPlayer,h.preload.player)
+                assertEquals(id(2),h.preload.player.currentMediaItem?.mediaId)
+                assertNull(h.preload.player.playerError)
+                assertEquals("History never requests sample data across opt-out/generation changes",sampleOpens,
+                    paths.filter { it.endsWith(".ts") }.sumOf { h.factory.opens(1,it) })
             }
         } finally { h.close() }
     }

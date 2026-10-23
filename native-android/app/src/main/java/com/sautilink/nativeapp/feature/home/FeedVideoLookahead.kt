@@ -28,6 +28,12 @@ internal val LocalFeedVideoLookahead = staticCompositionLocalOf<FeedVideoLookahe
 internal fun feedLookaheadAnchor(videoPostIndices: List<Int>, firstVisiblePost: Int): Int =
     videoPostIndices.indexOfLast { it <= firstVisiblePost }
 
+/** Player samples may arrive between the coordinator's polling ticks. Compare
+ * against the current monotonic clock, so a newly buffering player never looks
+ * absent merely because its sample is newer than the previous poll. */
+internal fun feedVideoHealthAt(health: FeedVideoHealth?, now: Long): FeedVideoHealth? =
+    health?.takeIf { now >= it.sampledAt && now - it.sampledAt <= 1_250L }
+
 internal fun feedByteWarmupEligible(foreground: Boolean, online: Boolean, autoplay: Boolean,
     saveData: Boolean, metered: Boolean, measuredMbps: Double?, stressed: Boolean,
     visible: FeedVideoHealth?, idleReading: Boolean): Boolean {
@@ -58,7 +64,10 @@ internal fun rememberFeedVideoLookahead(auth: StagingAuthClient, posts: List<Sta
     LaunchedEffect(enabled, blocked) {
         while (enabled && !blocked) { tick = SystemClock.elapsedRealtime();delay(500L) }
     }
-    val visible = state.health?.takeIf { tick - it.sampledAt in 0L..1_250L && inventory.any { item -> item.second == it.mediaId } }
+    val visible = remember(state.health, tick, inventory) {
+        feedVideoHealthAt(state.health, SystemClock.elapsedRealtime())
+            ?.takeIf { health -> inventory.any { item -> item.second == health.mediaId } }
+    }
     val current = visible?.let { health -> inventory.indexOfFirst { it.second == health.mediaId } }
         ?: feedLookaheadAnchor(inventory.map { it.first }, firstVisiblePost)
     val indices = videoLookaheadIndices(current, inventory.size)

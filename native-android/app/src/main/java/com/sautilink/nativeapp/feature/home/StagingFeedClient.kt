@@ -152,6 +152,9 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
         val headReads = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false)
             .connectTimeout(5, TimeUnit.SECONDS).readTimeout(6, TimeUnit.SECONDS)
             .callTimeout(8, TimeUnit.SECONDS).cache(null).build()
+        val detailReads = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false)
+            .connectTimeout(10, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(false).cache(null).build()
     }
 
     /** Private, memory-only first-page cache. Account changes and sign-out invalidate it. */
@@ -309,24 +312,39 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                     { auth.account?.id })
             }
 
-            val postRows = getJsonArray(
-                "social_posts?id=in.(${ids.joinToString(",")})&select=id,author_id,body,created_at,like_count,comment_count,repost_count,media_count", token
-            )
+            suspend fun detailRows(route: String): JSONArray {
+                currentCoroutineContext().ensureActive()
+                if (auth.account?.id != requestedOwner) throw CancellationException("Feed account changed")
+                val request = Request.Builder().url(endpoint + route)
+                    .header("apikey", auth.publicKeyForRead()).header("Authorization", "Bearer $token")
+                    .header("Accept", "application/json").header("Cache-Control", "no-store").get().build()
+                val rows = awaitNativeFeedDetailRows(detailReads.newCall(request))
+                currentCoroutineContext().ensureActive()
+                if (auth.account?.id != requestedOwner) throw CancellationException("Feed account changed")
+                return rows
+            }
+            val details = readNativeFeedDetails(
+                checkOwner = { if (auth.account?.id != requestedOwner) throw CancellationException("Feed account changed") },
+                readPosts = { detailRows(
+                    "social_posts?id=in.(${ids.joinToString(",")})&select=id,author_id,body,created_at,like_count,comment_count,repost_count,media_count") },
+                readAuthors = { rows ->
+                    val authorIds = (0 until rows.length()).mapNotNull { rows.optJSONObject(it) }
+                        .mapNotNull { it.optString("author_id").takeIf(uuid::matches) }.distinct()
+                    if (authorIds.isEmpty()) JSONArray() else detailRows(
+                        "social_profiles?id=in.(${authorIds.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type,avatar_key")
+                },
+                readMedia = { detailRows(
+                    "social_post_media?post_id=in.(${ids.joinToString(",")})&upload_status=eq.attached&select=id,post_id,media_kind,position,width,height,duration_ms&order=position.asc") })
+            val postRows = details.posts
             val byId = (0 until postRows.length()).mapNotNull { postRows.optJSONObject(it) }
                 .associateBy { it.optString("id") }
-            val authorIds = byId.values.mapNotNull { it.optString("author_id").takeIf(uuid::matches) }.distinct()
-            val authors = if (authorIds.isEmpty()) emptyMap() else {
-                val rows = getJsonArray(
-                    "social_profiles?id=in.(${authorIds.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type,avatar_key", token
-                )
+            val authors = details.authors.let { rows ->
                 (0 until rows.length()).mapNotNull { rows.optJSONObject(it) }
                     .associateBy { it.optString("id") }
             }
             // Resolve only media metadata visible to this user under Supabase RLS.
             val mediaByPost = if (ids.isEmpty()) emptyMap() else {
-                val mediaRows = getJsonArray(
-                    "social_post_media?post_id=in.(${ids.joinToString(",")})&upload_status=eq.attached&select=id,post_id,media_kind,position,width,height,duration_ms&order=position.asc", token
-                )
+                val mediaRows = details.media
                 (0 until mediaRows.length()).mapNotNull { mediaRows.optJSONObject(it) }
                     .filter { uuid.matches(it.optString("id")) && uuid.matches(it.optString("post_id")) }
                     .groupBy { it.optString("post_id") }
