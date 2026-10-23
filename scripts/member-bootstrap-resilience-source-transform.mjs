@@ -1,7 +1,7 @@
 export function transformMemberBootstrapResilienceSource(sourcePath, source) {
   if (!sourcePath.endsWith('app.js')) return source;
 
-  let output = source;
+  let output = "import { createHomeFeedStartupRead } from './home-feed-startup-read.js';\n" + source;
 
   const memberBlockPattern = /function renderMember\(profile, userId = currentMemberId\) \{[\s\S]*?\n\}\n\nasync function loadMember\(user\) \{[\s\S]*?\n\}\n\nasync function completeOnboarding/;
   if (!memberBlockPattern.test(output)) {
@@ -23,6 +23,21 @@ const READ_RETRY_ATTEMPTS = 3;
 const READ_RETRY_TIMEOUT_MS = 5000;
 const READ_RETRY_DELAYS_MS = [0, 180, 650];
 const MEMBER_CACHE_PREFIX = 'sautilink.member.cache.v1:';
+const initialHomeFeedRead = createHomeFeedStartupRead({
+  request: ({ mode, offset, signal }) => supabase.rpc('social_home_feed', {
+    p_mode: HOME_FEED_COPY[mode].rpcMode,
+    p_limit: STREAM_PAGE_SIZE + 1,
+    p_offset: offset,
+  }).abortSignal(signal),
+  context: () => ({ pathname: window.location.pathname, mode: activeHomeFeed,
+    requestEpoch: streamRequest, memberId: currentMemberId, recovery: recoverySession,
+    hasFeed: byId('stream-feed').childElementCount > 0 }),
+  setTimer: (callback, delay) => window.setTimeout(callback, delay),
+  clearTimer: (timer) => window.clearTimeout(timer),
+  requestTimeoutMs: READ_RETRY_TIMEOUT_MS,
+});
+window.addEventListener('popstate', () => initialHomeFeedRead.reconcile());
+window.addEventListener('sautilink:routechange', () => initialHomeFeedRead.reconcile());
 
 function cachedAuthSession() {
   try {
@@ -159,6 +174,7 @@ function readRetryDelay(attempt) {
 function shouldRetryRead(error) {
   if (!error) return false;
   const code = String(error?.code || '').toUpperCase();
+  if (code === 'HOME_STARTUP_INVALIDATED') return false;
   if (code === '42501' || code.startsWith('22') || code.startsWith('23') || code.startsWith('42')) {
     return false;
   }
@@ -242,6 +258,7 @@ function startDeferredMemberServices(firstFeed) {
 }
 
 function renderMember(profile, userId = currentMemberId) {
+  if (recoverySession || !initialHomeFeedRead.authorization(userId || profile.id || currentMemberId)) return;
   document.body.classList.remove('auth-entry');
   delete document.body.dataset.authMode;
   const displayName = profile.display_name || profile.full_name || profile.username || 'SautiLink member';
@@ -272,6 +289,7 @@ function renderMember(profile, userId = currentMemberId) {
     // Identity decoration is non-critical to opening Home.
   }
 
+  initialHomeFeedRead.admit(currentMemberId);
   const firstFeed = loadStream({ reset: true });
   startDeferredMemberServices(firstFeed);
   try { renderProfile(currentMember); } catch { /* Profile card can hydrate later. */ }
@@ -398,7 +416,10 @@ async function loadMember(user) {
   if (memberLoadPromise && memberLoadUserId === userId) return memberLoadPromise;
 
   memberLoadUserId = userId;
+  if (currentMemberId && currentMemberId !== userId) resetStreamState();
+  const startupRead = initialHomeFeedRead.begin(userId);
   memberLoadPromise = loadMemberOnce(user).finally(() => {
+    if (startupRead && (!currentMember || currentMemberId !== userId)) initialHomeFeedRead.invalidate(startupRead);
     if (memberLoadUserId === userId) {
       memberLoadPromise = null;
       memberLoadUserId = '';
@@ -440,19 +461,33 @@ const resilientStreamBlock = `async function loadStream({ reset = false } = {}) 
   error.hidden = true;
   loading.hidden = !reset;
   loadMore.disabled = true;
+  const memberIdAtRequest = currentMemberId;
+  const authorizationAtRequest = initialHomeFeedRead.authorization(memberIdAtRequest);
 
   try {
     const modeAtRequest = activeHomeFeed;
-    const streamResult = await resilientRead(
-      () => supabase.rpc('social_home_feed', {
+    const requestIsCurrent = () => requestId === streamRequest && modeAtRequest === activeHomeFeed
+      && memberIdAtRequest === currentMemberId && !recoverySession
+      && initialHomeFeedRead.isCurrentAuthorization(authorizationAtRequest);
+    const fetchFeedPage = () => {
+      if (!requestIsCurrent()) {
+        const error = new Error('Initial Home read was invalidated.');
+        error.code = 'HOME_STARTUP_INVALIDATED';
+        throw error;
+      }
+      return supabase.rpc('social_home_feed', {
         p_mode: HOME_FEED_COPY[modeAtRequest].rpcMode,
         p_limit: STREAM_PAGE_SIZE + 1,
         p_offset: streamOffset,
-      }),
+      });
+    };
+    const streamResult = await resilientRead(
+      () => initialHomeFeedRead.take({ ownerId: memberIdAtRequest, mode: modeAtRequest,
+        offset: streamOffset, requestId, reset, requestFresh: fetchFeedPage }) || fetchFeedPage(),
       { attempts: READ_RETRY_ATTEMPTS, timeoutMs: READ_RETRY_TIMEOUT_MS },
     );
 
-    if (requestId !== streamRequest || modeAtRequest !== activeHomeFeed) return;
+    if (!requestIsCurrent()) return;
 
     const rows = Array.isArray(streamResult?.data) ? streamResult.data : [];
     streamHasMore = rows.length > STREAM_PAGE_SIZE;
@@ -465,10 +500,11 @@ const resilientStreamBlock = `async function loadStream({ reset = false } = {}) 
       () => hydrateStreamEvents(page),
       { attempts: READ_RETRY_ATTEMPTS, timeoutMs: READ_RETRY_TIMEOUT_MS + 2000 },
     );
-    if (requestId !== streamRequest || modeAtRequest !== activeHomeFeed) return;
+    if (!requestIsCurrent()) return;
     renderStreamRows(hydrated, { reset });
   } catch {
-    if (requestId !== streamRequest) return;
+    if (requestId !== streamRequest || memberIdAtRequest !== currentMemberId
+      || !initialHomeFeedRead.isCurrentAuthorization(authorizationAtRequest)) return;
 
     // Never blank a feed the member was already reading because a background
     // refresh had a transient failure. Only show the blocking error if this
@@ -482,7 +518,7 @@ const resilientStreamBlock = `async function loadStream({ reset = false } = {}) 
       byId('stream-more').hidden = true;
     }
   } finally {
-    if (requestId === streamRequest) {
+    if (requestId === streamRequest && memberIdAtRequest === currentMemberId) {
       streamLoading = false;
       loading.hidden = true;
       loadMore.disabled = false;
@@ -493,6 +529,15 @@ const resilientStreamBlock = `async function loadStream({ reset = false } = {}) 
 function sautiCardsForPost`;
 
   output = output.replace(streamBlockPattern, resilientStreamBlock);
+
+  for (const [before, after, label] of [
+    ['function showAuthPanel(name) {', 'function showAuthPanel(name) {\n  initialHomeFeedRead.invalidate();\n  streamRequest += 1;\n  streamLoading = false;', 'auth-panel invalidation'],
+    ['function resetStreamState() {', 'function resetStreamState() {\n  initialHomeFeedRead.invalidate();', 'Home request invalidation'],
+    ['supabase.auth.onAuthStateChange((event, session) => {', 'supabase.auth.onAuthStateChange((event, session) => {\n  if (initialHomeFeedRead.auth(event, session)) { streamRequest += 1; streamLoading = false; }', 'auth-generation invalidation'],
+  ]) {
+    if (!output.includes(before)) throw new Error('Could not find the initial Home ' + label + '.');
+    output = output.replace(before, after);
+  }
 
   const bootstrapStart = `async function bootstrap() {
   configureEmailOtpInputs();`;

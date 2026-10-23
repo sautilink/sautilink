@@ -8,14 +8,15 @@ const source = await readFile(new URL('../src/member-builtin-controls.js', impor
 // Native form/selection semantics and event propagation are kept in this small
 // DOM harness. Tests execute the shipped adapter, including its native setters.
 function harness({ auth = false } = {}) {
+  const measures = { documentScans: 0, optionReads: 0 };
   const microtasks = [];
   const observers = new Set();
   const mutationRecords = [];
   let mutationQueued = false;
   let document;
   const queue = (callback) => microtasks.push(callback);
-  function mutation(target, type = 'childList', attributeName) {
-    mutationRecords.push({ target, type, attributeName });
+  function mutation(target, type = 'childList', attributeName, details = {}) {
+    mutationRecords.push({ target, type, attributeName, addedNodes: [], removedNodes: [], ...details });
     if (mutationQueued) return;
     mutationQueued = true;
     queue(() => {
@@ -62,13 +63,13 @@ function harness({ auth = false } = {}) {
     get validationMessage() { return this.validity.valid ? '' : 'Please fill out this field.'; }
     getAttribute(name) { return this.attributes.get(name) ?? null; }
     hasAttribute(name) { return this.attributes.has(name); }
-    setAttribute(name, value) { this.attributes.set(name, String(value)); mutation(this, 'attributes', name); }
-    removeAttribute(name) { if (this.attributes.delete(name)) mutation(this, 'attributes', name); }
+    setAttribute(name, value) { const oldValue = this.getAttribute(name); this.attributes.set(name, String(value)); mutation(this, 'attributes', name, { oldValue }); }
+    removeAttribute(name) { const oldValue = this.getAttribute(name); if (this.attributes.delete(name)) mutation(this, 'attributes', name, { oldValue }); }
     contains(node) { return this === node || this.children.some((child) => child.contains(node)); }
-    append(...nodes) { for (const node of nodes) { node.remove(); node.parentNode = this; this.children.push(node); mutation(this); } }
-    before(node) { const parent = this.parentNode; node.remove(); const index = parent.children.indexOf(this); node.parentNode = parent; parent.children.splice(index, 0, node); mutation(parent); }
-    after(node) { const parent = this.parentNode; node.remove(); const index = parent.children.indexOf(this); node.parentNode = parent; parent.children.splice(index + 1, 0, node); mutation(parent); }
-    remove() { if (!this.parentNode) return; const parent = this.parentNode; parent.children.splice(parent.children.indexOf(this), 1); this.parentNode = null; mutation(parent); }
+    append(...nodes) { for (const node of nodes) { node.remove(); node.parentNode = this; this.children.push(node); mutation(this, 'childList', undefined, { addedNodes: [node] }); } }
+    before(node) { const parent = this.parentNode; node.remove(); const index = parent.children.indexOf(this); node.parentNode = parent; parent.children.splice(index, 0, node); mutation(parent, 'childList', undefined, { addedNodes: [node] }); }
+    after(node) { const parent = this.parentNode; node.remove(); const index = parent.children.indexOf(this); node.parentNode = parent; parent.children.splice(index + 1, 0, node); mutation(parent, 'childList', undefined, { addedNodes: [node] }); }
+    remove() { if (!this.parentNode) return; const parent = this.parentNode; parent.children.splice(parent.children.indexOf(this), 1); this.parentNode = null; mutation(parent, 'childList', undefined, { removedNodes: [this] }); }
     replaceChildren(...nodes) { this.textContent = ''; this.append(...nodes); }
     matches(selector) {
       return selector.split(',').some((part) => {
@@ -90,7 +91,7 @@ function harness({ auth = false } = {}) {
       });
     }
     closest(selector) { return this.matches(selector) ? this : this.parentElement?.closest(selector) || null; }
-    querySelectorAll(selector) { return this.children.flatMap((child) => [...(child.matches(selector) ? [child] : []), ...child.querySelectorAll(selector)]); }
+    querySelectorAll(selector) { if (this === document && ['select', 'form'].includes(selector)) measures.documentScans++; return this.children.flatMap((child) => [...(child.matches(selector) ? [child] : []), ...child.querySelectorAll(selector)]); }
     querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
     cloneNode(deep = false) { const copy = new Element(this.localName); copy.attributes = new Map(this.attributes); copy._text = this._text; if (deep) copy.append(...this.children.map((child) => child.cloneNode(true))); return copy; }
     addEventListener(type, callback, options = {}) { const events = this.listeners.get(type) || []; events.push({ callback, capture: options === true || options.capture === true }); this.listeners.set(type, events); }
@@ -120,7 +121,7 @@ function harness({ auth = false } = {}) {
     constructor() { super('select'); this._none = false; }
     get multiple() { return this.hasAttribute('multiple'); }
     get size() { return Number(this.getAttribute('size') || 0); }
-    get options() { return this.querySelectorAll('option'); }
+    get options() { measures.optionReads++; return this.querySelectorAll('option'); }
     get selectedIndex() { const index = this.options.findIndex((option) => option.selected); return index >= 0 ? index : this._none || !this.options.length ? -1 : 0; }
     set selectedIndex(value) { this.options.forEach((option, index) => option.selected = index === Number(value)); this._none = Number(value) < 0; }
     get selectedOptions() { return this.selectedIndex >= 0 ? [this.options[this.selectedIndex]] : []; }
@@ -156,8 +157,31 @@ function harness({ auth = false } = {}) {
   flush();
   const trigger = () => select.parentElement.querySelector('[role="combobox"]');
   const key = (value, init = {}) => { const event = new Event('keydown', { key: value, bubbles: true, ...init }); trigger().dispatchEvent(event); flush(); return event; };
-  return { document, window, node, member, form, select, authSelect, trigger, key, flush, Event };
+  return { document, window, node, member, form, select, authSelect, trigger, key, flush, Event, measures };
 }
+
+test('player clock and unrelated ARIA changes never scan forms or read native option lists', () => {
+  const h = harness();
+  const host = h.node('div', { class: 'sauti-video-player' }, h.member);
+  const clock = h.node('span', {}, host);
+  h.flush(); h.measures.documentScans = h.measures.optionReads = 0;
+  for (let frame = 0; frame < 30; frame++) {
+    clock.textContent = `0:${frame} / 0:30`;
+    clock.setAttribute('aria-label', `Position ${frame}`);
+    host.setAttribute('class', 'sauti-video-player');
+    h.flush();
+  }
+  assert.deepEqual(h.measures, { documentScans: 0, optionReads: 0 });
+  const nextForm = h.node('form', {}, h.member);
+  const nextSelect = h.node('select', {}, nextForm);
+  const nextOption = h.node('option', { value: 'ready' }, nextSelect); nextOption.textContent = 'Ready';
+  h.flush();
+  assert.equal(nextSelect.parentElement.querySelector('[role="combobox"]').textContent, 'Ready');
+  assert.equal(h.measures.documentScans, 0, 'new fields are discovered only inside their added subtree');
+  const snapshotReads = h.measures.optionReads;
+  clock.textContent = '0:31'; h.flush();
+  assert.equal(h.measures.optionReads, snapshotReads);
+});
 
 test('native field identity, values and events survive custom pointer and keyboard selection', () => {
   const h = harness();

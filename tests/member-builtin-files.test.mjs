@@ -8,12 +8,13 @@ const source = await readFile(new URL('../src/member-builtin-files.js', import.m
 // Exercise the actual enhancer against native-input identities and event state.
 // A file list can only be changed by the simulated browser, never the adapter.
 function harness({ auth = false } = {}) {
+  const measures = { documentScans: 0, styles: 0, operations: [] };
   const microtasks = [];
   const observers = [];
   let doc;
   class Node {
     constructor(tag) {
-      this.tagName = tag.toUpperCase(); this.children = []; this.parentNode = null;
+      this.tagName = tag.toUpperCase(); this.nodeType = 1; this.children = []; this.parentNode = null;
       this.attributes = new Map(); this.listeners = new Map(); this.style = {};
       this.textContent = ''; this.labels = []; this._files = []; this.nativeClicks = 0;
       this.classList = {
@@ -42,11 +43,11 @@ function harness({ auth = false } = {}) {
     getAttribute(name) { return this.attributes.has(name) ? this.attributes.get(name) : null; }
     setAttribute(name, value) { this.attributes.set(name, String(value)); }
     removeAttribute(name) { this.attributes.delete(name); }
-    contains(node) { return this.children.some((child) => child === node || child.contains(node)); }
+    contains(node) { return this === node || this.children.some((child) => child === node || child.contains(node)); }
     append(...nodes) {
       for (const node of nodes) {
         if (node.parentNode) node.parentNode.children.splice(node.parentNode.children.indexOf(node), 1);
-        node.parentNode = this; this.children.push(node);
+        node.parentNode = this; this.children.push(node); measures.operations.push('write');
       }
     }
     before(node) {
@@ -64,16 +65,24 @@ function harness({ auth = false } = {}) {
       for (let node = this; node; node = node.parentNode) {
         if (selector.split(',').some((part) => {
           part = part.trim();
-          return part === '[hidden]' ? node.hidden : part.startsWith('#') && node.id === part.slice(1);
+          return node.matches(part);
         })) return node;
       }
       return null;
     }
     matches(selector) {
-      if (selector !== ':disabled') throw new Error(`Unexpected selector ${selector}`);
-      for (let node = this; node; node = node.parentNode) if (node.disabled && (node === this || node.tagName === 'FIELDSET')) return true;
-      return false;
+      if (selector === ':disabled') {
+        for (let node = this; node; node = node.parentNode) if (node.disabled && (node === this || node.tagName === 'FIELDSET')) return true;
+        return false;
+      }
+      if (selector.startsWith('#')) return this.id === selector.slice(1);
+      if (selector === '[hidden]') return this.hidden;
+      if (selector === 'input[type="file"]') return this.tagName === 'INPUT' && this.type === 'file';
+      if (selector === '[data-sl-built-in="file"]') return this.getAttribute('data-sl-built-in') === 'file';
+      return this.tagName.toLowerCase() === selector;
     }
+    querySelectorAll(selector) { return this.children.flatMap(node => [...(node.matches(selector) ? [node] : []), ...node.querySelectorAll(selector)]); }
+    querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
     addEventListener(name, callback) {
       if (!this.listeners.has(name)) this.listeners.set(name, new Set());
       this.listeners.get(name).add(callback);
@@ -88,6 +97,7 @@ function harness({ auth = false } = {}) {
     all() { const visit = (node) => [node, ...node.children.flatMap(visit)]; return visit(this.body); },
     getElementById(id) { return this.all().find((node) => node.id === id) || null; },
     querySelectorAll(selector) {
+      measures.documentScans++;
       assert.equal(selector, 'input[type="file"]');
       return this.all().filter((node) => node.tagName === 'INPUT' && node.type === 'file');
     },
@@ -100,7 +110,7 @@ function harness({ auth = false } = {}) {
   const input = new Node('input'); input.id = 'room-cover-file'; input.type = 'file'; input.accept = 'image/jpeg,image/png,image/webp';
   input.setAttribute('name', 'cover'); input.setAttribute('required', ''); input.setAttribute('capture', 'environment');
   const label = new Node('label'); label.textContent = 'Cover photo'; input.labels = [label]; form.append(input);
-  const window = { getComputedStyle: (node) => ({ display: node.style.display || 'inline-block', visibility: node.style.visibility || 'visible' }) };
+  const window = { getComputedStyle: (node) => { measures.styles++; measures.operations.push('read'); return { display: node.style.display || 'inline-block', visibility: node.style.visibility || 'visible' }; } };
   runInNewContext(source, {
     window, document: doc, queueMicrotask: (callback) => microtasks.push(callback),
     MutationObserver: class { constructor(callback) { observers.push(callback); } observe() {} },
@@ -109,8 +119,33 @@ function harness({ auth = false } = {}) {
   const trigger = () => field()?.children.find((node) => node.tagName === 'BUTTON');
   const summary = () => field()?.children.find((node) => node.classList.contains('sl-file-summary'));
   const flush = () => { let count = 0; while (microtasks.length) { assert.ok(count++ < 10, 'bounded refresh queue'); microtasks.shift()(); } };
-  return { doc, member, authView, form, input, window, Node, field, trigger, summary, flush, mutate: () => { observers.forEach((callback) => callback()); flush(); } };
+  return { doc, member, authView, form, input, window, Node, field, trigger, summary, flush, measures,
+    mutate: (records = [{ target: doc.body, type: 'childList', addedNodes: [...doc.body.children], removedNodes: [] }]) => { observers.forEach((callback) => callback(records)); flush(); } };
 }
+
+test('video progress styles and clock changes never rescan file inputs or measure styles', () => {
+  const h = harness();
+  const host = new h.Node('div'); const clock = new h.Node('span'); host.append(clock); h.member.append(host);
+  h.measures.documentScans = h.measures.styles = 0;
+  for (let frame = 0; frame < 30; frame++) {
+    clock.textContent = `0:${frame}`;
+    h.mutate([
+      { target: clock, type: 'childList', addedNodes: [{ nodeType: 3 }], removedNodes: [{ nodeType: 3 }] },
+      { target: host, type: 'attributes', attributeName: 'style', oldValue: `--progress:${frame}` },
+    ]);
+  }
+  assert.equal(h.measures.documentScans, 0);
+  assert.equal(h.measures.styles, 0);
+  const container = new h.Node('section'); h.member.append(container);
+  const added = [new h.Node('input'), new h.Node('input')];
+  added.forEach(input => { input.type = 'file'; container.append(input); });
+  h.measures.operations.length = 0;
+  h.mutate([{ target: h.member, type: 'childList', addedNodes: [container], removedNodes: [] }]);
+  assert.ok(added.every(input => input.parentNode.classList.contains('sl-file')));
+  assert.equal(h.measures.documentScans, 0);
+  assert.equal(h.measures.styles, 2);
+  assert.deepEqual(h.measures.operations.slice(0, 2), ['read', 'read'], 'all candidate styles are read before wrapper writes');
+});
 
 test('branded upload preserves original file input, form participation and trusted chooser trigger', () => {
   const h = harness();
@@ -185,7 +220,7 @@ test('form reset refreshes the filename without synthesizing or changing native 
 
 test('teardown never resurrects a file input removed or moved by the feature renderer', () => {
   const h = harness(); const wrapper = h.field();
-  h.input.remove(); h.mutate();
+  h.input.remove(); h.mutate([{ target: wrapper, type: 'childList', addedNodes: [], removedNodes: [h.input] }]);
   assert.equal(h.input.parentNode, null);
   assert.equal(wrapper.parentNode, null);
   assert.equal(h.form.children.length, 0);

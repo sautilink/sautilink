@@ -15,6 +15,9 @@
   let pendingFocus = false;
   let typeBuffer = '';
   let typeAt = 0;
+  let previousMemberVisible;
+  let refreshAll = false;
+  const refreshRoots = new Set();
 
   const memberVisible = () => {
     const member = document.getElementById('member-view');
@@ -399,7 +402,7 @@
     forms.set(form, own);
   }
 
-  function refresh() {
+  function refresh(root = document) {
     scheduled = false;
     if (!document.body) return;
     for (const record of records.values()) {
@@ -413,29 +416,69 @@
     }
     for (const [field] of errors) if (!field.isConnected || !memberField(field)) clearError(field);
     if (!memberVisible()) { closeSelect(false); return; }
-    document.querySelectorAll('select').forEach(enhance);
-    document.querySelectorAll('form').forEach(enhanceForm);
-    for (const record of records.values()) refreshRecord(record);
+    const roots = root === document ? [document] : [...root];
+    for (const scope of roots) {
+      if (!scope.isConnected && scope !== document) continue;
+      if (scope.matches?.('select')) enhance(scope);
+      if (scope.matches?.('form')) enhanceForm(scope);
+      scope.querySelectorAll('select').forEach(enhance);
+      scope.querySelectorAll('form').forEach(enhanceForm);
+    }
+    for (const record of records.values()) {
+      if (roots.some(scope => scope === document || scope === record.select || scope.contains(record.select))) refreshRecord(record);
+    }
     if (active && (!active.button.getClientRects().length || active.select.closest('dialog:not([open])'))) closeSelect(false);
   }
 
-  function scheduleRefresh() {
+  function scheduleRefresh(root) {
+    if (root?.nodeType === 1) refreshRoots.add(root);
+    else refreshAll = true;
     if (scheduled) return;
     scheduled = true;
-    queueMicrotask(refresh);
+    queueMicrotask(() => {
+      const scopes = refreshAll ? document : new Set(refreshRoots);
+      refreshAll = false; refreshRoots.clear();
+      refresh(scopes);
+    });
+  }
+
+  function scheduleField(target) {
+    if (!target || target.nodeType !== 1) return;
+    const select = target.closest('select');
+    if (select) { scheduleRefresh(select); return; }
+    // Text and attributes in a native label can change its accessible name.
+    const label = target.closest('label');
+    if (label?.querySelector('select')) scheduleRefresh(label);
+    if (target.id) for (const record of records.values()) {
+      if ((record.select.getAttribute('aria-labelledby') || '').split(/\s+/).includes(target.id)) scheduleRefresh(record.select);
+    }
   }
 
   function install() {
     const observer = new MutationObserver((mutations) => {
-      if (mutations.some((mutation) => {
+      const visible = memberVisible();
+      if (visible !== previousMemberVisible) { previousMemberVisible = visible; scheduleRefresh(); }
+      for (const mutation of mutations) {
         const target = mutation.target.nodeType === 1 ? mutation.target : mutation.target.parentElement;
-        return !target?.closest('[data-sl-built-in]') || target?.closest('select')
-          || (mutation.type === 'childList' && target?.classList.contains('sl-select'));
-      })) scheduleRefresh();
+        if (!target || target.closest('svg')) continue;
+        if (mutation.type === 'attributes' && mutation.oldValue === target.getAttribute(mutation.attributeName)) continue;
+        if (target.closest('[data-sl-built-in]') && !target.closest('select') && mutation.type !== 'childList') continue;
+        scheduleField(target);
+        if (mutation.type === 'attributes') {
+          if (['hidden', 'open', 'class', 'disabled'].includes(mutation.attributeName)
+            && (target.querySelector('select') || (active && target.contains(active.button)))) scheduleRefresh(target);
+        } else if (mutation.type === 'childList') {
+          for (const node of mutation.addedNodes || []) {
+            if (node.nodeType === 1 && (node.matches('select, form') || node.querySelector('select, form'))) scheduleRefresh(node);
+          }
+          if ([...mutation.removedNodes || []].some(node => node.nodeType === 1 && (node.matches('select, form, [data-sl-built-in="select"]') || node.querySelector('select, form')))) scheduleRefresh(target);
+        }
+      }
     });
     observer.observe(document.body, {
       subtree: true, childList: true, characterData: true, attributes: true,
       attributeFilter: ['class', 'hidden', 'open', 'disabled', 'required', 'multiple', 'size', 'selected', 'label', 'value', 'title', 'aria-label', 'aria-labelledby', 'aria-describedby', 'aria-invalid'],
+      attributeOldValue: true,
     });
     document.addEventListener('pointerdown', (event) => {
       if (active && !active.wrapper.contains(event.target) && !active.menu?.contains(event.target)) closeSelect(false);
@@ -451,15 +494,15 @@
     }, true);
     document.addEventListener('focusin', (event) => {
       if (active && !active.wrapper.contains(event.target) && !active.menu?.contains(event.target)) closeSelect(false);
-      if (memberVisible()) scheduleRefresh();
+      if (memberVisible()) scheduleField(event.target);
     });
     document.addEventListener('input', (event) => {
       if (errors.has(event.target) && event.target.validity.valid) clearError(event.target);
-      scheduleRefresh();
+      scheduleField(event.target);
     });
     document.addEventListener('change', (event) => {
       if (errors.has(event.target)) event.target.validity.valid ? clearError(event.target) : showError(event.target);
-      scheduleRefresh();
+      scheduleField(event.target);
     });
     document.addEventListener('reset', (event) => {
       queueMicrotask(() => {
@@ -489,6 +532,7 @@
     window.visualViewport?.addEventListener('resize', () => { if (active) positionMenu(active); });
     window.visualViewport?.addEventListener('scroll', () => { if (active) positionMenu(active); });
     window.addEventListener('pageshow', scheduleRefresh);
+    previousMemberVisible = memberVisible();
     refresh();
   }
 

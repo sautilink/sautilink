@@ -9,6 +9,7 @@ const VIDEO_CONTROLS_IDLE_MS = 4000;
 const VIDEO_DOUBLE_TAP_WINDOW_MS = 320;
 const VIDEO_SEEK_SECONDS = 5;
 const VIDEO_RATES = Object.freeze([0.5, 1, 1.5, 2]);
+const MAX_VIDEO_METADATA_DURATION_MS = 180000;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function ensureSautiLinkVideoPlayerStylesheet() {
@@ -92,13 +93,35 @@ function formatVideoTime(seconds) {
   return `${minutes}:${String(secs).padStart(2, '0')}`;
 }
 
+function setVideoControlAttribute(node, name, value) {
+  if (node.getAttribute(name) !== value) node.setAttribute(name, value);
+}
+
+function setVideoControlText(node, value) {
+  if (node.textContent !== value) node.textContent = value;
+}
+
+function nativeVideoDuration(video) {
+  return Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+}
+
+function displayVideoDuration(video, host) {
+  const duration = nativeVideoDuration(video);
+  if (duration) return duration;
+  const value = host?.dataset?.mediaDurationMs || '';
+  const milliseconds = /^\d+$/.test(value) ? Number(value) : 0;
+  return Number.isSafeInteger(milliseconds) && milliseconds > 0 && milliseconds <= MAX_VIDEO_METADATA_DURATION_MS
+    ? milliseconds / 1000 : 0;
+}
+
 function clampVideoTime(video, seconds) {
-  const duration = Number.isFinite(video.duration) ? video.duration : 0;
+  const duration = nativeVideoDuration(video);
   if (!duration) return Math.max(0, seconds);
   return Math.max(0, Math.min(duration, seconds));
 }
 
 function seekVideoBy(video, seconds) {
+  if (!nativeVideoDuration(video)) return;
   video.currentTime = clampVideoTime(video, (Number(video.currentTime) || 0) + seconds);
 }
 
@@ -270,7 +293,7 @@ function enhanceSautiLinkVideo(video) {
 
   const showControls = ({ hold = false } = {}) => {
     window.clearTimeout(controlsTimer);
-    player.classList.add('controls-visible');
+    if (!player.classList.contains('controls-visible')) player.classList.add('controls-visible');
     if (!hold && !video.paused && !video.ended) {
       controlsTimer = window.setTimeout(() => {
         player.classList.remove('controls-visible');
@@ -284,9 +307,10 @@ function enhanceSautiLinkVideo(video) {
     const label = ended ? 'Replay video' : paused ? 'Play video' : 'Pause video';
     const icon = ended ? 'replay' : paused ? 'play' : 'pause';
     [center, playPause].forEach((control) => {
-      control.setAttribute('aria-label', label);
-      control.setAttribute('title', label);
-      control.replaceChildren(videoIcon(icon));
+      const changed = control.getAttribute('aria-label') !== label;
+      setVideoControlAttribute(control, 'aria-label', label);
+      setVideoControlAttribute(control, 'title', label);
+      if (changed) control.replaceChildren(videoIcon(icon));
     });
     player.classList.toggle('is-paused', paused);
     player.classList.toggle('is-ended', ended);
@@ -296,21 +320,23 @@ function enhanceSautiLinkVideo(video) {
   const syncAudio = () => {
     const muted = video.muted || video.volume === 0;
     const label = muted ? 'Unmute video' : 'Mute video';
-    audio.setAttribute('aria-label', label);
-    audio.setAttribute('title', label);
-    audio.setAttribute('aria-pressed', muted ? 'false' : 'true');
-    audio.replaceChildren(videoIcon(muted ? 'volume-muted' : 'volume'));
+    const changed = audio.getAttribute('aria-label') !== label;
+    setVideoControlAttribute(audio, 'aria-label', label);
+    setVideoControlAttribute(audio, 'title', label);
+    setVideoControlAttribute(audio, 'aria-pressed', muted ? 'false' : 'true');
+    if (changed) audio.replaceChildren(videoIcon(muted ? 'volume-muted' : 'volume'));
     const level = muted ? 0 : Math.max(0, Math.min(1, Number(video.volume) || 0));
-    volumeFill.style.transform = `scaleX(${level})`;
-    volumeThumb.style.left = `${level * 100}%`;
-    volume.setAttribute('aria-valuenow', String(Math.round(level * 100)));
-    volume.setAttribute('aria-valuetext', `${Math.round(level * 100)} percent`);
+    const fill = `scaleX(${level})`, left = `${level * 100}%`;
+    if (volumeFill.style.transform !== fill) volumeFill.style.transform = fill;
+    if (volumeThumb.style.left !== left) volumeThumb.style.left = left;
+    setVideoControlAttribute(volume, 'aria-valuenow', String(Math.round(level * 100)));
+    setVideoControlAttribute(volume, 'aria-valuetext', `${Math.round(level * 100)} percent`);
   };
 
   const syncRate = () => {
     const value = Number(video.playbackRate) || 1;
-    rate.textContent = `${Number.isInteger(value) ? value : value.toFixed(1)}×`;
-    rate.setAttribute('aria-label', `Playback speed ${rate.textContent}. Activate to change.`);
+    setVideoControlText(rate, `${Number.isInteger(value) ? value : value.toFixed(1)}×`);
+    setVideoControlAttribute(rate, 'aria-label', `Playback speed ${rate.textContent}. Activate to change.`);
   };
 
   const syncQuality = () => {
@@ -342,9 +368,9 @@ function enhanceSautiLinkVideo(video) {
       const label = stream.preference === 'auto' ? `Auto${stream.actual ? ` · ${stream.actual}p` : ''}`
         : stream.preference === 'data-saver' ? `Saver${stream.actual ? ` · ${stream.actual}p` : ''}`
           : stream.actual ? `${stream.actual}p` : 'Quality';
-      labelNode.textContent = label; quality.setAttribute('title', `Video quality: ${label}`);
+      setVideoControlText(labelNode, label); setVideoControlAttribute(quality, 'title', `Video quality: ${label}`);
       qualityMenu.querySelectorAll('[data-video-quality-option]').forEach((option) => {
-        option.setAttribute('aria-checked', String(option.dataset.videoQualityOption === stream.preference));
+        setVideoControlAttribute(option, 'aria-checked', String(option.dataset.videoQualityOption === stream.preference));
       });
       return;
     }
@@ -389,36 +415,41 @@ function enhanceSautiLinkVideo(video) {
       labelNode.className = 'sauti-video-quality-label';
       quality.prepend(labelNode);
     }
-    labelNode.textContent = label;
-    quality.setAttribute('title', `Video quality: ${label}`);
+    setVideoControlText(labelNode, label);
+    setVideoControlAttribute(quality, 'title', `Video quality: ${label}`);
     qualityMenu.querySelectorAll('[data-video-quality-option]').forEach((option) => {
-      option.setAttribute('aria-checked', String(option.dataset.videoQualityOption === effectivePreference));
+      setVideoControlAttribute(option, 'aria-checked', String(option.dataset.videoQualityOption === effectivePreference));
     });
   };
 
   const syncTimeline = () => {
-    const duration = Number.isFinite(video.duration) ? Math.max(0, video.duration) : 0;
+    const duration = nativeVideoDuration(video);
     const current = Math.max(0, Number(video.currentTime) || 0);
     const ratio = duration > 0 ? Math.min(1, current / duration) : 0;
-    played.style.transform = `scaleX(${ratio})`;
-    thumb.style.left = `${ratio * 100}%`;
-    timeline.setAttribute('aria-valuemax', String(Math.round(duration)));
-    timeline.setAttribute('aria-valuenow', String(Math.round(current)));
-    timeline.setAttribute('aria-valuetext', `${formatVideoTime(current)} of ${formatVideoTime(duration)}`);
-    time.textContent = `${formatVideoTime(current)} / ${formatVideoTime(duration)}`;
+    const fill = `scaleX(${ratio})`, left = `${ratio * 100}%`;
+    if (played.style.transform !== fill) played.style.transform = fill;
+    if (thumb.style.left !== left) thumb.style.left = left;
+    setVideoControlAttribute(timeline, 'aria-valuemax', String(Math.round(duration)));
+    setVideoControlAttribute(timeline, 'aria-valuenow', String(Math.round(current)));
+    setVideoControlAttribute(timeline, 'aria-valuetext', `${formatVideoTime(current)} of ${formatVideoTime(duration)}`);
+    setVideoControlAttribute(timeline, 'aria-disabled', duration > 0 ? 'false' : 'true');
+    // Authorized row metadata decorates the label only. Seeking, buffers and
+    // playback readiness continue to use the actual media element metadata.
+    setVideoControlText(time, `${formatVideoTime(current)} / ${formatVideoTime(displayVideoDuration(video, host))}`);
   };
 
   const syncBuffered = () => {
     const duration = Number.isFinite(video.duration) ? video.duration : 0;
     if (!duration || !video.buffered?.length) {
-      buffered.style.transform = 'scaleX(0)';
+      if (buffered.style.transform !== 'scaleX(0)') buffered.style.transform = 'scaleX(0)';
       return;
     }
     let end = 0;
     for (let index = 0; index < video.buffered.length; index += 1) {
       end = Math.max(end, video.buffered.end(index));
     }
-    buffered.style.transform = `scaleX(${Math.min(1, end / duration)})`;
+    const fill = `scaleX(${Math.min(1, end / duration)})`;
+    if (buffered.style.transform !== fill) buffered.style.transform = fill;
   };
 
   const togglePlayback = () => {
@@ -449,7 +480,7 @@ function enhanceSautiLinkVideo(video) {
   };
 
   const seekFromTimelinePointer = (event) => {
-    const duration = Number.isFinite(video.duration) ? video.duration : 0;
+    const duration = nativeVideoDuration(video);
     if (!duration) return;
     const rect = timeline.getBoundingClientRect();
     if (!rect.width) return;
@@ -590,6 +621,7 @@ function enhanceSautiLinkVideo(video) {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
     event.stopPropagation();
+    if (!nativeVideoDuration(video)) return;
     if (event.key === 'ArrowLeft') seekVideoBy(video, -VIDEO_SEEK_SECONDS);
     else if (event.key === 'ArrowRight') seekVideoBy(video, VIDEO_SEEK_SECONDS);
     else if (event.key === 'Home') video.currentTime = 0;
