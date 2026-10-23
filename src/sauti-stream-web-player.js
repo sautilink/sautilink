@@ -9,8 +9,14 @@ const mediaLevels = new Map();
 let runtimePromise;
 const authClients = new WeakSet();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+function announceReadiness(mediaId, state) {
+  if (typeof document !== 'undefined' && typeof CustomEvent !== 'undefined') {
+    document.dispatchEvent?.(new CustomEvent('sautilink:stream-readiness-state', { detail: { mediaId, state } }));
+  }
+}
 const readiness = createStreamReadiness({ origin: () => window.location.origin,
-  ensureSession: () => window.SautiLinkVideoMediaSession?.ensure?.(), validateDescriptor: validatedStreamDescriptor });
+  ensureSession: () => window.SautiLinkVideoMediaSession?.ensure?.(), validateDescriptor: validatedStreamDescriptor,
+  onChange: announceReadiness });
 let readinessIds = [];
 const bufferingVideos = new Set();
 
@@ -24,6 +30,8 @@ function syncReadiness() {
 }
 
 export function updateSautiStreamReadiness(ids = []) { readinessIds = ids; syncReadiness(); }
+export function sautiStreamReadinessState(id) { return readiness.status(id); }
+export function forgetSautiStreamReadinessState(id) { readiness.forget(id); }
 export function setSautiStreamBuffering(video, waiting) {
   if (waiting) bufferingVideos.add(video); else bufferingVideos.delete(video);
   setMediaPreviewPlaybackWaiting(video, waiting);
@@ -196,7 +204,13 @@ async function resolvePlaybackAttempt(state, force = false) {
     if (state.destroyed || !video.isConnected || controller.signal.aborted) return false;
     const requestOptions = { credentials: 'same-origin', cache: 'no-store', redirect: 'error',
       signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]) };
-    let descriptor = force ? null : validDescriptor(state) || readiness.descriptor(state.mediaId);
+    const warmedDescriptor = force ? null : readiness.descriptor(state.mediaId);
+    // A cancelled offscreen preflight can retain another valid grant without
+    // ever attaching a controller. Prefer the already warmed grant for this
+    // new attach so its exact signed playlists/fragments remain reusable.
+    // Live controllers keep their existing grant; forced renewal stays fresh.
+    let descriptor = force ? null : ((!state.hls && !state.nativeHls && warmedDescriptor)
+      || validDescriptor(state) || warmedDescriptor);
     if (!descriptor) {
       const descriptorUrl = `/api/sauti-media/${state.mediaId}/playback`;
       let response = await fetch(descriptorUrl, requestOptions);
@@ -326,6 +340,9 @@ export function enhanceSautiStreamPlayback(video) {
   if (!UUID.test(mediaId)) return;
   const state = { video, mediaId, hls: null, ready: false, checkedAt: 0, resolving: false, destroyed: false, renewTimer: 0 };
   video.__sautiStreamState = state; states.add(state);
+  // A warmed record may precede the actual Home/Shorts element. Publish only
+  // its sanitized counters when that newly attached element becomes observable.
+  announceReadiness(mediaId, readiness.status(mediaId));
   state.onPlay = () => {
     if (!streamPlaybackEligible(video)) { video.pause(); return; }
     state.firstFrameOnly = false;
@@ -376,6 +393,10 @@ function destroyState(state, { clearMedia = false } = {}) {
   state.destroyed = true; state.abort?.abort(); state.hls?.destroy(); state.video.pause();
   bufferingVideos.delete(state.video);
   setMediaPreviewPlaybackWaiting(state.video, false);
+  for (const node of [state.video, state.video.closest?.('.sauti-media-tile'), state.video.closest?.('.sauti-short-video-slide')]) {
+    for (const key of Object.keys(node?.dataset || {})) if (key.startsWith('sautiWarm')) delete node.dataset[key];
+  }
+  syncReadiness();
   if (state.restoreListener) state.video.removeEventListener('loadedmetadata', state.restoreListener);
   state.restoreListener = null;
   state.restoreIntent = null;

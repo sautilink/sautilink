@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { enhanceSautiStreamPlayback, prepareSautiStreamPlayback, installSautiStreamAuthLifecycle, streamQualityState } from '../src/sauti-stream-web-player.js';
+import { enhanceSautiStreamPlayback, prepareSautiStreamPlayback, installSautiStreamAuthLifecycle, streamQualityState,
+  updateSautiStreamReadiness, sautiStreamReadinessState } from '../src/sauti-stream-web-player.js';
 
 const MEDIA = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
@@ -32,7 +33,7 @@ async function flush() {
 function harness() {
   const previous = Object.fromEntries(['window', 'document', 'HTMLVideoElement', 'CustomEvent', 'fetch'].map((key) => [key, globalThis[key]]));
   const originalWarn = console.warn;
-  const responses = [], requests = [], warnings = [], instances = [], sessionEnsures = [], timers = new Map();
+  const responses = [], requests = [], warnings = [], instances = [], sessionEnsures = [], timers = new Map(), resourceResponses = new Map();
   let timerId = 0, authCallback;
   class FakeVideo {
     constructor() {
@@ -89,6 +90,7 @@ function harness() {
   globalThis.CustomEvent = class { constructor(type, options) { this.type = type; this.detail = options?.detail; } };
   globalThis.fetch = async (url, options) => {
     requests.push({ url, options });
+    if (resourceResponses.has(url)) return resourceResponses.get(url)();
     assert.equal(url, `${MP4}/playback`);
     assert.equal(options.credentials, 'same-origin');
     assert.equal(options.redirect, 'error');
@@ -100,7 +102,7 @@ function harness() {
   installSautiStreamAuthLifecycle({ auth: { onAuthStateChange(callback) { authCallback = callback; return {}; } } });
   authCallback('INITIAL_SESSION', session());
   return {
-    responses, requests, warnings, instances, sessionEnsures, timers, FakeVideo, FakeHls,
+    responses, requests, warnings, instances, sessionEnsures, timers, resourceResponses, FakeVideo, FakeHls,
     async start() {
       responses.push(descriptorResponse());
       const video = new FakeVideo(); enhanceSautiStreamPlayback(video); await flush();
@@ -143,6 +145,17 @@ test('adaptive preparation finishes before native play and a valid replay keeps 
   } finally { h.close(); }
 });
 
+test('disposing an owner clears readiness attributes from its video even while that node is detached', async () => {
+  const h = harness();
+  try {
+    const video = await h.start(); video.isConnected = false;
+    video.dataset.sautiWarmState = 'ready'; video.dataset.sautiWarmHits = '4';
+    h.signIn(OTHER_USER);
+    assert.equal(video.dataset.sautiWarmState, undefined); assert.equal(video.dataset.sautiWarmHits, undefined);
+    assert.equal(video.__sautiStreamState, undefined);
+  } finally { h.close(); }
+});
+
 test('a late descriptor cannot start offscreen segments; returning reuses only its unexpired descriptor', async () => {
   const h = harness();
   try {
@@ -154,6 +167,60 @@ test('a late descriptor cannot start offscreen segments; returning reuses only i
     video.bounds = { top: 0, bottom: 400, height: 400 };
     assert.equal(await prepareSautiStreamPlayback(video), true);
     assert.equal(h.requests.length, 1); assert.equal(h.instances.length, 1);
+  } finally { h.close(); }
+});
+
+test('a new attach uses the exact warmed grant after another offscreen preflight, while forced renewal still looks up a fresh grant', async () => {
+  const h = harness();
+  const signed = (name, grant) => `${ORIGIN}${MP4}/hls/${name}?c=${grant}.${'b'.repeat(43)}`;
+  const expiry = new Date(Date.now() + 240000).toISOString();
+  const grant = (name, expiresAt = expiry) => ({ type: 'hls', url: signed('master', name),
+    expires_in: 240, expires_at: expiresAt });
+  const retained = grant('grantA'), warmed = grant('grantB'), renewed = grant('grantC');
+  const firstBytes = new Uint8Array([5, 6, 7, 8]);
+  class NetworkLoader {
+    constructor() { this.stats = { loading: {}, aborted: false }; }
+    load() { assert.fail('the warmed fragment must not reach the network loader'); }
+    abort() { this.stats.aborted = true; }
+    destroy() {}
+  }
+  h.FakeHls.DefaultConfig = { loader: NetworkLoader };
+  try {
+    const pending = deferred(); h.responses.push(pending.promise);
+    const video = new h.FakeVideo(); enhanceSautiStreamPlayback(video); await flush();
+    video.bounds = { top: 900, bottom: 1300, height: 400 }; video.pause();
+    pending.resolve({ ok: true, json: async () => ({ ok: true, data: retained }) }); await flush();
+    assert.equal(h.instances.length, 0);
+    assert.equal(video.__sautiStreamState.descriptor.url, retained.url);
+
+    h.responses.push(Response.json({ ok: true, data: warmed }));
+    h.resourceResponses.set(warmed.url, () => new Response(`#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=200000\n${signed('low', 'grantB')}\n`));
+    h.resourceResponses.set(signed('low', 'grantB'), () => new Response(`#EXTM3U\n#EXT-X-MAP:URI="${signed('init', 'grantB')}"\n#EXTINF:4,\n${signed('first', 'grantB')}\n#EXT-X-ENDLIST\n`));
+    h.resourceResponses.set(signed('init', 'grantB'), () => new Response(new Uint8Array([1, 2])));
+    h.resourceResponses.set(signed('first', 'grantB'), () => new Response(firstBytes));
+    updateSautiStreamReadiness([MEDIA]);
+    for (let attempt = 0; attempt < 100 && sautiStreamReadinessState(MEDIA)?.state !== 'ready'; attempt++) await flush();
+    assert.equal(sautiStreamReadinessState(MEDIA)?.state, 'ready');
+    assert.equal(sautiStreamReadinessState(MEDIA).resources, 4);
+    assert.equal(video.__sautiStreamState.descriptor.url, retained.url, 'warming does not replace a player grant by itself');
+
+    video.bounds = { top: 0, bottom: 400, height: 400 };
+    assert.equal(await prepareSautiStreamPlayback(video), true);
+    assert.equal(h.instances[0].url, warmed.url, 'the new attach must use the exact grant containing the cached resources');
+    assert.equal(video.__sautiStreamState.expiresAt, Date.parse(expiry), 'attaching retained bytes never extends their authorization');
+    assert.equal(h.requests.filter(({ url }) => url.endsWith('/playback')).length, 2);
+    const Loader = h.instances[0].config.loader, loader = new Loader(); let delivered;
+    loader.load({ url: signed('first', 'grantB'), responseType: 'arraybuffer', rangeStart: 0, rangeEnd: 0 }, {}, {
+      onSuccess(response) { delivered = new Uint8Array(response.data); },
+    });
+    await flush(); assert.deepEqual(delivered, firstBytes); assert.equal(sautiStreamReadinessState(MEDIA).hits, 1);
+
+    h.instances[0].manifest(); video.emit('loadedmetadata'); video.play();
+    h.responses.push({ ok: true, json: async () => ({ ok: true, data: renewed }) });
+    h.renew(video); await flush();
+    assert.equal(h.requests.filter(({ url }) => url.endsWith('/playback')).length, 3, 'forced renewal bypasses both retained descriptors');
+    assert.equal(h.instances[1].url, renewed.url);
+    assert.equal(video.__sautiStreamState.expiresAt, Date.parse(expiry));
   } finally { h.close(); }
 });
 
