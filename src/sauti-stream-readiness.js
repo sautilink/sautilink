@@ -277,9 +277,15 @@ export function readinessLoader(DefaultLoader, cache, mediaId) {
       this.context = context;
       this.config = config;
       this.callbacks = callbacks;
-      const time = globalThis.performance?.now?.() || 1;
+      const time = Math.max(1, globalThis.performance?.now?.() || 1);
+      const duration = Number.isFinite(value.duration) ? Math.max(1, value.duration) : 1;
+      const start = Math.max(0, time - duration);
       Object.assign(this.stats, { aborted: false, loaded: value.size, total: value.size, chunkCount: 1 });
-      Object.assign(this.stats.loading, { start: Math.max(0, time - value.duration), first: time, end: time });
+      // The retained duration covers the original complete network fetch; its
+      // first-byte timestamp was not retained. Count that duration as transfer
+      // time conservatively. first=end would misclassify it all as TTFB, letting
+      // ABR measure memory/decode speed instead of the observed network speed.
+      Object.assign(this.stats.loading, { start, first: start, end: time });
       const ticket = this.__readinessTicket = {};
       queueMicrotask(() => {
         if (this.__readinessTicket === ticket && !this.stats.aborted && value.isCurrent?.() !== false) {

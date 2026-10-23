@@ -17,7 +17,7 @@ sdkReference.destroy();
 /** Browser event flow with the pinned SDK's real setters, not fake setter
  * semantics. The source/decoder remain in memory; no account or HTTP is used.
  */
-async function harness({ short = false, preference = 'auto', beforeManifest } = {}) {
+async function harness({ short = false, loop = false, preference = 'auto', beforeManifest } = {}) {
   const keys = ['window', 'document', 'HTMLVideoElement', 'localStorage', 'MutationObserver', 'fetch'];
   const previous = Object.fromEntries(keys.map((key) => [key, globalThis[key]]));
   const storage = new Map();
@@ -30,6 +30,7 @@ async function harness({ short = false, preference = 'auto', beforeManifest } = 
       super(); this.dataset = { sautiMediaId: MEDIA, sautiManualPlay: 'true' };
       this.currentTime = 12; this.duration = 30; this.playbackRate = 1.5;
       this.paused = false; this.isConnected = true; this.src = MP4; this.loads = 0; this.plays = 0;
+      this.loop = loop;
     }
     closest(selector) { return short && selector === '#sauti-short-videos' ? {} : null; }
     play() { this.paused = false; this.plays++; this.dispatchEvent(new Event('play')); return Promise.resolve(); }
@@ -205,4 +206,56 @@ test('a manual-to-Auto change before the first manifest retains the ordinary Aut
     assert.deepEqual(h.hls.starts[0], { level: -1, bitrateTest: true });
     assert.equal(h.hls.safeSwitches, 1); assert.equal(h.state().preference, 'auto');
   } finally { h.close(); }
+});
+
+test('looped adaptive playback retains its earlier rendition after an upgrade while the sixty-second eviction budget still applies', async () => {
+  const fragment = { level: 1, start: 4, elementaryStreams: { video: { startDTS: 4, partial: false } } };
+  const previousFragment = { level: 0 };
+  const baseline = new Hls({ enableWorker: false, autoStartLoad: false, backBufferLength: 60 });
+  try {
+    baseline.bufferController.media = { loop: true };
+    assert.equal(baseline.bufferController.getLoopBackBufferFlushEnd(fragment, previousFragment), 3.75,
+      'the pinned SDK normally removes the loop beginning on a quality upgrade despite the sixty-second budget');
+  } finally {
+    baseline.bufferController.media = null;
+    baseline.destroy();
+  }
+  for (const loop of [true, false]) {
+    const h = await harness({ short: loop, loop });
+    let sdk;
+    try {
+      assert.equal(Object.hasOwn(h.hls.config, 'loopBackBufferFlush'), loop,
+        'nonlooped playback leaves the SDK option at its existing default');
+      if (loop) assert.equal(h.hls.config.loopBackBufferFlush, false);
+      sdk = new Hls({ ...h.hls.config, enableWorker: false });
+      const buffer = sdk.bufferController;
+      buffer.media = { loop, currentTime: 4 };
+      assert.equal(buffer.getLoopBackBufferFlushEnd(fragment, previousFragment), 0,
+        'the actual SDK must not schedule eviction of the earlier low rendition on this loop');
+      assert.equal(sdk.config.backBufferLength, 60);
+      assert.equal(sdk.config.maxBufferLength, 20);
+      assert.equal(sdk.config.maxMaxBufferLength, 40);
+      assert.equal(sdk.config.maxBufferSize, 24 * 1024 * 1024);
+
+      // Exercise the SDK trimming policy; substitute only the final physical
+      // SourceBuffer removal, which requires a real browser decoder.
+      const evictions = [];
+      buffer.details = { live: false, levelTargetDuration: 4 };
+      buffer.sourceBuffers = [['video', {}], [null, null]];
+      buffer.flushBackBuffer = (_time, _targetDuration, position) => evictions.push(position);
+      buffer.trimBuffers(Infinity, sdk.config.backBufferLength, fragment, previousFragment);
+      assert.deepEqual(evictions, [], 'an eight-second loop keeps its buffered beginning after an upgrade');
+      buffer.media.currentTime = 80;
+      buffer.trimBuffers(Infinity, sdk.config.backBufferLength, fragment, previousFragment);
+      assert.deepEqual(evictions, [20], 'ordinary age eviction remains bounded rather than retaining an entire long video');
+    } finally {
+      if (sdk) {
+        sdk.bufferController.media = null;
+        sdk.bufferController.details = null;
+        sdk.bufferController.sourceBuffers = [[null, null], [null, null]];
+        sdk.destroy();
+      }
+      h.close();
+    }
+  }
 });

@@ -254,6 +254,9 @@ async function resolvePlaybackAttempt(state, force = false) {
       const hls = new Hls({ enableWorker: true, workerPath: '/app/assets/vendor/hls.worker-1.7.3.js',
         autoStartLoad: false, capLevelToPlayerSize: true,
         maxBufferLength: 20, maxMaxBufferLength: 40, backBufferLength: 60, maxBufferSize: 24 * 1024 * 1024,
+        // Preserve the buffered loop beginning when Auto upgrades a later
+        // fragment; ordinary sixty-second/byte eviction still bounds memory.
+        ...(video.loop ? { loopBackBufferFlush: false } : {}),
         ...(initialAuto ? { startLevel: 0 } : {}),
         ...(Hls.DefaultConfig?.loader ? { loader: readinessLoader(Hls.DefaultConfig.loader, readiness, state.mediaId) } : {}),
         startPosition: position, xhrSetup(xhr, requestUrl) {
