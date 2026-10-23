@@ -43,6 +43,9 @@ internal fun videoHistorySourceEligible(index: Int, current: Int, active: Boolea
     active && index < current && index.toLong() >= current.toLong()-NATIVE_VIDEO_RETAIN_BEHIND &&
         now >= 0L && now < deadline && (prepared || permitted)
 
+internal fun videoRetainCurrentAfterUpdate(retainIncoming: Boolean, wasRetained: Boolean,
+    playerOwnsExactIncoming: Boolean): Boolean = retainIncoming && (wasRetained || playerOwnsExactIncoming)
+
 internal fun videoPreloadTarget(index: Int, current: Int, next: Set<Int>, permitted: Boolean,
     retainCurrent: Boolean, closed: Boolean, preparedNext: Set<Int> = emptySet(),
     incomingIndex: Int? = null, sourceOnlyPrevious: Set<Int> = emptySet()): ShortsPreloadTarget = when {
@@ -204,6 +207,11 @@ internal class NativeShortsPreloading(context: Context, resources: NativeVideoPl
 
     fun updateWindow(current: Int, next: List<Pair<Int, NativeVideoSource>>, allow: Boolean, retainIncoming: Boolean = true) {
         if (closed) return
+        val incomingItem = items.values.firstOrNull { it.second == current }?.first
+        // Opt-out releases history while the visible player keeps its source.
+        // Re-enabling that exact mounted revision needs no attach/prepare/I/O.
+        retainCurrent = videoRetainCurrentAfterUpdate(retainIncoming, retainCurrent,
+            incomingItem != null && ownedPlayer?.currentMediaItem == incomingItem)
         if (!retainIncoming) {
             historyHandler.removeCallbacks(expireHistory)
             removePastSources(expiredOnly=false)
@@ -220,7 +228,7 @@ internal class NativeShortsPreloading(context: Context, resources: NativeVideoPl
         // Compose can report the new pager page before the visible player has
         // taken its prepared MediaSource. NOT_PRELOADED would clear that very
         // sample queue. Keep the old ranking until attach() transfers ownership.
-        val incoming = items.values.firstOrNull { it.second == current }?.first?.mediaId
+        val incoming = incomingItem?.mediaId
         if (current != currentIndex && incoming != null && ownedPlayer?.currentMediaItem?.mediaId != incoming) {
             pendingUpdate = Update(current, next, allow)
             incomingHandoffIndex = current

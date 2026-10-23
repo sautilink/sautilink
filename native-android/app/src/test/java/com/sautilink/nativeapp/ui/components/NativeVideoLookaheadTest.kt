@@ -83,6 +83,19 @@ class NativeVideoLookaheadTest {
         assertEquals(55_500L,videoHistoryDeadline(61_000L,1_000L,500L))
         assertEquals(500L,videoHistoryDeadline(5_000L,1_000L,500L))
     }
+    @Test fun historyOptOutCanResumeOnlyTheExactStillMountedPlayerRevision_withoutAnotherAttach() {
+        var retained=videoRetainCurrentAfterUpdate(true,false,true)
+        assertTrue(retained)
+        retained=videoRetainCurrentAfterUpdate(false,retained,true)
+        assertFalse("Opt-out must clear retention even while the same player is mounted",retained)
+        assertFalse("An absent, foreign or replaced player revision cannot restore retention",
+            videoRetainCurrentAfterUpdate(true,retained,false))
+        retained=videoRetainCurrentAfterUpdate(true,retained,true)
+        assertTrue("The exact still-mounted source can resume history after opt-out without reattaching",retained)
+        assertTrue("An existing current period stays retained during the incoming handoff",
+            videoRetainCurrentAfterUpdate(true,retained,false))
+        assertFalse(videoRetainCurrentAfterUpdate(false,retained,false))
+    }
     @Test fun textAndImageRowsDoNotConsumeTheFiveVideoWindow() {
         val positions=listOf(2,6,9,12,15,20,23)
         assertEquals(-1,feedLookaheadAnchor(positions,0))
