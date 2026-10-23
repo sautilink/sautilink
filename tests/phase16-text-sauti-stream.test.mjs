@@ -38,8 +38,10 @@ test('Stream is canonical, bounded and rendered without innerHTML while Followin
   assert.match(source, /const STREAM_PAGE_SIZE = 20/);
   assert.match(source, /supabase\.rpc\('social_home_feed'/);
   assert.match(source, /\.from\('social_posts'\)/);
-  assert.match(source, /p_limit: STREAM_PAGE_SIZE \+ 1/);
-  assert.match(source, /p_offset: streamOffset/);
+  assert.match(source, /const STREAM_INITIAL_PAGE_SIZE = 5/);
+  assert.match(source, /offsetAtRequest === 0 \? STREAM_INITIAL_PAGE_SIZE : STREAM_PAGE_SIZE/);
+  assert.match(source, /p_limit: pageSize \+ 1/);
+  assert.match(source, /p_offset: offsetAtRequest/);
   assert.match(migration, /when p_mode = 'following' then null else diversified\.final_score/);
   assert.match(migration, /diversified\.created_at desc/);
   assert.match(migration, /limit least\(greatest\(coalesce\(p_limit, 21\), 1\), 50\)/);

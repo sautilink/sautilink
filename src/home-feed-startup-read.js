@@ -1,7 +1,8 @@
 /** One disposable first-page read. Admission still belongs to the existing
  * account/profile flow; no feed records or authorization are persisted here. */
 export function createHomeFeedStartupRead({ request, context, now = Date.now,
-  setTimer = setTimeout, clearTimer = clearTimeout, freshForMs = 10000, requestTimeoutMs = 5000 } = {}) {
+  setTimer = setTimeout, clearTimer = clearTimeout, freshForMs = 10000, requestTimeoutMs = 5000,
+  initialPageSize = 5 } = {}) {
   let record = null, generation = 0, authKnown = false, authOwner = null;
   const pending = new Set();
   const cancelled = () => Object.assign(new Error('Initial Home read was invalidated.'), { code: 'HOME_STARTUP_INVALIDATED' });
@@ -31,7 +32,7 @@ export function createHomeFeedStartupRead({ request, context, now = Date.now,
       const value = context();
       if (!ownerId || !home(value) || value.hasFeed || (authKnown && authOwner !== ownerId)
         || !Number.isInteger(value.requestEpoch)) return null;
-      const item = { ownerId, mode: value.mode, requestEpoch: value.requestEpoch,
+      const item = { ownerId, mode: value.mode, requestEpoch: value.requestEpoch, pageSize: initialPageSize,
         generation, startedAt: now(), admitted: false, controller: new AbortController() };
       record = item; pending.add(item);
       item.expiryTimer = setTimer(() => cancel(item), freshForMs);
@@ -48,7 +49,7 @@ export function createHomeFeedStartupRead({ request, context, now = Date.now,
         // immediately, including when account admission never consumes it.
         Promise.resolve().then(() => {
           if (item.controller.signal.aborted) throw cancelled();
-          return request({ mode: item.mode, offset: 0, signal: item.controller.signal });
+          return request({ mode: item.mode, offset: 0, limit: item.pageSize + 1, signal: item.controller.signal });
         }).then((value) => finish({ value }), (error) => finish({ error }));
       });
       return item;
@@ -58,10 +59,11 @@ export function createHomeFeedStartupRead({ request, context, now = Date.now,
       if (record.ownerId !== ownerId || !valid(record) || context().memberId !== ownerId) cancel(record);
       else record.admitted = true;
     },
-    take({ ownerId, mode, offset, requestId, reset, requestFresh }) {
+    take({ ownerId, mode, offset, requestId, reset, requestFresh, pageSize = initialPageSize }) {
       const item = record;
       if (!item) return null;
       const eligible = () => item.admitted && item.ownerId === ownerId && item.mode === mode && offset === 0 && reset === true
+        && item.pageSize === pageSize
         && requestId === item.requestEpoch + 1 && context().requestEpoch === requestId
         && context().memberId === ownerId && valid(item);
       if (!eligible()) { cancel(item); return null; }
