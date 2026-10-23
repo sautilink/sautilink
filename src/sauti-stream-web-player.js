@@ -1,12 +1,32 @@
 import { getVideoAutoplayPreference } from './video-autoplay-preference.js';
 import { getVideoQualityPreference } from './video-quality-preference.js';
 import { getActivePlaybackVideo } from './video-playback-coordinator.js';
+import { createStreamReadiness, readinessLoader } from './sauti-stream-readiness.js';
 
 const states = new Set();
 const mediaLevels = new Map();
 let runtimePromise;
 const authClients = new WeakSet();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const readiness = createStreamReadiness({ origin: () => window.location.origin,
+  ensureSession: () => window.SautiLinkVideoMediaSession?.ensure?.(), validateDescriptor: validatedStreamDescriptor });
+let readinessIds = [];
+const bufferingVideos = new Set();
+
+function syncReadiness() {
+  const connection = globalThis.navigator?.connection;
+  for (const video of bufferingVideos) if (!video.isConnected || video.paused) bufferingVideos.delete(video);
+  const suspended = document.visibilityState === 'hidden' || connection?.saveData
+    || ['slow-2g', '2g'].includes(connection?.effectiveType) || bufferingVideos.size > 0
+    || Boolean(document.querySelector?.('dialog[open]'));
+  readiness.update(readinessIds, { suspended });
+}
+
+export function updateSautiStreamReadiness(ids = []) { readinessIds = ids; syncReadiness(); }
+export function setSautiStreamBuffering(video, waiting) {
+  if (waiting) bufferingVideos.add(video); else bufferingVideos.delete(video);
+  syncReadiness();
+}
 
 export function validatedStreamDescriptor(value, mediaId, origin, now = Date.now()) {
   if (!UUID.test(mediaId) || !value || !['hls', 'mp4'].includes(value.type)) return null;
@@ -155,21 +175,24 @@ async function resolvePlaybackAttempt(state, force = false) {
     if (state.destroyed || !video.isConnected || controller.signal.aborted) return false;
     const requestOptions = { credentials: 'same-origin', cache: 'no-store', redirect: 'error',
       signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]) };
-    const descriptorUrl = `/api/sauti-media/${state.mediaId}/playback`;
-    let response = await fetch(descriptorUrl, requestOptions);
-    if (response.status === 401 && typeof window.SautiLinkVideoMediaSession?.ensure === 'function'
-      && !state.destroyed && video.isConnected && !requestOptions.signal.aborted) {
-      await response.body?.cancel().catch(() => {});
-      // The HttpOnly cookie can expire before a later-created playback grant.
-      // Recreate it through the existing authenticated endpoint, then retry the
-      // normal authorization lookup once. A second denial stays denied.
-      await window.SautiLinkVideoMediaSession.ensure({ force: true });
-      if (state.destroyed || !video.isConnected || requestOptions.signal.aborted) return false;
-      response = await fetch(descriptorUrl, requestOptions);
+    let descriptor = force ? null : readiness.descriptor(state.mediaId);
+    if (!descriptor) {
+      const descriptorUrl = `/api/sauti-media/${state.mediaId}/playback`;
+      let response = await fetch(descriptorUrl, requestOptions);
+      if (response.status === 401 && typeof window.SautiLinkVideoMediaSession?.ensure === 'function'
+        && !state.destroyed && video.isConnected && !requestOptions.signal.aborted) {
+        await response.body?.cancel().catch(() => {});
+        // The HttpOnly cookie can expire before a later-created playback grant.
+        // Recreate it through the existing authenticated endpoint, then retry the
+        // normal authorization lookup once. A second denial stays denied.
+        await window.SautiLinkVideoMediaSession.ensure({ force: true });
+        if (state.destroyed || !video.isConnected || requestOptions.signal.aborted) return false;
+        response = await fetch(descriptorUrl, requestOptions);
+      }
+      if (!response.ok || state.destroyed) return false;
+      const json = await response.json();
+      descriptor = validatedStreamDescriptor(json?.ok === true ? json.data : null, state.mediaId, window.location.origin);
     }
-    if (!response.ok || state.destroyed) return false;
-    const json = await response.json();
-    const descriptor = validatedStreamDescriptor(json?.ok === true ? json.data : null, state.mediaId, window.location.origin);
     if (!descriptor || descriptor.type !== 'hls' || state.destroyed || !video.isConnected) return false;
     const Hls = await loadHlsRuntime();
     if (state.destroyed || !video.isConnected) return false;
@@ -183,7 +206,9 @@ async function resolvePlaybackAttempt(state, force = false) {
     if (Hls.isSupported()) {
       const previous = state.hls;
       const hls = new Hls({ enableWorker: false, autoStartLoad: false, capLevelToPlayerSize: true,
-        maxBufferLength: 20, maxMaxBufferLength: 40, backBufferLength: 20, maxBufferSize: 24 * 1024 * 1024,
+        maxBufferLength: 20, maxMaxBufferLength: 40, backBufferLength: 60, maxBufferSize: 24 * 1024 * 1024,
+        ...(selectedPreference(video) === 'auto' ? { startLevel: 0 } : {}),
+        ...(Hls.DefaultConfig?.loader ? { loader: readinessLoader(Hls.DefaultConfig.loader, readiness, state.mediaId) } : {}),
         startPosition: position, xhrSetup(xhr, requestUrl) {
           const target = new URL(requestUrl, window.location.origin);
           if (target.origin !== window.location.origin || !target.pathname.startsWith(`/api/sauti-media/${state.mediaId}/hls/`)) throw new Error('HLS_ORIGIN_REJECTED');
@@ -309,7 +334,10 @@ export function installSautiStreamAuthLifecycle(client) {
     if (!['INITIAL_SESSION', 'SIGNED_IN', 'SIGNED_OUT', 'TOKEN_REFRESHED'].includes(event)) return;
     const next = event === 'SIGNED_OUT' ? null : authIdentity(session);
     const changed = identity !== undefined && identity !== next;
-    if (event === 'SIGNED_OUT' || changed) states.forEach((state) => destroyState(state, { clearMedia: true }));
+    if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT' || changed) {
+      readiness.clear(); readinessIds = []; bufferingVideos.clear();
+      if (event !== 'INITIAL_SESSION') states.forEach((state) => destroyState(state, { clearMedia: true }));
+    }
     identity = next;
     if (event === 'TOKEN_REFRESHED' && !changed) states.forEach((state) => {
       state.checkedAt = 0; state.expiresAt = 0;
@@ -321,6 +349,7 @@ export function installSautiStreamAuthLifecycle(client) {
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   document.addEventListener('sautilink:video-quality-preference', () => states.forEach(applyPreference));
   document.addEventListener('visibilitychange', () => {
+    syncReadiness();
     states.forEach((state) => {
       if (!state.video.isConnected) destroyState(state);
       else if (document.visibilityState === 'hidden') state.hls?.stopLoad();
@@ -334,4 +363,5 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   observer.observe(document.documentElement, { childList: true, subtree: true });
   installSautiStreamAuthLifecycle(window.__sautilinkSupabaseAuthClient);
   window.addEventListener('sautilink:auth-client-ready', (event) => installSautiStreamAuthLifecycle(event.detail), { once: true });
+  globalThis.navigator?.connection?.addEventListener?.('change', syncReadiness);
 }

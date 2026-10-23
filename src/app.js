@@ -2,6 +2,7 @@ import { mountInlineVerificationSvg, refreshClonedVerificationSvgs } from './ver
 import { verificationAccountType, verificationEvidenceReady } from './verification-request-policy.js';
 import { preparePostComposerFiles } from './composer-formats.js';
 import { uploadPostMedia } from './post-media-upload.js';
+import { runMediaPreviewRequest, readMediaPreviewBlob, mediaPreviewPriority } from './media-preview-queue.js';
 import { roomPublishRequestId, confirmRoomPublishRequest, roomPublishOutcome } from './room-publish-outcome.js';
 import { createClient } from '@supabase/supabase-js';
 import { getVideoAutoplayPreference, setVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autoplay-preference.js';

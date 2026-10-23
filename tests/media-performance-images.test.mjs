@@ -56,7 +56,7 @@ test('Home feed waits for viewport proximity, requests sized protected blobs, an
   ]) assert.ok(optimized.includes(marker), `missing transformed marker: ${marker}`);
 
   const mediaFetchStart = optimized.indexOf('await waitForSautiMediaNearViewport(button)');
-  const protectedFetch = optimized.indexOf('fetchSautiMediaBlobUrl(media.id, variantWidth)', mediaFetchStart);
+  const protectedFetch = optimized.indexOf('fetchSautiMediaBlobUrl(media.id, variantWidth, button)', mediaFetchStart);
   assert.ok(mediaFetchStart >= 0 && protectedFetch > mediaFetchStart, 'feed media fetch must happen after viewport gating');
   assert.match(
     optimized,

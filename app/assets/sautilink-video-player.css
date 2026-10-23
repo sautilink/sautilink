@@ -386,12 +386,14 @@
   top: 50%;
   left: 50%;
   z-index: 2;
-  width: 38px;
-  height: 38px;
-  margin: -19px 0 0 -19px;
-  border: 3px solid rgba(255, 255, 255, .28);
-  border-top-color: #fff;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 2.5px solid rgba(255, 255, 255, .28);
+  border-top-color: #ff4a57;
+  border-right-color: #ff8442;
   border-radius: 50%;
+  box-shadow: 0 0 0 9px rgba(16, 18, 24, .24), 0 3px 22px rgba(0, 0, 0, .2);
   opacity: 0;
   pointer-events: none;
 }
