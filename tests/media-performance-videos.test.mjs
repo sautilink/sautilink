@@ -954,7 +954,7 @@ test('feed videos use protected range URLs while images keep responsive blobs', 
     'void clearSautiVideoSession()',
   ]) assert.ok(transformed.includes(marker), `missing transformed marker: ${marker}`);
 
-  assert.match(transformed, /const url = streamingVideo[\s\S]*fetchSautiVideoStreamUrl\(media\.id, videoQuality\)[\s\S]*fetchSautiMediaBlobUrl\(media\.id, variantWidth\)/);
+  assert.match(transformed, /const url = streamingVideo[\s\S]*fetchSautiVideoStreamUrl\(media\.id, videoQuality\)[\s\S]*fetchSautiMediaBlobUrl\(media\.id, variantWidth, button\)/);
   assert.match(transformed, /SautiLinkVideoQuality\?\.sourceUrl\?\.\(id, quality\)/);
 });
 

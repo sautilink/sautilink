@@ -2,7 +2,7 @@ import { originalVideoIndexObjectKey, originalVideoIndexReceiptObjectKey, serveP
 import { inspectImageBytes } from './profile-media-api.js';
 import { VIDEO_VARIANT_QUALITIES, videoVariantDimensions, availableVideoQualities } from './video-quality-levels.js';
 import { prepareSautiStreamVideo, readySautiPostStreamAsset, serveSautiStreamSource, deleteSautiStreamVideo } from './sauti-stream-lifecycle.js';
-import { sautiStreamPlaybackDescriptor, serveSautiStreamHls } from './sauti-stream-playback.js';
+import { sautiStreamPlaybackDescriptor, serveSautiStreamHls, serveSautiStreamThumbnail } from './sauti-stream-playback.js';
 import { streamEnabled } from './sauti-stream-provider.js';
 import { createMediaServerTiming } from './media-server-timing.js';
 import { sautiStreamBootstrap } from './sauti-stream-bootstrap.js';
@@ -1062,6 +1062,25 @@ async function serveVideoPoster(request, env, row, id) {
   if (row.media_kind !== 'video') return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
   const objectKey = sautiVideoPosterObjectKey(row.object_key);
   let available = await env.SAUTI_MEDIA.head(objectKey).catch(() => null);
+  if (!available) {
+    // The caller has already read this row through the normal media ACL. A
+    // ready private Stream asset can supply its encoded JPEG without reading
+    // and transforming the original MP4 again. Strict mapping/source identity
+    // checks also keep synthetic public-index rows on their existing path.
+    const asset = await readySautiPostStreamAsset(env, row).catch(() => null);
+    if (asset) {
+      const thumbnail = await serveSautiStreamThumbnail(request, env, asset);
+      if (thumbnail.ok) {
+        const headers = new Headers(thumbnail.headers);
+        headers.set('Cache-Control', 'private, no-store, max-age=0');
+        headers.set('Content-Security-Policy', "default-src 'none'");
+        headers.set('Content-Disposition', 'inline');
+        headers.set('X-Sauti-Media-Variant', 'poster-stream');
+        return new Response(thumbnail.body, { status: thumbnail.status, headers });
+      }
+      await thumbnail.body?.cancel().catch(() => {});
+    }
+  }
   if (!available && request.method === 'GET') {
     const generated = await createSautiVideoPoster(env, row, id);
     if (generated) available = await env.SAUTI_MEDIA.head(generated).catch(() => null);

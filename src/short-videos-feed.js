@@ -1,5 +1,6 @@
 import { getVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autoplay-preference.js';
 import { refreshClonedVerificationSvgs } from './verification-inline-svg.js';
+import { updateShortsMediaReadiness } from './web-media-readiness.js';
 
 const SHORT_VIDEOS_STYLESHEET = '/app/assets/short-videos-feed.css?v=20261004-repost-icon1';
 const HOME_VIDEO_TILE_SELECTOR = '#stream-feed .sauti-media-tile[data-media-kind="video"][data-open-media-id]';
@@ -548,6 +549,7 @@ function installShortVideosFeed() {
     if (!slide || root.hidden) return;
     const list = videoSlides();
     const index = list.indexOf(slide);
+    updateShortsMediaReadiness(list, index);
     list.forEach((item, position) => {
       item.classList.toggle('active', item === slide);
       item.classList.toggle('prefetch', position === index + 1);

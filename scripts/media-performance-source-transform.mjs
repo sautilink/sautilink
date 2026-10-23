@@ -508,6 +508,7 @@ function waitForSautiMediaNearViewport(tile, poster = false) {
       settled = true;
       observer?.disconnect();
       tile.removeEventListener('sautilink:request-media-load', finish);
+      tile.removeEventListener('sautilink:request-media-poster', finish);
       resolve();
     };
     observer = new IntersectionObserver((entries) => {
@@ -515,37 +516,50 @@ function waitForSautiMediaNearViewport(tile, poster = false) {
       finish();
     }, { rootMargin: \`\${preloadMargin}px 0px\` });
     tile.addEventListener('sautilink:request-media-load', finish, { once: true });
+    if (poster) tile.addEventListener('sautilink:request-media-poster', finish, { once: true });
     observer.observe(tile);
   });
 }
 
-async function fetchSautiMediaBlobUrl(id, variantWidth = 0) {
-  const headers = await currentAuthorizationHeader();
-  const url = new URL(\`/api/sauti-media/\${encodeURIComponent(id)}\`, window.location.origin);
-  if (variantWidth) url.searchParams.set('w', String(variantWidth));
-  const response = await fetch(\`\${url.pathname}\${url.search}\`, { headers });
-  if (!response.ok) throw new Error('MEDIA_PREVIEW_FAILED');
-  return URL.createObjectURL(await response.blob());
+async function fetchSautiMediaBlobUrl(id, variantWidth = 0, tile = null) {
+  const owner = currentMemberId;
+  return runMediaPreviewRequest(async (signal) => {
+    if (owner !== currentMemberId) throw new Error('MEDIA_PREVIEW_CANCELLED');
+    const headers = await currentAuthorizationHeader();
+    if (owner !== currentMemberId) throw new Error('MEDIA_PREVIEW_CANCELLED');
+    const url = new URL(\`/api/sauti-media/\${encodeURIComponent(id)}\`, window.location.origin);
+    if (variantWidth) url.searchParams.set('w', String(variantWidth));
+    const response = await fetch(\`\${url.pathname}\${url.search}\`, { headers, signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) });
+    if (!response.ok) throw new Error('MEDIA_PREVIEW_FAILED');
+    const blob = await readMediaPreviewBlob(response);
+    signal.throwIfAborted();
+    if (owner !== currentMemberId) throw new Error('MEDIA_PREVIEW_CANCELLED');
+    return URL.createObjectURL(blob);
+  }, { isCurrent: () => owner === currentMemberId && (!tile || tile.isConnected), priority: () => mediaPreviewPriority(tile) });
 }
 
 async function loadSautiVideoPoster(id, button) {
+  const owner = currentMemberId;
   try {
     await waitForSautiMediaNearViewport(button, true);
-    if (!button.parentNode) return;
-    const headers = await currentAuthorizationHeader();
-    const response = await fetch(\`/api/sauti-media/\${encodeURIComponent(id)}?poster=1\`, { headers });
-    if (!response.ok || response.headers.get('Content-Type')?.split(';')[0] !== 'image/jpeg') return;
-    const posterUrl = URL.createObjectURL(await response.blob());
-    if (!button.isConnected) {
-      URL.revokeObjectURL(posterUrl);
-      return;
-    }
-    button.dataset.mediaPosterObjectUrl = posterUrl;
-    button.style.backgroundImage = \`url("\${posterUrl}")\`;
-    button.style.backgroundPosition = 'center';
-    button.style.backgroundSize = 'cover';
-    const video = button.querySelector('video');
-    if (video) video.poster = posterUrl;
+    if (!button.isConnected || owner !== currentMemberId) return;
+    await runMediaPreviewRequest(async (signal) => {
+      if (!button.isConnected || owner !== currentMemberId) return;
+      const headers = await currentAuthorizationHeader();
+      if (owner !== currentMemberId) return;
+      const response = await fetch(\`/api/sauti-media/\${encodeURIComponent(id)}?poster=1\`, { headers, priority: 'low', signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) });
+      if (!response.ok || response.headers.get('Content-Type')?.split(';')[0] !== 'image/jpeg') return;
+      const blob = await readMediaPreviewBlob(response, 2 * 1024 * 1024);
+      signal.throwIfAborted();
+      if (!button.isConnected || owner !== currentMemberId) return;
+      const posterUrl = URL.createObjectURL(blob);
+      button.dataset.mediaPosterObjectUrl = posterUrl;
+      button.style.backgroundImage = \`url("\${posterUrl}")\`;
+      button.style.backgroundPosition = 'center';
+      button.style.backgroundSize = 'cover';
+      const video = button.querySelector('video');
+      if (video) video.poster = posterUrl;
+    }, { isCurrent: () => owner === currentMemberId && button.isConnected, priority: () => mediaPreviewPriority(button) });
   } catch {
     // Playback remains available if a source video cannot produce a poster.
   }
@@ -560,7 +574,7 @@ function enableSautiVideoBlobFallback(video, button, id) {
       if (!video.isConnected || video.readyState >= 1 || !isStreaming()) return;
       let blobUrl = '';
       try {
-        blobUrl = await fetchSautiMediaBlobUrl(id);
+        blobUrl = await fetchSautiMediaBlobUrl(id, 0, button);
         if (!video.isConnected || video.readyState >= 1 || !isStreaming()) {
           URL.revokeObjectURL(blobUrl);
           return;
@@ -655,7 +669,7 @@ function clearHomeFeedMediaState() {
         : 'original';
       const url = streamingVideo
         ? await fetchSautiVideoStreamUrl(media.id, videoQuality)
-        : await fetchSautiMediaBlobUrl(media.id, variantWidth);
+        : await fetchSautiMediaBlobUrl(media.id, variantWidth, button);
       if (variantWidth) button.dataset.mediaVariantWidth = String(variantWidth);
       if (streamingVideo) {
         button.dataset.mediaStreaming = 'range';

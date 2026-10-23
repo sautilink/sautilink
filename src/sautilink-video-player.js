@@ -1,5 +1,6 @@
 import { rememberHomeVideoAudio } from './home-video-audio-session.js';
-import { enhanceSautiStreamPlayback, streamQualityState } from './sauti-stream-web-player.js';
+import { enhanceSautiStreamPlayback, streamQualityState, setSautiStreamBuffering } from './sauti-stream-web-player.js';
+import { bindVideoBuffering } from './video-buffering-state.js';
 
 const SAUTILINK_VIDEO_PLAYER_STYLESHEET = '/app/assets/sautilink-video-player.css?v=20260925-video-quality1';
 const SAUTILINK_VIDEO_PLAYER_STYLESHEET_ID = 'sautilink-video-player-style';
@@ -682,10 +683,10 @@ function enhanceSautiLinkVideo(video) {
   video.addEventListener('durationchange', syncTimeline);
   video.addEventListener('timeupdate', syncTimeline);
   video.addEventListener('progress', syncBuffered);
-  video.addEventListener('waiting', () => player.classList.add('is-buffering'));
-  video.addEventListener('stalled', () => player.classList.add('is-buffering'));
-  video.addEventListener('playing', () => player.classList.remove('is-buffering'));
-  video.addEventListener('canplay', () => player.classList.remove('is-buffering'));
+  bindVideoBuffering(video, (waiting, shown) => {
+    player.classList.toggle('is-buffering', shown);
+    setSautiStreamBuffering(video, waiting);
+  });
   video.addEventListener('sautilink:video-quality-applied', syncQuality);
   video.addEventListener('sautilink:video-blob-fallback', () => {
     quality?.remove();

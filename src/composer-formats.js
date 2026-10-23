@@ -1,5 +1,6 @@
 import { appendFormattedPostText } from './caption-entities.js';
 import { insertPostFormatting } from './post-text-formatting.js';
+import { readPostVideoContainerDuration } from './post-video-metadata.js';
 
 const POST_VIDEO_LIMIT_SECONDS = 180;
 const POST_VIDEO_MAX_BYTES = 250 * 1024 * 1024;
@@ -456,7 +457,16 @@ function installUploadZone(textarea, photoButton, videoButton, fileInput) {
   }
 }
 
-function videoDuration(file) {
+async function videoDuration(file) {
+  // A mobile MP4 can have valid timing even when this browser cannot decode its
+  // codec. Read only bounded container headers; the server still inspects the
+  // uploaded bytes independently. Fragmented/unknown timing uses the decoder.
+  const metadata = new AbortController();
+  const metadataTimer = window.setTimeout(() => metadata.abort(), 2500);
+  let containerDuration = null;
+  try { containerDuration = await readPostVideoContainerDuration(file, { signal: metadata.signal }); }
+  finally { window.clearTimeout(metadataTimer); }
+  if (Number.isFinite(containerDuration) && containerDuration > 0) return containerDuration;
   return new Promise((resolve) => {
     const video = document.createElement('video');
     const objectUrl = URL.createObjectURL(file);
@@ -464,21 +474,24 @@ function videoDuration(file) {
     const finish = (value) => {
       if (settled) return;
       settled = true;
+      window.clearTimeout(timer);
+      for (const type of ['loadedmetadata', 'durationchange', 'loadeddata', 'canplay']) video.removeEventListener(type, read);
+      video.removeEventListener('error', failed);
       URL.revokeObjectURL(objectUrl);
       video.removeAttribute('src');
+      video.load?.();
       resolve(value);
     };
+    const read = () => { if (Number.isFinite(video.duration) && video.duration > 0) finish(video.duration); };
+    const failed = () => finish(null);
     const timer = window.setTimeout(() => finish(null), 8000);
     video.preload = 'metadata';
-    video.addEventListener('loadedmetadata', () => {
-      window.clearTimeout(timer);
-      finish(Number.isFinite(video.duration) ? video.duration : null);
-    }, { once: true });
-    video.addEventListener('error', () => {
-      window.clearTimeout(timer);
-      finish(null);
-    }, { once: true });
+    video.playsInline = true;
+    video.muted = true;
+    for (const type of ['loadedmetadata', 'durationchange', 'loadeddata', 'canplay']) video.addEventListener(type, read);
+    video.addEventListener('error', failed);
     video.src = objectUrl;
+    video.load?.();
   });
 }
 
