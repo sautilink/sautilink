@@ -112,14 +112,17 @@ function notify(video) { video.dispatchEvent(new CustomEvent('sautilink:video-qu
 function selectedPreference(video, levels = []) {
   return video.closest('#sauti-short-videos') ? 'auto' : getVideoQualityPreference({ streamLevels: levels });
 }
-function applyPreference(state) {
+function applyPreference(state, { preserveInitialAuto = false } = {}) {
   if (!state.hls || !state.ready) return;
   const preference = selectedPreference(state.video, hlsQualityLevels(state.hls.levels));
   const level = hlsLevelForPreference(state.hls.levels, preference);
   // Replace later buffered fragments at the next safe switch, without reloading
   // the video or interrupting its current fragment. loadLevel would wait for the
   // entire existing buffer, which can outlast a short clip.
-  state.hls.nextLevel = level;
+  // Setting nextLevel=-1 on the initial manifest overrides config.startLevel
+  // in the pinned SDK and turns the warmed first fragment into a bitrate test
+  // instead of buffering it. Its default Auto mode already permits later ABR.
+  if (!preserveInitialAuto || preference !== 'auto') state.hls.nextLevel = level;
   state.preference = preference;
   notify(state.video);
 }
@@ -246,10 +249,12 @@ async function resolvePlaybackAttempt(state, force = false) {
     restorePlayback(state, position, wasPlaying, rate);
     if (Hls?.isSupported()) {
       const previous = state.hls;
+      const initialAuto = selectedPreference(video) === 'auto';
+      const preserveInitialAuto = !force && !previous && !state.nativeHls && initialAuto;
       const hls = new Hls({ enableWorker: true, workerPath: '/app/assets/vendor/hls.worker-1.7.3.js',
         autoStartLoad: false, capLevelToPlayerSize: true,
         maxBufferLength: 20, maxMaxBufferLength: 40, backBufferLength: 60, maxBufferSize: 24 * 1024 * 1024,
-        ...(selectedPreference(video) === 'auto' ? { startLevel: 0 } : {}),
+        ...(initialAuto ? { startLevel: 0 } : {}),
         ...(Hls.DefaultConfig?.loader ? { loader: readinessLoader(Hls.DefaultConfig.loader, readiness, state.mediaId) } : {}),
         startPosition: position, xhrSetup(xhr, requestUrl) {
           const target = new URL(requestUrl, window.location.origin);
@@ -265,7 +270,7 @@ async function resolvePlaybackAttempt(state, force = false) {
         if (state.hls !== hls || state.destroyed) return;
         state.ready = true;
         mediaLevels.set(state.mediaId, hlsQualityLevels(hls.levels));
-        applyPreference(state);
+        applyPreference(state, { preserveInitialAuto });
         if (!streamPlaybackEligible(video)) hls.stopLoad();
         else if (allowedToResume(video, wasPlaying)) { hls.startLoad(position); void video.play().catch(() => {}); }
         else {
