@@ -616,6 +616,11 @@ fun StagingFeedScreen(
             delay(nextPoll)
         }
     }
+    val videoLookahead = if (asHome) rememberFeedVideoLookahead(auth, posts, feedListState,
+        scopeKey = mode to refreshVersion,
+        enabled = accountId != null && sessionState == StagingSessionState.SIGNED_IN && !loading &&
+            lifecycleState.isAtLeast(Lifecycle.State.STARTED) && commentsFor == null,
+        online = online) else null
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -673,6 +678,7 @@ fun StagingFeedScreen(
             newPostsAvailable = asHome && farFromTop && newPostsAvailable,
             onRefresh = { requestRefresh(scrollToTop = false) },
             onNewPosts = { requestRefresh(scrollToTop = true) }, modifier = Modifier.fillMaxSize().padding(insets)) {
+        CompositionLocalProvider(LocalFeedVideoLookahead provides videoLookahead) {
         LazyColumn(
             Modifier.fillMaxSize(),
             state = feedListState,
@@ -828,6 +834,7 @@ fun StagingFeedScreen(
                     }
                 }
             }
+        }
         }
         }
     }

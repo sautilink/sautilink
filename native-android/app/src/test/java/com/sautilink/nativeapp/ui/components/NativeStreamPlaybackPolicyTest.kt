@@ -85,12 +85,23 @@ class NativeStreamPlaybackPolicyTest {
         assertNull(registry.cacheIdentity(url()))
     }
     @Test fun registryRetainsOnlyFourLiveContentGrants() {
-        val registry = NativeHlsGrantRegistry { now }
+        val registry = NativeHlsGrantRegistry(4) { now }
         (1..5).forEach { number ->
             val content = "00000000-0000-4000-8000-${number.toString().padStart(12, '0')}"
             registry.authorize(parseNativeVideoSource(origin, "/api/sauti-media/$content/playback", body(url(content)), now))
         }
         assertFalse(registry.allows(url(id))); assertTrue(registry.allows(url(other)))
+    }
+    @Test fun defaultRegistryRetainsCurrentFiveUpcomingAndTwoRecentGrantsOnly() {
+        val registry=NativeHlsGrantRegistry { now }
+        fun content(number: Int)="00000000-0000-4000-8000-${number.toString().padStart(12,'0')}"
+        for(number in 1..8) registry.authorize(parseNativeVideoSource(origin,
+            "/api/sauti-media/${content(number)}/playback",body(url(content(number))),now))
+        for(number in 1..8) assertTrue(registry.allows(url(content(number))))
+        registry.authorize(parseNativeVideoSource(origin,"/api/sauti-media/${content(9)}/playback",body(url(content(9))),now))
+        assertFalse(registry.allows(url(content(1))))
+        assertTrue(registry.allows(url(content(9))))
+        assertThrows(IllegalArgumentException::class.java) { NativeHlsGrantRegistry(9) { now } }
     }
     @Test fun metadataRouteCannotBeAnAccountOrArbitraryWebUrl() {
         listOf("/api/account/playback", "/api/sauti-media/$id/playback?redirect=evil", "https://evil.test/playback", "/api/stories/x/playback").forEach {
