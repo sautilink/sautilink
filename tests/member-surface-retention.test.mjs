@@ -61,6 +61,19 @@ function context(extra = {}) {
   });
 }
 
+function navigationContext(extra = {}) {
+  const surfaces = Object.fromEntries(['stream', 'notifications', 'circles', 'messages', 'discover', 'saved',
+    'appeals', 'moderation', 'conversation', 'settings', 'menu', 'profile']
+    .map((name) => [`${name}Surface`, { hidden: name !== 'stream' }]));
+  return context({ ...surfaces,
+    memberCommentSheet: null, dmThreadSyncRequest: 0, activeConversation: null, dmConversationRealtimeChannel: null,
+    disposeDmTimeline() {}, stopDmPeerActivityPresence() {}, stopDmConversationRealtime() {}, pauseHomeFeedVideos() {},
+    closeProfileEditor() {}, syncHomeFeedModeUi() {}, syncHomeFeedVideoPlayback() {},
+    loadMessagesInbox() {}, loadNotifications() {}, messagePath: () => '/messages',
+    viewTitle: {}, document: { querySelectorAll: () => [] }, ...extra,
+  });
+}
+
 test('presentation freshness is bounded, owner/context scoped, invalidatable, and never records content', () => {
   let now = 1000;
   const policy = createMemberSurfaceRetention({ now: () => now });
@@ -79,7 +92,63 @@ test('presentation freshness is bounded, owner/context scoped, invalidatable, an
   assert.equal(policy.owns('stream', '', 'for-you'), false);
 });
 
+test('absence freshness needs a previously rendered matching owner/context and expires without extending it', () => {
+  let now = 1000;
+  const policy = createMemberSurfaceRetention({ now: () => now });
+  policy.completed('stream', 'owner', 'for-you');
+  now += 300000;
+  policy.left('stream', 'another', 'for-you');
+  policy.left('stream', 'owner', 'following');
+  assert.equal(policy.isFresh('stream', 'owner', 'for-you'), false);
+  policy.left('stream', 'owner', 'for-you');
+  assert.equal(policy.isFresh('stream', 'owner', 'for-you'), true);
+  assert.equal(policy.isFresh('stream', 'another', 'for-you'), false);
+  assert.equal(policy.isFresh('stream', 'owner', 'following'), false);
+  now += 30000;
+  assert.equal(policy.isFresh('stream', 'owner', 'for-you'), false);
+  policy.invalidate('stream');
+  policy.left('stream', 'owner', 'for-you');
+  assert.equal(policy.isFresh('stream', 'owner', 'for-you'), false, 'leaving cannot manufacture an unrendered snapshot');
+});
+
 for (const [label, source] of [['source', raw], ['built transform', transformed]]) {
+  test(`${label}: a five-minute-old Home still retains its exact player after a one-second trip to Messages`, () => {
+    let now = 1000, reads = 0, h;
+    const policy = createMemberSurfaceRetention({ now: () => now });
+    h = navigationContext({ memberSurfaceRetention: policy, loadStream: () => {
+      reads++; h.byId('stream-feed').replaceChildren();
+    } });
+    vm.runInContext(block(source, 'function setMemberNavigation(', 'function memberProfilePath('), h);
+    vm.runInContext(block(source, 'function showMemberSurface(', 'function showProfileRouteState('), h);
+    const player = { currentTime: 3.71, readyState: 4 };
+    h.byId('stream-feed').append(player);
+    policy.completed('stream', 'owner', 'for-you');
+    now += 300000;
+    vm.runInContext("showMemberSurface('messages')", h);
+    now += 1000;
+    vm.runInContext("showMemberSurface('stream')", h);
+    assert.equal(reads, 0, 'navigation grace must measure absence, not how long the member watched Home');
+    assert.equal(h.byId('stream-feed').children[0], player);
+    assert.equal(player.currentTime, 3.71);
+    assert.equal(player.readyState, 4);
+  });
+
+  test(`${label}: navigation between away screens cannot prolong the Home return grace`, () => {
+    let now = 1000, reads = 0;
+    const policy = createMemberSurfaceRetention({ now: () => now });
+    const h = navigationContext({ memberSurfaceRetention: policy, loadStream: () => { reads++; } });
+    vm.runInContext(block(source, 'function setMemberNavigation(', 'function memberProfilePath('), h);
+    vm.runInContext(block(source, 'function showMemberSurface(', 'function showProfileRouteState('), h);
+    policy.completed('stream', 'owner', 'for-you');
+    now += 300000;
+    vm.runInContext("showMemberSurface('messages')", h);
+    now += 25000;
+    vm.runInContext("showMemberSurface('notifications')", h);
+    now += 6000;
+    vm.runInContext("showMemberSurface('stream')", h);
+    assert.equal(reads, 1, 'Home was absent for 31 seconds despite the last away-screen change being six seconds ago');
+  });
+
   test(`${label}: feed commits mark presentation, clearing media invalidates it, and empty feeds remain fresh`, () => {
     const h = context({ streamHasMore: false, homeMediaOpenTimers: new Map(),
       homeDoubleTapState: null, homeVideoObserver: null, homeVideoVisibility: new Map(),

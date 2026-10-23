@@ -8883,6 +8883,9 @@ function renderMenuPage() {
 }
 
 function setMemberNavigation(name) {
+  if (name !== 'stream' && !streamSurface.hidden) {
+    memberSurfaceRetention.left('stream', currentMemberId, activeHomeFeed);
+  }
   memberCommentSheet?.close({ history: false, restoreFocus: false });
   if (name !== 'messages' && !messagesSurface.hidden) {
     messagesRequest += 1;
