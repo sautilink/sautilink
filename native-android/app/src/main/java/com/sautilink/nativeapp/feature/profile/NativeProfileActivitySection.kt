@@ -50,7 +50,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import com.sautilink.nativeapp.ui.state.LocalSessionScreenPresentation
+import com.sautilink.nativeapp.ui.state.rememberSessionScreenPresentationAccess
 
 private val activityTabs = listOf(
     "posts" to "Posts", "reposts" to "Reposts", "replies" to "Replies",
@@ -70,9 +70,9 @@ internal fun ProfileActivitySection(
     onContentReady: () -> Unit = {},
 ) {
     val client = remember(auth) { NativeProfileActivityClient(auth) }
-    val presentations = LocalSessionScreenPresentation.current
+    val presentations = rememberSessionScreenPresentationAccess()
     val returnKey = "profile-activity-navigation:${profile.id}"
-    val returnInitial = remember(presentations, profile.id) { readProfileActivityReturnPresentation(presentations, returnKey) }
+    val returnInitial = remember(presentations, profile.id) { readProfileActivityReturnPresentation(presentations.store, returnKey) }
     val latestContentReady by rememberUpdatedState(onContentReady)
     var state by remember(profile.id) { mutableStateOf<ProfileActivityState?>(null) }
     var selected by remember(profile.id) { mutableStateOf(returnInitial.snapshot.tab) }
@@ -88,7 +88,7 @@ internal fun ProfileActivitySection(
     var privacyDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     DisposableEffect(presentations, profile.id) {
-        onDispose { presentations?.save(returnKey, returnInitial.revision, ProfileActivityReturnPresentation(selected)) }
+        onDispose { presentations.save(returnKey, returnInitial.revision, ProfileActivityReturnPresentation(selected)) }
     }
 
     LaunchedEffect(client, profile.id, refreshKey, revision) {

@@ -42,7 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
-import com.sautilink.nativeapp.ui.state.LocalSessionScreenPresentation
+import com.sautilink.nativeapp.ui.state.rememberSessionScreenPresentationAccess
 import com.sautilink.nativeapp.feature.home.StagingFeedClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -94,15 +94,15 @@ fun NativeProfileScreen(
     val scope = rememberCoroutineScope()
     val account = auth.account
     val ownerRoute = username == null
-    val presentations = LocalSessionScreenPresentation.current
+    val presentations = rememberSessionScreenPresentationAccess()
     val returnKey = "profile-navigation:${username ?: "own"}"
-    val returnInitial = remember(presentations, account?.id, username) { readProfileReturnPresentation(presentations, returnKey) }
-    val catalogInitial = remember(presentations, account?.id) { readProfileCatalogPresentation(presentations) }
+    val returnInitial = remember(presentations, account?.id, username) { readProfileReturnPresentation(presentations.store, returnKey) }
+    val catalogInitial = remember(presentations, account?.id) { readProfileCatalogPresentation(presentations.store) }
     val profileScroll = rememberScrollState()
     var returnScrollRestored by remember(username, account?.id) { mutableStateOf(!returnInitial.restored) }
     var activityReady by remember(username, account?.id) { mutableStateOf(false) }
     DisposableEffect(presentations, username, account?.id) {
-        onDispose { presentations?.save(returnKey, returnInitial.revision, ProfileReturnPresentation(profileScroll.value)) }
+        onDispose { presentations.save(returnKey, returnInitial.revision, ProfileReturnPresentation(profileScroll.value)) }
     }
     var refresh by remember(username, account?.id) { mutableIntStateOf(0) }
     var profile by remember(username, account?.id) { mutableStateOf<NativeProfile?>(null) }
@@ -124,7 +124,7 @@ fun NativeProfileScreen(
     var blockConfirm by remember(username, account?.id) { mutableStateOf(false) }
     var safetyNote by remember(username, account?.id) { mutableStateOf<String?>(null) }
     var categoryCatalog by remember(username, account?.id) {
-        mutableStateOf(catalogInitial.snapshot.categories)
+        mutableStateOf<List<ProfileProfessionalCategory>>(catalogInitial.snapshot.categories)
     }
     var categoryEditing by remember(username, account?.id) { mutableStateOf(false) }
     var categoryInfo by remember(username, account?.id) { mutableStateOf(false) }
@@ -135,7 +135,7 @@ fun NativeProfileScreen(
         if (profile != null && categoryCatalog.isEmpty()) {
             try {
                 categoryCatalog = client.categoryCatalog()
-                presentations?.save("profile-category-labels", catalogInitial.revision,
+                presentations.save("profile-category-labels", catalogInitial.revision,
                     ProfileCatalogPresentation(categoryCatalog.take(1000)))
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { /* The profile does not wait for optional taxonomy labels. */ }
@@ -455,7 +455,7 @@ fun NativeProfileScreen(
                                         scope.launch {
                                             try {
                                                 client.setFollowing(member, desired)
-                                                presentations?.invalidate("feed:")
+                                                presentations.invalidate("feed:")
                                                 StagingFeedClient(auth).invalidateFollowing()
                                                 following = client.following(member.id)
                                                 refresh++
@@ -504,7 +504,7 @@ fun NativeProfileScreen(
                                         scope.launch {
                                             try {
                                                 safety.setMuted(member.username, desired)
-                                                presentations?.invalidate("feed:")
+                                                presentations.invalidate("feed:")
                                                 StagingFeedClient(auth).clearCache()
                                                 safetyState = safety.memberState(member.username)
                                                 safetyNote = if (desired) "Member muted." else "Member unmuted."
@@ -657,7 +657,7 @@ fun NativeProfileScreen(
             scope.launch {
                 try {
                     safety.setBlocked(member.username, desired)
-                    presentations?.invalidate()
+                    presentations.invalidate()
                     StagingFeedClient(auth).clearCache()
                     safetyState = MemberSafetyState(desired, false)
                     if (desired) onBack?.invoke() else safetyNote = "Member unblocked."

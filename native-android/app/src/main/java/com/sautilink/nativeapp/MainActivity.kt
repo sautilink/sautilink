@@ -7,13 +7,8 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
-import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
@@ -22,11 +17,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sautilink.nativeapp.feature.inbox.NativeMessagesClient
 import com.sautilink.nativeapp.feature.inbox.NativeDmRealtime
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.dashboard.NativeDashboardScreen
 import com.sautilink.nativeapp.feature.menu.NativeMenuScreen
 import com.sautilink.nativeapp.feature.marketplace.NativeMarketplaceScreen
@@ -65,19 +55,15 @@ import com.sautilink.nativeapp.feature.auth.SautiStartupSplash
 import com.sautilink.nativeapp.feature.auth.SautiWelcomeOnboarding
 import com.sautilink.nativeapp.feature.auth.NativeRegistrationScreen
 import com.sautilink.nativeapp.feature.auth.NativeRecoveryScreen
-import com.sautilink.nativeapp.ui.components.SautiBottomBar
 import com.sautilink.nativeapp.ui.components.LocalSautiTextNavigation
 import com.sautilink.nativeapp.ui.components.SautiTextNavigation
 import com.sautilink.nativeapp.ui.text.parseTextEntities
 import com.sautilink.nativeapp.ui.text.normalizeExternalUrl
 import com.sautilink.nativeapp.ui.text.TextEntityKind
-import com.sautilink.nativeapp.ui.theme.SautiColors
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import com.sautilink.nativeapp.ui.theme.SautiTheme
-import com.sautilink.nativeapp.ui.state.SessionScreenReturnHost
 import com.sautilink.nativeapp.ui.state.sessionDestinationKey
 import com.sautilink.nativeapp.ui.state.LocalSessionScreenPresentation
-import com.sautilink.nativeapp.ui.components.NativeVideoReplaySession
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
@@ -449,20 +435,29 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                 })
             }
             else -> {
-                NativeVideoReplaySession(productionAuth) {
-                Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = MaterialTheme.colorScheme.background,
-            snackbarHost = { SnackbarHost(snackbar) },
-            bottomBar = {
-                // Primary destinations keep one stable navigation bar, including Notifications and Videos.
-                if (detail == null || detail == "notifications" || detail == "videos") {
-                    val selectedTab = when (detail) {
+                val returnEntity = when (detail) {
+                    "member-profile" -> viewedProfileHandle
+                    "post" -> notificationPostId
+                    "entity-explore" -> entityExploreQuery
+                    else -> ""
+                }
+                val selectedTab: Int? = if (detail == null || detail == "notifications" || detail == "videos") {
+                    when (detail) {
                         "notifications" -> 3
                         "videos" -> 4
                         else -> when (root) { 0 -> 0; 1 -> 1; 3 -> 2; 4 -> 5; else -> 0 }
                     }
-                    SautiBottomBar(selectedTab, unreadNotifications) { tab ->
+                } else null
+                NativeAuthenticatedAppHost(
+                    auth = productionAuth,
+                    accountId = activeAccountId,
+                    destination = sessionDestinationKey(detail, root, returnEntity),
+                    contentRevision = postsRefresh,
+                    snackbar = snackbar,
+                    selectedTab = selectedTab,
+                    unreadNotifications = unreadNotifications,
+                    showComposerButton = detail == null && root == 0,
+                    onTabSelected = { tab ->
                         entityExploreActive = false
                         menuEntryDestination = null
                         when (tab) {
@@ -473,43 +468,9 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             4 -> { detail = "videos" }
                             5 -> { detail = null; root = 4 }
                         }
-                    }
-                }
-            },
-            floatingActionButton = {
-                // Twitter/X-inspired composer above the bottom navigation, never inside it.
-                if (detail == null && root == 0) {
-                    FloatingActionButton(
-                        onClick = { composerOpen = true },
-                        shape = androidx.compose.foundation.shape.CircleShape,
-                        containerColor = Color.Transparent,
-                        contentColor = Color.White,
-                        modifier = Modifier.size(58.dp),
-                        elevation = FloatingActionButtonDefaults.elevation(
-                            defaultElevation = 6.dp, pressedElevation = 10.dp
-                        )
-                    ) {
-                        Box(Modifier.fillMaxSize().background(Brush.linearGradient(
-                            listOf(SautiColors.LogoOrange, SautiColors.LogoPink)),
-                            androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Rounded.Add, "Create a post", Modifier.size(28.dp))
-                        }
-                    }
-                }
-            },
-            floatingActionButtonPosition = FabPosition.End
-        ) { insets ->
-            Box(Modifier.fillMaxSize().padding(insets)) {
-                // Crossfade retains the old destination under the next screen and exposes
-                // stale frames on slower devices. Switch destinations in one composition.
-                val returnEntity = when (detail) {
-                    "member-profile" -> viewedProfileHandle
-                    "post" -> notificationPostId
-                    "entity-explore" -> entityExploreQuery
-                    else -> ""
-                }
-                SessionScreenReturnHost(productionAuth, productionAuth.backend.id, activeAccountId,
-                    sessionDestinationKey(detail, root, returnEntity), { productionAuth.account?.id }, postsRefresh) {
+                    },
+                    onCreatePost = { composerOpen = true },
+                    destinationContent = {
                 val sessionPresentations = checkNotNull(LocalSessionScreenPresentation.current)
                 when (detail) {
                     "entity-explore" -> NativeExploreScreen(auth = productionAuth,
@@ -727,24 +688,23 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         )
                     }
                 }
-                }
-            }
-        }
-        if (composerOpen) {
-            ModalBottomSheet(onDismissRequest = {
-                if (!composerInFlight) composerOpen = false else notice("Wait for upload to finish")
-            }, shape = SautiShape.Sheet) {
-                NativePostComposer(auth = productionAuth, draft = postDraft, onDraftChange = { postDraft = it },
-                    onDismiss = { composerOpen = false },
-                    onPublished = { postDraft = ""; StagingFeedClient(productionAuth).clearCache(); postsRefresh++;
-                        composerOpen = false; detail = "my-posts"; root = 4; notice("Post published") },
-                    onSignIn = { composerOpen = false; detail = "production-auth" },
-                    onUploadActivity = { composerInFlight = it })
-            }
-        }
-                // Keep the final branch Unit-valued, even when the composer is closed.
-                Unit
-                }
+                    },
+                    overlayContent = {
+                        if (composerOpen) {
+                            ModalBottomSheet(onDismissRequest = {
+                                if (!composerInFlight) composerOpen = false else notice("Wait for upload to finish")
+                            }, shape = SautiShape.Sheet) {
+                                NativePostComposer(auth = productionAuth, draft = postDraft, onDraftChange = { postDraft = it },
+                                    onDismiss = { composerOpen = false },
+                                    onPublished = { postDraft = ""; StagingFeedClient(productionAuth).clearCache(); postsRefresh++;
+                                        composerOpen = false; detail = "my-posts"; root = 4; notice("Post published") },
+                                    onSignIn = { composerOpen = false; detail = "production-auth" },
+                                    onUploadActivity = { composerInFlight = it })
+                            }
+                        }
+                        Unit
+                    }
+                )
             }
         }
       }

@@ -19,7 +19,7 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.home.NativePostDetailScreen
 import com.sautilink.nativeapp.feature.home.PostCommentsSheet
 import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
-import com.sautilink.nativeapp.ui.state.LocalSessionScreenPresentation
+import com.sautilink.nativeapp.ui.state.rememberSessionScreenPresentationAccess
 
 private enum class RoomsSheet { CREATE, SETTINGS, MANAGE, INVITE, PEOPLE, COMPOSE, APPROVALS, COMMUNITY, OUTGOING, MEMBERSHIP, ANSWERS, POST }
 
@@ -30,9 +30,9 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
     val accountId = auth.account?.id
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val presentations = LocalSessionScreenPresentation.current
-    val returnInitial = remember(presentations, accountId) { readRoomsReturnPresentation(presentations) }
-    val anchors = remember(presentations) { LinkedHashMap(returnInitial.snapshot.anchors) }
+    val presentations = rememberSessionScreenPresentationAccess()
+    val returnInitial = remember(presentations, accountId) { readRoomsReturnPresentation(presentations.store) }
+    val anchors = remember(presentations) { LinkedHashMap<String, RoomReturnAnchor>(returnInitial.snapshot.anchors) }
     val state = remember(auth, accountId) { RoomsState(auth, accountId, context, scope).apply {
         tab = returnInitial.snapshot.tab
         search = returnInitial.snapshot.search
@@ -59,7 +59,7 @@ fun NativeRoomsScreen(auth: StagingAuthClient, onBack: () -> Unit, onSignIn: () 
             anchors.remove(listKey)
             anchors[listKey] = RoomReturnAnchor(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
             while (anchors.size > 5) anchors.remove(anchors.keys.first())
-            presentations?.save("rooms-navigation", returnInitial.revision,
+            presentations.save("rooms-navigation", returnInitial.revision,
                 RoomsReturnPresentation(state.tab, state.search.take(200), state.category, anchors.toMap()))
         }
     }

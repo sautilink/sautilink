@@ -57,7 +57,7 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.auth.AuthRequestException
-import com.sautilink.nativeapp.ui.state.LocalSessionScreenPresentation
+import com.sautilink.nativeapp.ui.state.rememberSessionScreenPresentationAccess
 import com.sautilink.nativeapp.feature.menu.AnimatedHamburgerButton
 import com.sautilink.nativeapp.feature.marketplace.MarketplaceButton
 import com.sautilink.nativeapp.feature.stories.StoriesButton
@@ -115,17 +115,17 @@ fun StagingFeedScreen(
         if (savedRequestVersion > 0 && auth.backend == SautiBackend.PRODUCTION) mode = "saved"
     }
     var refreshVersion by remember { mutableIntStateOf(0) }
-    val presentations = LocalSessionScreenPresentation.current
+    val presentations = rememberSessionScreenPresentationAccess()
     val returnKey = "feed:$mode"
-    val returnInitial = remember(presentations, accountId, mode) {
-        readFeedReturnPresentation(presentations, returnKey)
+    val returnInitial: FeedReturnInitialState = remember(presentations, accountId, mode) {
+        readFeedReturnPresentation(presentations.store, returnKey)
     }
     // A new feed/account must start with its own loading state. Otherwise one frame can
     // show the previous tab's posts or the empty-state card before LaunchedEffect runs.
     var loading by remember(accountId, mode) { mutableStateOf(account != null) }
     var loadingMore by remember(accountId, mode) { mutableStateOf(false) }
     var error by remember(accountId, mode) { mutableStateOf<String?>(null) }
-    var posts by remember(accountId, mode) { mutableStateOf(returnInitial.snapshot.posts) }
+    var posts by remember(accountId, mode) { mutableStateOf<List<StagingFeedPost>>(returnInitial.snapshot.posts) }
     var offset by remember(accountId, mode) { mutableIntStateOf(returnInitial.snapshot.nextOffset) }
     var hasMore by remember(accountId, mode) { mutableStateOf(returnInitial.snapshot.hasMore) }
     val feedListState = rememberLazyListState(returnInitial.snapshot.firstIndex, returnInitial.snapshot.firstOffset)
@@ -146,11 +146,11 @@ fun StagingFeedScreen(
     val canReadFollow = canInteract && sessionState == StagingSessionState.SIGNED_IN &&
         lifecycleState.isAtLeast(Lifecycle.State.STARTED)
     // Separate Like and Save state: one slow lookup never disables the other.
-    var likeStates by remember(auth, accountId) { mutableStateOf(returnInitial.snapshot.liked) }
-    var savedStates by remember(auth, accountId) { mutableStateOf(returnInitial.snapshot.saved) }
-    var repostStates by remember(auth, accountId) { mutableStateOf(returnInitial.snapshot.reposted) }
-    var followingStates by remember(auth, accountId) { mutableStateOf(returnInitial.snapshot.following) }
-    var followFeedbackVersion by remember(auth, accountId) { mutableStateOf(returnInitial.snapshot.followFeedback) }
+    var likeStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(returnInitial.snapshot.liked) }
+    var savedStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(returnInitial.snapshot.saved) }
+    var repostStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(returnInitial.snapshot.reposted) }
+    var followingStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(returnInitial.snapshot.following) }
+    var followFeedbackVersion by remember(auth, accountId) { mutableStateOf<Map<String, Int>>(returnInitial.snapshot.followFeedback) }
     // Pending intent is separate from the state confirmed by the server.
     var pendingFollowStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     // Keep confirmed artwork across refresh/offline; a late GET cannot undo a confirmed tap.
@@ -177,12 +177,12 @@ fun StagingFeedScreen(
     DisposableEffect(presentations, accountId, mode) {
         onDispose {
             if (accountId != null && auth.account?.id == accountId && posts.size <= MAX_RETURN_FEED_POSTS && posts.isNotEmpty()) {
-                presentations?.save(returnKey, returnInitial.revision, buildFeedReturnPresentation(
+                presentations.save(returnKey, returnInitial.revision, buildFeedReturnPresentation(
                     posts, offset, hasMore, feedListState.firstVisibleItemIndex,
                     feedListState.firstVisibleItemScrollOffset,
                     likeStates, savedStates, repostStates, followingStates, followFeedbackVersion,
                     busyKeys, pendingFollowStates))
-            } else if (posts.size > MAX_RETURN_FEED_POSTS) presentations?.invalidate(returnKey)
+            } else if (posts.size > MAX_RETURN_FEED_POSTS) presentations.invalidate(returnKey)
         }
     }
 
@@ -553,7 +553,7 @@ fun StagingFeedScreen(
         } catch (exception: Exception) {
             if (!current()) return@LaunchedEffect
             if ((exception as? AuthRequestException)?.httpStatus in listOf(401, 403)) {
-                presentations?.invalidate("feed:")
+                presentations.invalidate("feed:")
                 client.clearCache()
                 posts = emptyList(); likeStates = emptyMap(); savedStates = emptyMap(); repostStates = emptyMap()
                 followingStates = emptyMap(); offset = 0; hasMore = false

@@ -49,7 +49,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.auth.AuthRequestException
-import com.sautilink.nativeapp.ui.state.LocalSessionScreenPresentation
+import com.sautilink.nativeapp.ui.state.rememberSessionScreenPresentationAccess
 import com.sautilink.nativeapp.feature.safety.NativeReportDialog
 import com.sautilink.nativeapp.feature.safety.NativeSafetyClient
 import com.sautilink.nativeapp.ui.theme.SautiShape
@@ -70,12 +70,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     onOpenPrivacy: () -> Unit = {},
     onActivityVisibilityChanged: () -> Unit = {}) {
     val client = remember(auth) { NativeMessagesClient(auth) }
-    val presentations = LocalSessionScreenPresentation.current
+    val presentations = rememberSessionScreenPresentationAccess()
     val returnInitial = remember(presentations, auth.account?.id) {
-        readInboxReturnPresentation(presentations)
+        readInboxReturnPresentation(presentations.store)
     }
-    val draftReturns = remember(presentations) { LinkedHashMap(returnInitial.snapshot.drafts) }
-    val threadAnchors = remember(presentations) { LinkedHashMap(returnInitial.snapshot.anchors) }
+    val draftReturns = remember(presentations) { LinkedHashMap<String, String>(returnInitial.snapshot.drafts) }
+    val threadAnchors = remember(presentations) { LinkedHashMap<String, ConversationReturnAnchor>(returnInitial.snapshot.anchors) }
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     var selectedMessage by remember { mutableStateOf<NativeMessage?>(null) }
@@ -107,7 +107,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var autoPhotos by remember { mutableStateOf(appearance.autoPhotos && !appearance.dataSaver) }
     val safety = remember(auth) { NativeSafetyClient(auth) }
     var conversations by remember { mutableStateOf<List<NativeConversation>>(emptyList()) }
-    var selectedId by rememberSaveable { mutableStateOf(returnInitial.snapshot.selectedId) }
+    var selectedId by rememberSaveable { mutableStateOf<String?>(returnInitial.snapshot.selectedId) }
     var peerReceipts by remember(selectedId) {
         mutableStateOf(NativePeerReceipts(null, null))
     }
@@ -139,7 +139,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         }
     }
     DisposableEffect(presentations) {
-        onDispose { presentations?.save("inbox-navigation", returnInitial.revision,
+        onDispose { presentations.save("inbox-navigation", returnInitial.revision,
             InboxReturnPresentation(selectedId, draftReturns.toMap(), threadAnchors.toMap())) }
     }
     var sending by remember { mutableStateOf(false) }
@@ -576,7 +576,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                         threadAnchors[active.conversation.id] = ConversationReturnAnchor(
                             listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
                         while (threadAnchors.size > 8) threadAnchors.remove(threadAnchors.keys.first())
-                        presentations?.save("inbox-navigation", returnInitial.revision,
+                        presentations.save("inbox-navigation", returnInitial.revision,
                             InboxReturnPresentation(selectedId, draftReturns.toMap(), threadAnchors.toMap()))
                     }
                 }

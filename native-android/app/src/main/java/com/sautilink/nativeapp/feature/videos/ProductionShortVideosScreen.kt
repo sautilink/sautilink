@@ -80,7 +80,8 @@ import com.sautilink.nativeapp.ui.components.shortsPreloadEligible
 import com.sautilink.nativeapp.ui.components.videoDeviceStressed
 import com.sautilink.nativeapp.ui.components.NativeHlsQualitySelection
 import com.sautilink.nativeapp.ui.components.rememberNativeHlsQualities
-import com.sautilink.nativeapp.ui.components.nativeVideoPlaybackResources
+import com.sautilink.nativeapp.ui.components.NativeVideoPlaybackResources
+import com.sautilink.nativeapp.ui.state.rememberSessionScreenPresentationAccess
 import com.sautilink.nativeapp.ui.components.ShortVideoProgressControls
 import com.sautilink.nativeapp.ui.components.VideoSettingsButton
 import com.sautilink.nativeapp.ui.components.SautiSkeletonBlock
@@ -166,8 +167,8 @@ fun ProductionShortVideosScreen(
     val scope = rememberCoroutineScope()
     val feedback = remember { SnackbarHostState() }
     val preferences = remember(context) { context.getSharedPreferences("sautilink_live_video", Context.MODE_PRIVATE) }
-    val presentations = com.sautilink.nativeapp.ui.state.LocalSessionScreenPresentation.current
-    val initial = rememberShortsInitialPresentation(auth, client, presentations)
+    val presentations = rememberSessionScreenPresentationAccess()
+    val initial = rememberShortsInitialPresentation(auth, client, presentations.store)
     var clips by remember(auth, auth.account?.id) { mutableStateOf(initial.clips) }
     var nextOffset by remember(auth, auth.account?.id) { mutableIntStateOf(initial.nextOffset) }
     var hasMore by remember(auth, auth.account?.id) { mutableStateOf(initial.hasMore) }
@@ -325,9 +326,9 @@ fun ProductionShortVideosScreen(
     DisposableEffect(presentations, auth, accountId) {
         onDispose {
             if (accountId != null && auth.account?.id == accountId && clips.isNotEmpty() && clips.size <= 60) {
-                presentations?.save("short-videos", initial.revision,
+                presentations.save("short-videos", initial.revision,
                     ShortsReturnPresentation(clips.toList(), nextOffset, hasMore, pager.settledPage))
-            } else if (clips.size > 60) presentations?.invalidate("short-videos")
+            } else if (clips.size > 60) presentations.invalidate("short-videos")
         }
     }
     LaunchedEffect(clips.getOrNull(pager.settledPage)?.mediaId) {
@@ -379,18 +380,15 @@ fun ProductionShortVideosScreen(
         fallbackPath = clip?.let { "/api/sauti-media/${it.mediaId}" }, retainedRead = currentRead)
     val streamSource = playbackRead.source
     val hls = streamSource?.hls == true
-    val latestBearer by rememberUpdatedState(playbackRead.bearer ?: accessToken)
+    val latestBearerState: State<String?> = rememberUpdatedState(playbackRead.bearer ?: accessToken)
     val replayOwner = com.sautilink.nativeapp.ui.components.LocalNativeVideoReplayOwner.current
-    val resources = remember(auth, accountId, accessToken, replayOwner) {
-        accessToken?.let { nativeVideoPlaybackResources(context, auth.mediaOrigin, it, authorizationToken = { latestBearer },
-            replay = accountId?.let { account -> replayOwner?.bindingFor(auth, account, it) }) {
-            accountId != null && auth.account?.id == accountId
-        } }
+    val engine: ShortsPlaybackEngine? = remember(auth, accountId, accessToken, replayOwner) {
+        createShortsPlaybackEngine(context, auth, accountId, accessToken, replayOwner,
+            authorizationToken = { latestBearerState.value }, muted = muted)
     }
-    val preloading = remember(resources) { resources?.let { NativeShortsPreloading(context, it) } }
-    val player = remember(preloading) { preloading?.player?.apply {
-        repeatMode = Player.REPEAT_MODE_ONE; volume = if (muted) 0f else 1f
-    } }
+    val resources: NativeVideoPlaybackResources? = engine?.resources
+    val preloading: NativeShortsPreloading? = engine?.preloading
+    val player: ExoPlayer? = engine?.player
     val playbackOwner = remember(player) { accountId }
     val actualQuality = rememberVideoPlaybackQuality(player)
     val streamQualities = rememberNativeHlsQualities(player)
@@ -432,7 +430,7 @@ fun ProductionShortVideosScreen(
                 }
             }
             player.addListener(listener)
-            onDispose { player.removeListener(listener); preloading?.close(); resources?.close() }
+            onDispose { player.removeListener(listener); engine?.close() }
         }
     }
     DisposableEffect(owner, player) {

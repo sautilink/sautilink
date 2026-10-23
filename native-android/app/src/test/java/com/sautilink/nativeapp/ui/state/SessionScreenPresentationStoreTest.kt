@@ -87,6 +87,19 @@ class SessionScreenPresentationStoreTest {
         assertFalse(store.save("home", restored.revision, Anchor(5)))
     }
 
+    @Test fun optionalHostAccessPreservesNoopAndRevisionGuards() {
+        val absent = SessionScreenPresentationAccess(null)
+        assertFalse(absent.save("home", -1L, Anchor(3)))
+        absent.invalidate()
+        val store = SessionScreenPresentationStore("production", "alice", { true })
+        val access = SessionScreenPresentationAccess(store)
+        val read = store.read<Anchor>("home")
+        assertTrue(access.save("home", read.revision, Anchor(3)))
+        access.invalidate("home")
+        assertNull(store.read<Anchor>("home").value)
+        assertFalse(access.save("home", read.revision, Anchor(4)))
+    }
+
     @Test fun destinationKeysSeparateMembersAndKeepEachPrimaryTabIndependent() {
         assertEquals("home", sessionDestinationKey(null, 0))
         assertEquals("inbox", sessionDestinationKey(null, 3))

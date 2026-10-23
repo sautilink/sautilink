@@ -2,6 +2,7 @@ package com.sautilink.nativeapp.feature.inbox
 
 import com.sautilink.nativeapp.ui.state.SessionScreenPresentation
 import com.sautilink.nativeapp.ui.state.SessionScreenPresentationStore
+import com.sautilink.nativeapp.ui.state.SessionPresentationInitial
 import com.sautilink.nativeapp.ui.state.readSessionPresentationInitial
 
 internal data class ConversationReturnAnchor(val index: Int, val offset: Int)
@@ -11,7 +12,7 @@ internal data class InboxReturnPresentation(
     val anchors: Map<String, ConversationReturnAnchor>,
 ) : SessionScreenPresentation
 
-internal fun readInboxReturnPresentation(store: SessionScreenPresentationStore?) =
+internal fun readInboxReturnPresentation(store: SessionScreenPresentationStore?): SessionPresentationInitial<InboxReturnPresentation> =
     readSessionPresentationInitial(store, "inbox-navigation", InboxReturnPresentation::class.java,
         InboxReturnPresentation(null, emptyMap(), emptyMap()))
 
