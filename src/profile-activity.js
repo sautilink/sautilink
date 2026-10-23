@@ -211,8 +211,8 @@ function createProfileActivityBadge(profile = {}) {
   badge.className = 'verification-badge';
   badge.dataset.profileActivityBadgeType = type;
   badge.setAttribute('role', 'img');
-  badge.setAttribute('aria-label', type === 'team' ? 'Verified SautiLink Team account' : 'Verified account');
-  badge.title = type === 'team' ? 'Verified SautiLink Team account' : 'Verified account';
+  badge.setAttribute('aria-label', type === 'team' ? 'Verified business, brand, organisation or entity' : 'Verified account');
+  badge.title = type === 'team' ? 'Verified business, brand, organisation or entity' : 'Verified account';
   badge.append(createInlineVerificationSvg(type));
   return badge;
 }

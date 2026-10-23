@@ -1,4 +1,8 @@
 import { mountInlineVerificationSvg, refreshClonedVerificationSvgs } from './verification-inline-svg.js';
+import { verificationAccountType, verificationEvidenceReady, rankTrendingPosts } from './verification-request-policy.js';
+import { preparePostComposerFiles } from './composer-formats.js';
+import { uploadPostMedia } from './post-media-upload.js';
+import { roomPublishRequestId, confirmRoomPublishRequest, roomPublishOutcome } from './room-publish-outcome.js';
 import { createClient } from '@supabase/supabase-js';
 import { getVideoAutoplayPreference, setVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autoplay-preference.js';
 import { installVideoPlaybackCoordinator } from './video-playback-coordinator.js';
@@ -203,6 +207,11 @@ const HOME_FEED_COPY = Object.freeze({
     emptyTitle: 'Your Following feed is quiet.',
     emptyCopy: 'Follow people in Discover and their newest posts will appear here.',
   },
+  trending: {
+    ariaLabel: 'Trending feed', loading: 'Loading trending posts…',
+    error: 'Trending posts could not be loaded.', emptyTitle: 'No trending posts yet.',
+    emptyCopy: 'Top public posts from the last seven days appear here.',
+  },
   'short-videos': {
     rpcMode: 'short_videos',
     ariaLabel: 'Short Videos feed',
@@ -358,7 +367,7 @@ function createVerificationBadge(label = 'Verified account', badgeType = 'standa
 
 function verificationBadgeLabel(badgeType = 'standard') {
   return normalizeVerificationBadgeType(badgeType) === 'team'
-    ? 'Verified SautiLink Team account'
+    ? 'Verified business, brand, organisation or entity'
     : 'Verified account';
 }
 
@@ -410,7 +419,7 @@ function configureProfileVerificationBadge(profile, { owner = false } = {}) {
   badge.dataset.profileName = displayName;
   badge.dataset.profileOwner = owner ? 'true' : 'false';
   applyVerificationBadgeAsset(badge, badgeType);
-  badge.title = badgeType === 'team' ? 'Verified SautiLink Team profile' : 'Verified profile';
+  badge.title = badgeType === 'team' ? 'Verified Profile' : 'Verified profile';
   badge.setAttribute('aria-label', `About ${displayName}'s verified profile`);
 }
 
@@ -425,17 +434,17 @@ function openVerificationInfoDialog() {
   const team = badgeType === 'team';
 
   mountInlineVerificationSvg(byId('verification-info-badge-image'), badgeType);
-  byId('verification-info-label').textContent = team ? 'SautiLink Team' : 'Verification';
-  byId('verification-info-title').textContent = team ? 'Official team profile' : 'Verified profile';
-  byId('verification-team-wordmark').hidden = !team;
+  byId('verification-info-label').textContent = 'Verification';
+  byId('verification-info-title').textContent = team ? 'Verified Profile' : 'Verified profile';
+  byId('verification-team-wordmark').hidden = true;
 
   if (owner) {
     byId('verification-info-message').textContent = team
-      ? 'This profile is verified as a SautiLink Team profile. Verification may be removed at any time if you no longer meet SautiLink Team requirements or violate SautiLink rules or policies.'
+      ? 'This profile represents a business, brand, government body, organisation or other entity verified by SautiLink Corporation. The orange checkmark confirms the account’s public identity; it does not by itself certify a Marketplace merchant. Verification may be removed if the account no longer meets our requirements or violates our rules or policies.'
       : 'This profile is verified. Verification may be removed at any time if you violate SautiLink rules or policies.';
   } else {
     byId('verification-info-message').textContent = team
-      ? `This profile was verified as belonging to ${displayName}, a member of the SautiLink Team.`
+      ? `This profile represents ${displayName}, a business, brand, government body, organisation or other entity verified by SautiLink Corporation. The orange checkmark confirms the account’s public identity; Marketplace merchant certification is a separate review.`
       : `This profile was verified as belonging to ${displayName}.`;
   }
 
@@ -1043,6 +1052,7 @@ async function removeComposerMedia(localId, { remote = true } = {}) {
 async function uploadComposerMedia(localId) {
   const item = composerMedia.find((entry) => entry.localId === localId);
   if (!item || !item.file) return;
+  const ownerId = currentMemberId;
   if (!navigator.onLine) {
     item.status = 'waiting';
     renderComposerMedia();
@@ -1075,13 +1085,13 @@ async function uploadComposerMedia(localId) {
     item.status = 'uploading';
     renderComposerMedia();
 
-    await uploadWithProgress(beginPayload.data.upload_url, item.file, headers.Authorization, (value) => {
+    await uploadPostMedia(beginPayload.data, item.file, async () => (await currentAuthorizationHeader()).Authorization, (value) => {
       item.progress = value;
       const progress = document.querySelector(`[data-media-local-id="${item.localId}"] progress`);
       if (progress) progress.value = value;
       const status = document.querySelector(`[data-media-local-id="${item.localId}"] .composer-media-copy span`);
       if (status) status.textContent = composerMediaStatusLabel(item);
-    });
+    }, uploadWithProgress, () => currentMemberId === ownerId && composerMedia.includes(item));
 
     item.status = 'finalizing';
     item.progress = 100;
@@ -1110,8 +1120,12 @@ async function uploadComposerMedia(localId) {
   }
 }
 
-function addComposerFiles(files) {
-  const selected = Array.from(files || []);
+async function addComposerFiles(files) {
+  const preparingMemberId = currentMemberId;
+  let selected;
+  try { selected = await preparePostComposerFiles(Array.from(files || [])); }
+  catch (error) { showToast(error?.message || 'The selected media could not be prepared.', 'error'); return; }
+  if (!preparingMemberId || currentMemberId !== preparingMemberId) return;
   if (!selected.length) return;
   const openSlots = Math.max(0, 4 - composerMedia.length);
   if (!openSlots) {
@@ -1123,9 +1137,9 @@ function addComposerFiles(files) {
     const type = String(file.type || '').toLowerCase();
     const image = ['image/jpeg', 'image/png', 'image/webp'].includes(type);
     const video = type === 'video/mp4';
-    const limit = image ? 8 * 1024 * 1024 : 100_000_000;
+    const limit = image ? 5 * 1024 * 1024 : 250 * 1024 * 1024;
     if ((!image && !video) || file.size < 1 || file.size > limit) {
-      showToast(image ? 'Images must be 8 MB or smaller.' : video ? 'Videos must be 100 MB or smaller.' : 'Use JPEG, PNG, WebP or MP4 media.', 'error');
+      showToast(image ? 'Images must be 5 MiB or smaller.' : video ? 'Videos must be 250 MiB or smaller.' : 'Use JPEG, PNG, WebP or MP4 media.', 'error');
       return;
     }
 
@@ -1621,6 +1635,20 @@ function syncVerificationRequestState() {
   const evidenceMessage = byId('verification-evidence-message');
   if (!form || !send || !evidenceMessage) return;
 
+  const accountType = verificationAccountType(byId('verification-account-type')?.value);
+  const individual = accountType === 'individual';
+  const legalLabel = byId('verification-name-label');
+  if (legalLabel) legalLabel.textContent = individual ? 'Full legal name' : 'Registered or public entity name';
+  const nameHelp = byId('verification-name-help');
+  if (nameHelp) nameHelp.textContent = individual ? 'Your full name, matching your public identity.' : 'The name of the business, brand, government body, organisation or entity.';
+  const evidenceHelp = byId('verification-evidence-help');
+  if (evidenceHelp) evidenceHelp.textContent = individual
+    ? 'Add at least one social profile or a full news/blog article URL that helps us confirm your public presence.'
+    : 'Add at least one independent news or blog article about this entity. Social profiles can support the application but do not replace article links.';
+  const articlesRequired = byId('verification-articles-required');
+  if (articlesRequired) articlesRequired.hidden = individual;
+  evidenceMessage.textContent = individual ? 'Add at least one social profile or article link.' : 'Add at least one news or blog article link about this entity.';
+
   let socialValid = true;
   const socialHandles = VERIFICATION_SOCIAL_FIELDS.map(([id]) => {
     const input = byId(id);
@@ -1632,11 +1660,12 @@ function syncVerificationRequestState() {
   });
 
   const articleInput = byId('verification-articles');
+  if (articleInput) articleInput.required = !individual;
   const articleLinks = verificationArticleLinks();
   const articleValid = verificationArticleLinksValid(articleLinks);
   articleInput?.setCustomValidity(articleValid ? '' : 'Use up to five complete http:// or https:// article links, one per line.');
 
-  const hasEvidence = socialHandles.some(Boolean) || articleLinks.length > 0;
+  const hasEvidence = verificationEvidenceReady(accountType, socialHandles, articleLinks);
   evidenceMessage.hidden = hasEvidence || form.dataset.evidenceTouched !== 'true';
   const ready = form.checkValidity()
     && socialValid
@@ -1689,6 +1718,7 @@ function verificationRequestEmailBody() {
     `- Artist or famous name: ${byId('verification-famous-name').value.trim() || 'Not provided'}`,
     `- Email: ${byId('verification-email').value.trim()}`,
     `- Username: ${byId('verification-username').value.trim()}`,
+    `- Account type: ${verificationAccountType(byId('verification-account-type')?.value)}`,
     `- Account category: ${byId('verification-category').value}`,
     `- Country of residence: ${byId('verification-country').value.trim()}`,
     '',
@@ -3679,6 +3709,9 @@ function openSautiComposer({ focus = true } = {}) {
     dialog.showModal();
   }
   document.body.classList.add('composer-open');
+  document.querySelectorAll('video, audio').forEach((media) => {
+    if (!media.closest('#sauti-composer-dialog')) media.pause();
+  });
   if (focus) window.setTimeout(() => byId('sauti-body').focus(), 100);
 }
 
@@ -3788,6 +3821,12 @@ async function selectHomeFeed(mode, { focus = false } = {}) {
   if (mode === activeHomeFeed && memberSurfaceRetention.isFresh('stream', currentMemberId, mode)) return;
 
   activeHomeFeed = mode;
+  if (/^\/(?:home|app)\/?$/.test(window.location.pathname)) {
+    const route = new URL(window.location.href);
+    if (mode === 'trending') route.searchParams.set('feed', 'trending');
+    else route.searchParams.delete('feed');
+    window.history.replaceState(window.history.state, '', `${route.pathname}${route.search}`);
+  }
   syncHomeFeedModeUi();
   resetStreamState();
   await loadStream({ reset: true });
@@ -4606,7 +4645,42 @@ async function hydrateDirectPosts(posts) {
   }));
 }
 
+async function loadTrendingStream() {
+  if (!currentMember || streamLoading) return;
+  const memberId = currentMemberId;
+  const requestId = ++streamRequest;
+  streamLoading = true;
+  syncHomeFeedModeUi();
+  const feed = byId('stream-feed');
+  const hadRows = feed.childElementCount > 0;
+  const owns = () => currentMemberId === memberId && streamRequest === requestId && activeHomeFeed === 'trending';
+  byId('stream-loading').hidden = hadRows;
+  byId('stream-error').hidden = true;
+  try {
+    const [candidates, blockedResult, mutedResult] = await Promise.all([
+      loadDiscoverTrendingCandidates(),
+      supabase.from('social_blocks').select('blocked_id').eq('blocker_id', memberId),
+      supabase.from('social_mutes').select('muted_id').eq('muter_id', memberId),
+    ]);
+    if (candidates.error || blockedResult.error || mutedResult.error) throw candidates.error || blockedResult.error || mutedResult.error;
+    const ranked = rankTrendingPosts(candidates.data || [], {
+      blocked: new Set((blockedResult.data || []).map((row) => row.blocked_id)),
+      muted: new Set((mutedResult.data || []).map((row) => row.muted_id)), limit: 20,
+    });
+    const posts = await loadTrendingPostDetails(ranked);
+    const hydrated = await hydrateDirectPosts(posts);
+    if (!owns()) return;
+    streamHasMore = false; streamOffset = posts.length;
+    renderStreamRows(hydrated, { reset: true });
+  } catch {
+    if (owns()) byId('stream-error').hidden = hadRows;
+  } finally {
+    if (owns()) { streamLoading = false; byId('stream-loading').hidden = true; byId('stream-more').hidden = true; }
+  }
+}
+
 async function loadStream({ reset = false } = {}) {
+  if (activeHomeFeed === 'trending') return loadTrendingStream();
   if (!currentMember || streamLoading) return;
   syncHomeFeedModeUi();
   streamLoading = true;
@@ -5380,8 +5454,33 @@ async function deleteComment(commentId, postId, button) {
   }
 }
 
+async function returnHomeAfterPost(postId, memberId) {
+  if (currentMemberId !== memberId) return;
+  closeSautiComposer({ restoreFocus: false, syncUrl: false });
+  activeHomeFeed = 'for-you';
+  streamRequest += 1;
+  streamLoading = false;
+  window.history.replaceState({}, '', '/home');
+  showMemberSurface('stream', { syncUrl: false });
+  window.dispatchEvent(new Event('sautilink:routechange'));
+  window.scrollTo({ top: 0, behavior: 'auto' });
+  await loadStream({ reset: true });
+  if (currentMemberId !== memberId || !postId || streamSurface.hidden || activeHomeFeed !== 'for-you') return;
+  const feed = byId('stream-feed');
+  if ([...feed.querySelectorAll('.sauti-card')].some((card) => card.dataset.postId === postId)) return;
+  // Read the published row through the viewer's normal RLS before placing their
+  // fresh post above the feed. A ranked feed may otherwise omit a new own post.
+  const result = await supabase.from('social_posts').select(THREAD_POST_SELECT).eq('id', postId).eq('author_id', memberId).maybeSingle();
+  if (result.error || !result.data || currentMemberId !== memberId || streamSurface.hidden || activeHomeFeed !== 'for-you') return;
+  const rows = await hydrateDirectPosts([result.data]);
+  if (currentMemberId !== memberId || streamSurface.hidden || activeHomeFeed !== 'for-you') return;
+  const card = rows[0] && createSautiCard(rows[0]);
+  if (card) { feed.prepend(card); byId('stream-empty').hidden = true; }
+}
+
 async function shareSauti() {
   if (!currentMember) return;
+  const publishingMemberId = currentMemberId;
   const textarea = byId('sauti-body');
   const submit = byId('sauti-submit');
   const message = byId('sauti-message');
@@ -5417,6 +5516,9 @@ async function shareSauti() {
   try {
     const headers = await currentAuthorizationHeader();
     if (!headers.Authorization) throw new Error('Sign in again before publishing a post.');
+    if (currentMemberId !== publishingMemberId) return;
+    const roomSnapshot = circleId ? { owner_id: publishingMemberId, body, visibility, circle_id: circleId, reply_access: replyAccess,
+      media: composerMedia.map((item) => ({ id: item.id, alt_text: String(item.altText || '').trim() })) } : null;
 
     const response = await fetch('/api/sauti', {
       method: 'POST',
@@ -5430,18 +5532,29 @@ async function shareSauti() {
           id: item.id,
           alt_text: String(item.altText || '').trim(),
         })),
+        ...(roomSnapshot ? { client_request_id: roomPublishRequestId(roomSnapshot) } : {}),
       }),
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok || payload?.ok === false) {
       throw new Error(payload?.error?.message || 'Your post could not be published.');
     }
+    if (currentMemberId !== publishingMemberId) return;
+    const roomOutcome = circleId ? roomPublishOutcome(response, payload) : null;
+    if (roomSnapshot) confirmRoomPublishRequest(roomSnapshot);
 
     const audienceLabel = byId('sauti-audience').selectedOptions[0]?.textContent || 'SautiLink';
     clearComposerCurrent({ resetControls: true });
+    if (roomOutcome?.pending) {
+      setMessage(message, 'Submitted to Room admins for approval.', 'success');
+      closeSautiComposer({ restoreFocus: false });
+      showToast('Room post is awaiting approval.');
+      return;
+    }
     setMessage(message, circleId ? `Post published in ${audienceLabel}.` : 'Post published.', 'success');
-    await loadStream({ reset: true });
-    closeSautiComposer({ restoreFocus: false });
+    await returnHomeAfterPost(payload?.data?.post?.id, publishingMemberId).catch(() => {
+      showToast('Your post was published. Home could not refresh; try refreshing the feed.', 'error');
+    });
     showToast(circleId ? `Shared in ${audienceLabel}.` : visibility === 'followers' ? 'Followers-only post is live.' : 'Your post is live.');
   } catch (error) {
     setMessage(message, error?.message || 'Your post could not be published. Try again.');
@@ -6408,6 +6521,46 @@ function renderDiscoverProfile(profile) {
   return row;
 }
 
+async function loadDiscoverTrendingCandidates(query = '') {
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const results = await Promise.all(['like_count', 'comment_count', 'repost_count'].map((metric) => {
+    let request = supabase.from('social_posts')
+      .select('id,author_id,like_count,comment_count,repost_count,created_at')
+      .eq('visibility', 'public').is('circle_id', null).is('reply_to_post_id', null)
+      .eq('post_status', 'published').is('deleted_at', null).gte('created_at', since)
+      .order(metric, { ascending: false }).order('created_at', { ascending: false }).limit(250);
+    if (query) request = request.ilike('body', `%${query}%`);
+    return request;
+  }));
+  return { data: results.flatMap((result) => result.data || []), error: results.find((result) => result.error)?.error };
+}
+
+async function loadTrendingPostDetails(ranked) {
+  if (!ranked.length) return [];
+  const details = await supabase.from('social_posts').select(THREAD_POST_SELECT)
+    .in('id', ranked.map((post) => post.id)).eq('visibility', 'public')
+    .eq('post_status', 'published').is('deleted_at', null);
+  if (details.error) throw details.error;
+  const detailMap = new Map((details.data || []).map((post) => [post.id, post]));
+  return ranked.map((post) => detailMap.get(post.id)).filter(Boolean);
+}
+
+window.__sautilinkShortVideoTrendingRanks = async () => {
+  const memberId = currentMemberId;
+  if (!memberId) return {};
+  const [candidates, blocked, muted] = await Promise.all([
+    loadDiscoverTrendingCandidates(),
+    supabase.from('social_blocks').select('blocked_id').eq('blocker_id', memberId),
+    supabase.from('social_mutes').select('muted_id').eq('muter_id', memberId),
+  ]);
+  if (currentMemberId !== memberId || candidates.error || blocked.error || muted.error) return {};
+  const ranked = rankTrendingPosts(candidates.data || [], {
+    blocked: new Set((blocked.data || []).map((row) => row.blocked_id)),
+    muted: new Set((muted.data || []).map((row) => row.muted_id)), limit: 20,
+  });
+  return Object.fromEntries(ranked.map((post, index) => [post.id, index + 1]));
+};
+
 async function loadDiscover(queryValue = byId('discover-query').value) {
   if (!currentMemberId) return;
   const memberId = currentMemberId;
@@ -6478,16 +6631,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
       ]);
     }
 
-    let postQuery = supabase
-      .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
-      .eq('visibility', 'public')
-      .is('circle_id', null)
-      .is('reply_to_post_id', null)
-      .order('created_at', { ascending: false })
-      .limit(30);
-
-    if (query) postQuery = postQuery.ilike('body', `%${query}%`);
+    const postQuery = loadDiscoverTrendingCandidates(query);
 
     const [blockedResult, mutedResult, profileResults, postResult] = await Promise.all([
       blockedPromise,
@@ -6514,7 +6658,9 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
 
     const profileRows = [...profileMap.values()].slice(0, 12).map(renderDiscoverProfile);
 
-    const hydrated = await hydrateDirectPosts(postResult.data || []);
+    const ranked = rankTrendingPosts(postResult.data || [], { blocked: blockedIds, muted: mutedIds, limit: 5 });
+    const trendingPosts = await loadTrendingPostDetails(ranked);
+    const hydrated = await hydrateDirectPosts(trendingPosts);
     if (requestId !== discoverRequest || currentMemberId !== memberId) return;
     profileList.replaceChildren(...profileRows);
     profileEmpty.hidden = profileList.childElementCount > 0;
@@ -7533,7 +7679,7 @@ function renderMessageThreadProfile(peer) {
   if (peer?.is_verified) {
     threadName.append(createVerificationBadge(
       normalizeVerificationBadgeType(peer.verification_badge_type) === 'team'
-        ? 'Verified SautiLink Team account'
+        ? 'Verified business, brand, organisation or entity'
         : 'Verified account',
       peer.verification_badge_type,
     ));
@@ -8461,6 +8607,7 @@ async function loadCircleStream(circleId) {
 async function shareCircleSauti() {
   if (!activeCircle?.circle || !circleStreamAllowed(activeCircle.circle, activeCircle.membership)) return;
   const circle = activeCircle.circle;
+  const publishingMemberId = currentMemberId;
   const textarea = byId('circle-sauti-body');
   const submit = byId('circle-sauti-submit');
   const message = byId('circle-sauti-message');
@@ -8485,22 +8632,27 @@ async function shareCircleSauti() {
   try {
     const headers = await currentAuthorizationHeader();
     if (!headers.Authorization) throw new Error('Sign in again before posting in this Room.');
+    if (currentMemberId !== publishingMemberId || activeCircle?.circle?.id !== circle.id) return;
+    const snapshot = { owner_id: publishingMemberId, body, circle_id: circle.id, reply_access: replyAccess };
 
     const response = await fetch('/api/sauti', {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body, circle_id: circle.id, reply_access: replyAccess }),
+      body: JSON.stringify({ body, circle_id: circle.id, reply_access: replyAccess, client_request_id: roomPublishRequestId(snapshot) }),
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok || payload?.ok === false) {
       throw new Error(payload?.error?.message || 'This Room post could not be published.');
     }
 
+    if (currentMemberId !== publishingMemberId || activeCircle?.circle?.id !== circle.id) return;
+    const outcome = roomPublishOutcome(response, payload);
+    confirmRoomPublishRequest(snapshot);
     textarea.value = '';
     updateCircleComposerState();
-    setMessage(message, 'Post published in this Room.', 'success');
-    await loadCircleStream(circle.id);
-    showToast('Posted in Room.');
+    setMessage(message, outcome.pending ? 'Submitted to Room admins for approval.' : 'Post published in this Room.', 'success');
+    if (!outcome.pending) await loadCircleStream(circle.id);
+    showToast(outcome.pending ? 'Room post is awaiting approval.' : 'Posted in Room.');
   } catch (error) {
     setMessage(message, error?.message || 'This Room post could not be published.');
   } finally {
@@ -9081,6 +9233,12 @@ async function loadDiscoverableProfile(username) {
 }
 
 async function applyLocationRoute() {
+  if (/^\/(?:home|app)\/?$/.test(window.location.pathname)
+    && new URL(window.location.href).searchParams.get('feed') === 'trending'
+    && activeHomeFeed !== 'trending') {
+    activeHomeFeed = 'trending';
+    resetStreamState();
+  }
   if (!/^\/(?:app\/)?compose\/?$/.test(window.location.pathname) && byId('sauti-composer-dialog')?.open) {
     closeSautiComposer({ restoreFocus: false, syncUrl: false });
   }
@@ -9304,6 +9462,9 @@ async function applyLocationRoute() {
         if (/^\/app\/?$/.test(window.location.pathname)) window.history.replaceState({}, '', '/home');
         byId('sauti-composer').hidden = false;
         showMemberSurface('stream', { syncUrl: false });
+        if (activeHomeFeed === 'trending' && !memberSurfaceRetention.isFresh('stream', currentMemberId, 'trending')) {
+          await loadStream({ reset: true });
+        }
       }
     } else {
       showSignedOut('login');
@@ -10829,6 +10990,11 @@ byId('sauti-composer-dialog').addEventListener('click', (event) => {
 byId('sauti-composer-dialog').addEventListener('close', () => {
   document.body.classList.remove('composer-open');
 });
+document.addEventListener('play', (event) => {
+  const media = event.target;
+  if (document.body.classList.contains('composer-open') && media instanceof HTMLMediaElement
+    && !media.closest('#sauti-composer-dialog, #sauti-video-trimmer')) media.pause();
+}, true);
 window.addEventListener('online', () => {
   syncComposerOnlineState();
   resumeWaitingComposerMedia();
@@ -10846,6 +11012,13 @@ byId('stream-retry').addEventListener('click', () => {
   else void loadStream({ reset: true });
 });
 byId('stream-load-more').addEventListener('click', () => loadStream());
+byId('discover-trending-more').addEventListener('click', (event) => {
+  event.preventDefault();
+  window.history.pushState({}, '', '/home?feed=trending');
+  showMemberSurface('stream', { syncUrl: false });
+  void selectHomeFeed('trending');
+  window.scrollTo({ top: 0, behavior: 'auto' });
+});
 byId('home-feed-tabs').addEventListener('click', (event) => {
   const tab = event.target.closest('[data-home-feed-tab]');
   if (tab) void selectHomeFeed(tab.dataset.homeFeedTab);

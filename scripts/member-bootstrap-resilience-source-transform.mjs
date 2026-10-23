@@ -395,6 +395,7 @@ async function completeOnboarding`;
   }
 
 const resilientStreamBlock = `async function loadStream({ reset = false } = {}) {
+  if (activeHomeFeed === 'trending') return loadTrendingStream();
   if (!currentMember || streamLoading) return;
   syncHomeFeedModeUi();
   streamLoading = true;

@@ -1,7 +1,9 @@
 import { handleProfileMediaRequest } from './profile-media-api.js';
 import { handleRoomMediaRequest } from './room-media-api.js';
+import { handleRoomPostApprovalRequest } from './room-post-approval-api.js';
+import { handleRoomManagementRequest } from './room-management-api.js';
 import { handleSautiRequest } from './sauti-posts-api.js';
-import { handleSautiMediaRequest } from './sauti-media-api.js';
+import { handleSautiMediaRequest, mediaDeliveryFailureDiagnostic } from './sauti-media-api.js';
 import { handlePollRequest } from './polls-api.js';
 import { handleSocialInteractionRequest } from './social-interactions-api.js';
 import { handleTrustSafetyRequest } from './trust-safety-api.js';
@@ -260,6 +262,14 @@ async function routeRequest(request, env, url, ctx = null) {
     return new Response('Not found', { status: 404 });
   }
 
+  if (url.pathname.startsWith('/api/rooms/')) {
+    const managementResponse = await handleRoomManagementRequest(request, env);
+    if (managementResponse) return managementResponse;
+    const reviewResponse = await handleRoomPostApprovalRequest(request, env);
+    if (reviewResponse) return reviewResponse;
+    return new Response('Not found', { status: 404 });
+  }
+
   if (url.pathname.startsWith('/api/sauti-media/')) {
     const mediaResponse = await handleSautiMediaRequest(request, env, ctx);
     if (mediaResponse) return mediaResponse;
@@ -384,11 +394,13 @@ export default {
       if (pwaAssociation) return finalizeResponse(pwaAssociation, id, url);
       const response = await routeRequest(request, env, url, ctx);
       return finalizeResponse(response, id, url);
-    } catch {
+    } catch (error) {
+      const deliveryFailure = url.pathname.startsWith('/api/sauti-media/')
+        ? mediaDeliveryFailureDiagnostic(error) : null;
       console.error('Unhandled SautiLink request', {
         request_id: id,
         method: request.method,
-        pathname: url.pathname,
+        ...(deliveryFailure || { pathname: url.pathname }),
       });
 
       const response = isApiPath(url.pathname)

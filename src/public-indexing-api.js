@@ -241,7 +241,7 @@ function profileMetadata(profile) {
     person.additionalProperty = {
       '@type': 'PropertyValue',
       name: 'SautiLink verification',
-      value: profile.verification_badge_type === 'team' ? 'Verified SautiLink Team profile' : 'Verified profile',
+      value: profile.verification_badge_type === 'team' ? 'Verified business, brand, organisation or entity' : 'Verified individual',
     };
   }
 
@@ -312,7 +312,7 @@ function postMetadata(post) {
     author.additionalProperty = {
       '@type': 'PropertyValue',
       name: 'SautiLink verification',
-      value: post.author_verification_badge_type === 'team' ? 'Verified SautiLink Team profile' : 'Verified profile',
+      value: post.author_verification_badge_type === 'team' ? 'Verified business, brand, organisation or entity' : 'Verified individual',
     };
   }
 

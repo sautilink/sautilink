@@ -183,7 +183,7 @@ test('composer URL follows open, close, direct loading and browser Back', () => 
   const context = {
     window: { location, history, setTimeout() {}, dispatchEvent() { calls.push(['routechange']); } },
     Event: class {},
-    document: { activeElement: null, body: { classList: {
+    document: { activeElement: null, querySelectorAll: () => [], body: { classList: {
       add: (name) => bodyClasses.add(name), remove: (name) => bodyClasses.delete(name),
     } } },
     HTMLElement: class {},

@@ -84,8 +84,8 @@ test('Windows-style production paths still receive the media reservation transfo
   assert.match(source, /async function loadSautiMediaRowsMap\(postIds\)/);
 });
 
-test('profile activity can display the fifth media item supported by production posts', async () => {
+test('profile activity can display all ten media items supported by production posts', async () => {
   const source = await readFile(profileActivityPath, 'utf8');
   const transformed = transformPostMediaSource(profileActivityPath.pathname, source);
-  assert.match(transformed, /mediaRows\.slice\(0, 5\)/);
+  assert.match(transformed, /mediaRows\.slice\(0, 10\)/);
 });

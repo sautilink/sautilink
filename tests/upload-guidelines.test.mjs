@@ -7,12 +7,12 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('Upload Guidelines publish the live SautiLink limits in one provider-neutral page', async () => {
   const page = await read('upload-guidelines.html');
 
-  assert.match(page, /Effective<\/strong> October 6, 2026/);
-  assert.match(page, /100 MB per file/);
-  assert.match(page, /60 seconds or shorter/);
-  assert.match(page, /no longer than <strong>2 minutes<\/strong>/);
-  assert.match(page, /8 MB per image/);
-  assert.match(page, /up to <strong>5 media items<\/strong>/);
+  assert.match(page, /Effective<\/strong> October 23, 2026/);
+  assert.match(page, /250 MiB per file/);
+  assert.match(page, /3 minutes or shorter/);
+  assert.match(page, /no longer than <strong>3 minutes<\/strong>/);
+  assert.match(page, /5 MiB per image/);
+  assert.match(page, /up to <strong>10 media items<\/strong>/);
   assert.match(page, /Profile photos are limited to <strong>5 MB<\/strong>/);
   assert.match(page, /Profile header images are limited to <strong>8 MB<\/strong>/);
   assert.match(page, /no larger than <strong>10 MB<\/strong>.*600 × 200/s);

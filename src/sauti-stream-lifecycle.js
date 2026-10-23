@@ -1,9 +1,10 @@
 import { STREAM_UUID, STREAM_UID, streamEnabled, streamOrigin, streamSourceKey, streamHmac, verifyStreamHmac,
   readStreamJson, writeStreamJson, streamVideoId, streamOperation, streamAssetDetails, streamAssetMatches, streamAssetReady,
   deleteStreamAsset, reserveStreamSeconds, releaseStreamSeconds } from './sauti-stream-provider.js';
+import { POST_VIDEO_LIMIT, POST_VIDEO_DURATION_MS } from './post-media-policy.js';
 
 const SOURCE_TTL = 15 * 60;
-const SOURCE_MAX_BYTES = 100_000_000;
+const SOURCE_MAX_BYTES = POST_VIDEO_LIMIT;
 const JOB_PREFIX = 'stream-jobs/v2/';
 const POLL_INTERVAL = 15;
 const STORY_POLL_INTERVAL = 2;
@@ -15,7 +16,7 @@ function canonicalPost(row) {
   return STREAM_UUID.test(String(row?.id || '')) && STREAM_UUID.test(String(row?.owner_id || ''))
     && STREAM_UUID.test(String(row?.post_id || '')) && row.upload_status === 'attached' && row.media_kind === 'video'
     && row.object_key === `sauti/${row.owner_id}/${row.id}.mp4`
-    && Number(row.duration_ms) > 0 && Number(row.duration_ms) <= 120000;
+    && Number(row.duration_ms) > 0 && Number(row.duration_ms) <= POST_VIDEO_DURATION_MS;
 }
 async function sourceHead(env, row, etag) {
   const source = await env.SAUTI_MEDIA.head(row.object_key).catch(() => null);
@@ -30,7 +31,7 @@ export async function inspectSautiStreamImportCandidate(env, row) {
   if (!source) return { eligible: false, reason: 'source_unavailable_or_unvalidated' };
   if (Number(row.size_bytes) !== source.size) return { eligible: false, reason: 'source_size_mismatch' };
   return { eligible: true, source_etag: source.etag, source_bytes: source.size,
-    reserved_seconds: Math.min(120, Math.ceil(Number(row.duration_ms) / 1000) + 1) };
+    reserved_seconds: Math.min(180, Math.ceil(Number(row.duration_ms) / 1000) + 1) };
 }
 function matches(job, kind, id, owner) {
   return job?.version === 2 && job.kind === kind && job.id === id && job.owner_id === owner
@@ -148,7 +149,7 @@ export async function prepareSautiStreamVideo(env, row, now = Math.floor(Date.no
     const data = { version: 2, kind: 'post', id: row.id, owner_id: row.owner_id, generation: crypto.randomUUID(),
       object_key: row.object_key, source_etag: source.etag, source_expires_at: now + SOURCE_TTL,
       created_at: now, updated_at: now, state: 'reserved', duration_ms: Number(row.duration_ms),
-      max_duration_seconds: Math.min(120, Math.ceil(Number(row.duration_ms) / 1000) + 1), operation_started: false };
+      max_duration_seconds: Math.min(180, Math.ceil(Number(row.duration_ms) / 1000) + 1), operation_started: false };
     const claimed = await writeStreamJson(env, sautiStreamJobKey('post', row.id), data);
     if (!claimed) return null;
     record = { data, etag: claimed.etag };

@@ -78,8 +78,8 @@ test('Phase 27 MP4 inspector validates duration and dimensions', () => {
     height: 720,
     durationMs: 5000,
   });
-  assert.equal(inspectMp4Bytes(validMp4({ seconds: 120 }))?.durationMs, 120000);
-  assert.equal(inspectMp4Bytes(validMp4({ seconds: 121 })), null);
+  assert.equal(inspectMp4Bytes(validMp4({ seconds: 180 }))?.durationMs, 180000);
+  assert.equal(inspectMp4Bytes(validMp4({ seconds: 181 })), null);
   assert.equal(inspectMp4Bytes(new Uint8Array(64)), null);
 });
 
@@ -165,7 +165,7 @@ test('Phase 27 Sauti lifecycle validates R2 before attach and cleans objects on 
   assert.match(posts, /upload_status: 'attached'/);
   assert.match(posts, /media_count: media\.length/);
   assert.match(posts, /env\.SAUTI_MEDIA\.delete\(key\)/);
-  assert.match(posts, /up to four media items/i);
+  assert.match(posts, /up to ten media items/i);
 });
 
 

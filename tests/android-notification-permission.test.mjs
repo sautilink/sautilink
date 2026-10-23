@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { runInNewContext } from 'node:vm';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -77,4 +78,30 @@ test('browser package remains free of native-only push dependencies outside Andr
 
   assert.doesNotMatch(packageJson, /@capacitor\/push-notifications/);
   assert.doesNotMatch(capacitorConfig, /PushNotifications/);
+});
+
+
+test('automatic Android validation cannot publish the stable beta; only signed manual main dispatch may publish', () => {
+  const workflow = read('.github/workflows/android-apk.yml');
+  const publish = workflow.indexOf('      - name: Publish stable signed Android beta');
+  assert.ok(publish > 0, 'the explicit beta publication step remains available');
+  const condition = workflow.slice(publish).match(/^        if: (.+)$/m)?.[1];
+  assert.ok(condition, 'stable publication must have an explicit event gate');
+  const permitted = (event, ref = 'refs/heads/main', signed = 'true') => Boolean(runInNewContext(condition, {
+    env: { SAUTILINK_SIGN_RELEASE: signed }, github: { event_name: event, ref },
+  }, { timeout: 100 }));
+  assert.equal(permitted('push'), false, 'a web main merge must not overwrite the public stable APK');
+  assert.equal(permitted('pull_request'), false);
+  assert.equal(permitted('schedule'), false);
+  assert.equal(permitted('workflow_dispatch'), true, 'explicit signed publication on main remains possible');
+  assert.equal(permitted('workflow_dispatch', 'refs/heads/another-branch'), false);
+  assert.equal(permitted('workflow_dispatch', 'refs/heads/main', 'false'), false);
+  assert.match(workflow, /on:\s*\n  workflow_dispatch:/);
+  assert.match(workflow, /\n  pull_request:/);
+  assert.match(workflow, /\n  push:\s*\n    branches:\s*\n      - main/);
+  for (const step of ['Build Android test APK', 'Upload test APK artifact', 'Build signed release APK and AAB',
+    'Verify signed release outputs', 'Upload signed release artifact']) {
+    const index = workflow.indexOf(`      - name: ${step}`);
+    assert.ok(index >= 0 && index < publish, `${step} must remain in normal validation before publication`);
+  }
 });

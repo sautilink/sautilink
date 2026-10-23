@@ -1,5 +1,6 @@
-const ROOM_POST_IMAGE_LIMIT = 5;
-const ROOM_POST_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+import { roomPublishRequestId, confirmRoomPublishRequest, roomPublishOutcome } from './room-publish-outcome.js';
+const ROOM_POST_IMAGE_LIMIT = 10;
+const ROOM_POST_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const ROOM_POST_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const ROOM_POST_SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const ROOM_POST_SUPABASE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
@@ -240,7 +241,7 @@ function addRoomPostImages(files) {
 
   const openSlots = Math.max(0, ROOM_POST_IMAGE_LIMIT - roomPostImages.length);
   if (!openSlots) {
-    roomPostMessage('A Room post can include up to five images.');
+    roomPostMessage('A Room post can include up to ten images.');
     return;
   }
 
@@ -251,7 +252,7 @@ function addRoomPostImages(files) {
       return;
     }
     if (file.size < 1 || file.size > ROOM_POST_IMAGE_MAX_BYTES) {
-      roomPostMessage('Each image must be 8 MB or smaller.');
+      roomPostMessage('Each image must be 5 MiB or smaller.');
       return;
     }
 
@@ -272,7 +273,7 @@ function addRoomPostImages(files) {
 
   renderRoomPostImages();
   queueMicrotask(syncRoomPostImageComposer);
-  if (selected.length > openSlots) roomPostMessage('Only the first five Room images were added.');
+  if (selected.length > openSlots) roomPostMessage('Only the first ten Room images were added.');
 }
 
 async function clearRoomPostImages({ remote = false } = {}) {
@@ -328,6 +329,9 @@ async function publishRoomPostWithImages(event) {
   if (!token) return roomPostMessage('Sign in again before posting.');
   const room = await lookupRoomForPost();
   if (!room?.id) return roomPostMessage('This Room could not be confirmed. Try again.');
+  if (roomPostAccessToken() !== token || roomPostSlug() !== slug) return;
+  const snapshot = { body: textarea.value.trim(), circle_id: room.id, reply_access: replies.value || 'everyone',
+    media: roomPostImages.map((item) => ({ id: item.id, alt_text: '' })) };
 
   roomPostImageSubmitting = true;
   submit.disabled = true;
@@ -338,23 +342,21 @@ async function publishRoomPostWithImages(event) {
     const response = await fetch('/api/sauti', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        body: textarea.value.trim(),
-        circle_id: room.id,
-        reply_access: replies.value || 'everyone',
-        media: roomPostImages.map((item) => ({ id: item.id, alt_text: '' })),
-      }),
+      body: JSON.stringify({ ...snapshot, client_request_id: roomPublishRequestId(snapshot) }),
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok || payload?.ok === false) {
       throw new Error(payload?.error?.message || 'The Room post could not be published.');
     }
 
+    if (roomPostAccessToken() !== token || roomPostSlug() !== slug) return;
+    const outcome = roomPublishOutcome(response, payload);
+    confirmRoomPublishRequest(snapshot);
     await clearRoomPostImages({ remote: false });
     textarea.value = '';
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    roomPostMessage('Post published in this Room.', true);
-    roomPostNode('circle-stream-retry')?.click();
+    roomPostMessage(outcome.pending ? 'Submitted to Room admins for approval.' : 'Post published in this Room.', true);
+    if (!outcome.pending) roomPostNode('circle-stream-retry')?.click();
   } catch (error) {
     roomPostMessage(error?.message || 'The Room post could not be published.');
   } finally {

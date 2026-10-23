@@ -5,27 +5,27 @@ import { transformPostMediaSource } from '../scripts/post-media-source-transform
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('post composer and server enforce a five-media-item limit in built sources', async () => {
+test('post composer and server enforce a ten-media-item limit in built sources', async () => {
   const appSource = await read('src/app.js');
   const postApiSource = await read('src/sauti-posts-api.js');
   const html = await read('app/index.html');
   const app = transformPostMediaSource('/repo/src/app.js', appSource);
   const api = transformPostMediaSource('/repo/src/sauti-posts-api.js', postApiSource);
 
-  assert.match(app, /`\$\{composerMedia\.length\} \/ 5`/);
-  assert.match(app, /Math\.max\(0, 5 - composerMedia\.length\)/);
-  assert.match(app, /composerMedia\.length >= 5/);
-  assert.match(app, /composerMedia\.length > 5/);
-  assert.match(app, /composerMedia\.length < 5/);
-  assert.match(app, /data\.slice\(0, 5\)/);
-  assert.match(app, /up to five media items/);
+  assert.match(app, /`\$\{composerMedia\.length\} \/ 10`/);
+  assert.match(app, /Math\.max\(0, 10 - composerMedia\.length\)/);
+  assert.match(app, /composerMedia\.length >= 10/);
+  assert.match(app, /composerMedia\.length > 10/);
+  assert.match(app, /composerMedia\.length < 10/);
+  assert.match(app, /data\.slice\(0, 10\)/);
+  assert.match(app, /up to ten media items/);
   assert.doesNotMatch(app, /up to four media items/);
 
-  assert.match(api, /requestedMedia\.length > 5/);
-  assert.match(api, /up to five media items/);
+  assert.match(api, /requestedMedia\.length > 10/);
+  assert.match(api, /up to ten media items/);
   assert.doesNotMatch(api, /requestedMedia\.length > 4/);
-  assert.match(html, /Up to 5 items/);
-  assert.match(html, /id="sauti-media-count">0 \/ 5/);
+  assert.match(html, /Up to 10 items/);
+  assert.match(html, /id="sauti-media-count">0 \/ 10/);
 });
 
 test('multi-media post view uses a swipeable carousel without changing single-media behavior', async () => {

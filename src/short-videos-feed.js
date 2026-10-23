@@ -237,11 +237,14 @@ function createShortVideoSlide(tile) {
   usernameLink.href = profileHref;
   usernameLink.className = 'sauti-short-username';
   usernameLink.textContent = `@${username}`;
-  identity.append(nameRow, usernameLink);
+  const metadata = document.createElement('div');
+  metadata.className = 'sauti-short-metadata';
+  metadata.append(usernameLink);
+  identity.append(nameRow, metadata);
 
   const sourceFollow = card.querySelector('[data-home-follow]');
   let follow = null;
-  if (sourceFollow) {
+  if (sourceFollow && sourceFollow.dataset.following !== 'true') {
     follow = document.createElement('button');
     follow.type = 'button';
     follow.className = 'sauti-short-follow';
@@ -290,6 +293,22 @@ function createShortVideoSlide(tile) {
   return slide;
 }
 
+function syncShortTrendingRank(slide, ranks) {
+  const username = slide.querySelector('.sauti-short-username');
+  if (!username) return;
+  let suffix = slide.querySelector('.sauti-short-trending-rank');
+  const rank = ranks?.[slide.dataset.postId];
+  if (!Number.isInteger(rank) || rank < 1 || rank > 20) { suffix?.remove(); return; }
+  if (!suffix) {
+    suffix = document.createElement('span');
+    suffix.className = 'sauti-short-trending-rank';
+    username.after(suffix);
+  }
+  const number = document.createElement('strong');
+  number.textContent = `#${rank}`;
+  suffix.replaceChildren(document.createTextNode(' • '), number, document.createTextNode(' on trending'));
+}
+
 function syncSlideFromSource(slide) {
   const card = sourceCardForPost(slide?.dataset.postId);
   if (!card) return;
@@ -323,7 +342,7 @@ function syncSlideFromSource(slide) {
     follow.textContent = following ? 'Following' : 'Follow';
     follow.classList.toggle('following', following);
     follow.dataset.following = String(following);
-    follow.disabled = sourceFollow.disabled;
+    follow.disabled = sourceFollow.disabled || following;
     follow.setAttribute('aria-pressed', String(following));
     follow.setAttribute('aria-busy', sourceFollow.getAttribute('aria-busy') || 'false');
   }
@@ -387,6 +406,8 @@ function installShortVideosFeed() {
   let pendingOpenRequest = null;
   let returnPath = '/home';
   let returnHomeFeed = 'for-you';
+  let trendingRequest = 0;
+  let trendingRanks = {};
 
   function videoSlides() {
     return [...track.querySelectorAll('.sauti-short-video-slide')];
@@ -443,6 +464,7 @@ function installShortVideosFeed() {
       track.append(slide);
       observeSlide(slide);
       syncSlideFromSource(slide);
+      syncShortTrendingRank(slide, trendingRanks);
     });
     ensureEndSlide();
   }
@@ -600,6 +622,14 @@ function installShortVideosFeed() {
     root.hidden = false;
     document.documentElement.classList.add('sauti-short-videos-open');
     root.setAttribute('aria-hidden', 'false');
+    const rankRequest = ++trendingRequest;
+    trendingRanks = {};
+    videoSlides().forEach((item) => syncShortTrendingRank(item, trendingRanks));
+    Promise.resolve(window.__sautilinkShortVideoTrendingRanks?.()).then((ranks) => {
+      if (rankRequest !== trendingRequest || root.hidden) return;
+      trendingRanks = ranks || {};
+      videoSlides().forEach((item) => syncShortTrendingRank(item, trendingRanks));
+    }).catch(() => {});
     pauseHomePlayback();
     requestAnimationFrame(() => {
       track.scrollTop = slide.offsetTop;

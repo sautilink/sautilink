@@ -1,6 +1,9 @@
 import { sautiMediaObjectKeys } from './sauti-media-api.js';
 import { POST_BODY_LIMIT } from './post-text-formatting.js';
+import { maybeQueueRoomPost, heldRoomMedia, roomPostSubmissionRoute } from './room-post-approval-api.js';
 import { deleteSautiStreamVideo, prepareSautiStreamVideo } from './sauti-stream-lifecycle.js';
+import { cleanupMediaChunks } from './sauti-media-chunks.js';
+import { POST_IMAGE_LIMIT, POST_VIDEO_LIMIT, POST_VIDEO_DURATION_MS } from './post-media-policy.js';
 
 const SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
@@ -96,18 +99,32 @@ async function createSauti(request, env, ctx = null) {
   const requestedReplyAccess = replyAccess(payload?.reply_access);
   const requestedVisibility = requestedCircle ? 'circle' : audienceVisibility(payload?.visibility);
   const requestedMedia = Array.isArray(payload?.media) ? payload.media : [];
+  const suppliedRequestId = payload?.client_request_id == null ? '' : uuid(payload.client_request_id);
+  if (payload?.client_request_id != null && !suppliedRequestId) return apiError(400, 'INVALID_REQUEST_ID', 'Retry this draft with a valid request identifier.');
 
   if (payload?.circle_id && !requestedCircle) return apiError(400, 'INVALID_CIRCLE', 'This Sautify is unavailable.');
   if (payload?.quote_post_id && !requestedQuote) return apiError(400, 'INVALID_QUOTE', 'The quoted post is unavailable.');
   if (!requestedReplyAccess) return apiError(400, 'INVALID_REPLY_ACCESS', 'Choose who can comment on this post.');
   if (!requestedVisibility) return apiError(400, 'INVALID_AUDIENCE', 'Choose a valid post audience.');
-  if (requestedMedia.length > 4) return apiError(400, 'MEDIA_LIMIT', 'A post can include up to four media items.');
+  if (requestedMedia.length > 10) return apiError(400, 'MEDIA_LIMIT', 'A post can include up to ten media items.');
   if (!body && !requestedQuote && !requestedMedia.length) {
     return apiError(400, 'BODY_REQUIRED', 'Write something or add media before sharing.');
   }
   if (body.length > POST_BODY_LIMIT) return apiError(400, 'BODY_TOO_LONG', `Post text must be ${POST_BODY_LIMIT} characters or fewer.`);
   if (requestedReplyAccess === 'mentioned' && !hasMentionToken(body)) {
     return apiError(400, 'MENTION_REQUIRED', 'Mention at least one SautiLink username or change who can comment.');
+  }
+
+  const clientRequestId = suppliedRequestId || crypto.randomUUID();
+  const roomRoute = requestedCircle ? await roomPostSubmissionRoute(session, requestedCircle, clientRequestId) : null;
+  if (requestedCircle && roomRoute?.value?.existing_submission === true) {
+    const retryMedia = requestedMedia.map((item) => ({ id: uuid(item?.id), alt_text: String(item?.alt_text || '').trim() }));
+    if (retryMedia.some((item) => !item.id || item.alt_text.length > 1000) || new Set(retryMedia.map((item) => item.id)).size !== retryMedia.length) {
+      return apiError(400, 'INVALID_MEDIA', 'One or more media items are invalid.');
+    }
+    return maybeQueueRoomPost(session, { roomId: requestedCircle, requestId: clientRequestId, body,
+      replyAccess: requestedReplyAccess, quoteId: requestedQuote, media: retryMedia, route: roomRoute, resumeOnly: true,
+      hasPoll: Array.isArray(payload?.poll_options) && payload.poll_options.length > 0 });
   }
 
   const media = [];
@@ -135,6 +152,12 @@ async function createSauti(request, env, ctx = null) {
     const rows = await mediaResponse.json().catch(() => []);
     const row = Array.isArray(rows) ? rows[0] || null : null;
     if (!row || !env.SAUTI_MEDIA) return apiError(409, 'MEDIA_NOT_READY', 'Upload the media again before sharing.');
+    if (!Number.isSafeInteger(Number(row.size_bytes))
+      || (row.media_kind === 'image' && (Number(row.size_bytes) < 1 || Number(row.size_bytes) > POST_IMAGE_LIMIT))
+      || (row.media_kind === 'video' && (Number(row.size_bytes) < 1 || Number(row.size_bytes) > POST_VIDEO_LIMIT
+        || !Number.isSafeInteger(Number(row.duration_ms)) || Number(row.duration_ms) < 1 || Number(row.duration_ms) > POST_VIDEO_DURATION_MS))) {
+      return apiError(413, 'MEDIA_POLICY_LIMIT', 'Use images up to 5 MiB or videos up to 250 MiB and 3 minutes.');
+    }
 
     const object = await env.SAUTI_MEDIA.head(row.object_key);
     if (
@@ -149,7 +172,21 @@ async function createSauti(request, env, ctx = null) {
     media.push({ ...row, alt_text: altText, position });
   }
 
-  const clientRequestId = crypto.randomUUID();
+  if (requestedCircle) {
+    const queued = await maybeQueueRoomPost(session, {
+      roomId: requestedCircle, requestId: clientRequestId, body, replyAccess: requestedReplyAccess,
+      quoteId: requestedQuote, media, hasPoll: Array.isArray(payload?.poll_options) && payload.poll_options.length > 0,
+      route: roomRoute,
+    });
+    if (queued) return queued;
+  }
+  // A pending Room upload cannot be reused by another published post. Keep this
+  // check after the queue branch so a lost202 retry can resume its own hold.
+  if (media.length) {
+    const held = await heldRoomMedia(session, media.map((item) => item.id));
+    if (held.response) return held.response;
+    if (held.ids.length) return apiError(409, 'MEDIA_HELD_FOR_ROOM_REVIEW', 'This media belongs to a Room post awaiting review.');
+  }
   const response = await fetch(`${SUPABASE_URL}/rest/v1/social_posts?select=id,author_id,circle_id,visibility,reply_access,quote_post_id,body,media_count,created_at`, {
     method: 'POST',
     headers: {
@@ -220,12 +257,37 @@ async function createSauti(request, env, ctx = null) {
     }
   } catch {
     const deleteParams = new URLSearchParams({ id: `eq.${post.id}`, author_id: `eq.${session.user.id}` });
-    await fetch(`${SUPABASE_URL}/rest/v1/social_posts?${deleteParams}`, {
+    const rollback = await fetch(`${SUPABASE_URL}/rest/v1/social_posts?${deleteParams}`, {
       method: 'DELETE',
-      headers: supabaseHeaders(session.auth),
-    }).catch(() => {});
-    const mediaObjects = media.flatMap((item) => sautiMediaObjectKeys(item));
-    await Promise.all(mediaObjects.map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
+      headers: { ...supabaseHeaders(session.auth), Prefer: 'return=representation' },
+    }).catch(() => null);
+    const removedPosts = rollback?.ok ? await rollback.json().catch(() => []) : [];
+    const removedPost = Array.isArray(removedPosts) && removedPosts.some((row) => row.id === post.id);
+    for (const item of media) {
+      // A concurrent review submission may reserve an upload after our preflight.
+      // The DB hold guard must succeed BEFORE any unattached R2 bytes are removed.
+      const params = new URLSearchParams({ id: `eq.${item.id}`, owner_id: `eq.${session.user.id}`, post_id: 'is.null', select: 'id' });
+      const removal = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${params}`, {
+        method: 'DELETE', headers: { ...supabaseHeaders(session.auth), Prefer: 'return=representation' },
+      }).catch(() => null);
+      const rows = removal?.ok ? await removal.json().catch(() => []) : [];
+      let removable = Array.isArray(rows) && rows.some((row) => row.id === item.id);
+      if (!removable && removedPost) {
+        // The earlier attached[] log can be stale: an owner may detach/requeue
+        // the row before rollback. Confirm actual cascade absence instead.
+        params.delete('post_id');
+        const lookup = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${params}`, {
+          headers: supabaseHeaders(session.auth),
+        }).catch(() => null);
+        const current = lookup?.ok ? await lookup.json().catch(() => null) : null;
+        removable = Array.isArray(current) && current.length === 0;
+      }
+      if (removable) {
+        await deleteSautiStreamVideo(env, item).catch(() => false);
+        await cleanupMediaChunks(env.SAUTI_MEDIA, item).catch(() => {});
+        await Promise.all(sautiMediaObjectKeys(item).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
+      }
+    }
     return apiError(409, 'MEDIA_ATTACH_FAILED', 'The post was not published because its media could not be attached safely.');
   }
 
@@ -351,6 +413,7 @@ async function deleteSauti(request, env, postId) {
 
   if (env.SAUTI_MEDIA && mediaObjects.length) {
     await Promise.all(streamMedia.map((row) => deleteSautiStreamVideo(env, row).catch(() => false)));
+    await Promise.all(streamMedia.map((row) => cleanupMediaChunks(env.SAUTI_MEDIA, row).catch(() => {})));
     await Promise.all(mediaObjects.map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
   }
 

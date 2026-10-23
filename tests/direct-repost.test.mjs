@@ -251,7 +251,7 @@ test('publishing sends authored text and media without a quote and rejects an em
     'sauti-reply-access': { value: 'following' },
   };
   const context = {
-    currentMember: { id: 'member' },
+    currentMember: { id: 'member' }, currentMemberId: 'member',
     activeComposerQuote: { id: 'legacy-target' },
     composerMedia: [{ id: 'photo', status: 'ready', altText: '  Original photo  ' }],
     POST_BODY_LIMIT: 2000,
@@ -259,7 +259,7 @@ test('publishing sends authored text and media without a quote and rejects an em
     currentAuthorizationHeader: async () => ({ Authorization: 'Bearer fixture' }),
     fetch: async (path, options) => { requests.push({ path, method: options.method, body: JSON.parse(options.body) }); return { ok: true, json: async () => ({ ok: true }) }; },
     setMessage: (_node, ...args) => messages.push(args),
-    clearComposerCurrent() {}, loadStream() {}, closeSautiComposer() {}, showToast() {}, updateComposerState() {},
+    clearComposerCurrent() {}, loadStream() {}, closeSautiComposer() {}, returnHomeAfterPost: async () => {}, showToast() {}, updateComposerState() {},
   };
   const publish = runInNewContext(`${functionSource(app, 'shareSauti')}\nshareSauti;`, context);
   await publish();

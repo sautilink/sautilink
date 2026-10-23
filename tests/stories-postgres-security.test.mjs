@@ -37,6 +37,7 @@ test('actual PostgreSQL Stories enforce session, ownership, rolling quotas, audi
       await db.query('insert into public.social_profiles(id,username,display_name,is_verified,verification_badge_type,is_discoverable) values($1,$2,$3,$4,$5,$6)',
         [uid(n), `member${n}`, `Member ${n}`, n === 4 || n === 5, n === 4 ? 'team' : 'standard', n !== 6]);
     }
+    await db.exec(await read('supabase/migrations/20261023055815_separate_story_default_publishers.sql'));
     await db.query("insert into private.story_worker_credentials values('stories-worker-v1',encode(sha256(convert_to($1,'UTF8')),'hex'),true)", [key]);
     await db.query('insert into public.social_follows values($1,$2)', [uid(2), uid(1)]);
 

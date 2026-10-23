@@ -1,8 +1,9 @@
 import { appendFormattedPostText } from './caption-entities.js';
 import { insertPostFormatting } from './post-text-formatting.js';
 
-const SHORT_VIDEO_LIMIT_SECONDS = 60;
-const MAX_TRIMMABLE_VIDEO_SECONDS = 120;
+const POST_VIDEO_LIMIT_SECONDS = 180;
+const POST_VIDEO_MAX_BYTES = 250 * 1024 * 1024;
+const preparedPostVideos = new WeakSet();
 const MIN_TRIM_SECONDS = 1;
 const POLL_MIN_OPTIONS = 2;
 const POLL_MAX_OPTIONS = 4;
@@ -523,7 +524,7 @@ function waitForMediaEvent(media, name, timeoutMs = 10000) {
 async function prepareTrimRecordingStream(stream) {
   if (!stream.getAudioTracks?.().length) return { stream, release: async () => {} };
   const AudioContext = window.AudioContext || window.webkitAudioContext;
-  if (typeof AudioContext !== 'function') throw new Error('This browser cannot prepare the video audio for trimming. Choose a video that is 60 seconds or shorter.');
+  if (typeof AudioContext !== 'function') throw new Error('This browser cannot prepare the video audio for trimming. Choose a video that is 3 minutes or shorter.');
   let context = null;
   let source = null;
   let destination = null;
@@ -553,7 +554,7 @@ async function trimVideoFile(file, startSeconds, endSeconds, onProgress) {
   const mimeType = supportedMp4RecorderType();
   const capture = HTMLMediaElement.prototype.captureStream || HTMLMediaElement.prototype.mozCaptureStream;
   if (!mimeType || typeof capture !== 'function') {
-    throw new Error('This browser cannot trim MP4 video yet. Choose a video that is 60 seconds or shorter.');
+    throw new Error('This browser cannot trim MP4 video yet. Choose a video that is 3 minutes or shorter.');
   }
 
   const sourceUrl = URL.createObjectURL(file);
@@ -570,8 +571,10 @@ async function trimVideoFile(file, startSeconds, endSeconds, onProgress) {
   let frame = 0;
   try {
     await waitForMediaEvent(video, 'loadeddata');
-    video.currentTime = Math.max(0, startSeconds);
-    await waitForMediaEvent(video, 'seeked');
+    if (Math.abs(video.currentTime - Math.max(0, startSeconds)) > 0.01) {
+      video.currentTime = Math.max(0, startSeconds);
+      await waitForMediaEvent(video, 'seeked');
+    }
 
     stream = capture.call(video);
     if (!stream?.getVideoTracks?.().length) throw new Error('This browser could not read the selected video track.');
@@ -597,7 +600,7 @@ async function trimVideoFile(file, startSeconds, endSeconds, onProgress) {
       }, { once: true });
     });
 
-    const clipDuration = Math.min(SHORT_VIDEO_LIMIT_SECONDS, Math.max(MIN_TRIM_SECONDS, endSeconds - startSeconds));
+    const clipDuration = Math.min(POST_VIDEO_LIMIT_SECONDS, Math.max(MIN_TRIM_SECONDS, endSeconds - startSeconds));
     const stopAt = Math.min(Number(video.duration) || endSeconds, startSeconds + clipDuration);
     const stopRecording = () => {
       if (recorder && recorder.state !== 'inactive') recorder.stop();
@@ -619,7 +622,7 @@ async function trimVideoFile(file, startSeconds, endSeconds, onProgress) {
     timer = window.setTimeout(stopRecording, Math.ceil(clipDuration * 1000) + 3000);
     const blob = await result;
     if (!blob.size) throw new Error('The trimmed video is empty. Try another file.');
-    if (blob.size > 100_000_000) throw new Error('The trimmed video is larger than 100 MB. Choose a shorter section or another file.');
+    if (blob.size > POST_VIDEO_MAX_BYTES) throw new Error('The trimmed video is larger than 250 MiB. Choose a shorter section or another file.');
 
     const baseName = String(file.name || 'video').replace(/\.[^.]+$/, '').slice(0, 80) || 'video';
     return new File([blob], `${baseName}-trimmed.mp4`, { type: 'video/mp4', lastModified: Date.now() });
@@ -646,15 +649,15 @@ function trimDialog() {
   dialog.innerHTML = `
     <form method="dialog" class="composer-trim-card">
       <header>
-        <div><p>Short video</p><h2 id="sauti-video-trimmer-title">Trim video</h2></div>
+        <div><p>Post video</p><h2 id="sauti-video-trimmer-title">Trim video</h2></div>
         <button type="button" class="composer-trim-close" data-trim-cancel aria-label="Cancel trimming">×</button>
       </header>
       <video data-trim-preview controls playsinline preload="metadata"></video>
       <div class="composer-trim-range">
         <label><span>Start</span><output data-trim-start-output>0:00</output><input data-trim-start type="range" min="0" step="0.1" value="0"></label>
-        <label><span>End</span><output data-trim-end-output>1:00</output><input data-trim-end type="range" min="1" step="0.1" value="60"></label>
+        <label><span>End</span><output data-trim-end-output>3:00</output><input data-trim-end type="range" min="1" step="0.1" value="180"></label>
       </div>
-      <p class="composer-trim-summary" data-trim-summary>Select a clip up to 60 seconds.</p>
+      <p class="composer-trim-summary" data-trim-summary>Select a clip up to 3 minutes.</p>
       <p class="composer-trim-status" data-trim-status role="status" aria-live="polite"></p>
       <footer><button type="button" class="secondary-action" data-trim-cancel>Cancel</button><button type="button" data-trim-use>Use clip</button></footer>
     </form>`;
@@ -684,7 +687,7 @@ function promptVideoTrim(file, duration) {
     start.max = String(Math.max(0, duration - MIN_TRIM_SECONDS));
     start.value = '0';
     end.max = String(duration);
-    end.value = String(Math.min(SHORT_VIDEO_LIMIT_SECONDS, duration));
+    end.value = String(Math.min(POST_VIDEO_LIMIT_SECONDS, duration));
     preview.src = objectUrl;
     status.textContent = '';
 
@@ -693,16 +696,16 @@ function promptVideoTrim(file, duration) {
       let to = Number(end.value);
       if (changed === start) {
         to = Math.max(to, from + MIN_TRIM_SECONDS);
-        to = Math.min(duration, from + SHORT_VIDEO_LIMIT_SECONDS, to);
+        to = Math.min(duration, from + POST_VIDEO_LIMIT_SECONDS, to);
       } else {
         from = Math.min(from, to - MIN_TRIM_SECONDS);
-        from = Math.max(0, to - SHORT_VIDEO_LIMIT_SECONDS, from);
+        from = Math.max(0, to - POST_VIDEO_LIMIT_SECONDS, from);
       }
       start.value = String(from);
       end.value = String(to);
       startOutput.textContent = formatTrimTime(from);
       endOutput.textContent = formatTrimTime(to);
-      summary.textContent = `${formatTrimTime(to - from)} clip · maximum 1:00`;
+      summary.textContent = `${formatTrimTime(to - from)} clip · maximum 3:00`;
       preview.currentTime = changed === end ? Math.max(from, to - 0.1) : from;
     };
 
@@ -751,49 +754,55 @@ function promptVideoTrim(file, duration) {
   });
 }
 
+export async function preparePostComposerFiles(files) {
+  const prepared = [];
+  for (const file of files) {
+    if (String(file.type || '').toLowerCase() !== 'video/mp4' || preparedPostVideos.has(file)) {
+      prepared.push(file);
+      continue;
+    }
+    if (file.size > POST_VIDEO_MAX_BYTES) throw new Error('Videos must be 250 MiB or smaller.');
+    const duration = await videoDuration(file);
+    if (!Number.isFinite(duration) || duration <= 0) throw new Error('The video duration could not be read. Choose a playable MP4 file.');
+    const selected = duration > POST_VIDEO_LIMIT_SECONDS ? await promptVideoTrim(file, duration) : file;
+    if (!selected) return [];
+    preparedPostVideos.add(selected);
+    prepared.push(selected);
+  }
+  return prepared;
+}
+
 async function validateSelectedShortVideo(event) {
   const input = event.currentTarget;
   if (input.dataset.shortVideoValidated === 'true') {
     delete input.dataset.shortVideoValidated;
     return;
   }
-
   const files = [...(input.files || [])];
-  const preparedFiles = [...files];
-  const videos = files.filter((file) => String(file.type || '').toLowerCase() === 'video/mp4');
-  if (!videos.length) return;
-
+  if (!files.some((file) => String(file.type || '').toLowerCase() === 'video/mp4')) return;
   event.preventDefault();
   event.stopPropagation();
   event.stopImmediatePropagation();
-
-  for (const file of videos) {
-    const duration = await videoDuration(file);
-    if (duration != null && duration > MAX_TRIMMABLE_VIDEO_SECONDS + 0.05) {
-      input.value = '';
-      composerMessage('Videos longer than 2 minutes cannot be trimmed here. Choose another file.');
-      return;
-    }
-    if (duration != null && duration > SHORT_VIDEO_LIMIT_SECONDS + 0.05) {
-      input.value = '';
-      const trimmed = await promptVideoTrim(file, duration);
-      if (!trimmed) return;
-      preparedFiles[files.indexOf(file)] = trimmed;
-    }
+  try {
+    const preparedFiles = await preparePostComposerFiles(files);
+    input.value = '';
+    if (!preparedFiles.length) return;
+    const transfer = new DataTransfer();
+    preparedFiles.forEach((selected) => transfer.items.add(selected));
+    input.files = transfer.files;
+    input.dataset.shortVideoValidated = 'true';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  } catch (error) {
+    input.value = '';
+    composerMessage(error?.message || 'The selected video could not be prepared.');
   }
-
-  const transfer = new DataTransfer();
-  preparedFiles.forEach((selected) => transfer.items.add(selected));
-  input.files = transfer.files;
-  input.dataset.shortVideoValidated = 'true';
-  input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 function updateMediaCopy() {
   const heading = document.querySelector('#sauti-media-queue .composer-media-heading strong');
   if (heading) heading.textContent = 'Photos & videos';
   const note = document.querySelector('#sauti-media-queue .composer-media-note');
-  if (note) note.textContent = 'Photos: JPEG, PNG or WebP up to 8 MB. Videos: MP4 up to 100 MB; trim videos up to 2 minutes into a 60-second clip. Add alternative text for accessibility.';
+  if (note) note.textContent = 'Photos: up to 10 JPEG, PNG or WebP images, 5 MiB each. Videos: MP4 up to 250 MiB and 3 minutes; trim longer videos before uploading. Add alternative text for accessibility.';
 }
 
 function buildVideoTool(photoButton, fileInput) {
@@ -802,7 +811,7 @@ function buildVideoTool(photoButton, fileInput) {
   button.className = 'composer-tool video-tool';
   button.id = 'sauti-video-add';
   button.type = 'button';
-  button.title = 'Add short video (up to 60 seconds)';
+  button.title = 'Add video (up to 3 minutes)';
   button.disabled = Boolean(document.getElementById('sauti-body')?.disabled);
   button.append(
     createSvg([

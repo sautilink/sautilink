@@ -1,3 +1,4 @@
+import { originalVideoIndexObjectKey, originalVideoIndexReceiptObjectKey, servePrecomputedOriginalIndex } from './original-video-index-delivery.js';
 import { inspectImageBytes } from './profile-media-api.js';
 import { VIDEO_VARIANT_QUALITIES, videoVariantDimensions, availableVideoQualities } from './video-quality-levels.js';
 import { prepareSautiStreamVideo, readySautiPostStreamAsset, serveSautiStreamSource, deleteSautiStreamVideo } from './sauti-stream-lifecycle.js';
@@ -5,13 +6,14 @@ import { sautiStreamPlaybackDescriptor, serveSautiStreamHls } from './sauti-stre
 import { streamEnabled } from './sauti-stream-provider.js';
 import { createMediaServerTiming } from './media-server-timing.js';
 import { sautiStreamBootstrap } from './sauti-stream-bootstrap.js';
+import { POST_IMAGE_LIMIT, POST_VIDEO_LIMIT, POST_VIDEO_DURATION_MS, POST_UPLOAD_PART_BYTES } from './post-media-policy.js';
+import { MediaChunkError, mediaChunkContract, putMediaChunk, assembleMediaChunks, cleanupMediaChunks, boundedMediaUploadBody, stageLegacyMediaBody } from './sauti-media-chunks.js';
 
 const SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
-const IMAGE_LIMIT = 8 * 1024 * 1024;
-const VIDEO_LIMIT = 100_000_000;
-const MAX_VIDEO_DURATION_MS = 120_000;
-const SHORT_VIDEO_DURATION_MS = 60_000;
+const IMAGE_LIMIT = POST_IMAGE_LIMIT;
+const VIDEO_LIMIT = POST_VIDEO_LIMIT;
+const MAX_VIDEO_DURATION_MS = POST_VIDEO_DURATION_MS;
 const MAX_DIMENSION = 8192;
 const UPLOAD_TTL_MS = 60 * 60 * 1000;
 const IMAGE_VARIANT_VERSION = 'v1';
@@ -45,6 +47,42 @@ function json(status, payload) {
 
 function apiError(status, code, message) {
   return json(status, { ok: false, error: { code, message } });
+}
+
+// Preserve the original thrown object; retain only its fatal delivery phase weakly.
+const mediaDeliveryFailures = new WeakMap();
+const mediaDeliveryPhases = new Set(['METADATA_LOOKUP', 'ORIGINAL_R2_HEAD', 'ORIGINAL_R2_GET', 'VARIANT_R2_GET', 'ORIGINAL_INDEX_R2_HEAD', 'ORIGINAL_INDEX_RECEIPT_R2_GET', 'ORIGINAL_INDEX_R2_GET']);
+const mediaDeliveryErrorNames = new Set(['Error', 'TypeError', 'RangeError', 'SyntaxError',
+  'DOMException', 'AbortError', 'TimeoutError', 'NetworkError']);
+async function mediaDeliveryPhase(phase, operation) {
+  try { return await operation(); } catch (error) {
+    if (error !== null && (typeof error === 'object' || typeof error === 'function')) {
+      mediaDeliveryFailures.set(error, phase);
+    }
+    throw error;
+  }
+}
+
+export function mediaDeliveryFailureDiagnostic(error) {
+  const object = error !== null && (typeof error === 'object' || typeof error === 'function');
+  const taggedPhase = object ? mediaDeliveryFailures.get(error) : null;
+  const phase = mediaDeliveryPhases.has(taggedPhase) ? taggedPhase : 'UNCLASSIFIED_MEDIA';
+  let name = object ? 'UNKNOWN' : 'NON_OBJECT', code = null;
+  try {
+    const candidateName = object ? error.name : null;
+    if (mediaDeliveryErrorNames.has(candidateName)) name = candidateName;
+    const value = object ? error.code : null;
+    if (Number.isSafeInteger(value) && value >= 0 && value <= 999999) code = value;
+    // R2 can put its numeric code in this fixed prefix, rather than a code property.
+    const message = object && code === null ? error.message : null;
+    if (typeof message === 'string') {
+      const match = /^R2 (?:GET|HEAD) failed:?\s*\((\d{3,6})\)/.exec(message.slice(0, 160));
+      if (match) code = Number(match[1]);
+    }
+  } catch { /* A diagnostic must not replace the existing failure response. */ }
+  return { delivery_phase: phase, exception_class: name, exception_code: code ?? 'NONE',
+    delivery_reason: phase === 'METADATA_LOOKUP' ? 'METADATA_THROW'
+      : phase === 'UNCLASSIFIED_MEDIA' ? 'UNCLASSIFIED_THROW' : 'R2_THROW' };
 }
 
 function authorization(request) {
@@ -150,7 +188,7 @@ export function sautiMediaObjectKeys(row) {
   const original = String(row?.object_key || '');
   if (!original) return [];
   if (row?.media_kind !== 'video') return [original];
-  return [original, sautiVideoPosterObjectKey(original),
+  return [original, originalVideoIndexReceiptObjectKey(original), originalVideoIndexObjectKey(original), sautiVideoPosterObjectKey(original),
     ...VIDEO_VARIANT_QUALITIES.map((quality) => sautiVideoVariantObjectKey(original, quality)),
     ...[360, 720].map((quality) => `${original}.video-v1-q${quality}.mp4`)];
 }
@@ -500,7 +538,8 @@ async function insertPending(session, row) {
 }
 
 async function patchMedia(session, id, patch) {
-  const params = new URLSearchParams({ id: `eq.${id}`, owner_id: `eq.${session.user.id}`, select: 'id,upload_status,finalized_at' });
+  const params = new URLSearchParams({ id: `eq.${id}`, owner_id: `eq.${session.user.id}`, post_id: 'is.null',
+    upload_status: patch.upload_status === 'uploaded' ? 'eq.pending' : 'eq.uploaded', select: 'id,upload_status,finalized_at' });
   const response = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${params}`, {
     method: 'PATCH',
     headers: {
@@ -515,8 +554,9 @@ async function patchMedia(session, id, patch) {
   return Array.isArray(rows) ? rows[0] || null : null;
 }
 
-async function deleteMediaRow(session, id) {
+async function deleteMediaRow(session, id, expectedStatus = '') {
   const params = new URLSearchParams({ id: `eq.${id}`, owner_id: `eq.${session.user.id}`, post_id: 'is.null', select: 'id' });
+  if (expectedStatus) params.set('upload_status', `eq.${expectedStatus}`);
   const response = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${params}`, {
     method: 'DELETE',
     headers: { ...supabaseHeaders(session.auth), Prefer: 'return=representation' },
@@ -531,7 +571,7 @@ async function cleanupExpiredOwnerUploads(session, env) {
     owner_id: `eq.${session.user.id}`,
     post_id: 'is.null',
     expires_at: `lt.${new Date().toISOString()}`,
-    select: 'id,object_key,media_kind',
+    select: 'id,owner_id,object_key,media_kind',
     limit: '12',
   });
   const response = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${params}`, {
@@ -543,17 +583,24 @@ async function cleanupExpiredOwnerUploads(session, env) {
   if (!Array.isArray(rows) || !rows.length) return;
 
   await Promise.all(rows.map(async (row) => {
-    await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
     if (!row?.id) return;
     const deleteParams = new URLSearchParams({
       id: `eq.${row.id}`,
       owner_id: `eq.${session.user.id}`,
       post_id: 'is.null',
+      select: 'id',
     });
-    await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${deleteParams}`, {
+    const removal = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${deleteParams}`, {
       method: 'DELETE',
-      headers: supabaseHeaders(session.auth),
-    }).catch(() => {});
+      headers: { ...supabaseHeaders(session.auth), Prefer: 'return=representation' },
+    }).catch(() => null);
+    const deleted = removal?.ok ? await removal.json().catch(() => []) : [];
+    // Pending Room holds reject DB deletion. Never delete bytes first: another
+    // transaction can claim an upload after the expired-upload SELECT.
+    if (Array.isArray(deleted) && deleted.some((item) => item.id === row.id)) {
+      await cleanupMediaChunks(env.SAUTI_MEDIA, row).catch(() => {});
+      await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
+    }
   }));
 }
 
@@ -574,7 +621,7 @@ async function beginUpload(request, env) {
   const type = TYPES[contentType];
   if (!type) return apiError(415, 'UNSUPPORTED_MEDIA', 'Use JPEG, PNG, WebP or MP4 media.');
   if (!Number.isSafeInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > type.limit) {
-    return apiError(413, 'FILE_TOO_LARGE', type.kind === 'video' ? 'Videos must be 100 MB or smaller.' : 'Images must be 8 MB or smaller.');
+    return apiError(413, 'FILE_TOO_LARGE', type.kind === 'video' ? 'Videos must be 250 MiB or smaller.' : 'Images must be 5 MiB or smaller.');
   }
 
   const id = crypto.randomUUID();
@@ -599,7 +646,24 @@ async function beginUpload(request, env) {
       upload_url: `/api/sauti-media/upload/${id}`,
       finalize_url: `/api/sauti-media/finalize/${id}`,
       expires_at: expiresAt,
+      ...(type.kind === 'video' && sizeBytes > POST_UPLOAD_PART_BYTES
+        ? { chunk_upload: mediaChunkContract({ id, owner_id: session.user.id, object_key: objectKey, media_kind: type.kind, content_type: contentType, size_bytes: sizeBytes }) } : {}),
     },
+  });
+}
+
+async function completePostMediaChunks(env, row, session) {
+  return assembleMediaChunks(env.SAUTI_MEDIA, row, inspectMp4Bytes, async (inspected) => {
+    const patched = await patchMedia(session, row.id, { width: inspected.width, height: inspected.height,
+      duration_ms: inspected.durationMs, upload_status: 'uploaded' }).catch(() => null);
+    if (patched) return true;
+    // A response can disappear after ACK. Confirm the committed state before
+    // considering removal of the just-assembled canonical file.
+    const current = await selectMedia(row.id, session.auth);
+    return current?.owner_id === session.user.id && ['uploaded','ready','attached'].includes(current.upload_status)
+      && current.object_key === row.object_key && Number(current.size_bytes) === Number(row.size_bytes)
+      && Number(current.duration_ms) === inspected.durationMs && Number(current.width) === inspected.width
+      && Number(current.height) === inspected.height;
   });
 }
 
@@ -609,19 +673,69 @@ async function uploadMedia(request, env, id) {
   if (!session) return apiError(401, 'AUTH_REQUIRED', 'Sign in before uploading media.');
 
   const row = await selectMedia(id, session.auth);
+  const url = new URL(request.url);
+  const isCompletion = url.searchParams.get('complete') === '1';
+  if ([...url.searchParams.keys()].some((key) => !['part','complete'].includes(key))
+    || url.searchParams.getAll('part').length > 1 || url.searchParams.getAll('complete').length > 1
+    || (url.searchParams.has('complete') && (!isCompletion || url.searchParams.has('part')))) {
+    return apiError(400, 'INVALID_UPLOAD_REQUEST', 'Choose one upload part or completion.');
+  }
+  // A completion response may have been lost after the database acknowledged it.
+  if (isCompletion && row?.owner_id === session.user.id && !row.post_id
+    && ['uploaded', 'ready'].includes(row.upload_status) && mediaChunkContract(row)) {
+    const object = await env.SAUTI_MEDIA.head(row.object_key);
+    if (object?.size === Number(row.size_bytes) && object.customMetadata?.validated === 'true'
+      && object.customMetadata?.ownerId === session.user.id && object.customMetadata?.mediaId === id) {
+      return json(200, { ok: true, data: { id, width: row.width, height: row.height, duration_ms: row.duration_ms } });
+    }
+  }
   if (!row || row.owner_id !== session.user.id || row.post_id || row.upload_status !== 'pending') {
     return apiError(404, 'UPLOAD_NOT_FOUND', 'This upload is unavailable.');
   }
-  if (Date.parse(row.expires_at) < Date.now()) return apiError(410, 'UPLOAD_EXPIRED', 'This upload expired. Add the file again.');
+  if (!Number.isFinite(Date.parse(row.expires_at)) || Date.parse(row.expires_at) <= Date.now()) return apiError(410, 'UPLOAD_EXPIRED', 'This upload expired. Add the file again.');
 
   const declared = TYPES[row.content_type];
+  if (isCompletion || url.searchParams.has('part')) {
+    try {
+      if (!declared || !mediaChunkContract(row) || (isCompletion && url.searchParams.has('part'))) {
+        return apiError(400, 'INVALID_CHUNK_UPLOAD', 'This upload does not support parts.');
+      }
+      if (isCompletion) {
+        if (Number(request.headers.get('Content-Length') || 0) > 0) return apiError(400, 'INVALID_COMPLETION', 'Completion must have an empty body.');
+        if (request.body) await boundedMediaUploadBody(request, 0);
+        return json(200, { ok: true, data: await completePostMediaChunks(env, row, session) });
+      }
+      if (String(request.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase() !== row.content_type) {
+        return apiError(415, 'CONTENT_TYPE_MISMATCH', 'The uploaded file type changed.');
+      }
+      const part = Number(url.searchParams.get('part'));
+      return json(200, { ok: true, data: await putMediaChunk(request, env.SAUTI_MEDIA, row, part) });
+    } catch (error) {
+      return error instanceof MediaChunkError ? apiError(error.status, error.code, error.message)
+        : apiError(502, 'R2_UPLOAD_FAILED', 'The video upload could not be completed. Try again.');
+    }
+  }
   const contentType = String(request.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
   if (!declared || contentType !== row.content_type) return apiError(415, 'CONTENT_TYPE_MISMATCH', 'The uploaded file type changed.');
 
   const contentLength = Number(request.headers.get('Content-Length') || 0);
   if (contentLength && contentLength !== Number(row.size_bytes)) return apiError(400, 'SIZE_MISMATCH', 'The uploaded file size changed.');
+  if (Number(row.size_bytes) > POST_UPLOAD_PART_BYTES) {
+    try {
+      await stageLegacyMediaBody(request, env.SAUTI_MEDIA, row);
+      return json(200, { ok: true, data: await completePostMediaChunks(env, row, session) });
+    } catch (error) {
+      return error instanceof MediaChunkError ? apiError(error.status, error.code, error.message)
+        : apiError(502, 'R2_UPLOAD_FAILED', 'The video upload could not be completed. Try again.');
+    }
+  }
 
-  const bytes = new Uint8Array(await request.arrayBuffer());
+  let bytes;
+  try { bytes = await boundedMediaUploadBody(request, Number(row.size_bytes)); }
+  catch (error) {
+    return error instanceof MediaChunkError ? apiError(error.status, error.code, error.message)
+      : apiError(400, 'UPLOAD_INTERRUPTED', 'The media upload was interrupted. Try again.');
+  }
   if (bytes.byteLength !== Number(row.size_bytes) || bytes.byteLength > declared.limit) {
     return apiError(400, 'SIZE_MISMATCH', 'The uploaded file size changed.');
   }
@@ -636,17 +750,14 @@ async function uploadMedia(request, env, id) {
   } else {
     inspected = inspectMp4Bytes(bytes);
     if (!inspected) {
-      await deleteMediaRow(session, id).catch(() => false);
-      return apiError(415, 'INVALID_VIDEO', 'Use a valid MP4 video no longer than 2 minutes.');
-    }
-    if (Number(inspected.durationMs || 0) > SHORT_VIDEO_DURATION_MS) {
-      await deleteMediaRow(session, id).catch(() => false);
-      return apiError(422, 'VIDEO_TOO_LONG', 'This video is longer than 60 seconds. Trim it in the composer before uploading.');
+      await deleteMediaRow(session, id, 'pending').catch(() => false);
+      return apiError(415, 'INVALID_VIDEO', 'Use a valid MP4 video no longer than 3 minutes.');
     }
   }
 
   try {
-    await env.SAUTI_MEDIA.put(row.object_key, bytes, {
+    const stored = await env.SAUTI_MEDIA.put(row.object_key, bytes, {
+      onlyIf: { etagDoesNotMatch: '*' },
       httpMetadata: { contentType: row.content_type },
       customMetadata: {
         ownerId: session.user.id,
@@ -658,6 +769,7 @@ async function uploadMedia(request, env, id) {
         durationMs: inspected.durationMs == null ? '' : String(inspected.durationMs),
       },
     });
+    if (!stored) return apiError(409, 'UPLOAD_ALREADY_STORED', 'This media was already stored. Refresh its status or add the file again.');
   } catch {
     return apiError(502, 'R2_UPLOAD_FAILED', 'The media could not be stored. Try again.');
   }
@@ -667,9 +779,13 @@ async function uploadMedia(request, env, id) {
     height: inspected.height,
     duration_ms: inspected.durationMs,
     upload_status: 'uploaded',
-  });
+  }).catch(() => null);
   if (!patched) {
-    await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
+    const removed = await deleteMediaRow(session, id, 'pending').catch(() => false);
+    if (removed) {
+      if (row.media_kind === 'video') await cleanupMediaChunks(env.SAUTI_MEDIA, row).catch(() => {});
+      await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
+    }
     return apiError(409, 'UPLOAD_METADATA_FAILED', 'The upload could not be recorded.');
   }
 
@@ -677,6 +793,9 @@ async function uploadMedia(request, env, id) {
 }
 
 async function createSautiVideoVariant(env, row, id, quality) {
+  // This binding buffers its output. Large uploads use Stream adaptive playback
+  // or streamed original bytes rather than creating an unbounded Worker buffer.
+  if (Number(row?.size_bytes) > 32 * 1024 * 1024) return '';
   const dimensions = videoVariantDimensions(row, quality);
   const objectKey = sautiVideoVariantObjectKey(row?.object_key, quality);
   if (!dimensions || !objectKey || !env?.MEDIA || !env?.SAUTI_MEDIA) {
@@ -822,6 +941,7 @@ async function removeUpload(request, env, id) {
   const deleted = await deleteMediaRow(session, id);
   if (!deleted) return apiError(409, 'MEDIA_REMOVE_FAILED', 'The media could not be removed.');
   await deleteSautiStreamVideo(env, row);
+  await cleanupMediaChunks(env.SAUTI_MEDIA, row).catch(() => {});
   await Promise.all(sautiMediaObjectKeys(row).map((key) => env.SAUTI_MEDIA.delete(key).catch(() => {})));
   return json(200, { ok: true, data: { id, removed: true } });
 }
@@ -835,7 +955,7 @@ async function serveOriginalMedia(request, env, row, id) {
   if (!rangeHeader && requestHasEtag(request, etag)) return new Response(null, { status: 304, headers });
 
   if (request.method === 'HEAD') {
-    const object = await env.SAUTI_MEDIA.head(row.object_key);
+    const object = await mediaDeliveryPhase('ORIGINAL_R2_HEAD', () => env.SAUTI_MEDIA.head(row.object_key));
     if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
     object.writeHttpMetadata(headers);
     headers.set('Cache-Control', video ? 'private, max-age=300, must-revalidate' : 'private, no-store, max-age=0');
@@ -845,10 +965,10 @@ async function serveOriginalMedia(request, env, row, id) {
     return new Response(null, { status: 200, headers });
   }
 
-  const object = await env.SAUTI_MEDIA.get(
+  const object = await mediaDeliveryPhase('ORIGINAL_R2_GET', () => env.SAUTI_MEDIA.get(
     row.object_key,
     rangeHeader ? { range: boundedSautiVideoRange(rangeHeader, row.size_bytes) || request.headers } : undefined,
-  );
+  ));
   if (!object) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
   object.writeHttpMetadata(headers);
   headers.set('Cache-Control', video ? 'private, max-age=300, must-revalidate' : 'private, no-store, max-age=0');
@@ -912,10 +1032,10 @@ async function serveVideoVariant(request, env, row, id, quality, ctx = null) {
     return new Response(null, { status: 200, headers });
   }
 
-  const object = await env.SAUTI_MEDIA.get(
+  const object = await mediaDeliveryPhase('VARIANT_R2_GET', () => env.SAUTI_MEDIA.get(
     objectKey,
     rangeHeader ? { range: boundedSautiVideoRange(rangeHeader, available.size) || request.headers } : undefined,
-  );
+  ));
   if (!object) return serveOriginalMedia(request, env, row, id);
   object.writeHttpMetadata(headers);
   headers.set('Content-Security-Policy', "default-src 'none'");
@@ -1055,7 +1175,7 @@ export async function servePublicSautiMediaPreview(request, env, media) {
 async function serveMedia(request, env, id, ctx = null) {
   if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Post media is not enabled yet.');
   const deliveryAuth = mediaDeliveryAuthorization(request);
-  const row = await selectVideoMediaForDelivery(request, id, deliveryAuth);
+  const row = await mediaDeliveryPhase('METADATA_LOOKUP', () => selectVideoMediaForDelivery(request, id, deliveryAuth));
   if (!row || !['ready', 'attached'].includes(row.upload_status)) return apiError(404, 'MEDIA_NOT_FOUND', 'This media is unavailable.');
 
   const url = new URL(request.url);
@@ -1066,6 +1186,9 @@ async function serveMedia(request, env, id, ctx = null) {
 
   const width = normalizeSautiMediaVariantWidth(url.searchParams.get('w'));
   const quality = normalizeSautiVideoQuality(url.searchParams.get('quality'));
+  const indexed = !posterOnly && row.media_kind === 'video'
+    ? await servePrecomputedOriginalIndex(request, env, row, mediaDeliveryPhase) : null;
+  if (indexed) return indexed;
   if (posterOnly) return serveVideoPoster(request, env, row, id);
   if (width && row.media_kind === 'image') return serveImageVariant(request, env, row, id, width);
   if (quality && row.media_kind === 'video') return serveVideoVariant(request, env, row, id, quality, ctx);
@@ -1107,8 +1230,59 @@ async function serveStreamHls(request, env, id) {
   return timing.response(await timing.hls(() => serveSautiStreamHls(request, env, asset, { basePath: `/api/sauti-media/${id}/hls/`, accessScope: auth })));
 }
 
+async function downloadShortVideo(request, env, id) {
+  if (!env.SAUTI_MEDIA) return apiError(503, 'MEDIA_NOT_READY', 'Video downloads are unavailable.');
+  const session = await authenticate(request);
+  if (!session) return apiError(401, 'AUTH_REQUIRED', 'Sign in to download a video.');
+  // These reads intentionally bypass the burst playback cache. Public visibility
+  // does not bypass RLS for blocked, removed or otherwise unavailable posts.
+  const row = await selectMedia(id, session.auth);
+  if (!row || row.upload_status !== 'attached' || row.media_kind !== 'video' || row.content_type !== 'video/mp4'
+    || !row.post_id || row.object_key !== `sauti/${row.owner_id}/${id}.mp4`) {
+    return apiError(404, 'VIDEO_UNAVAILABLE', 'This video is unavailable for download.');
+  }
+  const params = new URLSearchParams({ id: `eq.${row.post_id}`, circle_id: 'is.null', parent_post_id: 'is.null',
+    visibility: 'eq.public', post_status: 'eq.published', deleted_at: 'is.null', moderation_state: 'eq.visible',
+    select: 'id,author_id', limit: '1' });
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/social_posts?${params}`, { headers: supabaseHeaders(session.auth) });
+  const posts = response.ok ? await response.json().catch(() => []) : [];
+  if (!Array.isArray(posts) || posts[0]?.id !== row.post_id || posts[0]?.author_id !== row.owner_id) {
+    return apiError(404, 'VIDEO_UNAVAILABLE', 'This video is unavailable for download.');
+  }
+  const source = await env.SAUTI_MEDIA.head(row.object_key);
+  if (!source?.etag || source.size !== Number(row.size_bytes) || source.size < 1 || source.size > POST_VIDEO_LIMIT
+    || source.customMetadata?.ownerId !== row.owner_id || source.customMetadata?.mediaId !== id
+    || source.customMetadata?.validated !== 'true') return apiError(404, 'VIDEO_UNAVAILABLE', 'This video is unavailable for download.');
+  const etag = source.httpEtag || `"${source.etag}"`;
+  let range;
+  const requestedRange = request.headers.get('Range');
+  if (requestedRange && (!request.headers.has('If-Range') || request.headers.get('If-Range') === etag)) {
+    const match = /^bytes=(\d+)-(\d*)$/.exec(requestedRange);
+    const offset = Number(match?.[1]);
+    const end = match?.[2] ? Number(match[2]) : source.size - 1;
+    if (!match || !Number.isSafeInteger(offset) || !Number.isSafeInteger(end) || offset < 0 || end < offset || end >= source.size) {
+      return new Response(null, { status: 416, headers: { 'Cache-Control': 'no-store', 'Content-Range': `bytes */${source.size}` } });
+    }
+    range = { offset, length: end - offset + 1 };
+  }
+  const headers = new Headers({ 'Content-Type': 'video/mp4', 'Content-Disposition': `attachment; filename="SautiLink-${id}.mp4"`,
+    'Content-Length': String(range?.length || source.size), 'Cache-Control': 'private, no-store', 'ETag': etag,
+    'Accept-Ranges': 'bytes', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
+    'Content-Security-Policy': "default-src 'none'" });
+  if (range) headers.set('Content-Range', `bytes ${range.offset}-${range.offset + range.length - 1}/${source.size}`);
+  if (request.method === 'HEAD') return new Response(null, { status: range ? 206 : 200, headers });
+  // R2's existing canonical MP4 is streamed, never buffered, transcoded again or
+  // exposed as a public/provider URL. The ETag binds the HEAD to the body read.
+  const object = await env.SAUTI_MEDIA.get(row.object_key, { onlyIf: { etagMatches: source.etag }, ...(range ? { range } : {}) });
+  if (!object?.body || object.etag !== source.etag) return apiError(404, 'VIDEO_UNAVAILABLE', 'This video is unavailable for download.');
+  return new Response(object.body, { status: range ? 206 : 200, headers });
+}
+
 export async function handleSautiMediaRequest(request, env, ctx = null) {
   const url = new URL(request.url);
+
+  const downloadMatch = url.pathname.match(/^\/api\/sauti-media\/([0-9a-f-]{36})\/download$/i);
+  if (downloadMatch && ['GET', 'HEAD'].includes(request.method)) return downloadShortVideo(request, env, uuid(downloadMatch[1]));
 
   let streamMatch = url.pathname.match(/^\/api\/sauti-media\/([0-9a-f-]{36})\/stream-source$/i);
   if (streamMatch && ['GET', 'HEAD'].includes(request.method)) return serveSautiStreamSource(request, env, uuid(streamMatch[1]));
