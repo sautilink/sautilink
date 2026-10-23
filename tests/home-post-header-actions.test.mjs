@@ -25,7 +25,8 @@ test('Home alone receives compact follow and post-menu header controls', async (
 test('follow state hydrates from Supabase and changes optimistically across author cards', async () => {
   const source = await read('src/app.js');
 
-  assert.match(source, /\.from\('social_follows'\)[\s\S]*\.eq\('follower_id', currentMemberId\)[\s\S]*\.in\('followed_id', authorIds\)/);
+  assert.match(source, /const viewerId = currentMemberId;/);
+  assert.match(source, /\.from\('social_follows'\)[\s\S]*\.eq\('follower_id', viewerId\)[\s\S]*\.in\('followed_id', authorIds\)/);
   assert.match(source, /function setHomeAuthorFollowState\(authorId, following/);
   assert.match(source, /setHomeAuthorFollowState\(authorId, following, \{ pending: true \}\);[\s\S]*await socialMutation/);
   assert.match(source, /\/api\/social\/follow\/\$\{encodeURIComponent\(username\)\}/);

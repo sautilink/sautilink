@@ -4473,63 +4473,10 @@ async function loadQuotedPostMap(posts) {
   return new Map((data || []).map((post) => [post.id, post]));
 }
 
-async function hydrateStreamEvents(events) {
-  if (!events.length) return [];
-
-  const postIds = [...new Set(events.map((event) => event.post_id).filter(Boolean))];
-  const actorIds = [...new Set(events.map((event) => event.actor_id).filter(Boolean))];
-
-  const postQuery = supabase
-    .from('social_posts')
-    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
-    .in('id', postIds);
-
-  const actorQuery = supabase
-    .from('social_profiles')
-    .select('id, username, display_name, is_discoverable, is_verified, verification_badge_type')
-    .in('id', actorIds);
-
-  const likeQuery = supabase
-    .from('social_post_reactions')
-    .select('post_id,reaction_type')
-    .eq('user_id', currentMemberId)
-    .in('post_id', postIds);
-
-  const repostQuery = supabase
-    .from('social_reposts')
-    .select('post_id')
-    .eq('user_id', currentMemberId)
-    .in('post_id', postIds);
-
-  const savedQuery = supabase
-    .from('social_saved_posts')
-    .select('post_id')
-    .eq('user_id', currentMemberId)
-    .in('post_id', postIds);
-
-  const [
-    { data: posts, error: postsError },
-    { data: actors, error: actorsError },
-    { data: likes, error: likesError },
-    { data: reposts, error: repostsError },
-    { data: saves, error: savesError },
-  ] = await Promise.all([postQuery, actorQuery, likeQuery, repostQuery, savedQuery]);
-
-  if (postsError || actorsError || likesError || repostsError || savesError) {
-    throw postsError || actorsError || likesError || repostsError || savesError;
-  }
-
-  const quoteMap = await loadQuotedPostMap(posts || []);
-  const postMap = new Map((posts || []).map((post) => [post.id, post]));
-  const actorMap = new Map((actors || []).map((profile) => [profile.id, profile]));
-  const liked = new Set((likes || []).filter((row) => row.reaction_type === 'like').map((row) => row.post_id));
-  const disliked = new Set((likes || []).filter((row) => row.reaction_type === 'dislike').map((row) => row.post_id));
-  const reposted = new Set((reposts || []).map((row) => row.post_id));
-  const saved = new Set((saves || []).map((row) => row.post_id));
-
+async function loadStreamAuthorState(posts, viewerId) {
   const authorIds = [...new Set((posts || [])
     .map((post) => post.author_id)
-    .filter((authorId) => authorId && authorId !== currentMemberId))];
+    .filter((authorId) => authorId && authorId !== viewerId))];
   let followedAuthors = new Set();
   let authorsFollowingViewer = new Set();
   let interestedAuthors = new Set();
@@ -4538,17 +4485,17 @@ async function hydrateStreamEvents(events) {
       supabase
         .from('social_follows')
         .select('followed_id')
-        .eq('follower_id', currentMemberId)
+        .eq('follower_id', viewerId)
         .in('followed_id', authorIds),
       supabase
         .from('social_follows')
         .select('follower_id')
         .in('follower_id', authorIds)
-        .eq('followed_id', currentMemberId),
+        .eq('followed_id', viewerId),
       supabase
         .from('social_feed_author_interests')
         .select('author_id')
-        .eq('user_id', currentMemberId)
+        .eq('user_id', viewerId)
         .in('author_id', authorIds),
     ]);
     if (followResult.error || reverseFollowResult.error || interestResult.error) {
@@ -4558,6 +4505,89 @@ async function hydrateStreamEvents(events) {
     authorsFollowingViewer = new Set((reverseFollowResult.data || []).map((row) => row.follower_id));
     interestedAuthors = new Set((interestResult.data || []).map((row) => row.author_id));
   }
+  return { followedAuthors, authorsFollowingViewer, interestedAuthors };
+}
+
+async function hydrateStreamEvents(events) {
+  if (!events.length) return [];
+
+  const viewerId = currentMemberId;
+  const postIds = [...new Set(events.map((event) => event.post_id).filter(Boolean))];
+  // Ordinary posts already contain their author identity in the post join.
+  // A separate actor identity is needed only for the repost attribution row.
+  const actorIds = [...new Set(events.filter((event) => event.event_type === 'repost')
+    .map((event) => event.actor_id).filter(Boolean))];
+
+  const postQuery = supabase
+    .from('social_posts')
+    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+    .in('id', postIds);
+
+  const actorQuery = actorIds.length ? supabase
+    .from('social_profiles')
+    .select('id, username, display_name, is_discoverable, is_verified, verification_badge_type')
+    .in('id', actorIds) : Promise.resolve({ data: [], error: null });
+
+  const likeQuery = supabase
+    .from('social_post_reactions')
+    .select('post_id,reaction_type')
+    .eq('user_id', viewerId)
+    .in('post_id', postIds);
+
+  const repostQuery = supabase
+    .from('social_reposts')
+    .select('post_id')
+    .eq('user_id', viewerId)
+    .in('post_id', postIds);
+
+  const savedQuery = supabase
+    .from('social_saved_posts')
+    .select('post_id')
+    .eq('user_id', viewerId)
+    .in('post_id', postIds);
+
+  // Supabase query builders are thenables: share one native promise so the post
+  // HTTP read executes once. Its dependent reads can start before unrelated
+  // reactions, actor identities or media metadata finish.
+  const postsPromise = Promise.resolve(postQuery);
+  const settled = (read) => Promise.resolve(read)
+    .then((value) => ({ value }), (error) => ({ error }));
+  const dependencies = settled(postsPromise.then(({ data: posts, error }) => {
+    if (error) return null;
+    return {
+      quote: settled(loadQuotedPostMap(posts || [])),
+      author: settled(loadStreamAuthorState(posts || [], viewerId)),
+    };
+  }));
+
+  const [
+    { data: posts, error: postsError },
+    { data: actors, error: actorsError },
+    { data: likes, error: likesError },
+    { data: reposts, error: repostsError },
+    { data: saves, error: savesError },
+  ] = await Promise.all([postsPromise, actorQuery, likeQuery, repostQuery, savedQuery]);
+
+  if (postsError || actorsError || likesError || repostsError || savesError) {
+    throw postsError || actorsError || likesError || repostsError || savesError;
+  }
+
+  // Preserve the original observable error precedence: base reads, then quoted
+  // posts, then author relationships. Every early rejection is captured above.
+  const dependencyOutcome = await dependencies;
+  if ('error' in dependencyOutcome) throw dependencyOutcome.error;
+  const quoteOutcome = await dependencyOutcome.value.quote;
+  if ('error' in quoteOutcome) throw quoteOutcome.error;
+  const authorOutcome = await dependencyOutcome.value.author;
+  if ('error' in authorOutcome) throw authorOutcome.error;
+  const quoteMap = quoteOutcome.value;
+  const { followedAuthors, authorsFollowingViewer, interestedAuthors } = authorOutcome.value;
+  const postMap = new Map((posts || []).map((post) => [post.id, post]));
+  const actorMap = new Map((actors || []).map((profile) => [profile.id, profile]));
+  const liked = new Set((likes || []).filter((row) => row.reaction_type === 'like').map((row) => row.post_id));
+  const disliked = new Set((likes || []).filter((row) => row.reaction_type === 'dislike').map((row) => row.post_id));
+  const reposted = new Set((reposts || []).map((row) => row.post_id));
+  const saved = new Set((saves || []).map((row) => row.post_id));
 
   return events
     .map((event) => ({

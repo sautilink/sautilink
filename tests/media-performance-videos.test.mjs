@@ -357,6 +357,7 @@ test('a stalled Home stream switches to an authorized blob and keeps the viewer 
     src: `https://sautilink.com/api/sauti-media/${MEDIA_ID}?quality=360`,
     isConnected: true,
     readyState: 0,
+    paused: false,
     dataset: {},
     addEventListener(name, listener) { if (name === 'loadedmetadata') loaded = listener; },
     load() {},
