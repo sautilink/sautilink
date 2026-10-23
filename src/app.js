@@ -13,6 +13,7 @@ import { notificationPostDestination } from './notification-destinations.js';
 import { disposeDmTimeline, reconcileDmTimeline } from './messages-timeline-ui.js';
 import { createMemberCommentSheet } from './member-comment-sheet.js';
 import { createMemberSurfaceRetention } from './member-surface-retention.js';
+import { installHomeFeedPagination } from './home-feed-pagination.js';
 import { normalizeOtpPhone, otpPhoneError } from './phone-number-validation.js';
 import {
   displayNameError,
@@ -191,6 +192,7 @@ let moderationRequestId = 0;
 const profileMediaPresence = { avatar: false, header: false };
 const profileMediaObjectUrls = { avatar: '', header: '' };
 const STREAM_PAGE_SIZE = 20;
+const STREAM_INITIAL_PAGE_SIZE = 5;
 const HOME_FEED_COPY = Object.freeze({
   'for-you': {
     rpcMode: 'for_you',
@@ -4446,10 +4448,15 @@ function renderStreamRows(rows, { reset = false } = {}) {
     clearHomeFeedMediaState();
     feed.replaceChildren();
   }
+  const renderedKeys = new Set([...feed.querySelectorAll('.sauti-card[data-event-key]')]
+    .map((card) => card.dataset.eventKey));
   rows.forEach((item) => {
+    const key = item.event_key || item.post?.id;
+    if (key && renderedKeys.has(key)) return;
     const card = createSautiCard(item, { home: true });
     if (!card) return;
     feed.append(card);
+    if (key) renderedKeys.add(key);
   });
 
   const hasRows = feed.childElementCount > 0;
@@ -4673,6 +4680,7 @@ async function loadStream({ reset = false } = {}) {
   const loading = byId('stream-loading');
   const error = byId('stream-error');
   const loadMore = byId('stream-load-more');
+  const previousPage = { offset: streamOffset, cursor: streamCursor, hasMore: streamHasMore };
 
   if (reset) {
     streamCursor = null;
@@ -4688,26 +4696,31 @@ async function loadStream({ reset = false } = {}) {
 
   try {
     const modeAtRequest = activeHomeFeed;
+    const offsetAtRequest = streamOffset;
+    const pageSize = offsetAtRequest === 0 ? STREAM_INITIAL_PAGE_SIZE : STREAM_PAGE_SIZE;
     const { data, error: queryError } = await supabase.rpc('social_home_feed', {
       p_mode: HOME_FEED_COPY[modeAtRequest].rpcMode,
-      p_limit: STREAM_PAGE_SIZE + 1,
-      p_offset: streamOffset,
+      p_limit: pageSize + 1,
+      p_offset: offsetAtRequest,
     });
     if (queryError) throw queryError;
     if (requestId !== streamRequest || modeAtRequest !== activeHomeFeed) return;
 
     const rows = Array.isArray(data) ? data : [];
-    streamHasMore = rows.length > STREAM_PAGE_SIZE;
-    const page = rows.slice(0, STREAM_PAGE_SIZE);
-    const last = page[page.length - 1];
-    if (last) streamCursor = { createdAt: last.event_at, id: last.event_key };
-    streamOffset += page.length;
+    const page = rows.slice(0, pageSize);
 
     const hydrated = await hydrateStreamEvents(page);
     if (requestId !== streamRequest || modeAtRequest !== activeHomeFeed) return;
+    streamHasMore = rows.length > pageSize;
+    const last = page[page.length - 1];
+    if (last) streamCursor = { createdAt: last.event_at, id: last.event_key };
+    streamOffset = offsetAtRequest + page.length;
     renderStreamRows(hydrated, { reset });
   } catch {
     if (requestId !== streamRequest) return;
+    streamOffset = previousPage.offset;
+    streamCursor = previousPage.cursor;
+    streamHasMore = previousPage.hasMore;
     if (reset) byId('stream-feed').replaceChildren();
     error.hidden = false;
     byId('stream-more').hidden = true;
@@ -11486,5 +11499,21 @@ async function bootstrap() {
     await applyLocationRoute();
   }
 }
+
+function homeFeedPaginationAuthorized() {
+  return Boolean(currentMember && currentMemberId && !recoverySession);
+}
+
+installHomeFeedPagination({
+  feed: byId('stream-feed'), more: byId('stream-more'), button: byId('stream-load-more'),
+  state: () => ({ ownerId: currentMemberId, mode: activeHomeFeed, epoch: streamRequest,
+    offset: streamOffset, busy: streamLoading, hasMore: streamHasMore,
+    authorized: homeFeedPaginationAuthorized(),
+    active: !memberView.hidden && !streamSurface.hidden && !document.hidden
+      && /^\/(?:home|app)\/?$/.test(window.location.pathname)
+      && !document.documentElement.classList.contains('sauti-short-videos-open')
+      && !document.querySelector('dialog[open]') }),
+  loadMore: () => loadStream(),
+});
 
 bootstrap();

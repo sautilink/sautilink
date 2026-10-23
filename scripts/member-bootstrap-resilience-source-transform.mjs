@@ -24,9 +24,9 @@ const READ_RETRY_TIMEOUT_MS = 5000;
 const READ_RETRY_DELAYS_MS = [0, 180, 650];
 const MEMBER_CACHE_PREFIX = 'sautilink.member.cache.v1:';
 const initialHomeFeedRead = createHomeFeedStartupRead({
-  request: ({ mode, offset, signal }) => supabase.rpc('social_home_feed', {
+  request: ({ mode, offset, limit, signal }) => supabase.rpc('social_home_feed', {
     p_mode: HOME_FEED_COPY[mode].rpcMode,
-    p_limit: STREAM_PAGE_SIZE + 1,
+    p_limit: limit,
     p_offset: offset,
   }).abortSignal(signal),
   context: () => ({ pathname: window.location.pathname, mode: activeHomeFeed,
@@ -35,6 +35,7 @@ const initialHomeFeedRead = createHomeFeedStartupRead({
   setTimer: (callback, delay) => window.setTimeout(callback, delay),
   clearTimer: (timer) => window.clearTimeout(timer),
   requestTimeoutMs: READ_RETRY_TIMEOUT_MS,
+  initialPageSize: STREAM_INITIAL_PAGE_SIZE,
 });
 window.addEventListener('popstate', () => initialHomeFeedRead.reconcile());
 window.addEventListener('sautilink:routechange', () => initialHomeFeedRead.reconcile());
@@ -447,6 +448,7 @@ const resilientStreamBlock = `async function loadStream({ reset = false } = {}) 
   const loadMore = byId('stream-load-more');
   const feed = byId('stream-feed');
   const hadRenderedFeed = feed.childElementCount > 0;
+  const previousPage = { offset: streamOffset, cursor: streamCursor, hasMore: streamHasMore };
 
   if (reset) {
     streamCursor = null;
@@ -466,6 +468,8 @@ const resilientStreamBlock = `async function loadStream({ reset = false } = {}) 
 
   try {
     const modeAtRequest = activeHomeFeed;
+    const offsetAtRequest = streamOffset;
+    const pageSize = offsetAtRequest === 0 ? STREAM_INITIAL_PAGE_SIZE : STREAM_PAGE_SIZE;
     const requestIsCurrent = () => requestId === streamRequest && modeAtRequest === activeHomeFeed
       && memberIdAtRequest === currentMemberId && !recoverySession
       && initialHomeFeedRead.isCurrentAuthorization(authorizationAtRequest);
@@ -477,34 +481,38 @@ const resilientStreamBlock = `async function loadStream({ reset = false } = {}) 
       }
       return supabase.rpc('social_home_feed', {
         p_mode: HOME_FEED_COPY[modeAtRequest].rpcMode,
-        p_limit: STREAM_PAGE_SIZE + 1,
-        p_offset: streamOffset,
+        p_limit: pageSize + 1,
+        p_offset: offsetAtRequest,
       });
     };
     const streamResult = await resilientRead(
       () => initialHomeFeedRead.take({ ownerId: memberIdAtRequest, mode: modeAtRequest,
-        offset: streamOffset, requestId, reset, requestFresh: fetchFeedPage }) || fetchFeedPage(),
+        offset: offsetAtRequest, pageSize, requestId, reset, requestFresh: fetchFeedPage }) || fetchFeedPage(),
       { attempts: READ_RETRY_ATTEMPTS, timeoutMs: READ_RETRY_TIMEOUT_MS },
     );
 
     if (!requestIsCurrent()) return;
 
     const rows = Array.isArray(streamResult?.data) ? streamResult.data : [];
-    streamHasMore = rows.length > STREAM_PAGE_SIZE;
-    const page = rows.slice(0, STREAM_PAGE_SIZE);
-    const last = page[page.length - 1];
-    if (last) streamCursor = { createdAt: last.event_at, id: last.event_key };
-    streamOffset += page.length;
+    const page = rows.slice(0, pageSize);
 
     const hydrated = await resilientRead(
       () => hydrateStreamEvents(page),
       { attempts: READ_RETRY_ATTEMPTS, timeoutMs: READ_RETRY_TIMEOUT_MS + 2000 },
     );
     if (!requestIsCurrent()) return;
+    streamHasMore = rows.length > pageSize;
+    const last = page[page.length - 1];
+    if (last) streamCursor = { createdAt: last.event_at, id: last.event_key };
+    streamOffset = offsetAtRequest + page.length;
     renderStreamRows(hydrated, { reset });
   } catch {
     if (requestId !== streamRequest || memberIdAtRequest !== currentMemberId
       || !initialHomeFeedRead.isCurrentAuthorization(authorizationAtRequest)) return;
+
+    streamOffset = previousPage.offset;
+    streamCursor = previousPage.cursor;
+    streamHasMore = previousPage.hasMore;
 
     // Never blank a feed the member was already reading because a background
     // refresh had a transient failure. Only show the blocking error if this
@@ -529,6 +537,11 @@ const resilientStreamBlock = `async function loadStream({ reset = false } = {}) 
 function sautiCardsForPost`;
 
   output = output.replace(streamBlockPattern, resilientStreamBlock);
+
+  const paginationAdmission = 'return Boolean(currentMember && currentMemberId && !recoverySession);';
+  if (!output.includes(paginationAdmission)) throw new Error('Could not find the Home pagination admission guard.');
+  output = output.replace(paginationAdmission,
+    'return Boolean(currentMember && currentMemberId && !recoverySession && initialHomeFeedRead.authorization(currentMemberId));');
 
   for (const [before, after, label] of [
     ['function showAuthPanel(name) {', 'function showAuthPanel(name) {\n  initialHomeFeedRead.invalidate();\n  streamRequest += 1;\n  streamLoading = false;', 'auth-panel invalidation'],

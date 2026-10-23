@@ -31,6 +31,10 @@ function nodes() {
       get childElementCount() { return this.children.length; },
       replaceChildren(...children) { this.children = children; },
       append(child) { this.children.push(child); },
+      querySelectorAll(selector) {
+        assert.equal(selector, '.sauti-card[data-event-key]');
+        return this.children.filter(child => child.dataset?.eventKey);
+      },
     });
     return map.get(id);
   };
@@ -305,7 +309,7 @@ test('explicit Home refresh still performs the normal fresh query even inside th
   const waiting = deferred();
   let reads = 0, commits = 0;
   const h = context({ streamLoading: false, streamRequest: 0, streamCursor: null, streamOffset: 0, recoverySession: false,
-    streamHasMore: false, STREAM_PAGE_SIZE: 20, HOME_FEED_COPY: { 'for-you': { rpcMode: 'for_you' } },
+    streamHasMore: false, STREAM_PAGE_SIZE: 20, STREAM_INITIAL_PAGE_SIZE: 5, HOME_FEED_COPY: { 'for-you': { rpcMode: 'for_you' } },
     syncHomeFeedModeUi() {}, clearHomeFeedMediaState() {},
     resilientRead: (operation) => operation(), READ_RETRY_ATTEMPTS: 3, READ_RETRY_TIMEOUT_MS: 8000,
     supabase: { rpc() { reads++; return waiting.promise; } }, hydrateStreamEvents: async (rows) => rows,

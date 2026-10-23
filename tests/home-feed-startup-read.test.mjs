@@ -40,6 +40,7 @@ test('first Home RPC starts during admission and its one thenable result can be 
   h.reader.begin('A'); await tick();
   assert.equal(h.operations.length, 1); assert.equal(h.value.memberId, '');
   assert.equal(h.operations[0].mode, 'for-you'); assert.equal(h.operations[0].offset, 0);
+  assert.equal(h.operations[0].limit, 6, 'five first posts plus one pagination sentinel');
   h.operations[0].gate.resolve({ data: [{ post_id: 'fresh' }], error: null }); await tick();
   assert.equal(h.operations[0].executions, 1);
   h.admit(); const result = h.take(); assert.equal(h.take(), null);
@@ -54,6 +55,7 @@ test('missing admission, wrong owner/mode/offset/request generation and non-rese
     h => { h.admit(); h.value.mode = 'following'; },
     h => { h.admit(); h.value.requestEpoch++; },
     h => { h.admit(); return { offset: 20 }; },
+    h => { h.admit(); return { pageSize: 20 }; },
     h => { h.admit(); return { reset: false }; },
   ]) {
     const h = harness(); h.reader.begin('A'); await tick();
@@ -177,7 +179,7 @@ async function flowHarness() {
     streamLoading: false, streamRequest: 0, streamOffset: 0, streamCursor: null, streamHasMore: false,
     memberLoadPromise: null, memberLoadUserId: '', recoverySession: false,
     MEMBER_BOOT_TIMEOUT_MS: 4500, READ_RETRY_ATTEMPTS: 3, READ_RETRY_TIMEOUT_MS: 5000, READ_RETRY_DELAYS_MS: [0, 1, 1],
-    STREAM_PAGE_SIZE: 20, HOME_FEED_COPY: { 'for-you': { rpcMode: 'for_you' } },
+    STREAM_PAGE_SIZE: 20, STREAM_INITIAL_PAGE_SIZE: 5, HOME_FEED_COPY: { 'for-you': { rpcMode: 'for_you' } },
     window: { setTimeout, clearTimeout }, syncHomeFeedModeUi() {}, clearHomeFeedMediaState() {},
     byId(id) { if (id === 'stream-feed') return feed; if (!nodes.has(id)) nodes.set(id, { hidden: true }); return nodes.get(id); },
     hydrateStreamEvents: async rows => rows,
