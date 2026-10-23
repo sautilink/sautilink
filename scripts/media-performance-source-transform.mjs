@@ -521,21 +521,24 @@ function waitForSautiMediaNearViewport(tile, poster = false) {
   });
 }
 
-async function fetchSautiMediaBlobUrl(id, variantWidth = 0, tile = null) {
+async function fetchSautiMediaBlobUrl(id, variantWidth = 0, tile = null, stillWanted = null) {
   const owner = currentMemberId;
+  const isCurrent = () => owner === currentMemberId && (!tile || tile.isConnected)
+    && (!stillWanted || stillWanted());
   return runMediaPreviewRequest(async (signal) => {
-    if (owner !== currentMemberId) throw new Error('MEDIA_PREVIEW_CANCELLED');
+    if (!isCurrent()) throw new Error('MEDIA_PREVIEW_CANCELLED');
     const headers = await currentAuthorizationHeader();
-    if (owner !== currentMemberId) throw new Error('MEDIA_PREVIEW_CANCELLED');
+    signal.throwIfAborted();
+    if (!isCurrent()) throw new Error('MEDIA_PREVIEW_CANCELLED');
     const url = new URL(\`/api/sauti-media/\${encodeURIComponent(id)}\`, window.location.origin);
     if (variantWidth) url.searchParams.set('w', String(variantWidth));
     const response = await fetch(\`\${url.pathname}\${url.search}\`, { headers, signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) });
     if (!response.ok) throw new Error('MEDIA_PREVIEW_FAILED');
     const blob = await readMediaPreviewBlob(response);
     signal.throwIfAborted();
-    if (owner !== currentMemberId) throw new Error('MEDIA_PREVIEW_CANCELLED');
+    if (!isCurrent()) throw new Error('MEDIA_PREVIEW_CANCELLED');
     return URL.createObjectURL(blob);
-  }, { isCurrent: () => owner === currentMemberId && (!tile || tile.isConnected), priority: () => mediaPreviewPriority(tile) });
+  }, { isCurrent, priority: () => mediaPreviewPriority(tile) });
 }
 
 async function loadSautiVideoPoster(id, button) {
@@ -568,15 +571,23 @@ async function loadSautiVideoPoster(id, button) {
 function enableSautiVideoBlobFallback(video, button, id) {
   const isStreaming = () => video.dataset.sautiStreamManaged !== 'true' && video.dataset.sautiPreparing !== 'true'
     && video.src.includes('/api/sauti-media/');
-  let timer = 0;
+  const isWanted = () => video.isConnected && !video.paused && video.readyState < 1 && isStreaming()
+    && window.SautiLinkStreamPlayback?.eligible?.(video) !== false;
+  let timer = 0, pending = false, attempted = false;
+  const clearTimer = () => {
+    window.clearTimeout(timer); timer = 0;
+    runMediaPreviewRequest.wake?.();
+  };
   const startTimer = () => {
-    if (timer) return;
+    if (timer || pending || attempted || !isWanted()) return;
     timer = window.setTimeout(async () => {
-      if (!video.isConnected || video.readyState >= 1 || !isStreaming()) return;
+      timer = 0;
+      if (!isWanted()) return;
+      pending = true; attempted = true;
       let blobUrl = '';
       try {
-        blobUrl = await fetchSautiMediaBlobUrl(id, 0, button);
-        if (!video.isConnected || video.readyState >= 1 || !isStreaming()) {
+        blobUrl = await fetchSautiMediaBlobUrl(id, 0, button, isWanted);
+        if (!isWanted()) {
           URL.revokeObjectURL(blobUrl);
           return;
         }
@@ -591,12 +602,18 @@ function enableSautiVideoBlobFallback(video, button, id) {
         syncHomeFeedVideoPlayback();
       } catch {
         if (blobUrl) URL.revokeObjectURL(blobUrl);
-      }
+      } finally { pending = false; }
     }, 4000);
   };
-  video.addEventListener('loadedmetadata', () => window.clearTimeout(timer), { once: true });
-  if (getVideoAutoplayPreference()) startTimer();
-  else video.addEventListener('play', startTimer, { once: true });
+  video.addEventListener('loadedmetadata', clearTimer);
+  video.addEventListener('pause', () => { attempted = false; clearTimer(); });
+  video.addEventListener('emptied', clearTimer);
+  video.addEventListener('play', () => { attempted = false; startTimer(); });
+  video.addEventListener('waiting', startTimer);
+  video.addEventListener('stalled', startTimer);
+  video.addEventListener('sautilink:video-quality-applied', () => { if (!isWanted()) clearTimer(); });
+  video.addEventListener('sautilink:video-preparing', (event) => { if (event.detail?.active) clearTimer(); else startTimer(); });
+  if (!video.paused) startTimer();
 }`,
     'the protected Sauti media fetch helper',
   );
@@ -706,6 +723,13 @@ function clearHomeFeedMediaState() {
       }
       if (visual instanceof HTMLVideoElement) visual.preload = 'none';`,
     'the Home video poster attachment',
+  );
+
+  output = replaceExactOnce(
+    output,
+    `        visual.preload = getVideoAutoplayPreference() ? 'metadata' : 'none';`,
+    `        visual.preload = 'none';`,
+    'the final Home legacy video preload guard',
   );
 
   output = replaceExactOnce(
