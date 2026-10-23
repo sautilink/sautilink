@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.home.AuthorizedImage
 import com.sautilink.nativeapp.feature.home.StagingFeedPost
@@ -44,9 +45,9 @@ internal fun ShortsAuthorIdentityRow(auth: StagingAuthClient, post: StagingFeedP
             fallback = { SautiAvatar(initial, Modifier.fillMaxSize(), SautiColors.Blue) })
         else SautiAvatar(initial, avatar, SautiColors.Blue)
         Column(Modifier.weight(1f).clickable(enabled = handleValid) { onOpenProfile(post.authorHandle) },
-            verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            verticalArrangement = Arrangement.Top) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(post.authorName, color = Color.White, style = MaterialTheme.typography.titleSmall,
+                Text(post.authorName, color = Color.White, style = MaterialTheme.typography.titleSmall.copy(lineHeight = 18.sp),
                     fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false))
                 SautiVerificationBadge(post.verified, post.badgeType, post.authorName, size = 13.dp, onDarkSurface = true)
@@ -58,7 +59,7 @@ internal fun ShortsAuthorIdentityRow(auth: StagingAuthClient, post: StagingFeedP
                     withStyle(SpanStyle(color = SautiColors.Yellow, fontWeight = FontWeight.SemiBold)) { append("#$verifiedRank") }
                     append(" on trending")
                 }
-            }, color = Color.White.copy(alpha = .85f), style = MaterialTheme.typography.labelSmall,
+            }, color = Color.White.copy(alpha = .85f), style = MaterialTheme.typography.labelSmall.copy(lineHeight = 14.sp),
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         if (button != ShortsFollowPresentation.HIDDEN) {
