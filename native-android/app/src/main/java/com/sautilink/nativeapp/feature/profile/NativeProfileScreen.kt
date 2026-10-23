@@ -88,48 +88,49 @@ fun NativeProfileScreen(
     val safety = remember(auth) { NativeSafetyClient(auth) }
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
+    val account = auth.account
+    val accountId = account?.id
     var moreOpen by remember { mutableStateOf(false) }
     var aboutOpen by remember { mutableStateOf(false) }
-    var canMessage by remember(username, auth.account?.id) { mutableStateOf(false) }
+    var canMessage by remember(username, accountId) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val account = auth.account
     val ownerRoute = username == null
     val presentations = rememberSessionScreenPresentationAccess()
     val returnKey = "profile-navigation:${username ?: "own"}"
-    val returnInitial = remember(presentations, account?.id, username) { readProfileReturnPresentation(presentations.store, returnKey) }
-    val catalogInitial = remember(presentations, account?.id) { readProfileCatalogPresentation(presentations.store) }
+    val returnInitial = remember(presentations, accountId, username) { readProfileReturnPresentation(presentations.store, returnKey) }
+    val catalogInitial = remember(presentations, accountId) { readProfileCatalogPresentation(presentations.store) }
     val profileScroll = rememberScrollState()
-    var returnScrollRestored by remember(username, account?.id) { mutableStateOf(!returnInitial.restored) }
-    var activityReady by remember(username, account?.id) { mutableStateOf(false) }
-    DisposableEffect(presentations, username, account?.id) {
+    var returnScrollRestored by remember(username, accountId) { mutableStateOf(!returnInitial.restored) }
+    var activityReady by remember(username, accountId) { mutableStateOf(false) }
+    DisposableEffect(presentations, username, accountId) {
         onDispose { presentations.save(returnKey, returnInitial.revision, ProfileReturnPresentation(profileScroll.value)) }
     }
-    var refresh by remember(username, account?.id) { mutableIntStateOf(0) }
-    var profile by remember(username, account?.id) { mutableStateOf<NativeProfile?>(null) }
+    var refresh by remember(username, accountId) { mutableIntStateOf(0) }
+    var profile by remember(username, accountId) { mutableStateOf<NativeProfile?>(null) }
     val activeProfileStory = rememberProfileStoryRingActive(auth, profile, refresh)
-    var loading by remember(username, account?.id) { mutableStateOf(false) }
-    var loaded by remember(username, account?.id) { mutableStateOf(false) }
-    var error by remember(username, account?.id) { mutableStateOf<String?>(null) }
-    var edit by remember(username, account?.id) { mutableStateOf(false) }
-    var connectionList by remember(username, account?.id) { mutableStateOf<String?>(null) }
-    var connections by remember(username, account?.id) { mutableStateOf<List<NativeProfile>>(emptyList()) }
-    var listLoading by remember(username, account?.id) { mutableStateOf(false) }
-    var listError by remember(username, account?.id) { mutableStateOf<String?>(null) }
-    var following by remember(username, account?.id) { mutableStateOf<Boolean?>(null) }
-    var followBusy by remember(username, account?.id) { mutableStateOf(false) }
-    var actionError by remember(username, account?.id) { mutableStateOf<String?>(null) }
-    var safetyState by remember(username, account?.id) { mutableStateOf<MemberSafetyState?>(null) }
-    var safetyBusy by remember(username, account?.id) { mutableStateOf(false) }
-    var reportOpen by remember(username, account?.id) { mutableStateOf(false) }
-    var blockConfirm by remember(username, account?.id) { mutableStateOf(false) }
-    var safetyNote by remember(username, account?.id) { mutableStateOf<String?>(null) }
-    var categoryCatalog by remember(username, account?.id) {
+    var loading by remember(username, accountId) { mutableStateOf(false) }
+    var loaded by remember(username, accountId) { mutableStateOf(false) }
+    var error by remember(username, accountId) { mutableStateOf<String?>(null) }
+    var edit by remember(username, accountId) { mutableStateOf(false) }
+    var connectionList by remember(username, accountId) { mutableStateOf<String?>(null) }
+    var connections by remember(username, accountId) { mutableStateOf<List<NativeProfile>>(emptyList()) }
+    var listLoading by remember(username, accountId) { mutableStateOf(false) }
+    var listError by remember(username, accountId) { mutableStateOf<String?>(null) }
+    var following by remember(username, accountId) { mutableStateOf<Boolean?>(null) }
+    var followBusy by remember(username, accountId) { mutableStateOf(false) }
+    var actionError by remember(username, accountId) { mutableStateOf<String?>(null) }
+    var safetyState by remember(username, accountId) { mutableStateOf<MemberSafetyState?>(null) }
+    var safetyBusy by remember(username, accountId) { mutableStateOf(false) }
+    var reportOpen by remember(username, accountId) { mutableStateOf(false) }
+    var blockConfirm by remember(username, accountId) { mutableStateOf(false) }
+    var safetyNote by remember(username, accountId) { mutableStateOf<String?>(null) }
+    var categoryCatalog by remember(username, accountId) {
         mutableStateOf<List<ProfileProfessionalCategory>>(catalogInitial.snapshot.categories)
     }
-    var categoryEditing by remember(username, account?.id) { mutableStateOf(false) }
-    var categoryInfo by remember(username, account?.id) { mutableStateOf(false) }
-    var categorySaving by remember(username, account?.id) { mutableStateOf(false) }
-    var categoryError by remember(username, account?.id) { mutableStateOf<String?>(null) }
+    var categoryEditing by remember(username, accountId) { mutableStateOf(false) }
+    var categoryInfo by remember(username, accountId) { mutableStateOf(false) }
+    var categorySaving by remember(username, accountId) { mutableStateOf(false) }
+    var categoryError by remember(username, accountId) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(profile?.id) {
         if (profile != null && categoryCatalog.isEmpty()) {
@@ -150,7 +151,7 @@ fun NativeProfileScreen(
         }
     }
 
-    LaunchedEffect(auth, account?.id, username, refresh) {
+    LaunchedEffect(auth, accountId, username, refresh) {
         if (account == null) return@LaunchedEffect
         loading = true
         error = null
@@ -178,7 +179,7 @@ fun NativeProfileScreen(
         returnScrollRestored = true
     }
 
-    LaunchedEffect(auth, account?.id, connectionList, refresh) {
+    LaunchedEffect(auth, accountId, connectionList, refresh) {
         val kind = connectionList ?: return@LaunchedEffect
         if (!ownerRoute || account == null) return@LaunchedEffect
         listLoading = true
@@ -188,7 +189,7 @@ fun NativeProfileScreen(
         finally { listLoading = false }
     }
 
-    LaunchedEffect(auth, account?.id, profile?.id, refresh) {
+    LaunchedEffect(auth, accountId, profile?.id, refresh) {
         val member = profile ?: return@LaunchedEffect
         if (account == null || member.id == account.id) { safetyState = null; return@LaunchedEffect }
         try { safetyState = safety.memberState(member.username) }
