@@ -310,7 +310,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish stable signed Android beta
-        if: env.SAUTILINK_SIGN_RELEASE == 'true' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: env.SAUTILINK_SIGN_RELEASE == 'true' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
