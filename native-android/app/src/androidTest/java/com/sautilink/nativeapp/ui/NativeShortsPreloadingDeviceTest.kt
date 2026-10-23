@@ -155,6 +155,7 @@ class NativeShortsPreloadingDeviceTest {
         val sources = (1..3).associateWith(::source)
         val closed = AtomicBoolean()
         val frames = ConcurrentHashMap<String, AtomicInteger>()
+        val completedPreloads = ConcurrentHashMap<String, AtomicInteger>()
         val incomingFirstSegmentLoads = AtomicInteger()
         lateinit var resources: NativeVideoPlaybackResources
         lateinit var preload: NativeShortsPreloading
@@ -169,7 +170,9 @@ class NativeShortsPreloadingDeviceTest {
                         NativeVideoOriginDataSourceFactory(origin, factory, factory, grants), { !closed.get() }, hlsGrants = grants)
                         .also { resources = it }
                 }
-                val manager = remember { NativeShortsPreloading(context, playback).also { preload = it } }
+                val manager = remember { NativeShortsPreloading(context, playback) { mediaId ->
+                    completedPreloads.getOrPut(mediaId) { AtomicInteger() }.incrementAndGet()
+                }.also { preload = it } }
                 DisposableEffect(manager) {
                     val listener = object : Player.Listener {
                         override fun onRenderedFirstFrame() {
@@ -245,7 +248,8 @@ class NativeShortsPreloadingDeviceTest {
                 h.preload.update(0, h.sources.getValue(2), true)
                 before = h.preload.player.currentPosition
             }
-            await { h.factory.segmentBytes(2) > 0 && h.factory.readers(2) == 0 && h.preload.player.currentPosition > before + 300L }
+            await { (h.completedPreloads[id(2)]?.get() ?: 0) > 0 && h.factory.segmentBytes(2) > 0 &&
+                h.factory.readers(2) == 0 && h.preload.player.currentPosition > before + 300L }
             val masterReads = h.factory.opens(2, "master.m3u8")
             val renditionReads = h.factory.opens(2, "360.m3u8")
             val firstSegmentLoads = h.incomingFirstSegmentLoads.get()

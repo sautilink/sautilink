@@ -18,4 +18,19 @@ class NativeShortsPreloadingTest {
     @Test fun invalidMeasurementsCannotEnableMeteredSpeculation() { for (value in listOf(Double.NaN, Double.POSITIVE_INFINITY, -1.0)) assertFalse(eligible(metered = true, mbps = value)) }
     @Test fun memoryHeatAndBatteryPressureDisablePreparation() { assertFalse(eligible(stressed = true)) }
     @Test fun manualQualityDoesNotDownloadAnUnmatchedAutoTrack() { assertFalse(eligible(auto = false)) }
+    @Test fun currentHandoffRetainsItsPeriodEvenWhenNextSpeculationIsDisabled() {
+        assertEquals(ShortsPreloadTarget.RETAIN_CURRENT, shortsPreloadTarget(1, 1, null, false, true, false))
+        assertEquals(ShortsPreloadTarget.RETAIN_CURRENT, shortsPreloadTarget(1, 1, 2, true, true, false))
+    }
+    @Test fun onlyAdjacentNextMayLoadAndOlderSourcesAreNotRetained() {
+        assertEquals(ShortsPreloadTarget.LOAD_NEXT, shortsPreloadTarget(2, 1, 2, true, true, false))
+        assertEquals(ShortsPreloadTarget.NONE, shortsPreloadTarget(3, 1, 3, true, true, false))
+        assertEquals(ShortsPreloadTarget.NONE, shortsPreloadTarget(0, 1, 2, true, true, false))
+        assertEquals(ShortsPreloadTarget.NONE, shortsPreloadTarget(2, 1, 2, false, true, false))
+    }
+    @Test fun explicitCancellationAndCloseReleaseUnclaimedCurrentSamples() {
+        assertEquals(ShortsPreloadTarget.NONE, shortsPreloadTarget(1, 1, null, false, false, false))
+        assertEquals(ShortsPreloadTarget.NONE, shortsPreloadTarget(1, 1, 2, true, true, true))
+        assertEquals(ShortsPreloadTarget.NONE, shortsPreloadTarget(2, 1, 2, true, true, true))
+    }
 }

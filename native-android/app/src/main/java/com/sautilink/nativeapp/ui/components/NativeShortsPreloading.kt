@@ -12,6 +12,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.preload.DefaultPreloadManager
+import androidx.media3.exoplayer.source.preload.PreloadManagerListener
 import androidx.media3.exoplayer.source.preload.TargetPreloadStatusControl
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import java.io.Closeable
@@ -25,6 +26,16 @@ internal fun shortsPreloadEligible(foreground: Boolean, online: Boolean, autopla
     foreground && online && autoplay && playing && bufferedMs >= 6_000L &&
         !saveData && !stressed && autoQuality &&
         (!metered || measuredMbps?.let { it.isFinite() && it >= 3.0 } == true)
+
+internal enum class ShortsPreloadTarget { NONE, RETAIN_CURRENT, LOAD_NEXT }
+
+internal fun shortsPreloadTarget(index: Int, current: Int, next: Int?, permitted: Boolean,
+    retainCurrent: Boolean, closed: Boolean): ShortsPreloadTarget = when {
+    closed -> ShortsPreloadTarget.NONE
+    retainCurrent && index == current -> ShortsPreloadTarget.RETAIN_CURRENT
+    permitted && index == next && index == current + 1 -> ShortsPreloadTarget.LOAD_NEXT
+    else -> ShortsPreloadTarget.NONE
+}
 
 internal fun videoDeviceStressed(context: Context): Boolean {
     val memory = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
@@ -42,17 +53,24 @@ internal fun videoDeviceStressed(context: Context): Boolean {
  * remain memory-only and every data source uses the normal authorization path.
  */
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
-internal class NativeShortsPreloading(context: Context, resources: NativeVideoPlaybackResources) : Closeable {
+internal class NativeShortsPreloading(context: Context, resources: NativeVideoPlaybackResources,
+    onPreloadCompleted: (String) -> Unit = {}) : Closeable {
     private var currentIndex = 0
     private var nextIndex: Int? = null
     private var permitted = false
     private var closed = false
+    private var retainCurrent = false
     private var pendingUpdate: Triple<Int, NativeVideoSource?, Boolean>? = null
     private val items = linkedMapOf<String, Pair<MediaItem, Int>>()
     private val control = TargetPreloadStatusControl<Int, DefaultPreloadManager.PreloadStatus> { index ->
-        if (!closed && permitted && index == nextIndex && index == currentIndex + 1)
-            DefaultPreloadManager.PreloadStatus.specifiedRangeLoaded(2_000L)
-        else DefaultPreloadManager.PreloadStatus.PRELOAD_STATUS_NOT_PRELOADED
+        when (shortsPreloadTarget(index, currentIndex, nextIndex, permitted, retainCurrent, closed)) {
+            // prepare() does not synchronously transfer the preloaded period.
+            // NOT_PRELOADED calls clear() even after prepare was enqueued, so
+            // retain it until the player actually claims its sample queues.
+            ShortsPreloadTarget.RETAIN_CURRENT -> DefaultPreloadManager.PreloadStatus.PRELOAD_STATUS_TRACKS_SELECTED
+            ShortsPreloadTarget.LOAD_NEXT -> DefaultPreloadManager.PreloadStatus.specifiedRangeLoaded(2_000L)
+            ShortsPreloadTarget.NONE -> DefaultPreloadManager.PreloadStatus.PRELOAD_STATUS_NOT_PRELOADED
+        }
     }
     private val builder = DefaultPreloadManager.Builder(context, control)
         .setMediaSourceFactory(DefaultMediaSourceFactory(resources.dataSourceFactory))
@@ -64,6 +82,11 @@ internal class NativeShortsPreloading(context: Context, resources: NativeVideoPl
             .build())
     private val manager = builder.build()
     val player: ExoPlayer = builder.buildExoPlayer()
+    init {
+        manager.addListener(object : PreloadManagerListener {
+            override fun onCompleted(mediaItem: MediaItem) { onPreloadCompleted(mediaItem.mediaId) }
+        })
+    }
 
     fun sourceFor(source: NativeVideoSource, index: Int): MediaSource? {
         if (closed || !source.hls || (source.expiresAtMillis ?: 0L) <= System.currentTimeMillis() + 5_000L) return null
@@ -83,6 +106,7 @@ internal class NativeShortsPreloading(context: Context, resources: NativeVideoPl
     fun update(current: Int, next: NativeVideoSource?, allow: Boolean, retainIncoming: Boolean = true) {
         if (closed) return
         if (!retainIncoming) {
+            retainCurrent = false
             pendingUpdate = null
             applyUpdate(current, null, false)
             return
@@ -100,11 +124,12 @@ internal class NativeShortsPreloading(context: Context, resources: NativeVideoPl
 
     fun attach(source: NativeVideoSource, index: Int, positionMs: Long, requested: Boolean): Boolean {
         val mediaSource = sourceFor(source, index) ?: return false
+        retainCurrent = true
         player.setMediaSource(mediaSource, positionMs.coerceAtLeast(0L))
         player.prepare()
         player.playWhenReady = requested
-        // Both player and manager use the builder's playback looper. Prepare is
-        // queued first, before invalidation can clear the incoming preload.
+        // Keep the incoming period's sample queues while Media3 asynchronously
+        // transfers them to the visible player; the next clip alone may load.
         val waiting = pendingUpdate?.takeIf { it.first == index }
         pendingUpdate = null
         applyUpdate(index, waiting?.second, waiting?.third ?: false)
