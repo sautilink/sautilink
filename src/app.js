@@ -7,6 +7,7 @@ import { POST_BODY_LIMIT, hasPostFormatting } from './post-text-formatting.js';
 import { notificationPostDestination } from './notification-destinations.js';
 import { disposeDmTimeline, reconcileDmTimeline } from './messages-timeline-ui.js';
 import { createMemberCommentSheet } from './member-comment-sheet.js';
+import { createMemberSurfaceRetention } from './member-surface-retention.js';
 import { normalizeOtpPhone, otpPhoneError } from './phone-number-validation.js';
 import {
   displayNameError,
@@ -43,6 +44,7 @@ const HOME_VIDEO_VISIBILITY_THRESHOLD = 0.58;
 const HOME_VIDEO_PAUSE_THRESHOLD = 0.2;
 const HOME_DOUBLE_TAP_WINDOW = 320;
 const THEME_COLORS = Object.freeze({ dark: '#0b0c0f', light: '#ffffff' });
+const memberSurfaceRetention = createMemberSurfaceRetention();
 
 function authRedirectUrl(action) {
   const url = new URL(APP_HOME_URL);
@@ -611,6 +613,7 @@ function showAuthPanel(name) {
 }
 
 function showSignedOut(mode = 'login') {
+  memberSurfaceRetention.invalidate();
   void stopDmRealtime();
   void stopDmPeerActivityPresence();
   void stopMemberActivityPresence();
@@ -1292,6 +1295,7 @@ function clearHomeFeedMediaState() {
   homeVideoObserver?.disconnect();
   homeVideoObserver = null;
   homeVideoVisibility.clear();
+  memberSurfaceRetention.invalidate('stream');
 }
 
 async function hydrateSautiMediaGallery(postId, gallery) {
@@ -3781,6 +3785,8 @@ async function selectHomeFeed(mode, { focus = false } = {}) {
     return;
   }
 
+  if (mode === activeHomeFeed && memberSurfaceRetention.isFresh('stream', currentMemberId, mode)) return;
+
   activeHomeFeed = mode;
   syncHomeFeedModeUi();
   resetStreamState();
@@ -4420,6 +4426,7 @@ function renderStreamRows(rows, { reset = false } = {}) {
   const hasRows = feed.childElementCount > 0;
   byId('stream-empty').hidden = hasRows;
   byId('stream-more').hidden = !streamHasMore;
+  memberSurfaceRetention.completed('stream', currentMemberId, activeHomeFeed);
 }
 
 async function loadQuotedPostMap(posts) {
@@ -6224,17 +6231,19 @@ function renderNotificationItem(notification, actor, circle, post) {
 
 async function loadNotifications() {
   if (!currentMemberId) return;
+  const memberId = currentMemberId;
   const requestId = ++notificationsRequest;
   const list = byId('notifications-list');
   const loading = byId('notifications-loading');
   const errorState = byId('notifications-error');
   const empty = byId('notifications-empty');
   const markAll = byId('notifications-mark-all');
+  const retainRows = memberSurfaceRetention.owns('notifications', memberId) && list.childElementCount > 0;
 
-  loading.hidden = false;
+  loading.hidden = retainRows;
   errorState.hidden = true;
   empty.hidden = true;
-  list.replaceChildren();
+  if (!retainRows) list.replaceChildren();
   markAll.disabled = true;
 
   const { data, error } = await supabase
@@ -6245,16 +6254,19 @@ async function loadNotifications() {
     .order('id', { ascending: false })
     .limit(50);
 
-  if (requestId !== notificationsRequest) return;
+  if (requestId !== notificationsRequest || currentMemberId !== memberId) return;
   loading.hidden = true;
 
   if (error) {
+    list.replaceChildren();
     errorState.hidden = false;
     return;
   }
 
   const notifications = data || [];
   if (!notifications.length) {
+    list.replaceChildren();
+    memberSurfaceRetention.completed('notifications', memberId);
     syncNotificationBadges(0);
     empty.hidden = false;
     return;
@@ -6282,10 +6294,11 @@ async function loadNotifications() {
   circles = circleResult.data || [];
   posts = postResult.data || [];
 
-  if (requestId !== notificationsRequest) return;
+  if (requestId !== notificationsRequest || currentMemberId !== memberId) return;
   const actorMap = new Map(actors.map((actor) => [actor.id, actor]));
   const circleMap = new Map(circles.map((circle) => [circle.id, circle]));
   const postMap = new Map(posts.map((post) => [post.id, post]));
+  list.replaceChildren();
   notifications.forEach((notification) => {
     list.append(renderNotificationItem(
       notification,
@@ -6298,6 +6311,7 @@ async function loadNotifications() {
   const unread = notifications.reduce((total, row) => total + (row.read_at ? 0 : 1), 0);
   syncNotificationBadges(unread);
   markAll.disabled = unread < 1;
+  memberSurfaceRetention.completed('notifications', memberId);
 }
 
 async function markNotificationRead(id, item) {
@@ -6396,6 +6410,7 @@ function renderDiscoverProfile(profile) {
 
 async function loadDiscover(queryValue = byId('discover-query').value) {
   if (!currentMemberId) return;
+  const memberId = currentMemberId;
   const requestId = ++discoverRequest;
   const query = normalizeDiscoverQuery(queryValue);
   const loading = byId('discover-loading');
@@ -6404,14 +6419,18 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
   const profileEmpty = byId('discover-profile-empty');
   const postFeed = byId('discover-sauti-feed');
   const postEmpty = byId('discover-sauti-empty');
+  const retainRows = memberSurfaceRetention.owns('discover', memberId, query)
+    && (profileList.childElementCount > 0 || postFeed.childElementCount > 0);
 
   byId('discover-query').value = query;
-  loading.hidden = false;
+  loading.hidden = retainRows;
   errorState.hidden = true;
   profileEmpty.hidden = true;
   postEmpty.hidden = true;
-  profileList.replaceChildren();
-  postFeed.replaceChildren();
+  if (!retainRows) {
+    profileList.replaceChildren();
+    postFeed.replaceChildren();
+  }
 
   try {
     const blockedPromise = supabase
@@ -6477,7 +6496,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
       postQuery,
     ]);
 
-    if (requestId !== discoverRequest) return;
+    if (requestId !== discoverRequest || currentMemberId !== memberId) return;
     if (blockedResult.error || mutedResult.error || postResult.error || profileResults.some((result) => result.error)) {
       throw blockedResult.error || mutedResult.error || postResult.error || profileResults.find((result) => result.error)?.error;
     }
@@ -6493,18 +6512,19 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
       });
     });
 
-    [...profileMap.values()].slice(0, 12).forEach((profile) => {
-      profileList.append(renderDiscoverProfile(profile));
-    });
-    profileEmpty.hidden = profileList.childElementCount > 0;
+    const profileRows = [...profileMap.values()].slice(0, 12).map(renderDiscoverProfile);
 
     const hydrated = await hydrateDirectPosts(postResult.data || []);
-    if (requestId !== discoverRequest) return;
+    if (requestId !== discoverRequest || currentMemberId !== memberId) return;
+    profileList.replaceChildren(...profileRows);
+    profileEmpty.hidden = profileList.childElementCount > 0;
+    postFeed.replaceChildren();
     hydrated.forEach((item) => {
       const card = createSautiCard(item);
       if (card) postFeed.append(card);
     });
     postEmpty.hidden = postFeed.childElementCount > 0;
+    memberSurfaceRetention.completed('discover', memberId, query);
 
     const next = new URL(window.location.href);
     if (/^\/app\/discover\/?$/.test(next.pathname)) {
@@ -6513,27 +6533,29 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
       window.history.replaceState({}, '', `${next.pathname}${next.search}`);
     }
   } catch {
-    if (requestId !== discoverRequest) return;
+    if (requestId !== discoverRequest || currentMemberId !== memberId) return;
     errorState.hidden = false;
     profileList.replaceChildren();
     postFeed.replaceChildren();
   } finally {
-    if (requestId === discoverRequest) loading.hidden = true;
+    if (requestId === discoverRequest && currentMemberId === memberId) loading.hidden = true;
   }
 }
 
 async function loadSavedSauti() {
   if (!currentMemberId) return;
+  const memberId = currentMemberId;
   const requestId = ++savedRequest;
   const loading = byId('saved-loading');
   const errorState = byId('saved-error');
   const empty = byId('saved-empty');
   const feed = byId('saved-sauti-feed');
+  const retainRows = memberSurfaceRetention.owns('saved', memberId) && feed.childElementCount > 0;
 
-  loading.hidden = false;
+  loading.hidden = retainRows;
   errorState.hidden = true;
   empty.hidden = true;
-  feed.replaceChildren();
+  if (!retainRows) feed.replaceChildren();
 
   try {
     const { data: saves, error: saveError } = await supabase
@@ -6544,11 +6566,13 @@ async function loadSavedSauti() {
       .limit(100);
 
     if (saveError) throw saveError;
-    if (requestId !== savedRequest) return;
+    if (requestId !== savedRequest || currentMemberId !== memberId) return;
 
     const saveRows = saves || [];
     const postIds = saveRows.map((row) => row.post_id);
     if (!postIds.length) {
+      feed.replaceChildren();
+      memberSurfaceRetention.completed('saved', memberId);
       empty.hidden = false;
       return;
     }
@@ -6559,7 +6583,7 @@ async function loadSavedSauti() {
       .in('id', postIds);
 
     if (postError) throw postError;
-    if (requestId !== savedRequest) return;
+    if (requestId !== savedRequest || currentMemberId !== memberId) return;
 
     const postMap = new Map((posts || []).map((post) => [post.id, post]));
     const orderedPosts = saveRows
@@ -6567,18 +6591,20 @@ async function loadSavedSauti() {
       .filter(Boolean);
     const hydrated = await hydrateDirectPosts(orderedPosts);
 
-    if (requestId !== savedRequest) return;
+    if (requestId !== savedRequest || currentMemberId !== memberId) return;
+    feed.replaceChildren();
     hydrated.forEach((item) => {
       const card = createSautiCard(item);
       if (card) feed.append(card);
     });
     empty.hidden = feed.childElementCount > 0;
+    memberSurfaceRetention.completed('saved', memberId);
   } catch {
-    if (requestId !== savedRequest) return;
+    if (requestId !== savedRequest || currentMemberId !== memberId) return;
     errorState.hidden = false;
     feed.replaceChildren();
   } finally {
-    if (requestId === savedRequest) loading.hidden = true;
+    if (requestId === savedRequest && currentMemberId === memberId) loading.hidden = true;
   }
 }
 
@@ -6595,6 +6621,7 @@ function readSharedSautiTarget(url = window.location.href) {
 
 async function loadSharedSautiTarget(postId) {
   if (!currentMemberId || !postId) return;
+  memberSurfaceRetention.invalidate('stream');
   const requestId = ++streamRequest;
   streamLoading = true;
   streamHasMore = false;
@@ -7289,14 +7316,15 @@ async function loadMessagesInbox() {
   const inbox = byId('messages-inbox');
   const list = byId('messages-inbox-list');
   const empty = byId('messages-empty');
+  const retainRows = memberSurfaceRetention.owns('messages', memberId) && list.childElementCount > 0;
 
   byId('message-thread').hidden = true;
   inbox.hidden = false;
-  loading.hidden = false;
+  loading.hidden = retainRows;
   setMessageSearchLoading(false);
   errorState.hidden = true;
   empty.hidden = true;
-  list.replaceChildren();
+  if (!retainRows) list.replaceChildren();
   setMessage(byId('message-new-message'), '', '');
 
   try {
@@ -7317,17 +7345,20 @@ async function loadMessagesInbox() {
 
     if (requestId !== messagesRequest || currentMemberId !== memberId || messagesSurface.hidden) return;
     const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
+    list.replaceChildren();
     rows.forEach((row) => list.append(renderMessageInboxItem(row, profileMap.get(row.peer_id))));
+    memberSurfaceRetention.completed('messages', memberId);
 
     empty.hidden = rows.length > 0;
     const unread = rows.reduce((sum, row) => sum + Number(row.effective_unread_count || 0), 0);
     syncMessageBadges(messageBadgesEnabled() ? unread : 0);
     filterMessageInbox();
   } catch {
-    if (requestId !== messagesRequest) return;
+    if (requestId !== messagesRequest || currentMemberId !== memberId) return;
+    list.replaceChildren();
     errorState.hidden = false;
   } finally {
-    if (requestId === messagesRequest) loading.hidden = true;
+    if (requestId === messagesRequest && currentMemberId === memberId) loading.hidden = true;
   }
 }
 
@@ -8939,7 +8970,7 @@ function showMemberSurface(name, { syncUrl = true } = {}) {
     if (name === 'stream') {
       byId('sauti-composer').hidden = false;
       syncHomeFeedModeUi();
-      if (syncUrl) void loadStream({ reset: true });
+      if (syncUrl && !memberSurfaceRetention.isFresh('stream', currentMemberId, activeHomeFeed)) void loadStream({ reset: true });
     }
     if (name === 'discover') {
       byId('discover-query').value = '';
