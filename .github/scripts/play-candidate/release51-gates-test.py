@@ -303,6 +303,17 @@ class Release51ExperienceGatesTest(unittest.TestCase):
     def test_packaged_manifest_requires_private_data_sync_service_and_legacy_only_storage(self):
         candidate.verify_manifest(manifest())
         def service(root):return root.find('application/service')
+        for equivalent in ('dataSync','1','0x00000001'):
+            root=ET.fromstring(manifest())
+            service(root).set(candidate.ANDROID+'foregroundServiceType',equivalent)
+            with self.subTest(equivalent=equivalent):candidate.verify_manifest(ET.tostring(root,encoding='unicode'))
+        for forbidden in ('0','2','3','0x00000000','0x00000002','0x00000003',
+                          'mediaPlayback','dataSync|mediaPlayback','dataSync|location',
+                          '0x1','01','DATA_SYNC','unknown',''):
+            root=ET.fromstring(manifest())
+            service(root).set(candidate.ANDROID+'foregroundServiceType',forbidden)
+            with self.subTest(forbidden=forbidden),self.assertRaises(AssertionError):
+                candidate.verify_manifest(ET.tostring(root,encoding='unicode'))
         mutations=(lambda r:service(r).set(candidate.ANDROID+'exported','true'),
                    lambda r:service(r).set(candidate.ANDROID+'foregroundServiceType','mediaPlayback'),
                    lambda r:ET.SubElement(service(r),'intent-filter'),

@@ -5,10 +5,10 @@ import xml.etree.ElementTree as ET
 
 # Immutable source pins for the reviewed Stream, Stories and feed experience 1.1.6 (51) candidate.
 # Keep SOURCE identical to the candidate checkout ref in native-stream-stories-release51.yml.
-SOURCE = 'e371b25e043db516ae0becbd25478036836f1d3b'
-SOURCE_TREE = 'c653e2fcec294be78b13169ee3f2279a4be6b5ee'
-REPOSITORY_TREE = '000ed38387d10c945c2cd05cf80e9a8007d7d0ef'
-MAIN_SOURCE_TREE = '69fc83491ad5d575e31e32bb6b78bff55428ad5a'
+SOURCE = '9bb281b612d419014c383b6c84347e6c91d86a24'
+SOURCE_TREE = '260a69ef56719ebcaee64a4df460c990ce378775'
+REPOSITORY_TREE = '8be5c40e5ed5be509775724d11b72685e70c5414'
+MAIN_SOURCE_TREE = '71e4f95eff59ec8da2cfbb5dfd8e1b98b86c4cda'
 JVM_MANIFEST_SHA256 = '4ac1f57231af0b439b79268b9be1ec17c5f0fe078e82ed158a22145b7b51c535'
 CERT = '31c773a7229a563d92f7047a56735ad7b02027d27a6e020d8923dd5418f4b50f'
 FIREBASE_SHA = 'be30a77f6be106c97b59ecdc6e7cc61100e0d9fd354ac883357e253fb69e6cae'
@@ -606,7 +606,10 @@ def verify_post_download_manifest(root):
     assert len(services) == 1, 'PRIVATE_DOWNLOAD_SERVICE_REQUIRED'
     service = services[0]
     assert service.get(ANDROID+'exported') == 'false', 'DOWNLOAD_SERVICE_MUST_NOT_BE_EXPORTED'
-    assert service.get(ANDROID+'foregroundServiceType') == 'dataSync', 'DOWNLOAD_DATA_SYNC_FOREGROUND_REQUIRED'
+    # AAPT compiles this flags enum to bit1; pinned bundletool prints the
+    # compiled integer as 0x00000001 rather than the source label. Accept only
+    # the exact equivalent representations, never another/combined bitmask.
+    assert service.get(ANDROID+'foregroundServiceType') in {'dataSync', '1', '0x00000001'}, 'DOWNLOAD_DATA_SYNC_FOREGROUND_REQUIRED'
     assert not service.findall('intent-filter'), 'DOWNLOAD_SERVICE_INTENT_FILTER_FORBIDDEN'
     permissions = {node.get(ANDROID+'name'): node for node in root.findall('uses-permission')}
     assert 'android.permission.FOREGROUND_SERVICE' in permissions
