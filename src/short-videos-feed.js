@@ -293,22 +293,6 @@ function createShortVideoSlide(tile) {
   return slide;
 }
 
-function syncShortTrendingRank(slide, ranks) {
-  const username = slide.querySelector('.sauti-short-username');
-  if (!username) return;
-  let suffix = slide.querySelector('.sauti-short-trending-rank');
-  const rank = ranks?.[slide.dataset.postId];
-  if (!Number.isInteger(rank) || rank < 1 || rank > 20) { suffix?.remove(); return; }
-  if (!suffix) {
-    suffix = document.createElement('span');
-    suffix.className = 'sauti-short-trending-rank';
-    username.after(suffix);
-  }
-  const number = document.createElement('strong');
-  number.textContent = `#${rank}`;
-  suffix.replaceChildren(document.createTextNode(' • '), number, document.createTextNode(' on trending'));
-}
-
 function syncSlideFromSource(slide) {
   const card = sourceCardForPost(slide?.dataset.postId);
   if (!card) return;
@@ -406,8 +390,6 @@ function installShortVideosFeed() {
   let pendingOpenRequest = null;
   let returnPath = '/home';
   let returnHomeFeed = 'for-you';
-  let trendingRequest = 0;
-  let trendingRanks = {};
 
   function videoSlides() {
     return [...track.querySelectorAll('.sauti-short-video-slide')];
@@ -464,7 +446,6 @@ function installShortVideosFeed() {
       track.append(slide);
       observeSlide(slide);
       syncSlideFromSource(slide);
-      syncShortTrendingRank(slide, trendingRanks);
     });
     ensureEndSlide();
   }
@@ -622,14 +603,6 @@ function installShortVideosFeed() {
     root.hidden = false;
     document.documentElement.classList.add('sauti-short-videos-open');
     root.setAttribute('aria-hidden', 'false');
-    const rankRequest = ++trendingRequest;
-    trendingRanks = {};
-    videoSlides().forEach((item) => syncShortTrendingRank(item, trendingRanks));
-    Promise.resolve(window.__sautilinkShortVideoTrendingRanks?.()).then((ranks) => {
-      if (rankRequest !== trendingRequest || root.hidden) return;
-      trendingRanks = ranks || {};
-      videoSlides().forEach((item) => syncShortTrendingRank(item, trendingRanks));
-    }).catch(() => {});
     pauseHomePlayback();
     requestAnimationFrame(() => {
       track.scrollTop = slide.offsetTop;

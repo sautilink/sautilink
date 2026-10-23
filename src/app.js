@@ -1,5 +1,5 @@
 import { mountInlineVerificationSvg, refreshClonedVerificationSvgs } from './verification-inline-svg.js';
-import { verificationAccountType, verificationEvidenceReady, rankTrendingPosts } from './verification-request-policy.js';
+import { verificationAccountType, verificationEvidenceReady } from './verification-request-policy.js';
 import { preparePostComposerFiles } from './composer-formats.js';
 import { uploadPostMedia } from './post-media-upload.js';
 import { roomPublishRequestId, confirmRoomPublishRequest, roomPublishOutcome } from './room-publish-outcome.js';
@@ -206,11 +206,6 @@ const HOME_FEED_COPY = Object.freeze({
     error: 'Something went wrong while opening posts from people you follow.',
     emptyTitle: 'Your Following feed is quiet.',
     emptyCopy: 'Follow people in Discover and their newest posts will appear here.',
-  },
-  trending: {
-    ariaLabel: 'Trending feed', loading: 'Loading trending posts…',
-    error: 'Trending posts could not be loaded.', emptyTitle: 'No trending posts yet.',
-    emptyCopy: 'Top public posts from the last seven days appear here.',
   },
   'short-videos': {
     rpcMode: 'short_videos',
@@ -3821,12 +3816,6 @@ async function selectHomeFeed(mode, { focus = false } = {}) {
   if (mode === activeHomeFeed && memberSurfaceRetention.isFresh('stream', currentMemberId, mode)) return;
 
   activeHomeFeed = mode;
-  if (/^\/(?:home|app)\/?$/.test(window.location.pathname)) {
-    const route = new URL(window.location.href);
-    if (mode === 'trending') route.searchParams.set('feed', 'trending');
-    else route.searchParams.delete('feed');
-    window.history.replaceState(window.history.state, '', `${route.pathname}${route.search}`);
-  }
   syncHomeFeedModeUi();
   resetStreamState();
   await loadStream({ reset: true });
@@ -4645,42 +4634,7 @@ async function hydrateDirectPosts(posts) {
   }));
 }
 
-async function loadTrendingStream() {
-  if (!currentMember || streamLoading) return;
-  const memberId = currentMemberId;
-  const requestId = ++streamRequest;
-  streamLoading = true;
-  syncHomeFeedModeUi();
-  const feed = byId('stream-feed');
-  const hadRows = feed.childElementCount > 0;
-  const owns = () => currentMemberId === memberId && streamRequest === requestId && activeHomeFeed === 'trending';
-  byId('stream-loading').hidden = hadRows;
-  byId('stream-error').hidden = true;
-  try {
-    const [candidates, blockedResult, mutedResult] = await Promise.all([
-      loadDiscoverTrendingCandidates(),
-      supabase.from('social_blocks').select('blocked_id').eq('blocker_id', memberId),
-      supabase.from('social_mutes').select('muted_id').eq('muter_id', memberId),
-    ]);
-    if (candidates.error || blockedResult.error || mutedResult.error) throw candidates.error || blockedResult.error || mutedResult.error;
-    const ranked = rankTrendingPosts(candidates.data || [], {
-      blocked: new Set((blockedResult.data || []).map((row) => row.blocked_id)),
-      muted: new Set((mutedResult.data || []).map((row) => row.muted_id)), limit: 20,
-    });
-    const posts = await loadTrendingPostDetails(ranked);
-    const hydrated = await hydrateDirectPosts(posts);
-    if (!owns()) return;
-    streamHasMore = false; streamOffset = posts.length;
-    renderStreamRows(hydrated, { reset: true });
-  } catch {
-    if (owns()) byId('stream-error').hidden = hadRows;
-  } finally {
-    if (owns()) { streamLoading = false; byId('stream-loading').hidden = true; byId('stream-more').hidden = true; }
-  }
-}
-
 async function loadStream({ reset = false } = {}) {
-  if (activeHomeFeed === 'trending') return loadTrendingStream();
   if (!currentMember || streamLoading) return;
   syncHomeFeedModeUi();
   streamLoading = true;
@@ -6521,46 +6475,6 @@ function renderDiscoverProfile(profile) {
   return row;
 }
 
-async function loadDiscoverTrendingCandidates(query = '') {
-  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const results = await Promise.all(['like_count', 'comment_count', 'repost_count'].map((metric) => {
-    let request = supabase.from('social_posts')
-      .select('id,author_id,like_count,comment_count,repost_count,created_at')
-      .eq('visibility', 'public').is('circle_id', null).is('reply_to_post_id', null)
-      .eq('post_status', 'published').is('deleted_at', null).gte('created_at', since)
-      .order(metric, { ascending: false }).order('created_at', { ascending: false }).limit(250);
-    if (query) request = request.ilike('body', `%${query}%`);
-    return request;
-  }));
-  return { data: results.flatMap((result) => result.data || []), error: results.find((result) => result.error)?.error };
-}
-
-async function loadTrendingPostDetails(ranked) {
-  if (!ranked.length) return [];
-  const details = await supabase.from('social_posts').select(THREAD_POST_SELECT)
-    .in('id', ranked.map((post) => post.id)).eq('visibility', 'public')
-    .eq('post_status', 'published').is('deleted_at', null);
-  if (details.error) throw details.error;
-  const detailMap = new Map((details.data || []).map((post) => [post.id, post]));
-  return ranked.map((post) => detailMap.get(post.id)).filter(Boolean);
-}
-
-window.__sautilinkShortVideoTrendingRanks = async () => {
-  const memberId = currentMemberId;
-  if (!memberId) return {};
-  const [candidates, blocked, muted] = await Promise.all([
-    loadDiscoverTrendingCandidates(),
-    supabase.from('social_blocks').select('blocked_id').eq('blocker_id', memberId),
-    supabase.from('social_mutes').select('muted_id').eq('muter_id', memberId),
-  ]);
-  if (currentMemberId !== memberId || candidates.error || blocked.error || muted.error) return {};
-  const ranked = rankTrendingPosts(candidates.data || [], {
-    blocked: new Set((blocked.data || []).map((row) => row.blocked_id)),
-    muted: new Set((muted.data || []).map((row) => row.muted_id)), limit: 20,
-  });
-  return Object.fromEntries(ranked.map((post, index) => [post.id, index + 1]));
-};
-
 async function loadDiscover(queryValue = byId('discover-query').value) {
   if (!currentMemberId) return;
   const memberId = currentMemberId;
@@ -6631,7 +6545,11 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
       ]);
     }
 
-    const postQuery = loadDiscoverTrendingCandidates(query);
+    let postQuery = supabase.from('social_posts').select(THREAD_POST_SELECT)
+      .eq('visibility', 'public').is('circle_id', null).is('reply_to_post_id', null)
+      .eq('post_status', 'published').is('deleted_at', null)
+      .order('created_at', { ascending: false }).order('id', { ascending: false }).limit(30);
+    if (query) postQuery = postQuery.ilike('body', `%${query}%`);
 
     const [blockedResult, mutedResult, profileResults, postResult] = await Promise.all([
       blockedPromise,
@@ -6658,9 +6576,9 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
 
     const profileRows = [...profileMap.values()].slice(0, 12).map(renderDiscoverProfile);
 
-    const ranked = rankTrendingPosts(postResult.data || [], { blocked: blockedIds, muted: mutedIds, limit: 5 });
-    const trendingPosts = await loadTrendingPostDetails(ranked);
-    const hydrated = await hydrateDirectPosts(trendingPosts);
+    const publicPosts = (postResult.data || [])
+      .filter((post) => !blockedIds.has(post.author_id) && !mutedIds.has(post.author_id));
+    const hydrated = await hydrateDirectPosts(publicPosts);
     if (requestId !== discoverRequest || currentMemberId !== memberId) return;
     profileList.replaceChildren(...profileRows);
     profileEmpty.hidden = profileList.childElementCount > 0;
@@ -9232,13 +9150,16 @@ async function loadDiscoverableProfile(username) {
   showDiscoverableProfile(data);
 }
 
+function normalizeHomeFeedRoute() {
+  if (!/^\/(?:home|app)\/?$/.test(window.location.pathname)) return;
+  const route = new URL(window.location.href);
+  if (!route.searchParams.has('feed')) return;
+  route.searchParams.delete('feed');
+  window.history.replaceState(window.history.state, '', `${route.pathname}${route.search}${route.hash}`);
+}
+
 async function applyLocationRoute() {
-  if (/^\/(?:home|app)\/?$/.test(window.location.pathname)
-    && new URL(window.location.href).searchParams.get('feed') === 'trending'
-    && activeHomeFeed !== 'trending') {
-    activeHomeFeed = 'trending';
-    resetStreamState();
-  }
+  normalizeHomeFeedRoute();
   if (!/^\/(?:app\/)?compose\/?$/.test(window.location.pathname) && byId('sauti-composer-dialog')?.open) {
     closeSautiComposer({ restoreFocus: false, syncUrl: false });
   }
@@ -9462,9 +9383,6 @@ async function applyLocationRoute() {
         if (/^\/app\/?$/.test(window.location.pathname)) window.history.replaceState({}, '', '/home');
         byId('sauti-composer').hidden = false;
         showMemberSurface('stream', { syncUrl: false });
-        if (activeHomeFeed === 'trending' && !memberSurfaceRetention.isFresh('stream', currentMemberId, 'trending')) {
-          await loadStream({ reset: true });
-        }
       }
     } else {
       showSignedOut('login');
@@ -11012,13 +10930,6 @@ byId('stream-retry').addEventListener('click', () => {
   else void loadStream({ reset: true });
 });
 byId('stream-load-more').addEventListener('click', () => loadStream());
-byId('discover-trending-more').addEventListener('click', (event) => {
-  event.preventDefault();
-  window.history.pushState({}, '', '/home?feed=trending');
-  showMemberSurface('stream', { syncUrl: false });
-  void selectHomeFeed('trending');
-  window.scrollTo({ top: 0, behavior: 'auto' });
-});
 byId('home-feed-tabs').addEventListener('click', (event) => {
   const tab = event.target.closest('[data-home-feed-tab]');
   if (tab) void selectHomeFeed(tab.dataset.homeFeedTab);

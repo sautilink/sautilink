@@ -53,8 +53,7 @@ function context(extra = {}) {
     byId: dom.byId, normalizeDiscoverQuery: (value) => value.trim(),
     renderNotificationItem: (row) => ({ id: row.id }),
     renderDiscoverProfile: (row) => ({ id: row.id }),
-    loadDiscoverTrendingCandidates: async () => ({ data: [{ id: 'post' }] }),
-    rankTrendingPosts: (rows) => rows.slice(0, 5), loadTrendingPostDetails: async (rows) => rows,
+    THREAD_POST_SELECT: 'id,author_id',
     createSautiCard: (row) => ({ id: row.id }), hydrateDirectPosts: async (rows) => rows,
     syncNotificationBadges() {}, syncMessageBadges() {}, messageBadgesEnabled: () => true,
     window: { location: { href: 'https://sautilink.com/home', pathname: '/home', search: '' },
@@ -250,6 +249,33 @@ for (const [label, source] of [['source', raw], ['built transform', transformed]
     assert.equal(list.childElementCount, 0);
     assert.equal(h.byId('discover-loading').hidden, false);
     changed.resolve({ data: [] }); await search;
+  });
+
+  test(`${label}: Discover searches latest public posts without rankings and excludes blocked/muted authors`, async () => {
+    const calls = [];
+    const h = context({ supabase: { from(table) {
+      const chain = new Proxy({}, { get(_target, name) {
+        if (name === 'then') return (resolve) => resolve({ data: table === 'social_blocks' ? [{ blocked_id: 'blocked' }]
+          : table === 'social_mutes' ? [{ muted_id: 'muted' }]
+          : table === 'social_posts' ? [{ id: 'latest', author_id: 'visible' }, { id: 'hidden-b', author_id: 'blocked' },
+            { id: 'hidden-m', author_id: 'muted' }, { id: 'older', author_id: 'visible' }] : [] });
+        return (...args) => { if (table === 'social_posts') calls.push([name, ...args]); return chain; };
+      } });
+      return chain;
+    } } });
+    vm.runInContext(block(source, 'async function loadDiscover(', 'async function loadSavedSauti('), h);
+    await vm.runInContext("loadDiscover('caption')", h);
+    assert.deepEqual(h.byId('discover-sauti-feed').children.map((row) => row.id), ['latest', 'older']);
+    for (const [name, column, value] of [['eq', 'visibility', 'public'], ['is', 'circle_id', null],
+      ['is', 'reply_to_post_id', null], ['eq', 'post_status', 'published'], ['is', 'deleted_at', null],
+      ['ilike', 'body', '%caption%']]) {
+      assert.ok(calls.some((call) => call[0] === name && call[1] === column && call[2] === value));
+    }
+    const orders = calls.filter((call) => call[0] === 'order');
+    assert.deepEqual(orders.map((call) => call[1]), ['created_at', 'id']);
+    assert.ok(orders.every((call) => call[2].ascending === false));
+    assert.ok(calls.some((call) => call[0] === 'limit' && call[1] === 30));
+    assert.ok(!calls.some((call) => call[0] === 'gte'), 'older public posts remain discoverable');
   });
 
   test(`${label}: inbox retains rows during a current read and still replaces updates`, async () => {
