@@ -32,6 +32,14 @@
       "zone_name": "sautilink.com"
     },
     {
+      "pattern": "sautilink.com/assets/brand/*",
+      "zone_name": "sautilink.com"
+    },
+    {
+      "pattern": "www.sautilink.com/assets/brand/*",
+      "zone_name": "sautilink.com"
+    },
+    {
       "pattern": "sautilink.com/manifest.json*",
       "zone_name": "sautilink.com"
     },

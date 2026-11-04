@@ -267,4 +267,20 @@ if (/"pattern"\s*:\s*"(?:www\.)?sautilink\.com\/\*"/.test(config)) {
   throw new Error('production Worker must not intercept the marketing/legal site root');
 }
 
+// A branded-only update must ship the actual wordmark images and CSS on the
+// production Worker, without changing public/legal site routing or the app icon.
+for (const name of ['system.css', 'sautilink-wordmark-black.png', 'sautilink-wordmark-white.png']) {
+  const asset = resolve(siteRoot, 'assets/brand', name);
+  if (!(await stat(asset).catch(() => null))?.isFile()) {
+    throw new Error(`missing production wordmark asset: ${name}`);
+  }
+}
+const liveWordmarkCss = await readFile(resolve(siteRoot, 'assets/brand/system.css'), 'utf8');
+for (const marker of ['sautilink-wordmark-black.png', 'sautilink-wordmark-white.png', 'html[data-theme="light"]']) {
+  if (!liveWordmarkCss.includes(marker)) throw new Error(`production wordmark CSS missing: ${marker}`);
+}
+for (const pattern of ['sautilink.com/assets/brand/*', 'www.sautilink.com/assets/brand/*']) {
+  if (!config.includes(pattern)) throw new Error(`production brand asset route missing: ${pattern}`);
+}
+
 console.log(`Verified ${files.length} production artifact files: production DB isolated, birth date controls shipped, protected responsive media optimization present, CSP-safe X-style profile stylesheet present, transient read/session resilience present, scoped Messages UI present, Durable Objects presence/typing isolated behind authenticated RLS checks, Android FCM registration/tap routing present, clean social routes present, Rooms runtime present, root site preserved, no secrets/source maps.`);

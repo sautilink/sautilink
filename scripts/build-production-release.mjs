@@ -109,6 +109,9 @@ await cp(resolve(projectRoot, 'manifest.json'), resolve(siteRoot, 'manifest.json
 await cp(resolve(projectRoot, 'sw.js'), resolve(siteRoot, 'sw.js'));
 await mkdir(resolve(siteRoot, 'assets'), { recursive: true });
 await cp(resolve(projectRoot, 'assets/pwa.js'), resolve(siteRoot, 'assets/pwa.js'));
+// Ship both theme-adaptive wordmarks and shared brand CSS with the production Worker.
+// Public Pages continues to own all other marketing assets.
+await cp(resolve(projectRoot, 'assets/brand'), resolve(siteRoot, 'assets/brand'), { recursive: true });
 
 for (const file of await walk(workerSource)) {
   if (extname(file) !== '.js' && extname(file) !== '.ts') continue;
