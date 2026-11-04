@@ -7,6 +7,7 @@ on:
       - "index.html"
       - "manifest.json"
       - "app/**"
+      - "assets/brand/**"
       - "src/**"
       - "sw.js"
       - "robots.txt"
@@ -26,6 +27,7 @@ on:
       - "index.html"
       - "manifest.json"
       - "app/**"
+      - "assets/brand/**"
       - "src/**"
       - "sw.js"
       - "robots.txt"
@@ -112,6 +114,35 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           WRANGLER_SEND_METRICS: "false"
         run: npx --no-install wrangler deploy --config wrangler.production.jsonc
+      - name: Verify adaptive wordmark assets on live production
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=0
+          for attempt in {1..12}; do
+            good=1
+            for hostname in sautilink.com www.sautilink.com; do
+              for name in system.css sautilink-wordmark-black.png sautilink-wordmark-white.png; do
+                expected="dist-production-site/assets/brand/$name"
+                actual="$(mktemp)"
+                status="$(curl -sS -L --max-time 15 -o "$actual" -w '%{http_code}' \
+                  -H 'Cache-Control: no-cache' \
+                  "https://$hostname/assets/brand/$name?release=$GITHUB_RUN_ID-$attempt")" || status=000
+                if [[ "$status" != "200" ]] || ! cmp -s "$expected" "$actual"; then
+                  echo "$hostname/$name mismatch: HTTP $status, attempt $attempt"
+                  good=0
+                fi
+                rm -f "$actual"
+              done
+            done
+            if [ "$good" = "1" ]; then ready=1; break; fi
+            sleep 3
+          done
+          if [ "$ready" != "1" ]; then
+            echo "Production adaptive wordmark assets did not converge to the release bytes." >&2
+            exit 1
+          fi
+
       - name: Verify production cutover and account-entry root
         shell: bash
         run: |
