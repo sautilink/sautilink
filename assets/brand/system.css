@@ -35,13 +35,22 @@ html[data-theme="light"] body .profile-editor .profile-form textarea:focus {
 html[data-theme="light"] {
   --sautilink-wordmark-image: url("/assets/brand/sautilink-wordmark-black.png");
 }
+/*
+ * Keep the artwork closely coupled to the existing logo icon. The wordmark
+ * should have roughly the same visible height as that icon, not dominate it.
+ */
+html body a.brand,
+html body a.app-brand,
+html body a.auth-entry-brand {
+  gap: 5px !important;
+}
 html body a.brand > span:first-of-type,
 html body a.app-brand > span:first-of-type,
 html body a.auth-entry-brand > span:first-of-type {
   display: inline-block !important;
   flex: 0 0 auto;
-  width: 124px;
-  height: 26px;
+  width: 108px;
+  height: 23px;
   overflow: hidden;
   font-size: 0 !important;
   line-height: 0 !important;
@@ -54,20 +63,24 @@ html body a.auth-entry-brand > span:first-of-type {
   background-size: contain !important;
 }
 html body a.app-brand > span:first-of-type {
-  width: 128px;
-  height: 27px;
+  width: 112px;
+  height: 24px;
 }
 html body a.auth-entry-brand > span:first-of-type {
-  width: 148px;
-  height: 32px;
+  width: 118px;
+  height: 25px;
 }
 @media (max-width: 760px) {
+  html body .mobile-header a.app-brand,
+  html body a.auth-entry-brand {
+    gap: 4px !important;
+  }
   html body .mobile-header a.app-brand > span:first-of-type {
-    width: 109px;
-    height: 23px;
+    width: 98px;
+    height: 21px;
   }
   html body a.auth-entry-brand > span:first-of-type {
-    width: 120px;
-    height: 26px;
+    width: 105px;
+    height: 22px;
   }
 }
