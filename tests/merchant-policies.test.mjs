@@ -182,7 +182,7 @@ test('Merchant Policies resources are self-hosted and available in the static as
       .filter((tag) => /^(stylesheet|preload|icon|shortcut icon|apple-touch-icon)$/i.test(attribute(tag, 'rel') || ''))
       .map((tag) => attribute(tag, 'href')),
   ].filter(Boolean);
-  assert.ok(resources.includes('/assets/brand/system.css'), 'canonical brand system must be loaded');
+  assert.ok(resources.some((url) => url.split(/[?#]/)[0] === '/assets/brand/system.css'), 'canonical brand system must be loaded');
   assert.ok(resources.some((url) => url.startsWith('/assets/public-pages-icons.css')));
   assert.ok(resources.some((url) => url.startsWith('/assets/legal.js')));
   for (const resource of resources) {
