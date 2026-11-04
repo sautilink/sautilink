@@ -5,6 +5,14 @@ const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.js",
   "/app/assets/theme-init.js"
 ]);
+
+// Brand assets must revalidate on every visit. They were previously served
+// cache-first forever to returning PWA users even after production deploys.
+const BRAND_ASSET_PATHS = new Set([
+  "/assets/brand/system.css",
+  "/assets/brand/sautilink-wordmark-white.png",
+  "/assets/brand/sautilink-wordmark-black.png"
+]);
 const APP_SHELL = [
   "/",
   "/app/",
@@ -15,7 +23,7 @@ const APP_SHELL = [
   "/assets/favicon.png",
   "/assets/icon-192.png",
   "/assets/icon-maskable-512.png",
-  "/assets/brand/system.css",
+  "/assets/brand/system.css?v=20261104-adaptive1",
   `/assets/pwa.js?v=${PWA_RELEASE}`,
   "/assets/launch-splash.css",
   "/assets/launch-splash.js",
@@ -201,6 +209,26 @@ self.addEventListener("fetch", (event) => {
     const socialRoute = /^(?:\/app(?:\/|$)|\/(?:login|signup|home|compose|discover|saved|appeals|moderation|settings|menu|notifications|dashboard)(?:\/|$)|\/(?:messages|videos)(?:\/|$)|\/(?:rooms|sautify)(?:\/|$)|\/u\/|\/post\/)/.test(url.pathname);
     const fallback = socialRoute ? "/app/" : "/";
     event.respondWith(fetch(event.request, { cache: "no-store" }).catch(() => caches.match(fallback)));
+    return;
+  }
+
+  // Use network-first for stable-URL brand artwork/CSS. Incognito has no old
+  // shell cache, while existing PWA installations do; never let those older
+  // cached files mask a successful SautiLink brand deploy.
+  if (url.origin === self.location.origin && BRAND_ASSET_PATHS.has(url.pathname)) {
+    event.respondWith(
+      fetch(event.request, { cache: "no-store" })
+        .then((response) => {
+          if (response.ok && response.type !== "opaque") {
+            const copy = response.clone();
+            void caches.open(CACHE_NAME)
+              .then((cache) => cache.put(event.request, copy))
+              .catch(() => {});
+          }
+          return response;
+        })
+        .catch(async () => (await caches.match(event.request)) || (await matchCachedPath(url.pathname)) || Response.error())
+    );
     return;
   }
 
