@@ -9,3 +9,11 @@ For partnership or brand-use requests, use
 
 The repository [license](../../LICENSE) applies to SautiLink-owned materials.
 Third-party assets retain their respective licenses and required notices.
+
+## Official theme-adaptive SautiLink wordmark
+
+- `sautilink-wordmark-black.png`: black wordmark on a transparent background for light theme.
+- `sautilink-wordmark-white.png`: white wordmark on a transparent background for dark theme.
+- `system.css` switches the header/brand lettering based on `html[data-theme]`; the original SautiLink icon and Inter interface typography are deliberately unaffected.
+
+The wordmark comes from the official supplied artwork, not font-rendered text. Use it for brand/header lettering only.
