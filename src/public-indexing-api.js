@@ -177,11 +177,13 @@ function applySeoHead(html, metadata) {
   const extra = [
     `<link rel="canonical" href="${attribute(metadata.canonical)}">`,
     `<meta property="og:site_name" content="SautiLink">`,
+    `<meta property="og:locale" content="en_US">`,
     `<meta property="og:type" content="${attribute(metadata.ogType)}">`,
     `<meta property="og:title" content="${attribute(metadata.title)}">`,
     `<meta property="og:description" content="${attribute(metadata.description)}">`,
     `<meta property="og:url" content="${attribute(metadata.canonical)}">`,
     `<meta property="og:image" content="${attribute(metadata.image)}">`,
+    `<meta property="og:image:secure_url" content="${attribute(metadata.image)}">`,
     `<meta property="og:image:alt" content="${attribute(metadata.imageAlt)}">`,
     metadata.imageType ? `<meta property="og:image:type" content="${attribute(metadata.imageType)}">` : '',
     metadata.imageWidth ? `<meta property="og:image:width" content="${attribute(metadata.imageWidth)}">` : '',
@@ -190,6 +192,8 @@ function applySeoHead(html, metadata) {
     `<meta name="twitter:title" content="${attribute(metadata.title)}">`,
     `<meta name="twitter:description" content="${attribute(metadata.description)}">`,
     `<meta name="twitter:image" content="${attribute(metadata.image)}">`,
+    `<meta name="twitter:image:alt" content="${attribute(metadata.imageAlt)}">`,
+    `<meta name="twitter:site" content="@sautilink">`,
     metadata.profileUsername ? `<meta property="profile:username" content="${attribute(metadata.profileUsername)}">` : '',
     `<script type="application/ld+json">${jsonLd(metadata.structuredData)}</script>`,
   ].filter(Boolean).map((line) => `  ${line}`).join('\n');
