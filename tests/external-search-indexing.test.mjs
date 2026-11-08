@@ -64,6 +64,10 @@ test('opted-in verified profile receives canonical index metadata and structured
     assert.match(html, /Official Verified Profile on SautiLink/);
     assert.match(html, /rel="canonical" href="https:\/\/sautilink\.com\/u\/drcharlestz"/);
     assert.match(html, /application\/ld\+json/);
+    assert.match(html, /property="og:locale" content="en_US"/);
+    assert.match(html, /property="og:image:secure_url"/);
+    assert.match(html, /name="twitter:image:alt"/);
+    assert.match(html, /name="twitter:site" content="@sautilink"/);
     assert.match(html, /SautiLink verification/);
     assert.match(html, /Public profile biography/);
     assert.match(html, /api\/profile-media\/drcharlestz\/avatar/);
@@ -121,6 +125,10 @@ test('public opted-in post receives crawlable metadata while app legacy permalin
     const html = await publicResponse.text();
     assert.match(html, /This is a public SautiLink post for search indexing/);
     assert.match(html, /SocialMediaPosting/);
+    assert.match(html, /property="og:locale" content="en_US"/);
+    assert.match(html, /property="og:image:secure_url"/);
+    assert.match(html, /name="twitter:image:alt"/);
+    assert.match(html, /name="twitter:site" content="@sautilink"/);
     assert.match(html, /twitter:card" content="summary_large_image"/);
     assert.match(html, /public-post-card\/123e4567-e89b-42d3-a456-426614174000\.png/);
     assert.match(html, /https:\/\/sautilink\.com\/post\/123e4567-e89b-42d3-a456-426614174000/);
