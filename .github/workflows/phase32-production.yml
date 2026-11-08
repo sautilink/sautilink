@@ -438,3 +438,16 @@ jobs:
           }
           NODE
           done
+
+  verify-live-legal-seo:
+    name: Read-only live SEO audit
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Inspect live HTML, Schema.org, robots and sitemaps
+        run: node scripts/check-live-legal-seo.mjs
