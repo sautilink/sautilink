@@ -12,6 +12,7 @@ import { handleAccountControlRequest } from './account-controls-api.js';
 import { handleDmMediaRequest } from './dm-media-api.js';
 import { androidAssetLinksResponse } from './android-app-links.js';
 import { pwaOriginAssociationResponse } from './pwa-origin-association.js';
+import { applyAuthRouteSeo } from './auth-route-seo.js';
 
 const PROFILE_ROUTE = /^\/app\/u\/[^/]+\/?$/;
 const AUTH_CONFIRM_ROUTE = /^\/app\/auth\/confirm\/?$/;
@@ -155,10 +156,22 @@ async function cleanAuthShellResponse(request, env, url) {
   const mode = url.pathname.startsWith('/signup') ? 'signup' : 'login';
   const shellUrl = new URL('/app/', url);
   const response = await env.ASSETS.fetch(new Request(shellUrl, request));
-  if (request.method === 'HEAD' || !response.ok) return response;
+  if (!response.ok) return response;
+
+  const headers = new Headers(response.headers);
+  headers.set('Cache-Control', 'no-store');
+  headers.set('X-Robots-Tag', 'noindex, follow');
+  headers.delete('Content-Length');
+  headers.delete('ETag');
+
+  if (request.method === 'HEAD') {
+    return new Response(null, { status: response.status, statusText: response.statusText, headers });
+  }
 
   const contentType = String(response.headers.get('Content-Type') || '').toLowerCase();
-  if (!contentType.includes('text/html')) return response;
+  if (!contentType.includes('text/html')) {
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  }
 
   let html = await response.text();
   html = html
@@ -203,10 +216,7 @@ async function cleanAuthShellResponse(request, env, url) {
       );
   }
 
-  const headers = new Headers(response.headers);
-  headers.set('Cache-Control', 'no-store');
-  headers.delete('Content-Length');
-  headers.delete('ETag');
+  html = applyAuthRouteSeo(html, mode);
 
   return new Response(html, {
     status: response.status,
