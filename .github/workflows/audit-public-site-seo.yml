@@ -1,0 +1,19 @@
+name: Read-only public SEO diagnostic
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/check-live-public-site-seo.mjs"
+      - ".github/workflows/audit-public-site-seo.yml"
+permissions:
+  contents: read
+jobs:
+  live-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node scripts/check-live-public-site-seo.mjs
