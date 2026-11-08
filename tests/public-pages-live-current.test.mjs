@@ -101,10 +101,13 @@ test('Sitemap index preserves current public pages and adds privacy-filtered soc
   assert.match(indexXml, /<sitemapindex/);
   assert.match(indexXml, /https:\/\/sautilink\.com\/sitemap-static\.xml/);
   assert.match(indexXml, /https:\/\/sautilink\.com\/api\/public-index\/sitemap\.xml/);
-  assert.match(staticXml, /2026-09-09/);
-  for (const path of ['/about', '/help', '/contact', '/privacy', '/terms', '/community-guidelines', '/upload-guidelines', '/verify', '/account-deletion', '/sw', '/fr', '/es', '/no']) {
-    assert.match(staticXml, new RegExp(`https:\\/\\/sautilink\\.com${path.replace('/', '\\/')}`));
+  for (const path of ['/about', '/help', '/contact', '/privacy', '/terms', '/community-guidelines',
+    '/upload-guidelines', '/verify', '/account-deletion', '/sautinote', '/download', '/sw', '/fr', '/es', '/nb']) {
+    assert.ok(staticXml.includes(`<loc>https://sautilink.com${path}</loc>`),
+      `missing canonical sitemap location: ${path}`);
   }
+  assert.ok(!staticXml.includes('<loc>https://sautilink.com/no</loc>'),
+    'Legacy Norwegian alias is canonicalized to /nb');
 });
 
 test('Template-style public micro-labels are removed from Help and stripped from other important pages at runtime', () => {
