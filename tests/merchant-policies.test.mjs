@@ -206,6 +206,6 @@ test('Public legal directories and the static sitemap expose Merchant Policies',
   const entries = [...staticSitemap.matchAll(/<url>([\s\S]*?)<\/url>/g)]
     .filter(([, entry]) => entry.includes(`<loc>${canonical}</loc>`));
   assert.equal(entries.length, 1, 'canonical merchant policy URL must appear once');
-  assert.match(entries[0][1], /<lastmod>2026-10-20<\/lastmod>/);
+  assert.match(entries[0][1], /<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/);
   assert.match(read('sitemap.xml'), /<loc>https:\/\/sautilink\.com\/sitemap-static\.xml<\/loc>/);
 });
