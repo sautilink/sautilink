@@ -1,0 +1,19 @@
+name: Read-only Auth SEO Diagnostic
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/audit-live-auth-seo.mjs"
+      - ".github/workflows/audit-live-auth-seo.yml"
+permissions:
+  contents: read
+jobs:
+  live-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node scripts/audit-live-auth-seo.mjs
