@@ -39,6 +39,8 @@ const copies = [
   ['preview/messages', 'preview/messages'],
   ['preview/settings', 'preview/settings'],
   ['preview-src/backend-foundation', 'preview/backend-foundation'],
+  // Typography comparison is staging-only; no production app assets are modified.
+  ['preview-src/font-lab', 'preview/font-lab'],
   ['logo.png', 'logo.png'],
   ['assets/favicon.png', 'assets/favicon.png'],
   ['assets/brand/logo-compact.webp', 'assets/brand/logo-compact.webp'],
@@ -113,6 +115,7 @@ await writeFile(resolve(stageRoot, 'index.html'), `<!doctype html>
         <a class="phase" href="/preview/messages/"><small>Phase 09</small><strong>Basic Messages</strong></a>
         <a class="phase" href="/preview/settings/"><small>Phase 10</small><strong>Settings &amp; Privacy</strong></a>
         <a class="phase" href="/preview/backend-foundation/"><small>Phase 11</small><strong>Staging Backend Foundation</strong></a>
+        <a class="phase" href="/preview/font-lab/"><small>Design Lab 01</small><strong>Inter vs Google Sans Flex</strong></a>
       </nav>
       <footer>Development only · Seeded data · No production accounts or messages</footer>
     </main>
