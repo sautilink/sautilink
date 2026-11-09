@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
+  <meta name="theme-color" content="#f6f7fa">
+  <title>SautiLink Font Lab — Inter vs Google Sans Flex</title>
+  <meta name="description" content="Private SautiLink staging comparison of Inter and Google Sans Flex. Seeded UI only.">
+  <link rel="icon" href="/assets/favicon.png" type="image/png">
+  <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/assets/brand/system.css">
+  <link rel="stylesheet" href="/preview/font-lab/font-lab.css">
+  <script src="/preview/font-lab/font-lab.js" defer></script>
+</head>
+<body>
+<div class="lab" id="font-lab">
+  <header class="lab-header">
+    <a class="lab-brand" href="/" aria-label="SautiLink staging homepage"><img src="/logo.png" alt=""><span>SautiLink <small>Design Lab</small></span></a>
+    <div class="lab-header-right"><span class="staging-chip"><span class="status-dot"></span> STAGING ONLY</span><a class="lab-back" href="/">All previews <span aria-hidden="true">↗</span></a></div>
+  </header>
+  <main>
+    <section class="intro">
+      <div class="intro-copy">
+        <span class="eyebrow">TYPOGRAPHY EXPERIMENT · PHASE 01</span>
+        <h1>One platform.<br><em>Two typefaces.</em></h1>
+        <p>Explore how <strong>Inter</strong> and <strong>Google Sans Flex</strong> feel inside the SautiLink experience. Switch instantly, compare side by side, and inspect mobile layouts.</p>
+      </div>
+      <div class="intro-aside">
+        <div class="big-aa" aria-hidden="true">Ag</div>
+        <p>This preview uses fictional content and never reads your SautiLink account.</p>
+      </div>
+    </section>
+    <section class="controls" aria-label="Typography lab controls">
+      <div class="control-row">
+        <fieldset class="control-group" aria-label="Choose typography">
+          <legend>TYPEFACE</legend>
+          <div class="segmented" id="font-choice">
+            <button type="button" data-font="inter" aria-pressed="false">Inter</button>
+            <button type="button" data-font="flex" aria-pressed="true">Google Sans Flex</button>
+            <button type="button" data-font="compare" aria-pressed="false">Compare <span class="desktop-only">side by side</span></button>
+          </div>
+        </fieldset>
+        <fieldset class="control-group" aria-label="Appearance">
+          <legend>APPEARANCE</legend>
+          <div class="segmented" id="theme-choice">
+            <button type="button" data-theme="light" aria-pressed="true">☀ Light</button>
+            <button type="button" data-theme="dark" aria-pressed="false">◐ Dark</button>
+          </div>
+        </fieldset>
+        <fieldset class="control-group" aria-label="Device width">
+          <legend>VIEWPORT</legend>
+          <div class="segmented" id="device-choice">
+            <button type="button" data-device="desktop" aria-pressed="true">Desktop</button>
+            <button type="button" data-device="mobile" aria-pressed="false">Mobile</button>
+          </div>
+        </fieldset>
+      </div>
+      <div class="screens-line">
+        <span class="screens-label">PREVIEW SCREEN</span>
+        <div class="screen-tabs" id="screen-choice" aria-label="Preview screen">
+          <button type="button" data-screen-tab="home" aria-pressed="true">Home</button>
+          <button type="button" data-screen-tab="profile" aria-pressed="false">Profile</button>
+          <button type="button" data-screen-tab="messages" aria-pressed="false">Messages</button>
+          <button type="button" data-screen-tab="login" aria-pressed="false">Login</button>
+          <button type="button" data-screen-tab="settings" aria-pressed="false">Settings</button>
+        </div>
+      </div>
+    </section>
+    <div class="load-line" aria-live="polite"><span class="load-indicator" id="font-status">Checking Google Sans Flex availability…</span><span class="font-note">Visual QA · Not an authenticated session</span></div>
+    <section class="preview-grid" id="preview-grid" aria-label="SautiLink typeface preview"></section>
+    <section class="qa-panel">
+      <div><span class="eyebrow">REVIEW CHECKLIST</span><h2>What should we look for?</h2><p>Inspect long Swahili captions, small labels, usernames, button widths, message bubbles, contrast and wrapping at phone sizes. Inter is still the official production font.</p></div>
+      <div class="qa-items" aria-label="Review focus"><span>Swahili + English</span><span>12–16px text</span><span>Weight 400–850</span><span>Light + dark</span><span>320px mobile QA</span><span>No production changes</span></div>
+    </section>
+  </main>
+  <footer class="lab-footer"><span>© SautiLink · Private design preview</span><span>Google Sans Flex is used for evaluation only. Production remains Inter.</span></footer>
+</div>
+
+<template id="surface-template">
+  <article class="preview-surface" data-preview-font="flex" data-preview-screen="home" aria-label="Typeface specimen">
+    <div class="surface-heading"><span class="font-name">Google Sans Flex</span><span class="font-technical">Variable · 100–900</span></div>
+    <div class="app-preview">
+      <div class="app-rail">
+        <div class="app-logo"><img src="/logo.png" alt="SautiLink"></div>
+        <div class="rail-links" aria-hidden="true"><div class="rail-active">⌂ <span>Home</span></div><div>◉ <span>Discover</span></div><div>▢ <span>Messages</span></div><div>♧ <span>Sautify</span></div><div>◷ <span>Saved</span></div><div>⚙ <span>Settings</span></div></div>
+        <div class="rail-foot"><span class="small-avatar">S</span><span>Demo account<small>Preview mode</small></span></div>
+      </div>
+      <div class="app-area">
+        <div class="app-top"><div class="app-top-title">SautiLink <span class="tiny-pill">PREVIEW</span></div><div class="app-top-actions"><span>⌕</span><span>♧</span><span class="small-avatar">S</span></div></div>
+        <div class="screen screen-home" data-screen="home">
+          <div class="screen-title">Home <span class="user-light">For You</span></div>
+          <div class="tab-strip"><span class="selected">For You</span><span>Following</span><span>Short Videos</span></div>
+          <div class="composer-box"><span class="avatar blue">S</span><span class="composer-placeholder">What's on your mind?</span><span class="fake-compose">+ Post</span></div>
+          <div class="post-card">
+            <div class="post-head"><span class="avatar purple">A</span><div><strong>Alex Morgan <span class="verified">✓</span></strong><small>@alexm · 12 min</small></div><span class="post-more">···</span></div>
+            <p>Tunajenga jamii bora kwa kushirikiana, kujifunza na kuwasiliana. Teknolojia inatuunganisha popote tulipo. 🌍</p>
+            <p class="english-caption">A great community begins with meaningful conversations and ideas worth sharing.</p>
+            <div class="post-image"><span class="post-image-icon">✦</span><strong>Connect. Share.<br>Belong.</strong><small>#SautiLinkCommunity</small></div>
+            <div class="post-stats"><span>♡ 128</span><span>▤ 24</span><span>↗ Share</span></div>
+          </div>
+          <div class="post-card mini-post"><div class="post-head"><span class="avatar peach">N</span><div><strong>Nadia K.</strong><small>@nadiak · 1 hour</small></div></div><p>Habari za leo! What are you working on this week? ✨ #Technology #Community</p></div>
+        </div>
+        <div class="screen screen-profile" data-screen="profile" hidden>
+          <div class="profile-cover"><span>✴</span></div>
+          <div class="profile-top"><div class="profile-avatar">S</div><span class="fake-outline">Edit profile</span></div>
+          <h2 class="profile-name">SautiLink Demo <span class="verified">✓</span></h2><p class="handle">@sautilinkdemo · Digital Creator</p>
+          <p class="profile-bio">Exploring technology, sharing original ideas, and building communities across borders. Karibu kwenye ukurasa wangu!</p>
+          <p class="stats-line"><strong>184</strong> Following <strong>2,436</strong> Followers</p>
+          <div class="tab-strip"><span class="selected">Posts</span><span>Media</span><span>About</span></div>
+          <div class="post-card"><div class="post-head"><span class="avatar blue">S</span><div><strong>SautiLink Demo</strong><small>Just now</small></div></div><p>Every story deserves a place to be heard. Kila sauti ina thamani.</p></div>
+        </div>
+        <div class="screen screen-messages" data-screen="messages" hidden>
+          <div class="screen-title">Messages <span class="user-light">2 chats</span></div>
+          <div class="message-search">⌕ &nbsp; Search conversations</div>
+          <div class="message-list"><div class="message-person active"><span class="avatar purple">A</span><div><strong>Alex Morgan</strong><small>See you at the community event!</small></div><small>Now</small></div><div class="message-person"><span class="avatar peach">N</span><div><strong>Nadia K.</strong><small>Asante sana kwa msaada wako.</small></div><small>9:41</small></div></div>
+          <div class="chat-panel"><div class="chat-date">Today</div><div class="bubble received">Hey! Are you joining the meetup tomorrow?</div><div class="bubble sent">Ndiyo kabisa! Looking forward to it. 😊</div><div class="bubble received">See you at the community event!</div><div class="message-reply">Message… <span>➤</span></div></div>
+        </div>
+        <div class="screen screen-login" data-screen="login" hidden>
+          <div class="login-card"><span class="login-icon">✦</span><span class="eyebrow">WELCOME BACK</span><h2>Welcome back to SautiLink</h2><p>Sign in to continue to your account.</p><div class="login-switch"><span class="selected">Log in</span><span>Sign up</span></div><label>Email or username</label><div class="fake-input">name@example.com</div><label>Password</label><div class="fake-input">••••••••••••</div><div class="fake-submit">Continue</div><p class="login-help">Forgot password?</p></div>
+        </div>
+        <div class="screen screen-settings" data-screen="settings" hidden>
+          <div class="screen-title">Settings <span class="user-light">Your account</span></div>
+          <h2 class="settings-heading">Account preferences</h2><p class="settings-desc">Manage your experience and privacy across SautiLink.</p>
+          <div class="settings-card"><div><span class="settings-symbol">◉</span><span>Account <small>Profile, security and verification</small></span><span class="chevron">›</span></div><div><span class="settings-symbol">◐</span><span>Appearance <small>Theme and display preferences</small></span><span class="chevron">›</span></div><div><span class="settings-symbol">♧</span><span>Privacy <small>Control who can reach you</small></span><span class="chevron">›</span></div><div><span class="settings-symbol">♬</span><span>Notifications <small>Stay in control of updates</small></span><span class="chevron">›</span></div></div>
+          <p class="settings-footnote">Changes are not saved in this static design lab.</p>
+        </div>
+        <div class="mobile-bottom" aria-hidden="true"><span class="selected">⌂</span><span>⌕</span><span>+</span><span>▢</span><span>◯</span></div>
+      </div>
+    </div>
+    <div class="sample-type"><div><span class="spec-label">HEADLINE · 32PX / 780</span><h2>Every voice matters.</h2></div><div><span class="spec-label">BODY · 14PX / 400</span><p>Hapa ndipo mazungumzo yanapoanza. A safe place to discover, express and stay connected.</p></div><div><span class="spec-label">SMALL TEXT · 12PX / 550</span><p class="sample-small">Notifications · Privacy controls · Last seen · Verification</p></div></div>
+  </article>
+</template>
+</body>
+</html>
