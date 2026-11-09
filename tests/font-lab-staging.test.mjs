@@ -10,7 +10,7 @@ const stage = read('scripts/stage-preview-site.mjs');
 
 test('font lab is a staging-only screen with source isolation', () => {
   assert.match(stage, /\['preview-src\/font-lab', 'preview\/font-lab'\]/);
-  assert.match(stage, /href=\\"\/preview\/font-lab\/\\"/);
+  assert.ok(stage.includes('href="/preview/font-lab/"'), 'missing staging homepage shortcut');
   const htmlPath = new URL('../dist-preview-site/preview/font-lab/index.html', import.meta.url);
   const cssPath = new URL('../dist-preview-site/preview/font-lab/font-lab.css', import.meta.url);
   const jsPath = new URL('../dist-preview-site/preview/font-lab/font-lab.js', import.meta.url);
