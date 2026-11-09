@@ -17,6 +17,12 @@ const stagingHeaders = `/*
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
+
+/preview/font-lab/*
+  Cache-Control: no-store, max-age=0
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
 `;
 
 if (dirname(stageRoot) !== projectRoot || stageRoot === projectRoot) {
