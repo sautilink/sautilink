@@ -24,10 +24,14 @@ test('font lab is a staging-only screen with source isolation', () => {
 
 test('font lab cannot index, sign in or send account data', () => {
   assert.match(html, /name="robots" content="noindex, nofollow, noarchive"/);
-  assert.match(html, /Content-Security-Policy/);
-  assert.match(html, /connect-src 'none'/);
-  assert.match(html, /form-action 'none'/);
-  assert.match(html, /script-src 'self'/);
+  const headers = read('dist-preview-site/_headers');
+  assert.match(headers, /\/preview\/font-lab\/\*/);
+  assert.match(headers, /style-src 'self' https:\/\/fonts\.googleapis\.com/);
+  assert.match(headers, /font-src 'self' https:\/\/fonts\.gstatic\.com/);
+  assert.match(headers, /connect-src 'none'/);
+  assert.match(headers, /form-action 'none'/);
+  assert.match(headers, /script-src 'self'/);
+  assert.doesNotMatch(html, /fonts\.googleapis\.com|fonts\.gstatic\.com/);
   assert.match(html, /href="\/assets\/brand\/system.css"/);
   assert.match(html, /href="\/assets\/fonts\/inter\/InterVariable.woff2"/);
   assert.doesNotMatch(js, /fetch\(|localStorage|sessionStorage|document\.cookie|supabase|Authorization|eval\(/);
