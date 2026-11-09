@@ -1,0 +1,19 @@
+name: Read-only Staging Font Lab Diagnostic
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/audit-staging-font-lab.mjs"
+      - ".github/workflows/audit-staging-font-lab.yml"
+permissions:
+  contents: read
+jobs:
+  font-lab-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node scripts/audit-staging-font-lab.mjs
