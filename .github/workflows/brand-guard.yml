@@ -53,7 +53,13 @@ jobs:
               if "<head" not in text.lower():
                   continue
               assert "/assets/brand/system.css" in text, f"brand CSS not wired: {p}"
-              assert "/assets/fonts/inter/InterVariable.woff2" in text, f"Inter preload missing: {p}"
+              # The Android campaign uses Google Sans without changing the sitewide brand font.
+              font_path = (
+                  "/assets/fonts/google-sans/GoogleSans-Latin.woff2"
+                  if p == Path("android-app-preview.html")
+                  else "/assets/fonts/inter/InterVariable.woff2"
+              )
+              assert font_path in text, f"Font preload missing: {p} ({font_path})"
               lowered = text.lower()
               for legacy in ["fonts.googleapis.com", "fonts.gstatic.com", "bricolage grotesque", "lora-variable", "zalando", "#e11d48", "#be123c", "#e11b1b"]:
                   assert legacy not in lowered, f"legacy brand token {legacy} remains in {p}"

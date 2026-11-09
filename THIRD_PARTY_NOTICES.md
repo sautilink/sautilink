@@ -14,6 +14,7 @@ notices. The repository proprietary license does not override those terms.
 | `esbuild` | 0.28.2 | MIT |
 | `wrangler` | 4.125.0 | MIT OR Apache-2.0 |
 | `lottie-web` | 5.13.0 light build | MIT |
+| Google Sans (Android app preview) | Latin WOFF2, Google Fonts v76 | [SIL OFL 1.1](assets/fonts/google-sans/OFL.txt) |
 
 Their copyright and license texts remain available in the installed packages,
 the vendored runtime notice, and their upstream repositories. This notice does
