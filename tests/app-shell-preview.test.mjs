@@ -171,6 +171,9 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('preview/settings/device-lab.html'));
   assert.ok(files.includes('preview/backend-foundation/index.html'));
   assert.ok(files.includes('preview/backend-foundation/device-lab.html'));
+  for (const filename of ['index.html', 'font-lab.css', 'font-lab.js']) {
+    assert.ok(files.includes(`preview/font-lab/${filename}`), `missing font lab: ${filename}`);
+  }
   assert.ok(files.includes('logo.png'));
   assert.ok(files.includes('assets/brand/system.css'));
   assert.ok(files.includes('assets/development.css'));
@@ -266,6 +269,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'preview/messages/',
     'preview/settings/',
     'preview/backend-foundation/',
+    'preview/font-lab/',
   ];
   const unexpected = files.find((file) => !exactAllowed.has(file) && !allowedPrefixes.some((prefix) => file.startsWith(prefix)));
   assert.equal(unexpected, undefined, `unexpected staged file: ${unexpected}`);

@@ -17,6 +17,12 @@ const stagingHeaders = `/*
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
+
+/preview/font-lab/*
+  Cache-Control: no-store, max-age=0
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
 `;
 
 if (dirname(stageRoot) !== projectRoot || stageRoot === projectRoot) {
@@ -39,6 +45,8 @@ const copies = [
   ['preview/messages', 'preview/messages'],
   ['preview/settings', 'preview/settings'],
   ['preview-src/backend-foundation', 'preview/backend-foundation'],
+  // Typography comparison is staging-only; no production app assets are modified.
+  ['preview-src/font-lab', 'preview/font-lab'],
   ['logo.png', 'logo.png'],
   ['assets/favicon.png', 'assets/favicon.png'],
   ['assets/brand/logo-compact.webp', 'assets/brand/logo-compact.webp'],
@@ -113,6 +121,7 @@ await writeFile(resolve(stageRoot, 'index.html'), `<!doctype html>
         <a class="phase" href="/preview/messages/"><small>Phase 09</small><strong>Basic Messages</strong></a>
         <a class="phase" href="/preview/settings/"><small>Phase 10</small><strong>Settings &amp; Privacy</strong></a>
         <a class="phase" href="/preview/backend-foundation/"><small>Phase 11</small><strong>Staging Backend Foundation</strong></a>
+        <a class="phase" href="/preview/font-lab/"><small>Design Lab 01</small><strong>Inter vs Google Sans Flex</strong></a>
       </nav>
       <footer>Development only · Seeded data · No production accounts or messages</footer>
     </main>
