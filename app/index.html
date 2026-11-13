@@ -39,8 +39,6 @@
   <link data-messages-media-style="true" rel="stylesheet" href="/app/assets/messages-media.css?v=20261009-skeleton1">
   <link data-messages-reply-style="true" rel="stylesheet" href="/app/assets/messages-reply.css?v=20261003-edit1">
   <link data-rooms-platform-style="true" rel="stylesheet" href="/app/assets/rooms.css?v=20260909-rooms1">
-  <link rel="stylesheet" href="/app/assets/rooms-facebook.css?v=20260929-room-detail2">
-  <link rel="stylesheet" href="/app/assets/rooms-mobile-preview.css?v=20260914-mobile1">
   <link data-rooms-invitations-style="true" rel="stylesheet" href="/app/assets/rooms-invitations.css?v=20260909-rooms1">
   <!-- Member-only presentation: auth UI remains isolated by the member visibility gate. -->
   <link rel="stylesheet" href="/app/assets/member-ios.css?v=20261019-ios1">
@@ -56,7 +54,7 @@
   <link rel="stylesheet" href="/app/assets/member-comment-sheet.css?v=20261019-sheet1">
   <link data-member-native-parity-style="true" rel="stylesheet" href="/app/assets/member-native-parity.css?v=20261020-v1111">
   <link data-messages-native-style="true" rel="stylesheet" href="/app/assets/messages-native.css?v=20261020-native1">
-  <link rel="stylesheet" href="/app/assets/rooms-native.css?v=20261020-native1">
+  <link rel="stylesheet" href="/app/assets/rooms-chat.css?v=20261113-chat1">
   <link data-menu-native-style="true" rel="stylesheet" href="/app/assets/menu-native.css?v=20261020-native1">
   <link data-composer-native-style="true" rel="stylesheet" href="/app/assets/composer-native.css?v=20261020-v1111-repost1">
   <script src="/app/assets/member-animated-icons.js?v=20261019-huge4-postpreview1" defer></script>
@@ -840,9 +838,8 @@
         <section class="circles-surface" id="circles-surface" aria-label="Rooms" hidden>
           <header class="circles-toolbar">
             <div>
-              <p class="section-label">Groups built around shared interests</p>
-              <h2>Rooms</h2>
-              <p>Find communities by topic, join public Rooms, request access to private Rooms, or create your own.</p>
+              <h2>Open a Room</h2>
+              <p>Select a Room to see its conversation, or use Discover to find one.</p>
             </div>
             <button class="secondary-action" id="circles-create-toggle" type="button">Create Room</button>
           </header>
@@ -939,14 +936,13 @@
                   </label>
                 </div>
                 <label class="sr-only" for="circle-sauti-body">Room post text</label>
-                <textarea id="circle-sauti-body" name="body" rows="3" maxlength="500" placeholder="Write a post for this Room…"></textarea>
+                <textarea id="circle-sauti-body" name="body" rows="2" maxlength="500" placeholder="Write a message…"></textarea>
                 <div class="circle-sauti-meta">
                   <span id="circle-sauti-reply-note">Everyone in this Room can comment</span>
                   <span><b id="circle-sauti-count">0</b> / 500</span>
                 </div>
                 <div class="circle-sauti-actions">
-                  <span>Text</span>
-                  <button id="circle-sauti-submit" type="submit" disabled>Post</button>
+                  <button id="circle-sauti-submit" type="submit" disabled>Send</button>
                 </div>
                 <div class="form-message composer-message" id="circle-sauti-message" role="alert" hidden></div>
               </form>
@@ -975,7 +971,7 @@
 
             <section class="circle-members" id="circle-members" hidden>
               <div class="circle-members-heading">
-                <div><p class="section-label">Owner controls</p><h3>Members</h3></div>
+                <h3>Members</h3>
                 <span id="circle-member-count">0</span>
               </div>
               <div id="circle-members-list"></div>

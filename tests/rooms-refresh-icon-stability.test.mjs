@@ -32,7 +32,7 @@ test('Room refresh fix stays wired through normal and production builders withou
   const [normalBuilder, productionBuilder, css] = await Promise.all([
     read('scripts/build-app.mjs'),
     read('scripts/build-production-release.mjs'),
-    read('app/assets/rooms-facebook.css'),
+    read('app/assets/rooms-chat.css'),
   ]);
 
   assert.match(normalBuilder, /transformRoomsStartupIsolationSource/);

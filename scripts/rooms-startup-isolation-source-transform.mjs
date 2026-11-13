@@ -142,6 +142,9 @@ function initRoomsFacebookUi() {
   ensureRoomsFacebookStyles();
   syncRoomRouteFeedback();
   document.addEventListener('click', handleRoomRouteFeedbackAction, true);
+  document.addEventListener('input', syncRoomDirectoryInput);
+  document.addEventListener('change', syncRoomDirectoryInput);
+  document.addEventListener('room-directory-metadata', syncRoomLandingFilter);
   const roomsFacebookObserver = new MutationObserver((mutations) => {
     if (!mutations.some(roomFacebookMutationChangesUi)) return;
     syncRoomRouteFeedback();

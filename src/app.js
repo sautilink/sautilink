@@ -8093,6 +8093,10 @@ function showCircleRouteState(type, slug = '') {
     }
     detail.querySelector('.room-detail-badges')?.replaceChildren();
     detail.querySelector('.room-permissions-summary')?.replaceChildren();
+    byId('room-admin-panel')?.remove();
+    byId('room-invite-panel')?.remove();
+    byId('circle-members').hidden = true;
+    byId('circle-requests').hidden = true;
     byId('circle-detail-slug').textContent = `/rooms/${slug}`;
     detail.dataset.loading = 'true';
     detail.hidden = false;
@@ -8114,6 +8118,10 @@ function renderCircleCard(circle, membershipMap, requestMap) {
   button.type = 'button';
   button.className = 'circle-card';
   button.dataset.circleSlug = circle.slug;
+  const avatar = document.createElement('span');
+  avatar.className = 'room-card-cover';
+  avatar.setAttribute('aria-hidden', 'true');
+  avatar.textContent = [...circle.name.trim()][0]?.toLocaleUpperCase() || 'R';
 
   const main = document.createElement('span');
   main.className = 'circle-card-main';
@@ -8153,18 +8161,11 @@ function renderCircleCard(circle, membershipMap, requestMap) {
   else if (request?.status === 'declined') state.textContent = 'Request again';
   else state.textContent = circle.join_policy === 'open' ? 'Open to join' : 'View Room';
 
-  button.append(main, state);
+  button.append(avatar, main, state);
   return button;
 }
 
-async function loadCircles() {
-  if (!currentMemberId) return;
-  const requestId = ++circlesRequest;
-  activeCircle = null;
-  resetCircleStreamView({ hide: true });
-  resetCircleRouteViews();
-  byId('circles-loading').hidden = false;
-  byId('circles-list').replaceChildren();
+async function loadRoomDirectory(memberId) {
 
   const [circleResult, membershipResult, requestResult] = await Promise.all([
     supabase
@@ -8174,32 +8175,42 @@ async function loadCircles() {
       .limit(60),
     supabase
       .from('social_circle_members')
-      .select('circle_id, member_role')
-      .eq('member_id', currentMemberId),
+      .select('circle_id, member_role, room:social_circles(id, owner_id, slug, name, description, join_policy, created_at)')
+      .eq('member_id', memberId),
     supabase
       .from('social_circle_join_requests')
       .select('circle_id, status, created_at, decided_at')
-      .eq('requester_id', currentMemberId),
+      .eq('requester_id', memberId),
   ]);
+  if (circleResult.error || membershipResult.error || requestResult.error) return null;
+  const membershipMap = new Map((membershipResult.data || []).map((row) => [row.circle_id, row]));
+  const requestMap = new Map((requestResult.data || []).map((row) => [row.circle_id, row]));
+  const circles = new Map((circleResult.data || []).map((circle) => [circle.id, circle]));
+  for (const membership of membershipMap.values()) {
+    if (membership.room && !circles.has(membership.circle_id)) circles.set(membership.circle_id, membership.room);
+  }
+  return [...circles.values()].map((circle) => renderCircleCard(circle, membershipMap, requestMap));
+}
 
-  if (requestId !== circlesRequest) return;
+async function loadCircles() {
+  const memberId = currentMemberId;
+  if (!memberId) return;
+  const requestId = ++circlesRequest;
+  activeCircle = null;
+  resetCircleStreamView({ hide: true });
+  resetCircleRouteViews();
+  byId('circles-loading').hidden = false;
+  const list = byId('circles-list');
+  list.replaceChildren();
+  const rooms = await loadRoomDirectory(memberId);
+  if (requestId !== circlesRequest || memberId !== currentMemberId) return;
   byId('circles-loading').hidden = true;
-
-  if (circleResult.error || membershipResult.error || requestResult.error) {
+  if (!rooms) {
     byId('circles-error').hidden = false;
     return;
   }
-
-  const circles = circleResult.data || [];
-  if (!circles.length) {
-    byId('circles-empty').hidden = false;
-    return;
-  }
-
-  const membershipMap = new Map((membershipResult.data || []).map((row) => [row.circle_id, row]));
-  const requestMap = new Map((requestResult.data || []).map((row) => [row.circle_id, row]));
-  const list = byId('circles-list');
-  circles.forEach((circle) => list.append(renderCircleCard(circle, membershipMap, requestMap)));
+  list.replaceChildren(...rooms);
+  list.dataset.directoryOwner = memberId;
   list.hidden = false;
 }
 
@@ -8340,7 +8351,9 @@ async function loadCircleMembers(circleId) {
   list.replaceChildren();
   empty.hidden = true;
 
-  if (!activeCircle?.circle || activeCircle.circle.id !== circleId || activeCircle.circle.owner_id !== currentMemberId) {
+  const context = activeCircle;
+  const memberId = currentMemberId;
+  if (context?.circle.id !== circleId || !circleStreamAllowed(context.circle, context.membership)) {
     section.hidden = true;
     return;
   }
@@ -8351,6 +8364,7 @@ async function loadCircleMembers(circleId) {
     .eq('circle_id', circleId)
     .order('joined_at', { ascending: true });
 
+  if (activeCircle !== context || currentMemberId !== memberId) return;
   if (error) {
     section.hidden = false;
     byId('circle-member-count').textContent = '0';
@@ -8374,6 +8388,7 @@ async function loadCircleMembers(circleId) {
     .from('social_profiles')
     .select('id, username, display_name, is_verified, verification_badge_type')
     .in('id', ids);
+  if (activeCircle !== context || currentMemberId !== memberId) return;
   const profileMap = new Map((profileRows || []).map((profile) => [profile.id, profile]));
 
   members.forEach((membership) => {
@@ -8398,11 +8413,11 @@ async function loadCircleMembers(circleId) {
 
     const role = document.createElement('span');
     role.className = `circle-member-role ${membership.member_role}`;
-    role.textContent = membership.member_role === 'owner' ? 'Owner' : 'Member';
+    role.textContent = ({ owner: 'Owner', admin: 'Admin', moderator: 'Moderator' })[membership.member_role] || 'Member';
 
     row.append(person, role);
 
-    if (membership.member_role !== 'owner') {
+    if (context.circle.owner_id === memberId && membership.member_role !== 'owner') {
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'circle-member-remove';
@@ -8548,10 +8563,13 @@ async function loadCircleStream(circleId) {
     const hydrated = await hydrateDirectPosts(rows);
 
     if (requestId !== circleStreamRequest) return;
-    hydrated.forEach((item) => {
+    [...hydrated].reverse().forEach((item) => {
       const card = createSautiCard(item);
-      if (card) feed.append(card);
+      if (!card) return;
+      card.classList.toggle('room-message-own', item.post.author_id === currentMemberId);
+      feed.append(card);
     });
+    feed.scrollTop = feed.scrollHeight;
     empty.hidden = feed.childElementCount > 0;
   } catch {
     if (requestId !== circleStreamRequest) return;
@@ -8625,11 +8643,24 @@ async function shareCircleSauti() {
 }
 
 async function loadCircleDetail(slug) {
-  if (!currentMemberId) return;
+  const memberId = currentMemberId;
+  if (!memberId) return;
   const requestId = ++circlesRequest;
   activeCircle = null;
   resetCircleStreamView({ hide: true });
   showCircleRouteState('loading', slug);
+  const directory = byId('circles-list');
+  if (directory.dataset.directoryOwner !== memberId || !directory.childElementCount) {
+    directory.replaceChildren();
+    void loadRoomDirectory(memberId).then((rooms) => {
+      if (requestId !== circlesRequest || memberId !== currentMemberId || !rooms) return;
+      directory.replaceChildren(...rooms);
+      directory.dataset.directoryOwner = memberId;
+      directory.hidden = false;
+    }).catch(() => {});
+  } else {
+    directory.hidden = false;
+  }
 
   const { data: circle, error } = await supabase
     .from('social_circles')
@@ -8665,6 +8696,7 @@ async function loadCircleDetail(slug) {
   activeCircle = { circle, membership, request };
 
   resetCircleRouteViews();
+  directory.hidden = false;
   byId('circle-detail').hidden = false;
   byId('circle-detail-name').textContent = circle.name;
   byId('circle-detail-slug').textContent = `/rooms/${circle.slug}`;
@@ -8694,12 +8726,10 @@ async function loadCircleDetail(slug) {
 
   byId('circle-requests').hidden = true;
   byId('circle-members').hidden = true;
-  if (circle.owner_id === currentMemberId) {
-    await Promise.all([
-      loadCircleRequests(circle.id),
-      loadCircleMembers(circle.id),
-    ]);
-  }
+  await Promise.all([
+    circle.owner_id === currentMemberId ? loadCircleRequests(circle.id) : null,
+    circleStreamAllowed(circle, membership) ? loadCircleMembers(circle.id) : null,
+  ]);
 }
 
 async function handleCirclePrimaryAction() {
@@ -8745,6 +8775,7 @@ async function handleCirclePrimaryAction() {
       showToast('Join request sent.');
     }
     if (action === 'join' || action === 'leave') await loadComposerAudiences();
+    delete byId('circles-list').dataset.directoryOwner;
     await loadCircleDetail(circle.slug);
   } catch {
     button.disabled = false;
@@ -9862,6 +9893,7 @@ byId('circles-list').addEventListener('click', (event) => {
   const card = event.target.closest('[data-circle-slug]');
   if (!card) return;
   const slug = card.dataset.circleSlug;
+  if (activeCircle?.circle.slug === slug) return;
   window.history.pushState({}, '', circlePath(slug));
   void loadCircleDetail(slug);
 });

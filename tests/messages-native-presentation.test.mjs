@@ -20,11 +20,11 @@ test('hidden Messages is prepared before the first navigation without waiting fo
 
 test('all Messages and Rooms presentation is render blocking and final layers follow member styles', () => {
   const head = html.slice(0, html.indexOf('</head>'));
-  for (const name of ['messages-whatsapp', 'messages-composer', 'messages-header-polish', 'messages-appearance', 'messages-media', 'messages-reply', 'messages-native', 'rooms', 'rooms-facebook', 'rooms-mobile-preview', 'rooms-invitations', 'rooms-native']) {
+  for (const name of ['messages-whatsapp', 'messages-composer', 'messages-header-polish', 'messages-appearance', 'messages-media', 'messages-reply', 'messages-native', 'rooms', 'rooms-invitations', 'rooms-chat']) {
     assert.match(head, new RegExp(`<link[^>]+rel="stylesheet"[^>]+href="/app/assets/${name}\\.css\\?v=`));
   }
   assert.ok(head.indexOf('messages-native.css') > head.indexOf('member-ios-surfaces.css'));
-  assert.ok(head.indexOf('rooms-native.css') > head.indexOf('member-ios-surfaces.css'));
+  assert.ok(head.indexOf('rooms-chat.css') > head.indexOf('member-ios-surfaces.css'));
   let appended = 0;
   runInNewContext(`${fn('ensureMessagesWhatsAppStyles')}\nensureMessagesWhatsAppStyles();`, {
     document: { querySelector() { return {}; }, head: { append() { appended++; } } },

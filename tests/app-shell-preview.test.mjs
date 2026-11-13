@@ -118,7 +118,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/messages-media.css'));
   assert.ok(files.includes('app/assets/messages-reply.css'));
   assert.ok(files.includes('app/assets/messages-whatsapp.css'));
-  for (const asset of ['member-ios.css', 'member-ios-surfaces.css', 'member-ios-icons.css', 'member-animated-icons.css', 'member-animated-icons.js', 'member-profile-tabs.css', 'member-comment-sheet.css', 'member-native-parity.css', 'member-native-parity.js', 'composer-native.css', 'messages-native.css', 'rooms-native.css', 'menu-native.css']) {
+  for (const asset of ['member-ios.css', 'member-ios-surfaces.css', 'member-ios-icons.css', 'member-animated-icons.css', 'member-animated-icons.js', 'member-profile-tabs.css', 'member-comment-sheet.css', 'member-native-parity.css', 'member-native-parity.js', 'composer-native.css', 'messages-native.css', 'rooms-chat.css', 'menu-native.css']) {
     assert.ok(files.includes(`app/assets/${asset}`));
   }
   for (const asset of memberAnimatedIconAssets) assert.ok(files.includes(asset), `staged animated icon asset is missing: ${asset}`);
@@ -141,8 +141,6 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/profile-x-ui.css'));
   assert.ok(files.includes('app/assets/profile-media-editor.css'));
   assert.ok(files.includes('app/assets/rooms.css'));
-  assert.ok(files.includes('app/assets/rooms-facebook.css'));
-  assert.ok(files.includes('app/assets/rooms-mobile-preview.css'));
   assert.ok(files.includes('app/assets/rooms-invitations.css'));
   assert.ok(files.includes('app/assets/room-post-images.css'));
   assert.ok(files.includes('app/assets/settings-light-theme-hotfix.css'));
@@ -209,7 +207,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/messages-reply.css',
     'app/assets/messages-whatsapp.css',
     'app/assets/messages-native.css',
-    'app/assets/rooms-native.css',
+    'app/assets/rooms-chat.css',
     'app/assets/menu-native.css',
     'app/assets/member-native-parity.css',
     'app/assets/member-native-parity.js',
@@ -239,8 +237,6 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/profile-x-ui.css',
     'app/assets/profile-media-editor.css',
     'app/assets/rooms.css',
-    'app/assets/rooms-facebook.css',
-    'app/assets/rooms-mobile-preview.css',
     'app/assets/rooms-invitations.css',
     'app/assets/room-post-images.css',
     'app/assets/settings-light-theme-hotfix.css',

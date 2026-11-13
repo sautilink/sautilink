@@ -130,7 +130,7 @@ test('Menu native CSS and matching bundle release are eager on the first paint',
   const menu = html.indexOf('data-menu-native-style');
   assert.ok(menu > html.indexOf('/app/assets/mobile-more-drawer.css'));
   assert.ok(menu > html.indexOf('/app/assets/member-ios-surfaces.css'));
-  assert.ok(menu > html.indexOf('/app/assets/rooms-native.css'));
+  assert.ok(menu > html.indexOf('/app/assets/rooms-chat.css'));
   assert.match(html, /data-menu-native-style[^>]+menu-native\.css\?v=20261020-native1/);
   assert.match(html, /menu=20261020-native1/);
   assert.match(builder, /menu=20261020-native1/);

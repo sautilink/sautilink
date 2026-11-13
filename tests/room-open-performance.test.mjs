@@ -44,7 +44,7 @@ test('Rooms enhancement coalesces metadata reads and only enhances the visible R
   assert.match(transformed, /scheduleRoomPeopleLoad\(room, role, people\)/);
   assert.match(transformed, /new IntersectionObserver/);
   assert.match(transformed, /activeRoomSlug\(\) !== slug/);
-  assert.match(transformed, /if \(roomDetailRouteActive\(\)\) enhanceActiveRoom\(\);\s*else enhanceRoomCards\(\);/);
+  assert.match(transformed, /if \(roomDetailRouteActive\(\)\) enhanceActiveRoom\(\);\s*if \(!roomById\('circles-surface'\)\?\.hidden\) enhanceRoomCards\(\);/);
   assert.doesNotMatch(transformed, /\n    loadRoomPeople\(room, role, people\);/);
 
   // The previous cover optimization must still compose after this Room-open pass.

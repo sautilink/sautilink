@@ -14,24 +14,10 @@ function transformAppSource(source) {
 
   output = replaceRequired(
     output,
-    `async function loadCircleDetail(slug) {
-  if (!currentMemberId) return;
-  const requestId = ++circlesRequest;
-  activeCircle = null;
-  resetCircleStreamView({ hide: true });
-  showCircleRouteState('loading', slug);
-
-  const { data: circle, error } = await supabase
+    `  const { data: circle, error } = await supabase
     .from('social_circles')
     .select('id, owner_id, slug, name, description, join_policy, created_at')`,
-    `async function loadCircleDetail(slug) {
-  if (!currentMemberId) return;
-  const requestId = ++circlesRequest;
-  activeCircle = null;
-  resetCircleStreamView({ hide: true });
-  showCircleRouteState('loading', slug);
-
-  const { data: circle, error } = await supabase
+    `  const { data: circle, error } = await supabase
     .from('social_circles')
     .select('id, owner_id, slug, name, description, join_policy, created_at, category, privacy, cover_key, member_count, post_permission, invite_permission, updated_at')`,
     'Room detail metadata query',
@@ -57,23 +43,18 @@ function transformAppSource(source) {
     output,
     `  byId('circle-requests').hidden = true;
   byId('circle-members').hidden = true;
-  if (circle.owner_id === currentMemberId) {
-    await Promise.all([
-      loadCircleRequests(circle.id),
-      loadCircleMembers(circle.id),
-    ]);
-  }
+  await Promise.all([
+    circle.owner_id === currentMemberId ? loadCircleRequests(circle.id) : null,
+    circleStreamAllowed(circle, membership) ? loadCircleMembers(circle.id) : null,
+  ]);
 }`,
     `  byId('circle-requests').hidden = true;
   byId('circle-members').hidden = true;
+  if (circleStreamAllowed(circle, membership)) void loadCircleMembers(circle.id);
   if (circle.owner_id === currentMemberId) {
-    const loadOwnerRoomManagement = () => Promise.all([
-      loadCircleRequests(circle.id),
-      loadCircleMembers(circle.id),
-    ]);
     const runOwnerRoomManagement = () => {
       if (activeCircle?.circle?.id !== circle.id) return;
-      void loadOwnerRoomManagement();
+      void loadCircleRequests(circle.id);
     };
     if ('requestIdleCallback' in window) {
       window.requestIdleCallback(runOwnerRoomManagement, { timeout: 1800 });
@@ -395,9 +376,9 @@ function buildRoomAdminPanel(room, role) {`,
   if (!detail || detail.hidden || detail.dataset.loading === 'true') return;
   const slug = activeRoomSlug();
   const room = await activeRoom();
-  if (!room || detail.hidden || activeRoomSlug() !== slug) return;
+  if (!room || detail.hidden || detail.dataset.loading === 'true' || activeRoomSlug() !== slug) return;
   const role = await ownRoomRole(room.id);
-  if (detail.hidden || activeRoomSlug() !== slug) return;
+  if (detail.hidden || detail.dataset.loading === 'true' || activeRoomSlug() !== slug) return;
   enhanceRoomDetail(room, role);
   const key = \`\${room.id}:\${room.updated_at}:\${room.member_count}:\${room.cover_key}:\${role}\`;
   if (key !== roomDetailKey || !roomById('room-admin-panel')) {
@@ -433,7 +414,7 @@ function scheduleRoomsUi() {
     enhanceRoomCreateForm();
     ensureRoomDiscoveryControls();
     if (roomDetailRouteActive()) enhanceActiveRoom();
-    else enhanceRoomCards();
+    if (!roomById('circles-surface')?.hidden) enhanceRoomCards();
   }, 80);
 }`,
     'Room UI scoped scheduling',

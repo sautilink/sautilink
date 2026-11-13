@@ -198,13 +198,6 @@ function brandRoomsShell() {
     const title = roomById('view-title');
     if (title) title.textContent = 'Rooms';
   }
-  const toolbar = surface.querySelector('.circles-toolbar');
-  const eyebrow = toolbar?.querySelector('.section-label');
-  const heading = toolbar?.querySelector('h2');
-  const copy = toolbar?.querySelector('div > p:last-child');
-  if (eyebrow) eyebrow.textContent = 'Groups built around shared interests';
-  if (heading) heading.textContent = 'Rooms';
-  if (copy) copy.textContent = 'Find communities by topic, join public Rooms, request access to private Rooms, or create your own.';
   if (roomById('circles-create-toggle')) roomById('circles-create-toggle').textContent = 'Create Room';
   const back = roomById('circle-back');
   if (back && !back.closest('.room-detail-toolbar') && back.textContent !== '← All Rooms') {
@@ -384,8 +377,6 @@ function ensureRoomDiscoveryControls() {
   filter.setAttribute('aria-label', 'Filter Rooms by category');
   controls.append(search, filter);
   toolbar.insertAdjacentElement('afterend', controls);
-  search.addEventListener('input', filterRoomCards);
-  filter.addEventListener('change', filterRoomCards);
 }
 
 async function roomCoverUrl(slug) {
@@ -473,17 +464,7 @@ async function enhanceRoomCards() {
     }
     if (room.cover_key) attachRoomCover(cover, room.slug);
   });
-  filterRoomCards();
-}
-
-function filterRoomCards() {
-  const query = String(roomById('room-search')?.value || '').trim().toLowerCase();
-  const category = String(roomById('room-category-filter')?.value || 'all');
-  document.querySelectorAll('.circle-card[data-circle-slug]').forEach((card) => {
-    const matchesQuery = !query || String(card.dataset.roomSearch || card.textContent).toLowerCase().includes(query);
-    const matchesCategory = category === 'all' || card.dataset.roomCategory === category;
-    card.hidden = !(matchesQuery && matchesCategory);
-  });
+  document.dispatchEvent(new Event('room-directory-metadata'));
 }
 
 function activeRoomSlug() {
@@ -634,7 +615,14 @@ function buildRoomAdminPanel(room, role) {
   heading.append(headingCopy, roleBadge);
   panel.append(heading);
 
-  if (canSettings) panel.append(buildRoomSettings(room));
+  if (canSettings) {
+    const settings = document.createElement('details');
+    settings.className = 'room-chat-settings';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Edit group';
+    settings.append(summary, buildRoomSettings(room));
+    panel.append(settings);
+  }
   if (canPeople) {
     const people = document.createElement('div');
     people.className = 'room-member-management';
