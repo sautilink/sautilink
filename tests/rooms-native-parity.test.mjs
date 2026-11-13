@@ -118,6 +118,7 @@ test('switching Your Rooms back to Discover restores matching cards without drop
   const makeCard = (state, query, roomCategory) => ({
     hidden: false, dataset: { roomSearch: query, roomCategory }, textContent: query,
     querySelector: () => ({ textContent: state }),
+    hasAttribute: () => false,
   });
   const joined = makeCard('Joined', 'Developers building software', 'technology');
   const publicRoom = makeCard('Open', 'Designers building products', 'technology');
@@ -129,6 +130,7 @@ test('switching Your Rooms back to Discover restores matching cards without drop
     (filter) => { roomsFacebookFilter = filter; syncRoomLandingFilter(); };
   `, {
     roomFbById: (id) => id === 'room-search' ? search : id === 'room-category-filter' ? category : null,
+    roomFbDetailOpen: () => false,
     document: { querySelectorAll: () => cards },
   });
 

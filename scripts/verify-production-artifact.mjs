@@ -54,7 +54,7 @@ const mediaApi = await readFile(resolve(workerRoot, 'src/sauti-media-api.js'), '
 const profileXCss = await readFile(resolve(siteRoot, 'app/assets/profile-x-ui.css'), 'utf8');
 const profileSettingsCss = await readFile(resolve(siteRoot, 'app/assets/profile-settings-ui.css'), 'utf8');
 const messagesWhatsappCss = await readFile(resolve(siteRoot, 'app/assets/messages-whatsapp.css'), 'utf8');
-const roomsFacebookCss = await readFile(resolve(siteRoot, 'app/assets/rooms-facebook.css'), 'utf8');
+const roomsChatCss = await readFile(resolve(siteRoot, 'app/assets/rooms-chat.css'), 'utf8');
 const router = await readFile(resolve(workerRoot, 'src/asset-router.js'), 'utf8');
 const workerEntry = await readFile(resolve(workerRoot, 'src/worker-entry.js'), 'utf8');
 const realtimeApi = await readFile(resolve(workerRoot, 'src/dm-realtime-api.js'), 'utf8');
@@ -132,7 +132,7 @@ for (const marker of [
   'Technology & AI',
   'rooms-invitations.css',
   'The Room invitation could not be updated',
-  'rooms-facebook.css',
+  'rooms-chat.css',
   'room-fb-detail-tabs',
 ]) {
   if (!appJs.includes(marker)) throw new Error(`production browser bundle missing Rooms runtime marker: ${marker}`);
@@ -210,8 +210,12 @@ for (const marker of ['acceptWebSocket', 'getWebSockets', 'serializeAttachment']
 }
 if (/service_role|sb_secret_/i.test(realtimeApi)) throw new Error('production realtime API must not contain privileged Supabase credentials');
 
-if (!roomsFacebookCss.includes('body.rooms-facebook-view')) throw new Error('production Rooms Groups-style stylesheet is missing its feature scope');
-if (!roomsFacebookCss.includes('room-fb-detail-aside')) throw new Error('production Rooms Groups-style detail layout is missing');
+if (!roomsChatCss.includes('body.rooms-facebook-view') || !roomsChatCss.includes('room-message-own')) {
+  throw new Error('production Rooms chat layout is missing');
+}
+if (!appHtml.includes('/app/assets/rooms-chat.css') || /rooms-(facebook|mobile-preview|native)\.css/.test(appHtml + appJs)) {
+  throw new Error('production must load only the current Rooms layout');
+}
 if (appHtml.includes('Private preview') || appHtml.includes('Phase 31')) throw new Error('production app still contains staging/phase UI copy');
 if (/name="robots"[^>]+noindex/i.test(appHtml)) throw new Error('production app must not carry staging noindex meta');
 if (!appHtml.includes('theme-init.js?v=20260904-account2')) throw new Error('production theme bootstrap is missing');
