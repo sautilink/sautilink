@@ -30,7 +30,7 @@ function requireVector(response) {
   return value;
 }
 
-async function embed(ai, input) {
+export async function createDiscoveryEmbedding(ai, input) {
   if (typeof ai?.run !== 'function') throw new Error('Workers AI binding is missing');
   return requireVector(await ai.run(DISCOVERY_MODEL, {
     input: [input],
@@ -45,7 +45,7 @@ export async function indexPublicPost(post, bindings) {
   const body = cleanText(post.body, 1800);
   if (!body) return { indexed: false, reason: 'empty_text' };
   if (typeof bindings?.index?.upsert !== 'function') throw new Error('Vectorize binding is missing');
-  const values = await embed(bindings.ai, 'title: none | text: ' + body);
+  const values = await createDiscoveryEmbedding(bindings.ai, 'title: none | text: ' + body);
   const result = await bindings.index.upsert([{
     id: String(post.id),
     values,
@@ -68,7 +68,7 @@ export async function findSimilarPublicPostIds(query, bindings, limit = 20) {
   const text = cleanText(query, 512);
   if (!text) return [];
   if (typeof bindings?.index?.query !== 'function') throw new Error('Vectorize binding is missing');
-  const values = await embed(bindings.ai, 'task: search result | query: ' + text);
+  const values = await createDiscoveryEmbedding(bindings.ai, 'task: search result | query: ' + text);
   const topK = Math.min(50, Math.max(1, Number.isFinite(limit) ? Math.floor(limit) : 20));
   const result = await bindings.index.query(values, {
     topK,
