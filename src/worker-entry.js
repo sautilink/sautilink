@@ -1,4 +1,5 @@
 import router from './asset-router.js';
+import { handleAIDiscoveryPreviewRequest } from './ai-discovery-preview-api.js';
 import { handleDmRealtimeRequest } from './dm-realtime-api.js';
 import { handleMaintenanceRequest } from './maintenance-premium-surface.js';
 import { handlePublicIndexingRoutes } from './public-indexing-routes.js';
@@ -22,6 +23,10 @@ export default {
       const response = await handleDmRealtimeRequest(request, env);
       if (response) return response;
     }
+
+    // Disabled by default; staging-only authenticated semantic discovery experiment.
+    const discoveryResponse = await handleAIDiscoveryPreviewRequest(request, env);
+    if (discoveryResponse) return discoveryResponse;
 
     const indexingResponse = await handlePublicIndexingRoutes(request, env);
     if (indexingResponse) return indexingResponse;
