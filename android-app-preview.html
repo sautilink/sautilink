@@ -36,56 +36,79 @@
   <link rel="stylesheet" href="/assets/android-app-preview.css">
   <script type="application/ld+json">
   {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "Organization",
-        "@id": "https://sautilink.com/#organization",
-        "name": "SautiLink",
-        "url": "https://sautilink.com/",
-        "logo": "https://sautilink.com/logo.png"
-      },
-      {
-        "@type": "WebSite",
-        "@id": "https://sautilink.com/#website",
-        "name": "SautiLink",
-        "url": "https://sautilink.com/",
-        "publisher": { "@id": "https://sautilink.com/#organization" }
-      },
-      {
-        "@type": "WebPage",
-        "@id": "https://sautilink.com/android-app-preview#webpage",
-        "url": "https://sautilink.com/android-app-preview",
-        "name": "SautiLink for Android | Official App Preview",
-        "description": "Watch the official SautiLink Android app preview. Discover posts, short videos, stories and chats, then get SautiLink on Google Play.",
-        "inLanguage": "en",
-        "isPartOf": { "@id": "https://sautilink.com/#website" },
-        "mainEntity": { "@id": "https://sautilink.com/android-app-preview#video" },
-        "breadcrumb": { "@id": "https://sautilink.com/android-app-preview#breadcrumb" }
-      },
-      {
-        "@type": "VideoObject",
-        "@id": "https://sautilink.com/android-app-preview#video",
-        "name": "Introducing SautiLink for Android | App Preview",
-        "description": "Meet SautiLink for Android. Explore posts, short videos, stories and chats in the official app preview.",
-        "thumbnailUrl": "https://i.ytimg.com/vi/wbz_PpGdIGQ/maxresdefault.jpg",
-        "uploadDate": "2026-11-09T04:49:31-08:00",
-        "duration": "PT30S",
-        "embedUrl": "https://www.youtube.com/embed/wbz_PpGdIGQ",
-        "url": "https://www.youtube.com/watch?v=wbz_PpGdIGQ",
-        "mainEntityOfPage": { "@id": "https://sautilink.com/android-app-preview#webpage" },
-        "inLanguage": "en"
-      },
-      {
-        "@type": "BreadcrumbList",
-        "@id": "https://sautilink.com/android-app-preview#breadcrumb",
-        "itemListElement": [
-          { "@type": "ListItem", "position": 1, "name": "SautiLink", "item": "https://sautilink.com/" },
-          { "@type": "ListItem", "position": 2, "name": "Android app preview", "item": "https://sautilink.com/android-app-preview" }
-        ]
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://sautilink.com/#organization",
+      "name": "SautiLink",
+      "url": "https://sautilink.com/",
+      "logo": "https://sautilink.com/logo.png"
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://sautilink.com/#website",
+      "name": "SautiLink",
+      "url": "https://sautilink.com/",
+      "publisher": {
+        "@id": "https://sautilink.com/#organization"
       }
-    ]
-  }
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://sautilink.com/android-app-preview#webpage",
+      "url": "https://sautilink.com/android-app-preview",
+      "name": "SautiLink for Android | Official App Preview",
+      "description": "Watch the official SautiLink Android app preview. Discover posts, short videos, stories and chats, then get SautiLink on Google Play.",
+      "inLanguage": "en",
+      "isPartOf": {
+        "@id": "https://sautilink.com/#website"
+      },
+      "mainEntity": {
+        "@id": "https://sautilink.com/android-app-preview#video"
+      },
+      "breadcrumb": {
+        "@id": "https://sautilink.com/android-app-preview#breadcrumb"
+      },
+      "about": {
+        "@id": "https://sautilink.com/download#android-app"
+      }
+    },
+    {
+      "@type": "VideoObject",
+      "@id": "https://sautilink.com/android-app-preview#video",
+      "name": "Introducing SautiLink for Android | App Preview",
+      "description": "Meet SautiLink for Android. Explore posts, short videos, stories and chats in the official app preview.",
+      "thumbnailUrl": "https://i.ytimg.com/vi/wbz_PpGdIGQ/maxresdefault.jpg",
+      "uploadDate": "2026-11-09T04:49:31-08:00",
+      "duration": "PT30S",
+      "embedUrl": "https://www.youtube.com/embed/wbz_PpGdIGQ",
+      "url": "https://www.youtube.com/watch?v=wbz_PpGdIGQ",
+      "mainEntityOfPage": {
+        "@id": "https://sautilink.com/android-app-preview#webpage"
+      },
+      "inLanguage": "en"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://sautilink.com/android-app-preview#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "SautiLink",
+          "item": "https://sautilink.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Android app preview",
+          "item": "https://sautilink.com/android-app-preview"
+        }
+      ]
+    }
+  ]
+}
   </script>
 </head>
 <body>
@@ -102,7 +125,7 @@
     <div class="hero">
       <p class="eyebrow">Official app preview</p>
       <h1>SautiLink for <span>Android</span></h1>
-      <p class="intro">The official SautiLink Android app is now available. Get it on Google Play.</p>
+      <p class="intro">The official SautiLink Android app is now available on Google Play. Visit the <a href="/download">official Android download page</a> to get started.</p>
     </div>
     <div class="video-frame">
       <iframe width="560" height="315"
