@@ -119,12 +119,14 @@ jobs:
         run: |
           set -euo pipefail
           expected="dist-production-site/app/assets/self-xss-console-warning.js"
+          warning_hash="$(sha256sum "$expected" | cut -c1-12)"
+          [[ "$warning_hash" =~ ^[a-f0-9]{12}$ ]] || exit 1
           ready=0
           for attempt in {1..12}; do
             actual="$(mktemp)"
             asset_status="$(curl -sS -L --max-time 15 -o "$actual" -w '%{http_code}' \
               -H 'Cache-Control: no-cache' \
-              "https://sautilink.com/app/assets/self-xss-console-warning.js?v=20261115-1&release=$GITHUB_RUN_ID-$attempt")" || asset_status=000
+              "https://sautilink.com/app/assets/self-xss-console-warning.js?v=$warning_hash&release=$GITHUB_RUN_ID-$attempt")" || asset_status=000
             good=1
             if [ "$asset_status" != "200" ] || ! cmp -s "$expected" "$actual"; then
               echo "Self-XSS script asset mismatch: HTTP $asset_status on attempt $attempt"
@@ -136,7 +138,7 @@ jobs:
               status="$(curl -sS -L --max-time 15 -o "$document" -w '%{http_code}' \
                 -H 'Cache-Control: no-cache' \
                 "https://sautilink.com/$path?release=$GITHUB_RUN_ID-$attempt")" || status=000
-              if [ "$status" != "200" ] || ! grep -Fq 'src="/app/assets/self-xss-console-warning.js?v=20261115-1"' "$document"; then
+              if [ "$status" != "200" ] || ! grep -Fq "src=\"/app/assets/self-xss-console-warning.js?v=$warning_hash\"" "$document"; then
                 echo "Self-XSS notice reference missing from /$path: HTTP $status on attempt $attempt"
                 good=0
               fi
