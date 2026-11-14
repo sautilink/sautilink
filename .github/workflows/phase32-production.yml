@@ -114,6 +114,42 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           WRANGLER_SEND_METRICS: "false"
         run: npx --no-install wrangler deploy --config wrangler.production.jsonc
+      - name: Verify self-XSS console notice on live SautiLink
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="dist-production-site/app/assets/self-xss-console-warning.js"
+          ready=0
+          for attempt in {1..12}; do
+            actual="$(mktemp)"
+            asset_status="$(curl -sS -L --max-time 15 -o "$actual" -w '%{http_code}' \
+              -H 'Cache-Control: no-cache' \
+              "https://sautilink.com/app/assets/self-xss-console-warning.js?v=20261115-1&release=$GITHUB_RUN_ID-$attempt")" || asset_status=000
+            good=1
+            if [ "$asset_status" != "200" ] || ! cmp -s "$expected" "$actual"; then
+              echo "Self-XSS script asset mismatch: HTTP $asset_status on attempt $attempt"
+              good=0
+            fi
+            rm -f "$actual"
+            for path in app/ login signup; do
+              document="$(mktemp)"
+              status="$(curl -sS -L --max-time 15 -o "$document" -w '%{http_code}' \
+                -H 'Cache-Control: no-cache' \
+                "https://sautilink.com/$path?release=$GITHUB_RUN_ID-$attempt")" || status=000
+              if [ "$status" != "200" ] || ! grep -Fq 'src="/app/assets/self-xss-console-warning.js?v=20261115-1"' "$document"; then
+                echo "Self-XSS notice reference missing from /$path: HTTP $status on attempt $attempt"
+                good=0
+              fi
+              rm -f "$document"
+            done
+            if [ "$good" = "1" ]; then ready=1; break; fi
+            sleep 3
+          done
+          if [ "$ready" != "1" ]; then
+            echo "Self-XSS browser warning has not reached production." >&2
+            exit 1
+          fi
+
       - name: Verify adaptive wordmark assets on live production
         shell: bash
         run: |
