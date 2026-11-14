@@ -112,3 +112,52 @@ their actual results have been checked.
 - https://developers.cloudflare.com/workers-ai/models/embeddinggemma-2/
 - https://developers.cloudflare.com/vectorize/get-started/intro/
 - https://developers.cloudflare.com/vectorize/platform/limits/
+
+
+## Phase 2: viewer-scoped semantic preview (staging only)
+
+The Worker now recognizes exactly this URL:
+
+\`GET https://test.sautilink.com/api/internal/ai-discovery/preview?q=technology\`
+
+**It returns 404 by default** (no deployment/bindings/flag have been enabled).
+The route is hard-restricted to \`test.sautilink.com\`, including when flags
+are set incorrectly on production. It requires a valid Supabase user JWT and
+returns IDs only, not post bodies, vectors, or private data.
+
+Prerequisites for a controlled staging rollout:
+
+- \`AI_DISCOVERY_PREVIEW_ENABLED=true\` on the staging Worker **only**
+- \`DISCOVERY_SUPABASE_URL\`: official Supabase project URL, HTTPS
+- \`DISCOVERY_SUPABASE_PUBLISHABLE_KEY\`: publishable/anon-only Supabase key
+- \`AI\`: Workers AI binding
+- \`DISCOVERY_VECTOR_INDEX\`: Vectorize index binding (256 dimensions)
+- \`AI_DISCOVERY_PREVIEW_LIMITER\`: Cloudflare rate-limit binding with a strict
+  per-authenticated-user limit. This is mandatory, not optional.
+
+No \`service_role\` or elevated database key is allowed in the preview route.
+The API performs \`/auth/v1/user\` verification and a **JWT-scoped SELECT from
+\`social_posts\`** using PostgREST. Production Supabase policies for this
+table currently enforce visibility, discoverability, moderation, and
+bidirectional block plus mute relationships. We also recheck publication,
+visibility, moderation, and top-level post flags before returning matches.
+
+A failed auth request gives 401; failed database or AI calls give a generic
+503 so the existing feed can remain the fallback. The preview's \`q\`
+parameter is explicit user text, capped at 180 characters and rate-limited.
+This endpoint is **not yet personalized ranking**; it is a staging-only
+semantic-search verification probe. No Android/Web client change has been made.
+
+Security reminder: user-scoped PostgREST/RLS must be preserved if later
+refactoring this adapter. Do not replace it with \`service_role\`, cached
+authorization flags, or a publicly accessible Vectorize endpoint.
+
+Run this additional test:
+
+\`\`\`bash
+node --test tests/ai-discovery-preview-api.test.mjs
+\`\`\`
+
+No new paid resources have been provisioned. Review cloud costs and
+availability before enabling indexing or serving requests. The privacy and
+performance audit gates above still apply.
