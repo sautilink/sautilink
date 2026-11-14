@@ -12,5 +12,5 @@
 /videos /app/ 200
 /videos/* /app/ 200
 
-# Keep the Android download on the official SautiLink URL.
-/download/android https://github.com/sautilink/sautilink/releases/download/android-beta/SautiLink-Android-Beta.apk 302
+# Retire the legacy beta APK route in favor of the official Google Play landing page.
+/download/android /download 301
