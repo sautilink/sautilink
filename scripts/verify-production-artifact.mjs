@@ -49,7 +49,7 @@ for (const file of files) {
 
 const appHtml = await readFile(resolve(siteRoot, 'app/index.html'), 'utf8');
 const selfXssWarningAsset = await readFile(resolve(siteRoot, 'app/assets/self-xss-console-warning.js'), 'utf8');
-if (!appHtml.includes('/app/assets/self-xss-console-warning.js?v=20261115-1')) {
+if (!/src="\/app\/assets\/self-xss-console-warning\.js\?v=[a-f0-9]{12}"/.test(appHtml)) {
   throw new Error('production app shell is missing the self-XSS warning script');
 }
 if (!selfXssWarningAsset.includes('%cStop!')
