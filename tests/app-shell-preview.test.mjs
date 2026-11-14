@@ -104,6 +104,9 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/app.css'));
   assert.ok(files.includes('app/assets/app.js'));
   assert.ok(files.includes('app/assets/non-home-loading-init.js'));
+  assert.ok(files.includes('app/assets/self-xss-console-warning.js'));
+  assert.equal(await read('app/assets/self-xss-console-warning.js'), await read('dist-preview-site/app/assets/self-xss-console-warning.js'));
+
   assert.ok(files.includes('app/assets/non-home-loading.css'));
   assert.ok(files.includes('app/assets/auth-entry-polish.css'));
   assert.ok(files.includes('app/assets/auth-flow-hardening.css'));
@@ -192,6 +195,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/app.css',
     'app/assets/app.js',
     'app/assets/non-home-loading-init.js',
+    'app/assets/self-xss-console-warning.js',
     'app/assets/non-home-loading.css',
     'app/assets/auth-entry-polish.css',
     'app/assets/auth-flow-hardening.css',
