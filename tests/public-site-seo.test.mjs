@@ -107,6 +107,10 @@ test('static sitemap enumerates canonical public pages without duplicates or non
   assert.ok(!urls.includes(ORIGIN + '/no'));
   assert.ok(!urls.includes(ORIGIN + '/'));
   for (const slug of EDITED.filter(s => s !== 'no')) {
-    assert.match(sitemap, new RegExp('https://sautilink\\.com/' + slug + '</loc><lastmod>2026-11-08</lastmod>'));
+    const lastmod = slug === 'download' ? '2026-11-15' : '2026-11-08';
+    assert.match(sitemap, new RegExp('https://sautilink\\.com/' + slug + '</loc><lastmod>' + lastmod + '</lastmod>'));
+  }
+  for (const slug of ['about', 'android-app-preview']) {
+    assert.match(sitemap, new RegExp('https://sautilink\\.com/' + slug + '</loc><lastmod>2026-11-15</lastmod>'));
   }
 });

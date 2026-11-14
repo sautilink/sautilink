@@ -48,6 +48,16 @@ for (const file of files) {
 }
 
 const appHtml = await readFile(resolve(siteRoot, 'app/index.html'), 'utf8');
+const selfXssWarningAsset = await readFile(resolve(siteRoot, 'app/assets/self-xss-console-warning.js'), 'utf8');
+if (!/src="\/app\/assets\/self-xss-console-warning\.js\?v=[a-f0-9]{12}"/.test(appHtml)) {
+  throw new Error('production app shell is missing the self-XSS warning script');
+}
+if (!selfXssWarningAsset.includes('%cStop!')
+  || !selfXssWarningAsset.includes('Protect your SautiLink account.')
+  || selfXssWarningAsset.includes('console.clear(')) {
+  throw new Error('production self-XSS warning asset is missing expected safe content');
+}
+
 const appJs = await readFile(resolve(siteRoot, 'app/assets/app.js'), 'utf8');
 const workerApp = await readFile(resolve(workerRoot, 'src/app.js'), 'utf8');
 const mediaApi = await readFile(resolve(workerRoot, 'src/sauti-media-api.js'), 'utf8');
