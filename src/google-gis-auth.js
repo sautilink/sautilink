@@ -12,7 +12,7 @@ export const SAUTILINK_GOOGLE_WEB_CLIENT_ID =
   '93555813548-6c14o15be6tfl0hk82m2o3soogq90aq6.apps.googleusercontent.com';
 
 const SDK_URL = 'https://accounts.google.com/gsi/client';
-let sdkPromise = null;
+const sdkPromises = new WeakMap();
 
 export function shouldOfferGoogleGis(win) {
   const hostname = win?.location?.hostname || '';
@@ -33,9 +33,9 @@ async function createNonce(cryptoImpl) {
 
 function loadGoogleSdk(win, doc) {
   if (win.google?.accounts?.id) return Promise.resolve(win.google.accounts.id);
-  if (sdkPromise) return sdkPromise;
+  if (sdkPromises.has(doc)) return sdkPromises.get(doc);
 
-  sdkPromise = new Promise((resolve, reject) => {
+  const sdkPromise = new Promise((resolve, reject) => {
     const script = doc.createElement('script');
     script.src = SDK_URL;
     script.async = true;
@@ -47,9 +47,10 @@ function loadGoogleSdk(win, doc) {
     script.addEventListener('error', () => reject(new Error('Google sign-in library failed to load')), { once: true });
     doc.head.append(script);
   }).catch((error) => {
-    sdkPromise = null;
+    sdkPromises.delete(doc);
     throw error;
   });
+  sdkPromises.set(doc, sdkPromise);
   return sdkPromise;
 }
 
