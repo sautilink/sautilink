@@ -127,7 +127,19 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
     gateUserId = '';
     block('Checking your account security again…');
     if (session?.user?.id && session?.access_token) {
-      void guard(session.user, { resumeOnSuccess: true });
+      // Supabase auth callbacks run under an auth state lock. Deferring the
+      // async getSession()/MFA check avoids calling Auth APIs inside that lock.
+      const expectedToken = session.access_token;
+      setTimeout(() => {
+        void (async () => {
+          const { data, error } = await auth.getSession();
+          if (!error && data?.session?.access_token === expectedToken) {
+            await guard(session.user, { resumeOnSuccess: true });
+          }
+        })().catch(() => {
+          block('We could not confirm your account security level. Retry or sign out.');
+        });
+      }, 0);
     }
   }
 
