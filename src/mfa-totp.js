@@ -5,6 +5,35 @@
  * It guards member UI, but server-side RLS/Edge Function AAL checks are needed
  * separately for sensitive operations and for clients outside the Web app.
  */
+/**
+ * Supabase Auth can return MFA SVGs as raw markup, an SVG data URI,
+ * or a base64 SVG data URI depending on client SDK/version.
+ *
+ * Encode *markup* before loading it via <img>. Unescaped '#' and other URL
+ * characters inside raw SVG otherwise corrupt the data URI on some browsers.
+ * Never inject the SVG into HTML or send the secret to another QR service.
+ */
+export function normalizeTotpQrImage(value) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const supplied = value.trim();
+
+  // Pre-encoded inline base64 SVG is safe to use as an image (never external).
+  if (/^data:image\/svg\+xml;base64,[a-z0-9+/=\s]+$/i.test(supplied)) {
+    return supplied.replace(/\s+/g, '');
+  }
+
+  const prefix = /^data:image\/svg\+xml(?:;[^,]*)?,/i;
+  let markup = prefix.test(supplied) ? supplied.replace(prefix, '') : supplied;
+  // Supabase's SDK sometimes prepends an SVG data URL without URL encoding
+  // the markup. For already percent-encoded markup, decode exactly once.
+  if (/^%3c/i.test(markup)) {
+    try { markup = decodeURIComponent(markup); } catch { return null; }
+  }
+  if (!/^(?:<\?xml\s[^>]*>\s*)?<svg[\s>]/i.test(markup)
+    || !/<\/svg\s*>\s*$/i.test(markup)) return null;
+  return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(markup);
+}
+
 export function validTotpCode(value) {
   return /^\d{6}$/.test(String(value || '').trim());
 }
@@ -328,21 +357,51 @@ export function createTotpMfaController({ auth, doc = document, runtime = global
     if (button) button.disabled = true;
     message(byId('sautilink-mfa-setup-message'), 'Preparing authenticator setup…');
     try {
+      // A previous QR that was not confirmed can leave an unverified factor
+      // with the same friendly name. Supabase rejects duplicate factor names.
+      // Clean up ONLY our own abandoned, unverified TOTP enrollment here.
+      // Never delete an existing verified factor.
+      let hasAnExistingVerifiedTotp = hasVerifiedFactor;
+      if (typeof auth.mfa.listFactors === 'function') {
+        const { data: previous, error: listError } = await auth.mfa.listFactors();
+        if (listError) throw listError;
+        const all = previous?.all || previous?.totp || [];
+        hasAnExistingVerifiedTotp = all.some((factor) =>
+          factor.factor_type === 'totp' && factor.status === 'verified'
+        ) || hasVerifiedFactor;
+        const abandoned = all.filter((factor) =>
+          factor.factor_type === 'totp' && factor.status === 'unverified'
+          && factor.friendly_name === 'SautiLink Authenticator'
+        );
+        for (const factor of abandoned) {
+          const { error: cleanupError } = await auth.mfa.unenroll({ factorId: factor.id });
+          if (cleanupError) throw cleanupError;
+        }
+      }
       const { data, error } = await auth.mfa.enroll({
         factorType: 'totp',
-        friendlyName: 'SautiLink Authenticator',
+        friendlyName: hasAnExistingVerifiedTotp
+          ? 'SautiLink Backup ' + Date.now().toString(36)
+          : 'SautiLink Authenticator',
       });
       if (error || !data?.id || !data?.totp?.secret) throw error || new Error('INVALID_ENROLLMENT');
       pendingEnrollment = { id: data.id };
       const qr = byId('sautilink-mfa-qr');
-      // Supabase returns a data:image/svg+xml QR code. Do not inject raw SVG into HTML.
-      if (qr && /^data:image\/svg\+xml[;,]/i.test(data.totp.qr_code || '')) {
-        qr.src = data.totp.qr_code;
+      // Never inject user-specific SVG into the DOM as markup or send it
+      // to a third-party QR generator. Load only an encoded inline image.
+      const qrSrc = normalizeTotpQrImage(data.totp.qr_code);
+      if (qr && qrSrc) {
+        qr.src = qrSrc;
         qr.hidden = false;
-      } else if (qr) qr.hidden = true;
+      } else if (qr) {
+        qr.removeAttribute('src');
+        qr.hidden = true;
+      }
       byId('sautilink-mfa-secret').textContent = data.totp.secret;
       byId('sautilink-mfa-enrollment').hidden = false;
-      message(byId('sautilink-mfa-setup-message'), 'Scan the QR code or enter the key in your authenticator app. Then enter its 6-digit code.');
+      message(byId('sautilink-mfa-setup-message'), qrSrc
+        ? 'In your authenticator app, choose Add account → Scan QR code. If scanning fails, choose Enter setup key manually. Then enter the 6-digit code here.'
+        : 'QR preview is unavailable. In your authenticator app, choose Enter setup key manually, then enter the 6-digit code here.');
       byId('sautilink-mfa-setup-code')?.focus();
     } catch {
       message(byId('sautilink-mfa-setup-message'), 'Could not start setup. Try again.', true);
@@ -425,6 +484,12 @@ export function createTotpMfaController({ auth, doc = document, runtime = global
         }
       });
     }
+    byId('sautilink-mfa-qr')?.addEventListener('error', () => {
+      const qr = byId('sautilink-mfa-qr');
+      if (qr) qr.hidden = true;
+      if (pendingEnrollment) message(byId('sautilink-mfa-setup-message'),
+        'Unable to display the QR image. In your authenticator app choose Enter setup key manually, then enter its 6-digit code.');
+    });
     byId('sautilink-mfa-enable')?.addEventListener('click', startEnrollment);
     byId('sautilink-mfa-setup-form')?.addEventListener('submit', finishEnrollment);
     byId('sautilink-mfa-cancel')?.addEventListener('click', cancelEnrollment);

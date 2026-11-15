@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { createTotpMfaController, canEnrollMfaOnClient, mfaEnrollmentClientStatus, mfaGateDecision, validTotpCode } from '../src/mfa-totp.js';
+import { createTotpMfaController, canEnrollMfaOnClient, mfaEnrollmentClientStatus, mfaGateDecision, normalizeTotpQrImage, validTotpCode } from '../src/mfa-totp.js';
 import { transformTotpMfaSource } from '../scripts/totp-mfa-source-transform.mjs';
 
 const read = (path) => readFile(new URL('../' + path, import.meta.url), 'utf8');
@@ -310,4 +310,82 @@ test('native app shows actionable browser guidance and never enables MFA enrollm
   await mfa.refreshSettings(true);
   assert.equal(h.at('sautilink-mfa-enable').disabled, true);
   assert.match(h.at('sautilink-mfa-status').textContent, /open sautilink.com in Chrome/);
+});
+
+test('Supabase QR SVG is safely encoded into a valid inline image without losing the embedded otpauth URI', () => {
+  const raw = '<svg xmlns="http://www.w3.org/2000/svg"><path fill="#000" d="M0 0H12" /><text>otpauth://totp/SautiLink%3Auser%3Fsecret%3DABC123%26issuer%3DSautiLink</text></svg>';
+  const encoded = normalizeTotpQrImage(raw);
+  assert.ok(encoded.startsWith('data:image/svg+xml;charset=UTF-8,'));
+  assert.equal(decodeURIComponent(encoded.slice('data:image/svg+xml;charset=UTF-8,'.length)), raw);
+  assert.equal(encoded.includes('fill="#000"'), false, 'special characters must be percent-encoded');
+  assert.equal(normalizeTotpQrImage('data:image/svg+xml;utf-8,' + raw), encoded);
+  assert.equal(normalizeTotpQrImage('data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(raw)), encoded);
+  assert.equal(normalizeTotpQrImage('data:image/svg+xml;base64,PHN2Zz48L3N2Zz4='), 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=');
+  assert.equal(normalizeTotpQrImage('https://another-service.example/qr?secret=sensitive'), null);
+  assert.equal(normalizeTotpQrImage('javascript:alert(1)'), null);
+  assert.equal(normalizeTotpQrImage('<script>alert(1)</script>'), null);
+});
+
+test('rendering an SVG from Supabase enrollment shows a camera-scannable image without external network', async () => {
+  const h = harness();
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg"><path fill="#000" d="M0 0H10"/></svg>';
+  const auth = { mfa: { async enroll() { return {
+    data: { id: 'svg-factor', totp: { qr_code: 'data:image/svg+xml;utf-8,' + svg, secret: 'FAKESECRET123' } },
+    error: null,
+  }; } } };
+  createTotpMfaController({ auth, doc: h.doc, runtime: { location: { hostname: 'www.sautilink.com' }, confirm: () => true } });
+  await h.at('sautilink-mfa-enable').events.get('click')();
+  const qr = h.at('sautilink-mfa-qr');
+  assert.equal(qr.hidden, false);
+  assert.ok(qr.src.startsWith('data:image/svg+xml;charset=UTF-8,'));
+  assert.ok(qr.src.includes('%23') && qr.src.includes('%3Csvg'));
+  assert.equal(h.at('sautilink-mfa-enrollment').hidden, false);
+  assert.match(h.at('sautilink-mfa-setup-message').textContent, /Scan QR code/);
+  qr.events.get('error')();
+  assert.equal(qr.hidden, true);
+  assert.match(h.at('sautilink-mfa-setup-message').textContent, /Enter setup key manually/);
+});
+
+test('restarting a broken QR setup clears only old unverified SautiLink TOTP factors', async () => {
+  const h = harness();
+  const removed = [];
+  let enrollmentLabel = '';
+  const auth = { mfa: {
+    async listFactors() { return { data: { all: [
+      { id: 'old-qr', factor_type: 'totp', status: 'unverified', friendly_name: 'SautiLink Authenticator' },
+      { id: 'verified-primary', factor_type: 'totp', status: 'verified', friendly_name: 'Existing phone' },
+      { id: 'other-pending', factor_type: 'totp', status: 'unverified', friendly_name: 'Other app' },
+    ] }, error: null }; },
+    async unenroll({ factorId }) { removed.push(factorId); return { error: null }; },
+    async enroll(args) {
+      enrollmentLabel = args.friendlyName;
+      return { data: { id: 'new-qr', totp: { secret: 'NOTREAL', qr_code: '<svg><path/></svg>' } }, error: null };
+    },
+  } };
+  createTotpMfaController({
+    auth, doc: h.doc,
+    runtime: { location: { hostname: 'sautilink.com' }, confirm: () => true },
+  });
+  await h.at('sautilink-mfa-enable').events.get('click')();
+  assert.deepEqual(removed, ['old-qr']);
+  assert.match(enrollmentLabel, /^SautiLink Backup /);
+  assert.equal(h.at('sautilink-mfa-enrollment').hidden, false);
+});
+
+test('an error cleaning an abandoned factor aborts enrollment instead of creating duplicate factor', async () => {
+  const h = harness();
+  let attempts = 0;
+  const auth = { mfa: {
+    async listFactors() { return { data: { all: [
+      { id: 'stale', factor_type: 'totp', status: 'unverified', friendly_name: 'SautiLink Authenticator' },
+    ] }, error: null }; },
+    async unenroll() { return { error: { code: 'test_failure' } }; },
+    async enroll() { attempts++; return { data: null, error: null }; },
+  } };
+  createTotpMfaController({
+    auth, doc: h.doc, runtime: { location: { hostname: 'sautilink.com' }, confirm: () => true },
+  });
+  await h.at('sautilink-mfa-enable').events.get('click')();
+  assert.equal(attempts, 0);
+  assert.match(h.at('sautilink-mfa-setup-message').textContent, /Could not start setup/);
 });
