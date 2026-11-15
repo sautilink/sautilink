@@ -300,16 +300,18 @@ test.skip('live www SautiLink origin makes the authenticator enrollment action a
   assert.equal(h.at('sautilink-mfa-enrollment').hidden, false);
 });
 
-test('native app shows actionable browser guidance and never enables MFA enrollment', async () => {
+test('paused production 2FA avoids factor-list polling and disallows enrollment on native app', async () => {
   const h = harness();
-  const auth = { mfa: { async listFactors() { return { data: { totp: [] }, error: null }; } } };
+  let factorCalls = 0;
+  const auth = { mfa: { async listFactors() { factorCalls++; return { data: { totp: [] }, error: null }; } } };
   const mfa = createTotpMfaController({
     auth, doc: h.doc,
     runtime: { location: { hostname: 'www.sautilink.com' }, Capacitor: { getPlatform: () => 'android' } },
   });
   await mfa.refreshSettings(true);
-  assert.equal(h.at('sautilink-mfa-enable').disabled, true);
-  assert.match(h.at('sautilink-mfa-status').textContent, /open sautilink.com in Chrome/);
+  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'www.sautilink.com' } }), false);
+  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'www.sautilink.com' }, Capacitor: { getPlatform: () => 'android' } }), false);
+  assert.equal(factorCalls, 0, 'paused settings should not make background MFA factor requests');
 });
 
 test('Supabase QR SVG is safely encoded into a valid inline image without losing the embedded otpauth URI', () => {
