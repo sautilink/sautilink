@@ -1,6 +1,10 @@
 import { installAuthEntryPresentation } from './auth-entry-presentation.js';
+import { installGoogleGis } from './google-gis-auth.js';
 
 const SOCIAL_OAUTH_REDIRECT = 'https://sautilink.com/home';
+// Enable in this review branch only. Do not merge until the new Web Client ID
+// is allowlisted in Supabase Google Auth and browser smoke tests have passed.
+const GOOGLE_GIS_ROLLOUT_ENABLED = true;
 const SOCIAL_OAUTH_STYLESHEET = '/app/assets/guest-entry-gate.css?v=20260920-authui2';
 const AUTH_ENTRY_POLISH_STYLESHEET = '/app/assets/auth-entry-polish.css?v=20261017-ios1';
 const USERNAME_PREFIX_FIX_STYLESHEET = '/app/assets/username-prefix-fix.css?v=20260920-authui3';
@@ -170,6 +174,24 @@ function install() {
   installAuthEntryPresentation();
   createBlock('login-panel', 'login-form', 'login');
   createBlock('signup-panel', 'signup-form', 'signup');
+
+  if (GOOGLE_GIS_ROLLOUT_ENABLED) {
+    void installGoogleGis({
+      auth: client.auth,
+      blocks: [...document.querySelectorAll('[data-social-oauth-block]')].map((block) => ({
+        block,
+        context: block.dataset.socialOauthBlock || 'login',
+      })),
+      onError: (message) => {
+        const context = window.location.pathname.startsWith('/signup') ? 'signup' : 'login';
+        setMessage(id(`social-oauth-${context}-message`), message);
+      },
+      onSuccess: () => {
+        setMessage(id('social-oauth-login-message'), '');
+        setMessage(id('social-oauth-signup-message'), '');
+      },
+    });
+  }
 }
 
 installAuthEntryPresentation();
