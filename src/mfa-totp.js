@@ -23,6 +23,8 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
 
   const byId = (id) => doc.getElementById(id);
   let unlockedUserId = '';
+  let unlockedSessionToken = '';
+  let gateEpoch = 0;
   let gateUserId = '';
   let gatePromise = null;
   let pendingEnrollment = null;
@@ -85,7 +87,9 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
     void refreshLoginFactors();
   }
   function reset() {
+    gateEpoch += 1;
     unlockedUserId = '';
+    unlockedSessionToken = '';
     gateUserId = '';
     pendingEnrollment = null;
     gatePromise = null;
@@ -99,41 +103,84 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
   }
 
   function isUnlockedFor(userId) {
-    return Boolean(userId) && unlockedUserId === String(userId);
+    return Boolean(userId) && unlockedUserId === String(userId) && Boolean(unlockedSessionToken);
+  }
+
+  function onAuthEvent(event, session) {
+    if (event === 'SIGNED_OUT') {
+      reset();
+      return;
+    }
+    if (event !== 'SIGNED_IN' && event !== 'TOKEN_REFRESHED') return;
+    if (!unlockedUserId) return;
+    const sameSession = session?.user?.id === unlockedUserId
+      && Boolean(session?.access_token)
+      && session.access_token === unlockedSessionToken;
+    if (sameSession) return;
+
+    // An old member shell must never remain authorized when the token changes,
+    // including a fresh login to the same account on this browser.
+    gateEpoch += 1;
+    unlockedUserId = '';
+    unlockedSessionToken = '';
+    gatePromise = null;
+    gateUserId = '';
+    block('Checking your account security again…');
+    if (session?.user?.id && session?.access_token) {
+      void guard(session.user, { resumeOnSuccess: true });
+    }
   }
 
   async function guard(user, { resumeOnSuccess = false } = {}) {
     const userId = String(user?.id || '');
     if (!userId) return false;
-    if (isUnlockedFor(userId)) return true;
     if (gatePromise && gateUserId === userId) return gatePromise;
 
+    const epoch = ++gateEpoch;
     gateUserId = userId;
     gatePromise = (async () => {
-      let outcome;
+      let outcome = 'unavailable';
+      let checkedToken = '';
       try {
-        const { data: sessionData, error: sessionError } = await auth.getSession();
-        if (sessionError || sessionData?.session?.user?.id !== userId) {
+        const { data: first, error: firstError } = await auth.getSession();
+        const session = first?.session;
+        if (firstError || session?.user?.id !== userId || !session.access_token) {
           throw new Error('MFA_SESSION_ID_MISMATCH');
         }
-        const { data, error } = await auth.mfa.getAuthenticatorAssuranceLevel();
-        if (error) throw error;
-        outcome = mfaGateDecision(data);
+        checkedToken = session.access_token;
+        if (isUnlockedFor(userId) && unlockedSessionToken === checkedToken) {
+          outcome = 'allowed';
+        } else {
+          const { data, error } = await auth.mfa.getAuthenticatorAssuranceLevel();
+          if (error) throw error;
+          outcome = mfaGateDecision(data);
+        }
+
+        // Stop a sign-out, account switch or refreshed session racing with the
+        // assurance-level check. The next attempt can re-check the new token.
+        const { data: second, error: secondError } = await auth.getSession();
+        if (secondError || second?.session?.user?.id !== userId
+          || second.session.access_token !== checkedToken) {
+          throw new Error('MFA_SESSION_CHANGED');
+        }
       } catch {
         outcome = 'unavailable';
       }
-      if (gateUserId !== userId) return false;
+      if (epoch !== gateEpoch || gateUserId !== userId) return false;
       if (outcome === 'allowed') {
         unlockedUserId = userId;
+        unlockedSessionToken = checkedToken;
         toggleGate(false);
         if (resumeOnSuccess) onUnlocked();
         return true;
       }
+      unlockedUserId = '';
+      unlockedSessionToken = '';
       if (outcome === 'challenge') block();
       else block('We could not confirm your account security level. Retry or sign out.');
       return false;
     })().finally(() => {
-      if (gateUserId === userId) gatePromise = null;
+      if (epoch === gateEpoch && gateUserId === userId) gatePromise = null;
     });
     return gatePromise;
   }
@@ -145,10 +192,16 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
     const code = String(input?.value || '').trim();
     if (!validTotpCode(code)) return message(byId('sautilink-mfa-login-message'), 'Enter the 6-digit authenticator code.', true);
     busy = true;
+    const expectedUserId = gateUserId;
+    const epoch = gateEpoch;
     const submit = byId('sautilink-mfa-login-submit');
     if (submit) submit.disabled = true;
     message(byId('sautilink-mfa-login-message'), 'Verifying your code…');
     try {
+      const { data: first, error: firstError } = await auth.getSession();
+      if (firstError || first?.session?.user?.id !== expectedUserId || !first.session.access_token) {
+        throw new Error('MFA_SESSION_CHANGED');
+      }
       const { data: factors, error: listError } = await auth.mfa.listFactors();
       if (listError) throw listError;
       const verified = (factors?.totp || factors?.all?.filter((f) => f.factor_type === 'totp') || [])
@@ -160,7 +213,13 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
       if (error) throw error;
       const { data: level, error: levelError } = await auth.mfa.getAuthenticatorAssuranceLevel();
       if (levelError || mfaGateDecision(level) !== 'allowed') throw new Error('MFA_AAL2_REQUIRED');
-      unlockedUserId = gateUserId;
+      const { data: final, error: finalError } = await auth.getSession();
+      if (finalError || final?.session?.user?.id !== expectedUserId
+        || !final.session.access_token || epoch !== gateEpoch || gateUserId !== expectedUserId) {
+        throw new Error('MFA_SESSION_CHANGED');
+      }
+      unlockedUserId = expectedUserId;
+      unlockedSessionToken = final.session.access_token;
       toggleGate(false);
       onUnlocked();
     } catch {
@@ -325,5 +384,5 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
   }
 
   mount();
-  return { guard, isUnlockedFor, refreshSettings, reset, active: () => active };
+  return { guard, isUnlockedFor, onAuthEvent, refreshSettings, reset, active: () => active };
 }
