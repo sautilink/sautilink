@@ -59,6 +59,21 @@ if (!selfXssWarningAsset.includes('%cStop!')
 }
 
 const appJs = await readFile(resolve(siteRoot, 'app/assets/app.js'), 'utf8');
+const mfaCss = await readFile(resolve(siteRoot, 'app/assets/mfa-totp.css'), 'utf8');
+for (const marker of [
+  'id="sautilink-mfa-gate"',
+  'id="sautilink-mfa-login-form"',
+  'id="sautilink-mfa-enrollment"',
+  '/app/assets/mfa-totp.css?v=',
+]) {
+  if (!appHtml.includes(marker)) throw new Error('production 2FA UI is missing: ' + marker);
+}
+for (const marker of ['getAuthenticatorAssuranceLevel', 'challengeAndVerify', 'sautilink-mfa-gate']) {
+  if (!appJs.includes(marker)) throw new Error('production 2FA controller not bundled: ' + marker);
+}
+if (!mfaCss.includes('.sautilink-mfa-gate') || !mfaCss.includes('.sautilink-mfa-settings')) {
+  throw new Error('production 2FA stylesheet missing required UI styles');
+}
 const workerApp = await readFile(resolve(workerRoot, 'src/app.js'), 'utf8');
 const mediaApi = await readFile(resolve(workerRoot, 'src/sauti-media-api.js'), 'utf8');
 const profileXCss = await readFile(resolve(siteRoot, 'app/assets/profile-x-ui.css'), 'utf8');

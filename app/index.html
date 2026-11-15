@@ -22,6 +22,7 @@
   <!-- First-paint UI: keep the final Auth and Home presentation render-blocking so refresh never shows the legacy shell. -->
   <link id="social-oauth-auth-styles" rel="stylesheet" href="/app/assets/guest-entry-gate.css?v=20261019-post2">
   <link id="auth-entry-polish-styles" rel="stylesheet" href="/app/assets/auth-entry-polish.css?v=20261017-ios1">
+  <link rel="stylesheet" href="/app/assets/mfa-totp.css?v=20261115-1">
   <link id="username-prefix-fix-styles" rel="stylesheet" href="/app/assets/username-prefix-fix.css?v=20260920-authui3">
   <link id="sautilink-mobile-nav-style" rel="stylesheet" href="/app/assets/mobile-nav-icon-style.css?v=20260907-nav1">
   <link id="sautilink-mobile-more-drawer-style" rel="stylesheet" href="/app/assets/mobile-more-drawer.css?v=20260921-sidebar-systems1">
@@ -1139,6 +1140,37 @@
               </dl>
               <button class="secondary-action" id="settings-password-reset" type="button">Change password</button>
             </article>
+            <article class="settings-card sautilink-mfa-settings" aria-labelledby="sautilink-mfa-title">
+              <div class="settings-card-title">
+                <strong id="sautilink-mfa-title">Two-factor authentication</strong>
+                <small>Early access — SautiLink Web only</small>
+              </div>
+              <p class="settings-card-copy" id="sautilink-mfa-status" role="status" aria-live="polite">Checking account security…</p>
+              <p class="settings-card-copy">Use a 6-digit code from Google Authenticator, Microsoft Authenticator, 2FAS, or another TOTP app. This is an early-access Web feature: full API security enforcement and lost-device recovery are not yet available, and the existing Play Store app may not support signing in after enrollment. Do not enable it on a critical account until compatibility is verified.</p>
+              <div class="sautilink-mfa-actions">
+                <button class="secondary-action" id="sautilink-mfa-enable" type="button">Enable two-factor authentication</button>
+                <select id="sautilink-mfa-remove-factor" aria-label="Select authenticator to remove" hidden></select>
+                <button class="secondary-action settings-danger" id="sautilink-mfa-remove" type="button" hidden>Remove authenticator</button>
+              </div>
+              <div id="sautilink-mfa-enrollment" class="sautilink-mfa-enrollment" hidden>
+                <h4>Connect your authenticator</h4>
+                <p>Scan this QR code or enter the setup key in your authenticator app. Never share the key or a one-time code.</p>
+                <img id="sautilink-mfa-qr" alt="QR code for your new SautiLink authenticator" width="192" height="192" hidden>
+                <label class="sautilink-mfa-secret-label" for="sautilink-mfa-secret">Manual setup key</label>
+                <code id="sautilink-mfa-secret" class="sautilink-mfa-secret" aria-label="Authenticator setup key"></code>
+                <form id="sautilink-mfa-setup-form" class="sautilink-mfa-code-form">
+                  <label for="sautilink-mfa-setup-code">6-digit verification code</label>
+                  <input id="sautilink-mfa-setup-code" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" type="text" required>
+                  <div class="sautilink-mfa-actions">
+                    <button class="secondary-action" id="sautilink-mfa-setup-submit" type="submit">Enable 2FA</button>
+                    <button class="text-action" id="sautilink-mfa-cancel" type="button">Cancel</button>
+                  </div>
+                </form>
+              </div>
+              <p id="sautilink-mfa-setup-message" role="status" aria-live="polite" class="sautilink-mfa-message" hidden></p>
+              <small class="settings-note">Supabase Auth does not issue recovery codes for TOTP. Save another authenticator as a backup. Never give anyone your setup key.</small>
+            </article>
+
             <article class="settings-card settings-verification-card">
               <div class="settings-card-title"><strong>Verification badge status</strong><small>Check your current SautiLink verification status.</small></div>
               <div class="settings-verification-status">
@@ -1658,5 +1690,26 @@
   </dialog>
 
   <script type="module" src="/app/assets/app.js?v=20260930-swala-otp2&amp;signup=20261003-phone2&amp;messages=20261020-native1&amp;rooms=20261020-native2&amp;thread=20261003-thread1&amp;profile=20261007-video-poster1&amp;profileui=20261020-compact1&amp;verification=20261020-remove1&amp;menu=20261020-native1&amp;native=20261020-v1112&amp;repost=20261020-direct1&amp;comments=20261019-sheet1&amp;postpreview=20261019-post2&amp;video=20261021-stream-session1&amp;other=20261009-skeleton1"></script>
+  <section class="sautilink-mfa-gate" id="sautilink-mfa-gate" role="dialog" aria-modal="true" aria-labelledby="sautilink-mfa-login-title" hidden>
+    <div class="sautilink-mfa-gate-card">
+      <div class="sautilink-mfa-shield" aria-hidden="true">✦</div>
+      <p class="sautilink-mfa-eyebrow">SautiLink Account Security</p>
+      <h2 id="sautilink-mfa-login-title">Verify it's you</h2>
+      <p>Your account uses two-factor authentication. Enter the current 6-digit code from your authenticator app to continue.</p>
+      <form id="sautilink-mfa-login-form" class="sautilink-mfa-code-form">
+        <label for="sautilink-mfa-login-factor" class="sautilink-mfa-factor-label" id="sautilink-mfa-factor-label" hidden>Authenticator</label>
+        <select id="sautilink-mfa-login-factor" aria-label="Choose an authenticator" hidden></select>
+        <label for="sautilink-mfa-login-code">Authenticator code</label>
+        <input id="sautilink-mfa-login-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+        <button class="sautilink-mfa-primary" type="submit" id="sautilink-mfa-login-submit">Verify and continue</button>
+      </form>
+      <p class="sautilink-mfa-message" id="sautilink-mfa-login-message" role="status" aria-live="polite" hidden></p>
+      <div class="sautilink-mfa-gate-actions">
+        <button type="button" id="sautilink-mfa-retry">Try again</button>
+        <button type="button" id="sautilink-mfa-signout">Sign out</button>
+      </div>
+      <p class="sautilink-mfa-hint">Can't access your authenticator? Use a backup authenticator or contact <a href="/help">SautiLink Support</a> for account recovery guidance.</p>
+    </div>
+  </section>
 </body>
 </html>

@@ -1,0 +1,46 @@
+/* SautiLink two-factor authentication — Inter, light-first iOS-style surfaces. */
+.sautilink-mfa-settings { display: grid; gap: 12px; }
+.sautilink-mfa-settings .settings-card-copy { margin: 0; line-height: 1.65; }
+.sautilink-mfa-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.sautilink-mfa-actions select { min-height: 42px; max-width: 100%; padding: 8px; border: 1px solid var(--app-line-strong, #dadde4); border-radius: 12px; background: var(--app-panel, #fff); color: var(--app-text, #151922); }
+.sautilink-mfa-enrollment { display: grid; justify-items: start; gap: 10px; padding: 16px; border: 1px solid var(--app-line-strong, #dadde4); border-radius: 16px; background: var(--app-panel-soft, #f7f8fb); }
+.sautilink-mfa-enrollment[hidden], .sautilink-mfa-gate[hidden], .sautilink-mfa-message[hidden] { display: none !important; }
+.sautilink-mfa-enrollment h4 { margin: 0; font-size: 17px; }
+.sautilink-mfa-enrollment p { margin: 0; line-height: 1.65; }
+.sautilink-mfa-enrollment img { max-width: 100%; height: auto; border: 8px solid #fff; border-radius: 12px; }
+.sautilink-mfa-secret-label { font-weight: 650; }
+.sautilink-mfa-secret { display: block; max-width: 100%; overflow-wrap: anywhere; padding: 10px 12px; background: var(--app-panel, #fff); border: 1px solid var(--app-line-strong, #ddd); border-radius: 10px; font-size: 13px; user-select: all; }
+.sautilink-mfa-code-form { display: grid; gap: 10px; width: 100%; }
+.sautilink-mfa-code-form label { font-weight: 650; font-size: 14px; }
+.sautilink-mfa-code-form select { min-height: 44px; width: 100%; background: #fff; border: 1px solid #b9c0cc; border-radius: 12px; color: #1f2937; font: 600 14px Inter, system-ui, sans-serif; padding: 10px 12px; }
+.sautilink-mfa-code-form select[hidden], .sautilink-mfa-code-form label[hidden] { display: none !important; }
+.sautilink-mfa-code-form input { box-sizing: border-box; width: 100%; max-width: 350px; min-height: 48px; border: 1px solid #aeb4be; border-radius: 13px; background: #fff; color: #151922; padding: 10px 15px; font: 600 19px/1.2 Inter, system-ui, sans-serif; letter-spacing: .15em; }
+.sautilink-mfa-code-form input:focus-visible { outline: 3px solid #bad1f9; outline-offset: 2px; }
+.sautilink-mfa-message { margin: 6px 0; font-size: 13px; font-weight: 600; line-height: 1.5; }
+.sautilink-mfa-message[data-error="true"] { color: #c42639; }
+.sautilink-mfa-gate {
+  position: fixed; z-index: 2147480000; inset: 0;
+  display: grid; place-items: center; overflow-y: auto;
+  background: #f5f7fa; color: #14171e;
+  padding: max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+  font-family: Inter, system-ui, sans-serif;
+}
+.sautilink-mfa-gate-card { box-sizing: border-box; width: min(100%, 440px); background: #fff; border: 1px solid #e4e7ec; border-radius: 24px; padding: clamp(22px, 5vw, 36px); box-shadow: 0 14px 45px rgba(22, 33, 52, .075); }
+.sautilink-mfa-shield { display: inline-grid; place-items: center; width: 45px; height: 45px; border-radius: 14px; background: #101a29; color: #fff; font-size: 25px; }
+.sautilink-mfa-eyebrow { margin: 18px 0 6px; font-size: 12px; font-weight: 750; color: #5a6473; letter-spacing: .03em; }
+.sautilink-mfa-gate-card h2 { margin: 0 0 12px; font-size: clamp(24px, 4vw, 30px); font-weight: 780; letter-spacing: -.04em; }
+.sautilink-mfa-gate-card > p { line-height: 1.65; color: #5c6675; }
+.sautilink-mfa-gate-card .sautilink-mfa-code-form { margin-top: 20px; }
+.sautilink-mfa-primary { min-height: 48px; width: 100%; border: 0; border-radius: 13px; color: white; background: #151a24; font: 680 15px Inter, system-ui, sans-serif; cursor: pointer; }
+.sautilink-mfa-primary:disabled { cursor: wait; opacity: .55; }
+.sautilink-mfa-gate-actions { display: flex; justify-content: center; gap: 22px; margin-top: 18px; }
+.sautilink-mfa-gate-actions button { border: 0; background: transparent; cursor: pointer; color: #435067; font: 600 13px Inter, system-ui, sans-serif; }
+.sautilink-mfa-gate .sautilink-mfa-hint { margin: 24px 0 0; font-size: 12px; text-align: center; }
+.sautilink-mfa-hint a { color: #264fc2; text-decoration: underline; text-underline-offset: 3px; }
+@media (prefers-color-scheme: dark) {
+  html[data-theme="dark"] .sautilink-mfa-gate { background: #0c1119; color: #f5f6f9; }
+  html[data-theme="dark"] .sautilink-mfa-gate-card { background: #161c26; border-color: #303744; }
+  html[data-theme="dark"] .sautilink-mfa-gate-card > p { color: #b5bfcd; }
+  html[data-theme="dark"] .sautilink-mfa-primary { background: #e5eaf3; color: #171b25; }
+}
+@media (max-width: 480px) { .sautilink-mfa-gate-card { border-radius: 20px; } }

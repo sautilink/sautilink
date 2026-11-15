@@ -53,6 +53,6 @@ test('production release builder cannot bypass the Phase 2 verification bridge',
   const productionBuild = await read('scripts/build-production-release.mjs');
 
   assert.match(productionBuild, /import \{ transformVerificationCaseFlowSource \} from '\.\/verification-case-flow-source-transform\.mjs';/);
-  assert.match(productionBuild, /if \(file === productionAppSource\) \{\s*output = transformVerificationCaseFlowSource\(file, output\);\s*\}/s);
+  assert.match(productionBuild, /if \(file === productionAppSource\) \{\s*output = transformVerificationCaseFlowSource\(file, output\);\s*output = transformTotpMfaSource\(file, output\);\s*\}/s);
   assert.match(productionBuild, /APP_JS_FEATURE_RELEASE = '20260919-mobilesettings1'/);
 });
