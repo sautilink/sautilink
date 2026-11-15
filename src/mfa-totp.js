@@ -18,7 +18,13 @@ export function mfaGateDecision(level) {
   return 'unavailable';
 }
 
-export function createTotpMfaController({ auth, doc = document, onUnlocked = () => {} } = {}) {
+export function canEnrollMfaOnClient(runtime = globalThis) {
+  const host = runtime?.location?.hostname;
+  const platform = runtime?.Capacitor?.getPlatform?.();
+  return host === 'sautilink.com' && platform !== 'android' && platform !== 'ios';
+}
+
+export function createTotpMfaController({ auth, doc = document, runtime = globalThis, onUnlocked = () => {} } = {}) {
   if (!auth?.mfa) throw new Error('Supabase MFA API is required');
 
   const byId = (id) => doc.getElementById(id);
@@ -30,6 +36,8 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
   let pendingEnrollment = null;
   let busy = false;
   let active = false;
+  let hasVerifiedFactor = false;
+  let lastSettingsRefreshAt = 0;
 
   function message(node, text, error = false) {
     if (!node) return;
@@ -93,6 +101,8 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
     unlockedSessionToken = '';
     gateUserId = '';
     pendingEnrollment = null;
+    lastSettingsRefreshAt = 0;
+    hasVerifiedFactor = false;
     gatePromise = null;
     toggleGate(false);
     const setup = byId('sautilink-mfa-enrollment');
@@ -257,18 +267,24 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
     pendingEnrollment = null;
   }
 
-  async function refreshSettings() {
+  async function refreshSettings(force = false) {
     const status = byId('sautilink-mfa-status');
     if (!status) return;
+    if (!force && lastSettingsRefreshAt && Date.now() - lastSettingsRefreshAt < 60000) return;
     try {
       const { data, error } = await auth.mfa.listFactors();
       if (error) throw error;
       const verified = (data?.totp || data?.all?.filter((f) => f.factor_type === 'totp') || [])
         .filter((f) => f.status === 'verified');
+      hasVerifiedFactor = verified.length > 0;
       status.textContent = verified.length
         ? 'On — ' + verified.length + ' authenticator' + (verified.length === 1 ? '' : 's') + ' connected.'
-        : 'Off — Add an authenticator to protect your sign-ins.';
+        : canEnrollMfaOnClient(runtime)
+          ? 'Off — Web early access. Review the compatibility notice before enabling.'
+          : 'Off — setup is available on sautilink.com Web only.';
       byId('sautilink-mfa-enable').textContent = verified.length ? 'Add backup authenticator' : 'Enable two-factor authentication';
+      byId('sautilink-mfa-enable').disabled = !canEnrollMfaOnClient(runtime);
+      lastSettingsRefreshAt = Date.now();
       const remove = byId('sautilink-mfa-remove');
       if (remove) remove.hidden = !verified.length;
       const select = byId('sautilink-mfa-remove-factor');
@@ -288,6 +304,12 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
 
   async function startEnrollment() {
     if (busy || pendingEnrollment) return;
+    if (!canEnrollMfaOnClient(runtime)) {
+      return message(byId('sautilink-mfa-setup-message'), 'Set up 2FA from the official sautilink.com website. Android enrollment is not yet supported.', true);
+    }
+    if (!hasVerifiedFactor && !runtime.confirm(
+      'SautiLink 2FA Early Access: The existing Play Store app may not support 2FA login. Lost authenticator recovery and full API-side enforcement are not yet available. Use a non-critical account and keep a backup authenticator. Continue with early access?'
+    )) return;
     busy = true;
     const button = byId('sautilink-mfa-enable');
     if (button) button.disabled = true;
@@ -332,7 +354,7 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
       if (error) throw error;
       hideEnrollment();
       message(byId('sautilink-mfa-setup-message'), 'Two-factor authentication is enabled.');
-      await refreshSettings();
+      await refreshSettings(true);
     } catch {
       message(byId('sautilink-mfa-setup-message'), 'That code was not accepted. Try a fresh authenticator code.', true);
     } finally {
@@ -364,7 +386,7 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
       const { error } = await auth.mfa.unenroll({ factorId });
       if (error) throw error;
       message(byId('sautilink-mfa-setup-message'), 'Authenticator removed.');
-      await refreshSettings();
+      await refreshSettings(true);
     } catch {
       message(byId('sautilink-mfa-setup-message'), 'Could not remove authenticator. Verify your identity again and retry.', true);
     } finally { busy = false; }
