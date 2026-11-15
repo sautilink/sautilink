@@ -52,9 +52,9 @@ const mfaController = createTotpMfaController({
   );
 
   change(
-    "  if (event === 'SIGNED_OUT') {",
-    "  if (event === 'SIGNED_OUT') {\n    mfaController.reset();",
-    'signed-out reset',
+    'supabase.auth.onAuthStateChange((event, session) => {',
+    'supabase.auth.onAuthStateChange((event, session) => {\n  mfaController.onAuthEvent(event, session);',
+    'session-bound assurance invalidation',
   );
 
   return source;
