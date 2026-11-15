@@ -28,7 +28,7 @@ function harness() {
   for (const id of [
     'sautilink-mfa-gate', 'member-view', 'auth-view',
     'sautilink-mfa-login-form', 'sautilink-mfa-login-code', 'sautilink-mfa-login-submit',
-    'sautilink-mfa-login-message', 'sautilink-mfa-login-factor', 'sautilink-mfa-retry', 'sautilink-mfa-signout',
+    'sautilink-mfa-login-message', 'sautilink-mfa-login-factor', 'sautilink-mfa-factor-label', 'sautilink-mfa-retry', 'sautilink-mfa-signout',
     'sautilink-mfa-enable', 'sautilink-mfa-status', 'sautilink-mfa-remove',
     'sautilink-mfa-remove-factor', 'sautilink-mfa-enrollment', 'sautilink-mfa-qr',
     'sautilink-mfa-secret', 'sautilink-mfa-setup-code',
@@ -152,4 +152,31 @@ test('MFA hooks cover cached bootstrap, live auth events, member admission and b
   assert.match(controller, /auth\.mfa\.challengeAndVerify/);
   assert.match(controller, /auth\.mfa\.getAuthenticatorAssuranceLevel/);
   assert.match(controller, /currentLevel !== 'aal2'/);
+});
+
+test('members with two factors can select the backup authenticator for 2FA login', async () => {
+  const h = harness();
+  const calls = [];
+  const auth = {
+    async getSession() { return { data: { session: { user: { id: 'backup-user' } } }, error: null }; },
+    mfa: {
+      async getAuthenticatorAssuranceLevel() {
+        return { data: { currentLevel: calls.length ? 'aal2' : 'aal1', nextLevel: 'aal2' }, error: null };
+      },
+      async listFactors() { return { data: { totp: [
+        { id: 'primary', status: 'verified', friendly_name: 'Phone' },
+        { id: 'backup', status: 'verified', friendly_name: 'Backup authenticator' },
+      ] }, error: null }; },
+      async challengeAndVerify(payload) { calls.push(payload); return { data: {}, error: null }; },
+    },
+  };
+  const mfa = createTotpMfaController({ auth, doc: h.doc });
+  assert.equal(await mfa.guard({ id: 'backup-user' }), false);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(h.at('sautilink-mfa-login-factor').hidden, false);
+  h.at('sautilink-mfa-login-factor').value = 'backup';
+  h.at('sautilink-mfa-login-code').value = '897654';
+  await h.at('sautilink-mfa-login-form').events.get('submit')(evt);
+  assert.equal(calls[0].factorId, 'backup');
+  assert.equal(mfa.isUnlockedFor('backup-user'), true);
 });
