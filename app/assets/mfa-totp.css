@@ -12,6 +12,8 @@
 .sautilink-mfa-secret { display: block; max-width: 100%; overflow-wrap: anywhere; padding: 10px 12px; background: var(--app-panel, #fff); border: 1px solid var(--app-line-strong, #ddd); border-radius: 10px; font-size: 13px; user-select: all; }
 .sautilink-mfa-code-form { display: grid; gap: 10px; width: 100%; }
 .sautilink-mfa-code-form label { font-weight: 650; font-size: 14px; }
+.sautilink-mfa-code-form select { min-height: 44px; width: 100%; background: #fff; border: 1px solid #b9c0cc; border-radius: 12px; color: #1f2937; font: 600 14px Inter, system-ui, sans-serif; padding: 10px 12px; }
+.sautilink-mfa-code-form select[hidden], .sautilink-mfa-code-form label[hidden] { display: none !important; }
 .sautilink-mfa-code-form input { box-sizing: border-box; width: 100%; max-width: 350px; min-height: 48px; border: 1px solid #aeb4be; border-radius: 13px; background: #fff; color: #151922; padding: 10px 15px; font: 600 19px/1.2 Inter, system-ui, sans-serif; letter-spacing: .15em; }
 .sautilink-mfa-code-form input:focus-visible { outline: 3px solid #bad1f9; outline-offset: 2px; }
 .sautilink-mfa-message { margin: 6px 0; font-size: 13px; font-weight: 600; line-height: 1.5; }
