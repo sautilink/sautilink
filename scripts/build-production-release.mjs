@@ -1,4 +1,5 @@
 import { build } from 'esbuild';
+import { transformTotpMfaSource } from './totp-mfa-source-transform.mjs';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -170,6 +171,7 @@ for (const file of await walk(workerSource)) {
   output = transformMemberShareSource(file, output);
   if (file === productionAppSource) {
     output = transformVerificationCaseFlowSource(file, output);
+    output = transformTotpMfaSource(file, output);
   }
   if (file.endsWith('asset-router.js')) {
     output = output.replace(
