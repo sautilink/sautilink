@@ -56,7 +56,7 @@ test('2FA-enrolled login stays locked until authenticator verification promotes 
   let onUnlocked = 0;
   const calls = [];
   const auth = {
-    async getSession() { return { data: { session: { user: { id: 'person-1' } } }, error: null }; },
+    async getSession() { return { data: { session: { user: { id: 'person-1' }, access_token: 'access-person-1' } }, error: null }; },
     mfa: {
       async getAuthenticatorAssuranceLevel() {
         return { data: { currentLevel: level, nextLevel: 'aal2' }, error: null };
@@ -86,7 +86,7 @@ test('2FA-enrolled login stays locked until authenticator verification promotes 
 
 test('users without MFA enrolled can still sign in; API failures cannot open member UI', async () => {
   const h = harness();
-  const auth = { async getSession() { return { data: { session: { user: { id: 'no-factor' } } }, error: null }; }, mfa: { async getAuthenticatorAssuranceLevel() {
+  const auth = { async getSession() { return { data: { session: { user: { id: 'no-factor' }, access_token: 'access-no-factor' } }, error: null }; }, mfa: { async getAuthenticatorAssuranceLevel() {
     return { data: { currentLevel: 'aal1', nextLevel: 'aal1' }, error: null };
   } } };
   const mfa = createTotpMfaController({ auth, doc: h.doc });
@@ -140,7 +140,7 @@ test('MFA hooks cover cached bootstrap, live auth events, member admission and b
   assert.match(transform, /function renderMember/);
   assert.match(transform, /mfaController\.isUnlockedFor/);
   assert.match(transform, /if \(!await mfaController\.guard\(user\)\) return/);
-  assert.match(transform, /mfaController\.reset\(\)/);
+  assert.match(transform, /mfaController\.onAuthEvent\(event, session\)/);
   assert.match(appBuild, /transformTotpMfaSource\(appSourcePath/);
   assert.match(production, /transformTotpMfaSource\(file, output\)/);
   assert.match(html, /id="sautilink-mfa-login-form"/);
@@ -158,7 +158,7 @@ test('members with two factors can select the backup authenticator for 2FA login
   const h = harness();
   const calls = [];
   const auth = {
-    async getSession() { return { data: { session: { user: { id: 'backup-user' } } }, error: null }; },
+    async getSession() { return { data: { session: { user: { id: 'backup-user' }, access_token: 'access-backup-user' } }, error: null }; },
     mfa: {
       async getAuthenticatorAssuranceLevel() {
         return { data: { currentLevel: calls.length ? 'aal2' : 'aal1', nextLevel: 'aal2' }, error: null };
@@ -179,4 +179,80 @@ test('members with two factors can select the backup authenticator for 2FA login
   await h.at('sautilink-mfa-login-form').events.get('submit')(evt);
   assert.equal(calls[0].factorId, 'backup');
   assert.equal(mfa.isUnlockedFor('backup-user'), true);
+});
+
+test('a fresh login with the same user but a different token revokes previous MFA admission', async () => {
+  const h = harness();
+  let token = 'initial-token';
+  let assurance = 'aal2';
+  let next = 'aal2';
+  const auth = {
+    async getSession() {
+      return { data: { session: { user: { id: 'person-1' }, access_token: token } }, error: null };
+    },
+    mfa: {
+      async getAuthenticatorAssuranceLevel() {
+        return { data: { currentLevel: assurance, nextLevel: next }, error: null };
+      },
+      async listFactors() {
+        return { data: { totp: [{ id: 'factor-1', status: 'verified' }] }, error: null };
+      },
+    },
+  };
+  const mfa = createTotpMfaController({ auth, doc: h.doc });
+  assert.equal(await mfa.guard({ id: 'person-1' }), true);
+  assert.equal(mfa.isUnlockedFor('person-1'), true);
+
+  // A second sign-in for the same account has only aal1. Member contents
+  // must no longer be rendered on the strength of the earlier token.
+  token = 'new-aal1-token';
+  assurance = 'aal1';
+  next = 'aal2';
+  mfa.onAuthEvent('SIGNED_IN', { user: { id: 'person-1' }, access_token: token });
+  assert.equal(mfa.isUnlockedFor('person-1'), false);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(h.at('sautilink-mfa-gate').hidden, false);
+  assert.equal(h.at('member-view').inert, true);
+  assert.equal(mfa.isUnlockedFor('person-1'), false);
+});
+
+test('a session changing during an asynchronous AAL check cannot unlock cached member UI', async () => {
+  const h = harness();
+  let token = 'start-token';
+  const auth = {
+    async getSession() {
+      return { data: { session: { user: { id: 'person-1' }, access_token: token } }, error: null };
+    },
+    mfa: {
+      async getAuthenticatorAssuranceLevel() {
+        token = 'changed-token';
+        return { data: { currentLevel: 'aal2', nextLevel: 'aal2' }, error: null };
+      },
+      async listFactors() { return { data: { totp: [] }, error: null }; },
+    },
+  };
+  const mfa = createTotpMfaController({ auth, doc: h.doc });
+  assert.equal(await mfa.guard({ id: 'person-1' }), false);
+  assert.equal(mfa.isUnlockedFor('person-1'), false);
+  assert.equal(h.at('sautilink-mfa-gate').hidden, false);
+});
+
+test('sign-out invalidates an in-flight MFA check even if it completes later', async () => {
+  const h = harness();
+  let resolveAal;
+  const auth = {
+    async getSession() {
+      return { data: { session: { user: { id: 'person-1' }, access_token: 'start-token' } }, error: null };
+    },
+    mfa: {
+      getAuthenticatorAssuranceLevel: () => new Promise((resolve) => { resolveAal = resolve; }),
+    },
+  };
+  const mfa = createTotpMfaController({ auth, doc: h.doc });
+  const pending = mfa.guard({ id: 'person-1' });
+  await new Promise((resolve) => setImmediate(resolve));
+  mfa.onAuthEvent('SIGNED_OUT', null);
+  resolveAal({ data: { currentLevel: 'aal2', nextLevel: 'aal2' }, error: null });
+  assert.equal(await pending, false);
+  assert.equal(mfa.isUnlockedFor('person-1'), false);
 });
