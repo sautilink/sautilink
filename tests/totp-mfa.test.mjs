@@ -56,6 +56,7 @@ test('2FA-enrolled login stays locked until authenticator verification promotes 
   let onUnlocked = 0;
   const calls = [];
   const auth = {
+    async getSession() { return { data: { session: { user: { id: 'person-1' } } }, error: null }; },
     mfa: {
       async getAuthenticatorAssuranceLevel() {
         return { data: { currentLevel: level, nextLevel: 'aal2' }, error: null };
@@ -85,7 +86,7 @@ test('2FA-enrolled login stays locked until authenticator verification promotes 
 
 test('users without MFA enrolled can still sign in; API failures cannot open member UI', async () => {
   const h = harness();
-  const auth = { mfa: { async getAuthenticatorAssuranceLevel() {
+  const auth = { async getSession() { return { data: { session: { user: { id: 'no-factor' } } }, error: null }; }, mfa: { async getAuthenticatorAssuranceLevel() {
     return { data: { currentLevel: 'aal1', nextLevel: 'aal1' }, error: null };
   } } };
   const mfa = createTotpMfaController({ auth, doc: h.doc });
