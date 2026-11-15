@@ -28,7 +28,7 @@ function harness() {
   for (const id of [
     'sautilink-mfa-gate', 'member-view', 'auth-view',
     'sautilink-mfa-login-form', 'sautilink-mfa-login-code', 'sautilink-mfa-login-submit',
-    'sautilink-mfa-login-message', 'sautilink-mfa-retry', 'sautilink-mfa-signout',
+    'sautilink-mfa-login-message', 'sautilink-mfa-login-factor', 'sautilink-mfa-retry', 'sautilink-mfa-signout',
     'sautilink-mfa-enable', 'sautilink-mfa-status', 'sautilink-mfa-remove',
     'sautilink-mfa-remove-factor', 'sautilink-mfa-enrollment', 'sautilink-mfa-qr',
     'sautilink-mfa-secret', 'sautilink-mfa-setup-code',
