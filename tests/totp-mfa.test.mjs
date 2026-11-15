@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { createTotpMfaController, mfaGateDecision, validTotpCode } from '../src/mfa-totp.js';
+import { createTotpMfaController, canEnrollMfaOnClient, mfaGateDecision, validTotpCode } from '../src/mfa-totp.js';
 import { transformTotpMfaSource } from '../scripts/totp-mfa-source-transform.mjs';
 
 const read = (path) => readFile(new URL('../' + path, import.meta.url), 'utf8');
@@ -115,7 +115,7 @@ test('TOTP enrollment clears the secret from the page after successful verificat
       return { data: { totp: enrolled ? [{ id: 'factor-new', status: 'verified', friendly_name: 'SautiLink Authenticator' }] : [] }, error: null };
     },
   } };
-  createTotpMfaController({ auth, doc: h.doc });
+  createTotpMfaController({ auth, doc: h.doc, runtime: { location: { hostname: 'sautilink.com' }, confirm: () => true } });
   await h.at('sautilink-mfa-enable').events.get('click')();
   assert.equal(h.at('sautilink-mfa-secret').textContent, 'TESTSECRET');
   assert.equal(h.at('sautilink-mfa-enrollment').hidden, false);
@@ -255,4 +255,20 @@ test('sign-out invalidates an in-flight MFA check even if it completes later', a
   resolveAal({ data: { currentLevel: 'aal2', nextLevel: 'aal2' }, error: null });
   assert.equal(await pending, false);
   assert.equal(mfa.isUnlockedFor('person-1'), false);
+});
+
+test('early access enrollment is live Web only and needs explicit acknowledgement', async () => {
+  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'sautilink.com' } }), true);
+  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'test.sautilink.com' } }), false);
+  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'sautilink.com' }, Capacitor: { getPlatform: () => 'android' } }), false);
+  let enrollCount = 0;
+  const auth = { mfa: { async enroll() { enrollCount++; return { data: {}, error: null }; } } };
+  const h = harness();
+  createTotpMfaController({ auth, doc: h.doc, runtime: { location: { hostname: 'sautilink.com' }, confirm: () => false } });
+  await h.at('sautilink-mfa-enable').events.get('click')();
+  assert.equal(enrollCount, 0, 'cannot enroll without affirmative acknowledgement');
+  const h2 = harness();
+  createTotpMfaController({ auth, doc: h2.doc, runtime: { location: { hostname: 'test.sautilink.com' }, confirm: () => true } });
+  await h2.at('sautilink-mfa-enable').events.get('click')();
+  assert.equal(enrollCount, 0, 'cannot enroll on test or noncanonical origins');
 });
