@@ -35,5 +35,5 @@ test('private-data RLS proposal explicitly requires validation of privileged API
   assert.match(plan, /service_role/);
   assert.match(plan, /Cloudflare Workers/);
   assert.match(plan, /permission denied for schema auth/);
-  assert.match(plan, /Do not run on production/);
+  assert.match(plan, /do not run on production/i);
 });
