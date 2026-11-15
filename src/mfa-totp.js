@@ -308,9 +308,13 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
         await guard({ id: userId }, { resumeOnSuccess: true });
       });
       byId('sautilink-mfa-signout')?.addEventListener('click', async () => {
-        try { await auth.signOut({ scope: 'local' }); } finally {
+        try {
+          const { error } = await auth.signOut({ scope: 'local' });
+          if (error) throw error;
           reset();
           globalThis.location.assign('/login');
+        } catch {
+          block('Sign-out could not be completed. Please retry.');
         }
       });
     }
