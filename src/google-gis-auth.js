@@ -18,7 +18,7 @@ export function shouldOfferGoogleGis(win) {
   const hostname = win?.location?.hostname || '';
   const path = win?.location?.pathname || '';
   // Do not turn on native Android/webview OAuth by accident.
-  if (win?.Capacitor?.getPlatform?.() === 'android') return false;
+  if (win?.Capacitor?.getPlatform?.() && win.Capacitor.getPlatform() !== 'web') return false;
   // Google Web OAuth origin is explicitly registered for sautilink.com.
   return hostname === 'sautilink.com' && /^\/(?:login|signup)\/?$/.test(path);
 }
