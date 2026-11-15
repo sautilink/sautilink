@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { createTotpMfaController, canEnrollMfaOnClient, mfaGateDecision, validTotpCode } from '../src/mfa-totp.js';
+import { createTotpMfaController, canEnrollMfaOnClient, mfaEnrollmentClientStatus, mfaGateDecision, validTotpCode } from '../src/mfa-totp.js';
 import { transformTotpMfaSource } from '../scripts/totp-mfa-source-transform.mjs';
 
 const read = (path) => readFile(new URL('../' + path, import.meta.url), 'utf8');
@@ -259,8 +259,13 @@ test('sign-out invalidates an in-flight MFA check even if it completes later', a
 
 test('early access enrollment is live Web only and needs explicit acknowledgement', async () => {
   assert.equal(canEnrollMfaOnClient({ location: { hostname: 'sautilink.com' } }), true);
+  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'www.sautilink.com' } }), true);
+  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'WWW.SAUTILINK.COM' }, Capacitor: { getPlatform: () => 'web' } }), true);
   assert.equal(canEnrollMfaOnClient({ location: { hostname: 'test.sautilink.com' } }), false);
+  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'www.sautilink.com.evil.test' } }), false);
   assert.equal(canEnrollMfaOnClient({ location: { hostname: 'sautilink.com' }, Capacitor: { getPlatform: () => 'android' } }), false);
+  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'www.sautilink.com' }, Capacitor: { getPlatform: () => 'android' } }), false);
+  assert.equal(mfaEnrollmentClientStatus({ location: { hostname: 'www.sautilink.com' }, Capacitor: { isNativePlatform: () => true } }), 'native-app');
   let enrollCount = 0;
   const auth = { mfa: { async enroll() { enrollCount++; return { data: {}, error: null }; } } };
   const h = harness();
@@ -271,4 +276,38 @@ test('early access enrollment is live Web only and needs explicit acknowledgemen
   createTotpMfaController({ auth, doc: h2.doc, runtime: { location: { hostname: 'test.sautilink.com' }, confirm: () => true } });
   await h2.at('sautilink-mfa-enable').events.get('click')();
   assert.equal(enrollCount, 0, 'cannot enroll on test or noncanonical origins');
+});
+
+test('live www SautiLink origin makes the authenticator enrollment action available after factor refresh', async () => {
+  const h = harness();
+  let enrolled = 0;
+  const auth = { mfa: {
+    async listFactors() { return { data: { totp: [] }, error: null }; },
+    async enroll() {
+      enrolled += 1;
+      return { data: { id: 'www-test-factor', totp: { secret: 'WWWTESTSECRET', qr_code: 'data:image/svg+xml;base64,ZXhhbXBsZQ==' } }, error: null };
+    },
+  } };
+  const mfa = createTotpMfaController({
+    auth, doc: h.doc,
+    runtime: { location: { hostname: 'www.sautilink.com' }, confirm: () => true },
+  });
+  await mfa.refreshSettings(true);
+  assert.equal(h.at('sautilink-mfa-enable').disabled, false);
+  assert.match(h.at('sautilink-mfa-status').textContent, /Web early access/);
+  await h.at('sautilink-mfa-enable').events.get('click')();
+  assert.equal(enrolled, 1);
+  assert.equal(h.at('sautilink-mfa-enrollment').hidden, false);
+});
+
+test('native app shows actionable browser guidance and never enables MFA enrollment', async () => {
+  const h = harness();
+  const auth = { mfa: { async listFactors() { return { data: { totp: [] }, error: null }; } } };
+  const mfa = createTotpMfaController({
+    auth, doc: h.doc,
+    runtime: { location: { hostname: 'www.sautilink.com' }, Capacitor: { getPlatform: () => 'android' } },
+  });
+  await mfa.refreshSettings(true);
+  assert.equal(h.at('sautilink-mfa-enable').disabled, true);
+  assert.match(h.at('sautilink-mfa-status').textContent, /open sautilink.com in Chrome/);
 });
