@@ -2,6 +2,12 @@
 
 **Status: proposed SQL only, NOT applied to production.** This document deliberately lives outside `supabase/migrations` so that no release runner can automatically apply it. Before any migration, test on an active isolated Supabase project. Production currently has zero verified MFA factors; the existing Play Store Android app is not confirmed to handle a fresh MFA challenge.
 
+## Production database permission blocker (confirmed 2026-11-15)
+
+**Do not execute the illustrative SQL below in production.** On the live project, `has_schema_privilege('authenticated','auth','USAGE')` returns **true**, but `has_table_privilege('authenticated','auth.mfa_factors','SELECT')` returns **false**. Directly referencing `auth.mfa_factors` from a policy running as `authenticated` can fail with insufficient privileges and make private-data requests fail.
+
+The next design review must implement and validate a narrow, secure `private` helper that determines only whether the **current authenticated user** has any verified factor. Never grant `SELECT` on `auth.mfa_factors` to `authenticated`, since it includes a `secret` column. The helper must be independently reviewed for `SECURITY DEFINER` search_path, schema usage, EXECUTE grants, authorization and test coverage. Only after that should any database enforcement be applied, with an Android compatibility and recovery plan.
+
 ## Evidence and scope (2026-11-15)
 - Inspected production `pg_policies`: 129 RLS policies on public tables; none reference `aal`.
 - `auth.mfa_factors` has columns `user_id`, `status` and `factor_type`.
