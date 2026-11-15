@@ -84,7 +84,8 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
   function block(reason = 'Enter the code from your authenticator app to continue.') {
     toggleGate(true);
     message(byId('sautilink-mfa-login-message'), reason);
-    void refreshLoginFactors();
+    // Always defer Auth calls; block() may run inside onAuthStateChange.
+    setTimeout(() => { if (active) void refreshLoginFactors(); }, 0);
   }
   function reset() {
     gateEpoch += 1;
