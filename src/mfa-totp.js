@@ -18,10 +18,21 @@ export function mfaGateDecision(level) {
   return 'unavailable';
 }
 
+export function mfaEnrollmentClientStatus(runtime = globalThis) {
+  const host = String(runtime?.location?.hostname || '').toLowerCase().replace(/\.$/, '');
+  const capacitor = runtime?.Capacitor;
+  const platform = capacitor?.getPlatform?.() || capacitor?.platform;
+  if (platform === 'android' || platform === 'ios' || capacitor?.isNativePlatform?.() === true) {
+    return 'native-app';
+  }
+  // Both are official live SautiLink web domains. Never accept arbitrary
+  // sautilink.com subdomains, staging sites, localhost, or lookalike hosts.
+  if (host === 'sautilink.com' || host === 'www.sautilink.com') return 'live-web';
+  return 'unsupported-origin';
+}
+
 export function canEnrollMfaOnClient(runtime = globalThis) {
-  const host = runtime?.location?.hostname;
-  const platform = runtime?.Capacitor?.getPlatform?.();
-  return host === 'sautilink.com' && platform !== 'android' && platform !== 'ios';
+  return mfaEnrollmentClientStatus(runtime) === 'live-web';
 }
 
 export function createTotpMfaController({ auth, doc = document, runtime = globalThis, onUnlocked = () => {} } = {}) {
@@ -279,9 +290,11 @@ export function createTotpMfaController({ auth, doc = document, runtime = global
       hasVerifiedFactor = verified.length > 0;
       status.textContent = verified.length
         ? 'On — ' + verified.length + ' authenticator' + (verified.length === 1 ? '' : 's') + ' connected.'
-        : canEnrollMfaOnClient(runtime)
+        : mfaEnrollmentClientStatus(runtime) === 'live-web'
           ? 'Off — Web early access. Review the compatibility notice before enabling.'
-          : 'Off — setup is available on sautilink.com Web only.';
+          : mfaEnrollmentClientStatus(runtime) === 'native-app'
+            ? 'Off — open sautilink.com in Chrome or another browser. Android app setup is not yet supported.'
+            : 'Off — setup is available on sautilink.com or www.sautilink.com Web only.';
       byId('sautilink-mfa-enable').textContent = verified.length ? 'Add backup authenticator' : 'Enable two-factor authentication';
       byId('sautilink-mfa-enable').disabled = !canEnrollMfaOnClient(runtime);
       lastSettingsRefreshAt = Date.now();
@@ -305,7 +318,7 @@ export function createTotpMfaController({ auth, doc = document, runtime = global
   async function startEnrollment() {
     if (busy || pendingEnrollment) return;
     if (!canEnrollMfaOnClient(runtime)) {
-      return message(byId('sautilink-mfa-setup-message'), 'Set up 2FA from the official sautilink.com website. Android enrollment is not yet supported.', true);
+      return message(byId('sautilink-mfa-setup-message'), 'Set up 2FA in a browser at https://sautilink.com. Native app setup is not yet supported.', true);
     }
     if (!hasVerifiedFactor && !runtime.confirm(
       'SautiLink 2FA Early Access: The existing Play Store app may not support 2FA login. Lost authenticator recovery and full API-side enforcement are not yet available. Use a non-critical account and keep a backup authenticator. Continue with early access?'
