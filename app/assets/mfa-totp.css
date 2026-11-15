@@ -7,7 +7,9 @@
 .sautilink-mfa-enrollment[hidden], .sautilink-mfa-gate[hidden], .sautilink-mfa-message[hidden] { display: none !important; }
 .sautilink-mfa-enrollment h4 { margin: 0; font-size: 17px; }
 .sautilink-mfa-enrollment p { margin: 0; line-height: 1.65; }
-.sautilink-mfa-enrollment img { max-width: 100%; height: auto; border: 8px solid #fff; border-radius: 12px; }
+.sautilink-mfa-enrollment img { box-sizing: border-box; display: block; width: 256px; height: 256px; max-width: 100%; object-fit: contain; background: #fff; border: 14px solid #fff; border-radius: 16px; image-rendering: auto; }
+.sautilink-mfa-enrollment img[hidden] { display: none !important; }
+.sautilink-mfa-scan-help { font-size: 13px; color: var(--app-muted, #657080); line-height: 1.6; }
 .sautilink-mfa-secret-label { font-weight: 650; }
 .sautilink-mfa-secret { display: block; max-width: 100%; overflow-wrap: anywhere; padding: 10px 12px; background: var(--app-panel, #fff); border: 1px solid var(--app-line-strong, #ddd); border-radius: 10px; font-size: 13px; user-select: all; }
 .sautilink-mfa-code-form { display: grid; gap: 10px; width: 100%; }
