@@ -87,6 +87,10 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
     gatePromise = (async () => {
       let outcome;
       try {
+        const { data: sessionData, error: sessionError } = await auth.getSession();
+        if (sessionError || sessionData?.session?.user?.id !== userId) {
+          throw new Error('MFA_SESSION_ID_MISMATCH');
+        }
         const { data, error } = await auth.mfa.getAuthenticatorAssuranceLevel();
         if (error) throw error;
         outcome = mfaGateDecision(data);
