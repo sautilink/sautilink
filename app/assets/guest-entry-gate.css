@@ -270,6 +270,31 @@ html[data-theme="light"] {
   transform: none;
 }
 
+/* Google Identity Services renders its official button inside this slot.
+   The native SautiLink OAuth action remains available as an explicit fallback. */
+.google-gis-button-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+}
+.google-gis-button-slot:empty { display: none; }
+.social-oauth-button.social-oauth-google-alternative {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--app-muted);
+  font-weight: 550;
+}
+.social-oauth-google-alternative .social-oauth-google-icon {
+  width: 16px;
+  height: 16px;
+  flex-basis: 16px;
+}
 .social-oauth-google-icon {
   display: block;
   width: 19px;
