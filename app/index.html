@@ -1697,6 +1697,8 @@
       <h2 id="sautilink-mfa-login-title">Verify it's you</h2>
       <p>Your account uses two-factor authentication. Enter the current 6-digit code from your authenticator app to continue.</p>
       <form id="sautilink-mfa-login-form" class="sautilink-mfa-code-form">
+        <label for="sautilink-mfa-login-factor" class="sautilink-mfa-factor-label" id="sautilink-mfa-factor-label">Authenticator</label>
+        <select id="sautilink-mfa-login-factor" aria-label="Choose an authenticator" hidden></select>
         <label for="sautilink-mfa-login-code">Authenticator code</label>
         <input id="sautilink-mfa-login-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
         <button class="sautilink-mfa-primary" type="submit" id="sautilink-mfa-login-submit">Verify and continue</button>
