@@ -1154,8 +1154,9 @@
               </div>
               <div id="sautilink-mfa-enrollment" class="sautilink-mfa-enrollment" hidden>
                 <h4>Connect your authenticator</h4>
-                <p>Scan this QR code or enter the setup key in your authenticator app. Never share the key or a one-time code.</p>
-                <img id="sautilink-mfa-qr" alt="QR code for your new SautiLink authenticator" width="192" height="192" hidden>
+                <p>Open Google Authenticator, Microsoft Authenticator or 2FAS, choose <strong>Add account → Scan QR code</strong>, then point its scanner at this QR. Use the authenticator's scanner rather than your phone's normal camera.</p>
+                <img id="sautilink-mfa-qr" alt="Private QR code for adding SautiLink two-factor authentication" width="256" height="256" hidden>
+                <p class="sautilink-mfa-scan-help">If the QR isn't recognised, choose <strong>Enter setup key</strong> in your authenticator instead, and enter the key shown below. The key must stay private.</p>
                 <label class="sautilink-mfa-secret-label" for="sautilink-mfa-secret">Manual setup key</label>
                 <code id="sautilink-mfa-secret" class="sautilink-mfa-secret" aria-label="Authenticator setup key"></code>
                 <form id="sautilink-mfa-setup-form" class="sautilink-mfa-code-form">
