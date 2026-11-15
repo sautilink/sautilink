@@ -46,3 +46,6 @@
   html[data-theme="dark"] .sautilink-mfa-primary { background: #e5eaf3; color: #171b25; }
 }
 @media (max-width: 480px) { .sautilink-mfa-gate-card { border-radius: 20px; } }
+
+/* Emergency production pause: hide dormant 2FA settings regardless of display rules. */
+.sautilink-mfa-settings[hidden] { display: none !important; }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { createTotpMfaController, canEnrollMfaOnClient, mfaEnrollmentClientStatus, mfaGateDecision, normalizeTotpQrImage, validTotpCode } from '../src/mfa-totp.js';
+import { createTotpMfaController, canEnrollMfaOnClient, mfaEnrollmentClientStatus, mfaGateDecision, normalizeTotpQrImage, validTotpCode, SAUTILINK_TOTP_ENROLLMENT_PAUSED } from '../src/mfa-totp.js';
 import { transformTotpMfaSource } from '../scripts/totp-mfa-source-transform.mjs';
 
 const read = (path) => readFile(new URL('../' + path, import.meta.url), 'utf8');
@@ -99,7 +99,7 @@ test('users without MFA enrolled can still sign in; API failures cannot open mem
   assert.equal(h.at('sautilink-mfa-gate').hidden, false);
 });
 
-test('TOTP enrollment clears the secret from the page after successful verification', async () => {
+test.skip('TOTP enrollment clears the secret from the page after successful verification (paused pending relaunch)', async () => {
   const h = harness();
   let enrolled = false;
   const auth = { mfa: {
@@ -258,9 +258,9 @@ test('sign-out invalidates an in-flight MFA check even if it completes later', a
 });
 
 test('early access enrollment is live Web only and needs explicit acknowledgement', async () => {
-  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'sautilink.com' } }), true);
-  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'www.sautilink.com' } }), true);
-  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'WWW.SAUTILINK.COM' }, Capacitor: { getPlatform: () => 'web' } }), true);
+  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'sautilink.com' } }), false);
+  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'www.sautilink.com' } }), false);
+  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'WWW.SAUTILINK.COM' }, Capacitor: { getPlatform: () => 'web' } }), false);
   assert.equal(canEnrollMfaOnClient({ location: { hostname: 'test.sautilink.com' } }), false);
   assert.equal(canEnrollMfaOnClient({ location: { hostname: 'www.sautilink.com.evil.test' } }), false);
   assert.equal(canEnrollMfaOnClient({ location: { hostname: 'sautilink.com' }, Capacitor: { getPlatform: () => 'android' } }), false);
@@ -278,7 +278,7 @@ test('early access enrollment is live Web only and needs explicit acknowledgemen
   assert.equal(enrollCount, 0, 'cannot enroll on test or noncanonical origins');
 });
 
-test('live www SautiLink origin makes the authenticator enrollment action available after factor refresh', async () => {
+test.skip('live www SautiLink origin makes the authenticator enrollment action available after factor refresh (paused pending relaunch)', async () => {
   const h = harness();
   let enrolled = 0;
   const auth = { mfa: {
@@ -300,16 +300,18 @@ test('live www SautiLink origin makes the authenticator enrollment action availa
   assert.equal(h.at('sautilink-mfa-enrollment').hidden, false);
 });
 
-test('native app shows actionable browser guidance and never enables MFA enrollment', async () => {
+test('paused production 2FA avoids factor-list polling and disallows enrollment on native app', async () => {
   const h = harness();
-  const auth = { mfa: { async listFactors() { return { data: { totp: [] }, error: null }; } } };
+  let factorCalls = 0;
+  const auth = { mfa: { async listFactors() { factorCalls++; return { data: { totp: [] }, error: null }; } } };
   const mfa = createTotpMfaController({
     auth, doc: h.doc,
     runtime: { location: { hostname: 'www.sautilink.com' }, Capacitor: { getPlatform: () => 'android' } },
   });
   await mfa.refreshSettings(true);
-  assert.equal(h.at('sautilink-mfa-enable').disabled, true);
-  assert.match(h.at('sautilink-mfa-status').textContent, /open sautilink.com in Chrome/);
+  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'www.sautilink.com' } }), false);
+  assert.equal(canEnrollMfaOnClient({ location: { hostname: 'www.sautilink.com' }, Capacitor: { getPlatform: () => 'android' } }), false);
+  assert.equal(factorCalls, 0, 'paused settings should not make background MFA factor requests');
 });
 
 test('Supabase QR SVG is safely encoded into a valid inline image without losing the embedded otpauth URI', () => {
@@ -326,7 +328,7 @@ test('Supabase QR SVG is safely encoded into a valid inline image without losing
   assert.equal(normalizeTotpQrImage('<script>alert(1)</script>'), null);
 });
 
-test('rendering an SVG from Supabase enrollment shows a camera-scannable image without external network', async () => {
+test.skip('rendering an SVG from Supabase enrollment shows a camera-scannable image without external network (paused pending relaunch)', async () => {
   const h = harness();
   const svg = '<svg xmlns="http://www.w3.org/2000/svg"><path fill="#000" d="M0 0H10"/></svg>';
   const auth = { mfa: { async enroll() { return {
@@ -346,7 +348,7 @@ test('rendering an SVG from Supabase enrollment shows a camera-scannable image w
   assert.match(h.at('sautilink-mfa-setup-message').textContent, /Enter setup key manually/);
 });
 
-test('restarting a broken QR setup clears only old unverified SautiLink TOTP factors', async () => {
+test.skip('restarting a broken QR setup clears only old unverified SautiLink TOTP factors (paused pending relaunch)', async () => {
   const h = harness();
   const removed = [];
   let enrollmentLabel = '';
@@ -372,7 +374,7 @@ test('restarting a broken QR setup clears only old unverified SautiLink TOTP fac
   assert.equal(h.at('sautilink-mfa-enrollment').hidden, false);
 });
 
-test('an error cleaning an abandoned factor aborts enrollment instead of creating duplicate factor', async () => {
+test.skip('an error cleaning an abandoned factor aborts enrollment instead of creating duplicate factor (paused pending relaunch)', async () => {
   const h = harness();
   let attempts = 0;
   const auth = { mfa: {
@@ -388,4 +390,23 @@ test('an error cleaning an abandoned factor aborts enrollment instead of creatin
   await h.at('sautilink-mfa-enable').events.get('click')();
   assert.equal(attempts, 0);
   assert.match(h.at('sautilink-mfa-setup-message').textContent, /Could not start setup/);
+});
+
+test('production temporarily removes 2FA enrollment while keeping enrolled-user login verification', async () => {
+  assert.equal(SAUTILINK_TOTP_ENROLLMENT_PAUSED, true);
+  const markup = await read('app/index.html');
+  assert.match(markup, /class="settings-card sautilink-mfa-settings"[^>]*hidden inert/);
+  assert.match(markup, /id="sautilink-mfa-login-form"/, 'retain login challenge for existing verified factors');
+  const styles = await read('app/assets/mfa-totp.css');
+  assert.match(styles, /\.sautilink-mfa-settings\[hidden\]\s*\{\s*display: none !important/);
+
+  const h = harness();
+  let attempts = 0;
+  const auth = { mfa: { async enroll() { attempts += 1; return { data: null, error: null }; } } };
+  createTotpMfaController({ auth, doc: h.doc, runtime: {
+    location: { hostname: 'sautilink.com' },
+    confirm: () => true,
+  }});
+  await h.at('sautilink-mfa-enable').events.get('click')();
+  assert.equal(attempts, 0, 'even a scripted click cannot create an MFA factor during the pause');
 });
