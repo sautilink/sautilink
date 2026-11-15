@@ -1,4 +1,5 @@
 import { build } from 'esbuild';
+import { transformTotpMfaSource } from './totp-mfa-source-transform.mjs';
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -72,7 +73,8 @@ const baseAppSource = transformMessagesReplySource(appSourcePath, transformRoomO
     ),
   ),
 ));
-const appSource = transformMemberShareSource(appSourcePath, transformMemberDialogSource(appSourcePath, baseAppSource));
+const appSource = transformTotpMfaSource(appSourcePath, transformMemberShareSource(appSourcePath, transformMemberDialogSource(appSourcePath, baseAppSource)));
+
 
 const profileTabIconsPlugin = {
   name: 'profile-tab-icons',
