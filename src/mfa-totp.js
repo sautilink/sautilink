@@ -55,9 +55,30 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
       message(byId('sautilink-mfa-login-message'), '');
     }
   }
+  async function refreshLoginFactors() {
+    const select = byId('sautilink-mfa-login-factor');
+    if (!select) return;
+    try {
+      const { data, error } = await auth.mfa.listFactors();
+      if (error) throw error;
+      const verified = (data?.totp || data?.all?.filter((f) => f.factor_type === 'totp') || [])
+        .filter((factor) => factor.status === 'verified');
+      select.replaceChildren(...verified.map((factor, index) => {
+        const option = doc.createElement('option');
+        option.value = factor.id;
+        option.textContent = factor.friendly_name || 'Authenticator ' + (index + 1);
+        return option;
+      }));
+      select.hidden = verified.length < 2;
+    } catch {
+      // Keep the code input available; challenge verification will re-check factors.
+      select.hidden = true;
+    }
+  }
   function block(reason = 'Enter the code from your authenticator app to continue.') {
     toggleGate(true);
     message(byId('sautilink-mfa-login-message'), reason);
+    void refreshLoginFactors();
   }
   function reset() {
     unlockedUserId = '';
@@ -126,8 +147,10 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
     try {
       const { data: factors, error: listError } = await auth.mfa.listFactors();
       if (listError) throw listError;
-      const factor = factors?.totp?.find((item) => item.status === 'verified')
-        || factors?.all?.find((item) => item.factor_type === 'totp' && item.status === 'verified');
+      const verified = (factors?.totp || factors?.all?.filter((f) => f.factor_type === 'totp') || [])
+        .filter((item) => item.status === 'verified');
+      const selectedId = byId('sautilink-mfa-login-factor')?.value || '';
+      const factor = verified.find((item) => item.id === selectedId) || verified[0];
       if (!factor?.id) throw new Error('MFA_FACTOR_MISSING');
       const { error } = await auth.mfa.challengeAndVerify({ factorId: factor.id, code });
       if (error) throw error;
