@@ -60,8 +60,14 @@ export function mfaEnrollmentClientStatus(runtime = globalThis) {
   return 'unsupported-origin';
 }
 
+// Production rollback switch: keep verification for already-enrolled members,
+// but do not offer or permit any new factor enrollment while 2FA is postponed.
+// Re-enable only after complete QR/authentication/recovery/E2E security review.
+export const SAUTILINK_TOTP_ENROLLMENT_PAUSED = true;
+
 export function canEnrollMfaOnClient(runtime = globalThis) {
-  return mfaEnrollmentClientStatus(runtime) === 'live-web';
+  return !SAUTILINK_TOTP_ENROLLMENT_PAUSED
+    && mfaEnrollmentClientStatus(runtime) === 'live-web';
 }
 
 export function createTotpMfaController({ auth, doc = document, runtime = globalThis, onUnlocked = () => {} } = {}) {
@@ -308,6 +314,9 @@ export function createTotpMfaController({ auth, doc = document, runtime = global
   }
 
   async function refreshSettings(force = false) {
+    // The full settings panel is hidden during the production pause.
+    // Avoid unnecessary factor-list network requests on every member render.
+    if (SAUTILINK_TOTP_ENROLLMENT_PAUSED) return;
     const status = byId('sautilink-mfa-status');
     if (!status) return;
     if (!force && lastSettingsRefreshAt && Date.now() - lastSettingsRefreshAt < 60000) return;
@@ -345,6 +354,7 @@ export function createTotpMfaController({ auth, doc = document, runtime = global
   }
 
   async function startEnrollment() {
+    if (SAUTILINK_TOTP_ENROLLMENT_PAUSED) return;
     if (busy || pendingEnrollment) return;
     if (!canEnrollMfaOnClient(runtime)) {
       return message(byId('sautilink-mfa-setup-message'), 'Set up 2FA in a browser at https://sautilink.com. Native app setup is not yet supported.', true);
