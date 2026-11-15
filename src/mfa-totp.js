@@ -70,9 +70,13 @@ export function createTotpMfaController({ auth, doc = document, onUnlocked = () 
         return option;
       }));
       select.hidden = verified.length < 2;
+      const label = byId('sautilink-mfa-factor-label');
+      if (label) label.hidden = select.hidden;
     } catch {
       // Keep the code input available; challenge verification will re-check factors.
       select.hidden = true;
+      const label = byId('sautilink-mfa-factor-label');
+      if (label) label.hidden = true;
     }
   }
   function block(reason = 'Enter the code from your authenticator app to continue.') {
