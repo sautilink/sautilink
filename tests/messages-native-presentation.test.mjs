@@ -20,7 +20,7 @@ test('hidden Messages is prepared before the first navigation without waiting fo
 
 test('all Messages and Rooms presentation is render blocking and final layers follow member styles', () => {
   const head = html.slice(0, html.indexOf('</head>'));
-  for (const name of ['messages-whatsapp', 'messages-composer', 'messages-header-polish', 'messages-appearance', 'messages-media', 'messages-reply', 'messages-native', 'rooms', 'rooms-invitations', 'rooms-chat']) {
+  for (const name of ['messages-whatsapp', 'messages-composer', 'messages-header-polish', 'messages-appearance', 'messages-media', 'messages-reply', 'messages-native', 'rooms-chat']) {
     assert.match(head, new RegExp(`<link[^>]+rel="stylesheet"[^>]+href="/app/assets/${name}\\.css\\?v=`));
   }
   assert.ok(head.indexOf('messages-native.css') > head.indexOf('member-ios-surfaces.css'));

@@ -155,7 +155,7 @@ if ((appHtml.match(/post-media-carousel\.css/g) || []).length !== 1) {
 }
 for (const marker of [
   'Technology & AI',
-  'rooms-invitations.css',
+  'room-chat-info-header',
   'The Room invitation could not be updated',
   'rooms-chat.css',
   'room-fb-detail-tabs',

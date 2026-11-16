@@ -117,7 +117,7 @@ test('switching Your Rooms back to Discover restores matching cards without drop
   const category = { value: 'all' };
   const makeCard = (state, query, roomCategory) => ({
     hidden: false, dataset: { roomSearch: query, roomCategory }, textContent: query,
-    querySelector: () => ({ textContent: state }),
+    querySelector: (selector) => selector === '.circle-card-state' ? { textContent: state } : null,
     hasAttribute: () => false,
   });
   const joined = makeCard('Joined', 'Developers building software', 'technology');

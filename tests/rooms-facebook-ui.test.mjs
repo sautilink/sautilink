@@ -11,6 +11,7 @@ test('Rooms ships one chat layout for the directory and opened Rooms', async () 
   ]);
   assert.equal((html.match(/rooms-chat\.css/g) || []).length, 1);
   assert.match(runtime, /sidebar\.append\(heading, nav, roomFbById\('circles-list'\), empty\)/);
+  assert.match(runtime, /heading\.append\(create\)/);
   assert.match(runtime, /aria-current/);
   assert.match(runtime, /setRoomInfoVisible/);
   assert.match(css, /body\.rooms-facebook-view #circles-surface/);
@@ -18,7 +19,7 @@ test('Rooms ships one chat layout for the directory and opened Rooms', async () 
   assert.match(css, /#circle-detail\.room-info-open #room-fb-detail-aside/);
   assert.match(css, /@media \(max-width: 760px\)/);
   assert.match(css, /room-fb-detail-open > #room-fb-landing-sidebar\s*\{\s*display:\s*none/);
-  for (const legacy of ['rooms-facebook.css', 'rooms-mobile-preview.css', 'rooms-native.css']) {
+  for (const legacy of ['rooms-facebook.css', 'rooms-mobile-preview.css', 'rooms-native.css', 'rooms.css', 'rooms-invitations.css']) {
     assert.ok(!html.includes(legacy) && !runtime.includes(legacy));
     await assert.rejects(access(file(`app/assets/${legacy}`)), { code: 'ENOENT' });
   }

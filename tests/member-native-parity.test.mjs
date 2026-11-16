@@ -167,7 +167,7 @@ test('post metadata retains original timestamp, Edited marker, profile focus and
 test('shared feed observers arrange late cards and edit markers without feedback writes or changing hidden/auth routes', () => {
   const h = harness(); h.flush();
   const observer = h.observers[1];
-  for (const surface of [h.stream, h.saved, h.rooms, h.conversation]) {
+  for (const surface of [h.stream, h.saved, h.conversation]) {
     assert.ok(observer.targets.has(surface));
     const p = h.addPost(surface); observer.notify(); h.flush();
     assert.equal(p.time.parentNode.className, 'native-post-metadata');
@@ -178,6 +178,9 @@ test('shared feed observers arrange late cards and edit markers without feedback
     assert.equal(replacement.parentNode, p.time.parentNode);
     assert.equal(replacement.textContent, 'Edited after refresh');
   }
+  assert.equal(observer.targets.has(h.rooms), false, 'Rooms owns its chat presentation');
+  const chatPost = h.addPost(h.rooms); observer.notify(); h.flush();
+  assert.equal(chatPost.time.parentNode, chatPost.head, 'shared post decoration must not rewrite Room bubbles');
   const writes = h.writes;
   for (let index = 0; index < 40; index += 1) { observer.notify(); h.flush(); }
   assert.equal(h.writes, writes);
@@ -308,7 +311,8 @@ test('all parity styles are member scoped and leave auth, chat layouts, composer
   assert.match(css, /#notifications-list \.notification-item\[data-circle-slug\]\s*\{[^}]*grid-template-columns: 50px minmax\(0, 1fr\) auto/);
   assert.match(css, /#notifications-list \.notification-item\[data-circle-slug\]::after\s*\{[^}]*grid-column: 3; grid-row: 1;/);
   for (const id of ['#discover-surface', '#saved-surface', '#notifications-surface', '#profile-surface', '#settings-surface', '#appeals-surface', '#professional-dashboard-surface']) assert.ok(css.includes(id));
-  for (const id of ['#profile-surface', '#circles-surface', '#conversation-surface']) {
+  assert.ok(!css.includes('#circles-surface'), 'legacy feed styles must not apply to Rooms');
+  for (const id of ['#profile-surface', '#conversation-surface']) {
     assert.ok(rules.some((selector) => selector.includes(id) && selector.endsWith(' .sauti-card')), `${id} keeps shared post-card parity`);
   }
 });

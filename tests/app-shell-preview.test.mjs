@@ -146,8 +146,9 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/assets/profile-privacy-visibility.css'));
   assert.ok(files.includes('app/assets/profile-x-ui.css'));
   assert.ok(files.includes('app/assets/profile-media-editor.css'));
-  assert.ok(files.includes('app/assets/rooms.css'));
-  assert.ok(files.includes('app/assets/rooms-invitations.css'));
+  assert.ok(files.includes('app/assets/rooms-chat.css'));
+  assert.ok(!files.includes('app/assets/rooms.css'));
+  assert.ok(!files.includes('app/assets/rooms-invitations.css'));
   assert.ok(files.includes('app/assets/room-post-images.css'));
   assert.ok(files.includes('app/assets/settings-light-theme-hotfix.css'));
   assert.ok(files.includes('app/assets/username-prefix-fix.css'));
@@ -244,8 +245,7 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/assets/profile-privacy-visibility.css',
     'app/assets/profile-x-ui.css',
     'app/assets/profile-media-editor.css',
-    'app/assets/rooms.css',
-    'app/assets/rooms-invitations.css',
+    'app/assets/rooms-chat.css',
     'app/assets/room-post-images.css',
     'app/assets/settings-light-theme-hotfix.css',
     'app/assets/username-prefix-fix.css',
