@@ -6,7 +6,7 @@
   let frame = 0;
   let contentObserver = null;
   let suspended = false;
-  const postSurfaceIds = ['stream-surface', 'saved-surface', 'discover-surface', 'profile-surface', 'circles-surface', 'conversation-surface'];
+  const postSurfaceIds = ['stream-surface', 'saved-surface', 'discover-surface', 'profile-surface', 'conversation-surface'];
 
   const memberVisible = () => !document.body.classList.contains('auth-entry')
     && Boolean(document.getElementById('member-view') && !document.getElementById('member-view').hidden);

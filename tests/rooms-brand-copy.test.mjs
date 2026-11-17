@@ -66,7 +66,8 @@ test('Rooms runtime modules are wired into both app and isolated production bund
   // npm run check builds the app before tests, so these assertions prove the
   // Rooms runtime made it into the checked-in/staging app artifact too.
   assert.match(bundle, /Technology & AI/);
-  assert.match(bundle, /rooms-invitations\.css/);
+  assert.match(bundle, /rooms-chat\.css/);
+  assert.doesNotMatch(bundle, /rooms-invitations\.css|\/assets\/rooms\.css/);
   assert.match(bundle, /The Room invitation could not be updated/);
 });
 

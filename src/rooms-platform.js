@@ -975,10 +975,10 @@ function scheduleRoomsUi() {
 }
 
 function initRoomsPlatform() {
-  if (!document.querySelector('link[data-rooms-platform-style]')) {
+  if (!document.querySelector('link[href^="/app/assets/rooms-chat.css"]')) {
     const css = document.createElement('link');
     css.rel = 'stylesheet';
-    css.href = '/app/assets/rooms.css?v=20260909-rooms1';
+    css.href = '/app/assets/rooms-chat.css?v=20261117-chat2';
     css.dataset.roomsPlatformStyle = 'true';
     document.head.append(css);
   }
