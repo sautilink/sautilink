@@ -12,12 +12,24 @@ import java.time.Instant
 import java.util.Locale
 import java.util.UUID
 
+private fun roomUrlValue(value: String) = URLEncoder.encode(value, "UTF-8").replace("+", "%20")
+
+private fun roomSearchPattern(query: String): String = buildString {
+    query.trim().take(200).forEach { character ->
+        if (character in "\\.^$|?*+()[]{}") append('\\')
+        append(character)
+    }
+}
+
 /** The existing Rooms tables, RLS and website APIs remain the source of truth. */
 class NativeRoomsClient(auth: StagingAuthClient) {
     private val transport = NativeRoomsTransport(auth)
     private val uuid = NativeRoomRules.uuid
     private val metadata = "id,owner_id,slug,name,description,join_policy,category,privacy,cover_key,member_count,post_permission,invite_permission,updated_at"
     private val profileFields = "id,username,display_name,is_verified,verification_badge_type,avatar_key"
+    private val latestPostProjection = ",recent:social_posts!social_posts_circle_id_fkey(id,body,created_at,media_count)"
+    private val latestPostFilters = "&recent.visibility=eq.circle" +
+        "&recent.post_status=eq.published&recent.deleted_at=is.null&recent.order=created_at.desc,id.desc&recent.limit=1"
     private var capabilitySnapshot: Triple<String, Long, NativeRoomCapabilities>? = null
     private val approvals = NativeRoomSubmissionsClient(transport) { own -> capabilities(own) }
 
@@ -26,27 +38,43 @@ class NativeRoomsClient(auth: StagingAuthClient) {
     private suspend fun capabilities(own: String): NativeRoomCapabilities {
         capabilitySnapshot?.takeIf { it.first == own && System.currentTimeMillis() - it.second < 60_000 }
             ?.let { return it.third }
-        val value = try {
+        val postApproval = try {
             val data = transport.api(own, "/api/rooms/capabilities")
-            NativeRoomCapabilities(data.optBoolean("post_approval", false) && data.optInt("version") == 1)
+            data.optBoolean("post_approval", false) && data.optInt("version") == 1
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { NativeRoomCapabilities() }
+        catch (_: Exception) { false }
+        val memberPrivacy = try {
+            transport.rest(own, "social_circles?select=hide_members,show_history_to_new_members&limit=0")
+            true
+        } catch (error: AuthRequestException) {
+            if (error.httpStatus != 400 && error.httpStatus != 404) throw error
+            false
+        }
+        val value = NativeRoomCapabilities(postApproval, memberPrivacy)
         transport.checkViewer(own)
         capabilitySnapshot = Triple(own, System.currentTimeMillis(), value)
         return value
     }
 
-    private fun selection(capabilities: NativeRoomCapabilities) = metadata +
-        if (capabilities.postApproval) ",post_approval_required" else ""
+    private fun selection(capabilities: NativeRoomCapabilities) = buildString {
+        append(metadata)
+        if (capabilities.postApproval) append(",post_approval_required")
+        if (capabilities.memberPrivacy) append(",hide_members,show_history_to_new_members")
+    }
 
-    suspend fun list(offset: Int = 0, category: String? = null): List<NativeRoom> {
+    suspend fun list(offset: Int = 0, category: String? = null, search: String = ""): List<NativeRoom> {
         val own = transport.viewer()
         checkedOffset(offset)
         if (category != null && category !in NativeRoomRules.categories)
             throw AuthRequestException("Choose a valid Room category.")
         val cap = capabilities(own)
         val categoryFilter = category?.let { "&category=eq.$it" }.orEmpty()
-        val rows = transport.rest(own, "social_circles?select=${selection(cap)}$categoryFilter&order=created_at.desc,id.desc&limit=60&offset=$offset")
+        val searchFilter = search.trim().takeIf(String::isNotEmpty)?.let { query ->
+            val pattern = roomSearchPattern(query).replace("\\", "\\\\").replace("\"", "\\\"")
+            val operand = roomUrlValue("\"$pattern\"")
+            "&or=(name.imatch.$operand,description.imatch.$operand,slug.imatch.$operand)"
+        }.orEmpty()
+        val rows = transport.rest(own, "social_circles?select=${selection(cap)}$categoryFilter$searchFilter&order=created_at.desc,id.desc&limit=60&offset=$offset")
         return rooms(own, rows.roomObjects(), cap)
     }
 
@@ -54,6 +82,7 @@ class NativeRoomsClient(auth: StagingAuthClient) {
     suspend fun yourRooms(): List<NativeRoom> {
         val own = transport.viewer()
         val cap = capabilities(own)
+        val withRecent = selection(cap) + latestPostProjection
         val memberships = mutableListOf<JSONObject>()
         var offset = 0
         do {
@@ -64,18 +93,17 @@ class NativeRoomsClient(auth: StagingAuthClient) {
         if (offset >= 10_000) throw AuthRequestException("There are too many memberships to load at once.")
         val rows = mutableListOf<JSONObject>()
         for (ids in memberships.map { it.roomString("circle_id") }.filter(uuid::matches).distinct().chunked(50)) {
-            rows.addAll(transport.rest(own, "social_circles?id=in.(${ids.joinToString(",")})&select=${selection(cap)}").roomObjects())
+            rows.addAll(transport.rest(own, "social_circles?id=in.(${ids.joinToString(",")})&select=$withRecent$latestPostFilters").roomObjects())
         }
         // The owner membership is normally created atomically; preserve legacy owned Rooms too.
         offset = 0
         do {
-            val page = transport.rest(own, "social_circles?owner_id=eq.$own&select=${selection(cap)}&order=created_at.desc,id.desc&limit=100&offset=$offset").roomObjects()
+            val page = transport.rest(own, "social_circles?owner_id=eq.$own&select=$withRecent$latestPostFilters&order=created_at.desc,id.desc&limit=100&offset=$offset").roomObjects()
             rows.addAll(page)
             offset += page.size
         } while (page.size == 100 && offset < 10_000)
         if (offset >= 10_000) throw AuthRequestException("There are too many owned Rooms to load at once.")
-        return rooms(own, rows.distinctBy { it.roomString("id") }, cap)
-            .sortedBy { it.name.lowercase(Locale.ROOT) }
+        return rooms(own, rows.distinctBy { it.roomString("id") }, cap).sortByRoomActivity()
     }
 
     suspend fun findBySlug(slugValue: String): NativeRoom? {
@@ -110,13 +138,20 @@ class NativeRoomsClient(auth: StagingAuthClient) {
         val policy = row.roomString("join_policy")
         if (!uuid.matches(id) || !uuid.matches(owner) || !NativeRoomRules.slug.matches(slug) ||
             privacy !in setOf("public", "private") || policy !in NativeRoomRules.policies) return null
+        val viewerRole = if (owner == own) "owner" else role?.takeIf { it in NativeRoomRules.roles }
+        val recent = row.optJSONArray("recent")?.optJSONObject(0)
+            ?.takeIf { viewerRole != null && uuid.matches(it.roomString("id")) }
+            ?.let { NativeRoomPostPreview(it.roomString("id"), it.roomString("body"), it.roomString("created_at"),
+                it.optInt("media_count").coerceAtLeast(0)) }
         return NativeRoom(id, owner, slug, row.roomString("name"), row.roomString("description"), policy,
-            if (owner == own) "owner" else role?.takeIf { it in NativeRoomRules.roles },
+            viewerRole,
             request?.takeIf { it in setOf("pending", "approved", "declined") }, own,
             row.roomString("category"), privacy, row.roomString("cover_key").ifBlank { null },
             row.optInt("member_count").coerceAtLeast(0), row.roomString("post_permission"),
             row.roomString("invite_permission"), row.roomString("updated_at"), cap.postApproval,
-            cap.postApproval && row.optBoolean("post_approval_required", false))
+            cap.postApproval && row.optBoolean("post_approval_required", false), recent,
+            cap.memberPrivacy, row.optBoolean("hide_members", false),
+            row.optBoolean("show_history_to_new_members", true))
     }
 
     suspend fun create(nameValue: String, slugValue: String, descriptionValue: String, policy: String): NativeRoom =
@@ -143,10 +178,11 @@ class NativeRoomsClient(auth: StagingAuthClient) {
         value.validationError(existingPrivacy = room.privacy)?.let { throw AuthRequestException(it) }
         val cap = capabilities(own)
         if (value.postApprovalRequired && !cap.postApproval) throw AuthRequestException("Post approval is not available on this server.")
+        if (!cap.memberPrivacy && (value.privacy != room.privacy || value.hideMembers != room.hideMembers ||
+                value.showHistoryToNewMembers != room.showHistoryToNewMembers))
+            throw AuthRequestException("Update the Room server to change these privacy settings.")
         val payload = settingsPayload(value, cap).apply {
-            // Keep existing privacy immutable until its transition and historical-content
-            // behavior have an approved contract. Current circle-post RLS still requires membership.
-            remove("privacy")
+            if (value.privacy == room.privacy) remove("privacy")
             put("updated_at", Instant.now().toString())
         }
         val versionFilter = room.updatedAt.takeIf { it.isNotBlank() }
@@ -162,7 +198,13 @@ class NativeRoomsClient(auth: StagingAuthClient) {
         JSONObject().put("name", value.name).put("slug", value.slug).put("description", value.description)
             .put("join_policy", value.policy).put("category", value.category).put("privacy", value.privacy)
             .put("post_permission", value.postPermission).put("invite_permission", value.invitePermission)
-            .apply { if (cap.postApproval) put("post_approval_required", value.postApprovalRequired) }
+            .apply {
+                if (cap.postApproval) put("post_approval_required", value.postApprovalRequired)
+                if (cap.memberPrivacy) {
+                    put("hide_members", value.hideMembers)
+                    put("show_history_to_new_members", value.showHistoryToNewMembers)
+                }
+            }
 
     suspend fun delete(room: NativeRoom) {
         val own = transport.guard(room, writing = true)
@@ -174,10 +216,20 @@ class NativeRoomsClient(auth: StagingAuthClient) {
     suspend fun join(room: NativeRoom) {
         val own = transport.guard(room, writing = true)
         if (room.policy != "open" || room.isMember) throw AuthRequestException("This Room cannot be joined directly.")
-        confirmed(transport.rest(own, "social_circle_members?select=circle_id", "POST",
-            JSONObject().put("circle_id", room.id).put("member_id", own).put("member_role", "member")),
-            "Room membership was not confirmed. Refresh before trying again.")
+        try {
+            transport.rest(own, "social_circle_members", "POST",
+                JSONObject().put("circle_id", room.id).put("member_id", own).put("member_role", "member"), minimal = true)
+        } catch (error: AuthRequestException) {
+            if (error.httpStatus != 409 || !membershipConfirmed(own, room.id)) throw error
+            return
+        }
+        if (!membershipConfirmed(own, room.id))
+            throw AuthRequestException("Room membership was not confirmed. Refresh before trying again.")
     }
+
+    private suspend fun membershipConfirmed(own: String, roomId: String): Boolean =
+        transport.rest(own, "social_circle_members?circle_id=eq.$roomId&member_id=eq.$own&select=circle_id&limit=1")
+            .optJSONObject(0)?.roomString("circle_id") == roomId
 
     suspend fun leave(room: NativeRoom) {
         val own = transport.guard(room, writing = true)
@@ -205,13 +257,48 @@ class NativeRoomsClient(auth: StagingAuthClient) {
             "Join request changed. Refresh and try again.")
     }
 
-    suspend fun posts(room: NativeRoom, offset: Int = 0): List<NativeRoomPost> {
+    suspend fun posts(room: NativeRoom, offset: Int = 0): List<NativeRoomPost> =
+        readPosts(room, offset)
+
+    internal suspend fun searchPosts(room: NativeRoom, search: String, offset: Int): List<NativeRoomPost> =
+        readPosts(room, offset, "&body=imatch.${roomUrlValue(roomSearchPattern(search))}")
+
+    internal suspend fun timelinePosts(room: NativeRoom, anchor: NativeRoomPost, newer: Boolean,
+        offsetFallback: Int = 0): List<NativeRoomPost> {
+        if (!uuid.matches(anchor.id)) return emptyList()
+        val date = runCatching { java.time.OffsetDateTime.parse(anchor.createdAt) }.getOrNull()
+        if (date == null) return if (newer) emptyList() else posts(room, offsetFallback)
+        val instant = roomUrlValue(date.toString())
+        val direction = if (newer) "gt" else "lt"
+        return readPosts(room, 0,
+            "&or=(created_at.$direction.$instant,and(created_at.eq.$instant,id.$direction.${anchor.id}))",
+            newestFirst = !newer)
+    }
+
+    internal suspend fun roomMessage(room: NativeRoom, id: String): NativeRoomPost? =
+        if (uuid.matches(id)) readPosts(room, 0, "&id=eq.$id").singleOrNull() else null
+
+    private suspend fun readPosts(room: NativeRoom, offset: Int, filter: String = "",
+        newestFirst: Boolean = true): List<NativeRoomPost> {
         val own = transport.guard(room)
         checkedOffset(offset)
         if (!room.canReadPosts) return emptyList()
-        val rows = transport.rest(own, "social_posts?circle_id=eq.${room.id}&visibility=eq.circle&reply_to_post_id=is.null&post_status=eq.published&deleted_at=is.null&select=id,author_id,body,created_at,like_count,comment_count,repost_count,media_count&order=created_at.desc,id.desc&limit=30&offset=$offset")
+        val order = if (newestFirst) "desc" else "asc"
+        val scope = "social_posts?circle_id=eq.${room.id}&visibility=eq.circle&post_status=eq.published&deleted_at=is.null"
+        val fields = "id,author_id,body,created_at,like_count,media_count,parent_post_id"
+        val page = "&order=created_at.$order,id.$order&limit=30&offset=$offset$filter"
+        val supportsChat = roomChatAvailable(own)
+        val rows = transport.rest(own, "$scope&select=$fields${if (supportsChat) ",room_reply_to_id" else ""}$page")
             .roomObjects().filter { uuid.matches(it.roomString("id")) && uuid.matches(it.roomString("author_id")) }
-        val authors = profiles(own, rows.map { it.roomString("author_id") })
+        val references = rows.mapNotNull { row ->
+            row.roomString("room_reply_to_id").ifBlank { row.roomString("parent_post_id") }.takeIf(uuid::matches)
+        }.toSet()
+        val known = rows.associateBy { it.roomString("id") }
+        val extra = references - known.keys
+        val quoted = if (extra.isEmpty()) emptyMap() else transport.rest(own,
+            "$scope&id=in.(${extra.joinToString(",")})&select=id,author_id,body,media_count")
+            .roomObjects().associateBy { it.roomString("id") }
+        val authors = profiles(own, (rows + quoted.values).map { it.roomString("author_id") })
         val ids = rows.map { it.roomString("id") }
         val mediaByPost = if (ids.isEmpty()) emptyMap() else transport.rest(own,
             "social_post_media?post_id=in.(${ids.joinToString(",")})&upload_status=eq.attached&select=id,post_id,media_kind,position,width,height&order=position.asc&limit=150")
@@ -224,37 +311,66 @@ class NativeRoomsClient(auth: StagingAuthClient) {
         transport.checkViewer(own)
         return rows.map { row ->
             val author = authors[row.roomString("author_id")]
+            val replyId = row.roomString("room_reply_to_id").ifBlank { row.roomString("parent_post_id") }
+            val reply = replyId.takeIf(uuid::matches)?.let { id ->
+                val target = known[id] ?: quoted[id]
+                RoomMessageReference(id, target?.let { authors[it.roomString("author_id")].name() },
+                    target?.let { it.roomString("body").ifBlank { "Media attachment" }.take(300) })
+            }
             NativeRoomPost(row.roomString("id"), row.roomString("author_id"), author.name(),
                 author?.roomString("username").orEmpty(), row.roomString("body"), row.roomString("created_at"),
                 author?.optBoolean("is_verified", false) == true, author.badge(),
-                row.optInt("like_count").coerceAtLeast(0), row.optInt("comment_count").coerceAtLeast(0),
-                row.optInt("repost_count").coerceAtLeast(0), row.optInt("media_count").coerceIn(0, 10),
-                mediaByPost[row.roomString("id")].orEmpty(), author.hasAvatar())
+                likes = row.optInt("like_count").coerceAtLeast(0), mediaCount = row.optInt("media_count").coerceIn(0, 10),
+                media = mediaByPost[row.roomString("id")].orEmpty(), hasAvatar = author.hasAvatar(), reply = reply)
         }
     }
 
+    private var chatCapability: Pair<Long, Boolean>? = null
+
+    private suspend fun roomChatAvailable(own: String): Boolean {
+        val now = android.os.SystemClock.elapsedRealtime()
+        chatCapability?.takeIf { it.first > now }?.let { return it.second }
+        val available = try {
+            transport.rest(own, "social_posts?select=room_reply_to_id&limit=0")
+            true
+        } catch (error: AuthRequestException) {
+            if (error.httpStatus != 400) throw error
+            false
+        }
+        chatCapability = (now + 60_000L) to available
+        return available
+    }
+
     suspend fun publish(room: NativeRoom, bodyValue: String, media: List<NativeReadyMedia> = emptyList(),
-        replyAccess: String = "everyone", clientRequestId: String = UUID.randomUUID().toString()): NativeRoomPublishResult {
+        replyToId: String? = null, clientRequestId: String = UUID.randomUUID().toString()): NativeRoomPublishResult {
         val own = transport.guard(room, writing = true)
         if (!room.canPost) throw AuthRequestException("Room posting is available only to permitted members.")
         val body = bodyValue.trim()
         if (body.isBlank() && media.isEmpty()) throw AuthRequestException("Write something or add media before posting.")
         if (bodyValue.length > 2000) throw AuthRequestException("Room post text must be 2,000 characters or fewer.")
-        if (replyAccess !in setOf("everyone", "following", "mentioned")) throw AuthRequestException("Choose who can comment.")
-        if (replyAccess == "mentioned" && !NativeRoomRules.mention.containsMatchIn(body))
-            throw AuthRequestException("Mention at least one @username or change who can comment.")
+        if (replyToId != null && !uuid.matches(replyToId)) throw AuthRequestException("The replied-to message is unavailable.")
         if (!uuid.matches(clientRequestId)) throw AuthRequestException("Invalid post request. Reopen the composer.")
-        if (media.size > NativeRoomRules.mediaLimit(media.map { it.kind }) || media.map { it.id.lowercase(Locale.ROOT) }.distinct().size != media.size ||
+        if (media.size > NativeRoomRules.MAX_MESSAGE_ATTACHMENTS || media.map { it.id.lowercase(Locale.ROOT) }.distinct().size != media.size ||
             media.any { !uuid.matches(it.id) || it.kind !in setOf("image", "video") || it.altText.length > 1000 })
             throw AuthRequestException("One or more media items are invalid.")
-        val data = transport.api(own, "/api/sauti", "POST", JSONObject().put("body", body)
-            .put("circle_id", room.id).put("reply_access", replyAccess).put("client_request_id", clientRequestId)
-            .put("media", JSONArray().apply {
-                media.forEach { put(JSONObject().put("id", it.id).put("alt_text", it.altText.trim())) }
-            }))
+        val attachments = JSONArray().apply {
+            media.forEach { put(JSONObject().put("id", it.id).put("alt_text", it.altText.trim())) }
+        }
+        // The regular posting service still handles approvals and validates unquoted uploads.
+        val data = if (replyToId != null || media.size == NativeRoomRules.MAX_MESSAGE_ATTACHMENTS) {
+            val post = transport.rpcObject(own, "publish_room_message_v1",
+                JSONObject().put("p_room_id", room.id).put("p_request_id", clientRequestId)
+                    .put("p_body", body).put("p_reply_id", replyToId ?: JSONObject.NULL).put("p_media", attachments))
+            JSONObject().put("post", post)
+        } else {
+            transport.api(own, "/api/sauti", "POST",
+                JSONObject().put("body", body).put("circle_id", room.id).put("reply_access", "everyone")
+                    .put("client_request_id", clientRequestId).put("media", attachments))
+        }
         val post = data.optJSONObject("post")
         val id = post?.roomString("id").orEmpty()
-        if (post != null && uuid.matches(id) && post.roomString("circle_id") == room.id && post.roomString("author_id") == own)
+        if (post != null && uuid.matches(id) && post.roomString("circle_id") == room.id && post.roomString("author_id") == own &&
+            post.roomString("room_reply_to_id").ifBlank { null } == replyToId)
             return NativeRoomPublishResult.Published(id)
         val pending = data.optJSONObject("submission")
         val pendingId = pending?.roomString("id").orEmpty()
@@ -268,7 +384,8 @@ class NativeRoomsClient(auth: StagingAuthClient) {
         val own = transport.guard(room)
         checkedOffset(offset)
         if (!room.canSeeMembers) return emptyList()
-        val rows = transport.rest(own, "social_circle_members?circle_id=eq.${room.id}&select=member_id,member_role,joined_at&order=joined_at.asc,member_id.asc&limit=100&offset=$offset")
+        val roles = if (room.adminsOnlyRoster) "&member_role=in.(owner,admin)" else ""
+        val rows = transport.rest(own, "social_circle_members?circle_id=eq.${room.id}$roles&select=member_id,member_role,joined_at&order=joined_at.asc,member_id.asc&limit=100&offset=$offset")
             .roomObjects().filter { uuid.matches(it.roomString("member_id")) && it.roomString("member_role") in NativeRoomRules.roles }
         val profiles = profiles(own, rows.map { it.roomString("member_id") })
         return rows.map { row ->

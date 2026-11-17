@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ThumbUpOffAlt
+
 import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,6 +24,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -36,28 +37,31 @@ internal fun SautiPostGestureSurface(
     onLike: (() -> Unit)? = null,
     onTap: (() -> Unit)? = null,
     tapLabel: String = "Open photo",
-    feedbackColor: Color = MaterialTheme.colorScheme.primary,
+    onLongPress: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
     val like by rememberUpdatedState(onLike)
     val tap by rememberUpdatedState(onTap)
+    val longPress by rememberUpdatedState(onLongPress)
     var pulse by remember { mutableIntStateOf(0) }
     var showFeedback by remember { mutableStateOf(false) }
     fun requestLike() { like?.let { it(); pulse++; showFeedback = true } }
     LaunchedEffect(pulse) {
         if (pulse > 0) { delay(650); showFeedback = false }
     }
-    Box(modifier.pointerInput(Unit) {
-        detectTapGestures(onTap = { tap?.invoke() }, onDoubleTap = { requestLike() })
+    Box(modifier.pointerInput(onLongPress != null) {
+        detectTapGestures(onTap = { tap?.invoke() }, onDoubleTap = { requestLike() },
+            onLongPress = if (onLongPress != null) ({ longPress?.invoke() }) else null)
     }.semantics(mergeDescendants = true) {
         if (onTap != null) onClick(tapLabel) { tap?.invoke(); true }
+        if (onLongPress != null) onLongClick("Post options") { longPress?.invoke(); true }
         if (onLike != null) customActions = listOf(CustomAccessibilityAction("Like post") { requestLike(); true })
     }) {
         content()
         Box(Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
             AnimatedVisibility(showFeedback,
                 enter = fadeIn(tween(100)) + scaleIn(initialScale = .7f), exit = fadeOut(tween(120))) {
-                Icon(Icons.Rounded.ThumbUpOffAlt, null, Modifier.size(48.dp), tint = feedbackColor)
+                SautiPostHeart(true, null, Modifier.size(48.dp))
             }
         }
     }
@@ -129,7 +133,7 @@ internal fun SautiVideoGestureSurface(
             }).padding(horizontal = 30.dp),
             enter = fadeIn(tween(100)) + scaleIn(initialScale = .7f), exit = fadeOut(tween(120))) {
             if (effect == VideoDoubleTapAction.LIKE) {
-                Icon(Icons.Rounded.ThumbUpOffAlt, null, Modifier.size(48.dp), tint = Color.White)
+                SautiPostHeart(true, null, Modifier.size(48.dp))
             } else Text(if (effect == VideoDoubleTapAction.BACKWARD) "−5s" else "+5s",
                 color = Color.White, style = MaterialTheme.typography.titleLarge)
         }

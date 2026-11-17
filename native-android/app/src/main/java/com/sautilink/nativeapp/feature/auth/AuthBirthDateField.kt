@@ -33,13 +33,13 @@ private val birthDateTransformation = VisualTransformation { text ->
 @Composable
 internal fun AuthBirthDateField(value: String, onValueChange: (String) -> Unit, modifier: Modifier) {
     var calendarOpen by remember { mutableStateOf(false) }
-    OutlinedTextField(value = value, onValueChange = { onValueChange(birthDateDigits(it)) },
+    TextField(value = value, onValueChange = { onValueChange(birthDateDigits(it)) },
         label = { Text("Date of birth") }, placeholder = { Text("DD/MM/YYYY") },
         leadingIcon = { Icon(Icons.Rounded.Cake, null, Modifier.size(21.dp)) },
         trailingIcon = { IconButton(onClick = { calendarOpen = true }) {
             Icon(Icons.Rounded.CalendarToday, "Choose date of birth", Modifier.size(21.dp))
         } },
-        shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
+        colors = authUnderlineColors(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         visualTransformation = birthDateTransformation, modifier = modifier, singleLine = true)
     if (calendarOpen) {

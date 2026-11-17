@@ -2,8 +2,6 @@ package com.sautilink.nativeapp.feature.auth
 
 import com.sautilink.nativeapp.ui.components.SautiCopyrightFooter
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -11,7 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -22,7 +19,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import com.sautilink.nativeapp.ui.theme.SautiShape
+import com.sautilink.nativeapp.feature.browser.NativeWebBrowserActivity
 import kotlinx.coroutines.launch
 
 private enum class SignupStep { DETAILS, EMAIL_CODE, REQUIREMENTS, PHONE_CODE, ONBOARDING, COMPLETE }
@@ -33,7 +30,6 @@ private val reservedNames = setOf(
     "privacy", "terms", "contact", "waitlist"
 )
 
-private fun signupEmail(value: String) = android.util.Patterns.EMAIL_ADDRESS.matcher(value.trim()).matches()
 private fun birthDateOk(value: String) = signupBirthDateIso(value) != null
 
 private fun signupValidation(username: String, name: String, email: String, password: String,
@@ -42,7 +38,7 @@ private fun signupValidation(username: String, name: String, email: String, pass
     if (!Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(handle) || handle in reservedNames)
         return "Choose a username with 3–30 lowercase letters, numbers, dots or underscores (not reserved)."
     if (name.trim().length !in 1..80) return "Display name must be 1–80 characters."
-    if (!signupEmail(email)) return "Enter a valid email address."
+    if (!validAuthEmail(email)) return "Enter a valid email address."
     if (phone.isNotBlank() && !validSignupPhone(phone)) return "Enter a valid phone with country code, or leave phone empty."
     if (!birthDateOk(birthDate)) return "Enter a valid date of birth in DD/MM/YYYY format."
     if (password.length !in 12..72 || password.none(Char::isLowerCase) || password.none(Char::isUpperCase)
@@ -59,7 +55,11 @@ private fun signupValidation(username: String, name: String, email: String, pass
 /** Real production signup. The server controls consent, phone policy and verified-email onboarding. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFinished: () -> Unit) {
+fun NativeRegistrationScreen(
+    client: StagingAuthClient, onBack: () -> Unit, onFinished: () -> Unit,
+    onLogin: (() -> Unit)? = null, onGoogle: (() -> Unit)? = null,
+    googleBusy: Boolean = false, googleMessage: String? = null
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var step by remember { mutableStateOf(SignupStep.DETAILS) }
@@ -138,24 +138,22 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
     }
 
     fun openPolicy(route: String) {
-        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://sautilink.com/$route")))
+        if (!NativeWebBrowserActivity.open(context, "https://sautilink.com/$route")) {
+            error = "Could not open this page."
+        }
     }
 
-    SautiAuthPage {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBackIosNew, "Back") }
-            Text("Create account", style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold)
+    val showSignupChoices = client.account == null && step == SignupStep.DETAILS
+    SautiAuthPage(hero = {
+        if (showSignupChoices) {
+            SautiAuthHero(signup = true, onBack = onBack, onSwitch = onLogin, canSwitch = !busy && !googleBusy)
+        } else {
+            Row(Modifier.padding(start = 8.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBackIosNew, "Back") }
+                Text("Create account", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            }
         }
-        if (step == SignupStep.DETAILS) {
-            SautiAuthBrand()
-            Text("A place for your voice.",
-                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp,
-                    lineHeight = 38.sp, letterSpacing = (-1).sp), fontWeight = FontWeight.Bold)
-            Text("Enter your details to get started.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+    }) {
         val progressStep = when (step) {
             SignupStep.DETAILS -> 1
             SignupStep.EMAIL_CODE -> 2
@@ -167,7 +165,7 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
             repeat(4) { index ->
                 Surface(Modifier.weight(1f).height(4.dp), shape = RoundedCornerShape(4.dp),
                     color = if (index < progressStep) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.surfaceContainerHigh) { }
+                        else MaterialTheme.colorScheme.outlineVariant) { }
             }
         }
         if (checking || client.sessionState == StagingSessionState.CHECKING) {
@@ -182,30 +180,37 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
             Button(onClick = { progressRetry++ }, enabled = !checking) { Text("Retry checking progress") }
         } else when (step) {
             SignupStep.DETAILS -> {
-                AuthSectionTitle("Your details", Icons.Rounded.PersonOutline)
-                OutlinedTextField(username, { username = it.lowercase().removePrefix("@") },
+                if (onGoogle != null && showSignupChoices) {
+                    AuthGoogleButton(onClick = onGoogle, enabled = !busy && !googleBusy && !checking)
+                }
+                if (googleBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (googleMessage != null) {
+                    Text(googleMessage, color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium)
+                }
+                TextField(username, { username = it.lowercase().removePrefix("@") },
                     label = { Text("Username") },
                     leadingIcon = { Icon(Icons.Rounded.AlternateEmail, null, Modifier.size(21.dp)) },
-                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(), singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(displayName, { displayName = it },
+                    colors = authUnderlineColors(), singleLine = true, modifier = Modifier.fillMaxWidth())
+                TextField(displayName, { displayName = it },
                     label = { Text("Display name") },
                     leadingIcon = { Icon(Icons.Rounded.PersonOutline, null, Modifier.size(21.dp)) },
-                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(), singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(email, { email = it }, label = { Text("Email address (required)") },
+                    colors = authUnderlineColors(), singleLine = true, modifier = Modifier.fillMaxWidth())
+                TextField(email, { email = it }, label = { Text("Email address (required)") },
                     leadingIcon = { Icon(Icons.Rounded.AlternateEmail, null, Modifier.size(21.dp)) },
-                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
+                    colors = authUnderlineColors(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(phone, { phone = it }, label = { Text("Phone number (optional)") },
+                TextField(phone, { phone = it }, label = { Text("Phone number (optional)") },
                     leadingIcon = { Icon(Icons.Rounded.PhoneAndroid, null, Modifier.size(21.dp)) },
-                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
+                    colors = authUnderlineColors(),
                     placeholder = { Text("Include country code, e.g. +255…") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     singleLine = true, modifier = Modifier.fillMaxWidth())
                 AuthBirthDateField(birthDate, { birthDate = it }, Modifier.fillMaxWidth())
-                OutlinedTextField(password, { password = it }, label = { Text("Password") },
+                TextField(password, { password = it }, label = { Text("Password") },
                     leadingIcon = { Icon(Icons.Rounded.Lock, null, Modifier.size(21.dp)) },
-                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
+                    colors = authUnderlineColors(),
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = { IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(if (passwordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
@@ -213,9 +218,9 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(confirmPassword, { confirmPassword = it }, label = { Text("Confirm password") },
+                TextField(confirmPassword, { confirmPassword = it }, label = { Text("Confirm password") },
                     leadingIcon = { Icon(Icons.Rounded.Lock, null, Modifier.size(21.dp)) },
-                    shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
+                    colors = authUnderlineColors(),
                     visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = { IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
                         Icon(if (confirmPasswordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
@@ -239,7 +244,7 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     TextButton(onClick = { openPolicy("terms") }) { Text("Read Terms") }
                     TextButton(onClick = { openPolicy("privacy") }) { Text("Read Privacy") }
                 }
-                Button(onClick = {
+                AuthPrimaryButton(onClick = {
                     val issue = signupValidation(username, displayName, email, password, phone, birthDate)
                     when {
                         issue != null -> error = issue
@@ -253,9 +258,9 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                             info = if (step == SignupStep.EMAIL_CODE) "Check your email for the 8-digit code." else null
                         }
                     }
-                }, enabled = !busy && !checking && client.account == null &&
+                }, enabled = !busy && !checking && !googleBusy && client.account == null &&
                     client.sessionState != StagingSessionState.CHECKING && client.configured,
-                    modifier = Modifier.fillMaxWidth().height(52.dp), shape = SautiShape.Pill) { Text("Create account") }
+                    modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Create account") }
                 TextButton(onClick = { step = SignupStep.EMAIL_CODE; error = null },
                     modifier = Modifier.fillMaxWidth()) { Text("Already have a signup email code?") }
             }
@@ -273,7 +278,7 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true, modifier = Modifier.fillMaxWidth(), enabled = !busy)
-                Button(onClick = { action {
+                AuthPrimaryButton(onClick = { action {
                     client.verifyEmailCode(email, code); code = ""
                     val account = client.account
                     if (account != null) {
@@ -282,12 +287,12 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                         phone = account.signupPhone.ifBlank { phone }
                     }
                     applyRequirements(client.signupRequirements())
-                } }, enabled = !busy && signupEmail(email) && code.length == 8,
-                    modifier = Modifier.fillMaxWidth().height(52.dp), shape = SautiShape.Pill) { Text("Verify email") }
+                } }, enabled = !busy && validAuthEmail(email) && code.length == 8,
+                    modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Verify email") }
                 TextButton(onClick = { action {
                     client.resendSignupEmailCode(email)
                     info = "If this email has a pending signup, a new 8-digit code will arrive."
-                } }, enabled = !busy && signupEmail(email)) { Text("Resend email code") }
+                } }, enabled = !busy && validAuthEmail(email)) { Text("Resend email code") }
             }
             SignupStep.REQUIREMENTS -> {
                 AuthSectionTitle("3 of 4 · Account agreement", Icons.Rounded.Shield)
@@ -317,10 +322,10 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     TextButton(onClick = { openPolicy("terms") }) { Text("Terms") }
                     TextButton(onClick = { openPolicy("privacy") }) { Text("Privacy") }
                 }
-                Button(onClick = {
-                    if (!consent) { error = "Review and accept the account documents first."; return@Button }
+                AuthPrimaryButton(onClick = {
+                    if (!consent) { error = "Review and accept the account documents first."; return@AuthPrimaryButton }
                     if (!phoneVerified && phone.isNotBlank() && !validSignupPhone(phone)) {
-                        error = "Enter a valid phone number including country code, or leave phone empty."; return@Button
+                        error = "Enter a valid phone number including country code, or leave phone empty."; return@AuthPrimaryButton
                     }
                     action {
                         client.acceptSignupDocuments()
@@ -342,8 +347,7 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                             info = "A verification code was requested by ${if (channel == "sms") "SMS" else "WhatsApp"}."
                         }
                     }
-                }, enabled = !busy && !checking, modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = SautiShape.Pill) { Text(if (phoneVerified || (!phoneRequired && phone.isBlank())) "Continue" else "Send phone code") }
+                }, enabled = !busy && !checking && !googleBusy, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text(if (phoneVerified || (!phoneRequired && phone.isBlank())) "Continue" else "Send phone code") }
                 TextButton(onClick = { action {
                     val gates = client.signupRequirements()
                     phoneVerified = gates.phoneVerified
@@ -364,11 +368,11 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true, modifier = Modifier.fillMaxWidth())
-                Button(onClick = { action {
+                AuthPrimaryButton(onClick = { action {
                     client.confirmSignupPhoneCode(phone, code)
                     code = ""; phoneVerified = true; step = SignupStep.ONBOARDING
                 } }, enabled = !busy && code.length in 6..10,
-                    modifier = Modifier.fillMaxWidth().height(52.dp), shape = SautiShape.Pill) { Text("Verify phone") }
+                    modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Verify phone") }
                 TextButton(onClick = { step = SignupStep.REQUIREMENTS; code = "" }) { Text("Request a new code") }
             }
             SignupStep.ONBOARDING -> {
@@ -385,24 +389,22 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
                     shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
                     modifier = Modifier.fillMaxWidth(), singleLine = true)
                 AuthBirthDateField(birthDate, { birthDate = it }, Modifier.fillMaxWidth())
-                Button(onClick = {
+                AuthPrimaryButton(onClick = {
                     val handle = username.trim().lowercase()
                     if (!Regex("^[a-z0-9][a-z0-9._]{2,29}$").matches(handle) || handle in reservedNames) {
-                        error = "Choose a valid, non-reserved username."; return@Button
+                        error = "Choose a valid, non-reserved username."; return@AuthPrimaryButton
                     }
                     if (displayName.trim().length !in 1..80 || !birthDateOk(birthDate)) {
-                        error = "Enter a display name (1–80 characters) and valid date of birth."; return@Button
+                        error = "Enter a display name (1–80 characters) and valid date of birth."; return@AuthPrimaryButton
                     }
-                    val isoBirthDate = signupBirthDateIso(birthDate) ?: return@Button
+                    val isoBirthDate = signupBirthDateIso(birthDate) ?: return@AuthPrimaryButton
                     action { client.finishSignup(username, displayName, isoBirthDate, phone); step = SignupStep.COMPLETE }
-                }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = SautiShape.Pill) { Text("Finish registration") }
+                }, enabled = !busy, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Finish registration") }
             }
             SignupStep.COMPLETE -> {
                 AuthSectionTitle("Your SautiLink account is ready", Icons.Rounded.CheckCircle)
                 Text("Email, signup requirements and your profile have been checked. Welcome to SautiLink.")
-                Button(onClick = onFinished, modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = SautiShape.Pill) { Text("Continue") }
+                AuthPrimaryButton(onClick = onFinished, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Continue") }
             }
         }
         if (step in setOf(SignupStep.REQUIREMENTS, SignupStep.PHONE_CODE, SignupStep.ONBOARDING) && client.account != null) {
@@ -431,44 +433,5 @@ fun NativeRegistrationScreen(client: StagingAuthClient, onBack: () -> Unit, onFi
         }
         SautiCopyrightFooter()
         Spacer(Modifier.height(20.dp))
-    }
-}
-
-@Composable
-fun NativeRecoveryScreen(client: StagingAuthClient, onBack: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    var email by rememberSaveable { mutableStateOf("") }
-    var busy by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var sent by remember { mutableStateOf(false) }
-    SautiAuthPage {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBackIosNew, "Back") }
-            Text("Recover your account", style = MaterialTheme.typography.titleLarge)
-        }
-        SautiAuthBrand()
-        AuthSectionTitle("Let’s get you back in", Icons.Rounded.LockReset)
-        Text("Password recovery uses an official secure email link, not an OTP. The link opens SautiLink's verified recovery page in your browser.")
-        OutlinedTextField(email, { email = it; sent = false }, label = { Text("Email address") },
-            leadingIcon = { Icon(Icons.Rounded.AlternateEmail, null, Modifier.size(21.dp)) },
-            shape = RoundedCornerShape(16.dp), colors = authFieldColors(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth(), singleLine = true)
-        if (error != null) Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
-        if (sent) Text("If an account uses this email, a secure recovery link is on its way. Open it from your email and set a new password on SautiLink.")
-        Button(onClick = {
-            busy = true; error = null
-            scope.launch {
-                try { client.requestPasswordRecovery(email); sent = true }
-                catch (e: AuthRequestException) { error = e.message ?: "Recovery request failed." }
-                catch (_: Exception) { error = "Network error. Try again." }
-                finally { busy = false }
-            }
-        }, enabled = signupEmail(email) && !busy && client.configured,
-            modifier = Modifier.fillMaxWidth().height(52.dp), shape = SautiShape.Pill) {
-            Text(if (busy) "Sending…" else "Send recovery link")
-        }
-        Text("For account security, never forward recovery links or share authentication codes.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
     }
 }

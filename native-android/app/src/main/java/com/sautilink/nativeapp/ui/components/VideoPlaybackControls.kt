@@ -85,10 +85,11 @@ internal fun VideoSettingsButton(onClick: () -> Unit, modifier: Modifier = Modif
     }
     val vector = remember { requireNotNull(SautiHugeVectors.get("settings-0-1")) }
     IconButton(onClick = { activation++; onClick() }, enabled = enabled, modifier = modifier.size(48.dp)) {
-        Icon(vector, "Playback settings", tint = Color.White,
-            modifier = Modifier.size(23.dp).graphicsLayer {
-                rotationZ = (sin(motion.value * Math.PI * 4) * sin(motion.value * Math.PI) * 9).toFloat()
-            })
+        Box(Modifier.size(23.dp).graphicsLayer {
+            rotationZ = (sin(motion.value * Math.PI * 4) * sin(motion.value * Math.PI) * 9).toFloat()
+        }) {
+            Icon(vector, "Playback settings", tint = Color.White, modifier = Modifier.fillMaxSize())
+        }
     }
 }
 

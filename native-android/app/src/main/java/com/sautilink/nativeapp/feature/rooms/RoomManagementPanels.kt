@@ -144,11 +144,11 @@ internal fun RoomPublishedPostManagementSheet(room: NativeRoom, state: RoomManag
     val attached = remember(state.accountId, room.id, post.id) { AtomicBoolean(true) }
     DisposableEffect(attached) { onDispose { attached.set(false) } }
     LaunchedEffect(state.accountId, room.id, room.role, post.id) { state.loadPostAccess(room, post) }
-    RoomSheet("Manage Room post", onDismiss) {
+    RoomSheet("Manage message", onDismiss) {
         Text(post.authorName, style = MaterialTheme.typography.titleSmall)
         if (post.body.isNotBlank()) SautiPostText(post.body, maxLines = 3, overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodyMedium)
-        TextButton(onClick = { onDismiss(); onOpenPost(post.id) }) { Text("View post") }
+        TextButton(onClick = { onDismiss(); onOpenPost(post.id) }) { Text("View message") }
         if (state.busy("permissions:${post.id}")) LinearProgressIndicator(Modifier.fillMaxWidth())
         state.postError(post.id)?.let { RoomNotice(it, true, { state.refreshPostManagement(room, post) }) }
         val access = state.postAccess(post.id)
@@ -156,11 +156,11 @@ internal fun RoomPublishedPostManagementSheet(room: NativeRoom, state: RoomManag
             val pinned = state.isPinned(post.id)
             OutlinedButton(onClick = { if (pinned != null) state.setPinned(room, post, !pinned) },
                 enabled = pinned != null && !state.busy("pin:${post.id}") && !state.busy("remove:${post.id}"), modifier = Modifier.fillMaxWidth()) {
-                Text(if (state.busy("pin:${post.id}")) "Saving…" else if (pinned == true) "Unpin from Featured" else "Pin to Featured")
+                Text(if (state.busy("pin:${post.id}")) "Saving…" else if (pinned == true) "Unpin message" else "Pin message")
             }
-            Text("Up to three posts can be featured in this Room.", style = MaterialTheme.typography.bodySmall,
+            Text("You can pin up to three messages.", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (pinned == null) TextButton(onClick = { state.loadPins(room) }, enabled = !state.pinsLoading) { Text("Load Featured status") }
+            if (pinned == null) TextButton(onClick = { state.loadPins(room) }, enabled = !state.pinsLoading) { Text("Refresh pin status") }
         }
         if (access?.canRemove == true) TextButton(onClick = { removal = true },
             enabled = !state.busy("remove:${post.id}") && !state.busy("pin:${post.id}")) {
@@ -178,7 +178,7 @@ private fun RoomPublishedPostRemovalDialog(room: NativeRoom, state: RoomManageme
     onDismiss: () -> Unit, onRemoved: (String) -> Unit) {
     var reason by remember(state.accountId, room.id, post.id) { mutableStateOf("") }
     val busy = state.busy("remove:${post.id}")
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Remove this post?") },
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("Remove this message?") },
         text = { Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("It will no longer appear in this Room. A reason is required.", style = MaterialTheme.typography.bodyMedium)
             OutlinedTextField(reason, { reason = boundedCommunityText(it, 501) }, enabled = !busy,
@@ -187,6 +187,6 @@ private fun RoomPublishedPostRemovalDialog(room: NativeRoom, state: RoomManageme
             state.postError(post.id)?.let { RoomNotice(it, true) }
         } },
         confirmButton = { TextButton(onClick = { state.removePost(room, post, reason, onRemoved) },
-            enabled = !busy && NativeRoomCommunityRules.textLength(reason.trim()) in 1..500) { Text(if (busy) "Removing…" else "Remove post") } },
+            enabled = !busy && NativeRoomCommunityRules.textLength(reason.trim()) in 1..500) { Text(if (busy) "Removing…" else "Remove message") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
 }

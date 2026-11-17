@@ -72,6 +72,7 @@ internal fun AuthorizedImage(
     naturalAspectRatio: Boolean = false,
     showFailureFallback: Boolean = true,
     onReady: () -> Unit = {},
+    showFallbackWhileLoading: Boolean = false,
     fallback: @Composable () -> Unit = {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
             Icon(Icons.Rounded.ImageNotSupported, contentDescription = null,
@@ -190,7 +191,7 @@ internal fun AuthorizedImage(
             loading && blurred != null -> Image(blurred.asImageBitmap(), contentDescription = null,
                 contentScale = if (crop) ContentScale.Crop else ContentScale.Fit,
                 modifier = Modifier.fillMaxSize().blur(8.dp))
-            loading -> SautiSkeletonBlock(Modifier.fillMaxSize(), 6.dp)
+            loading -> if (showFallbackWhileLoading) fallback() else SautiSkeletonBlock(Modifier.fillMaxSize(), 6.dp)
             showFailureFallback -> AuthorizedImageFailureContent(failed, retry, fallback = fallback)
         }
     }

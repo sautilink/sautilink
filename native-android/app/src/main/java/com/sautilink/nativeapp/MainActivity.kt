@@ -1,17 +1,23 @@
 package com.sautilink.nativeapp
 
+import android.os.Build
 import android.os.Bundle
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.core.view.WindowCompat
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -38,6 +44,7 @@ import com.sautilink.nativeapp.feature.profile.NativeProfileScreen
 import com.sautilink.nativeapp.feature.posts.NativePostComposer
 import com.sautilink.nativeapp.feature.posts.NativeOwnPostsScreen
 import com.sautilink.nativeapp.feature.settings.NativeSettingsScreen
+import com.sautilink.nativeapp.ui.theme.SautiSettingsTypography
 import com.sautilink.nativeapp.feature.other.NotificationsScreen
 import com.sautilink.nativeapp.feature.notifications.NativeNotificationsScreen
 import com.sautilink.nativeapp.feature.notifications.NativeNotificationsClient
@@ -51,14 +58,18 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.NativeAuthScreen
+import com.sautilink.nativeapp.feature.auth.AuthRequestException
+import com.sautilink.nativeapp.feature.auth.NativeGoogleSignIn
+import com.sautilink.nativeapp.feature.auth.NativeSignInIntro
+import com.sautilink.nativeapp.feature.browser.NativeWebBrowserActivity
 import com.sautilink.nativeapp.feature.auth.SautiStartupSplash
 import com.sautilink.nativeapp.feature.auth.SautiWelcomeOnboarding
 import com.sautilink.nativeapp.feature.auth.NativeRegistrationScreen
 import com.sautilink.nativeapp.feature.auth.NativeRecoveryScreen
+import com.sautilink.nativeapp.feature.auth.NativeRecoveryLink
 import com.sautilink.nativeapp.ui.components.LocalSautiTextNavigation
 import com.sautilink.nativeapp.ui.components.SautiTextNavigation
 import com.sautilink.nativeapp.ui.text.parseTextEntities
-import com.sautilink.nativeapp.ui.text.normalizeExternalUrl
 import com.sautilink.nativeapp.ui.text.TextEntityKind
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import com.sautilink.nativeapp.ui.theme.SautiTheme
@@ -70,32 +81,79 @@ import kotlinx.coroutines.delay
 class MainActivity : ComponentActivity() {
     companion object { const val EXTRA_PUSH_ROUTE = "sautilink_push_route" }
     private var pendingPushRoute by mutableStateOf<String?>(null)
+    private var pendingGoogleCallback by mutableStateOf<Uri?>(null)
+    private var pendingRecoveryNotice by mutableStateOf<String?>(null)
     private var appResumeVersion by mutableIntStateOf(0)
+    private lateinit var playUpdate: NativePlayUpdate
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        NativePushManager.createChannel(this)
+        playUpdate = NativePlayUpdate(this)
         NativePlaybackPreferences.restore(this)
         if (savedInstanceState == null) NativePlaybackPreferences.resetSessionSound()
-        pendingPushRoute = NativePushManager.routeFromIntent(intent)
-        setContent { SautiNativePreview(pendingPushRoute, { pendingPushRoute = null }, appResumeVersion) }
+        acceptIntent(intent)
+        val systemBars = WindowCompat.getInsetsController(window, window.decorView)
+        val normalNavigationContrast = Build.VERSION.SDK_INT >= 29 && window.isNavigationBarContrastEnforced
+        setContent {
+            SautiNativePreview(pendingPushRoute, { pendingPushRoute = null }, appResumeVersion,
+                pendingGoogleCallback, { if (pendingGoogleCallback == it) pendingGoogleCallback = null },
+                pendingRecoveryNotice, { pendingRecoveryNotice = null }) { lightBackground, intro ->
+                systemBars.isAppearanceLightStatusBars = lightBackground
+                systemBars.isAppearanceLightNavigationBars = lightBackground
+                if (Build.VERSION.SDK_INT >= 29) {
+                    window.isNavigationBarContrastEnforced = !intro && normalNavigationContrast
+                }
+            }
+            SautiTheme { playUpdate.UpdateDialog() }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        setIntent(intent)
-        pendingPushRoute = NativePushManager.routeFromIntent(intent)
+        acceptIntent(intent)
         if (BuildConfig.DEBUG) Log.d("SautiPushRoute", "intent accepted=${pendingPushRoute != null}")
     }
 
-    override fun onResume() { super.onResume(); appResumeVersion++ }
+    private fun acceptIntent(intent: Intent?) {
+        val recovery = NativeRecoveryLink.from(intent)
+        if (recovery != null) {
+            setIntent(Intent(intent).setData(null))
+            val url = recovery.browserUrl
+            pendingRecoveryNotice = when {
+                url == null -> "This recovery link is invalid or expired. Enter your email to request a new one."
+                NativeRecoveryLink.openResetPage(this, url) -> null
+                else -> "Could not open password recovery. Check that a browser is available and try the email link again."
+            }
+            return
+        }
+        val callback = NativeGoogleSignIn.callbackFrom(intent)
+        if (callback != null) {
+            pendingGoogleCallback = callback
+            setIntent(Intent(intent).setData(null))
+        } else {
+            setIntent(intent)
+            pendingPushRoute = NativePushManager.routeFromIntent(intent)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        appResumeVersion++
+    }
+
+    override fun onPostResume() {
+        super.onPostResume()
+        playUpdate.check()
+    }
 }
 
 /** Live production feed is the main Home; demo content remains an explicit design sandbox. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: () -> Unit,
-    appResumeVersion: Int) {
+    appResumeVersion: Int, pendingGoogleCallback: Uri?, onGoogleCallbackConsumed: (Uri) -> Unit,
+    pendingRecoveryNotice: String?, onRecoveryNoticeConsumed: () -> Unit,
+    onSystemBarAppearance: (lightBackground: Boolean, intro: Boolean) -> Unit) {
     val context = LocalContext.current
     // Local-only appearance preference. No account API or analytics is involved.
     val themePrefs = remember(context) {
@@ -117,6 +175,19 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     }
     var root by rememberSaveable { mutableStateOf(0) }
     var detail by rememberSaveable { mutableStateOf<String?>(null) }
+    var showLogin by rememberSaveable { mutableStateOf(false) }
+    var recoveryNotice by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(pendingRecoveryNotice) {
+        if (pendingRecoveryNotice != null) {
+            showLogin = true
+            detail = "production-recovery"
+            recoveryNotice = pendingRecoveryNotice
+            onRecoveryNoticeConsumed()
+        }
+    }
+    LaunchedEffect(detail) {
+        if (detail != "production-recovery") recoveryNotice = null
+    }
     var composerOpen by rememberSaveable { mutableStateOf(false) }
     var composerInFlight by remember { mutableStateOf(false) }
     var postDraft by rememberSaveable { mutableStateOf("") }
@@ -167,11 +238,34 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
             context.applicationContext, SautiBackend.PRODUCTION)
     }
     var initialRestoreFinished by remember(productionAuth) { mutableStateOf(false) }
+    val google = remember(context.applicationContext) { NativeGoogleSignIn(context.applicationContext) }
+    var googleBusy by remember { mutableStateOf(false) }
+    var googleMessage by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(pendingGoogleCallback, initialRestoreFinished) {
+        val callback = pendingGoogleCallback ?: return@LaunchedEffect
+        if (!initialRestoreFinished) return@LaunchedEffect
+        googleBusy = true
+        try {
+            if (google.finish(callback, productionAuth)) {
+                if (detail == "production-signup") detail = null
+            }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            if (detail != "production-signup") showLogin = true
+            googleMessage = if (failure is AuthRequestException) failure.message
+                else "Google sign-in couldn't finish. Please try again."
+        } finally {
+            googleBusy = false
+            onGoogleCallbackConsumed(callback)
+        }
+    }
     // A local, per-user welcome choice only. Never persist credentials here.
     val welcomePreferences = remember(context.applicationContext) {
         context.applicationContext.getSharedPreferences("sautilink_native_welcome_v1", Context.MODE_PRIVATE)
     }
     val activeAccountId = productionAuth.account?.id
+    LaunchedEffect(activeAccountId) { if (activeAccountId != null) showLogin = false }
     var homeRequest by remember(activeAccountId) { mutableStateOf<com.sautilink.nativeapp.feature.home.HomeFeedRequest?>(null) }
     DisposableEffect(productionAuth, activeAccountId) {
         onDispose { StagingFeedClient(productionAuth).clearCache() }
@@ -286,8 +380,35 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     fun notice(message: String) { scope.launch { snackbar.showSnackbar(message) } }
+    fun startGoogleSignIn() {
+        if (!productionAuth.configured || productionAuth.sessionState != StagingSessionState.SIGNED_OUT || googleBusy) return
+        googleBusy = true
+        googleMessage = null
+        scope.launch {
+            try {
+                val linkSettings = google.linkSettingsIfNeeded(context)
+                if (linkSettings != null) {
+                    googleMessage = "Allow SautiLink to open sautilink.com in Android settings, then try again."
+                    context.startActivity(linkSettings)
+                } else {
+                    context.startActivity(google.startIntent())
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: android.content.ActivityNotFoundException) {
+                googleMessage = "A browser is needed to continue with Google."
+            } catch (_: Exception) {
+                googleMessage = "Google sign-in couldn't start. Please try again."
+            } finally {
+                googleBusy = false
+            }
+        }
+    }
     fun openMedia(index: Int) { mediaStartIndex = index; previousDetail = detail; detail = "media" }
     fun closeMedia() { detail = previousDetail; previousDetail = null }
+    fun openEntityUrl(value: String) {
+        if (!NativeWebBrowserActivity.open(context, value)) notice("Unable to open this link.")
+    }
     fun openWebsite(section: String) {
         // Only allow official, verified destinations; no arbitrary URL input from content.
         val destination = when (section) {
@@ -296,23 +417,12 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
             in setOf("terms", "community-guidelines", "help", "about", "contact", "privacy") -> "https://sautilink.com/$section"
             else -> return
         }
-        val url = android.net.Uri.parse(destination)
-        runCatching {
-            context.startActivity(Intent(Intent.ACTION_VIEW, url).addCategory(Intent.CATEGORY_BROWSABLE))
-        }.onFailure { notice("Unable to open this page. Try again later.") }
+        openEntityUrl(destination)
     }
     fun openDeviceLanguage() {
         runCatching {
             context.startActivity(Intent(android.provider.Settings.ACTION_LOCALE_SETTINGS))
         }.onFailure { notice("Language settings are unavailable on this device.") }
-    }
-
-    fun openEntityUrl(value: String) {
-        val destination = normalizeExternalUrl(value) ?: return
-        runCatching {
-            context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(destination))
-                .addCategory(Intent.CATEGORY_BROWSABLE))
-        }.onFailure { notice("Unable to open this link on this device.") }
     }
 
     fun toggleTheme() {
@@ -354,9 +464,12 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         entityExploreActive = false
     }
 
-    BackHandler(detail != null || composerOpen || root != 0) {
+    val showingLoginForm = activeAccountId == null && showLogin &&
+        detail !in setOf("production-signup", "production-recovery")
+    BackHandler(detail != null || composerOpen || root != 0 || showingLoginForm) {
         when {
             composerOpen -> if (!composerInFlight) composerOpen = false else notice("Wait for upload to finish")
+            showingLoginForm -> showLogin = false
             detail == "entity-explore" -> closeEntityExplore()
             detail == "media" -> closeMedia()
             detail == "menu" -> detail = null
@@ -386,8 +499,21 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         SautiTextNavigation(onProfile = { currentEntityProfile(it) }, onHashtag = { currentEntityHashtag(it) },
             onUrl = { currentEntityUrl(it) })
     }
+    val uriHandler = remember {
+        object : UriHandler {
+            override fun openUri(uri: String) = currentEntityUrl(uri)
+        }
+    }
+    // Startup and the intro use light system-bar icons over the scene.
+    val showingStartup = startupSplash ||
+        (!initialRestoreFinished && productionAuth.sessionState == StagingSessionState.CHECKING)
+    val showingAuthIntro = !showingStartup && activeAccountId == null && !showLogin &&
+        productionAuth.configured && productionAuth.sessionState == StagingSessionState.SIGNED_OUT &&
+        detail !in setOf("production-signup", "production-recovery")
+    SideEffect { onSystemBarAppearance(!showingStartup && !showingAuthIntro && !isDark, showingAuthIntro) }
     SautiTheme(darkTheme = isDark) {
       CompositionLocalProvider(LocalSautiTextNavigation provides textNavigation,
+          LocalUriHandler provides uriHandler,
           com.sautilink.nativeapp.ui.components.LocalNativePlaybackBlocked provides composerOpen,
           LocalNativeStoryPresence provides NativeStoryPresence(
               storiesFeed.activeGroups(storiesClock).map { it.author.username }.toSet(),
@@ -395,24 +521,33 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         when {
             // Keep the auth screen mounted during a later Retry session. Replacing it
             // with splash cancels its remembered coroutine scope and aborts the retry.
-            startupSplash || (!initialRestoreFinished &&
-                productionAuth.sessionState == StagingSessionState.CHECKING) -> {
+            showingStartup -> {
                 SautiStartupSplash()
             }
+            showingAuthIntro -> NativeSignInIntro(
+                onCreateAccount = { detail = "production-signup" },
+                onLogin = { showLogin = true }
+            )
             productionAuth.account == null -> {
                 when (detail) {
                     "production-signup" -> NativeRegistrationScreen(
                         client = productionAuth,
-                        onBack = { detail = "production-auth" },
-                        onFinished = { detail = null; root = 0 })
+                        onBack = { detail = null; googleMessage = null },
+                        onFinished = { detail = null; root = 0 },
+                        onLogin = { detail = null; showLogin = true; googleMessage = null },
+                        onGoogle = ::startGoogleSignIn,
+                        googleBusy = googleBusy, googleMessage = googleMessage)
                     "production-recovery" -> NativeRecoveryScreen(client = productionAuth,
+                        recoveryNotice = recoveryNotice,
                         onBack = { detail = "production-auth" })
                     else -> NativeAuthScreen(client = productionAuth,
-                        onBack = { detail = "production-auth" },
+                        onBack = { showLogin = false; detail = null; googleMessage = null },
                         onViewProfile = { detail = "production-auth" },
-                        onRegister = { detail = "production-signup" },
+                        onRegister = { detail = "production-signup"; googleMessage = null },
                         onRecovery = { detail = "production-recovery" },
-                        isEntry = true,
+                        isEntry = !showLogin,
+                        onGoogle = ::startGoogleSignIn,
+                        googleBusy = googleBusy, googleMessage = googleMessage,
                         onBeforeSignOut = { NativePushManager.unregister(context, productionAuth) })
                 }
             }
@@ -480,7 +615,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onSignIn = { detail = "production-auth" },
                         onOpenProfile = ::openEntityProfile,
                         onOpenPost = { id -> notificationPostId = id; postReturn = "entity-explore"; detail = "post" })
-                    "settings" -> NativeSettingsScreen(
+                    "settings" -> SautiSettingsTypography { NativeSettingsScreen(
                         auth = productionAuth,
                         focusPrivacy = settingsPrivacyFocus,
                         isDark = isDark,
@@ -506,12 +641,15 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                                 postsRefresh++
                             }
                         }
-                    )
+                    ) }
                     "verification" -> NativeVerificationScreen(
                         auth = productionAuth,
                         onBack = { detail = "menu" }
                     )
-                    "marketplace" -> NativeMarketplaceScreen(onBack = { detail = null })
+                    "marketplace" -> NativeMarketplaceScreen(onBack = {
+                        detail = if (menuEntryDestination == "marketplace") "menu" else null
+                        menuEntryDestination = null
+                    })
                     "stories" -> NativeStoriesScreen(auth = productionAuth,
                         onBack = { detail = storyReturn; storyDeepId = null; storyProfile = null },
                         onSignIn = { detail = "production-auth" }, initialStoryId = storyDeepId,
@@ -530,11 +668,11 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             if (productionAuth.account == null) detail = "production-auth"
                             else { detail = null; root = 4 }
                         },
-                        onRooms = {
-                            menuEntryDestination = "rooms"
-                            notificationRoomSlug = null
-                            detail = "rooms"
+                        onMarketplace = {
+                            menuEntryDestination = "marketplace"
+                            detail = "marketplace"
                         },
+                        onLive = { notice("Live · Coming soon") },
                         onSaved = {
                             detail = null
                             root = 0
@@ -562,9 +700,13 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onSignOut = {
                             scope.launch {
                                 runCatching { NativePushManager.unregister(context, productionAuth) }
-                                runCatching { productionAuth.signOut() }
-                                    .onSuccess { detail = null; root = 0; notice("Signed out") }
-                                    .onFailure { notice("Could not complete sign out. Try again.") }
+                                runCatching {
+                                    productionAuth.signOut {
+                                        detail = null
+                                        root = 0
+                                        Toast.makeText(context, "Signed out", Toast.LENGTH_SHORT).show()
+                                    }
+                                }.onFailure { notice("Could not complete sign out. Try again.") }
                             }
                         }
                     )
@@ -574,12 +716,17 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onRecovery = { detail = "production-recovery" },
                         onBeforeSignOut = { NativePushManager.unregister(context, productionAuth) })
                     "production-signup" -> NativeRegistrationScreen(client = productionAuth,
-                        onBack = { detail = "production-auth" },
-                        onFinished = { detail = null; root = 0 })
+                        onBack = { detail = null; googleMessage = null },
+                        onFinished = { detail = null; root = 0 },
+                        onLogin = { detail = null; showLogin = true; googleMessage = null },
+                        onGoogle = ::startGoogleSignIn,
+                        googleBusy = googleBusy, googleMessage = googleMessage)
                     "production-recovery" -> NativeRecoveryScreen(client = productionAuth,
+                        recoveryNotice = recoveryNotice,
                         onBack = { detail = "production-auth" })
                     "dashboard" -> NativeDashboardScreen(auth = productionAuth,
                         onBack = { detail = dashboardReturn },
+                        storyQuota = storiesFeed.quota,
                         onOpenPost = { id -> notificationPostId = id; postReturn = "dashboard"; detail = "post" })
                     "production-profile" -> NativeProfileScreen(auth = productionAuth,
                         onOpenStories = { handle -> storyProfile = handle; storyDeepId = null; storyReturn = "production-profile"; detail = "stories" },
@@ -612,7 +759,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onOpenPost = { id -> notificationPostId = id; postReturn = "notifications"; detail = "post" },
                         onOpenStory = { id -> storyDeepId = id; storyProfile = null; storyReturn = "notifications"; detail = "stories" },
                         onOpenInbox = { detail = null; root = 3 })
-                    "post" -> NativePostDetailScreen(auth = productionAuth, postId = notificationPostId,
+                    "post" -> NativePostDetailScreen(auth = productionAuth, requestedPostId = notificationPostId,
                         onBack = { detail = postReturn }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle ->
                             viewedProfileHandle = handle; memberProfileReturn = "post"; detail = "member-profile"
@@ -643,7 +790,6 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             requestedFeed = homeRequest,
                             onFeedRequestConsumed = { consumed -> if (homeRequest === consumed) homeRequest = null },
                             onOpenMenu = { detail = "menu" },
-                            onOpenMarketplace = { detail = "marketplace" },
                             onOpenStories = { storyReturn = null; storyDeepId = null; storyProfile = null; detail = "stories" },
                             unseenStories = storiesFeed.unreadCount(activeAccountId, storiesClock),
                             onOpenNotifications = { menuEntryDestination = null; detail = "notifications" },
@@ -686,7 +832,6 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             requestedFeed = homeRequest,
                             onFeedRequestConsumed = { consumed -> if (homeRequest === consumed) homeRequest = null },
                             onOpenMenu = { detail = "menu" },
-                            onOpenMarketplace = { detail = "marketplace" },
                             onOpenStories = { storyReturn = null; storyDeepId = null; storyProfile = null; detail = "stories" },
                             unseenStories = storiesFeed.unreadCount(activeAccountId, storiesClock),
                             onOpenNotifications = { menuEntryDestination = null; detail = "notifications" },

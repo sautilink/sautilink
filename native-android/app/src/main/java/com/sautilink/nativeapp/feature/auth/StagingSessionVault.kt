@@ -11,16 +11,18 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /**
- * Stores ONLY the environment-specific refresh token; it is AES-GCM encrypted with a non-exportable
- * Android Keystore key. Never log tokens or enable cloud backup for this preview app.
+ * Stores one environment- and purpose-specific secret, encrypted with a non-exportable Android
+ * Keystore key. The refresh token and an in-flight Google verifier use separate entries.
  * All operations are synchronous and should be called from Dispatchers.IO.
  */
-internal class StagingSessionVault(context: Context, backend: SautiBackend = SautiBackend.STAGING) {
+internal class StagingSessionVault(
+    context: Context, backend: SautiBackend = SautiBackend.STAGING, purpose: String = "refresh"
+) {
     private val prefs = context.applicationContext.getSharedPreferences(
         "sautilink_${backend.id}_secure_session_v1", Context.MODE_PRIVATE
     )
-    private val keyAlias = "sautilink_${backend.id}_refresh_aes_v1"
-    private val preferenceName = "refresh_ciphertext_v1"
+    private val keyAlias = "sautilink_${backend.id}_${purpose}_aes_v1"
+    private val preferenceName = "${purpose}_ciphertext_v1"
 
     private fun keystoreKey(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }

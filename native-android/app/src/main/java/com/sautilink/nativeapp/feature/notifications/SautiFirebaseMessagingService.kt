@@ -24,7 +24,7 @@ class SautiFirebaseMessagingService : FirebaseMessagingService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         if (!NativePushManager.permissionGranted(this)) return
-        NativePushManager.createChannel(this)
+        val tone = NativePushSound.forType(message.data["type"])
         val route = NativePushManager.safeRoute(message.data["route"]) ?: "/notifications"
         val copy = nativePushCopy(message.data, message.notification?.title, message.notification?.body)
         val intent = Intent(this, MainActivity::class.java)
@@ -33,7 +33,7 @@ class SautiFirebaseMessagingService : FirebaseMessagingService() {
         val id = (System.currentTimeMillis() and 0x7fffffff).toInt()
         val pending = PendingIntent.getActivity(this, id, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val notification = NotificationCompat.Builder(this, NativePushManager.CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, tone.channelId)
             .setSmallIcon(R.drawable.ic_stat_sautilink)
             .setContentTitle(copy.title).setContentText(copy.body)
             .setContentIntent(pending).setAutoCancel(true)

@@ -29,7 +29,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.sautilink.nativeapp.feature.auth.SautiBackend
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.home.HomeFeedTabs
-import com.sautilink.nativeapp.feature.marketplace.MarketplaceButton
+import com.sautilink.nativeapp.feature.home.RoomsHomeShortcut
 import com.sautilink.nativeapp.feature.marketplace.NativeMarketplaceScreen
 import com.sautilink.nativeapp.feature.menu.NativeMenuScreen
 import com.sautilink.nativeapp.ui.theme.SautiTheme
@@ -147,17 +147,17 @@ class NativeHomeMarketplaceTest {
         screenshot("home-tabs-light-320-font150")
     }
 
-    @Test fun productionTabsInFixedHeader_fixtureFeedScrollLeavesTabsAndMarketplaceVisible() {
-        var marketplaceOpens = 0
+    @Test fun productionTabsInFixedHeader_fixtureFeedScrollLeavesTabsAndRoomsVisible() {
+        var roomsOpens = 0
         // This is explicitly a placement fixture: the real HomeFeedTabs and
-        // MarketplaceButton sit above a fixture feed in Scaffold's fixed header.
+        // RoomsHomeShortcut sit above a fixture feed in Scaffold's fixed header.
         // It does not restore auth or claim to render the network-backed Home screen.
         compose.setContent { Frame {
             var mode by remember { mutableStateOf("for_you") }
             Scaffold(topBar = {
                 Column {
                     TopAppBar(title = { Text("SautiLink") }, actions = {
-                        MarketplaceButton { marketplaceOpens++ }
+                        RoomsHomeShortcut { roomsOpens++ }
                     })
                     HomeFeedTabs(mode, { mode = it }, Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
                 }
@@ -176,8 +176,8 @@ class NativeHomeMarketplaceTest {
         assertEquals("Fixed tabs retain their vertical position after feed scrolling", before.top, after.top, 1f)
         compose.onNodeWithText("Following").assertIsDisplayed()
         compose.onNodeWithText("Trending").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Marketplace").assertIsDisplayed().performTouchInput { click(center) }
-        compose.runOnIdle { assertEquals(1, marketplaceOpens) }
+        compose.onNodeWithContentDescription("Rooms").assertIsDisplayed().performTouchInput { click(center) }
+        compose.runOnIdle { assertEquals(1, roomsOpens) }
         screenshot("home-fixed-header-fixture-390-scrolled")
     }
 
@@ -207,13 +207,21 @@ class NativeHomeMarketplaceTest {
     @Test fun nativeMenu_appealsUsesNativeCallback_andOtherProductsKeepTheirExactKeys() {
         val auth = signedOutFixture()
         var appeals = 0
+        var marketplace = 0
+        var live = 0
         val websites = mutableListOf<String>()
         compose.setContent { Frame(width = 320, fontScale = 1.5f) {
-            NativeMenuScreen(auth = auth, isDark = false, onBack = {}, onProfile = {}, onRooms = {},
+            NativeMenuScreen(auth = auth, isDark = false, onBack = {}, onProfile = {},
+                onMarketplace = { marketplace++ }, onLive = { live++ },
                 onSaved = {}, onNotifications = {}, onSettings = {}, onVerification = {},
                 onPrivacy = {}, onLanguage = {}, onAppeals = { appeals++ },
                 onWebsite = { websites += it }, onToggleTheme = {}, onSignOut = {})
         } }
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Marketplace"))
+        compose.onNodeWithText("Marketplace").assertIsDisplayed().performClick()
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Live"))
+        compose.onNodeWithText("Live").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(1, marketplace); assertEquals(1, live) }
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Appeals"))
         compose.onNodeWithText("Appeals").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(1, appeals); assertTrue(websites.isEmpty()) }

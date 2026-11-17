@@ -100,6 +100,7 @@ internal class NativeProfileActivityClient(private val auth: StagingAuthClient) 
                     saved = p.optBoolean("viewer_saved"),
                     reposted = p.optBoolean("viewer_reposted"),
                     pinned = p.optBoolean("is_pinned") || p.opt("pin_position") !in arrayOf(null, JSONObject.NULL),
+                    isComment = tab == "replies" || (!p.isNull("parent_post_id") && p.optString("parent_post_id").isNotBlank()),
                     media = (0 until m.length()).mapNotNull { idx ->
                         val media = m.optJSONObject(idx) ?: return@mapNotNull null
                         val kind = media.optString("kind")
@@ -144,7 +145,7 @@ internal data class ProfileActivityEntry(
     val hasAvatar: Boolean, val verified: Boolean, val badgeType: String,
     val body: String, val postedAt: String, val likes: Int, val comments: Int,
     val reposts: Int, val liked: Boolean, val saved: Boolean, val reposted: Boolean,
-    val pinned: Boolean, val media: List<FeedMedia>
+    val pinned: Boolean, val media: List<FeedMedia>, val isComment: Boolean = false
 )
 internal data class ProfileHashtag(val label: String, val count: Int)
 internal data class ProfileActivityFeed(val entries: List<ProfileActivityEntry>, val hashtags: List<ProfileHashtag>)

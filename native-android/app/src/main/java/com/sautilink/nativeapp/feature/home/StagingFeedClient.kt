@@ -203,7 +203,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
         return withContext(Dispatchers.IO) {
             val owner = auth.account?.id
             val stamp = cache.readStamp(auth.backend.id, owner, "for_you")
-            val post = getJsonArray("social_posts?id=eq.$postId&select=id,author_id,circle_id,body,created_at,like_count,comment_count,repost_count,media_count&limit=1", token)
+            val post = getJsonArray("social_posts?id=eq.$postId&circle_id=is.null&select=id,author_id,body,created_at,like_count,comment_count,repost_count,media_count&limit=1", token)
                 .optJSONObject(0) ?: return@withContext null
             val authorId = post.optString("author_id")
             val author = if (uuid.matches(authorId)) getJsonArray(

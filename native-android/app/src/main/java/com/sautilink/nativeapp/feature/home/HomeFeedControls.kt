@@ -24,6 +24,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import com.sautilink.nativeapp.ui.components.SautiIcon
 import com.sautilink.nativeapp.ui.theme.SautiColors
 import com.sautilink.nativeapp.ui.theme.SautiShape
+import com.sautilink.nativeapp.ui.theme.sautiChromeInk
 
 internal val homeFeedChoices = listOf("following" to "Following", "for_you" to "For You", "trending" to "Trending")
 
@@ -45,8 +46,7 @@ internal fun HomeFeedTabs(mode: String, onSelect: (String) -> Unit, modifier: Mo
                     Text(title, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelLarge,
                         fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
                         textAlign = TextAlign.Center, maxLines = 2,
-                        color = if (active) MaterialTheme.colorScheme.onSurface
-                            else MaterialTheme.colorScheme.onSurfaceVariant)
+                        color = sautiChromeInk())
                 }
             }
         }

@@ -14,6 +14,7 @@ import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import com.sautilink.nativeapp.ui.theme.SautiHeaderFont
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
@@ -107,7 +108,7 @@ fun NativeVerificationScreen(auth: StagingAuthClient, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
-            Text("Verification", style = MaterialTheme.typography.headlineSmall,
+            Text("Verification", fontFamily = SautiHeaderFont, style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             Icon(Icons.Rounded.VerifiedUser, null, tint = MaterialTheme.colorScheme.primary)
         }

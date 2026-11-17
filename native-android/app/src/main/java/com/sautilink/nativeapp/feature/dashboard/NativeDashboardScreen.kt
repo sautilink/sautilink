@@ -1,272 +1,152 @@
 package com.sautilink.nativeapp.feature.dashboard
 
+import android.icu.text.CompactDecimalFormat
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
-import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import com.sautilink.nativeapp.ui.theme.SautiHeaderFont
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
-import com.sautilink.nativeapp.feature.home.relativePostTime
-import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
-import com.sautilink.nativeapp.ui.theme.SautiColors
+import com.sautilink.nativeapp.feature.stories.NativeStoryPolicy
+import com.sautilink.nativeapp.feature.stories.NativeStoryQuota
+import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import kotlinx.coroutines.CancellationException
-import java.time.LocalDate
 import java.text.NumberFormat
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.Locale
-import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
-private data class DashboardMetric(
-    val title: String, val id: String, val icon: ImageVector,
-    val value: Long, val previous: Long, val explanation: String
+private val dashboardRanges = listOf(28 to "28 days", 7 to "7 days", 1 to "Today")
+
+internal enum class DashboardMetric(val title: String, val description: String, val value: (CreatorDaily) -> Long) {
+    VIEWS("Views", "Recorded meaningful views of your posts.", { it.views }),
+    ENGAGEMENT("Engagement", "Recorded reactions, reposts and replies.", { it.engagement }),
+    FOLLOWS("Net followers", "Followers gained minus followers lost.", { it.netFollows }),
+}
+
+private data class DashboardPalette(
+    val dark: Boolean, val background: Color, val card: Color, val rim: Color,
+    val ink: Color, val muted: Color, val selection: Color, val accent: Color,
+    val positive: Color, val negative: Color,
 )
 
-private fun metricTotals(rows: List<CreatorDaily>, name: String): Long = when (name) {
-    "views" -> rows.sumOf { it.views }
-    "engagement" -> rows.sumOf { it.engagement }
-    "follows" -> rows.sumOf { it.netFollows }
-    else -> rows.sumOf { it.profileVisits }
+@Composable
+private fun dashboardPalette(): DashboardPalette {
+    val dark = MaterialTheme.colorScheme.background.luminance() < .35f
+    return if (dark) DashboardPalette(true, Color(0xFF252627), Color(0xFF333334), Color(0xFF494A4C),
+        Color(0xFFF5F6F7), Color(0xFFBDBEC1), Color(0xFF233A50), Color(0xFF82B8EF),
+        Color(0xFF76C47D), Color(0xFFFF8A94))
+    else DashboardPalette(false, Color.White, Color(0xFFF6F7F9), Color(0xFFDDDFE4),
+        Color(0xFF141517), Color(0xFF51555C), Color(0xFFDDEEFF), Color(0xFF155C9D),
+        Color(0xFF206E39), Color(0xFFAA2939))
 }
 
 @Composable
-fun NativeDashboardScreen(
-    auth: StagingAuthClient, onBack: () -> Unit,
-    onOpenPost: (String) -> Unit
+internal fun NativeDashboardScreen(
+    auth: StagingAuthClient, onBack: () -> Unit, onOpenPost: (String) -> Unit,
+    storyQuota: NativeStoryQuota? = null,
 ) {
+    val accountId = auth.account?.id
     val client = remember(auth) { CreatorAnalyticsClient(auth) }
-    var window by remember { mutableIntStateOf(28) }
-    var tab by remember { mutableStateOf("insights") }
-    var selectedMetric by remember { mutableStateOf("views") }
-    var data by remember(auth.account?.id, window) { mutableStateOf<CreatorAnalytics?>(null) }
-    var loading by remember(auth.account?.id) { mutableStateOf(auth.account != null) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var window by rememberSaveable(accountId) { mutableIntStateOf(28) }
+    var data by remember(accountId) { mutableStateOf<CreatorAnalytics?>(null) }
+    var loadedWindow by remember(accountId) { mutableIntStateOf(0) }
+    var loading by remember(accountId) { mutableStateOf(accountId != null) }
+    var error by remember(accountId) { mutableStateOf<String?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
-    var analyticsInfo by remember { mutableStateOf(false) }
-    LaunchedEffect(auth.account?.id, window, refresh) {
-        if (auth.account == null) { data = null; return@LaunchedEffect }
+    var analytics by rememberSaveable(accountId) { mutableStateOf<DashboardMetric?>(null) }
+    var monetisation by rememberSaveable(accountId) { mutableStateOf(false) }
+    LaunchedEffect(accountId, window, refresh) {
+        if (accountId == null) return@LaunchedEffect
         loading = true
         error = null
-        try { data = client.load(window) }
-        catch (cancelled: CancellationException) { throw cancelled }
-        catch (e: Exception) {
-            error = e.message ?: "Dashboard analytics could not be loaded."
-        } finally { loading = false }
+        try {
+            data = client.load(window)
+            loadedWindow = window
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (failure: Exception) { error = failure.message ?: "Dashboard analytics could not be loaded." }
+        finally { loading = false }
     }
-    val lightBackground = MaterialTheme.colorScheme.background
-    val today = LocalDate.now()
-    val daily = remember(data, window, today) {
-        val byDay = data?.days.orEmpty().associateBy { it.day }
-        (window * 2 - 1 downTo 0).map { offset ->
-            byDay[today.minusDays(offset.toLong())] ?: CreatorDaily(
-                today.minusDays(offset.toLong()), 0, 0, 0, 0, 0)
-        }
+
+    val colors = dashboardPalette()
+    val ready = data.takeIf { loadedWindow == window }
+    val today = LocalDate.now(ZoneOffset.UTC)
+    if (analytics != null && ready != null) {
+        DashboardMetricDialog(requireNotNull(analytics), statsDays(ready.days, window, today), window,
+            onDismiss = { analytics = null })
     }
-    val metrics = remember(daily, window) {
-        val prior = daily.take(window)
-        val recent = daily.takeLast(window)
-        listOf(
-            DashboardMetric("Views", "views", Icons.Rounded.Visibility,
-                metricTotals(recent, "views"), metricTotals(prior, "views"),
-                "Unique meaningful views of your posts."),
-            DashboardMetric("Engagement", "engagement", Icons.Rounded.ChatBubbleOutline,
-                metricTotals(recent, "engagement"), metricTotals(prior, "engagement"),
-                "Reactions, reposts and replies."),
-            DashboardMetric("Net follows", "follows", Icons.Rounded.PersonAdd,
-                metricTotals(recent, "follows"), metricTotals(prior, "follows"),
-                "Follows gained minus follows lost."),
-            DashboardMetric("Profile visits", "visits", Icons.Rounded.RemoveRedEye,
-                metricTotals(recent, "visits"), metricTotals(prior, "visits"),
-                "Unique signed-in visitors per day.")
-        )
-    }
-    if (analyticsInfo) AlertDialog(onDismissRequest = { analyticsInfo = false },
-        title = { Text("About these insights") },
-        text = { Text("Profile visits and follow-change history start from this analytics dashboard's launch; older values are not estimated. Content statistics use recorded SautiLink views and engagement.") },
-        confirmButton = { TextButton(onClick = { analyticsInfo = false }) { Text("Close") } })
-    Column(Modifier.fillMaxSize().background(lightBackground)) {
-        Row(
-            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
-                .padding(horizontal = 10.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
+    BackHandler(monetisation) { monetisation = false }
+    Column(Modifier.fillMaxSize().background(colors.background)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = if (monetisation) ({ monetisation = false }) else onBack) {
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back", tint = colors.ink)
             }
-            Spacer(Modifier.width(8.dp))
-            Text("Dashboard", style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            IconButton(onClick = { refresh++ }, enabled = !loading) {
-                Icon(Icons.Rounded.Refresh, "Refresh dashboard")
+            Text(if (monetisation) "Monetisation" else "Dashboard", Modifier.weight(1f), fontFamily = SautiHeaderFont,
+                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = colors.ink)
+            if (!monetisation) IconButton(onClick = { refresh++ }, enabled = accountId != null && !loading) {
+                Icon(Icons.Rounded.Refresh, "Refresh dashboard", tint = colors.ink.copy(alpha = if (loading) .45f else 1f))
             }
         }
-        Row(
-            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
-                .horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            listOf("insights" to "Insights", "monetisation" to "Monetisation").forEach { (key, label) ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    TextButton(onClick = { tab = key }) {
-                        Icon(if (key == "insights") Icons.Rounded.TrendingUp else Icons.Rounded.AttachMoney,
-                            null, Modifier.size(19.dp), tint = if (tab == key) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant, selected = tab == key)
-                        Spacer(Modifier.width(7.dp))
-                        Text(label, color = if (tab == key) MaterialTheme.colorScheme.onSurface
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.titleSmall)
-                        if (key == "monetisation") {
-                            Spacer(Modifier.width(5.dp))
-                            ComingSoonBadge()
-                        }
-                    }
-                    Spacer(Modifier.width(80.dp).height(3.dp)
-                        .background(if (tab == key) MaterialTheme.colorScheme.primary else
-                            MaterialTheme.colorScheme.surface))
-                }
-            }
-        }
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (tab == "monetisation") {
-                item {
-                    Column(Modifier.fillMaxWidth().padding(top = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        Text("Programmes", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text("Creator monetisation is coming soon. Programme eligibility, earnings and payouts are not available yet.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
+        if (loading && !monetisation) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 26.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            if (monetisation) {
+                item { Text("Creator monetisation and payouts are coming soon.", color = colors.muted) }
                 items(creatorProgrammes, key = { it.title }) { programme -> CreatorProgrammeCard(programme) }
             } else {
                 item {
-                    DashboardSectionHeading("Analytics", Icons.Rounded.TrendingUp)
-                    Spacer(Modifier.height(8.dp))
-                    Row(Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(28 to "28 days", 7 to "7 days", 90 to "90 days").forEach { (days, title) ->
-                            FilterChip(
-                                selected = window == days,
-                                onClick = { window = days },
-                                label = { Text(title) },
-                                leadingIcon = { Icon(Icons.Rounded.CalendarToday, null, Modifier.size(17.dp),
-                                    selected = window == days) },
-                                shape = RoundedCornerShape(25.dp)
-                            )
-                        }
-                    }
+                    CreatorDashboardOverview(data, loadedWindow == window, storyQuota, window, today,
+                        onWindow = { window = it; analytics = null }, onMetric = { analytics = it },
+                        onEarnings = { monetisation = true })
                 }
-                if (loading && data == null) {
-                    items(4) { SautiExploreSkeleton() }
-                }
-                if (error != null) {
-                    item {
-                        Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
-                        TextButton(onClick = { refresh++ }) { Text("Try again") }
+                if (error != null || accountId == null) item {
+                    Column {
+                        Text(error ?: "Sign in to view your analytics.", color = colors.muted)
+                        if (accountId != null) TextButton(onClick = { refresh++ }) { Text("Try again") }
                     }
                 }
                 if (data != null) {
                     item {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                DashboardSectionHeading("Insights", Icons.Rounded.Visibility)
-                                Spacer(Modifier.weight(1f))
-                                IconButton(onClick = { analyticsInfo = true }) {
-                                    Icon(Icons.Rounded.Info, "About dashboard insights", Modifier.size(21.dp))
-                                }
-                            }
-                            Text("See how your profile and content are performing with live SautiLink data.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        Text("Content", style = MaterialTheme.typography.titleLarge,
+                            color = colors.ink, fontWeight = FontWeight.Bold)
                     }
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            metrics.chunked(2).forEach { group ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    group.forEach { metric ->
-                                        DashboardMetricTile(metric, selectedMetric == metric.id,
-                                            Modifier.weight(1f)) { selectedMetric = metric.id }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    item {
-                        val color = MaterialTheme.colorScheme.primary
-                        val lastDays = daily.takeLast(window)
-                        val values = lastDays.map { entry ->
-                            when (selectedMetric) {
-                                "views" -> entry.views
-                                "engagement" -> entry.engagement
-                                "follows" -> entry.netFollows
-                                else -> entry.profileVisits
-                            }
-                        }
-                        Surface(
-                            color = MaterialTheme.colorScheme.surface,
-                            shape = RoundedCornerShape(18.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                        ) {
-                            Column(Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                val currentMetric = metrics.firstOrNull { it.id == selectedMetric }
-                                DashboardSectionHeading(currentMetric?.title ?: "Views",
-                                    currentMetric?.icon ?: Icons.Rounded.Visibility)
-                                Canvas(Modifier.fillMaxWidth().height(132.dp)) {
-                                    if (values.size > 1) {
-                                        val min = minOf(0L, values.minOrNull() ?: 0L)
-                                        val max = maxOf(1L, values.maxOrNull() ?: 0L)
-                                        val span = (max - min).toFloat().coerceAtLeast(1f)
-                                        val path = Path()
-                                        values.forEachIndexed { index, v ->
-                                            val px = index * size.width / (values.size - 1)
-                                            val py = (1f - (v - min).toFloat() / span) * size.height
-                                            if (index == 0) path.moveTo(px, py)
-                                            else path.lineTo(px, py)
-                                        }
-                                        drawPath(path, color, style = Stroke(width = 3.dp.toPx()))
-                                    }
-                                }
-                                Text("Daily activity over the last $window days",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-                    item {
-                        DashboardSectionHeading("Content", Icons.Rounded.Article)
-                        Text("Top posts ranked by real views and engagement",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    if (data?.topContent.isNullOrEmpty()) {
-                        item { Text("No recent content to show.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    if (data?.topContent.isNullOrEmpty()) item {
+                        Text("No recent posts to show.", color = colors.muted, style = MaterialTheme.typography.bodyMedium)
                     }
                     items(data?.topContent.orEmpty(), key = { it.id }) { post ->
                         CreatorContentCard(auth, post) { onOpenPost(post.id) }
@@ -277,56 +157,172 @@ fun NativeDashboardScreen(
     }
 }
 
-@Composable
-private fun DashboardMetricTile(
-    metric: DashboardMetric, selected: Boolean,
-    modifier: Modifier = Modifier, onSelect: () -> Unit
-) {
-    val delta = if (metric.previous == 0L) {
-        if (metric.value == 0L) "0%" else "New"
-    } else {
-        val pct = ((metric.value - metric.previous) * 100.0 / kotlin.math.abs(metric.previous))
-            .roundToInt()
-        (if (pct > 0) "+" else "") + "$pct%"
+internal fun statsDays(rows: List<CreatorDaily>, window: Int, today: LocalDate): List<CreatorDaily> {
+    val byDay = rows.associateBy { it.day }
+    return (window * 2 - 1 downTo 0).map { offset ->
+        val date = today.minusDays(offset.toLong())
+        byDay[date] ?: CreatorDaily(date, 0, 0, 0, 0, 0)
     }
-    Surface(
-        modifier = modifier.heightIn(min = 142.dp),
-        onClick = onSelect,
-        shape = RoundedCornerShape(18.dp),
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = .45f)
-            else MaterialTheme.colorScheme.surface,
-        border = BorderStroke(if (selected) 1.5.dp else 1.dp,
-            if (selected) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(metric.icon, contentDescription = null, modifier = Modifier.size(18.dp),
-                    tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    selected = selected)
-                Text(metric.title, style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.weight(1f),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+@Composable
+internal fun CreatorDashboardOverview(data: CreatorAnalytics?, periodReady: Boolean, storyQuota: NativeStoryQuota?,
+    window: Int, today: LocalDate, onWindow: (Int) -> Unit, onMetric: (DashboardMetric) -> Unit, onEarnings: () -> Unit) {
+    val colors = dashboardPalette()
+    val daily = data?.takeIf { periodReady }?.let { statsDays(it.days, window, today) }
+    val weeklyReception = data?.days?.filter { it.day in today.minusDays(6)..today }?.sumOf { it.engagement }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth().padding(top = 3.dp, bottom = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            ActivityRing("Posts", "Posts in the last 7 days", Icons.Rounded.Article,
+                data?.weeklyPosts, 7, Color(0xFF438FDE), Color(0xFFE5F1FF), Modifier.weight(1f))
+            ActivityRing("Stories", "Stories used from the current daily allowance", Icons.Rounded.AutoStories,
+                storyQuota?.takeIf { it.resetsAt.isNotBlank() }?.let { it.imagesUsed.toLong() + it.videosUsed },
+                NativeStoryPolicy.MAX_IMAGES_PER_DAY + NativeStoryPolicy.MAX_VIDEOS_PER_DAY,
+                Color(0xFFF18A29), Color(0xFFFFF0E0), Modifier.weight(1f))
+            ActivityRing("Reception", "Engagements in the last 7 days", Icons.Rounded.SentimentSatisfiedAlt,
+                weeklyReception, 10, Color(0xFFDB60D3), Color(0xFFFCEBFB), Modifier.weight(1f))
+        }
+        Row(Modifier.heightIn(min = 44.dp).clickable(enabled = daily != null, role = Role.Button) { onMetric(DashboardMetric.VIEWS) },
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text("Analytics", fontFamily = SautiHeaderFont, style = MaterialTheme.typography.titleLarge, color = colors.ink, fontWeight = FontWeight.Bold)
+            Icon(Icons.Rounded.ChevronRight, null, Modifier.size(20.dp), tint = colors.muted)
+        }
+        Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            dashboardRanges.forEach { (days, label) ->
+                val selected = days == window
+                Surface(shape = CircleShape, color = if (selected) colors.selection else Color.Transparent,
+                    modifier = Modifier.weight(1f, fill = false).heightIn(min = 44.dp)
+                        .selectable(selected, role = Role.Tab) { onWindow(days) }) {
+                    Box(Modifier.padding(horizontal = 12.dp, vertical = 9.dp), contentAlignment = Alignment.Center) {
+                        Text(label, textAlign = TextAlign.Center, style = MaterialTheme.typography.titleSmall,
+                            color = if (selected) colors.accent else colors.ink,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+                    }
+                }
             }
-            Text(NumberFormat.getIntegerInstance(Locale.getDefault()).format(metric.value),
-                style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text(delta,
-                color = if (metric.value > metric.previous) Color(0xFF169C64)
-                    else if (metric.value < metric.previous) SautiColors.Red
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-            Text(metric.explanation, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 3, overflow = TextOverflow.Ellipsis)
+        }
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(top = 1.dp)) {
+            val twoColumns = maxWidth / LocalDensity.current.fontScale >= 282.dp
+            val tiles = listOf(DashboardMetric.VIEWS, null, DashboardMetric.ENGAGEMENT, DashboardMetric.FOLLOWS)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                tiles.chunked(if (twoColumns) 2 else 1).forEach { group ->
+                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        group.forEach { metric ->
+                            val value = metric?.let { key -> daily?.takeLast(window)?.sumOf(key.value) }
+                            val previous = metric?.let { key -> daily?.take(window)?.sumOf(key.value) }
+                            DashboardTile(metric?.title ?: "Approximate earnings", value, previous,
+                                earnings = metric == null, modifier = Modifier.weight(1f).fillMaxHeight(),
+                                onClick = if (metric == null) onEarnings else ({ if (daily != null) onMetric(metric) }))
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun DashboardSectionHeading(title: String, icon: ImageVector) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(icon, null, Modifier.size(21.dp), tint = MaterialTheme.colorScheme.primary)
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+private fun ActivityRing(label: String, description: String, icon: ImageVector, count: Long?,
+    target: Int, fill: Color, track: Color, modifier: Modifier = Modifier) {
+    val colors = dashboardPalette()
+    val display = count?.let { "${formatDashboardNumber(it)}/$target" } ?: "—"
+    val progress = count?.let { (it.toFloat() / target).coerceIn(0f, 1f) } ?: 0f
+    Column(modifier.semantics(mergeDescendants = true) { contentDescription = "$description, $display" },
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Box(Modifier.size(69.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val stroke = 5.5.dp.toPx()
+                val inset = Offset(stroke / 2, stroke / 2)
+                val extent = Size(size.width - stroke, size.height - stroke)
+                drawArc(if (colors.dark) track else fill.copy(alpha = .18f), -90f, 360f, false,
+                    topLeft = inset, size = extent, style = Stroke(stroke))
+                if (progress > 0f) drawArc(fill, -90f, progress * 360f, false,
+                    topLeft = inset, size = extent, style = Stroke(stroke, cap = StrokeCap.Round))
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(icon, null, Modifier.size(17.dp), tint = colors.ink)
+                Text(display, style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold, color = colors.ink, maxLines = 1)
+            }
+        }
+        Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold,
+            color = colors.muted, textAlign = TextAlign.Center)
     }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DashboardTile(title: String, value: Long?, previous: Long?, earnings: Boolean,
+    modifier: Modifier, onClick: () -> Unit) {
+    val colors = dashboardPalette()
+    val change = if (value != null && previous != null) value.compareTo(previous) else 0
+    val trend = when {
+        earnings -> "Coming soon"
+        value == null || previous == null -> null
+        change == 0 -> "0%"
+        previous == 0L -> "New"
+        else -> {
+            val percent = ((value.toDouble() - previous) * 100 / kotlin.math.abs(previous.toDouble())).roundToLong()
+            (if (change > 0) "↑ " else "↓ ") + if (percent == 0L) "<1%" else "${kotlin.math.abs(percent)}%"
+        }
+    }
+    Surface(onClick = onClick, enabled = earnings || value != null,
+        modifier = modifier.heightIn(min = 66.dp), color = colors.card,
+        shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, colors.rim)) {
+        Column(Modifier.padding(horizontal = 11.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, style = MaterialTheme.typography.bodySmall, color = colors.muted)
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(2.dp), itemVerticalAlignment = Alignment.CenterVertically) {
+                Text(value?.let(::formatDashboardNumber) ?: "—", style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold, color = colors.ink, modifier = Modifier.padding(end = 4.dp))
+                if (trend != null) Text(trend, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold,
+                    color = when {
+                        change > 0 -> colors.positive
+                        change < 0 -> colors.negative
+                        else -> colors.muted
+                    })
+            }
+        }
+    }
+}
+
+private fun formatDashboardNumber(value: Long): String {
+    val locale = Locale.getDefault()
+    return if (value <= -1_000_000L || value >= 1_000_000L)
+        CompactDecimalFormat.getInstance(locale, CompactDecimalFormat.CompactStyle.SHORT).format(value)
+    else NumberFormat.getIntegerInstance(locale).format(value)
+}
+
+@Composable
+private fun DashboardMetricDialog(metric: DashboardMetric, days: List<CreatorDaily>, window: Int, onDismiss: () -> Unit) {
+    val colors = dashboardPalette()
+    val recent = days.takeLast(window)
+    val values = recent.map(metric.value)
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(metric.title) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(11.dp)) {
+                Text(metric.description)
+                Canvas(Modifier.fillMaxWidth().height(105.dp)) {
+                    if (values.isEmpty()) return@Canvas
+                    val min = minOf(0L, values.min())
+                    val max = maxOf(1L, values.max())
+                    val span = (max.toDouble() - min).coerceAtLeast(1.0)
+                    fun ordinate(value: Long) = (size.height * (1 - (value.toDouble() - min) / span)).toFloat()
+                    if (values.size == 1) drawCircle(colors.accent, 3.dp.toPx(), Offset(size.width / 2, ordinate(values.single())))
+                    else {
+                        val path = Path().apply {
+                            values.forEachIndexed { index, value ->
+                                val x = index * size.width / (values.size - 1)
+                                if (index == 0) moveTo(x, ordinate(value)) else lineTo(x, ordinate(value))
+                            }
+                        }
+                        drawPath(path, colors.accent, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
+                    }
+                }
+                Text("Profile visits · ${formatDashboardNumber(recent.sumOf { it.profileVisits })}")
+                Text("Posts and reception measure the last seven days against goals of seven posts and ten engagements. Stories uses your current daily allowance. Analytics dates use UTC.",
+                    style = MaterialTheme.typography.bodySmall, color = colors.muted)
+            }
+        }, confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } })
 }

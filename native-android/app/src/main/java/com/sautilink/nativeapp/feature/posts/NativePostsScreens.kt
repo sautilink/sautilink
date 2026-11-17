@@ -19,6 +19,7 @@ import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.sautilink.nativeapp.ui.theme.SautiHeaderFont
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.SoftwareKeyboardController
@@ -323,7 +324,7 @@ fun NativeOwnPostsScreen(auth: StagingAuthClient, refreshKey: Int, onBack: () ->
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back") }
-            Text("My posts", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+            Text("My posts", fontFamily = SautiHeaderFont, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
             IconButton(onClick = { refresh++ }, enabled = !loading) { Icon(Icons.Rounded.Refresh, "Refresh posts") }
         }
         Box(Modifier.fillMaxWidth().height(4.dp)) {

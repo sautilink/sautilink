@@ -6,6 +6,8 @@ import java.time.format.DateTimeParseException
 import java.time.format.ResolverStyle
 import java.util.Locale
 
+internal fun validAuthEmail(value: String): Boolean = android.util.Patterns.EMAIL_ADDRESS.matcher(value.trim()).matches()
+
 internal fun normalizeLoginUsername(value: String): String =
     value.trim().trimStart('@').lowercase(Locale.ROOT)
 

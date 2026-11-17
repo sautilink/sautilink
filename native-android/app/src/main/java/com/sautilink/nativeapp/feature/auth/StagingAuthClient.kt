@@ -63,6 +63,13 @@ class StagingAuthClient(
         return consumeSession(response)
     }
 
+    internal suspend fun exchangeGoogleCode(code: String, verifier: String): StagingAccount {
+        require(backend == SautiBackend.PRODUCTION)
+        val response = request("/token?grant_type=pkce", "POST",
+            JSONObject().put("auth_code", code).put("code_verifier", verifier))
+        return consumeSession(response)
+    }
+
     /** Existing server bridge resolves usernames privately; email/password and OTP stay on Auth. */
     suspend fun signInWithUsername(username: String, password: String): StagingAccount {
         if (backend != SautiBackend.PRODUCTION) {
@@ -497,10 +504,11 @@ class StagingAuthClient(
         }
     }
 
-    suspend fun signOut() {
+    suspend fun signOut(onLocalSignOut: () -> Unit = {}) {
         val token = accessToken
         // Explicit sign-out always clears local auth BEFORE making a network request.
         sessionLock.withLock { withContext(Dispatchers.IO) { clearLocalSession() } }
+        onLocalSignOut()
         if (token != null) runCatching { request("/logout", "POST", JSONObject(), bearer = token) }
     }
 

@@ -2,6 +2,10 @@ package com.sautilink.nativeapp
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.ui.components.NativeVideoReplaySession
@@ -27,6 +32,8 @@ import com.sautilink.nativeapp.ui.components.SautiBottomBar
 import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import com.sautilink.nativeapp.ui.state.SessionScreenReturnHost
 import com.sautilink.nativeapp.ui.theme.SautiColors
+import androidx.compose.runtime.CompositionLocalProvider
+import com.sautilink.nativeapp.ui.components.LocalFloatingNavigationPadding
 
 /** Chrome owns provider placement; the caller continues to own all navigation state. */
 @Composable
@@ -74,9 +81,19 @@ internal fun NativeAuthenticatedAppHost(
             },
             floatingActionButtonPosition = FabPosition.End,
         ) { insets ->
-            Box(Modifier.fillMaxSize().padding(insets)) {
-                SessionScreenReturnHost(auth, auth.backend.id, accountId, destination,
-                    { auth.account?.id }, contentRevision, content = destinationContent)
+            val direction = LocalLayoutDirection.current
+            val floatsOverContent = selectedTab == 0 || selectedTab == 4
+            val contentPadding = if (floatsOverContent) PaddingValues(
+                start = insets.calculateStartPadding(direction),
+                top = insets.calculateTopPadding(),
+                end = insets.calculateEndPadding(direction),
+            ) else insets
+            Box(Modifier.fillMaxSize().padding(contentPadding).consumeWindowInsets(insets)) {
+                CompositionLocalProvider(LocalFloatingNavigationPadding provides
+                    if (floatsOverContent) insets.calculateBottomPadding() else 0.dp) {
+                    SessionScreenReturnHost(auth, auth.backend.id, accountId, destination,
+                        { auth.account?.id }, contentRevision, content = destinationContent)
+                }
             }
         }
         // Composer remains a replay-session sibling of Scaffold, outside destination retention.

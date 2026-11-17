@@ -31,6 +31,9 @@ import androidx.compose.ui.Alignment
 import com.sautilink.nativeapp.ui.components.sautiActionFeedback
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Modifier
+import com.sautilink.nativeapp.ui.components.LocalFloatingNavigationPadding
+import com.sautilink.nativeapp.ui.components.SautiPostHeart
+import com.sautilink.nativeapp.ui.theme.SautiHeaderFont
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -369,7 +372,7 @@ fun ProductionShortVideosScreen(
     val clip = clips.getOrNull(pager.settledPage)
     var timelineExpanded by remember(auth, accountId, clip?.mediaId) { mutableStateOf(false) }
     var playbackIntent by remember(auth, accountId, clip?.mediaId) { mutableStateOf<Boolean?>(null) }
-    val wantsPlayback = playbackIntent ?: autoplay
+    val wantsPlayback = commentsFor == null && (playbackIntent ?: autoplay)
     val accessToken = token
     // Current + five upcoming grants, with two recent entries retained only
     // within this open viewer and their original owner/credential/deadline.
@@ -524,7 +527,7 @@ fun ProductionShortVideosScreen(
         if (!sameClip) renderedMediaId = null
         com.sautilink.nativeapp.ui.components.NativeVideoStartupProbe.mark(clip.mediaId,
             com.sautilink.nativeapp.ui.components.NativeVideoStartupStage.SOURCE_PREPARE)
-        val requested = videoPlaybackRequested(playbackIntent, autoplay, online,
+        val requested = videoPlaybackRequested(wantsPlayback, autoplay, online,
             owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED), currentMedia = true, hasError = false)
         val position = if (sameClip) player.currentPosition.coerceAtLeast(0L) else 0L
         val attached = streamSource?.takeIf { hls }?.let {
@@ -536,16 +539,17 @@ fun ProductionShortVideosScreen(
     }
     LaunchedEffect(player, wantsPlayback, online, clip?.mediaId, lifecycleState, sourceUri) {
         if (player == null) return@LaunchedEffect
-        player.playWhenReady = videoPlaybackRequested(playbackIntent, autoplay, online,
+        player.playWhenReady = videoPlaybackRequested(wantsPlayback, autoplay, online,
             owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED),
             currentMedia = clip != null && sourceUri != null && auth.account?.id == playbackOwner && player.currentMediaItem?.mediaId == clip.mediaId,
             hasError = player.playerError != null)
     }
 
+    val navClearance = LocalFloatingNavigationPadding.current
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF07101B))) {
         // Keep full-sized actions below the toolbar when landscape reduces height.
-        val compactRail = maxHeight < 456.dp
-        val wideRail = maxHeight < 340.dp
+        val compactRail = maxHeight - navClearance < 456.dp
+        val wideRail = maxHeight - navClearance < 340.dp
         if (auth.account == null) {
             Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -604,7 +608,7 @@ fun ProductionShortVideosScreen(
                                 !playbackSuppressed && currentMediaId == item.mediaId &&
                                 lifecycleState.isAtLeast(Lifecycle.State.STARTED)) && playbackError == null
                             if (showBuffering) VideoBufferingOverlay(true)
-                            else if (!playing && playbackError == null) Icon(Icons.Rounded.PlayArrow,
+                            else if (!playing && commentsFor == null && playbackError == null) Icon(Icons.Rounded.PlayArrow,
                                 "Play video", Modifier.size(58.dp), tint = Color.White)
                             else if (playbackError != null) Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(playbackError.orEmpty(), color = Color.White)
@@ -626,11 +630,11 @@ fun ProductionShortVideosScreen(
                         Text("Offline. Reconnect to play this video.", color = Color.White,
                             modifier = Modifier.align(Alignment.Center).padding(24.dp))
                     }
-                    Box(Modifier.fillMaxWidth().height(190.dp).align(Alignment.BottomCenter)
+                    Box(Modifier.fillMaxWidth().height(190.dp + navClearance).align(Alignment.BottomCenter)
                         .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .85f)))))
                     Column(Modifier.align(Alignment.BottomStart).padding(start = 16.dp,
                         end = if (wideRail) 188.dp else if (compactRail) 132.dp else 76.dp,
-                        bottom = if (timelineExpanded) 52.dp else 44.dp),
+                        bottom = navClearance + if (timelineExpanded) 52.dp else 44.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         ShortsAuthorIdentityRow(auth, item.post, authorMetadata.ranks[item.post.id],
                             authorMetadata.followFor(item.post.authorId),
@@ -649,7 +653,7 @@ fun ProductionShortVideosScreen(
                             })
                         if (item.post.body.isNotBlank()) com.sautilink.nativeapp.ui.components.SautiPostText(item.post.body, color = Color.White,
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
-                            maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            maxLines = 2, overflow = TextOverflow.Ellipsis, expandedMaxHeight = 160.dp)
                     }
                     val railActions: @Composable () -> Unit = {
                         val post = item.post
@@ -657,8 +661,8 @@ fun ProductionShortVideosScreen(
                         val saved = saveStates[post.id] == true
                         val reposted = repostStates[post.id] == true
                         VideoRailAction(
-                            if (liked) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbUpOffAlt,
-                            "Like", formatVideoCount(post.likes), liked,
+                            Icons.Rounded.FavoriteBorder,
+                            if (liked) "Unlike" else "Like", formatVideoCount(post.likes), liked,
                             enabled = canInteract && "like:${post.id}" !in busyActions
                         ) { togglePostAction(post, "like") }
                         VideoRailAction(Icons.Rounded.ChatBubbleOutline, "Comments",
@@ -676,7 +680,7 @@ fun ProductionShortVideosScreen(
                     }
                     if (compactRail) {
                         FlowRow(Modifier.align(Alignment.BottomEnd)
-                            .padding(end = 4.dp, bottom = 48.dp).width(if (wideRail) 169.dp else 113.dp),
+                            .padding(end = 4.dp, bottom = 48.dp + navClearance).width(if (wideRail) 169.dp else 113.dp),
                             maxItemsInEachRow = if (wideRail) 3 else 2,
                             horizontalArrangement = Arrangement.spacedBy(0.dp),
                             verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -684,7 +688,7 @@ fun ProductionShortVideosScreen(
                         }
                     } else {
                         Column(Modifier.align(Alignment.BottomEnd)
-                            .padding(end = 4.dp, bottom = 48.dp),
+                            .padding(end = 4.dp, bottom = 48.dp + navClearance),
                             verticalArrangement = Arrangement.spacedBy(0.dp),
                             horizontalAlignment = Alignment.CenterHorizontally) {
                             railActions()
@@ -693,7 +697,7 @@ fun ProductionShortVideosScreen(
                     if (page == pager.settledPage && player != null && online) {
                         ShortVideoProgressControls(player, paused = !playbackRequested,
                             onExpandedChanged = { timelineExpanded = it },
-                            modifier = Modifier.align(Alignment.BottomCenter))
+                            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = navClearance))
                     }
                 }
             }
@@ -703,7 +707,7 @@ fun ProductionShortVideosScreen(
         Row(Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back", tint = Color.White) }
-            Text("Short Videos", color = Color.White, style = MaterialTheme.typography.titleMedium,
+            Text("Short Videos", fontFamily = SautiHeaderFont, color = Color.White, style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f))
             IconButton(onClick = NativePlaybackPreferences::toggleSessionSound) { Icon(if (muted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
                 if (muted) "Unmute" else "Mute", tint = Color.White) }
@@ -712,7 +716,7 @@ fun ProductionShortVideosScreen(
     val selectedPost = commentsFor
     if (selectedPost != null) commentStateHolder.SaveableStateProvider(selectedPost.id) {
         PostCommentsSheet(post = selectedPost, actions = actions, auth = auth, allowWrite = canInteract,
-            signedInUserId = auth.account?.id, onDismiss = { commentsFor = null },
+            signedInUserId = auth.account?.id, onDismiss = { commentsFor = null }, onOpenProfile = onOpenProfile,
             onRootPosted = {}, onRootDeleted = {}, onCommentChanged = {
                 val accountId = auth.account?.id
                 val sequence = ++commentCountSyncVersion
@@ -787,9 +791,11 @@ private fun VideoRailAction(
         .padding(vertical = 1.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center) {
-        Icon(icon, contentDescription = label,
-            modifier = Modifier.size(24.dp).sautiActionFeedback(interaction),
-            tint = tint, selected = active)
+        Box(Modifier.size(24.dp).sautiActionFeedback(interaction)) {
+            val heart = icon == Icons.Rounded.FavoriteBorder
+            if (heart) SautiPostHeart(active, label, Modifier.fillMaxSize(), Color.White)
+            else Icon(icon, contentDescription = label, modifier = Modifier.fillMaxSize(), tint = tint, selected = active)
+        }
         Spacer(Modifier.height(2.dp))
         Text(count ?: label, color = Color.White,
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), maxLines = 1)

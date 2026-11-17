@@ -20,8 +20,8 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 /** No Room cache survives an account change. RLS and the existing API remain authoritative. */
-internal class NativeRoomsTransport(private val auth: StagingAuthClient) {
-    private val http = OkHttpClient.Builder().callTimeout(60, TimeUnit.SECONDS)
+internal class NativeRoomsTransport(private val auth: StagingAuthClient, timeoutSeconds: Long = 60) {
+    private val http = OkHttpClient.Builder().callTimeout(timeoutSeconds, TimeUnit.SECONDS)
         .eventListenerFactory(RoomNetworkMilestones.factory)
         .retryOnConnectionFailure(false).build()
     private val jsonType = "application/json; charset=utf-8".toMediaType()
@@ -45,11 +45,19 @@ internal class NativeRoomsTransport(private val auth: StagingAuthClient) {
         return own
     }
 
-    suspend fun rest(own: String, path: String, method: String = "GET", payload: JSONObject? = null): JSONArray {
+    suspend fun rest(own: String, path: String, method: String = "GET", payload: JSONObject? = null,
+        minimal: Boolean = false): JSONArray {
         val result = request(own, auth.restOrigin + path, method,
-            payload?.toString()?.toRequestBody(jsonType), isRest = true)
+            payload?.toString()?.toRequestBody(jsonType), isRest = true, minimal = minimal)
         return try { if (result.isBlank()) JSONArray() else JSONArray(result) }
         catch (_: Exception) { throw AuthRequestException("Room response could not be read. Refresh and try again.") }
+    }
+
+    suspend fun rpcObject(own: String, function: String, payload: JSONObject): JSONObject {
+        val result = request(own, auth.restOrigin + "rpc/" + function, "POST",
+            payload.toString().toRequestBody(jsonType), isRest = true)
+        return try { JSONObject(result) }
+        catch (_: Exception) { throw AuthRequestException("The Room action could not be confirmed.") }
     }
 
     suspend fun api(own: String, path: String, method: String = "GET", payload: JSONObject? = null,
@@ -62,7 +70,8 @@ internal class NativeRoomsTransport(private val auth: StagingAuthClient) {
         return json.optJSONObject("data") ?: throw AuthRequestException("Room action could not be confirmed.")
     }
 
-    private suspend fun request(own: String, url: String, method: String, content: RequestBody?, isRest: Boolean): String {
+    private suspend fun request(own: String, url: String, method: String, content: RequestBody?, isRest: Boolean,
+        minimal: Boolean = false): String {
         checkViewer(own)
         if (method != "GET") viewer(writing = true)
         val token = auth.accessTokenForStagingRead()
@@ -71,7 +80,7 @@ internal class NativeRoomsTransport(private val auth: StagingAuthClient) {
             checkViewer(own)
             val builder = Request.Builder().url(url).header("Authorization", "Bearer $token")
                 .header("Accept", "application/json").header("Cache-Control", "no-store")
-            if (isRest) builder.header("apikey", auth.publicKeyForRead()).header("Prefer", "return=representation")
+            if (isRest) builder.header("apikey", auth.publicKeyForRead()).header("Prefer", if (minimal) "return=minimal" else "return=representation")
             when (method) {
                 "POST" -> builder.post(content ?: "{}".toRequestBody(jsonType))
                 "PATCH" -> builder.patch(content ?: "{}".toRequestBody(jsonType))
@@ -100,7 +109,7 @@ internal class NativeRoomsTransport(private val auth: StagingAuthClient) {
                     checkViewer(own)
                     if (!response.isSuccessful) {
                         milestones.httpStatusFailure()
-                        val remote = if (isRest) null else runCatching {
+                        val remote = if (isRest) roomDatabaseMessage(text) else runCatching {
                             JSONObject(text).optJSONObject("error")?.optString("message")
                         }.getOrNull()?.takeIf { it.length in 1..220 }
                         throw AuthRequestException(remote ?: when (response.code) {
@@ -122,6 +131,24 @@ internal class NativeRoomsTransport(private val auth: StagingAuthClient) {
             }
         }
     }
+    private fun roomDatabaseMessage(body: String): String? {
+        val error = runCatching { JSONObject(body) }.getOrNull() ?: return null
+        val message = error.optString("message")
+        if (error.optString("code") == "PGRST202" && message.contains("publish_room_message_v1"))
+            return "Room replies are temporarily unavailable. Keep your draft and try again shortly."
+        return when (message) {
+            "ROOM_QUESTIONS_REQUIRED" -> "This group requires answers before you can join."
+            "ROOM_REPLY_TARGET_UNAVAILABLE" -> "The original message is unavailable in this Room."
+            "ROOM_MESSAGE_REQUEST_CONFLICT" -> "This draft changed. Refresh the conversation before retrying."
+            "ROOM_MESSAGE_MEDIA_UNAVAILABLE" -> "An attachment is no longer available. Add it again and retry."
+            "ROOM_POST_APPROVAL_REQUIRED" -> "This Room requires approval before publishing. Ask a Room admin about replies."
+            "ROOM_POSTING_RESTRICTED" -> "Only admins and moderators can send messages in this Room."
+            "ROOM_MEMBERSHIP_REQUIRED" -> "Join this Room to send messages."
+            "PRIVATE_ROOM_CANNOT_BECOME_PUBLIC" -> "A private group cannot become public."
+            else -> null
+        }
+    }
+
 }
 
 internal fun JSONArray.roomObjects(): List<JSONObject> = (0 until length()).mapNotNull(::optJSONObject)

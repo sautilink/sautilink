@@ -12,7 +12,9 @@ data class NativeRoom(
     val coverKey: String? = null, val memberCount: Int = 0,
     val postPermission: String = "all_members", val invitePermission: String = "all_members",
     val updatedAt: String = "", val approvalCapability: Boolean = false,
-    val postApprovalRequired: Boolean = false
+    val postApprovalRequired: Boolean = false, val lastPost: NativeRoomPostPreview? = null,
+    val memberPrivacyAvailable: Boolean = false, val hideMembers: Boolean = false,
+    val showHistoryToNewMembers: Boolean = true
 ) {
     val isOwner get() = role == "owner" || viewerId.isNotBlank() && ownerId == viewerId
     val isMember get() = isOwner || role in NativeRoomRules.roles
@@ -20,6 +22,7 @@ data class NativeRoom(
     val canManageSettings get() = isOwner || role == "admin"
     val canManagePeople get() = isStaff
     val canSeeMembers get() = isMember
+    val adminsOnlyRoster get() = hideMembers && !isStaff
     // Current circle-post RLS requires membership for public and private Room discussions.
     val canReadPosts get() = isMember
     val canPost get() = isMember && (postPermission == "all_members" || isStaff)
@@ -49,14 +52,21 @@ data class NativeRoom(
     }
 
     fun settings() = NativeRoomSettings(name, slug, description, policy, category, privacy,
-        postPermission, invitePermission, postApprovalRequired)
+        postPermission, invitePermission, postApprovalRequired, hideMembers, showHistoryToNewMembers)
 }
+
+data class NativeRoomPostPreview(val id: String, val body: String, val createdAt: String, val mediaCount: Int)
+
+internal fun List<NativeRoom>.sortByRoomActivity(): List<NativeRoom> =
+    sortedWith(compareByDescending<NativeRoom> { it.lastPost?.createdAt ?: it.updatedAt }
+        .thenBy { it.name.lowercase(Locale.ROOT) })
 
 data class NativeRoomSettings(
     val name: String, val slug: String, val description: String, val policy: String,
     val category: String = "general", val privacy: String = "public",
     val postPermission: String = "all_members", val invitePermission: String = "all_members",
-    val postApprovalRequired: Boolean = false
+    val postApprovalRequired: Boolean = false,
+    val hideMembers: Boolean = false, val showHistoryToNewMembers: Boolean = true
 ) {
     fun normalized() = copy(name = name.trim(), slug = slug.trim().lowercase(Locale.ROOT),
         description = description.trim())
@@ -70,8 +80,8 @@ data class NativeRoomSettings(
             value.policy !in NativeRoomRules.policies -> "Choose a Room membership policy."
             value.category !in NativeRoomRules.categories -> "Choose a valid Room category."
             value.privacy !in setOf("public", "private") -> "Choose a valid Room privacy setting."
-            existingPrivacy != null && value.privacy != existingPrivacy ->
-                "Changing an existing Room's privacy is not available in this app. Its history keeps its current privacy."
+            existingPrivacy == "private" && value.privacy != "private" ->
+                "A private group cannot become public."
             value.privacy == "private" && value.policy == "open" ->
                 "Private Rooms require approval or an invitation to join."
             value.postPermission !in NativeRoomRules.permissions || value.invitePermission !in NativeRoomRules.permissions ->
@@ -85,11 +95,14 @@ data class NativeRoomPost(
     val id: String, val authorId: String, val authorName: String, val authorHandle: String,
     val body: String, val createdAt: String, val verified: Boolean, val badgeType: String,
     val likes: Int = 0, val comments: Int = 0, val reposts: Int = 0, val mediaCount: Int = 0,
-    val media: List<FeedMedia> = emptyList(), val hasAvatar: Boolean = false
+    val media: List<FeedMedia> = emptyList(), val hasAvatar: Boolean = false,
+    val reply: RoomMessageReference? = null
 ) {
     fun asFeedPost() = StagingFeedPost(id, authorId, authorName, authorHandle, verified,
         badgeType, body, createdAt, likes, comments, reposts, mediaCount, media, hasAvatar)
 }
+
+data class RoomMessageReference(val id: String, val author: String? = null, val excerpt: String? = null)
 
 data class NativeRoomMember(val id: String, val role: String, val name: String, val handle: String,
     val verified: Boolean, val badgeType: String, val hasAvatar: Boolean = false, val joinedAt: String = "")
@@ -100,7 +113,7 @@ data class NativeJoinRequest(val requesterId: String, val name: String, val hand
 data class NativeRoomInvitation(val room: NativeRoom, val invitedBy: String, val createdAt: String,
     val invitedByName: String = "SautiLink member", val invitedByHandle: String = "")
 
-data class NativeRoomCapabilities(val postApproval: Boolean = false)
+data class NativeRoomCapabilities(val postApproval: Boolean = false, val memberPrivacy: Boolean = false)
 
 sealed class NativeRoomPublishResult {
     data class Published(val postId: String) : NativeRoomPublishResult()
@@ -128,7 +141,7 @@ data class NativeRoomSubmissionPage(val submissions: List<NativeRoomSubmission>,
 
 object NativeRoomRules {
     // Post attachments share the public post limit; Stories and DMs have separate policies.
-    fun mediaLimit(@Suppress("UNUSED_PARAMETER") kinds: List<String>): Int = com.sautilink.nativeapp.feature.posts.NativePostMediaPolicy.MAX_ATTACHMENTS
+    const val MAX_MESSAGE_ATTACHMENTS = 5
 
     val uuid = Regex("^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$")
     val slug = Regex("^[a-z0-9][a-z0-9-]{2,49}$")

@@ -235,13 +235,15 @@ internal fun NativeProfileMediaEditor(
 }
 
 @Composable
-private fun ProfileCropDialog(
+internal fun ProfileCropDialog(
     bitmap: Bitmap,
     slot: String,
     busy: Boolean,
     error: String?,
     onCancel: () -> Unit,
-    onSave: (Float, Float, Float) -> Unit
+    onSave: (Float, Float, Float) -> Unit,
+    title: String = if (slot == "avatar") "Crop profile picture" else "Crop cover",
+    confirmLabel: String = "Save photo",
 ) {
     val aspect = if (slot == "avatar") 1f else 1440f / 540f
     var zoom by remember(bitmap, slot) { mutableFloatStateOf(1f) }
@@ -261,7 +263,7 @@ private fun ProfileCropDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Rounded.Crop, null, Modifier.size(22.dp),
                         tint = MaterialTheme.colorScheme.primary)
-                    Text(if (slot == "avatar") "Crop profile picture" else "Crop cover",
+                    Text(title,
                         style = MaterialTheme.typography.titleLarge)
                 }
                 Text("Drag the picture to position it. Pinch or slide to zoom.",
@@ -299,7 +301,7 @@ private fun ProfileCropDialog(
                 if (error != null) {
                     Text(error, color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall)
-                    Text("Adjust the crop or tap Save photo to retry.",
+                    Text("Adjust the crop or tap $confirmLabel to retry.",
                         style = MaterialTheme.typography.bodySmall)
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -309,7 +311,7 @@ private fun ProfileCropDialog(
                     }
                     Button(onClick = { onSave(zoom, panX, panY) }, enabled = !busy,
                         modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) {
-                        Text(if (busy) "Uploading…" else "Save photo")
+                        Text(if (busy) "Working…" else confirmLabel)
                     }
                 }
             }

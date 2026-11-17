@@ -40,6 +40,8 @@ import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.sautilink.nativeapp.ui.components.SautiEntityText
+import com.sautilink.nativeapp.ui.theme.SautiHeaderFont
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -680,7 +682,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                             style = MaterialTheme.typography.bodySmall)
                                     }
                                     if (message.body.isNotBlank()) {
-                                        Text(message.body,
+                                        SautiEntityText(message.body, linkSocialEntities = false,
                                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
                                             color = if (own && bubble != "neutral") Color.White
                                                 else MaterialTheme.colorScheme.onSurface)
@@ -992,7 +994,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.ChatBubbleOutline, null, Modifier.size(25.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(10.dp))
-            Text("Chats", style = MaterialTheme.typography.titleLarge,
+            Text("Chats", fontFamily = SautiHeaderFont, style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             IconButton(onClick = { chatSettings = true }) {
                 Icon(Icons.Rounded.Settings, "Chat settings")

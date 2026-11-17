@@ -1,5 +1,6 @@
 package com.sautilink.nativeapp.feature.profile
 
+import com.sautilink.nativeapp.ui.theme.sautiChromeInk
 import com.sautilink.nativeapp.ui.components.SautiEntityText
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
@@ -16,6 +17,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -27,6 +29,7 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import com.sautilink.nativeapp.ui.components.SautiPostHeart
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -179,8 +182,7 @@ internal fun ProfileActivitySection(
                         shape = RoundedCornerShape(16.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                         colors = ButtonDefaults.textButtonColors(
-                            contentColor = if (active) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                            contentColor = sautiChromeInk(),
                             containerColor = if (active) MaterialTheme.colorScheme.primaryContainer
                                 else Color.Transparent
                         )
@@ -393,7 +395,7 @@ private fun ProfileActivityCard(
                         style = MaterialTheme.typography.bodySmall, maxLines = 1,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (owner && item.authorId == auth.account?.id) {
+                if (!item.isComment && owner && item.authorId == auth.account?.id) {
                     if (item.body.isNotBlank()) TextButton(onClick = onManagePosts) {
                         Text("Edit", style = MaterialTheme.typography.labelSmall)
                     }
@@ -410,20 +412,19 @@ private fun ProfileActivityCard(
                 modifier = Modifier.padding(start = 14.dp))
             if (item.body.isNotBlank()) com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(
                 Modifier.fillMaxWidth(), onTap = { onOpenPost(item.id) }, tapLabel = "Open post",
-                onLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null) {
+                onLike = if (!item.isComment && !busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null) {
                 com.sautilink.nativeapp.ui.components.SautiPostText(item.body, style = MaterialTheme.typography.bodyLarge.copy(
                         fontSize = 15.sp, lineHeight = 21.sp),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp))
             }
             if (item.media.isNotEmpty()) PostMediaGallery(auth, item.media,
-                onDoubleTapLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
+                onDoubleTapLike = if (!item.isComment && !busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
             if (failure != null) Text(failure.orEmpty(), color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(horizontal = 14.dp), style = MaterialTheme.typography.bodySmall)
-            SautiPostActionRow(modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp), actions = {
+            if (!item.isComment) SautiPostActionRow(modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp), actions = {
                 ProfileAction(
-                    if (liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    likeTotal.toString(), "Like", Modifier, selected = liked,
-                    activeColor = SautiColors.Red
+                    Icons.Rounded.FavoriteBorder,
+                    likeTotal.toString(), "Like", Modifier, selected = liked
                 ) {
                     changeLike()
                 }
@@ -448,7 +449,7 @@ private fun ProfileActivityCard(
                     runCatching { context.startActivity(Intent.createChooser(send, "Share post")) }
                         .onFailure { failure = "Could not open sharing." }
                 }, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Rounded.Share, contentDescription = "Share post", modifier = Modifier.size(20.dp))
+                    Icon(Icons.Rounded.Share, contentDescription = "Share post", modifier = Modifier.size(20.dp), tint = sautiChromeInk())
                 }
             }, trailing = {
                 IconButton(onClick = {
@@ -460,12 +461,13 @@ private fun ProfileActivityCard(
                             finally { busy = false }
                         }
                     }
-                }, enabled = !busy, modifier = Modifier.size(48.dp)) {
+                }, enabled = !busy, modifier = Modifier.size(48.dp)
+                    .background(sautiChromeInk().copy(alpha = if (saved) .11f else 0f), RoundedCornerShape(14.dp))
+                    .semantics { this.selected = saved }) {
                     Icon(if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                         contentDescription = if (saved) "Remove from saved" else "Save post",
                         modifier = Modifier.size(21.dp), selected = saved,
-                        tint = if (saved) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant)
+                        tint = sautiChromeInk())
                 }
             })
         }
@@ -475,14 +477,18 @@ private fun ProfileActivityCard(
 @Composable
 private fun ProfileAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector, count: String, description: String,
-    modifier: Modifier = Modifier, selected: Boolean = false,
-    activeColor: Color = MaterialTheme.colorScheme.primary, onClick: () -> Unit
+    modifier: Modifier = Modifier, selected: Boolean = false, onClick: () -> Unit
 ) {
-    Row(modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).clickable(role = Role.Button, onClick = onClick),
+    val ink = sautiChromeInk()
+    val heart = icon == Icons.Rounded.FavoriteBorder
+    val tint = if (icon == Icons.Rounded.Repeat && selected) MaterialTheme.colorScheme.primary else ink
+    Row(modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+        .semantics { this.selected = selected }
+        .clickable(role = Role.Button, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center) {
-        Icon(icon, description, modifier = Modifier.size(21.dp), selected = selected,
-            tint = if (selected) activeColor else MaterialTheme.colorScheme.onSurfaceVariant)
+        if (heart) SautiPostHeart(selected, description, Modifier.size(20.dp), ink)
+        else Icon(icon, description, modifier = Modifier.size(20.dp), selected = selected, tint = tint)
         Spacer(Modifier.width(2.dp))
         Text(count, style = MaterialTheme.typography.labelSmall)
     }

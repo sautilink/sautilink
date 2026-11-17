@@ -117,7 +117,7 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
                             adaptivePlaybackEnabled = adaptivePlaybackEnabled)
                     } else {
                         SautiPostGestureSurface(Modifier.fillMaxSize(), onLike = onDoubleTapLike,
-                            onTap = { expandedPhoto = item }, feedbackColor = Color.White) {
+                            onTap = { expandedPhoto = item }) {
                             AuthorizedImage(auth, "$path?w=960",
                                 "Photo ${page + 1} of ${media.size}",
                                 modifier = Modifier.fillMaxSize(),

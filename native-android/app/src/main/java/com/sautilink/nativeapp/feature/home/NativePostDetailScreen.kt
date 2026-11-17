@@ -1,14 +1,10 @@
 package com.sautilink.nativeapp.feature.home
 
-import com.sautilink.nativeapp.ui.components.SautiEntityText
 import android.content.Intent
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,6 +15,7 @@ import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.sautilink.nativeapp.ui.theme.SautiHeaderFont
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -29,16 +26,13 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.safety.NativeReportDialog
 import com.sautilink.nativeapp.feature.safety.NativeSafetyClient
 import com.sautilink.nativeapp.ui.components.SautiAvatar
-import com.sautilink.nativeapp.ui.components.SautiActionIconButton
 import com.sautilink.nativeapp.ui.components.SautiPostActionRow
 import com.sautilink.nativeapp.ui.components.SautiPostIcons
-import com.sautilink.nativeapp.ui.components.SautiCommentActions
 import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
 import com.sautilink.nativeapp.ui.components.SautiVerificationBadge
 import com.sautilink.nativeapp.ui.theme.SautiColors
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 /** Canonical Post Detail: same media, reactions and nested comments as the Home feed.
  * Avoid the historical bare media preview when opening a post via profile/notification.
@@ -46,7 +40,7 @@ import java.util.UUID
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NativePostDetailScreen(
-    auth: StagingAuthClient, postId: String, onBack: () -> Unit,
+    auth: StagingAuthClient, requestedPostId: String, onBack: () -> Unit,
     onSignIn: () -> Unit, onOpenProfile: (String) -> Unit,
     initialComments: Boolean = false
 ) {
@@ -55,71 +49,40 @@ fun NativePostDetailScreen(
     val safety = remember(auth) { NativeSafetyClient(auth) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var post by remember(postId) { mutableStateOf<StagingFeedPost?>(null) }
-    var comments by remember(postId) { mutableStateOf<List<NativePostComment>>(emptyList()) }
-    var replies by remember(postId) { mutableStateOf<Map<String, List<NativePostComment>>>(emptyMap()) }
-    var expanded by remember(postId) { mutableStateOf<Set<String>>(emptySet()) }
-    var commentsMode by remember(postId, initialComments) { mutableStateOf(initialComments) }
-    var replyTarget by remember(postId) { mutableStateOf<NativePostComment?>(null) }
-    var draft by remember(postId) { mutableStateOf("") }
-    var loading by remember(postId) { mutableStateOf(true) }
-    var commentsLoading by remember(postId) { mutableStateOf(false) }
-    var busy by remember { mutableStateOf(false) }
-    var error by remember(postId) { mutableStateOf<String?>(null) }
-    var refresh by remember { mutableIntStateOf(0) }
-    var commentRevision by remember { mutableIntStateOf(0) }
-    var liked by remember(postId) { mutableStateOf(false) }
-    var saved by remember(postId) { mutableStateOf(false) }
-    var reposted by remember(postId) { mutableStateOf(false) }
-    var reportOpen by remember { mutableStateOf(false) }
-    var reportNote by remember { mutableStateOf<String?>(null) }
-    val reactionCounts = remember(postId) {
-        mutableStateMapOf<String, Pair<Int, Int>>()
-    }
-    var commentReactionRevision by remember(postId) { mutableIntStateOf(0) }
-    val selectedReactions = remember(postId) { mutableStateMapOf<String, String?>() }
+    var postId by remember(requestedPostId) { mutableStateOf(requestedPostId) }
+    var highlightedComment by remember(requestedPostId) { mutableStateOf<String?>(null) }
+    var post by remember(requestedPostId) { mutableStateOf<StagingFeedPost?>(null) }
+    var commentsMode by remember(requestedPostId, initialComments) { mutableStateOf(initialComments) }
+    var loading by remember(requestedPostId) { mutableStateOf(true) }
+    var busy by remember(requestedPostId) { mutableStateOf(false) }
+    var error by remember(requestedPostId) { mutableStateOf<String?>(null) }
+    var refresh by remember(requestedPostId) { mutableIntStateOf(0) }
+    var liked by remember(requestedPostId) { mutableStateOf(false) }
+    var saved by remember(requestedPostId) { mutableStateOf(false) }
+    var reposted by remember(requestedPostId) { mutableStateOf(false) }
+    var reportOpen by remember(requestedPostId) { mutableStateOf(false) }
+    var reportNote by remember(requestedPostId) { mutableStateOf<String?>(null) }
 
-    BackHandler(commentsMode) {
-        if (replyTarget != null) { replyTarget = null; draft = "" }
-        else commentsMode = false
-    }
-    LaunchedEffect(postId, auth.account?.id, refresh) {
+    LaunchedEffect(requestedPostId, auth.account?.id, refresh) {
         if (auth.account == null) { loading = false; post = null; return@LaunchedEffect }
-        loading = true; error = null
+        loading = true
+        error = null
         try {
-            post = client.loadOne(postId)
-            val state = actions.getLikeStates(listOf(postId))
-            liked = state[postId] == true
-            saved = actions.getSavedStates(listOf(postId))[postId] == true
-            reposted = actions.getRepostStates(listOf(postId))[postId] == true
-        } catch (cancelled: CancellationException) { throw cancelled }
-        catch (e: Exception) {
-            // Render successfully loaded post even if independent action-state fetch failed.
-            if (post == null) error = e.message ?: "Could not open post."
-        } finally { loading = false }
-    }
-    LaunchedEffect(postId, commentsMode, commentRevision) {
-        if (!commentsMode || auth.account == null) return@LaunchedEffect
-        commentsLoading = true
-        try {
-            comments = actions.loadComments(postId)
-            if (expanded.isNotEmpty()) {
-                replies = expanded.associateWith { id -> actions.loadComments(id) }
+            val root = actions.resolvePostRoot(requestedPostId)
+            if (root == null) { post = null; return@LaunchedEffect }
+            postId = root
+            if (root != requestedPostId && refresh == 0) {
+                highlightedComment = requestedPostId
+                commentsMode = true
             }
+            post = client.loadOne(root)
+            liked = actions.getLikeStates(listOf(root))[root] == true
+            saved = actions.getSavedStates(listOf(root))[root] == true
+            reposted = actions.getRepostStates(listOf(root))[root] == true
         } catch (cancelled: CancellationException) { throw cancelled }
-        catch (e: Exception) { error = e.message ?: "Comments unavailable." }
-        finally { commentsLoading = false }
-    }
-
-    val shownCommentIds = (comments + replies.values.flatten()).map { it.id }.distinct()
-    LaunchedEffect(postId, commentsMode, shownCommentIds, auth.account?.id) {
-        if (!commentsMode || auth.account == null || shownCommentIds.isEmpty()) return@LaunchedEffect
-        val revision = commentReactionRevision
-        try {
-            val states = actions.getCommentReactionStates(shownCommentIds)
-            if (revision == commentReactionRevision) selectedReactions.putAll(states)
-        } catch (cancelled: CancellationException) { throw cancelled }
-        catch (e: Exception) { error = e.message ?: "Comment reaction status is unavailable." }
+        catch (failure: Exception) {
+            if (post == null) error = failure.message ?: "Could not open post."
+        } finally { loading = false }
     }
 
     fun changeLike(likeOnly: Boolean = false) {
@@ -136,31 +99,22 @@ fun NativePostDetailScreen(
         }
     }
 
-    fun toggleExpanded(id: String) {
-        if (id in expanded) { expanded = expanded - id; return }
-        expanded = expanded + id
-        scope.launch {
-            try { replies = replies + (id to actions.loadComments(id)) }
-            catch (e: Exception) { error = e.message ?: "Could not open replies." }
-        }
-    }
-
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = {
-                if (commentsMode) { commentsMode = false; replyTarget = null }
+                if (commentsMode) { commentsMode = false; highlightedComment = null }
                 else onBack()
             }, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back", tint = SautiColors.Red)
             }
-            Text("Post",
+            Text("Post", fontFamily = SautiHeaderFont,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             if (commentsMode) {
-                TextButton(onClick = { commentsMode = false }) { Text("View post") }
+                TextButton(onClick = { commentsMode = false; highlightedComment = null }) { Text("View post") }
             } else {
                 IconButton(onClick = { refresh++ }, enabled = !loading) {
                     Icon(Icons.Rounded.Refresh, "Refresh post")
@@ -230,24 +184,24 @@ fun NativePostDetailScreen(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp))
                         }
                     }
-                    // Comments previously replaced the post: retain that decoder lifecycle.
-                    // The identity and caption remain behind the sheet without active media.
-                    if (item.media.isNotEmpty() && !commentsMode) item {
-                        PostMediaGallery(auth, item.media,
-                            bufferingOverlayEnabled = true, adaptivePlaybackEnabled = true,
-                            onDoubleTapLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
+                    if (item.media.isNotEmpty()) item {
+                        val playbackBlocked = com.sautilink.nativeapp.ui.components.LocalNativePlaybackBlocked
+                        CompositionLocalProvider(playbackBlocked provides (playbackBlocked.current || commentsMode)) {
+                            PostMediaGallery(auth, item.media,
+                                onDoubleTapLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
+                        }
                     }
                     item {
                         HorizontalDivider()
                         SautiPostActionRow(modifier = Modifier.heightIn(min = 56.dp), actions = {
-                            CompactPostAction(icon = if (liked) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbUpOffAlt,
-                                label = "Like", count = feedCount(item.likes), modifier = Modifier,
-                                tint = if (liked) SautiColors.Red else MaterialTheme.colorScheme.onSurface,
+                            CompactPostAction(icon = Icons.Rounded.FavoriteBorder,
+                                label = if (liked) "Unlike post" else "Like post", count = feedCount(item.likes), modifier = Modifier,
+                                selected = liked,
                                 enabled = !busy, onClick = { changeLike() })
                             CompactPostAction(Icons.Rounded.ChatBubbleOutline, "Comments", feedCount(item.comments), Modifier,
-                                tint = MaterialTheme.colorScheme.onSurface, onClick = { commentsMode = true })
+                                onClick = { commentsMode = true })
                             CompactPostAction(Icons.Rounded.Repeat, "Repost", feedCount(item.reposts), Modifier,
-                                tint = if (reposted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                selected = reposted,
                                 enabled = !busy, onClick = {
                                 if (busy) return@CompactPostAction
                                 busy = true
@@ -262,7 +216,7 @@ fun NativePostDetailScreen(
                                 }
                             })
                             CompactPostAction(SautiPostIcons.Share, "Share post", null, Modifier,
-                                tint = MaterialTheme.colorScheme.onSurface, onClick = {
+                                onClick = {
                                 val send = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
                                     putExtra(Intent.EXTRA_TEXT, actions.postShareUrl(postId))
@@ -270,10 +224,13 @@ fun NativePostDetailScreen(
                                 runCatching { context.startActivity(Intent.createChooser(send, "Share post")) }
                             })
                         }, trailing = {
-                            SautiActionIconButton(if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                                "Save post", if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            CompactPostAction(Icons.Rounded.BookmarkBorder,
+                                if (saved) "Remove from saved" else "Save post",
+                                count = null, modifier = Modifier,
+                                selected = saved,
+                                activeIcon = if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                                 enabled = !busy, onClick = {
-                                if (busy) return@SautiActionIconButton
+                                if (busy) return@CompactPostAction
                                 busy = true
                                 scope.launch {
                                     try { actions.setSaved(postId, !saved); saved = !saved }
@@ -295,102 +252,13 @@ fun NativePostDetailScreen(
             }
         }
     }
-    if (commentsMode && post != null && auth.account != null) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(onDismissRequest = { commentsMode = false }, sheetState = sheetState,
-            shape = com.sautilink.nativeapp.ui.theme.SautiShape.Sheet,
-            containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
-            val heightFraction = commentSheetHeightFraction()
-            Column(Modifier.fillMaxWidth().imePadding().heightIn(min = 280.dp).fillMaxHeight(heightFraction)) {
-                Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.ChatBubbleOutline, null, Modifier.size(21.dp),
-                        tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(9.dp))
-                    Text("Comments", style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { commentsMode = false }) { Icon(Icons.Rounded.Close, "Close comments") }
-                }
-                LazyColumn(
-                    Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 16.dp)
-                ) {
-                    if (commentsLoading && comments.isEmpty()) items(3) { SautiPostSkeleton() }
-                    if (error != null) item {
-                        Text(error.orEmpty(), Modifier.padding(14.dp),
-                            color = MaterialTheme.colorScheme.error)
-                    }
-                    if (!commentsLoading && comments.isEmpty() && error == null) item {
-                        Text("Be the first to comment.", Modifier.padding(22.dp))
-                    }
-                    items(comments, key = { it.id }) { comment ->
-                        CommentThreadRow(auth, comment, replies, expanded,
-                            counts = reactionCounts, selected = selectedReactions, reactionsEnabled = !busy,
-                            onOpenProfile = onOpenProfile,
-                            onReply = { target ->
-                                replyTarget = target
-                                draft = if (target.handle.isNotBlank()) "@${target.handle} " else ""
-                            },
-                            onExpand = ::toggleExpanded,
-                            onReaction = { target, reaction ->
-                                if (!busy) {
-                                    busy = true; error = null; commentReactionRevision++
-                                    scope.launch {
-                                        try {
-                                            val next = if (selectedReactions[target.id] == reaction) null else reaction
-                                            reactionCounts[target.id] = actions.setCommentReaction(target.id, next)
-                                            selectedReactions[target.id] = next
-                                        } catch (e: Exception) { error = e.message ?: "Could not react." }
-                                        finally { busy = false }
-                                    }
-                                }
-                            }
-                        )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .5f))
-                    }
-                }
-                if (replyTarget != null) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Text("Replying to ${replyTarget?.author.orEmpty()}",
-                            modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                        IconButton(onClick = { replyTarget = null; draft = "" }) {
-                            Icon(Icons.Rounded.Close, "Cancel reply")
-                        }
-                    }
-                }
-                Row(Modifier.fillMaxWidth().padding(10.dp),
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    OutlinedTextField(
-                        value = draft, onValueChange = { draft = it.take(500) },
-                        placeholder = { Text("Write a comment…") },
-                        shape = RoundedCornerShape(23.dp),
-                        modifier = Modifier.weight(1f),
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp, lineHeight = 22.sp),
-                        minLines = 1, maxLines = 3
-                    )
-                    IconButton(
-                        onClick = {
-                            val targetId = replyTarget?.id ?: postId
-                            val message = draft.trim()
-                            if (message.isBlank() || busy) return@IconButton
-                            busy = true; error = null
-                            scope.launch {
-                                try {
-                                    actions.sendComment(targetId, message, UUID.randomUUID().toString())
-                                    draft = ""; replyTarget = null
-                                    commentRevision++
-                                } catch (e: Exception) { error = e.message ?: "Could not send comment." }
-                                finally { busy = false }
-                            }
-                        },
-                        enabled = draft.trim().isNotEmpty() && !busy,
-                        modifier = Modifier.size(48.dp)
-                    ) { Icon(Icons.Rounded.Send, "Send comment") }
-                }
-            }
-        }
+    val currentPost = post
+    if (commentsMode && currentPost != null && auth.account != null) {
+        PostCommentsSheet(currentPost, actions, auth, allowWrite = true, signedInUserId = auth.account?.id,
+            onDismiss = { commentsMode = false; highlightedComment = null },
+            onRootPosted = { post = post?.let { it.copy(comments = it.comments + 1) } },
+            onRootDeleted = { post = post?.let { it.copy(comments = (it.comments - 1).coerceAtLeast(0)) } },
+            onCommentChanged = {}, focusedCommentId = highlightedComment, onOpenProfile = onOpenProfile)
     }
     if (reportOpen) NativeReportDialog("post", busy, error = reportNote,
         onDismiss = { reportOpen = false }) { reason, details ->
@@ -401,47 +269,6 @@ fun NativePostDetailScreen(
                 reportOpen = false; reportNote = "Report submitted."
             } catch (e: Exception) { reportNote = e.message ?: "Could not report post." }
             finally { busy = false }
-        }
-    }
-}
-
-@Composable
-private fun CommentThreadRow(
-    auth: StagingAuthClient, item: NativePostComment,
-    replies: Map<String, List<NativePostComment>>, expanded: Set<String>,
-    counts: Map<String, Pair<Int, Int>>, selected: Map<String, String?>, reactionsEnabled: Boolean,
-    onOpenProfile: (String) -> Unit,
-    onReply: (NativePostComment) -> Unit,
-    onExpand: (String) -> Unit,
-    onReaction: (NativePostComment, String) -> Unit,
-    depth: Int = 0
-) {
-    Column(Modifier.fillMaxWidth().padding(start = if (depth > 0) 12.dp else 0.dp),
-        verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        PostCommentContent(auth, item,
-            Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp),
-            enabled = reactionsEnabled, onOpenProfile = onOpenProfile
-        ) {
-            val totals = counts[item.id] ?: (item.likes to item.dislikes)
-            SautiCommentActions(likes = totals.first, dislikes = totals.second,
-                replyCount = item.replyCount, liked = selected[item.id] == "like",
-                disliked = selected[item.id] == "dislike",
-                reactionEnabled = reactionsEnabled, replyEnabled = reactionsEnabled,
-                onLike = { onReaction(item, "like") }, onDislike = { onReaction(item, "dislike") },
-                onReply = { onReply(item) })
-            if (item.replyCount > 0) {
-                TextButton(onClick = { onExpand(item.id) }) {
-                    Text(if (item.id in expanded) "Hide ${item.replyCount} replies"
-                        else "View ${item.replyCount} replies")
-                }
-            }
-        }
-        // Bound nesting visually; server independently enforces maximum allowed depth.
-        if (item.id in expanded && depth < 5) {
-            replies[item.id].orEmpty().forEach { child ->
-                CommentThreadRow(auth, child, replies, expanded, counts, selected, reactionsEnabled,
-                    onOpenProfile, onReply, onExpand, onReaction, depth + 1)
-            }
         }
     }
 }

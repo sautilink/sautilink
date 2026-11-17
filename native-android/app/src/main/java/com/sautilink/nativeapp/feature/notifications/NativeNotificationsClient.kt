@@ -2,6 +2,7 @@ package com.sautilink.nativeapp.feature.notifications
 
 import com.sautilink.nativeapp.feature.auth.AuthRequestException
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -18,6 +19,7 @@ data class NativeNotification(
     val actorVerified: Boolean, val actorBadgeType: String, val actorHasAvatar: Boolean,
     val circleSlug: String, val circleName: String, val circleEvent: String,
     val postId: String, val createdAt: String, val isRead: Boolean, val storyId: String = "",
+    val postDepth: Int? = null,
 )
 
 /** RLS-protected notifications; writes are scoped to the current recipient. */
@@ -70,6 +72,14 @@ class NativeNotificationsClient(private val auth: StagingAuthClient) {
         val circles = if (circleIds.isEmpty()) emptyMap() else rest(
             "social_circles?id=in.(${circleIds.joinToString(",")})&select=id,slug,name"
         ).objects().associateBy { it.optString("id") }
+        val actionPostIds = rows.filter { it.optString("notification_type") in listOf("reply", "like", "mention") }
+            .mapNotNull { it.optString("post_id").takeIf(uuid::matches) }.distinct()
+        val postDepths = try {
+            if (actionPostIds.isEmpty()) emptyMap() else rest(
+                "social_posts?id=in.(${actionPostIds.joinToString(",")})&select=id,thread_depth"
+            ).objects().associate { it.optString("id") to it.optInt("thread_depth", -1) }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { emptyMap() }
         return rows.mapNotNull { row ->
             val id = row.optString("id")
             if (!numericId.matches(id)) return@mapNotNull null
@@ -84,7 +94,8 @@ class NativeNotificationsClient(private val auth: StagingAuthClient) {
                 actor?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null,
                 circle?.optString("slug").orEmpty(), circle?.optString("name").orEmpty(),
                 row.optString("circle_event"), row.optString("post_id").takeIf(uuid::matches).orEmpty(),
-                row.optString("created_at"), !row.isNull("read_at"), row.optString("story_id").takeIf(uuid::matches).orEmpty())
+                row.optString("created_at"), !row.isNull("read_at"), row.optString("story_id").takeIf(uuid::matches).orEmpty(),
+                postDepths[row.optString("post_id")]?.takeIf { it >= 0 })
         }
     }
 

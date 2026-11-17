@@ -38,6 +38,7 @@ internal object SautiHugeVectors {
         "full-screen" -> icon22().also { cache[name] = it }
         "globe-0-2" -> icon23().also { cache[name] = it }
         "heart" -> icon24().also { cache[name] = it }
+        "heart-filled" -> icon24(filled = true).also { cache[name] = it }
         "help-circle" -> icon25().also { cache[name] = it }
         "home-0-1" -> icon26().also { cache[name] = it }
         "id-verified" -> icon27().also { cache[name] = it }
@@ -228,8 +229,8 @@ internal object SautiHugeVectors {
     addPath(PathParser().parsePathString("M21 9H3").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
     }.build()
 
-    private fun icon24() = ImageVector.Builder(name = "heart", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f, autoMirror = false).apply {
-    addPath(PathParser().parsePathString("M10.4107 19.9677C7.58942 17.858 2 13.0348 2 8.69444C2 5.82563 4.10526 3.5 7 3.5C8.5 3.5 10 4 12 6C14 4 15.5 3.5 17 3.5C19.8947 3.5 22 5.82563 22 8.69444C22 13.0348 16.4106 17.858 13.5893 19.9677C12.6399 20.6776 11.3601 20.6776 10.4107 19.9677Z").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    private fun icon24(filled: Boolean = false) = ImageVector.Builder(name = if (filled) "heart-filled" else "heart", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f, autoMirror = false).apply {
+    addPath(PathParser().parsePathString("M10.4107 19.9677C7.58942 17.858 2 13.0348 2 8.69444C2 5.82563 4.10526 3.5 7 3.5C8.5 3.5 10 4 12 6C14 4 15.5 3.5 17 3.5C19.8947 3.5 22 5.82563 22 8.69444C22 13.0348 16.4106 17.858 13.5893 19.9677C12.6399 20.6776 11.3601 20.6776 10.4107 19.9677Z").toNodes(), fill = if (filled) SolidColor(Color.Black) else null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
     }.build()
 
     private fun icon25() = ImageVector.Builder(name = "help-circle", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f, autoMirror = false).apply {

@@ -12,6 +12,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -41,9 +42,9 @@ internal fun PostCommentContent(
         .joinToString("") { it.take(1).uppercase() }.ifBlank { "SL" }
     val openProfile = onOpenProfile?.takeIf { comment.handle.isNotBlank() }
     var menuOpen by rememberSaveable(comment.id) { mutableStateOf(false) }
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp),
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.Top) {
-        val avatar = Modifier.size(36.dp).clip(CircleShape)
+        val avatar = Modifier.size(33.dp).clip(CircleShape)
             .semantics { contentDescription = "${comment.author}'s profile photo" }
             .then(if (openProfile != null) Modifier.clickable(enabled = enabled,
                 onClickLabel = "Open ${comment.author}'s profile") { openProfile(comment.handle) } else Modifier)
@@ -51,8 +52,8 @@ internal fun PostCommentContent(
             AuthorizedImage(auth, "/api/profile-media/${comment.handle}/avatar", "${comment.author}'s profile photo",
                 avatar, fallback = { SautiAvatar(initials, Modifier.fillMaxSize(), SautiColors.Blue) })
         } else SautiAvatar(initials, avatar, SautiColors.Blue)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 24.dp), verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(comment.author,
@@ -60,7 +61,7 @@ internal fun PostCommentContent(
                             Modifier.clickable(enabled = enabled,
                                 onClickLabel = "Open ${comment.author}'s profile") { openProfile(comment.handle) }
                             else Modifier),
-                        style = MaterialTheme.typography.labelLarge.copy(lineHeight = 20.sp),
+                        style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, lineHeight = 18.sp),
                         fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     SautiVerificationBadge(comment.verified, comment.badgeType, comment.author, size = 14.dp)
                     Text(relativePostTime(comment.createdAt), style = MaterialTheme.typography.labelSmall,
@@ -68,9 +69,9 @@ internal fun PostCommentContent(
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 if (onDelete != null) Box {
-                    IconButton(onClick = { menuOpen = true }, enabled = enabled,
-                        modifier = Modifier.size(48.dp)) {
-                        Icon(Icons.Rounded.MoreHoriz, "Comment options", Modifier.size(20.dp))
+                    Box(Modifier.size(24.dp).clickable(enabled = enabled, role = Role.Button,
+                        onClick = { menuOpen = true }), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.MoreHoriz, "Comment options", Modifier.size(18.dp))
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(text = { Text("Delete your comment") },
@@ -82,7 +83,7 @@ internal fun PostCommentContent(
                 }
             }
             SautiEntityText(comment.body,
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 19.sp),
                 maxLines = maxBodyLines, overflow = TextOverflow.Ellipsis)
             actions()
         }

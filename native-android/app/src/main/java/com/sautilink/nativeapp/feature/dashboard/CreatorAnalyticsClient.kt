@@ -8,6 +8,7 @@ import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.LocalDate
+import java.time.ZoneOffset
 
 internal data class CreatorDaily(
     val day: LocalDate,
@@ -24,7 +25,7 @@ internal data class CreatorPost(
 )
 internal data class CreatorPostMedia(val id: String, val kind: String)
 internal data class CreatorAnalytics(
-    val days: List<CreatorDaily>, val topContent: List<CreatorPost>
+    val days: List<CreatorDaily>, val topContent: List<CreatorPost>, val weeklyPosts: Long?
 )
 
 /** Native read-only frontend of the same owner-only metrics used by SautiLink Web Dashboard.
@@ -32,11 +33,22 @@ internal data class CreatorAnalytics(
  */
 internal class CreatorAnalyticsClient(private val auth: StagingAuthClient) {
     private val idRegex = Regex("^[0-9a-fA-F-]{36}$")
-    private fun fetch(path: String, token: String): JSONArray {
+    private fun fetch(path: String, token: String): JSONArray = request(path, token) { connection ->
+        val response = connection.inputStream.bufferedReader().use { it.readText().take(450_000) }
+        JSONArray(response)
+    }
+
+    private fun count(path: String, token: String): Long? = request(path, token, count = true) { connection ->
+        connection.getHeaderField("Content-Range")?.substringAfterLast('/')?.toLongOrNull()
+    }
+
+    private fun <T> request(path: String, token: String, count: Boolean = false,
+        read: (HttpURLConnection) -> T): T {
         val url = URL(auth.restOrigin + path)
         val connection = url.openConnection() as HttpURLConnection
         try {
-            connection.requestMethod = "GET"
+            connection.requestMethod = if (count) "HEAD" else "GET"
+            if (count) connection.setRequestProperty("Prefer", "count=exact")
             connection.connectTimeout = 12_000
             connection.readTimeout = 14_000
             connection.instanceFollowRedirects = false
@@ -46,24 +58,26 @@ internal class CreatorAnalyticsClient(private val auth: StagingAuthClient) {
             connection.setRequestProperty("Cache-Control", "no-store")
             if (connection.responseCode !in 200..299)
                 throw AuthRequestException("Dashboard data could not be loaded (HTTP ${connection.responseCode}).")
-            val response = connection.inputStream.bufferedReader().use { it.readText().take(450_000) }
-            return JSONArray(response)
+            return read(connection)
         } finally { connection.disconnect() }
     }
 
     suspend fun load(window: Int): CreatorAnalytics {
-        require(window in setOf(7, 28, 90))
+        require(window in setOf(1, 7, 28, 90))
         val own = auth.account?.id?.takeIf(idRegex::matches)
             ?: throw AuthRequestException("Sign in to view your Dashboard.")
         val token = auth.accessTokenForStagingRead()
         if (auth.account?.id != own) throw kotlinx.coroutines.CancellationException("Dashboard account changed")
-        val start = LocalDate.now().minusDays(window * 2L - 1)
+        val today = LocalDate.now(ZoneOffset.UTC)
+        val dayCount = maxOf(7, window * 2)
+        val start = today.minusDays(dayCount - 1L)
+        val weeklyStart = today.minusDays(6).atStartOfDay().toInstant(ZoneOffset.UTC)
         return withContext(Dispatchers.IO) {
             try {
                 val metrics = fetch("social_creator_daily_metrics?user_id=eq.$own" +
                     "&metric_date=gte.$start" +
                     "&select=metric_date,profile_views,content_views,engagements,follows_gained,follows_lost" +
-                    "&order=metric_date.asc&limit=${window * 2}", token)
+                    "&metric_date=lte.$today&order=metric_date.asc&limit=$dayCount", token)
                 val days = (0 until metrics.length()).mapNotNull {
                     val m = metrics.optJSONObject(it) ?: return@mapNotNull null
                     val date = runCatching { LocalDate.parse(m.optString("metric_date")) }.getOrNull()
@@ -74,8 +88,12 @@ internal class CreatorAnalyticsClient(private val auth: StagingAuthClient) {
                         m.optLong("follows_lost").coerceAtLeast(0),
                         m.optLong("profile_views").coerceAtLeast(0))
                 }
-                val postRows = fetch("social_posts?author_id=eq.$own&parent_post_id=is.null" +
-                    "&post_status=eq.published&deleted_at=is.null" +
+                val ownedPosts = "social_posts?author_id=eq.$own&parent_post_id=is.null" +
+                    "&circle_id=is.null&post_status=eq.published&deleted_at=is.null"
+                val weeklyPosts = try { count("$ownedPosts&select=id&created_at=gte.$weeklyStart&limit=1", token) }
+                catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                catch (_: Exception) { null }
+                val postRows = fetch(ownedPosts +
                     "&select=id,body,created_at,like_count,comment_count,repost_count" +
                     "&order=created_at.desc&limit=50", token)
                 val posts = (0 until postRows.length()).mapNotNull { postRows.optJSONObject(it) }
@@ -102,7 +120,7 @@ internal class CreatorAnalyticsClient(private val auth: StagingAuthClient) {
                     creatorContentMedia(rows, content.map { it.id }.toSet())
                 }
                 if (auth.account?.id != own) throw kotlinx.coroutines.CancellationException("Dashboard account changed")
-                CreatorAnalytics(days, content.map { it.copy(media = media[it.id]) })
+                CreatorAnalytics(days, content.map { it.copy(media = media[it.id]) }, weeklyPosts)
             } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled
             } catch (e: AuthRequestException) { throw e }
             catch (_: Exception) { throw AuthRequestException(

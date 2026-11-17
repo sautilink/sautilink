@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.sautilink.nativeapp.ui.components.SautiPostHeart
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -184,7 +185,7 @@ internal fun NativeStoryViewer(auth: StagingAuthClient, stories: List<Pair<Nativ
                 } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("React to this story", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = .8f), modifier = Modifier.weight(1f))
                     listOf("love", "dislike").forEach { value ->
-                        FilledTonalIconButton(onClick = {
+                        IconButton(onClick = {
                             val next = NativeStoryPolicy.reaction(reaction, value)
                             busy = true; actionError = null; scope.launch {
                                 try { reaction = client.react(story.id, next) }
@@ -193,9 +194,11 @@ internal fun NativeStoryViewer(auth: StagingAuthClient, stories: List<Pair<Nativ
                                 finally { busy = false }
                             }
                         }, enabled = !busy && ready && error == null,
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = Color.White.copy(alpha = .15f))) {
-                            Icon(if (value == "love") if (reaction == value) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder else Icons.Rounded.ThumbDownOffAlt,
-                                if (value == "love") "Love story" else "Dislike story", tint = if (reaction == value) Color(0xFFFF4A71) else Color.White)
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = if (value == "love") Color.Transparent else Color.White.copy(alpha = .15f))) {
+                            if (value == "love") SautiPostHeart(reaction == value, "Love story", Modifier.size(24.dp), Color.White)
+                            else Icon(Icons.Rounded.ThumbDownOffAlt, "Dislike story",
+                                tint = if (reaction == value) Color(0xFFFF4A71) else Color.White)
                         }
                     }
                 }

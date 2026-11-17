@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.sautilink.nativeapp.ui.theme.SautiHeaderFont
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
@@ -77,7 +78,7 @@ fun NativeNotificationsScreen(
             IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
             }
-            Text("Notifications", style = MaterialTheme.typography.titleLarge,
+            Text("Notifications", fontFamily = SautiHeaderFont, style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             TextButton(onClick = {
                 busy = true; error = null
@@ -161,10 +162,8 @@ fun NativeNotificationsScreen(
                                     onUnreadChanged(items.count { !it.isRead })
                                     when {
                                         item.storyId.isNotBlank() -> onOpenStory(item.storyId)
-                                        item.type == "circle" && item.circleSlug.isNotBlank() ->
-                                            onOpenRoom(item.circleSlug)
-                                        item.postId.isNotBlank() -> onOpenPost(item.postId)
                                         item.circleSlug.isNotBlank() -> onOpenRoom(item.circleSlug)
+                                        item.postId.isNotBlank() -> onOpenPost(item.postId)
                                         item.type == "message" -> onOpenInbox()
                                         allowedHandle -> onOpenProfile(item.actorHandle)
                                     }
@@ -239,11 +238,15 @@ private fun notificationActionCopy(item: NativeNotification): String {
     val room = item.circleName.ifBlank { "your Room" }
     return when (item.type) {
         "follow" -> "followed you."
-        "like" -> "liked your post."
+        "like" -> if ((item.postDepth ?: 0) > 0) "liked your comment." else "liked your post."
         "story_like" -> "liked your story."
         "story_dislike" -> "disliked your story."
-        "reply" -> "commented on your post."
-        "mention" -> "mentioned you."
+        "reply" -> when (item.postDepth) {
+            null, 0 -> "replied in a conversation."
+            1 -> "commented on your post."
+            else -> "replied to your comment."
+        }
+        "mention" -> if ((item.postDepth ?: 0) > 0) "mentioned you in a comment." else "mentioned you."
         "reshare" -> "reposted your post."
         "circle" -> when (item.circleEvent) {
             "join_request" -> "requested to join $room."

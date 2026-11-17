@@ -1,8 +1,6 @@
 package com.sautilink.nativeapp.feature.notifications
 
 import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -23,7 +21,6 @@ import java.util.concurrent.TimeUnit
 
 /** Native FCM transport. Supabase `social_notifications` remains the canonical feed. */
 object NativePushManager {
-    const val CHANNEL_ID = "sautilink_updates"
     private val http = OkHttpClient.Builder().callTimeout(20, TimeUnit.SECONDS).build()
     private val uuid = Regex("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
     private val handle = Regex("^[a-zA-Z0-9][a-zA-Z0-9._]{2,29}$")
@@ -36,16 +33,6 @@ object NativePushManager {
 
     fun permissionGranted(context: Context): Boolean = Build.VERSION.SDK_INT < 33 ||
         context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-
-    fun createChannel(context: Context) {
-        if (Build.VERSION.SDK_INT < 26) return
-        val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, "SautiLink notifications",
-            NotificationManager.IMPORTANCE_DEFAULT).apply {
-            description = "Activity, messages and important SautiLink updates"
-            lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
-        })
-    }
 
     fun safeRoute(raw: String?): String? {
         val route = raw?.trim()?.take(180).orEmpty()

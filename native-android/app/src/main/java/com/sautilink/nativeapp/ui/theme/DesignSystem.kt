@@ -12,7 +12,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font as BundledFont
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.googlefonts.Font
@@ -36,6 +38,18 @@ private val interFamily = FontFamily(
     Font(googleFont = inter, fontProvider = fontProvider, weight = FontWeight.SemiBold),
     Font(googleFont = inter, fontProvider = fontProvider, weight = FontWeight.Bold)
 )
+
+internal val SautiHeaderFont = FontFamily(BundledFont(R.font.google_sans))
+
+@Composable
+internal fun SautiSettingsTypography(content: @Composable () -> Unit) {
+    val typography = remember { appTypography(SautiHeaderFont) }
+    MaterialTheme(typography = typography, content = content)
+}
+
+@Composable
+internal fun sautiChromeInk(): Color =
+    if (MaterialTheme.colorScheme.background.luminance() < .35f) Color.White else Color.Black
 
 object SautiColors {
     val Blue = Color(0xFF0068DF)

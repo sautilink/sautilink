@@ -48,8 +48,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "STAGING_SUPABASE_PUBLISHABLE_KEY", "\"${stagingPublishableKey}\"")
         buildConfigField("String", "PRODUCTION_SUPABASE_PUBLISHABLE_KEY", "\"${productionPublishableKey}\"")
-        versionCode = 52
-        versionName = "1.1.7"
+        versionCode = 53
+        versionName = "1.1.8"
     }
     flavorDimensions += "distribution"
     productFlavors {
@@ -121,6 +121,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     // Standard Play Integrity observations; server monitoring never gates app access.
     implementation("com.google.android.play:integrity:1.6.0")
+    implementation("com.google.android.play:app-update:2.1.0")
     implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
     implementation("com.google.firebase:firebase-messaging")
     debugImplementation("androidx.compose.ui:ui-tooling")

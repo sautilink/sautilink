@@ -2,7 +2,6 @@ package com.sautilink.nativeapp.feature.rooms
 
 import androidx.compose.runtime.*
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
-import com.sautilink.nativeapp.feature.home.StagingFeedClient
 import kotlinx.coroutines.*
 import java.util.UUID
 
@@ -10,7 +9,7 @@ import java.util.UUID
 internal class RoomManagementState(val auth: StagingAuthClient, val accountId: String?, parentScope: CoroutineScope) {
     private val client = NativeRoomManagementClient(auth)
     private val invitationsClient = NativeRoomOutgoingInvitationsClient(auth)
-    private val feedClient = StagingFeedClient(auth)
+    private val roomsClient = NativeRoomsClient(auth)
     private val lifetime = SupervisorJob(parentScope.coroutineContext[Job])
     private val scope = CoroutineScope(parentScope.coroutineContext + lifetime)
     // Readiness can be observed before open(); publishing the Room must invalidate that first read.
@@ -210,10 +209,7 @@ internal class RoomManagementState(val auth: StagingAuthClient, val accountId: S
             pinsLoading = true; pinsError = null
             try {
                 val result = client.pinnedPosts(room)
-                val posts = result.mapNotNull { pin -> feedClient.loadOne(pin.postId)?.let { fresh ->
-                    NativeRoomPost(fresh.id, fresh.authorId, fresh.authorName, fresh.authorHandle, fresh.body, fresh.createdAt,
-                        fresh.verified, fresh.badgeType, fresh.likes, fresh.comments, fresh.reposts, fresh.mediaCount, fresh.media, fresh.hasAvatar)
-                } }
+                val posts = result.mapNotNull { pin -> roomsClient.roomMessage(room, pin.postId) }
                 if (current(room) && revision == pinsVersion) { pins = result; pinnedPosts = posts; pinsLoaded = true; pinAcknowledgements.clear() }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) { if (current(room) && revision == pinsVersion) pinsError = e.message ?: "Could not load pinned posts." }

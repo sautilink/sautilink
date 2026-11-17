@@ -16,13 +16,6 @@ import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import com.sautilink.nativeapp.ui.theme.SautiShape
 
-@Composable
-internal fun MarketplaceButton(onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.size(48.dp)) {
-        Icon(Icons.Rounded.Storefront, "Marketplace", Modifier.size(25.dp))
-    }
-}
-
 /** A roadmap announcement only. There is no seller registration or commerce API. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

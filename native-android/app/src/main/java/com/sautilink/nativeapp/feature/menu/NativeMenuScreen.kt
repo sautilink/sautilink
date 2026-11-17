@@ -1,5 +1,6 @@
 package com.sautilink.nativeapp.feature.menu
 
+import com.sautilink.nativeapp.ui.theme.sautiChromeInk
 import com.sautilink.nativeapp.ui.components.SautiCopyrightFooter
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -28,6 +29,7 @@ import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.sautilink.nativeapp.ui.theme.SautiHeaderFont
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -57,14 +59,15 @@ fun AnimatedHamburgerButton(openAtRest: Boolean = false, onClick: () -> Unit) {
     ) {
         Icon(if (openAtRest) Icons.Rounded.Close else Icons.Rounded.Menu,
             contentDescription = if (openAtRest) "Close menu" else "Open menu",
-            modifier = Modifier.size(25.dp), selected = openAtRest)
+            modifier = Modifier.size(25.dp), tint = sautiChromeInk(), selected = openAtRest)
     }
 }
 
 private data class MenuDestination(val label: String, val icon: ImageVector, val key: String)
 
 private val menuDestinations = listOf(
-    MenuDestination("Rooms", Icons.Rounded.Groups, "rooms"),
+    MenuDestination("Marketplace", Icons.Rounded.Storefront, "marketplace"),
+    MenuDestination("Live", Icons.Rounded.Sensors, "live"),
     MenuDestination("Saved", Icons.Rounded.Bookmark, "saved"),
     MenuDestination("Notifications", Icons.Rounded.NotificationsNone, "notifications"),
     MenuDestination("Settings", Icons.Rounded.Settings, "settings"),
@@ -90,7 +93,8 @@ fun NativeMenuScreen(
     onProfileConfirmed: (NativeProfile?) -> Unit = {},
     onBack: () -> Unit,
     onProfile: () -> Unit,
-    onRooms: () -> Unit,
+    onMarketplace: () -> Unit,
+    onLive: () -> Unit,
     onSaved: () -> Unit,
     onNotifications: () -> Unit,
     onSettings: () -> Unit,
@@ -138,7 +142,7 @@ fun NativeMenuScreen(
                 Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back", modifier = Modifier.size(24.dp))
             }
             Spacer(Modifier.width(8.dp))
-            Text("Menu", style = MaterialTheme.typography.headlineMedium,
+            Text("Menu", fontFamily = SautiHeaderFont, style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             AnimatedHamburgerButton(openAtRest = true, onClick = onBack)
         }
@@ -226,7 +230,8 @@ fun NativeMenuScreen(
                     MenuTile(entry, selected = entry.key == "theme" && isDark,
                         disabled = entry.key == "verification" && ownProfile?.verified == true) {
                             when (entry.key) {
-                                "rooms" -> onRooms()
+                                "marketplace" -> onMarketplace()
+                                "live" -> onLive()
                                 "saved" -> onSaved()
                                 "notifications" -> onNotifications()
                                 "settings" -> onSettings()

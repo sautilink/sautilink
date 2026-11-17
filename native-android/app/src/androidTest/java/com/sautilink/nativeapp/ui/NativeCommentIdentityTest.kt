@@ -1,6 +1,7 @@
 package com.sautilink.nativeapp.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
@@ -105,6 +106,21 @@ class NativeCommentIdentityTest {
             assertEquals(1, replies)
             assertEquals(1, deleted)
         }
+    }
+
+    @Test fun ownCommentMenuDoesNotAddVerticalSpaceToTheBody() {
+        val own = comment("Own comment")
+        val other = comment("Other comment")
+        compose.setContent { Frame {
+            Column {
+                PostCommentContent(auth = null, comment = own.copy(body = "Own message"), onDelete = {})
+                PostCommentContent(auth = null, comment = other.copy(body = "Other message"))
+            }
+        } }
+        fun authorToBody(author: String, body: String): Float =
+            compose.onNodeWithText(body).fetchSemanticsNode().boundsInRoot.top -
+                compose.onNodeWithText(author).fetchSemanticsNode().boundsInRoot.top
+        assertEquals(authorToBody("Other comment", "Other message"), authorToBody("Own comment", "Own message"), 1f)
     }
 
     @Test fun unverifiedComment_hasNoBadge_andDisabledDeleteCannotOpen() {

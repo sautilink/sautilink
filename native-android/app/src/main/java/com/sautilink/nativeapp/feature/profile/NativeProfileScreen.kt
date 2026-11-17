@@ -35,7 +35,9 @@ import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import com.sautilink.nativeapp.ui.theme.sautiChromeInk
 import androidx.compose.ui.Modifier
+import com.sautilink.nativeapp.ui.theme.SautiHeaderFont
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
@@ -212,9 +214,9 @@ fun NativeProfileScreen(
             Text(when {
                 edit -> "Edit profile"
                 connectionList != null -> connectionList!!.replaceFirstChar { it.uppercase() }
-                ownerRoute -> "My profile"
+                ownerRoute -> "My Profile"
                 else -> "Profile"
-            }, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+            }, style = MaterialTheme.typography.headlineSmall, fontFamily = SautiHeaderFont, modifier = Modifier.weight(1f))
             if (!edit && account != null) {
                 if (ownerRoute) {
                     IconButton(onClick = { refresh++ }, enabled = !loading) {
@@ -433,13 +435,15 @@ fun NativeProfileScreen(
                                     Row(Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         OutlinedButton(onClick = { actionError = null; edit = true },
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = sautiChromeInk()),
                                             shape = RoundedCornerShape(14.dp),
                                             modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                                             Icon(Icons.Rounded.Edit, null, Modifier.size(18.dp))
                                             Spacer(Modifier.width(5.dp))
-                                            Text("Edit profile")
+                                            Text("Edit Profile")
                                         }
                                         OutlinedButton(onClick = onOpenDashboard,
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = sautiChromeInk()),
                                             shape = RoundedCornerShape(14.dp),
                                             modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
                                             Icon(Icons.Rounded.Dashboard, null, Modifier.size(18.dp))

@@ -1,10 +1,12 @@
 package com.sautilink.nativeapp.feature.home
 
+import com.sautilink.nativeapp.ui.theme.sautiChromeInk
 import android.content.Intent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.sautilink.nativeapp.ui.components.sautiActionFeedback
+import com.sautilink.nativeapp.ui.components.SautiWordmark
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,8 +25,8 @@ import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.NotificationsNone
 import androidx.compose.material.icons.rounded.ChatBubbleOutline
-import androidx.compose.material.icons.rounded.ThumbUp
-import androidx.compose.material.icons.rounded.ThumbUpOffAlt
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import com.sautilink.nativeapp.ui.components.SautiPostHeart
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.PhotoLibrary
@@ -34,6 +36,7 @@ import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.PersonAdd
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.PeopleOutline
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.*
@@ -51,6 +54,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
@@ -59,7 +64,6 @@ import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.feature.auth.AuthRequestException
 import com.sautilink.nativeapp.ui.state.rememberSessionScreenPresentationAccess
 import com.sautilink.nativeapp.feature.menu.AnimatedHamburgerButton
-import com.sautilink.nativeapp.feature.marketplace.MarketplaceButton
 import com.sautilink.nativeapp.feature.stories.StoriesButton
 import com.sautilink.nativeapp.feature.stories.StoryProfileAvatarRing
 import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
@@ -83,6 +87,13 @@ import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.Locale
 
+@Composable
+internal fun RoomsHomeShortcut(onOpen: () -> Unit) {
+    IconButton(onClick = onOpen, modifier = Modifier.size(48.dp)) {
+        Icon(Icons.Rounded.Groups, "Rooms", Modifier.size(25.dp), tint = sautiChromeInk())
+    }
+}
+
 /** Explicit environment-isolated read-only feed; production and staging use different auth sessions. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,7 +108,6 @@ fun StagingFeedScreen(
     onOpenNotifications: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenMenu: () -> Unit = {},
-    onOpenMarketplace: () -> Unit = {},
     onOpenStories: () -> Unit = {},
     unseenStories: Int = 0,
     onOpenVideos: () -> Unit = {},
@@ -630,17 +640,14 @@ fun StagingFeedScreen(
                 title = {
                     if (asHome) {
                         Row(verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             androidx.compose.foundation.Image(
                                 painter = androidx.compose.ui.res.painterResource(
                                     com.sautilink.nativeapp.R.drawable.sautilink_logo),
-                                contentDescription = "SautiLink logo",
+                                contentDescription = null,
                                 modifier = Modifier.width(42.dp).height(28.dp),
                                 contentScale = androidx.compose.ui.layout.ContentScale.Fit)
-                            Text("SautiLink", style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1)
+                            SautiWordmark(Modifier.width(98.dp).height(21.dp))
                         }
                     } else {
                         Column {
@@ -663,7 +670,7 @@ fun StagingFeedScreen(
                     } else {
                         // Notifications already has a dedicated bottom-navigation destination.
                         StoriesButton(unreadCount = unseenStories, onClick = onOpenStories)
-                        MarketplaceButton(onClick = onOpenMarketplace)
+                        RoomsHomeShortcut(onOpenRooms)
                         AnimatedHamburgerButton(onClick = onOpenMenu)
                     }
                 },
@@ -931,11 +938,13 @@ private fun feedLikeGesture(auth: StagingAuthClient, online: Boolean, busy: Bool
 internal fun FeedFollowButton(following: Boolean?, pending: Boolean?, enabled: Boolean,
     onFollow: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
+    val ink = sautiChromeInk()
     val label = if (pending == true) "Following…" else if (following == true) "Following" else "Follow"
     OutlinedButton(onClick = onFollow, enabled = enabled && following != true && pending != true, interactionSource = interaction,
         modifier = Modifier.heightIn(min = 40.dp), shape = RoundedCornerShape(13.dp),
-        colors = ButtonDefaults.outlinedButtonColors(disabledContentColor = if (following == true)
-            MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = ink,
+            disabledContentColor = if (following == true) ink else ink.copy(alpha = .54f)),
+        border = BorderStroke(1.dp, ink.copy(alpha = if (enabled) .82f else .32f)),
         contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp)) {
         Text(label, modifier = Modifier.sautiActionFeedback(interaction),
             style = MaterialTheme.typography.labelMedium, maxLines = 1)
@@ -1112,32 +1121,25 @@ private fun RealPostCard(
                     }
                     // The leading actions wrap their content instead of expanding into equal columns.
                     SautiPostActionRow(actions = {
-                        CompactPostAction(Icons.Rounded.ThumbUpOffAlt,
+                        CompactPostAction(Icons.Rounded.FavoriteBorder,
                             if (liked == true) "Unlike post" else "Like post", feedCount(post.likes),
                             Modifier, onLike, online && !busyLike,
-                            if (liked == true) SautiColors.Red else MaterialTheme.colorScheme.onSurfaceVariant,
-                            if (liked == true) Icons.Rounded.ThumbUp else Icons.Rounded.ThumbUpOffAlt)
+                            selected = liked == true)
                         CompactPostAction(Icons.Rounded.ChatBubbleOutline, "View comments",
                             feedCount(post.comments), Modifier, onComments, online)
                         CompactPostAction(Icons.Rounded.Repeat,
                             if (reposted == true) "Undo repost" else "Repost",
                             feedCount(post.reposts), Modifier, onRepost,
-                            online && !busyRepost,
-                            if (reposted == true) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant)
+                            online && !busyRepost, selected = reposted == true)
                         CompactPostAction(SautiPostIcons.Share, "Share post", null,
                             Modifier, onShare)
                     }, trailing = {
-                        val saveInteraction = remember { MutableInteractionSource() }
-                        IconButton(onClick = onSave, enabled = online && !busySave,
-                            interactionSource = saveInteraction, modifier = Modifier.size(48.dp)) {
-                            Icon(if (saved == true) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                                if (saved == true) "Remove from saved" else "Save post",
-                                modifier = Modifier.size(24.dp).sautiActionFeedback(saveInteraction),
-                                selected = saved == true,
-                                tint = if (saved == true) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        CompactPostAction(Icons.Rounded.BookmarkBorder,
+                            if (saved == true) "Remove from saved" else "Save post",
+                            count = null, modifier = Modifier, onClick = onSave,
+                            enabled = online && !busySave,
+                            activeIcon = if (saved == true) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                            selected = saved == true)
                     })
                 }
             } else {
@@ -1166,25 +1168,33 @@ internal fun CompactPostAction(
     modifier: Modifier,
     onClick: () -> Unit,
     enabled: Boolean = true,
-    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    activeIcon: ImageVector = icon
+    activeIcon: ImageVector = icon,
+    selected: Boolean = false
 ) {
     val interaction = remember { MutableInteractionSource() }
-    val animatedTint by animateColorAsState(tint, tween(150), label = "Post action color")
+    val ink = sautiChromeInk()
+    val heart = icon == Icons.Rounded.FavoriteBorder
+    val repost = icon == Icons.Rounded.Repeat
+    val actionTint = if (repost && selected) MaterialTheme.colorScheme.primary else ink
+    val selection by animateColorAsState(ink.copy(alpha = if (selected && !heart && !repost) .11f else 0f),
+        tween(150), label = "Post action selection")
     Row(
         modifier = modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-            .clickable(interactionSource = interaction, indication = ripple(), enabled = enabled, role = Role.Button, onClick = onClick)
+            .background(selection, RoundedCornerShape(14.dp))
+            .semantics { this.selected = selected }
+            .clickable(interactionSource = interaction, indication = if (repost) null else ripple(),
+                enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 1.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(activeIcon, contentDescription = label, tint = animatedTint,
-            selected = activeIcon != icon,
-            modifier = Modifier.size(20.dp).sautiActionFeedback(interaction))
+        val artwork = Modifier.size(20.dp).sautiActionFeedback(interaction)
+        if (heart) SautiPostHeart(selected, label, artwork, ink)
+        else Icon(activeIcon, contentDescription = label, tint = actionTint, selected = selected, modifier = artwork)
         if (count != null) {
             Spacer(Modifier.width(2.dp))
             Text(count, style = MaterialTheme.typography.labelSmall,
-                color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

@@ -8,7 +8,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material3.*
 import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
@@ -18,6 +17,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,6 +33,8 @@ import com.sautilink.nativeapp.ui.components.SautiExploreSkeleton
 import com.sautilink.nativeapp.ui.components.SautiCommentActions
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
+import com.sautilink.nativeapp.feature.auth.normalizeLoginUsername
+import com.sautilink.nativeapp.feature.auth.validLoginUsername
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
@@ -74,14 +81,38 @@ internal fun PostCommentsSheet(
     onDismiss: () -> Unit,
     onRootPosted: () -> Unit,
     onRootDeleted: () -> Unit,
-    onCommentChanged: () -> Unit
+    onCommentChanged: () -> Unit,
+    focusedCommentId: String? = null,
+    onOpenProfile: ((String) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     // Each breadcrumb is a real social_posts UUID; navigating up stays inside this sheet.
     var trail by rememberSaveable(post.id, stateSaver = commentTrailSaver) { mutableStateOf<List<NativePostComment>>(emptyList()) }
     val parent = trail.lastOrNull()
     val targetId = parent?.id ?: post.id
+    val mention = parent?.handle?.takeIf(::validLoginUsername)
+        ?.let { "@${normalizeLoginUsername(it)} " }.orEmpty()
+    var replyFocusId by remember(post.id) { mutableStateOf<String?>(null) }
     var comments by remember(post.id, targetId) { mutableStateOf<List<NativePostComment>>(emptyList()) }
+    var focusPath by remember(post.id, focusedCommentId) { mutableStateOf<List<NativePostComment>>(emptyList()) }
+    var focusResolved by remember(post.id, focusedCommentId) { mutableStateOf(focusedCommentId == null) }
+    LaunchedEffect(post.id, focusedCommentId) {
+        if (focusedCommentId == null) return@LaunchedEffect
+        try { focusPath = withTimeout(18_000L) { actions.loadCommentPath(post.id, focusedCommentId) } }
+        catch (_: TimeoutCancellationException) { }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { }
+        finally { focusResolved = true }
+    }
+    val visibleComments = remember(comments, focusPath, targetId, post.id) {
+        val immediate = if (targetId == post.id) focusPath.firstOrNull()
+            else focusPath.getOrNull(focusPath.indexOfFirst { it.id == targetId }.takeIf { it >= 0 }?.plus(1) ?: focusPath.size)
+        val roots = if (immediate != null && comments.none { it.id == immediate.id }) comments + immediate else comments
+        if (immediate == null) roots else roots.flatMap { comment ->
+            if (comment.id == immediate.id) listOf(comment) + focusPath.dropWhile { it.id != immediate.id }.drop(1)
+            else listOf(comment)
+        }
+    }
     var loading by remember(post.id, targetId) { mutableStateOf(true) }
     var loadError by remember(post.id, targetId) { mutableStateOf<String?>(null) }
     var writeError by remember(post.id) { mutableStateOf<String?>(null) }
@@ -114,14 +145,14 @@ internal fun PostCommentsSheet(
         }
     }
 
-    LaunchedEffect(post.id, targetId, comments.map { it.id }, allowWrite, reactionRetry, loading, refresh) {
+    LaunchedEffect(post.id, targetId, visibleComments.map { it.id }, allowWrite, reactionRetry, loading, refresh) {
         if (loading) return@LaunchedEffect
-        if (!allowWrite || comments.isEmpty()) { reactionStatusLoading = false; return@LaunchedEffect }
+        if (!allowWrite || visibleComments.isEmpty()) { reactionStatusLoading = false; return@LaunchedEffect }
         reactionStatusLoading = true
         val revision = reactionRevision
         reactionError = null
         try {
-            val states = withTimeout(18_000L) { actions.getCommentReactionStates(comments.map { it.id }) }
+            val states = withTimeout(18_000L) { actions.getCommentReactionStates(visibleComments.map { it.id }) }
             if (revision == reactionRevision) selectedReactions = selectedReactions + states.mapValues { it.value.orEmpty() }
         } catch (_: TimeoutCancellationException) { reactionError = "Comment reaction status took too long. Try again." }
         catch (cancelled: CancellationException) { throw cancelled }
@@ -138,9 +169,11 @@ internal fun PostCommentsSheet(
             try {
                 val counts = withTimeout(20_000L) { actions.setCommentReaction(comment.id, next) }
                 selectedReactions = selectedReactions + (comment.id to next.orEmpty())
-                comments = comments.map { item ->
+                val update: (NativePostComment) -> NativePostComment = { item ->
                     if (item.id == comment.id) item.copy(likes = counts.first, dislikes = counts.second) else item
                 }
+                comments = comments.map(update)
+                focusPath = focusPath.map(update)
             } catch (_: TimeoutCancellationException) {
                 refresh++
                 writeError = "Reaction timed out. Checking its saved status."
@@ -166,15 +199,32 @@ internal fun PostCommentsSheet(
         val heightFraction = commentSheetHeightFraction()
         threadStateHolder.SaveableStateProvider(targetId) {
             // Retain each thread's draft, retry key and scroll position when navigating or reopening.
-            var draft by rememberSaveable { mutableStateOf("") }
+            val initialDraft = TextFieldValue(mention, selection = TextRange(mention.length))
+            var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(initialDraft) }
             var requestId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
+            val focus = remember { FocusRequester() }
+            val keyboard = LocalSoftwareKeyboardController.current
+            val hasMessage = draft.text.isNotBlank() && draft.text.trim() != mention.trim()
+            LaunchedEffect(replyFocusId, targetId) {
+                if (allowWrite && replyFocusId == targetId) {
+                    if (draft.text.isEmpty()) draft = initialDraft
+                    focus.requestFocus()
+                    keyboard?.show()
+                    replyFocusId = null
+                }
+            }
             val listState = rememberLazyListState()
             var scrollIndex by rememberSaveable { mutableIntStateOf(0) }
             var scrollOffset by rememberSaveable { mutableIntStateOf(0) }
-            LaunchedEffect(listState, loading, targetId) {
-                if (!loading && loadError == null && comments.isNotEmpty()) {
+            var focusApplied by rememberSaveable(focusedCommentId) { mutableStateOf(false) }
+            LaunchedEffect(listState, loading, targetId, focusResolved) {
+                if (!loading && focusResolved && loadError == null && visibleComments.isNotEmpty()) {
                     // Loading skeletons must not clamp away the remembered thread position.
-                    listState.scrollToItem(scrollIndex.coerceAtMost(comments.lastIndex), scrollOffset)
+                    val focusIndex = visibleComments.indexOfFirst { it.id == focusedCommentId }
+                    if (!focusApplied && focusIndex >= 0) {
+                        listState.scrollToItem(focusIndex)
+                        focusApplied = true
+                    } else listState.scrollToItem(scrollIndex.coerceAtMost(visibleComments.lastIndex), scrollOffset)
                     snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
                         .collect { (index, offset) -> scrollIndex = index; scrollOffset = offset }
                 }
@@ -184,35 +234,21 @@ internal fun PostCommentsSheet(
                     .padding(horizontal = 16.dp).padding(bottom = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    if (parent != null) {
-                        IconButton(onClick = { trail = trail.dropLast(1); writeError = null }, enabled = !mutating) {
-                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to previous comments")
-                        }
-                    }
-                    if (parent == null) {
-                        Icon(Icons.Rounded.ChatBubbleOutline, null, Modifier.size(21.dp),
-                            tint = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(9.dp))
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text(if (parent == null) "Comments" else "Replies",
-                            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            if (parent == null) "${post.authorName}'s post" else "Replying to ${parent.author}",
-                            style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(onClick = { refresh++ }, enabled = !mutating && !loading) {
-                        Icon(Icons.Rounded.Refresh, "Refresh comments")
-                    }
+                Box(Modifier.fillMaxWidth().heightIn(min = 40.dp), contentAlignment = Alignment.Center) {
+                    if (parent != null) IconButton(
+                        onClick = { trail = trail.dropLast(1); writeError = null }, enabled = !mutating,
+                        modifier = Modifier.align(Alignment.CenterStart)
+                    ) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back to previous comments", Modifier.size(20.dp)) }
+                    Text(if (parent == null) "Comments" else "Replies",
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp),
+                        fontWeight = FontWeight.Medium, modifier = Modifier.align(Alignment.Center))
                     IconButton(onClick = {
                         scope.launch { sheetState.hide(); if (!sheetState.isVisible) onDismiss() }
-                    }, enabled = !mutating) {
-                        Icon(Icons.Rounded.Close, "Close comments")
+                    }, enabled = !mutating, modifier = Modifier.align(Alignment.CenterEnd)) {
+                        Icon(Icons.Rounded.Close, "Close comments", Modifier.size(18.dp))
                     }
                 }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f))
                 if (parent != null) {
                     Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.primaryContainer) {
                         PostCommentContent(auth, parent, Modifier.padding(12.dp),
@@ -230,14 +266,18 @@ internal fun PostCommentsSheet(
                             TextButton(onClick = { refresh++ }, enabled = !loading) { Text("Retry comments") }
                         }
                     }
-                    if (!loading && loadError == null && comments.isEmpty()) item {
+                    if (!loading && loadError == null && visibleComments.isEmpty()) item {
                         Text(if (parent == null) "No comments yet. Start the conversation." else "No replies yet.",
                             style = MaterialTheme.typography.bodyMedium)
                     }
-                    items(comments, key = { it.id }) { comment ->
-                        Surface(color = MaterialTheme.colorScheme.surface) {
-                            PostCommentContent(auth, comment, Modifier.padding(vertical = 8.dp),
-                                enabled = !mutating,
+                    items(visibleComments, key = { it.id }) { comment ->
+                        val indent = focusPath.indexOfFirst { it.id == comment.id }.coerceIn(0, 3)
+                        Surface(color = if (comment.id == focusedCommentId) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surface, shape = SautiShape.Card,
+                            modifier = Modifier.fillMaxWidth().padding(start = (indent * 10).dp)
+                                .testTag(if (comment.id == focusedCommentId) "highlighted-comment" else "comment")) {
+                            PostCommentContent(auth, comment, Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                                enabled = !mutating, onOpenProfile = onOpenProfile,
                                 onDelete = if (allowWrite && comment.authorId == signedInUserId)
                                     ({ confirmDelete = comment }) else null) {
                                 SautiCommentActions(likes = comment.likes, dislikes = comment.dislikes,
@@ -247,13 +287,18 @@ internal fun PostCommentsSheet(
                                     reactionEnabled = allowWrite && !mutating && !loading && !reactionStatusLoading &&
                                         selectedReactions.containsKey(comment.id), replyEnabled = !mutating,
                                     onLike = { react(comment, "like") }, onDislike = { react(comment, "dislike") },
-                                    onReply = { trail = trail + comment; writeError = null })
+                                    onReply = {
+                                        replyFocusId = if (allowWrite) comment.id else null
+                                        trail = trail + comment
+                                        writeError = null
+                                    },
+                                    onViewReplies = { trail = trail + comment; writeError = null })
                             }
                         }
                     }
                 }
-                if (comments.size == 40) {
-                    Text("Showing the latest 40 in this thread.", style = MaterialTheme.typography.labelSmall,
+                if (comments.size == 80) {
+                    Text("Showing the first 80 in this thread.", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (reactionError != null) {
@@ -274,31 +319,36 @@ internal fun PostCommentsSheet(
                         OutlinedTextField(
                             value = draft,
                             onValueChange = { newValue ->
-                                if (newValue.length <= 500 && newValue != draft) {
-                                    draft = newValue
+                                val limited = newValue.text.take(500).let { text ->
+                                    if (text.lastOrNull()?.isHighSurrogate() == true) text.dropLast(1) else text
+                                }
+                                if (limited != draft.text) {
                                     requestId = UUID.randomUUID().toString()
                                     writeError = null
                                 }
+                                draft = if (limited == newValue.text) newValue else newValue.copy(
+                                    text = limited, selection = TextRange(newValue.selection.start.coerceAtMost(limited.length),
+                                        newValue.selection.end.coerceAtMost(limited.length)), composition = null)
                             },
-                            modifier = Modifier.weight(1f), shape = SautiShape.Pill,
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp, lineHeight = 22.sp),
+                            modifier = Modifier.weight(1f).focusRequester(focus), shape = SautiShape.Pill,
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp),
                             placeholder = { Text(if (parent == null) "Write a comment..." else "Write a reply...") },
                             maxLines = 3,
-                            supportingText = if (draft.length >= 400) ({ Text("${draft.length}/500") }) else null,
+                            supportingText = if (draft.text.length >= 400) ({ Text("${draft.text.length}/500") }) else null,
                             enabled = !busySend && deletingId == null
                         )
                         IconButton(onClick = {
-                            if (mutating || draft.isBlank()) return@IconButton
+                            if (mutating || !hasMessage) return@IconButton
                             val destination = targetId
                             val rootWrite = parent == null
-                            val body = draft
+                            val body = draft.text
                             val key = requestId
                             busySend = true
                             writeError = null
                             scope.launch {
                                 try {
                                     withTimeout(20_000L) { actions.sendComment(destination, body, key) }
-                                    draft = ""
+                                    draft = initialDraft
                                     requestId = UUID.randomUUID().toString()
                                     if (rootWrite) onRootPosted()
                                     else {
@@ -318,7 +368,7 @@ internal fun PostCommentsSheet(
                                     busySend = false
                                 }
                             }
-                        }, enabled = draft.isNotBlank() && !mutating) {
+                        }, enabled = hasMessage && !mutating) {
                             if (busySend) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                             else Icon(Icons.AutoMirrored.Rounded.Send, if (parent == null) "Post comment" else "Post reply")
                         }
@@ -339,19 +389,21 @@ internal fun PostCommentsSheet(
                 TextButton(onClick = {
                     if (mutating || toDelete.authorId != signedInUserId || !allowWrite) return@TextButton
                     confirmDelete = null
-                    val deletedFromRoot = parent == null
+                    val focusIndex = focusPath.indexOfFirst { it.id == toDelete.id }
+                    val deletedFromRoot = parent == null && focusIndex <= 0
                     deletingId = toDelete.id
                     writeError = null
                     scope.launch {
                         try {
                             withTimeout(20_000L) { actions.deleteOwnComment(toDelete.id) }
                             if (deletedFromRoot) onRootDeleted()
-                            else {
+                            else if (parent != null && comments.any { it.id == toDelete.id }) {
                                 trail = trail.mapIndexed { index, ancestor ->
                                     if (index == trail.lastIndex) ancestor.copy(replyCount = (ancestor.replyCount - 1).coerceAtLeast(0)) else ancestor
                                 }
                             }
                             comments = comments.filterNot { it.id == toDelete.id }
+                            if (focusIndex >= 0) focusPath = focusPath.take(focusIndex)
                             refresh++
                             onCommentChanged()
                         } catch (_: TimeoutCancellationException) {

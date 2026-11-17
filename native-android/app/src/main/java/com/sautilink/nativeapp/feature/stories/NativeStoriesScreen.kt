@@ -1,5 +1,6 @@
 package com.sautilink.nativeapp.feature.stories
 
+import com.sautilink.nativeapp.ui.theme.sautiChromeInk
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,7 +49,7 @@ internal fun StoriesButton(unreadCount: Int, onClick: () -> Unit) {
     BadgedBox(badge = { if (unreadCount > 0) Badge { Text(if (unreadCount > 99) "99+" else "$unreadCount") } }) {
         IconButton(onClick = onClick, modifier = Modifier.size(48.dp)) {
             Icon(NativeStoriesIcon, "Stories${if (unreadCount > 0) ", $unreadCount unwatched" else ""}",
-                Modifier.size(25.dp), tint = MaterialTheme.colorScheme.onSurface)
+                Modifier.size(25.dp), tint = sautiChromeInk())
         }
     }
 }

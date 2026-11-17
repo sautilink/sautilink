@@ -205,39 +205,77 @@ class PostInteractionsClient(private val auth: StagingAuthClient) {
         }
     }
 
+    private val commentFields = "id,author_id,parent_post_id,body,created_at,comment_count,like_count,dislike_count"
+
+    internal suspend fun resolvePostRoot(id: String): String? {
+        val checked = checkedPostId(id)
+        val (_, token) = access()
+        return withContext(Dispatchers.IO) {
+            val row = readArray("${rest}social_posts?id=eq.$checked&circle_id=is.null" +
+                "&post_status=eq.published&deleted_at=is.null&select=id,parent_post_id,root_post_id&limit=1",
+                token).optJSONObject(0) ?: return@withContext null
+            if (row.isNull("parent_post_id")) checked
+            else row.optString("root_post_id").takeIf(postIdPattern::matches)
+        }
+    }
+
     suspend fun loadComments(id: String): List<NativePostComment> {
         val postId = checkedPostId(id)
         val (_, token) = access()
         return withContext(Dispatchers.IO) {
-            val rows = readArray(
-                "${rest}social_posts?parent_post_id=eq.$postId&select=id,author_id,body,created_at,comment_count,like_count,dislike_count&order=created_at.asc&limit=80", token
+            val rows = readArray("${rest}social_posts?parent_post_id=eq.$postId&select=$commentFields" +
+                "&post_status=eq.published&deleted_at=is.null&order=created_at.asc,id.asc&limit=80", token)
+            hydrateComments(rows, token)
+        }
+    }
+
+    internal suspend fun loadCommentPath(root: String, focus: String): List<NativePostComment> {
+        val rootId = checkedPostId(root)
+        val focusId = checkedPostId(focus)
+        val (_, token) = access()
+        return withContext(Dispatchers.IO) {
+            val found = mutableListOf<JSONObject>()
+            val seen = mutableSetOf<String>()
+            var next = focusId
+            while (next != rootId && found.size < 32 && seen.add(next)) {
+                val row = readArray("${rest}social_posts?id=eq.$next&root_post_id=eq.$rootId&circle_id=is.null" +
+                    "&post_status=eq.published&deleted_at=is.null&select=$commentFields&limit=1", token)
+                    .optJSONObject(0) ?: return@withContext emptyList()
+                if (row.optString("id") != next) return@withContext emptyList()
+                found += row
+                next = row.optString("parent_post_id").takeIf(postIdPattern::matches)
+                    ?: return@withContext emptyList()
+            }
+            if (next != rootId) emptyList() else hydrateComments(JSONArray(found.asReversed()), token)
+        }
+    }
+
+    private fun hydrateComments(rows: JSONArray, token: String): List<NativePostComment> {
+        val comments = (0 until rows.length()).mapNotNull { rows.optJSONObject(it) }
+        val users = comments.map { it.optString("author_id") }.filter { userIdPattern.matches(it) }.distinct()
+        val profiles = if (users.isEmpty()) emptyMap() else {
+            val names = readArray("${rest}social_profiles?id=in.(${users.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type,avatar_key", token)
+            (0 until names.length()).mapNotNull { names.optJSONObject(it) }.associateBy { it.optString("id") }
+        }
+        return comments.mapNotNull { c ->
+            val commentId = c.optString("id")
+            if (!postIdPattern.matches(commentId)) return@mapNotNull null
+            val profile = profiles[c.optString("author_id")]
+            val handle = profile?.optString("username").orEmpty()
+            NativePostComment(
+                commentId,
+                profile?.optString("display_name")?.takeUnless { it.isBlank() || it == "null" } ?: handle.ifBlank { "SautiLink member" },
+                handle,
+                c.optString("body").takeUnless { it == "null" }.orEmpty(),
+                c.optString("created_at"),
+                c.optString("author_id"),
+                c.optInt("comment_count").coerceAtLeast(0),
+                profile?.optBoolean("is_verified", false) == true,
+                profile?.optString("verification_badge_type", "standard") ?: "standard",
+                c.optInt("like_count").coerceAtLeast(0),
+                c.optInt("dislike_count").coerceAtLeast(0),
+                profile?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null
             )
-            val comments = (0 until rows.length()).mapNotNull { rows.optJSONObject(it) }
-            val users = comments.map { it.optString("author_id") }.filter { userIdPattern.matches(it) }.distinct()
-            val profiles = if (users.isEmpty()) emptyMap() else {
-                val names = readArray("${rest}social_profiles?id=in.(${users.joinToString(",")})&select=id,username,display_name,is_verified,verification_badge_type,avatar_key", token)
-                (0 until names.length()).mapNotNull { names.optJSONObject(it) }.associateBy { it.optString("id") }
-            }
-            comments.mapNotNull { c ->
-                val commentId = c.optString("id")
-                if (!postIdPattern.matches(commentId)) return@mapNotNull null
-                val profile = profiles[c.optString("author_id")]
-                val handle = profile?.optString("username").orEmpty()
-                NativePostComment(
-                    commentId,
-                    profile?.optString("display_name")?.takeUnless { it.isBlank() || it == "null" } ?: handle.ifBlank { "SautiLink member" },
-                    handle,
-                    c.optString("body").takeUnless { it == "null" }.orEmpty(),
-                    c.optString("created_at"),
-                    c.optString("author_id"),
-                    c.optInt("comment_count").coerceAtLeast(0),
-                    profile?.optBoolean("is_verified", false) == true,
-                    profile?.optString("verification_badge_type", "standard") ?: "standard",
-                    c.optInt("like_count").coerceAtLeast(0),
-                    c.optInt("dislike_count").coerceAtLeast(0),
-                    profile?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null
-                )
-            }
         }
     }
 

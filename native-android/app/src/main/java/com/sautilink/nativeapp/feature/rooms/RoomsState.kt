@@ -2,12 +2,12 @@ package com.sautilink.nativeapp.feature.rooms
 
 import android.content.Context
 import android.net.Uri
+import android.os.SystemClock
 import androidx.compose.runtime.*
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.home.PostInteractionsClient
-import com.sautilink.nativeapp.feature.home.StagingFeedClient
 import com.sautilink.nativeapp.feature.posts.NativeMediaClient
 import com.sautilink.nativeapp.feature.posts.NativeReadyMedia
 import kotlinx.coroutines.*
@@ -16,18 +16,30 @@ import java.util.UUID
 internal class RoomDraft {
     var editor by mutableStateOf(TextFieldValue(""))
     var media by mutableStateOf<List<RoomDraftMedia>>(emptyList())
-    var replyAccess by mutableStateOf("everyone")
     var error by mutableStateOf<String?>(null)
     var attemptSnapshot: RoomPublishSnapshot? = null
     var attemptId: String? = null
+    var typedAt = 0L
+        private set
     val uploading get() = media.any { it.status == "Preparing" || it.status == "Uploading" }
+
+    fun edit(value: TextFieldValue) {
+        if (value.text != editor.text) {
+            markTyping(value.text.isNotBlank())
+            error = null
+        }
+        editor = value
+    }
+
+    fun markTyping(active: Boolean) { typedAt = if (active) SystemClock.elapsedRealtime() else 0L }
+    fun stopTyping() = markTyping(false)
 }
 
-internal data class RoomPublishSnapshot(val body: String, val replyAccess: String, val media: List<NativeReadyMedia>)
+internal data class RoomPublishSnapshot(val body: String, val replyToId: String?, val media: List<NativeReadyMedia>)
 
 internal data class RoomDraftMedia(val localId: String, val label: String, val kind: String = "image",
     val status: String = "Preparing", val progress: Int = 0,
-    val ready: NativeReadyMedia? = null, val alt: String = "", val error: String? = null)
+    val ready: NativeReadyMedia? = null, val alt: String = "", val error: String? = null, val source: Uri? = null)
 
 private data class RoomNavigationBookmark(val roomId: String, val role: String?, val privacy: String, val tab: RoomTab) {
     fun matches(room: NativeRoom) = roomId == room.id && role == room.role && privacy == room.privacy
@@ -58,7 +70,7 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
     val client = NativeRoomsClient(auth)
     val interactions = PostInteractionsClient(auth)
     private val mediaClient = NativeMediaClient(auth, context.applicationContext)
-    private val coverClient = NativeRoomCoverClient(context.applicationContext, auth)
+    private val coverClient = NativeRoomCoverClient(auth)
     private val lifetime = SupervisorJob(parentScope.coroutineContext[Job])
     private val scope = CoroutineScope(parentScope.coroutineContext + lifetime)
     private var discoveryJob: Job? = null
@@ -66,6 +78,7 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
     private var invitesJob: Job? = null
     private var capabilityJob: Job? = null
     private var postsJob: Job? = null
+    private var postSearchJob: Job? = null
     private var peopleJob: Job? = null
     private var queueJob: Job? = null
     private var discoveryVersion = 0
@@ -73,6 +86,7 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
     private var invitesVersion = 0
     private var capabilityVersion = 0
     private var postsVersion = 0
+    private var postSearchVersion = 0
     private var peopleVersion = 0
     private var queueVersion = 0
     private val busyKeys = mutableStateMapOf<String, Boolean>()
@@ -85,11 +99,11 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
     private var metadataVersion = 0
     private var peopleRequested = false
     private var landingRequested = false
-    var tab by mutableStateOf(RoomsTab.DISCOVER)
+    var tab by mutableStateOf(RoomsTab.YOURS)
     var roomTab by mutableStateOf(RoomTab.DISCUSSION); private set
     var search by mutableStateOf("")
     var category by mutableStateOf<String?>(null)
-    var approvalAvailable by mutableStateOf(false); private set
+    var memberPrivacyAvailable by mutableStateOf(false); private set
     var discover by mutableStateOf<List<NativeRoom>>(emptyList()); private set
     var yours by mutableStateOf<List<NativeRoom>>(emptyList()); private set
     var invitations by mutableStateOf<List<NativeRoomInvitation>>(emptyList()); private set
@@ -97,6 +111,7 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
     var yoursLoading by mutableStateOf(false); private set
     var invitesLoading by mutableStateOf(false); private set
     var discoverMore by mutableStateOf(false); private set
+    var discoveryQuery by mutableStateOf(""); private set
     var discoverError by mutableStateOf<String?>(null); private set
     var yoursError by mutableStateOf<String?>(null); private set
     var invitesError by mutableStateOf<String?>(null); private set
@@ -108,6 +123,12 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
     var posts by mutableStateOf<List<NativeRoomPost>>(emptyList()); private set
     var postsLoading by mutableStateOf(false); private set
     var postsMore by mutableStateOf(false); private set
+    var hasNewerHistory by mutableStateOf(false); private set
+    var postSearchQuery by mutableStateOf(""); private set
+    var searchPosts by mutableStateOf<List<NativeRoomPost>>(emptyList()); private set
+    var searchPostsLoading by mutableStateOf(false); private set
+    var searchPostsMore by mutableStateOf(false); private set
+    var searchPostsError by mutableStateOf<String?>(null); private set
     var members by mutableStateOf<List<NativeRoomMember>>(emptyList()); private set
     var peopleLoading by mutableStateOf(false); private set
     var requests by mutableStateOf<List<NativeJoinRequest>>(emptyList()); private set
@@ -154,9 +175,9 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
         capabilityJob?.cancel()
         val capability = ++capabilityVersion
         capabilityJob = scope.launch {
-            try { val value = client.capabilities(); if (current() && capability == capabilityVersion) approvalAvailable = value.postApproval }
+            try { val value = client.capabilities(); if (current() && capability == capabilityVersion) memberPrivacyAvailable = value.memberPrivacy }
             catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { if (current() && capability == capabilityVersion) approvalAvailable = false }
+            catch (_: Exception) { if (current() && capability == capabilityVersion) memberPrivacyAvailable = false }
         }
         loadDiscover()
         yoursJob?.cancel()
@@ -181,14 +202,18 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
 
     fun loadDiscover(append: Boolean = false) {
         if (!current() || append && discoverLoading) return
-        discoveryJob?.cancel()
         val filter = category
+        val query = search.trim()
+        if (append && discoveryQuery != query) return
+        if (!append && discoveryQuery != query) { discover = emptyList(); discoverMore = false }
+        discoveryQuery = query
+        discoveryJob?.cancel()
         val offset = if (append) discover.size else 0
         val revision = ++discoveryVersion
         discoveryJob = scope.launch {
             discoverLoading = true; discoverError = null
             try {
-                val result = client.list(offset, filter)
+                val result = client.list(offset, filter, query)
                 if (current() && category == filter && revision == discoveryVersion) {
                     discover = (if (append) discover + result else result).distinctBy { it.id }
                     discoverMore = result.size == 60
@@ -235,6 +260,11 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
         RoomsMemory.slug = room.slug
         if (selected?.id != room.id || selected?.role != room.role || selected?.privacy != room.privacy) {
             posts = emptyList(); members = emptyList(); requests = emptyList(); submissions = emptyList()
+            postsVersion++
+            postsJob?.cancel()
+            postsMore = false
+            hasNewerHistory = false
+            loadPostSearch("")
             // Restore presentation only after a fresh slug lookup confirms the same viewer context.
             roomTab = RoomsMemory.navigation?.takeIf { restoreNavigation && selected == null && it.matches(room) }
                 ?.tab ?: RoomTab.DISCUSSION
@@ -261,7 +291,10 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
         peopleJob?.cancel(); queueJob?.cancel()
         RoomsMemory.slug = null; RoomsMemory.navigation = null
         postsJob?.cancel(); selected = null; openingSlug = false; openError = null
+        loadPostSearch("")
         posts = emptyList(); members = emptyList(); requests = emptyList(); submissions = emptyList()
+        postsMore = false
+        hasNewerHistory = false
         postsLoading = false; peopleLoading = false; submissionsLoading = false
         roomError = null; notice = null
         if (!landingRequested && current()) loadLanding()
@@ -297,27 +330,84 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
         if (append && postsLoading) return
         postsJob?.cancel()
         val offset = if (append) posts.size else 0
+        val anchor = if (append) posts.lastOrNull() else null
         val actionSnapshot = versions.toMap()
         val revision = ++postsVersion
         postsJob = scope.launch {
             postsLoading = true
             try {
-                val result = client.posts(room, offset)
+                val result = if (anchor == null) client.posts(room, offset)
+                    else client.timelinePosts(room, anchor, newer = false, offsetFallback = offset)
                 if (readCurrent(room) && revision == postsVersion) {
                     val known = posts.associateBy { it.id }
                     val guardedRows = result.map { row ->
                         val existing = known[row.id]
                         if (existing == null) row else row.copy(
-                            likes = if ((versions["like:${row.id}"] ?: 0) != (actionSnapshot["like:${row.id}"] ?: 0)) existing.likes else row.likes,
-                            reposts = if ((versions["repost:${row.id}"] ?: 0) != (actionSnapshot["repost:${row.id}"] ?: 0)) existing.reposts else row.reposts)
+                            likes = if ((versions["like:${row.id}"] ?: 0) != (actionSnapshot["like:${row.id}"] ?: 0)) existing.likes else row.likes)
                     }
                     posts = (if (append) posts + guardedRows else guardedRows).distinctBy { it.id }
                     postsMore = result.size == 30; roomError = null
+                    if (!append) hasNewerHistory = false
+                    updateRoomPreview(room)
                     loadPostActions(result.map { it.id }, room.id)
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) { if (readCurrent(room) && revision == postsVersion) roomError = e.message ?: "Could not load Room posts." }
             finally { if (readCurrent(room) && revision == postsVersion) postsLoading = false }
+        }
+    }
+
+    suspend fun refreshLatestPosts() {
+        val room = selected?.takeIf { it.canReadPosts } ?: return
+        if (postsLoading || hasNewerHistory) return
+        val revision = postsVersion
+        val first = posts.firstOrNull()
+        try {
+            val result = if (first == null) client.posts(room) else client.timelinePosts(room, first, newer = true).asReversed()
+            if (!readCurrent(room) || revision != postsVersion || result.isEmpty()) return
+            val known = posts.mapTo(mutableSetOf()) { it.id }
+            val fresh = result.filterNot { it.id in known }
+            if (known.isEmpty()) postsMore = result.size == 30
+            posts = fresh + posts
+            updateRoomPreview(room)
+            if (fresh.isNotEmpty()) loadPostActions(fresh.map { it.id }, room.id)
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { /* Preserve readable history during a transient refresh failure. */ }
+    }
+
+    private fun updateRoomPreview(room: NativeRoom) {
+        val latest = posts.firstOrNull()?.let { NativeRoomPostPreview(it.id, it.body, it.createdAt, it.mediaCount) }
+        if (yours.any { it.id == room.id && it.lastPost != latest }) {
+            yours = yours.map { if (it.id == room.id) it.copy(lastPost = latest) else it }.sortByRoomActivity()
+        }
+    }
+
+    fun loadPostSearch(value: String, append: Boolean = false) {
+        val query = value.trim()
+        if (append && (searchPostsLoading || postSearchQuery != query)) return
+        postSearchJob?.cancel()
+        val revision = ++postSearchVersion
+        postSearchQuery = query
+        searchPostsError = null
+        if (!append) { searchPosts = emptyList(); searchPostsMore = false }
+        val room = selected?.takeIf { it.canReadPosts }
+        if (query.isBlank() || room == null) { searchPostsLoading = false; return }
+        val offset = if (append) searchPosts.size else 0
+        searchPostsLoading = true
+        postSearchJob = scope.launch {
+            try {
+                val result = client.searchPosts(room, query, offset)
+                if (readCurrent(room) && revision == postSearchVersion) {
+                    searchPosts = (searchPosts + result).distinctBy { it.id }
+                    searchPostsMore = result.size == 30
+                    loadPostActions(result.map { it.id }, room.id)
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (e: Exception) {
+                if (readCurrent(room) && revision == postSearchVersion) searchPostsError = e.message ?: "Could not search this Room."
+            } finally {
+                if (revision == postSearchVersion) searchPostsLoading = false
+            }
         }
     }
 
@@ -364,7 +454,7 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
         }
     }
 
-    fun create(settings: NativeRoomSettings, cover: Uri?, onCreated: () -> Unit) {
+    fun create(settings: NativeRoomSettings, cover: ByteArray?, onCreated: () -> Unit) {
         if (!current() || busy("create")) return
         busyKeys["create"] = true; roomError = null
         val navigation = navigationVersion
@@ -390,29 +480,41 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
         }
     }
 
-    fun saveSettings(room: NativeRoom, settings: NativeRoomSettings, cover: Uri?, onSaved: () -> Unit) {
+    private var confirmedSettingsEdit: NativeRoom? = null
+
+    fun saveSettings(room: NativeRoom, settings: NativeRoomSettings, cover: ByteArray?, onSaved: () -> Unit) {
         if (!current(room.id) || busy("settings")) return
         busyKeys["settings"] = true; roomError = null
         scope.launch {
             try {
-                val updated = client.update(room, settings)
-                if (!current()) return@launch
-                if (current(room.id)) { select(updated); onSaved() }
-                loadLanding()
+                val baseline = confirmedSettingsEdit?.takeIf {
+                    it.id == room.id && it.updatedAt == selected?.updatedAt
+                } ?: room
+                val updated = if (baseline == confirmedSettingsEdit && baseline.settings() == settings) baseline
+                    else client.update(baseline, settings)
+                if (!current(room.id)) return@launch
+                select(updated, loadDetails = false)
+                confirmedSettingsEdit = updated
                 if (cover != null) {
-                    try { coverClient.upload(updated, cover); if (current(updated.id)) refreshRoom(); loadLanding() }
+                    try { coverClient.upload(updated, cover) }
                     catch (cancelled: CancellationException) { throw cancelled }
-                    catch (e: Exception) { if (current(updated.id)) roomError = "Settings saved. ${e.message ?: "Cover upload failed; try again."}" }
+                    catch (e: Exception) {
+                        if (current(updated.id)) roomError = "Settings saved. ${e.message ?: "Photo upload failed. Tap Save to retry."}"
+                        return@launch
+                    }
                 }
+                if (!current(updated.id)) return@launch
+                confirmedSettingsEdit = null
+                onSaved()
+                refreshRoom()
+                loadLanding()
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) { if (current(room.id)) roomError = e.message ?: "Settings change could not be confirmed." }
             finally { busyKeys.remove("settings") }
         }
     }
 
-    fun cover(room: NativeRoom, uri: Uri?) = mutate("cover", room, {
-        if (uri == null) coverClient.remove(room) else coverClient.upload(room, uri)
-    })
+    fun removeCover(room: NativeRoom) = mutate("cover", room, { coverClient.remove(room) })
 
     fun invite(room: NativeRoom, handle: String, onInvited: () -> Unit) = mutate("invite", room,
         { client.invite(room, handle) }, { notice = "Invitation sent."; onInvited() })
@@ -425,107 +527,116 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
         })
 
     fun postUi(postId: String): RoomPostUi {
-        val errors = listOf("like", "save", "repost").mapNotNull { actionErrors["$it:$postId"] }
-        return RoomPostUi(actionStates["like:$postId"], actionStates["save:$postId"], actionStates["repost:$postId"],
-            listOf("like", "save", "repost").filter { busy("$it:$postId") }.toSet(), errors.distinct().joinToString("\n").ifBlank { null })
+        val errors = listOf("like").mapNotNull { actionErrors["$it:$postId"] }
+        return RoomPostUi(actionStates["like:$postId"],
+            listOf("like").filter { busy("$it:$postId") }.toSet(), errors.distinct().joinToString("\n").ifBlank { null })
     }
 
     fun retryActions(postId: String) { selected?.id?.let { loadPostActions(listOf(postId), it) } }
 
-    fun commentCount(postId: String, delta: Int) {
-        if (current()) posts = posts.map { if (it.id == postId) it.copy(comments = (it.comments + delta).coerceAtLeast(0)) else it }
+    private fun updatePost(postId: String, transform: (NativeRoomPost) -> NativeRoomPost) {
+        posts = posts.map { if (it.id == postId) transform(it) else it }
+        searchPosts = searchPosts.map { if (it.id == postId) transform(it) else it }
     }
 
     fun confirmedPostRemoval(roomId: String, postId: String) {
         if (!current(roomId)) return
         posts = posts.filterNot { it.id == postId }
+        searchPosts = searchPosts.filterNot { it.id == postId }
         loadPosts(); refreshRoom()
     }
 
-    fun refreshPost(postId: String) {
-        val room = selected ?: return
-        val snapshot = versions.toMap()
-        scope.launch {
-            try {
-                val fresh = StagingFeedClient(auth).loadOne(postId)
-                if (readCurrent(room)) posts = posts.map { row ->
-                    if (row.id != postId || fresh == null) row else row.copy(body = fresh.body,
-                        likes = if ((versions["like:$postId"] ?: 0) == (snapshot["like:$postId"] ?: 0)) fresh.likes else row.likes,
-                        comments = fresh.comments,
-                        reposts = if ((versions["repost:$postId"] ?: 0) == (snapshot["repost:$postId"] ?: 0)) fresh.reposts else row.reposts,
-                        mediaCount = fresh.mediaCount, media = fresh.media)
-                }
-                if (readCurrent(room)) loadPostActions(listOf(postId), room.id)
-            } catch (cancelled: CancellationException) { throw cancelled }
-            catch (e: Exception) { if (readCurrent(room)) roomError = e.message ?: "Could not refresh post." }
+    suspend fun findMessageInTimeline(id: String): Int? {
+        posts.indexOfFirst { it.id == id }.takeIf { it >= 0 }?.let { return it }
+        val room = selected?.takeIf { it.canReadPosts } ?: return null
+        val revision = ++postsVersion
+        postsJob?.cancel()
+        postsLoading = true
+        try {
+            val target = client.roomMessage(room, id)
+            if (target == null) {
+                if (readCurrent(room) && postsVersion == revision) notice = "This message is unavailable."
+                return null
+            }
+            val newer = client.timelinePosts(room, target, newer = true)
+            val older = client.timelinePosts(room, target, newer = false)
+            if (!readCurrent(room) || postsVersion != revision) return null
+            posts = (newer.asReversed() + target + older).distinctBy { it.id }
+            postsMore = older.size == 30
+            hasNewerHistory = newer.size == 30
+            loadPostActions(posts.map { it.id }, room.id)
+            return posts.indexOfFirst { it.id == id }.takeIf { it >= 0 }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            if (readCurrent(room) && postsVersion == revision) roomError = error.message ?: "Message could not be loaded."
+            return null
+        } finally {
+            if (postsVersion == revision) postsLoading = false
         }
     }
 
     private fun loadPostActions(ids: List<String>, roomId: String) {
-        listOf("like", "save", "repost").forEach { kind ->
-            val snapshots = ids.associateWith { versions["$kind:$it"] ?: 0 }
-            scope.launch {
-                try {
-                    val result = when (kind) {
-                        "like" -> interactions.getLikeStates(ids)
-                        "save" -> interactions.getSavedStates(ids)
-                        else -> interactions.getRepostStates(ids)
+        if (ids.isEmpty()) return
+        val snapshots = ids.associateWith { versions["like:$it"] ?: 0 }
+        scope.launch {
+            try {
+                val states = interactions.getLikeStates(ids)
+                if (current(roomId)) states.forEach { (id, value) ->
+                    val key = "like:$id"
+                    if ((versions[key] ?: 0) == snapshots[id]) {
+                        actionStates[key] = value
+                        actionErrors.remove(key)
                     }
-                    if (current(roomId)) result.forEach { (id, value) ->
-                        val key = "$kind:$id"
-                        if ((versions[key] ?: 0) == snapshots[id]) { actionStates[key] = value; actionErrors.remove(key) }
-                    }
-                } catch (cancelled: CancellationException) { throw cancelled }
-                catch (e: Exception) { if (current(roomId)) ids.forEach { id ->
-                    if ((versions["$kind:$id"] ?: 0) == snapshots[id]) actionErrors["$kind:$id"] = e.message ?: "Action status unavailable."
-                } }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (current(roomId)) ids.forEach { id ->
+                    val key = "like:$id"
+                    if ((versions[key] ?: 0) == snapshots[id]) actionErrors[key] = error.message ?: "Reaction state unavailable."
+                }
             }
         }
     }
 
-    fun postAction(post: NativeRoomPost, kind: String, likeOnly: Boolean = false) {
-        if (kind !in setOf("like", "save", "repost")) return
+    fun reactToMessage(post: NativeRoomPost, likeOnly: Boolean = false) {
         val room = selected ?: return
-        if (posts.none { it.id == post.id }) return
-        val key = "$kind:${post.id}"
+        if (posts.none { it.id == post.id } && searchPosts.none { it.id == post.id }) return
+        val key = "like:${post.id}"
         val old = actionStates[key] ?: return
-        if (!current(room.id) || busy(key) || likeOnly && old) return
-        val desired = if (likeOnly) true else !old
+        if (!readCurrent(room) || busy(key) || likeOnly && old) return
+        val desired = !old
         versions[key] = (versions[key] ?: 0) + 1
-        busyKeys[key] = true; actionErrors.remove(key)
+        busyKeys[key] = true
+        actionErrors.remove(key)
         scope.launch {
             try {
-                if (!current(room.id)) return@launch
-                when (kind) {
-                    "like" -> interactions.setLike(post.id, desired)
-                    "save" -> interactions.setSaved(post.id, desired)
-                    "repost" -> interactions.setRepost(post.id, desired)
-                }
-                if (current(room.id)) {
+                if (!readCurrent(room)) return@launch
+                interactions.setLike(post.id, desired)
+                if (readCurrent(room)) {
                     versions[key] = (versions[key] ?: 0) + 1
                     actionStates[key] = desired
-                    posts = posts.map { row -> if (row.id != post.id) row else when (kind) {
-                        "like" -> row.copy(likes = (row.likes + if (desired) 1 else -1).coerceAtLeast(0))
-                        "repost" -> row.copy(reposts = (row.reposts + if (desired) 1 else -1).coerceAtLeast(0))
-                        else -> row
-                    } }
+                    updatePost(post.id) { it.copy(likes = (it.likes + if (desired) 1 else -1).coerceAtLeast(0)) }
                 }
-            } catch (cancelled: CancellationException) { throw cancelled }
-            catch (e: Exception) { if (current(room.id)) actionErrors[key] = e.message ?: "Action could not be confirmed. Refresh before retrying." }
-            finally { busyKeys.remove(key) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (readCurrent(room)) actionErrors[key] = error.message ?: "Reaction could not be confirmed."
+            } finally { busyKeys.remove(key) }
         }
     }
 
     fun addMedia(room: NativeRoom, uris: List<Uri>) {
-        if (!current(room.id) || !room.canPost) return
+        if (!readCurrent(room) || selected?.canPost != true || busy("publish")) return
         val draft = draft(room)
         val kinds = uris.map { if (context.contentResolver.getType(it)?.startsWith("video/") == true) "video" else "image" }
-        val limit = NativeRoomRules.mediaLimit(draft.media.map { it.kind } + kinds)
+        val limit = NativeRoomRules.MAX_MESSAGE_ATTACHMENTS
         val available = (limit - draft.media.size).coerceAtLeast(0)
-        if (uris.size > available) draft.error = "Use up to 10 attachments. Remove an attachment first."
+        if (uris.size > available) draft.error = "You can attach up to $limit items. Remove an attachment first."
         uris.take(available).forEachIndexed { index, uri ->
             val id = UUID.randomUUID().toString()
-            draft.media = draft.media + RoomDraftMedia(id, "Attachment ${draft.media.size + 1}", kinds[index])
+            draft.media = draft.media + RoomDraftMedia(id, "Attachment ${draft.media.size + 1}", kinds[index], source = uri)
             scope.launch {
                 try {
                     if (!current()) return@launch
@@ -563,10 +674,11 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
         } }
     }
 
-    fun publish(room: NativeRoom, onConfirmed: () -> Unit) {
+    fun publish(room: NativeRoom, replyToId: String?, onConfirmed: () -> Unit) {
         val draft = draft(room)
-        if (!current(room.id) || busy("publish") || draft.uploading) return
-        val snapshot = RoomPublishSnapshot(draft.editor.text, draft.replyAccess,
+        if (!readCurrent(room) || selected?.canPost != true || busy("publish") ||
+            draft.uploading || draft.media.any { it.ready == null }) return
+        val snapshot = RoomPublishSnapshot(draft.editor.text, replyToId,
             draft.media.mapNotNull { it.ready?.copy(altText = it.alt) })
         if (draft.attemptSnapshot != snapshot) {
             draft.attemptSnapshot = snapshot; draft.attemptId = UUID.randomUUID().toString()
@@ -575,18 +687,19 @@ internal class RoomsState(val auth: StagingAuthClient, val accountId: String?, p
         busyKeys["publish"] = true; draft.error = null
         scope.launch {
             try {
-                val result = client.publish(room, snapshot.body, snapshot.media, snapshot.replyAccess,
+                val result = client.publish(room, snapshot.body, snapshot.media, snapshot.replyToId,
                     clientRequestId = requestId)
                 if (current() && draft.attemptSnapshot == snapshot) {
-                    draft.editor = TextFieldValue("", TextRange.Zero); draft.media = emptyList()
+                    draft.edit(TextFieldValue("", TextRange.Zero)); draft.media = emptyList()
                     draft.attemptSnapshot = null; draft.attemptId = null
                 }
                 if (readCurrent(room)) {
                     notice = when (result) {
-                        is NativeRoomPublishResult.Published -> "Post published in ${room.name}."
-                        is NativeRoomPublishResult.Pending -> "Post sent for review. It is not published yet."
+                        is NativeRoomPublishResult.Published -> null
+                        is NativeRoomPublishResult.Pending -> "Message submitted for review."
                     }
-                    onConfirmed(); loadPosts()
+                    onConfirmed()
+                    if (posts.isEmpty() || postsLoading || hasNewerHistory) loadPosts() else refreshLatestPosts()
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (e: Exception) { if (current()) draft.error = e.message ?: "Publication could not be confirmed. Refresh before retrying." }

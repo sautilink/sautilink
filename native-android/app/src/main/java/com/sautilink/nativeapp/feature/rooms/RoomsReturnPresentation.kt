@@ -12,7 +12,7 @@ internal data class RoomsReturnPresentation(val tab: RoomsTab, val search: Strin
 
 internal fun readRoomsReturnPresentation(store: SessionScreenPresentationStore?): SessionPresentationInitial<RoomsReturnPresentation> =
     readSessionPresentationInitial(store, "rooms-navigation", RoomsReturnPresentation::class.java,
-        RoomsReturnPresentation(RoomsTab.DISCOVER, "", null, emptyMap()))
+        RoomsReturnPresentation(RoomsTab.YOURS, "", null, emptyMap()))
 
 internal fun readRoomReturnAnchor(anchors: Map<String, RoomReturnAnchor>, key: String): RoomReturnAnchor =
     anchors[key] ?: RoomReturnAnchor(0, 0)
