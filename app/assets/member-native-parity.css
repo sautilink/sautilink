@@ -1,6 +1,53 @@
 /* Signed native 1.1.1 (46) presentation, adapted to existing browser features.
    Auth, backend ownership, media controls and permission/hidden state stay intact. */
 
+body:not(.auth-entry):has(#member-view:not([hidden])) {
+  --native-control-ink: #000;
+  --native-heart: #fa5353;
+}
+html[data-theme="dark"] body:not(.auth-entry):has(#member-view:not([hidden])) {
+  --native-control-ink: #fff;
+}
+
+body:not(.auth-entry):has(#member-view:not([hidden])) :is(
+  #home-feed-tabs .home-feed-tab, #home-feed-tabs .home-feed-tab.active,
+  .mobile-header .mobile-room-shortcut, .mobile-header .mobile-compose-button,
+  #sauti-mobile-more-trigger, #sauti-mobile-more-trigger svg,
+  .primary-rail .app-nav > .nav-item > svg, .primary-rail .app-nav > .nav-item:is(.active, [aria-current="page"]) > svg,
+  #stream-surface .sauti-head-follow, #stream-surface .sauti-head-follow:is(:hover, .following),
+  #profile-card :is(.profile-edit-button, .profile-follow-button, .profile-dashboard-button),
+  .profile-surface #profile-activity-tabs > .profile-activity-tab,
+  .profile-surface #profile-activity-tabs .profile-activity-tab-label,
+  .profile-surface #profile-activity-tabs > .profile-activity-tab[aria-selected="true"] .profile-activity-tab-label,
+  .profile-owner-dashboard-actions :is(.profile-edit-button, .profile-dashboard-button),
+  .mobile-nav[data-icon-style="bold-outline"] button:is(.active, [aria-current="page"]),
+  .mobile-nav[data-icon-style="bold-outline"] button
+) {
+  color: var(--native-control-ink);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style="bold-outline"] .mobile-nav-icon {
+  width: 23px;
+  height: 23px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style="bold-outline"] button:is(.active, [aria-current="page"]) {
+  background: transparent;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button.sauti-action[data-sauti-action]:is(:hover, :active, .active, [aria-pressed="true"]),
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button.sauti-action[data-sauti-action] {
+  color: var(--native-control-ink);
+  background: transparent;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button.sauti-action[data-sauti-action] > svg {
+  width: 21px;
+  height: 21px;
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button.sauti-action[data-sauti-action="like"]:is(.active, [aria-pressed="true"]) {
+  color: var(--native-heart);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button.sauti-action[data-sauti-action="like"]:is(.active, [aria-pressed="true"]) > svg {
+  fill: currentColor;
+}
+
 body:not(.auth-entry):has(#member-view:not([hidden])) #home-feed-tabs {
   min-height: 54px;
   padding: 4px;

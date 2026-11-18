@@ -387,7 +387,7 @@ body.rooms-facebook-view .stream-column { min-width: 0; max-width: none; }
   color: var(--room-text);
   overflow-wrap: anywhere;
 }
-#circles-surface #circle-stream-feed > .sauti-card:first-child { margin-block-start: auto; }
+#circles-surface #circle-stream-feed > :is(.room-chat-date, .sauti-card):not(.room-chat-date:not([hidden]) ~ *, .sauti-card ~ *) { margin-block-start: auto; }
 #circles-surface #circle-stream-feed > .room-message-own {
   align-self: flex-end;
   border-radius: 12px 12px 4px 12px;
@@ -584,17 +584,23 @@ body.rooms-facebook-view #member-view #circles-surface > .circles-toolbar h2 { f
 /* The conversation has one toolbar; media filters live in Group info. */
 body.rooms-facebook-view #member-view #circles-surface #circle-detail { grid-template-rows: auto auto minmax(0,1fr); }
 body.rooms-facebook-view #member-view #circles-surface #room-detail-toolbar { min-height: 68px; padding-inline: 18px; gap: 14px; }
-body.rooms-facebook-view #member-view #circles-surface .room-chat-heading { cursor: pointer; }
+body.rooms-facebook-view #member-view #circles-surface .room-chat-heading { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; align-items: center; cursor: pointer; }
+body.rooms-facebook-view #member-view #circles-surface .room-chat-avatar {
+  position: relative; display: grid; place-items: center; grid-row: 1 / span 2;
+  width: 40px; height: 40px; overflow: hidden; border-radius: 50%;
+  background: var(--room-selected); color: var(--room-accent); font-size: 16px; font-weight: 700;
+}
+body.rooms-facebook-view #member-view #circles-surface .room-chat-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 body.rooms-facebook-view #member-view #circles-surface .room-detail-toolbar-title { font-size: 16px; font-weight: 600; }
 body.rooms-facebook-view #member-view #circles-surface #circle-stream { grid-row: 3; }
-body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed { gap: 6px; padding: 20px clamp(12px, 6%, 70px); overscroll-behavior: contain; }
+body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed { gap: 6px; padding: 16px clamp(48px, 6%, 70px); overscroll-behavior: contain; }
 body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed > .sauti-card {
-  position: relative; min-width: min(180px, 100%); max-width: min(85%, 560px); padding: 9px 12px 22px;
+  position: relative; min-width: min(106px, 100%); max-width: min(87%, 580px); padding: 7px 11px 19px;
   border-radius: 12px 12px 12px 3px; box-shadow: 0 1px 2px #0001; font-size: 14px;
 }
 body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed > .room-message-own { border-radius: 12px 12px 3px 12px; }
 body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed .sauti-card-main { display: block; min-width: 0; }
-body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed .sauti-card-head { display: flex; padding-right: 26px; gap: 6px; }
+body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed .sauti-card-head { display: flex; align-items: baseline; padding-right: 22px; gap: 6px; }
 body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed .sauti-card-identity { display: block; }
 body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed .sauti-card-identity > a,
 body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed .sauti-card-avatar { display: none; }
@@ -616,23 +622,14 @@ body.rooms-facebook-view #member-view #circles-surface .room-chat-message-menu .
 body.rooms-facebook-view #member-view #circles-surface .room-chat-message-menu:not([open]) > :not(summary) { display: none; }
 body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed .sauti-comments { margin-top: 10px; padding: 8px 0; border-top: 1px solid var(--room-line); }
 
-/* Compact composer; existing reply permissions and upload controls remain usable. */
+/* The message bar and its attachment tray share the chat viewport. */
 body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer {
-  grid-template-columns: 38px minmax(0,1fr) 36px 44px; align-items: end; gap: 6px;
+  grid-template-columns: 42px minmax(0,1fr) 44px; align-items: end; gap: 7px;
   margin: 0; padding: 12px 18px; border: 0; max-height: 55%; background: var(--room-panel);
 }
-body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer .circle-sauti-actions,
-body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer .room-chat-compose-options { display: contents; }
-body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer #circle-sauti-body { grid-column: 2; grid-row: 1; height: 44px; min-height: 44px; max-height: 140px; border: 0; border-radius: 10px; padding: 11px 12px; resize: none; }
-body.rooms-facebook-view #member-view #circles-surface #circle-sauti-submit { grid-column: 4; grid-row: 1; display: grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 50%; background: #3390ec; }
-body.rooms-facebook-view #member-view #circles-surface .room-chat-compose-options summary { grid-column: 3; grid-row: 1; display: grid; place-items: center; width: 36px; height: 44px; color: var(--room-muted); cursor: pointer; list-style: none; }
-body.rooms-facebook-view #member-view #circles-surface .room-chat-compose-options summary::-webkit-details-marker { display: none; }
-body.rooms-facebook-view #member-view #circles-surface .room-chat-compose-options:not([open]) .room-chat-compose-settings { display: none; }
-body.rooms-facebook-view #member-view #circles-surface .room-chat-compose-options .room-chat-compose-settings { grid-column: 1 / -1; grid-row: 3; padding: 12px; border-top: 1px solid var(--room-line); }
-body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer .circle-sauti-controls { display: block; }
-body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer .circle-sauti-controls label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--room-muted); }
-body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer .circle-sauti-controls select { flex: 1; width: auto; }
-body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer .circle-sauti-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 11px; }
+body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer .circle-sauti-actions { display: contents; }
+body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer #circle-sauti-body { grid-column: 2; grid-row: 1; height: 44px; min-height: 44px; max-height: 140px; border: 0; border-radius: 22px; padding: 11px 14px; resize: none; font-size: 16px; }
+body.rooms-facebook-view #member-view #circles-surface #circle-sauti-submit { grid-column: 3; grid-row: 1; display: grid; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 50%; background: #3390ec; }
 body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer .room-post-image-tools { grid-column: 1; grid-row: 1; display: block; }
 body.rooms-facebook-view #member-view #circles-surface #room-post-image-add { display: grid; place-items: center; width: 38px; height: 44px; padding: 0; border: 0; border-radius: 50%; color: var(--room-muted); }
 body.rooms-facebook-view #member-view #circles-surface #room-post-image-add span, body.rooms-facebook-view #member-view #circles-surface .room-post-image-count { display: none; }
@@ -660,19 +657,34 @@ body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer .r
 #circle-stream-feed .room-message-quote span,
 #circle-sauti-composer .room-reply-preview span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #circle-sauti-composer .room-reply-preview { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+#circle-sauti-composer .room-reply-preview-content { display: grid; gap: 2px; min-width: 0; }
+#circle-sauti-composer .room-reply-preview strong { color: var(--room-accent); }
+#circle-sauti-composer .room-reply-preview-content span { color: var(--room-muted); font-size: 12px; }
 #circle-sauti-composer .room-reply-preview[hidden] { display: none; }
 #room-reply-clear { width: 36px; height: 34px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: inherit; font-size: 22px; }
 body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer > .room-reply-preview { grid-column: 1 / -1; grid-row: 1; }
 body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer:has(.room-reply-preview:not([hidden]))
-  :is(#circle-sauti-body, #circle-sauti-submit, .room-post-image-tools, .room-chat-compose-options summary) { grid-row: 2; }
-body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer:has(.room-reply-preview:not([hidden])) #room-post-image-preview { grid-row: 6; }
-body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed > .sauti-card:not(.room-message-own) .sauti-card-avatar { display: inline-grid; }
+  :is(#circle-sauti-body, #circle-sauti-submit, .room-post-image-tools) { grid-row: 2; }
+body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer:has(.room-reply-preview:not([hidden])) #room-post-image-preview { grid-row: 3; }
+body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed > .sauti-card:not(.room-message-own, .room-message-has-next) .sauti-card-avatar {
+  position: absolute; inset-inline-start: -36px; inset-block-end: 0; display: inline-grid; width: 30px; height: 30px;
+}
+body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed > .room-message-grouped { margin-top: -3px; }
+body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed .room-message-grouped .sauti-card-head .sauti-card-identity { display: none; }
+body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed .room-message-grouped .sauti-card-body { padding-inline-end: 17px; }
+body.rooms-facebook-view #member-view #circles-surface .room-chat-date {
+  flex: 0 0 auto; align-self: center; padding: 4px 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--room-panel) 72%, transparent);
+  color: var(--room-muted); font-size: 11px; font-weight: 650;
+}
 
 /* Group info and its child pages share one panel, rather than stacked admin cards. */
 body.rooms-facebook-view #member-view #circles-surface #circle-detail.room-info-open #room-fb-detail-aside { inset: 0 0 0 auto; width: min(360px, 100%); padding: 0; }
 body.rooms-facebook-view #member-view #circles-surface #room-fb-detail-aside .room-chat-info-header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 12px 16px; border-bottom: 1px solid var(--room-line); background: var(--room-panel); }
 body.rooms-facebook-view #member-view #circles-surface .room-chat-info-header h3 { flex: 1; font-size: 17px; }
 body.rooms-facebook-view #member-view #circles-surface .room-chat-info-header button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--room-muted); }
+body.rooms-facebook-view #member-view #circles-surface .room-chat-info-header .room-info-save { width: auto; padding-inline: 13px; border-radius: 15px; color: var(--room-accent); background: var(--room-selected); }
+body.rooms-facebook-view #member-view #circles-surface #room-fb-detail-aside[data-view="edit"] .room-settings-actions button[type="submit"] { display: none; }
 body.rooms-facebook-view #member-view #circles-surface #room-fb-detail-aside[data-view="overview"] .room-chat-info-header button:first-child { display: none; }
 body.rooms-facebook-view #member-view #circles-surface #room-fb-detail-aside > section,
 body.rooms-facebook-view #member-view #circles-surface #room-fb-detail-aside > .circle-detail-card { padding: 20px; }
@@ -750,13 +762,13 @@ body.rooms-facebook-view #member-view #circles-surface #circles-empty > span, bo
 }
 @media (max-width: 760px) {
   body.rooms-facebook-view #member-view #circles-surface #room-detail-toolbar { gap: 8px; padding: 10px; }
-  body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed { padding: 12px 10px; }
+  body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed { padding: 12px 12px 12px 43px; }
   body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed > .sauti-card { max-width: 90%; }
   body.rooms-facebook-view #member-view #circles-surface #circle-detail.room-info-open #room-fb-detail-aside { width: 100%; }
-  body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer { padding: 8px; gap: 3px; grid-template-columns: 32px minmax(0,1fr) 30px 40px; }
+  body.rooms-facebook-view #member-view #circles-surface #circle-sauti-composer { padding: 8px; gap: 5px; grid-template-columns: 38px minmax(0,1fr) 40px; }
   body.rooms-facebook-view #member-view #circles-surface #circle-sauti-submit { width: 40px; height: 40px; min-height: 40px; }
   body.rooms-facebook-view #member-view #circles-surface #room-post-image-add { width: 32px; }
-  body.rooms-facebook-view #member-view #circles-surface .room-chat-compose-options summary { width: 30px; }
+  body.rooms-facebook-view #member-view #circles-surface #room-detail-toolbar .room-info-toggle { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { body.rooms-facebook-view #member-view #circles-surface * { scroll-behavior: auto; transition: none; } }
 
@@ -764,7 +776,7 @@ body.rooms-facebook-view #member-view #circles-surface #circles-empty > span, bo
 body.rooms-facebook-view:not(.auth-entry):has(#member-view:not([hidden])) .app-layout { display: grid; grid-template-columns: minmax(0,1fr); width: 100%; max-width: none; margin: 0; gap: 0; }
 body.rooms-facebook-view:not(.auth-entry):has(#member-view:not([hidden])) { padding-top: 0; padding-bottom: 0; overflow: hidden; }
 body.rooms-facebook-view:not(.auth-entry):has(#member-view:not([hidden])) :is(.primary-rail, .mobile-header, .mobile-nav) { display: none; }
-body.rooms-facebook-view #member-view #circles-surface { height: 100dvh; }
+body.rooms-facebook-view #member-view #circles-surface { height: var(--room-viewport-height, 100dvh); }
 body.rooms-facebook-view #member-view #circles-surface #room-fb-landing-sidebar .room-fb-sidebar-heading { gap: 12px; }
 body.rooms-facebook-view #member-view #circles-surface #room-fb-landing-sidebar h2 { flex: 1; }
 body.rooms-facebook-view #member-view #circles-surface .room-chat-site-menu { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: transparent; color: var(--room-muted); padding: 0; }
@@ -782,3 +794,21 @@ body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed .saut
 body.rooms-facebook-view:not(.auth-entry):has(#member-view:not([hidden])) .app-layout { grid-template-columns: minmax(0,1fr) !important; }
 body.rooms-facebook-view:not(.auth-entry):has(#member-view:not([hidden])) .stream-column { grid-column: 1 / -1; width: 100%; }
 body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed .sauti-card-body { display: block; }
+body.rooms-facebook-view #member-view #circles-surface #circle-stream-feed { overflow-anchor: none; }
+#circles-surface .room-history-control {
+  flex: 0 0 auto;
+  align-self: center;
+  z-index: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--room-line);
+  border-radius: 999px;
+  background: var(--room-panel);
+  color: var(--room-accent);
+  cursor: pointer;
+}
+#circles-surface .room-jump-latest { align-self: flex-end; margin: 0 14px 7px; }
+#circles-surface #room-detail-menu button { display: flex; align-items: center; gap: 12px; }
+#circles-surface #room-detail-menu svg { width: 18px; height: 18px; }
+body.rooms-facebook-view #member-view #circles-surface .room-chat-info-nav button { display: flex; align-items: center; gap: 10px; }
+body.rooms-facebook-view #member-view #circles-surface .room-chat-info-nav svg { width: 18px; height: 18px; }
+body.rooms-facebook-view #member-view #circles-surface #room-post-image-add { color: var(--room-accent); background: var(--room-selected); }

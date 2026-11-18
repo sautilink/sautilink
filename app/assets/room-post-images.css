@@ -17,12 +17,36 @@
   background: var(--app-panel-soft);
 }
 
-.room-post-image-tile img {
+.room-post-image-tile :is(img, video) {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
+
+.room-attachment-tray {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  grid-column: 1 / -1;
+  grid-row: 6;
+}
+.room-attachment-tray[hidden] { display: none; }
+.room-attachment-tray button {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 5px;
+  min-height: 60px;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--room-input, var(--app-panel-soft));
+  color: var(--room-text, var(--app-text));
+  cursor: pointer;
+}
+.room-attachment-tray button:hover { background: var(--room-selected, var(--app-panel)); }
+.room-attachment-tray svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
 
 .room-post-image-status {
   position: absolute;

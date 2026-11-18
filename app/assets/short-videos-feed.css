@@ -358,9 +358,7 @@
   width: 44px;
   height: 44px;
   place-items: center;
-  border-radius: 50%;
-  background: rgba(22, 22, 22, .48);
-  backdrop-filter: blur(8px);
+  background: transparent;
 }
 
 .sauti-short-action[data-short-action="repost"] svg {
@@ -381,6 +379,7 @@
 }
 
 .sauti-short-action.active[data-short-action="like"] .sauti-short-action-icon svg {
+  color: var(--native-heart, #fa5353);
   fill: currentColor;
 }
 

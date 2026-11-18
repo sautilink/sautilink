@@ -273,6 +273,12 @@ let activeCircle = null;
 let circleStreamRequest = 0;
 let circleStreamLoading = false;
 let roomActivityTimer;
+let roomTimelineTimer;
+let roomHistoryHasMore = false;
+let roomRefreshAfterLoad = false;
+const roomTimelineRows = new Map();
+const roomTimelineDates = new Map();
+const ROOM_MESSAGE_PAGE_SIZE = 50;
 let roomTypingAt = 0;
 let signedOutStatusTimer;
 
@@ -4245,8 +4251,12 @@ function createSautiCard(item, { home = false } = {}) {
   const canComment = canCurrentMemberComment(post, item.authorFollowsViewer);
   article.dataset.canComment = String(canComment);
 
-  const avatar = document.createElement('div');
+  const avatar = document.createElement(room && username ? 'a' : 'div');
   avatar.className = 'sauti-card-avatar';
+  if (avatar.tagName === 'A') {
+    avatar.href = memberProfilePath(username);
+    avatar.setAttribute('aria-label', `Open ${displayName}’s profile`);
+  }
   renderProfileAvatar(avatar, author, displayName);
 
   const main = document.createElement('div');
@@ -4370,7 +4380,7 @@ function createSautiCard(item, { home = false } = {}) {
   }
   footer.append(actions);
 
-  const caption = createSautiCaption(post.body);
+  const caption = room ? null : createSautiCaption(post.body);
 
   const meta = document.createElement('div');
   meta.className = 'sauti-card-meta';
@@ -4449,7 +4459,8 @@ function createSautiCard(item, { home = false } = {}) {
   void hydrateSautiMediaGallery(post.id, mediaGallery);
   if (quoteCard) main.append(quoteCard);
   main.append(footer);
-  main.append(meta, comments);
+  main.append(meta);
+  if (!room) main.append(comments);
   article.append(main);
   return article;
 }
@@ -8488,7 +8499,10 @@ function setRoomReplyTarget(card) {
   const preview = byId('room-reply-preview');
   field.dataset.roomReplyTo = card?.dataset.postId || '';
   byId('room-reply-preview-copy').textContent = card
-    ? `Reply to ${card.querySelector('.sauti-card-identity strong')?.textContent || 'this message'}`
+    ? `Reply to ${card.dataset.authorName || 'this message'}`
+    : '';
+  byId('room-reply-preview-text').textContent = card
+    ? (card.querySelector('.sauti-card-body')?.textContent || 'Attachment').slice(0, 160)
     : '';
   preview.hidden = !card;
   if (card) field.focus();
@@ -8496,6 +8510,7 @@ function setRoomReplyTarget(card) {
 
 function monitorRoomActivity(circle, membership) {
   window.clearInterval(roomActivityTimer);
+  window.clearInterval(roomTimelineTimer);
   if (!circleStreamAllowed(circle, membership)) return;
   const context = activeCircle;
   const detail = byId('circle-detail');
@@ -8529,6 +8544,14 @@ function monitorRoomActivity(circle, membership) {
     }
   };
   roomActivityTimer = window.setInterval(pulse, 3500);
+  const refreshTimer = window.setInterval(() => {
+    if (activeCircle !== context || detail.hidden || byId('circles-surface').hidden) {
+      window.clearInterval(refreshTimer);
+    } else if (!document.hidden && navigator.onLine) {
+      void loadCircleStream(circle.id, { quiet: true });
+    }
+  }, 12000);
+  roomTimelineTimer = refreshTimer;
   void pulse();
 }
 
@@ -8536,6 +8559,11 @@ function resetCircleStreamView({ hide = false } = {}) {
   circleStreamRequest += 1;
   circleStreamLoading = false;
   window.clearInterval(roomActivityTimer);
+  window.clearInterval(roomTimelineTimer);
+  roomTimelineRows.clear();
+  roomTimelineDates.clear();
+  roomHistoryHasMore = false;
+  roomRefreshAfterLoad = false;
   roomTypingAt = 0;
   delete byId('circle-detail').dataset.chatActivity;
   const section = byId('circle-stream');
@@ -8546,7 +8574,9 @@ function resetCircleStreamView({ hide = false } = {}) {
   byId('circle-stream-empty').hidden = true;
   byId('circle-stream-locked').hidden = true;
   byId('circle-sauti-composer').hidden = true;
-  byId('circle-stream-feed').replaceChildren();
+  byId('circle-stream-feed').querySelectorAll(':scope > :is(.sauti-card, .room-chat-date)').forEach((node) => node.remove());
+  byId('room-history-more').hidden = true;
+  byId('room-jump-latest').hidden = true;
   byId('circle-sauti-body').value = '';
   setRoomReplyTarget(null);
   setMessage(byId('circle-sauti-message'), '', '');
@@ -8557,18 +8587,19 @@ function updateCircleComposerState() {
   const textarea = byId('circle-sauti-body');
   const submit = byId('circle-sauti-submit');
   const count = byId('circle-sauti-count');
-  const replies = byId('circle-sauti-reply-access');
   const note = byId('circle-sauti-reply-note');
-  if (!textarea || !submit || !count || !replies || !note) return;
+  if (!textarea || !submit || !count || !note) return;
+  const { roomAttachments, roomAttachmentsReady } = byId('circle-sauti-composer').dataset;
+  const hasAttachments = Number(roomAttachments || 0) > 0;
   const length = textarea.value.length;
   const allowed = circleStreamAllowed(activeCircle?.circle, activeCircle?.membership);
-  const mentionedReady = replies.value !== 'mentioned' || composerHasMention(textarea.value);
   count.textContent = String(length);
   note.textContent = !navigator.onLine
     ? 'Connect to send this message.'
     : 'Visible to Room members';
-  submit.disabled = !allowed || textarea.disabled || !navigator.onLine || !textarea.value.trim()
-    || length > 500 || !mentionedReady || circleStreamLoading || submit.getAttribute('aria-busy') === 'true';
+  submit.disabled = !allowed || textarea.disabled || !navigator.onLine
+    || (!textarea.value.trim() && !hasAttachments) || (hasAttachments && roomAttachmentsReady !== 'true')
+    || length > POST_BODY_LIMIT || submit.getAttribute('aria-busy') === 'true';
 }
 
 function syncCircleStreamAccess(circle, membership) {
@@ -8580,33 +8611,62 @@ function syncCircleStreamAccess(circle, membership) {
   section.hidden = false;
   byId('circle-stream-error').hidden = true;
   byId('circle-stream-empty').hidden = true;
-  byId('circle-stream-feed').replaceChildren();
-
   const allowed = circleStreamAllowed(circle, membership);
   composer.hidden = !allowed;
+  byId('circle-sauti-body').disabled = !allowed || (
+    circle.post_permission === 'staff_only' &&
+    circle.owner_id !== currentMemberId && !['owner', 'admin', 'moderator'].includes(membership?.member_role)
+  );
   locked.hidden = allowed;
 
   if (!allowed) {
     circleStreamRequest += 1;
     byId('circle-stream-loading').hidden = true;
-    lockedTitle.textContent = circle.join_policy === 'approval' ? 'Membership approval required' : 'Join to view Room posts';
+    lockedTitle.textContent = circle.join_policy === 'approval' ? 'Membership approval required' : 'Join to view messages';
     lockedMessage.textContent = circle.join_policy === 'approval'
-      ? 'Approved members can read and post inside this Room.'
-      : 'Members can read and post inside this Room.';
+      ? 'Approved members can read and send messages in this Room.'
+      : 'Members can read and send messages in this Room.';
     updateCircleComposerState();
     return;
   }
 
   lockedTitle.textContent = '';
   lockedMessage.textContent = '';
+  byId('circle-sauti-body').placeholder = byId('circle-sauti-body').disabled ? 'Only Room staff can send messages' : 'Message';
   updateCircleComposerState();
   monitorRoomActivity(circle, membership);
   void loadCircleStream(circle.id);
 }
 
-async function loadCircleStream(circleId) {
+function compareRoomMessages(a, b) {
+  // Date.parse works for display, but would lose the database's sub-millisecond
+  // precision used by the pagination cursor. PostgREST returns UTC timestamps.
+  const exactUtc = (value) => String(value || '').replace(/(?:\.([0-9]+))?(?:\+00:00|Z)$/, (_match, fraction = '') => `.${fraction.padEnd(6, '0')}Z`);
+  return exactUtc(a.created_at).localeCompare(exactUtc(b.created_at)) || a.id.localeCompare(b.id);
+}
+
+async function hydrateRoomMessages(rows) {
+  const { data, error } = await supabase.from('social_post_reactions')
+    .select('post_id,reaction_type').eq('user_id', currentMemberId).in('post_id', rows.map((row) => row.id));
+  if (error) throw error;
+  const reactions = new Map((data || []).map((row) => [row.post_id, row.reaction_type]));
+  return rows.map((post) => ({
+    event_type: 'post', post, liked: reactions.get(post.id) === 'like',
+    mediaRows: post.media_count === 0 ? [] : null,
+  }));
+}
+
+async function loadCircleStream(circleId, { older = false, quiet = false, reveal = false } = {}) {
   if (!activeCircle?.circle || activeCircle.circle.id !== circleId) return;
-  if (!circleStreamAllowed(activeCircle.circle, activeCircle.membership) || circleStreamLoading) return;
+  if (!circleStreamAllowed(activeCircle.circle, activeCircle.membership)) return;
+  if (circleStreamLoading) {
+    if (reveal) roomRefreshAfterLoad = true;
+    return;
+  }
+
+  const loaded = [...roomTimelineRows.values()].map(({ row }) => row).sort(compareRoomMessages);
+  const oldest = loaded[0];
+  if (older && (!roomHistoryHasMore || !oldest)) return;
 
   circleStreamLoading = true;
   const requestId = ++circleStreamRequest;
@@ -8614,45 +8674,81 @@ async function loadCircleStream(circleId) {
   const errorState = byId('circle-stream-error');
   const empty = byId('circle-stream-empty');
   const feed = byId('circle-stream-feed');
-  loading.hidden = false;
+  const more = byId('room-history-more');
+  const jump = byId('room-jump-latest');
+  const opening = !quiet && !older && !loaded.length;
+  if (opening) loading.hidden = false;
+  more.disabled = true;
   errorState.hidden = true;
-  empty.hidden = true;
-  feed.replaceChildren();
-  updateCircleComposerState();
-
   try {
-    const timeline = (fields) => supabase
+    const roomPosts = (fields) => supabase
       .from('social_posts')
       .select(fields)
       .eq('circle_id', circleId)
       .eq('visibility', 'circle')
       .eq('post_status', 'published')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    let result = await timeline(`${THREAD_POST_SELECT}, room_reply_to_id`);
+      .is('deleted_at', null);
+    const timeline = (fields) => {
+      let request = roomPosts(fields)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(ROOM_MESSAGE_PAGE_SIZE + 1);
+      if (older) {
+        const date = oldest.created_at;
+        if (!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?(?:Z|[+-]\d\d:\d\d)$/.test(date) || !/^[a-f0-9-]{36}$/i.test(oldest.id)) {
+          throw new Error('Invalid Room history cursor');
+        }
+        request = request.or(`created_at.lt.${date},and(created_at.eq.${date},id.lt.${oldest.id})`);
+      }
+      return request;
+    };
+    const fields = `${THREAD_POST_SELECT}, media_count`;
+    let result = await timeline(`${fields}, room_reply_to_id`);
     const supportsReplies = !['42703', 'PGRST204'].includes(result.error?.code);
-    if (!supportsReplies) result = await timeline(THREAD_POST_SELECT);
+    if (!supportsReplies) result = await timeline(fields);
     const { data: posts, error } = result;
 
     if (error) throw error;
     if (requestId !== circleStreamRequest) return;
 
-    const rows = posts || [];
-    const byMessageId = new Map(rows.map((row) => [row.id, row]));
-    const hydrated = await hydrateDirectPosts(rows);
-
+    const rows = (posts || []).slice(0, ROOM_MESSAGE_PAGE_SIZE);
+    const rowIds = new Set(rows.map((row) => row.id));
+    const last = rows.at(-1);
+    const hasOlder = (posts || []).length > ROOM_MESSAGE_PAGE_SIZE;
+    const changed = rows.filter((row) => roomTimelineRows.get(row.id)?.signature !== JSON.stringify(row));
+    const byMessageId = new Map([...loaded, ...rows].map((row) => [row.id, row]));
+    const missingQuotes = [...new Set(changed.map((row) => row.room_reply_to_id || row.parent_post_id)
+      .filter((id) => id && !byMessageId.has(id)))];
+    const [hydrated, quoteResult] = await Promise.all([
+      changed.length ? hydrateRoomMessages(changed) : [],
+      missingQuotes.length ? roomPosts('id, body, author:social_profiles!social_posts_author_id_fkey(username, display_name)')
+        .in('id', missingQuotes) : { data: [] },
+    ]);
     if (requestId !== circleStreamRequest) return;
-    [...hydrated].reverse().forEach((item) => {
+    (quoteResult.data || []).forEach((row) => byMessageId.set(row.id, row));
+    const previousHeight = feed.scrollHeight;
+    const previousTop = feed.scrollTop;
+    const atEnd = previousHeight - previousTop - feed.clientHeight < 96;
+    let newMessages = false;
+
+    if (!older) {
+      for (const [id, entry] of roomTimelineRows) {
+        if (rowIds.has(id) || (hasOlder && last && compareRoomMessages(entry.row, last) < 0)) continue;
+        entry.card.remove();
+        roomTimelineRows.delete(id);
+      }
+    }
+    for (const item of hydrated) {
       const card = createSautiCard({ ...item, roomChat: true });
-      if (!card) return;
+      if (!card) continue;
       if (!supportsReplies) card.querySelector('[data-room-reply]')?.remove();
       const replyId = item.post.room_reply_to_id || item.post.parent_post_id;
       if (replyId) {
         const original = byMessageId.get(replyId);
-        const quote = document.createElement(original ? 'button' : 'div');
+        const canJump = rowIds.has(replyId) || roomTimelineRows.has(replyId);
+        const quote = document.createElement(canJump ? 'button' : 'div');
         quote.className = 'room-message-quote';
-        if (original) {
+        if (canJump) {
           quote.type = 'button';
           quote.dataset.roomQuote = replyId;
         }
@@ -8664,19 +8760,73 @@ async function loadCircleStream(circleId) {
         card.querySelector('.sauti-card-head')?.after(quote);
       }
       card.classList.toggle('room-message-own', item.post.author_id === currentMemberId);
-      feed.append(card);
-    });
-    feed.scrollTop = feed.scrollHeight;
-    empty.hidden = feed.childElementCount > 0;
+      const when = card.querySelector('time');
+      if (when && Number.isFinite(Date.parse(when.dateTime))) {
+        when.textContent = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date(when.dateTime));
+      }
+      const previous = roomTimelineRows.get(item.post.id);
+      if (previous) previous.card.replaceWith(card);
+      else if (!older && (!loaded.length || compareRoomMessages(item.post, loaded.at(-1)) > 0)) newMessages = true;
+      roomTimelineRows.set(item.post.id, { row: item.post, signature: JSON.stringify(item.post), card });
+    }
+    const ordered = [...roomTimelineRows.values()].sort((a, b) => compareRoomMessages(a.row, b.row));
+    const sameCluster = (first, second) => first && second && first.author_id === second.author_id
+      && new Date(first.created_at).toDateString() === new Date(second.created_at).toDateString()
+      && Date.parse(second.created_at) - Date.parse(first.created_at) <= 5 * 60 * 1000;
+    const formatDay = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    const visibleDates = new Set();
+    let previousCard = more;
+    let previousRow;
+    for (const [index, { card, row }] of ordered.entries()) {
+      const day = new Date(row.created_at);
+      const dayKey = day.toDateString();
+      if (Number.isFinite(day.getTime()) && dayKey !== new Date(previousRow?.created_at).toDateString()) {
+        let divider = roomTimelineDates.get(dayKey);
+        if (!divider) {
+          divider = document.createElement('div');
+          divider.className = 'room-chat-date';
+          divider.textContent = formatDay.format(day);
+          roomTimelineDates.set(dayKey, divider);
+        }
+        if (previousCard.nextElementSibling !== divider) previousCard.after(divider);
+        visibleDates.add(dayKey);
+        previousCard = divider;
+      }
+      if (previousCard.nextElementSibling !== card) previousCard.after(card);
+      card.classList.toggle('room-message-grouped', Boolean(sameCluster(previousRow, row)));
+      card.classList.toggle('room-message-has-next', Boolean(sameCluster(row, ordered[index + 1]?.row)));
+      const quote = card.querySelector('[data-room-quote]');
+      if (quote) quote.disabled = !roomTimelineRows.has(quote.dataset.roomQuote);
+      previousCard = card;
+      previousRow = row;
+    }
+    for (const [day, divider] of roomTimelineDates) {
+      if (visibleDates.has(day)) continue;
+      divider.remove();
+      roomTimelineDates.delete(day);
+    }
+    if (older || opening || !loaded.length || !hasOlder) roomHistoryHasMore = hasOlder;
+    more.hidden = !roomHistoryHasMore || !ordered.length;
+    if (older) feed.scrollTop = previousTop + feed.scrollHeight - previousHeight;
+    else if (atEnd || reveal || opening) {
+      feed.scrollTop = feed.scrollHeight;
+      jump.hidden = true;
+    } else if (newMessages) jump.hidden = false;
+    empty.hidden = ordered.length > 0;
   } catch {
     if (requestId !== circleStreamRequest) return;
-    feed.replaceChildren();
-    errorState.hidden = false;
+    if (older) showToast('Earlier messages could not be loaded. Try again.', 'error');
+    else if (!quiet) errorState.hidden = false;
   } finally {
     if (requestId === circleStreamRequest) {
       circleStreamLoading = false;
       loading.hidden = true;
+      more.disabled = false;
       updateCircleComposerState();
+      if (roomRefreshAfterLoad) {
+        roomRefreshAfterLoad = false;
+        void loadCircleStream(circleId, { quiet: true, reveal: true });
+      }
     }
   }
 }
@@ -8688,23 +8838,20 @@ async function shareCircleSauti() {
   const textarea = byId('circle-sauti-body');
   const submit = byId('circle-sauti-submit');
   const message = byId('circle-sauti-message');
-  const replyAccess = byId('circle-sauti-reply-access').value || 'everyone';
+  const replyAccess = 'everyone';
   const body = textarea.value.trim();
   setMessage(message, '', '');
 
-  if (!body) return setMessage(message, 'Write something before sharing.');
-  if (body.length > 500) return setMessage(message, 'Post text must be 500 characters or fewer.');
-  if (replyAccess === 'mentioned' && !composerHasMention(textarea.value)) {
-    return setMessage(message, 'Mention at least one SautiLink username or change who can comment.');
-  }
+  if (!body || textarea.disabled || submit.getAttribute('aria-busy') === 'true') return;
+  if (body.length > POST_BODY_LIMIT) return setMessage(message, `Messages can contain up to ${POST_BODY_LIMIT} characters.`);
   if (!navigator.onLine) {
-    return setMessage(message, 'You are offline. Use the Home composer to save this Room post as a device draft.');
+    return setMessage(message, 'You’re offline. Your message is still here when you reconnect.');
   }
 
   submit.disabled = true;
   submit.setAttribute('aria-busy', 'true');
   const previous = submit.textContent;
-  submit.textContent = 'Posting…';
+  submit.textContent = 'Sending…';
 
   try {
     const headers = await currentAuthorizationHeader();
@@ -8732,8 +8879,8 @@ async function shareCircleSauti() {
     if (roomReplyId) setRoomReplyTarget(null);
     updateCircleComposerState();
     setMessage(message, outcome.pending ? 'Submitted to Room admins for approval.' : '', 'success');
-    if (!outcome.pending) await loadCircleStream(circle.id);
-    showToast(outcome.pending ? 'Room post is awaiting approval.' : 'Posted in Room.');
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    if (!outcome.pending) await loadCircleStream(circle.id, { quiet: true, reveal: true });
   } catch (error) {
     setMessage(message, error?.message || 'This Room post could not be published.');
   } finally {
@@ -10027,18 +10174,44 @@ byId('circles-list').addEventListener('click', (event) => {
 byId('circle-back').addEventListener('click', () => showMemberSurface('circles'));
 byId('circle-route-home').addEventListener('click', () => showMemberSurface('circles'));
 byId('circle-primary-action').addEventListener('click', () => void handleCirclePrimaryAction());
+document.addEventListener('sautilink:room-settings-saved', ({ detail }) => {
+  if (detail?.id !== activeCircle?.circle?.id) return;
+  Object.assign(activeCircle.circle, detail);
+  byId('circle-detail-name').textContent = detail.name;
+  byId('circle-detail-description').textContent = detail.description || 'No description yet.';
+  syncCirclePrimaryAction(activeCircle.circle, activeCircle.membership, activeCircle.request);
+  syncCircleStreamAccess(activeCircle.circle, activeCircle.membership);
+  void loadCircleMembers(detail.id);
+});
 byId('circle-sauti-body').addEventListener('input', () => {
   roomTypingAt = Date.now();
   updateCircleComposerState();
 });
 byId('room-reply-clear').addEventListener('click', () => setRoomReplyTarget(null));
-byId('circle-sauti-reply-access').addEventListener('change', updateCircleComposerState);
+byId('circle-sauti-composer').addEventListener('sautilink:room-attachments', updateCircleComposerState);
 byId('circle-sauti-composer').addEventListener('submit', async (event) => {
   event.preventDefault();
   await shareCircleSauti();
 });
 byId('circle-stream-retry').addEventListener('click', () => {
-  if (activeCircle?.circle) void loadCircleStream(activeCircle.circle.id);
+  if (activeCircle?.circle) void loadCircleStream(activeCircle.circle.id, { reveal: true });
+});
+byId('room-history-more').addEventListener('click', () => {
+  if (activeCircle?.circle) void loadCircleStream(activeCircle.circle.id, { older: true });
+});
+byId('room-jump-latest').addEventListener('click', () => {
+  const feed = byId('circle-stream-feed');
+  feed.scrollTop = feed.scrollHeight;
+  byId('room-jump-latest').hidden = true;
+});
+byId('circle-stream-feed').addEventListener('scroll', (event) => {
+  const feed = event.currentTarget;
+  if (feed.scrollHeight - feed.clientHeight - feed.scrollTop < 96) byId('room-jump-latest').hidden = true;
+}, { passive: true });
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && activeCircle?.circle && !circlesSurface.hidden && !byId('circle-detail').hidden) {
+    void loadCircleStream(activeCircle.circle.id, { quiet: true });
+  }
 });
 byId('circle-requests-list').addEventListener('click', (event) => {
   const action = event.target.closest('[data-circle-request-action]');

@@ -112,7 +112,7 @@ body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .com
 body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-author .verified-name > strong { font-weight: inherit; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-body { margin-block: 3px; font-size: 14px; line-height: 1.4; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-actions { gap: 2px; margin-block: 2px 0; }
-body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-action { min-height: 34px; padding-inline: 5px; color: var(--ios-ink); background: transparent; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-action { min-height: 34px; padding-inline: 5px; color: var(--native-control-ink, var(--ios-ink)); background: transparent; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-action[aria-pressed="true"] { background: transparent; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-action > svg { width: 17px; height: 17px; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-replies-toggle { margin-block: 0 5px; }

@@ -5,14 +5,15 @@ import { runInNewContext } from 'node:vm';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('Room composer supports up to ten image attachments without adding a global observer', async () => {
+test('Room composer supports up to five photo or MP4 attachments without a global observer', async () => {
   const source = await read('src/room-post-images.js');
   const css = await read('app/assets/room-post-images.css');
 
-  assert.match(source, /ROOM_POST_IMAGE_LIMIT = 10/);
+  assert.match(source, /ROOM_POST_IMAGE_LIMIT = 5/);
   assert.match(source, /image\/jpeg/);
   assert.match(source, /image\/png/);
   assert.match(source, /image\/webp/);
+  assert.match(source, /video\/mp4/);
   assert.match(source, /ROOM_POST_IMAGE_MAX_BYTES = 5 \* 1024 \* 1024/);
   assert.match(source, /input\.multiple = true/);
   assert.match(source, /\/api\/sauti-media\/begin/);
@@ -32,14 +33,14 @@ test('Room image feature is included in regular and production app builds', asyn
   assert.match(production, /room-post-images\.js/);
 });
 
-test('Room image selection queues at most ten files and rejects over 5 MiB before upload', async () => {
+test('Room attachment selection allows videos and caps photos and total files', async () => {
   const source = await read('src/room-post-images.js');
   const start = source.indexOf('function addRoomPostImages('), end = source.indexOf('\nasync function ', start);
   const images = [], uploads = [], messages = [];
   const add = runInNewContext(`${source.slice(start, end)}\naddRoomPostImages;`, {
     roomPostImages: images, roomPostImageRoomSlug: 'room', roomPostSlug: () => 'room',
-    ROOM_POST_IMAGE_LIMIT: 10, ROOM_POST_IMAGE_MAX_BYTES: 5242880,
-    ROOM_POST_IMAGE_TYPES: new Set(['image/jpeg', 'image/png', 'image/webp']),
+    ROOM_POST_IMAGE_LIMIT: 5, ROOM_POST_IMAGE_MAX_BYTES: 5242880, POST_VIDEO_LIMIT: 262144000,
+    ROOM_POST_IMAGE_TYPES: new Set(['image/jpeg', 'image/png', 'image/webp', 'video/mp4']),
     roomPostMessage: (message) => messages.push(message), crypto: { randomUUID: () => String(uploads.length) },
     URL: { createObjectURL: () => 'blob:selected' }, uploadRoomPostImage: (id) => uploads.push(id),
     renderRoomPostImages() {}, queueMicrotask() {}, syncRoomPostImageComposer() {},
@@ -47,12 +48,15 @@ test('Room image selection queues at most ten files and rejects over 5 MiB befor
   add([{ name: 'too-large.jpg', type: 'image/jpeg', size: 5242881 }]);
   assert.equal(uploads.length, 0);
   assert.ok(messages.at(-1).includes('5 MiB'));
-  add(Array.from({ length: 12 }, (_, i) => ({ name: `${i}.jpg`, type: 'image/jpeg', size: 5242880 })));
-  assert.equal(images.length, 10);
-  assert.equal(uploads.length, 10);
-  assert.ok(messages.at(-1).includes('first ten'));
-  add([{ name: 'eleventh.jpg', type: 'image/jpeg', size: 1 }]);
-  assert.equal(uploads.length, 10);
+  add([{ name: 'clip.mp4', type: 'video/mp4', size: 10485760 }]);
+  assert.equal(images[0].type, 'video/mp4');
+  assert.equal(uploads.length, 1);
+  add(Array.from({ length: 6 }, (_, i) => ({ name: `${i}.jpg`, type: 'image/jpeg', size: 5242880 })));
+  assert.equal(images.length, 5);
+  assert.equal(uploads.length, 5);
+  assert.ok(messages.at(-1).includes('first five'));
+  add([{ name: 'extra.jpg', type: 'image/jpeg', size: 1 }]);
+  assert.equal(uploads.length, 5);
 });
 
 test('database accepts the fifth media slot expected by the existing five-item API build', async () => {

@@ -31,7 +31,8 @@ test('Rooms keeps the conversation, composer, membership, and settings on existi
   ]);
   assert.match(html, /id="room-detail-loading-status" role="status" hidden/);
   assert.match(app, /detail\.dataset\.loading = 'true'/);
-  assert.match(app, /\[\.\.\.hydrated\]\.reverse\(\)\.forEach/);
+  assert.match(app, /roomTimelineRows\.values\(\)\]\.sort\(\(a, b\) => compareRoomMessages/);
+  assert.match(html, /id="room-history-more"/);
   assert.match(app, /card\.classList\.toggle\('room-message-own', item\.post\.author_id === currentMemberId\)/);
   assert.match(app, /circleStreamAllowed\(circle, membership\) \? loadCircleMembers/);
   assert.match(app, /context\.circle\.owner_id === memberId && membership\.member_role !== 'owner'/);
