@@ -193,20 +193,71 @@ body:has(#professional-dashboard-surface:not([hidden])) .stream-header {
 }
 
 #professional-dashboard-window {
-  min-height: 38px;
-  padding: 0 34px 0 11px;
-  border: 1px solid var(--app-border, #334155);
-  border-radius: 9px;
-  background: var(--app-surface, #0b182a);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0 14px;
+}
+
+#professional-dashboard-window button {
+  min-height: 42px;
+  padding: 0 clamp(10px, 3vw, 18px);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
 }
+#professional-dashboard-window button[aria-pressed="true"] { background: rgb(57 143 229 / 18%); color: var(--app-text, #e4f2ff); }
+
+.professional-activity-rings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 4px auto 26px;
+  max-width: 590px;
+}
+.professional-activity-ring {
+  --activity-color: #438fde;
+  --activity-track: #e5f1ff;
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  font-weight: 650;
+  color: var(--app-text, #f8fafc);
+}
+.professional-activity-ring[data-activity-ring="stories"] { --activity-color: #f18a29; --activity-track: #fff0e0; }
+.professional-activity-ring[data-activity-ring="reception"] { --activity-color: #db60d3; --activity-track: #fce1fb; }
+.professional-activity-track {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 3px;
+  width: clamp(69px, 23vw, 113px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: conic-gradient(var(--activity-color) var(--activity-progress, 0turn), var(--activity-track) 0);
+}
+.professional-activity-track::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 7px;
+  border-radius: inherit;
+  background: var(--app-surface, #0b182a);
+}
+.professional-activity-track svg { width: 21px; height: 21px; }
+.professional-activity-track strong { font-size: clamp(16px, 5.2vw, 25px); line-height: 1; }
+.professional-activity-ring > span { font-size: clamp(12px, 3.5vw, 16px); }
 
 .professional-metric-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -436,7 +487,7 @@ body:has(#professional-dashboard-surface:not([hidden])) .stream-header {
 }
 
 @media (max-width: 390px) {
-  .professional-metric-grid { grid-template-columns: 1fr; }
+  .professional-metric-card { padding: 10px; }
   .professional-live-indicator { display: none; }
 }
 

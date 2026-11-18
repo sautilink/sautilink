@@ -68,7 +68,8 @@ test('social providers remain after the form and keep their original accessible 
   assert.match(source, /separator\.textContent = 'Or continue with'/);
   assert.match(source, /block\.append\(separator\)[\s\S]*SOCIAL_OAUTH_PROVIDERS\.forEach/);
   assert.match(source, /button\.setAttribute\('aria-label', provider\.label\)/);
-  assert.match(source, /<span class="social-oauth-label">\$\{provider\.name\}<\/span>/);
+  assert.match(source, /provider\.id === 'google' \? provider\.label : provider\.name/);
+  assert.match(source, /<span class="social-oauth-label">\$\{label\}<\/span>/);
   assert.match(source, /form\.insertAdjacentElement\('afterend', block\)/);
   assert.doesNotMatch(source, /form\.insertAdjacentElement\('beforebegin', block\)/);
 });

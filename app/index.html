@@ -128,6 +128,14 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z"></path></svg>
             <span>Saved</span>
           </button>
+          <button class="nav-item" type="button" data-marketplace-preview>
+            <svg viewBox="0 0 24 24" aria-hidden="true" data-sl-static-icon="storefront"><path d="M4 11v9h16v-9M3 7l2-3h14l2 3v3a2.25 2.25 0 0 1-4.5 0 2.25 2.25 0 0 1-4.5 0 2.25 2.25 0 0 1-4.5 0A2.25 2.25 0 0 1 3 10V7ZM9.5 20v-5h5v5"></path></svg>
+            <span>Marketplace</span>
+          </button>
+          <button class="nav-item" type="button" data-live-preview>
+            <svg viewBox="0 0 24 24" aria-hidden="true" data-sl-static-icon="broadcast"><circle cx="12" cy="12" r="2"></circle><path d="M8.5 8.5a5 5 0 0 0 0 7m7-7a5 5 0 0 1 0 7M5.5 5.5a9 9 0 0 0 0 13m13-13a9 9 0 0 1 0 13"></path></svg>
+            <span>Live</span>
+          </button>
           <button class="nav-item" type="button" data-member-view="appeals">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M5 7h14M7 7l-3 6h6L7 7ZM17 7l-3 6h6l-3-6ZM7 21h10"></path></svg>
             <span>Appeals</span>
@@ -1508,6 +1516,23 @@
     <button type="button" data-mobile-shorts aria-label="Short Videos"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true" data-sl-static-icon="pulso"><path d="M5,3H19A2,2 0 0,1 21,5V19A2,2 0 0,1 19,21H5A2,2 0 0,1 3,19V5A2,2 0 0,1 5,3Z"></path><path d="M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z"></path></svg></button>
     <button type="button" data-member-view="profile" aria-label="Profile"><svg class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.2" r="3.5"></circle><path d="M5.1 20.2c.8-4.2 3.1-6.3 6.9-6.3s6.1 2.1 6.9 6.3"></path></svg></button>
   </nav>
+
+  <dialog class="marketplace-preview" id="marketplace-preview" aria-labelledby="marketplace-preview-title">
+    <div class="marketplace-preview-heading">
+      <span>Marketplace</span>
+      <h2 id="marketplace-preview-title">Coming soon</h2>
+      <p>We’re testing a new way to buy and sell on SautiLink.</p>
+    </div>
+    <section>
+      <h3>Shop with verified businesses</h3>
+      <p>Marketplace will be dedicated to buying and selling products from businesses verified by SautiLink.</p>
+      <h3>Business verification</h3>
+      <p>To sell products or advertise a business, business accounts will need certification from SautiLink Corporation.</p>
+      <h3>Always free to register</h3>
+      <p>Business registration and every registration step on SautiLink will be free.</p>
+    </section>
+    <form method="dialog"><button type="submit" class="secondary-action">Close</button></form>
+  </dialog>
 
   <dialog class="verification-request-dialog" id="verification-request-dialog" aria-labelledby="verification-request-title">
     <form class="verification-request-form" id="verification-request-form" novalidate>

@@ -9,7 +9,7 @@ test('professional dashboard removes the empty shell header while open and resto
   const css = await read('app/assets/professional-dashboard.css');
 
   assert.match(css, /body:has\(#professional-dashboard-surface:not\(\[hidden\]\)\) \.stream-header\s*\{\s*display:\s*none;/);
-  assert.match(source, /professional-dashboard\.css\?v=20261004-dashboard-header1/);
+  assert.match(source, /professional-dashboard\.css\?v=20261118-activity1/);
 
   const openStart = source.indexOf('async function openDashboard()');
   const closeStart = source.indexOf('function closeDashboard()');

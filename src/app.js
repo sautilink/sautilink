@@ -9826,6 +9826,12 @@ document.querySelectorAll('[data-member-view]').forEach((button) => {
   });
 });
 
+document.addEventListener('click', (event) => {
+  if (!currentMember) return;
+  if (event.target.closest('[data-marketplace-preview]')) byId('marketplace-preview')?.showModal();
+  if (event.target.closest('[data-live-preview]')) showToast('Live · Coming soon');
+});
+
 document.querySelector('[data-mobile-shorts]')?.addEventListener('click', () => {
   if (!currentMember) return;
   const onHome = /^\/(?:home|app)\/?$/.test(window.location.pathname);

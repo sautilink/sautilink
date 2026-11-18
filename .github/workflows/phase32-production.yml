@@ -447,13 +447,13 @@ jobs:
           const actual = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
           if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('Production PWA manifest is stale');
           NODE
-            for asset in /sw.js /assets/pwa.js; do
+            for asset in /sw.js /assets/pwa.js /assets/brand/pwa-install.css; do
               asset_body="$(mktemp)"
               asset_code="$(curl --silent --show-error --max-time 12 \
                 -o "$asset_body" -w '%{http_code}' \
                 "https://$manifest_host$asset?release=$GITHUB_RUN_ID")"
               test "$asset_code" = "200"
-              grep -Fq '20260930-swala-otp2' "$asset_body"
+              cmp "dist-production-site$asset" "$asset_body"
             done
           done
           for host in \
