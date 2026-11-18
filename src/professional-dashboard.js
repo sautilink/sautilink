@@ -7,7 +7,7 @@ const OWNER_ACTIONS_ID = 'profile-owner-dashboard-actions';
 const DASHBOARD_BUTTON_ID = 'profile-dashboard-button';
 const CSS_ID = 'sautilink-professional-dashboard-css';
 const POLL_MS = 15000;
-const VALID_WINDOWS = new Set([7, 28, 90]);
+const VALID_WINDOWS = new Set([1, 7, 28, 90]);
 
 let installed = false;
 let analyticsClient = null;
@@ -286,7 +286,7 @@ function createDashboardSurface() {
   summaryHead.className = 'professional-insights-heading';
   const copy = document.createElement('div');
   const h3 = document.createElement('h3');
-  h3.textContent = 'Insights';
+  h3.textContent = 'Analytics';
   const intro = document.createElement('p');
   intro.textContent = 'See how your profile and content are performing with live SautiLink data.';
   const trackingNote = document.createElement('small');
@@ -312,7 +312,7 @@ function createDashboardSurface() {
   const select = document.createElement('select');
   select.id = 'professional-dashboard-window';
   select.setAttribute('aria-label', 'Analytics date range');
-  for (const [days, label] of [[7, 'Last 7 days'], [28, 'Last 28 days'], [90, 'Last 90 days']]) {
+  for (const [days, label] of [[28, '28 days'], [7, '7 days'], [1, 'Today'], [90, '90 days']]) {
     const option = document.createElement('option');
     option.value = String(days);
     option.textContent = label;
@@ -518,7 +518,7 @@ function renderChart(series) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', `${metricLabel(activeMetric)} over the last ${activeWindow} days`);
+  svg.setAttribute('aria-label', activeWindow === 1 ? `${metricLabel(activeMetric)} today` : `${metricLabel(activeMetric)} over the last ${activeWindow} days`);
 
   for (let index = 0; index <= 4; index += 1) {
     const y = pad.top + (innerH * index / 4);

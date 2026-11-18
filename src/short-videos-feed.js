@@ -304,7 +304,7 @@ function createShortVideoSlide(tile) {
     more.className = 'sauti-short-caption-more';
     more.dataset.shortCaptionMore = '';
     more.setAttribute('aria-expanded', 'false');
-    more.textContent = 'more';
+    more.textContent = 'See more';
     captionNode.append(document.createTextNode(' '), more);
   }
 
@@ -900,7 +900,7 @@ function installShortVideosFeed() {
       const expanded = more.getAttribute('aria-expanded') === 'true';
       text.textContent = expanded ? text.dataset.previewCaption : text.dataset.fullCaption;
       more.setAttribute('aria-expanded', String(!expanded));
-      more.textContent = expanded ? 'more' : 'less';
+      more.textContent = expanded ? 'See more' : 'See less';
       return;
     }
 

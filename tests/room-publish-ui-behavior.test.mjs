@@ -18,7 +18,7 @@ function extract(source, from, to) {
 function nodes() {
   const map = new Map();
   return (id) => {
-    if (!map.has(id)) map.set(id, { value: '', textContent: '', selectedOptions: [{ textContent: 'Fixture Room' }],
+    if (!map.has(id)) map.set(id, { value: '', dataset: {}, textContent: '', selectedOptions: [{ textContent: 'Fixture Room' }],
       setAttribute() {}, removeAttribute() {}, dispatchEvent() {} });
     return map.get(id);
   };

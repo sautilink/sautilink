@@ -276,7 +276,7 @@ jobs:
               && grep -Fq "theme-init.js?v=$theme_js_version" "$app_body" \
               && grep -Fq "app.css?v=$app_css_version" "$app_body" \
               && grep -Fq "app.js?v=$app_js_version" "$app_body" \
-              && grep -Fq 'pwa.js?v=20260930-swala-otp2' "$app_body" \
+              && grep -Fq 'pwa.js?v=20261118-mobile-install1' "$app_body" \
               && grep -Fq 'sautilink-profile-x-ui' "$app_js_body" \
               && ! grep -Fq 'Private preview' "$app_body" \
               && ! grep -Fq 'Phase 31' "$app_body" \

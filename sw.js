@@ -1,5 +1,5 @@
-const CACHE_NAME = "sautilink-shell-v95";
-const PWA_RELEASE = "20260930-swala-otp2";
+const CACHE_NAME = "sautilink-shell-v96";
+const PWA_RELEASE = "20261118-mobile-install1";
 const CORE_ASSET_PATHS = new Set([
   "/app/assets/app.css",
   "/app/assets/app.js",
@@ -25,6 +25,7 @@ const APP_SHELL = [
   "/assets/icon-maskable-512.png",
   "/assets/brand/system.css?v=20261104-adaptive1",
   `/assets/pwa.js?v=${PWA_RELEASE}`,
+  `/assets/brand/pwa-install.css?v=${PWA_RELEASE}`,
   "/assets/launch-splash.css",
   "/assets/launch-splash.js",
   "/assets/lottie-loader.js?v=20260917-lottie1",

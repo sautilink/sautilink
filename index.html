@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <script data-sautilink-session-entry>
     (() => {
       try {
@@ -24,7 +24,7 @@
   <meta name="description" content="Continue to SautiLink to sign in or create an account.">
   <meta name="robots" content="noindex, follow">
   <link rel="canonical" href="https://sautilink.com/">
-  <meta name="theme-color" content="#07101f">
+  <meta name="theme-color" content="#162e32">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -35,38 +35,7 @@
   <link rel="apple-touch-icon" href="/assets/favicon.png">
   <link rel="preload" href="/assets/fonts/inter/InterVariable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/assets/brand/system.css?v=20261104-adaptive1">
-  <style>
-    :root { color-scheme: dark; }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      background: #07101f;
-      color: #f7f9fc;
-      font-family: Inter, system-ui, sans-serif;
-    }
-    main {
-      width: min(440px, calc(100% - 32px));
-      text-align: center;
-      padding: 40px 28px;
-    }
-    img { width: 82px; height: auto; margin-bottom: 24px; }
-    h1 { margin: 0 0 12px; font-size: clamp(28px, 7vw, 40px); letter-spacing: -.04em; }
-    p { margin: 0 0 24px; color: #aeb8c8; line-height: 1.6; }
-    .actions { display: grid; gap: 10px; }
-    a {
-      min-height: 46px;
-      display: grid;
-      place-items: center;
-      border-radius: 12px;
-      text-decoration: none;
-      font-weight: 750;
-    }
-    .primary { background: #f7f9fc; color: #07101f; }
-    .secondary { border: 1px solid #33415a; color: #f7f9fc; }
-  </style>
+  <link rel="stylesheet" href="/assets/brand/web-entry.css?v=20261118-entry1">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="SautiLink">
@@ -126,16 +95,16 @@
 </script>
 </head>
 <body data-sautilink-entry="account-choice">
-  <main>
-    <img src="/logo.png" alt="SautiLink">
-    <h1>Continue to SautiLink</h1>
-    <p>Sign in to continue, or create an account if you are new to SautiLink.</p>
-    <div class="actions">
-      <a class="primary" href="/login">Log in</a>
-      <a class="secondary" href="/signup">Create account</a>
+  <main class="web-entry">
+    <img class="web-entry-wordmark" src="/assets/brand/sautilink-wordmark-white.png" alt="SautiLink" width="140" height="40">
+    <h1 class="web-entry-label">Continue to SautiLink</h1>
+    <p class="web-entry-slogan"><strong>Link it.</strong><span>Share.</span><span>Connect.</span></p>
+    <div class="web-entry-actions">
+      <a class="web-entry-primary" href="/signup">Create account</a>
+      <a href="/login">Log in</a>
     </div>
   </main>
   <script src="/app/assets/self-xss-console-warning.js?v=20261115-1" defer></script>
-  <script src="/assets/pwa.js?v=20260930-swala-otp2" defer></script>
+  <script src="/assets/pwa.js?v=20261118-mobile-install1" defer></script>
 </body>
 </html>

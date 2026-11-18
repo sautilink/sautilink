@@ -24,7 +24,7 @@ test('Room detail reuses its primary query and defers owner management lists', a
   const path = resolve(root, 'src/app.js');
   const transformed = transformRoomOpenPerformanceSource(path, await readFile(path, 'utf8'));
 
-  assert.match(transformed, /created_at, category, privacy, cover_key, member_count, post_permission, invite_permission, updated_at/);
+  assert.match(transformed, /created_at, category, privacy, cover_key, member_count, post_permission, invite_permission, hide_members, show_history_to_new_members, updated_at/);
   assert.match(transformed, /window\.__sautiRoomDetailSnapshot = Object\.freeze/);
   assert.match(transformed, /requestIdleCallback\(runOwnerRoomManagement, \{ timeout: 1800 \}\)/);
   assert.doesNotMatch(transformed, /if \(circle\.owner_id === currentMemberId\) \{\s*await Promise\.all\(\[/);

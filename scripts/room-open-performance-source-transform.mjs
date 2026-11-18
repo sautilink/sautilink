@@ -19,7 +19,7 @@ function transformAppSource(source) {
     .select('id, owner_id, slug, name, description, join_policy, created_at')`,
     `  const { data: circle, error } = await supabase
     .from('social_circles')
-    .select('id, owner_id, slug, name, description, join_policy, created_at, category, privacy, cover_key, member_count, post_permission, invite_permission, updated_at')`,
+    .select('id, owner_id, slug, name, description, join_policy, created_at, category, privacy, cover_key, member_count, post_permission, invite_permission, hide_members, show_history_to_new_members, updated_at')`,
     'Room detail metadata query',
   );
 
@@ -134,7 +134,7 @@ async function enhanceRoomCards() {
   if (!slug) return null;
   const rows = await roomSelect('social_circles', {
     slug: \`eq.\${slug}\`,
-    select: 'id,owner_id,slug,name,description,join_policy,category,privacy,cover_key,member_count,post_permission,invite_permission,updated_at',
+    select: 'id,owner_id,slug,name,description,join_policy,category,privacy,cover_key,member_count,post_permission,invite_permission,hide_members,show_history_to_new_members,updated_at',
     limit: 1,
   });
   return rows[0] || null;
@@ -203,7 +203,7 @@ async function activeRoom() {
 
   const promise = roomSelect('social_circles', {
     slug: \`eq.\${slug}\`,
-    select: 'id,owner_id,slug,name,description,join_policy,category,privacy,cover_key,member_count,post_permission,invite_permission,updated_at',
+    select: 'id,owner_id,slug,name,description,join_policy,category,privacy,cover_key,member_count,post_permission,invite_permission,hide_members,show_history_to_new_members,updated_at',
     limit: 1,
   }).then((rows) => rememberRoomDetail(slug, rows[0] || null));
   roomDetailRuntimeCache.set(slug, {

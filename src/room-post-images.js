@@ -331,6 +331,7 @@ async function publishRoomPostWithImages(event) {
   if (!room?.id) return roomPostMessage('This Room could not be confirmed. Try again.');
   if (roomPostAccessToken() !== token || roomPostSlug() !== slug) return;
   const snapshot = { body: textarea.value.trim(), circle_id: room.id, reply_access: replies.value || 'everyone',
+    ...(textarea.dataset.roomReplyTo ? { room_reply_to_id: textarea.dataset.roomReplyTo } : {}),
     media: roomPostImages.map((item) => ({ id: item.id, alt_text: '' })) };
 
   roomPostImageSubmitting = true;
@@ -354,6 +355,7 @@ async function publishRoomPostWithImages(event) {
     confirmRoomPublishRequest(snapshot);
     await clearRoomPostImages({ remote: false });
     textarea.value = '';
+    if (snapshot.room_reply_to_id) roomPostNode('room-reply-clear')?.click();
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
     roomPostMessage(outcome.pending ? 'Submitted to Room admins for approval.' : 'Post published in this Room.', true);
     if (!outcome.pending) roomPostNode('circle-stream-retry')?.click();

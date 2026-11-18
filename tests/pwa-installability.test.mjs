@@ -16,13 +16,13 @@ test('SautiLink exposes an installable PWA shell without changing app behavior',
     source('manifest.json'),
     source('sw.js'),
     source('assets/pwa.js'),
-    source('assets/pwa-install.css'),
+    source('assets/brand/pwa-install.css'),
     source('scripts/build-production-release.mjs'),
   ]);
   const manifest = JSON.parse(manifestText);
 
   assert.match(rootHtml, /<link rel="manifest" href="\/manifest\.json">/);
-  assert.match(rootHtml, /<script src="\/assets\/pwa\.js\?v=20260930-swala-otp2" defer><\/script>/);
+  assert.match(rootHtml, /<script src="\/assets\/pwa\.js\?v=20261118-mobile-install1" defer><\/script>/);
   assert.equal(manifest.name, 'SautiLink');
   assert.equal(manifest.start_url, '/home');
   assert.equal(manifest.scope, '/');
@@ -40,19 +40,19 @@ test('SautiLink exposes an installable PWA shell without changing app behavior',
   assert.match(registration, /appinstalled/);
   assert.match(registration, /display-mode: standalone/);
   assert.match(registration, /Install SautiLink/);
-  assert.match(registration, /\/assets\/pwa-install\.css/);
+  assert.match(registration, /\/assets\/brand\/pwa-install\.css/);
   assert.ok(registration.includes('const HOME_PATH_PATTERN = /^\\/home\\/?$/;'));
   assert.match(registration, /!isHomeRoute\(\)/);
   assert.match(registration, /\['pushState', 'replaceState'\]/);
-  assert.match(registration, /window\.addEventListener\('popstate', showInstallButton\)/);
-  assert.match(registration, /window\.addEventListener\(ROUTE_CHANGE_EVENT, showInstallButton\)/);
+  assert.match(registration, /window\.addEventListener\('popstate', updateInstallOffer\)/);
+  assert.match(registration, /window\.addEventListener\(ROUTE_CHANGE_EVENT, updateInstallOffer\)/);
 
   assert.match(installStyles, /\.sautilink-pwa-install/);
   assert.match(installStyles, /position:\s*fixed/);
   assert.match(installStyles, /var\(--brand-primary, #2563eb\)/);
   assert.match(installStyles, /\.sautilink-pwa-app-shell \.sautilink-pwa-install/);
 
-  assert.match(serviceWorker, /sautilink-shell-v95/);
+  assert.match(serviceWorker, /sautilink-shell-v96/);
   assert.match(serviceWorker, /key\.startsWith\("sautilink-shell-"\)/);
   assert.match(serviceWorker, /addEventListener\("notificationclick"/);
   assert.match(serviceWorker, /isAppCodeAsset/);
@@ -62,5 +62,5 @@ test('SautiLink exposes an installable PWA shell without changing app behavior',
   assert.match(productionBuild, /wireProductionPwa/);
   assert.match(productionBuild, /<link rel=\\?"manifest\\?" href=\\?"\/manifest\.json\\?">/);
   assert.match(productionBuild, /\/assets\/pwa\.js\?v=\$\{PWA_RELEASE\}/);
-  assert.match(productionBuild, /PWA_RELEASE = '20260930-swala-otp2'/);
+  assert.match(productionBuild, /PWA_RELEASE = '20261118-mobile-install1'/);
 });

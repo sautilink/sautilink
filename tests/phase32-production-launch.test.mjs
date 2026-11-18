@@ -127,7 +127,7 @@ test('Phase 32 production build and verifier are permanent repository gates', as
     'https://sautilink.com/menu',
     'id="menu-surface"',
     'app.js?v=$app_js_version',
-    'pwa.js?v=20260930-swala-otp2',
+    'pwa.js?v=20261118-mobile-install1',
     'sautilink-profile-x-ui',
   ]) assert.ok(workflow.includes(marker), `production workflow missing ${marker}`);
 
@@ -143,8 +143,8 @@ test('Phase 32 production build and verifier are permanent repository gates', as
   assert.match(stampScript, /createHash\('sha256'\)/);
   assert.match(stampScript, /profile-x-ui\.css/);
   assert.match(hashVerifyScript, /content-hashed production UI stylesheets/);
-  assert.match(serviceWorker, /sautilink-shell-v95/);
-  assert.match(serviceWorker, /20260930-swala-otp2/);
+  assert.match(serviceWorker, /sautilink-shell-v96/);
+  assert.match(serviceWorker, /20261118-mobile-install1/);
 });
 
 test('Phase 32 generated production files exist and no source map is emitted', async () => {

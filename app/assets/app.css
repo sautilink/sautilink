@@ -4565,6 +4565,29 @@ body:not(.auth-entry) select {
   cursor: wait;
 }
 
+.sautilink-web-push-prompt {
+  grid-template-columns: 78px minmax(0, 1fr);
+  align-items: center;
+  border-color: #557766;
+  border-radius: 24px;
+  background: #23342c;
+  color: #f8f4eb;
+}
+.sautilink-web-push-prompt-photo {
+  display: block;
+  width: 78px;
+  height: 74px;
+  border-radius: 14px;
+  object-fit: cover;
+  object-position: 50% 32%;
+}
+.sautilink-web-push-prompt .sautilink-web-push-prompt-icon { display: none; }
+.sautilink-web-push-prompt-copy strong { font: 650 19px/1.16 "Google Sans", Inter, system-ui, sans-serif; }
+.sautilink-web-push-prompt-copy p { color: #c2d7cb; font-size: 13px; }
+.sautilink-web-push-prompt .sautilink-web-push-prompt-actions button { min-height: 44px; border-color: #668775; border-radius: 999px; color: #f8f4eb; }
+.sautilink-web-push-prompt .sautilink-web-push-prompt-actions [data-web-push-prompt-enable] { border-color: #addbc5; background: #addbc5; color: #1b3729; }
+@media (prefers-reduced-motion: reduce) { .sautilink-web-push-prompt { animation: none; } }
+
 @keyframes sautilink-push-prompt-in {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
