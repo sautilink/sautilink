@@ -834,8 +834,10 @@ function ensureRoomDetailLayout() {
   const opening = detail.hasAttribute('data-loading');
   const name = opening ? 'Opening Room…' : roomFbById('circle-detail-name').textContent;
   const count = opening ? '' : card.querySelector('.room-detail-badges span:last-child')?.textContent || '';
+  const activity = opening ? '' : detail.dataset.chatActivity;
+  const presence = activity?.includes('typing') ? activity : [count, activity].filter(Boolean).join(' · ');
   if (title && title.textContent !== name) title.textContent = name;
-  if (meta && meta.textContent !== count) meta.textContent = count;
+  if (meta && meta.textContent !== presence) meta.textContent = presence;
   ensureRoomDetailActions();
   ensureRoomFacebookAside();
   enhanceRoomChatControls();
@@ -907,7 +909,7 @@ roomsFacebookObserver.observe(document.body, {
   childList: true,
   subtree: true,
   attributes: true,
-  attributeFilter: ['hidden', 'class', 'data-state'],
+  attributeFilter: ['hidden', 'class', 'data-state', 'data-chat-activity'],
 });
 window.addEventListener('popstate', () => {
   syncRoomRouteFeedback();

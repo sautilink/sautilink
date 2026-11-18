@@ -478,7 +478,7 @@ async function activeRoom() {
   if (!slug) return null;
   const rows = await roomSelect('social_circles', {
     slug: `eq.${slug}`,
-    select: 'id,owner_id,slug,name,description,join_policy,category,privacy,cover_key,member_count,post_permission,invite_permission,updated_at',
+    select: 'id,owner_id,slug,name,description,join_policy,category,privacy,cover_key,member_count,post_permission,invite_permission,hide_members,show_history_to_new_members,updated_at',
     limit: 1,
   });
   return rows[0] || null;
@@ -668,10 +668,18 @@ function buildRoomSettings(room) {
   description.value = room.description || '';
   const category = roomSelectControl('room-admin-category', 'category', ROOM_CATEGORIES, room.category);
   const privacy = roomSelectControl('room-admin-privacy', 'privacy', [['public', 'Public'], ['private', 'Private — posts are members only']], room.privacy);
+  if (room.privacy === 'private') privacy.disabled = true;
   const membership = roomSelectControl('room-admin-membership', 'join_policy', [['open', 'Open — anyone can join'], ['approval', 'Approval required'], ['private', 'Invite only']], room.join_policy);
   const posting = roomSelectControl('room-admin-posting', 'post_permission', [['all_members', 'All members can post'], ['staff_only', 'Admins & moderators only']], room.post_permission);
   const invites = roomSelectControl('room-admin-invites', 'invite_permission', [['all_members', 'All members can invite'], ['staff_only', 'Admins & moderators only']], room.invite_permission);
+  const roster = roomSelectControl('room-admin-roster', 'hide_members', [
+    ['false', 'All members'], ['true', 'Show only owner and admins to members'],
+  ], String(Boolean(room.hide_members)));
+  const historyAccess = roomSelectControl('room-admin-history', 'show_history_to_new_members', [
+    ['true', 'All messages'], ['false', 'Messages sent after joining'],
+  ], String(room.show_history_to_new_members !== false));
   const cover = document.createElement('input');
+  cover.id = 'room-admin-cover-file';
   cover.type = 'file';
   cover.accept = 'image/jpeg,image/png,image/webp';
 
@@ -690,6 +698,8 @@ function buildRoomSettings(room) {
     settingsField('Membership', membership),
     settingsField('Who can post', posting),
     settingsField('Who can invite', invites),
+    settingsField('Member visibility', roster),
+    settingsField('History for new members', historyAccess),
     settingsField('Cover photo', cover),
   );
   form.append(grid);
@@ -732,6 +742,8 @@ function buildRoomSettings(room) {
         join_policy: membership.value,
         post_permission: posting.value,
         invite_permission: invites.value,
+        hide_members: roster.value === 'true',
+        show_history_to_new_members: historyAccess.value === 'true',
         updated_at: new Date().toISOString(),
       });
       if (cover.files?.[0]) await uploadRoomCover(room.id, cover.files[0]);

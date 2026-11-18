@@ -68,7 +68,8 @@ body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .con
   backdrop-filter: none;
 }
 body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .conversation-toolbar-title { min-height: 44px; padding-inline: 44px; }
-body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .conversation-toolbar h2 { display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 16px; line-height: 1.3; font-weight: 650; letter-spacing: -.02em; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .conversation-toolbar h2 { display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1.3; font-weight: 650; letter-spacing: -.02em; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .conversation-toolbar h2 > svg { display: none; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .conversation-back { display: none; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .member-comment-sheet-close {
   position: absolute;
@@ -109,6 +110,12 @@ body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet #con
 }
 body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-author .verified-name { font-size: 13px; line-height: 1.3; font-weight: 650; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-author .verified-name > strong { font-weight: inherit; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-body { margin-block: 3px; font-size: 14px; line-height: 1.4; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-actions { gap: 2px; margin-block: 2px 0; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-action { min-height: 34px; padding-inline: 5px; color: var(--ios-ink); background: transparent; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-action[aria-pressed="true"] { background: transparent; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-action > svg { width: 17px; height: 17px; }
+body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-replies-toggle { margin-block: 0 5px; }
 body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet .comment-menu { max-height: var(--comment-menu-max-height, 180px); overflow: auto; transform: translateY(var(--comment-menu-offset-y, 0px)); }
 body:not(.auth-entry):has(#member-view:not([hidden])) #member-comment-sheet :is(#conversation-loading, #conversation-error, #conversation-empty) {
   flex: 1 1 auto;

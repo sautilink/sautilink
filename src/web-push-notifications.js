@@ -213,12 +213,13 @@ function createWebPushPrompt() {
   prompt.setAttribute('aria-modal', 'false');
   prompt.setAttribute('aria-labelledby', 'sautilink-web-push-prompt-title');
   prompt.innerHTML = `
+    <img class="sautilink-web-push-prompt-photo" src="/assets/brand/entry-notifications.jpg" alt="" width="108" height="80">
     <div class="sautilink-web-push-prompt-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
     </div>
     <div class="sautilink-web-push-prompt-copy">
-      <strong id="sautilink-web-push-prompt-title">Turn on notifications?</strong>
-      <p>Get messages, calls and important SautiLink updates even when the app is closed.</p>
+      <strong id="sautilink-web-push-prompt-title">Never miss a moment</strong>
+      <p>Get updates for messages, new followers and activity on your posts.</p>
     </div>
     <div class="sautilink-web-push-prompt-actions">
       <button type="button" data-web-push-prompt-later>Not now</button>

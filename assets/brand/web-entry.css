@@ -1,0 +1,98 @@
+@font-face {
+  font-family: "Google Sans";
+  src: url("/assets/fonts/google-sans/GoogleSans-Latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+body[data-sautilink-entry="account-choice"] {
+  margin: 0;
+  color-scheme: dark;
+  background: #162e32;
+  color: #fff;
+  font-family: "Google Sans", Inter, system-ui, sans-serif;
+}
+
+.web-entry {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: max(31px, calc(env(safe-area-inset-top) + 18px)) max(22px, env(safe-area-inset-right))
+    max(18px, calc(env(safe-area-inset-bottom) + 12px)) max(22px, env(safe-area-inset-left));
+  overflow: hidden;
+  background: linear-gradient(180deg, #09212b38, #13232108 42%, #131e147a 81%, #142218f0),
+    url("/assets/brand/entry-kilimanjaro.jpg") center 56% / cover;
+}
+
+.web-entry::before {
+  position: absolute;
+  z-index: -1;
+  inset: 10% -45% auto;
+  height: 21%;
+  background: radial-gradient(ellipse at 39% 52%, #e3f5ff4c, transparent 26%),
+    radial-gradient(ellipse at 70% 47%, #f0faff44, transparent 23%);
+  filter: blur(18px);
+  animation: sautilink-cloud-drift 38s ease-in-out infinite alternate;
+  content: "";
+  pointer-events: none;
+}
+
+.web-entry-wordmark { width: min(140px, 42vw); height: auto; }
+.web-entry-label { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; white-space: nowrap; }
+
+.web-entry-slogan {
+  align-self: flex-start;
+  display: grid;
+  gap: .08em;
+  margin: clamp(52px, 19vh, 210px) 0 18px max(0px, calc((100vw - 820px) / 2));
+  font-size: clamp(35px, 8vw, 82px);
+  font-style: italic;
+  line-height: 1.06;
+  letter-spacing: -.025em;
+  text-shadow: 0 2px 18px #112a30d9;
+}
+
+.web-entry-slogan > * { animation: web-entry-fade 700ms ease-out both; }
+.web-entry-slogan strong { font-weight: 700; }
+.web-entry-slogan span:first-of-type { color: #e2e8e7; font-weight: 500; animation-delay: 160ms; }
+.web-entry-slogan span:last-of-type { color: #cfdbdb; font-weight: 400; animation-delay: 320ms; }
+
+.web-entry-actions { display: grid; width: min(388px, 100%); gap: 8px; margin: auto 0 0; padding-top: 32px; }
+.web-entry-actions > a {
+  display: grid;
+  min-height: 48px;
+  place-items: center;
+  border-radius: 999px;
+  color: #f7fff8;
+  font-weight: 650;
+  text-decoration: none;
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+.web-entry-actions > a.web-entry-primary { background: #ff713e; color: #21150e; }
+.web-entry-actions > a:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.web-entry-actions > a:active { transform: scale(.98); }
+
+@media (min-width: 720px) {
+  .web-entry {
+    background: linear-gradient(90deg, #122627 8%, #1437353b 47%, #0d222290 100%),
+      url("/assets/brand/entry-kilimanjaro.jpg") center 57% / cover;
+  }
+}
+
+@keyframes web-entry-fade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sautilink-cloud-drift {
+  from { transform: translateX(-9%); }
+  to { transform: translateX(13%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .web-entry::before, .web-entry-slogan > * { animation: none; }
+  .web-entry-actions > a { transition: none; }
+}

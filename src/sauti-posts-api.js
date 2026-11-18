@@ -96,6 +96,7 @@ async function createSauti(request, env, ctx = null) {
   const body = normalizeBody(payload?.body);
   const requestedCircle = payload?.circle_id == null || payload.circle_id === '' ? '' : uuid(payload.circle_id);
   const requestedQuote = payload?.quote_post_id == null || payload.quote_post_id === '' ? '' : uuid(payload.quote_post_id);
+  const roomReply = payload?.room_reply_to_id == null ? '' : uuid(payload.room_reply_to_id);
   const requestedReplyAccess = replyAccess(payload?.reply_access);
   const requestedVisibility = requestedCircle ? 'circle' : audienceVisibility(payload?.visibility);
   const requestedMedia = Array.isArray(payload?.media) ? payload.media : [];
@@ -104,6 +105,10 @@ async function createSauti(request, env, ctx = null) {
 
   if (payload?.circle_id && !requestedCircle) return apiError(400, 'INVALID_CIRCLE', 'This Sautify is unavailable.');
   if (payload?.quote_post_id && !requestedQuote) return apiError(400, 'INVALID_QUOTE', 'The quoted post is unavailable.');
+  if (payload?.room_reply_to_id != null && (!roomReply || !requestedCircle || requestedQuote
+    || requestedReplyAccess !== 'everyone' || requestedMedia.length > 5 || payload?.poll_options?.length)) {
+    return apiError(400, 'INVALID_ROOM_REPLY', 'Reply to an available message in this Room with up to five attachments.');
+  }
   if (!requestedReplyAccess) return apiError(400, 'INVALID_REPLY_ACCESS', 'Choose who can comment on this post.');
   if (!requestedVisibility) return apiError(400, 'INVALID_AUDIENCE', 'Choose a valid post audience.');
   if (requestedMedia.length > 10) return apiError(400, 'MEDIA_LIMIT', 'A post can include up to ten media items.');
@@ -117,6 +122,9 @@ async function createSauti(request, env, ctx = null) {
 
   const clientRequestId = suppliedRequestId || crypto.randomUUID();
   const roomRoute = requestedCircle ? await roomPostSubmissionRoute(session, requestedCircle, clientRequestId) : null;
+  if (roomReply && !roomRoute.missing && (!roomRoute.ok || roomRoute.value?.requires_review || roomRoute.value?.existing_submission)) {
+    return apiError(409, 'ROOM_REPLY_REVIEW_REQUIRED', 'This Room reviews new posts. Clear the quote to submit your message for review.');
+  }
   if (requestedCircle && roomRoute?.value?.existing_submission === true) {
     const retryMedia = requestedMedia.map((item) => ({ id: uuid(item?.id), alt_text: String(item?.alt_text || '').trim() }));
     if (retryMedia.some((item) => !item.id || item.alt_text.length > 1000) || new Set(retryMedia.map((item) => item.id)).size !== retryMedia.length) {
@@ -140,11 +148,11 @@ async function createSauti(request, env, ctx = null) {
     const params = new URLSearchParams({
       id: `eq.${id}`,
       owner_id: `eq.${session.user.id}`,
-      post_id: 'is.null',
-      upload_status: 'eq.ready',
+      upload_status: roomReply ? 'in.(ready,attached)' : 'eq.ready',
       select: 'id,owner_id,object_key,media_kind,content_type,size_bytes,width,height,duration_ms',
       limit: '1',
     });
+    if (!roomReply) params.set('post_id', 'is.null');
     const mediaResponse = await fetch(`${SUPABASE_URL}/rest/v1/social_post_media?${params}`, {
       headers: supabaseHeaders(session.auth),
     });
@@ -172,7 +180,7 @@ async function createSauti(request, env, ctx = null) {
     media.push({ ...row, alt_text: altText, position });
   }
 
-  if (requestedCircle) {
+  if (requestedCircle && !roomReply) {
     const queued = await maybeQueueRoomPost(session, {
       roomId: requestedCircle, requestId: clientRequestId, body, replyAccess: requestedReplyAccess,
       quoteId: requestedQuote, media, hasPoll: Array.isArray(payload?.poll_options) && payload.poll_options.length > 0,
@@ -186,6 +194,25 @@ async function createSauti(request, env, ctx = null) {
     const held = await heldRoomMedia(session, media.map((item) => item.id));
     if (held.response) return held.response;
     if (held.ids.length) return apiError(409, 'MEDIA_HELD_FOR_ROOM_REVIEW', 'This media belongs to a Room post awaiting review.');
+  }
+  if (roomReply) {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/publish_room_message_v1`, {
+      method: 'POST',
+      headers: { ...supabaseHeaders(session.auth), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        p_room_id: requestedCircle,
+        p_request_id: clientRequestId,
+        p_body: body,
+        p_reply_id: roomReply,
+        p_media: media.map(({ id, alt_text }) => ({ id, alt_text })),
+      }),
+    });
+    const post = await response.json().catch(() => null);
+    if (response.ok && uuid(post?.id)) return json(201, { ok: true, data: { post } });
+    if (post?.message === 'ROOM_REPLY_TARGET_UNAVAILABLE') {
+      return apiError(409, 'ROOM_REPLY_UNAVAILABLE', 'This message is unavailable in the Room.');
+    }
+    return apiError(409, 'ROOM_REPLY_FAILED', 'The reply could not be sent. Check your Room access and try again.');
   }
   const response = await fetch(`${SUPABASE_URL}/rest/v1/social_posts?select=id,author_id,circle_id,visibility,reply_access,quote_post_id,body,media_count,created_at`, {
     method: 'POST',

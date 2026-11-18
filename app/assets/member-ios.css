@@ -348,17 +348,38 @@ body:not(.auth-entry):has(#member-view:not([hidden])) .app-footer { gap: 7px 13p
     bottom: max(9px, env(safe-area-inset-bottom));
     left: max(10px, env(safe-area-inset-left));
     width: auto;
-    height: 65px;
-    padding: 4px 5px;
+    height: 53px;
+    padding: 0 5px;
     border: 1px solid var(--ios-line);
-    border-radius: 24px;
-    background: color-mix(in srgb, var(--ios-surface) 94%, transparent);
+    border-radius: 28px;
+    background: color-mix(in srgb, var(--ios-surface) 79%, transparent);
     box-shadow: 0 6px 25px rgba(18, 26, 44, .1);
     backdrop-filter: blur(24px) saturate(150%);
     -webkit-backdrop-filter: blur(24px) saturate(150%);
   }
-  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style] button { min-height: 55px; padding: 0; border-radius: 18px; color: var(--ios-muted); opacity: 1; }
-  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style] button.active { background: var(--ios-blue-soft); color: var(--ios-blue); }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style] button {
+    min-height: 44px;
+    padding: 0 0 4px;
+    border-radius: 16px;
+    color: var(--ios-ink);
+    opacity: 1;
+  }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style] button.active { background: transparent; color: var(--ios-ink); }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style] button.active::after {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    width: 18px;
+    height: 3px;
+    transform: translateX(-50%);
+    background: var(--ios-blue);
+    border-radius: 99px;
+    content: "";
+  }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style] button:active .mobile-nav-icon { transform: scale(.89); }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style] .mobile-nav-icon { width: 23px; height: 23px; stroke-width: 2; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style] button[data-member-view="stream"].active path { fill: none; }
+  body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style] .mobile-notification-badge { top: 5px; right: calc(50% - 18px); }
   body:not(.auth-entry):has(#member-view:not([hidden])) .composer-dialog { width: calc(100% - 16px); max-height: calc(100dvh - 16px - env(safe-area-inset-top)); margin: auto; border-radius: 24px; }
   body:not(.auth-entry):has(#member-view:not([hidden])) .composer-dialog .composer-card { max-height: calc(100dvh - 16px - env(safe-area-inset-top)); }
   body:not(.auth-entry):has(#member-view:not([hidden])) .composer-content { padding: 18px 15px 0; }

@@ -114,7 +114,7 @@ roomsFacebookObserver.observe(document.body, {
   childList: true,
   subtree: true,
   attributes: true,
-  attributeFilter: ['hidden', 'class', 'data-state'],
+  attributeFilter: ['hidden', 'class', 'data-state', 'data-chat-activity'],
 });
 window.addEventListener('popstate', () => {
   syncRoomRouteFeedback();
@@ -154,7 +154,7 @@ function initRoomsFacebookUi() {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['hidden', 'class', 'data-state'],
+    attributeFilter: ['hidden', 'class', 'data-state', 'data-chat-activity'],
     attributeOldValue: true,
   });
   window.addEventListener('popstate', () => {

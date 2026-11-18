@@ -247,6 +247,10 @@ function profileActivityCommentsPath(postId) {
 function navigateProfileActivityCard(card, { comments = false, trigger = null } = {}) {
   const postId = card?.dataset.postId;
   if (!postId) return;
+  if (card.dataset.profileReply === 'true') {
+    window.location.assign(`${profileActivityCommentsPath(postId)}?from=notification`);
+    return;
+  }
   if (comments) {
     const request = new CustomEvent('sautilink:open-comments', {
       cancelable: true,
@@ -488,6 +492,7 @@ function createProfileActivityCard(item, { pinned = false, allowPin = false, req
   const card = document.createElement('article');
   card.className = 'profile-activity-card';
   card.dataset.postId = String(item.id || '');
+  if (item.parent_post_id || profileActivityTab === 'replies') card.dataset.profileReply = 'true';
   card.dataset.authorId = String(item.author_id || '');
   card.setAttribute('role', 'link');
   card.tabIndex = 0;

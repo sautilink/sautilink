@@ -15,6 +15,7 @@ notices. The repository proprietary license does not override those terms.
 | `wrangler` | 4.125.0 | MIT OR Apache-2.0 |
 | `lottie-web` | 5.13.0 light build | MIT |
 | Google Sans (Android app preview) | Latin WOFF2, Google Fonts v76 | [SIL OFL 1.1](assets/fonts/google-sans/OFL.txt) |
+| CityPulso Icons ([brand-imessage](https://pulsoicon.com/icons/brand-imessage), [square-play](https://pulsoicon.com/icons/square-play)) | Mobile navigation | [ISC and upstream notices](assets/brand/pulso-icon-license.txt) |
 
 Their copyright and license texts remain available in the installed packages,
 the vendored runtime notice, and their upstream repositories. This notice does

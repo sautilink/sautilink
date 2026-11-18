@@ -189,6 +189,7 @@ export const excludedIconSelector = [
   '.verification-badge svg', '.verification-social-icon svg',
   '.professional-dashboard-chart svg', '#professional-dashboard-chart svg',
   '.brand-mark svg', '.brand-logo svg', '[data-brand-logo] svg',
+  'svg[data-sl-static-icon="pulso"]',
 ].join(', ');
 
 const pathGlyph = (...paths) => paths.map((d) => 'path:d=' + d).join('|');

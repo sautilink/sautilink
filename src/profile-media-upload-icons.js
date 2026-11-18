@@ -36,6 +36,16 @@ const PROFILE_MEDIA_EDITOR_CONFIG = Object.freeze({
     outputHeight: 500,
     maxBytes: 8 * 1024 * 1024,
   }),
+  'room-admin-cover-file': Object.freeze({
+    slot: 'avatar',
+    title: 'Adjust Room photo',
+    cropLabel: 'Square crop',
+    previewWidth: 640,
+    previewHeight: 640,
+    outputWidth: 1024,
+    outputHeight: 1024,
+    maxBytes: 5 * 1024 * 1024,
+  }),
 });
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';

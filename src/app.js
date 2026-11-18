@@ -272,6 +272,9 @@ let circlesRequest = 0;
 let activeCircle = null;
 let circleStreamRequest = 0;
 let circleStreamLoading = false;
+let roomActivityTimer;
+let roomTypingAt = 0;
+let signedOutStatusTimer;
 
 function motionBehavior() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
@@ -4219,7 +4222,8 @@ function createCommentCard(item) {
 
 function createSautiCard(item, { home = false } = {}) {
   const post = item.post;
-  if (!post) return null;
+  const room = Boolean(item.roomChat);
+  if (!post || (post.circle_id && !room)) return null;
   if (post.author_id === currentMemberId && !post.parent_post_id) void loadPostEditor();
 
   const author = authorFromPost(post) || {};
@@ -4349,13 +4353,21 @@ function createSautiCard(item, { home = false } = {}) {
 
   const actions = document.createElement('div');
   actions.className = 'sauti-actions';
-  actions.append(
+  if (!room) actions.append(
     interactionButton('like', 'Like', post.like_count, item.liked),
     interactionButton('comments', canComment ? 'Comment' : 'View comments', post.comment_count, false),
     interactionButton('repost', item.reposted ? 'Undo repost' : 'Repost', post.repost_count, item.reposted),
     interactionButton('share', 'Share'),
     interactionButton('save', item.saved ? 'Saved' : 'Save', null, item.saved),
   );
+  else {
+    const reply = document.createElement('button');
+    reply.type = 'button';
+    reply.dataset.roomReply = post.id;
+    reply.append(sautiActionIcon('comments'), document.createTextNode('Reply'));
+    reply.setAttribute('aria-label', `Reply to ${displayName}`);
+    actions.append(interactionButton('like', 'Like', post.like_count, item.liked), reply);
+  }
   footer.append(actions);
 
   const caption = createSautiCaption(post.body);
@@ -6190,6 +6202,7 @@ function renderProfile(profile, { owner = true } = {}) {
   renderedProfileOwner = owner;
   renderedProfileUsername = username;
   renderedProfileId = profile.id || '';
+  if (!profileSurface.hidden) viewTitle.textContent = owner ? 'My Profile' : 'Profile';
   byId('profile-card').hidden = false;
   byId('profile-route-state').hidden = true;
   byId('profile-edit-button').hidden = !owner;
@@ -6265,7 +6278,7 @@ async function refreshNotificationBadge() {
   if (!error) syncNotificationBadges(count || 0);
 }
 
-function notificationCopy(notification, actorName, circleName = '') {
+function notificationCopy(notification, actorName, circleName = '', post) {
   const actor = actorName || 'Someone';
   const circleLabel = circleName ? ` in ${circleName}` : ' in a Room';
 
@@ -6279,10 +6292,15 @@ function notificationCopy(notification, actorName, circleName = '') {
     return circleCopy[notification.circle_event] || [actorName ? actor : 'SautiLink', ' sent you a Room update.'];
   }
 
+  const location = notification.circle_id ? circleLabel : '';
+  const likedContent = notification.circle_id ? 'your message' : post?.parent_post_id ? 'your comment' : 'your post';
+  const replyAction = post?.thread_depth === 1 ? 'commented on your post'
+    : post?.thread_depth > 1 ? 'replied to your comment' : 'replied in a conversation';
   const copy = {
     follow: [actor, ' followed you.'],
-    like: [actor, notification.circle_id ? ` liked your post${circleLabel}.` : ' liked your post.'],
-    reply: [actor, notification.circle_id ? ` commented on your post${circleLabel}.` : ' commented on your post.'],
+    like: [actor, ` liked ${likedContent}${location}.`],
+    reply: [actor, ` ${replyAction}${location}.`],
+    mention: [actor, post?.id ? (post.parent_post_id ? ' tagged you in a comment.' : ' tagged you in a post.') : ' tagged you in a bio.'],
     reshare: [actor, notification.circle_id ? ` reposted your post${circleLabel}.` : ' reposted your post.'],
     safety: ['SautiLink', ' updated a moderation decision affecting your content.'],
   };
@@ -6295,7 +6313,7 @@ function renderNotificationItem(notification, actor, circle, post) {
   item.className = `notification-item${notification.read_at ? '' : ' unread'}`;
   item.dataset.notificationId = String(notification.id);
   item.dataset.notificationType = String(notification.notification_type || '');
-  if (post?.id) item.dataset.notificationRoute = notificationPostDestination(notification, post);
+  if (post?.id && !notification.circle_id && !post.circle_id) item.dataset.notificationRoute = notificationPostDestination(notification, post);
   if (circle?.slug) item.dataset.circleSlug = circle.slug;
 
   const avatar = document.createElement('span');
@@ -6309,7 +6327,8 @@ function renderNotificationItem(notification, actor, circle, post) {
   const [actorText, actionText] = notificationCopy(
     notification,
     actor ? `@${actor.username}` : '',
-    circle?.name || ''
+    circle?.name || '',
+    post,
   );
   if (actor) {
     message.append(
@@ -6398,7 +6417,7 @@ async function loadNotifications() {
       ? supabase.from('social_circles').select('id, slug, name').in('id', circleIds)
       : Promise.resolve({ data: [] }),
     postIds.length
-      ? supabase.from('social_posts').select('id, root_post_id, parent_post_id').in('id', postIds)
+      ? supabase.from('social_posts').select('id, circle_id, root_post_id, parent_post_id, thread_depth').in('id', postIds)
       : Promise.resolve({ data: [] }),
   ]);
   actors = profileResult.data || [];
@@ -8464,9 +8483,61 @@ function circleStreamAllowed(circle, membership) {
   return Boolean(circle && (circle.owner_id === currentMemberId || membership));
 }
 
+function setRoomReplyTarget(card) {
+  const field = byId('circle-sauti-body');
+  const preview = byId('room-reply-preview');
+  field.dataset.roomReplyTo = card?.dataset.postId || '';
+  byId('room-reply-preview-copy').textContent = card
+    ? `Reply to ${card.querySelector('.sauti-card-identity strong')?.textContent || 'this message'}`
+    : '';
+  preview.hidden = !card;
+  if (card) field.focus();
+}
+
+function monitorRoomActivity(circle, membership) {
+  window.clearInterval(roomActivityTimer);
+  if (!circleStreamAllowed(circle, membership)) return;
+  const context = activeCircle;
+  const detail = byId('circle-detail');
+  let pending = false;
+  const pulse = async () => {
+    if (activeCircle !== context || detail.hidden || byId('circles-surface').hidden) {
+      window.clearInterval(roomActivityTimer);
+      return;
+    }
+    if (pending || document.hidden || !navigator.onLine) return;
+    pending = true;
+    try {
+      const field = byId('circle-sauti-body');
+      const { data, error } = await supabase.rpc('room_chat_activity_v1', {
+        p_room_id: circle.id,
+        p_typing: !field.disabled && Boolean(field.value.trim()) && Date.now() - roomTypingAt < 4500,
+        p_active: true,
+      });
+      if (activeCircle !== context) return;
+      if (error?.code === 'PGRST202') window.clearInterval(roomActivityTimer);
+      const activity = data?.[0];
+      const typing = Number(activity?.typing_count || 0);
+      const online = Number(activity?.online_count || 0);
+      const label = typing === 1 ? 'Someone is typing…'
+        : typing > 1 ? `${typing} people are typing…` : online > 0 ? `${online} online` : '';
+      if (detail.dataset.chatActivity !== label) detail.dataset.chatActivity = label;
+    } catch {
+      if (activeCircle === context) delete detail.dataset.chatActivity;
+    } finally {
+      pending = false;
+    }
+  };
+  roomActivityTimer = window.setInterval(pulse, 3500);
+  void pulse();
+}
+
 function resetCircleStreamView({ hide = false } = {}) {
   circleStreamRequest += 1;
   circleStreamLoading = false;
+  window.clearInterval(roomActivityTimer);
+  roomTypingAt = 0;
+  delete byId('circle-detail').dataset.chatActivity;
   const section = byId('circle-stream');
   if (!section) return;
   section.hidden = hide;
@@ -8477,6 +8548,7 @@ function resetCircleStreamView({ hide = false } = {}) {
   byId('circle-sauti-composer').hidden = true;
   byId('circle-stream-feed').replaceChildren();
   byId('circle-sauti-body').value = '';
+  setRoomReplyTarget(null);
   setMessage(byId('circle-sauti-message'), '', '');
   updateCircleComposerState();
 }
@@ -8493,9 +8565,10 @@ function updateCircleComposerState() {
   const mentionedReady = replies.value !== 'mentioned' || composerHasMention(textarea.value);
   count.textContent = String(length);
   note.textContent = !navigator.onLine
-    ? 'Connect to post. Room drafts can be saved from the Home composer.'
-    : `${replyAccessLabel(replies.value)} can comment in this Room`;
-  submit.disabled = !allowed || !navigator.onLine || !textarea.value.trim() || length > 500 || !mentionedReady || circleStreamLoading;
+    ? 'Connect to send this message.'
+    : 'Visible to Room members';
+  submit.disabled = !allowed || textarea.disabled || !navigator.onLine || !textarea.value.trim()
+    || length > 500 || !mentionedReady || circleStreamLoading || submit.getAttribute('aria-busy') === 'true';
 }
 
 function syncCircleStreamAccess(circle, membership) {
@@ -8527,6 +8600,7 @@ function syncCircleStreamAccess(circle, membership) {
   lockedTitle.textContent = '';
   lockedMessage.textContent = '';
   updateCircleComposerState();
+  monitorRoomActivity(circle, membership);
   void loadCircleStream(circle.id);
 }
 
@@ -8547,25 +8621,48 @@ async function loadCircleStream(circleId) {
   updateCircleComposerState();
 
   try {
-    const { data: posts, error } = await supabase
+    const timeline = (fields) => supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+      .select(fields)
       .eq('circle_id', circleId)
       .eq('visibility', 'circle')
-      .is('reply_to_post_id', null)
+      .eq('post_status', 'published')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(50);
+    let result = await timeline(`${THREAD_POST_SELECT}, room_reply_to_id`);
+    const supportsReplies = !['42703', 'PGRST204'].includes(result.error?.code);
+    if (!supportsReplies) result = await timeline(THREAD_POST_SELECT);
+    const { data: posts, error } = result;
 
     if (error) throw error;
     if (requestId !== circleStreamRequest) return;
 
     const rows = posts || [];
+    const byMessageId = new Map(rows.map((row) => [row.id, row]));
     const hydrated = await hydrateDirectPosts(rows);
 
     if (requestId !== circleStreamRequest) return;
     [...hydrated].reverse().forEach((item) => {
-      const card = createSautiCard(item);
+      const card = createSautiCard({ ...item, roomChat: true });
       if (!card) return;
+      if (!supportsReplies) card.querySelector('[data-room-reply]')?.remove();
+      const replyId = item.post.room_reply_to_id || item.post.parent_post_id;
+      if (replyId) {
+        const original = byMessageId.get(replyId);
+        const quote = document.createElement(original ? 'button' : 'div');
+        quote.className = 'room-message-quote';
+        if (original) {
+          quote.type = 'button';
+          quote.dataset.roomQuote = replyId;
+        }
+        const name = document.createElement('strong');
+        name.textContent = authorFromPost(original)?.display_name || authorFromPost(original)?.username || 'Earlier message';
+        const snippet = document.createElement('span');
+        snippet.textContent = original ? (original.body || 'Attachment').slice(0, 135) : 'Message unavailable';
+        quote.append(name, snippet);
+        card.querySelector('.sauti-card-head')?.after(quote);
+      }
       card.classList.toggle('room-message-own', item.post.author_id === currentMemberId);
       feed.append(card);
     });
@@ -8613,12 +8710,15 @@ async function shareCircleSauti() {
     const headers = await currentAuthorizationHeader();
     if (!headers.Authorization) throw new Error('Sign in again before posting in this Room.');
     if (currentMemberId !== publishingMemberId || activeCircle?.circle?.id !== circle.id) return;
-    const snapshot = { owner_id: publishingMemberId, body, circle_id: circle.id, reply_access: replyAccess };
+    const roomReplyId = textarea.dataset.roomReplyTo;
+    const payloadBody = { body, circle_id: circle.id, reply_access: replyAccess,
+      ...(roomReplyId ? { room_reply_to_id: roomReplyId } : {}) };
+    const snapshot = { owner_id: publishingMemberId, ...payloadBody };
 
     const response = await fetch('/api/sauti', {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body, circle_id: circle.id, reply_access: replyAccess, client_request_id: roomPublishRequestId(snapshot) }),
+      body: JSON.stringify({ ...payloadBody, client_request_id: roomPublishRequestId(snapshot) }),
     });
     const payload = await response.json().catch(() => null);
     if (!response.ok || payload?.ok === false) {
@@ -8629,8 +8729,9 @@ async function shareCircleSauti() {
     const outcome = roomPublishOutcome(response, payload);
     confirmRoomPublishRequest(snapshot);
     textarea.value = '';
+    if (roomReplyId) setRoomReplyTarget(null);
     updateCircleComposerState();
-    setMessage(message, outcome.pending ? 'Submitted to Room admins for approval.' : 'Post published in this Room.', 'success');
+    setMessage(message, outcome.pending ? 'Submitted to Room admins for approval.' : '', 'success');
     if (!outcome.pending) await loadCircleStream(circle.id);
     showToast(outcome.pending ? 'Room post is awaiting approval.' : 'Posted in Room.');
   } catch (error) {
@@ -9290,6 +9391,19 @@ async function applyLocationRoute() {
       showSignedOut('login');
       return;
     }
+    if (conversationRoute.fromNotification && !conversationRoute.invalid) {
+      const memberId = currentMemberId;
+      const { data: target } = await supabase.from('social_posts')
+        .select('id, circle_id, root_post_id, parent_post_id')
+        .eq('id', conversationRoute.postId).maybeSingle();
+      if (currentMemberId !== memberId || readConversationRoute()?.postId !== conversationRoute.postId) return;
+      if (target?.root_post_id && target.parent_post_id && !target.circle_id) {
+        setMemberNavigation('stream');
+        await loadSharedSautiTarget(target.root_post_id);
+        if (currentMemberId !== memberId || readConversationRoute()?.postId !== target.id) return;
+        if (memberCommentSheet?.open(target.id)) return;
+      }
+    }
     const enteringComments = conversationSurface.hidden && !conversationRoute.viewPost;
     setMemberNavigation(conversationRoute.viewPost && !conversationRoute.invalid ? 'stream' : 'conversation');
     if (enteringComments) window.scrollTo(0, 0);
@@ -9712,6 +9826,13 @@ document.querySelectorAll('[data-member-view]').forEach((button) => {
   });
 });
 
+document.querySelector('[data-mobile-shorts]')?.addEventListener('click', () => {
+  if (!currentMember) return;
+  const onHome = /^\/(?:home|app)\/?$/.test(window.location.pathname);
+  if (!onHome) showMemberSurface('stream');
+  void selectHomeFeed('short-videos');
+});
+
 menuSurface.addEventListener('click', (event) => {
   const view = event.target.closest('[data-member-view]');
   if (view) {
@@ -9900,7 +10021,11 @@ byId('circles-list').addEventListener('click', (event) => {
 byId('circle-back').addEventListener('click', () => showMemberSurface('circles'));
 byId('circle-route-home').addEventListener('click', () => showMemberSurface('circles'));
 byId('circle-primary-action').addEventListener('click', () => void handleCirclePrimaryAction());
-byId('circle-sauti-body').addEventListener('input', updateCircleComposerState);
+byId('circle-sauti-body').addEventListener('input', () => {
+  roomTypingAt = Date.now();
+  updateCircleComposerState();
+});
+byId('room-reply-clear').addEventListener('click', () => setRoomReplyTarget(null));
 byId('circle-sauti-reply-access').addEventListener('change', updateCircleComposerState);
 byId('circle-sauti-composer').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -11134,6 +11259,18 @@ function openHomeMediaAfterTap(event, media) {
 }
 
 function handleSautiFeedClick(event) {
+  const roomReply = event.target.closest('[data-room-reply]');
+  if (roomReply) {
+    const field = byId('circle-sauti-body');
+    if (!field.disabled && !byId('circle-sauti-composer').hidden) setRoomReplyTarget(roomReply.closest('.sauti-card'));
+    return;
+  }
+  const roomQuote = event.target.closest('[data-room-quote]');
+  if (roomQuote) {
+    const card = byId('circle-stream-feed').querySelector(`[data-post-id="${CSS.escape(roomQuote.dataset.roomQuote)}"]`);
+    card?.scrollIntoView({ block: 'center', behavior: motionBehavior() });
+    return;
+  }
   const repliesToggle = event.target.closest('[data-toggle-comment-replies]');
   if (repliesToggle) {
     toggleCommentReplies(repliesToggle);
@@ -11155,7 +11292,20 @@ function handleSautiFeedClick(event) {
   if (commentReply) {
     const post = conversationPostById(commentReply.dataset.commentReply);
     if (post && setConversationReplyTarget(post)) {
-      byId('conversation-reply-body').focus();
+      const field = byId('conversation-reply-body');
+      const username = authorFromPost(post)?.username;
+      const oldPrefix = field.dataset.replyMention;
+      if (username && /^[a-z0-9][a-z0-9._]{2,29}$/i.test(username)) {
+        const prefix = `@${username} `;
+        const draft = oldPrefix && field.value.startsWith(oldPrefix) ? field.value.slice(oldPrefix.length) : field.value;
+        if (!draft.startsWith(prefix) && draft.length + prefix.length <= field.maxLength) {
+          field.value = prefix + draft;
+          field.dataset.replyMention = prefix;
+          field.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+      field.focus();
+      field.setSelectionRange(field.value.length, field.value.length);
       byId('conversation-reply-form').scrollIntoView({ behavior: motionBehavior(), block: 'center' });
     }
     return;
@@ -11415,6 +11565,11 @@ async function signOut() {
   syncDeletionRequestUI(null);
   syncAccountSecurityEmail();
   await applyLocationRoute();
+  const feedback = byId('auth-signout-status');
+  feedback.textContent = 'You’re signed out.';
+  feedback.hidden = false;
+  window.clearTimeout(signedOutStatusTimer);
+  signedOutStatusTimer = window.setTimeout(() => { feedback.hidden = true; }, 5000);
 }
 
 byId('signout-button').addEventListener('click', signOut);
