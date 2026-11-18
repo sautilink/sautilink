@@ -528,6 +528,8 @@ function openRoomInfoView(view) {
   if (title && title.textContent !== copy) title.textContent = copy;
   const settings = aside.querySelector('.room-chat-settings');
   if (settings) settings.open = view === 'edit';
+  const save = aside.querySelector('.room-info-save');
+  if (save) save.hidden = !settings?.open;
   setRoomInfoVisible(true);
   aside.scrollTop = 0;
 }
