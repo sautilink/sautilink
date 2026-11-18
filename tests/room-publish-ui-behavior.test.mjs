@@ -19,11 +19,11 @@ function nodes() {
   const map = new Map();
   return (id) => {
     if (!map.has(id)) map.set(id, { value: '', dataset: {}, textContent: '', selectedOptions: [{ textContent: 'Fixture Room' }],
-      setAttribute() {}, removeAttribute() {}, dispatchEvent() {} });
+      setAttribute() {}, getAttribute() { return null; }, removeAttribute() {}, dispatchEvent() {} });
     return map.get(id);
   };
 }
-const helpers = { roomPublishRequestId, confirmRoomPublishRequest, roomPublishOutcome, navigator: { onLine: true }, POST_BODY_LIMIT: 10000 };
+const helpers = { roomPublishRequestId, confirmRoomPublishRequest, roomPublishOutcome, Event, navigator: { onLine: true }, POST_BODY_LIMIT: 2000 };
 
 test('Home composer pending Room acknowledgement clears local draft without a live toast, feed refresh or own-post pin', async () => {
   const byId = nodes(), calls = [], messages = [], toasts = [], requests = [];
@@ -63,7 +63,7 @@ test('Room text composer retries an unacknowledged draft with the same id and ne
   assert.equal(requests[0].client_request_id, requests[1].client_request_id);
   assert.equal(byId('circle-sauti-body').value, '');
   assert.equal(messages.at(-1), 'Submitted to Room admins for approval.');
-  assert.deepEqual(calls, ['Room post is awaiting approval.']);
+  assert.deepEqual(calls, []);
 });
 
 test('Room image pending acknowledgement keeps held bytes and does not refresh the public Room feed', async () => {

@@ -649,6 +649,7 @@ function normalizeRoomSlug(value) {
 
 function buildRoomSettings(room) {
   const form = document.createElement('form');
+  form.id = 'room-edit-settings-form';
   form.className = 'room-settings-form';
   form.noValidate = true;
 
@@ -667,10 +668,10 @@ function buildRoomSettings(room) {
   description.maxLength = 1000;
   description.value = room.description || '';
   const category = roomSelectControl('room-admin-category', 'category', ROOM_CATEGORIES, room.category);
-  const privacy = roomSelectControl('room-admin-privacy', 'privacy', [['public', 'Public'], ['private', 'Private — posts are members only']], room.privacy);
+  const privacy = roomSelectControl('room-admin-privacy', 'privacy', [['public', 'Public'], ['private', 'Private']], room.privacy);
   if (room.privacy === 'private') privacy.disabled = true;
   const membership = roomSelectControl('room-admin-membership', 'join_policy', [['open', 'Open — anyone can join'], ['approval', 'Approval required'], ['private', 'Invite only']], room.join_policy);
-  const posting = roomSelectControl('room-admin-posting', 'post_permission', [['all_members', 'All members can post'], ['staff_only', 'Admins & moderators only']], room.post_permission);
+  const posting = roomSelectControl('room-admin-posting', 'post_permission', [['all_members', 'All members can send messages'], ['staff_only', 'Admins & moderators only']], room.post_permission);
   const invites = roomSelectControl('room-admin-invites', 'invite_permission', [['all_members', 'All members can invite'], ['staff_only', 'Admins & moderators only']], room.invite_permission);
   const roster = roomSelectControl('room-admin-roster', 'hide_members', [
     ['false', 'All members'], ['true', 'Show only owner and admins to members'],
@@ -696,7 +697,7 @@ function buildRoomSettings(room) {
     settingsField('Category', category),
     settingsField('Privacy', privacy),
     settingsField('Membership', membership),
-    settingsField('Who can post', posting),
+    settingsField('Who can send messages', posting),
     settingsField('Who can invite', invites),
     settingsField('Member visibility', roster),
     settingsField('History for new members', historyAccess),
@@ -726,6 +727,7 @@ function buildRoomSettings(room) {
   });
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (save.disabled) return;
     const nextName = name.value.trim();
     const nextSlug = normalizeRoomSlug(slug.value);
     if (!nextName) return roomStatus(message, 'Room name is required.');
@@ -733,7 +735,7 @@ function buildRoomSettings(room) {
     if (privacy.value === 'private' && membership.value === 'open') membership.value = 'approval';
     save.disabled = true;
     try {
-      await roomPatch('social_circles', { id: `eq.${room.id}` }, {
+      const updated = await roomPatch('social_circles', { id: `eq.${room.id}` }, {
         name: nextName,
         slug: nextSlug,
         description: description.value.trim(),
@@ -746,6 +748,9 @@ function buildRoomSettings(room) {
         show_history_to_new_members: historyAccess.value === 'true',
         updated_at: new Date().toISOString(),
       });
+      const saved = updated.find((row) => row.id === room.id);
+      if (!saved) throw new Error('The server did not confirm this change. Reopen the Room and try again.');
+      document.dispatchEvent(new CustomEvent('sautilink:room-settings-saved', { detail: saved }));
       if (cover.files?.[0]) await uploadRoomCover(room.id, cover.files[0]);
       roomStatus(message, 'Room settings saved.', true);
       roomToast('Room settings saved.');

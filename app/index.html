@@ -938,18 +938,18 @@
 
               <form class="circle-sauti-composer" id="circle-sauti-composer" aria-label="Send a message in this Room" novalidate hidden>
                 <div class="room-reply-preview" id="room-reply-preview" hidden>
-                  <span id="room-reply-preview-copy"></span>
+                  <div class="room-reply-preview-content">
+                    <strong id="room-reply-preview-copy"></strong>
+                    <span id="room-reply-preview-text"></span>
+                  </div>
                   <button type="button" id="room-reply-clear" aria-label="Cancel reply">×</button>
                 </div>
-                <div class="circle-sauti-controls">
-                  <span>Visible to Room members</span>
-                  <input type="hidden" id="circle-sauti-reply-access" value="everyone">
-                </div>
-                <label class="sr-only" for="circle-sauti-body">Room post text</label>
-                <textarea id="circle-sauti-body" name="body" rows="2" maxlength="500" placeholder="Write a message…"></textarea>
-                <div class="circle-sauti-meta">
+                <input type="hidden" id="circle-sauti-reply-access" value="everyone">
+                <label class="sr-only" for="circle-sauti-body">Message</label>
+                <textarea id="circle-sauti-body" name="body" rows="1" maxlength="2000" placeholder="Message"></textarea>
+                <div class="circle-sauti-meta" hidden>
                   <span id="circle-sauti-reply-note">Visible to Room members</span>
-                  <span><b id="circle-sauti-count">0</b> / 500</span>
+                  <span><b id="circle-sauti-count">0</b> / 2,000</span>
                 </div>
                 <div class="circle-sauti-actions">
                   <button id="circle-sauti-submit" type="submit" disabled>Send</button>
@@ -966,7 +966,10 @@
                 <p>Try again without leaving this Room.</p>
                 <button class="secondary-action" id="circle-stream-retry" type="button">Try again</button>
               </section>
-              <section class="stream-feed circle-stream-feed" id="circle-stream-feed" aria-label="Room posts"></section>
+              <section class="stream-feed circle-stream-feed" id="circle-stream-feed" aria-label="Room messages">
+                <button type="button" id="room-history-more" class="room-history-control" hidden>Load earlier messages</button>
+              </section>
+              <button type="button" id="room-jump-latest" class="room-history-control room-jump-latest" hidden>↓ New messages</button>
               <section class="stream-empty circle-stream-empty-state" id="circle-stream-empty" hidden>
                 <span></span><span></span><span></span>
                 <h2>No Room posts yet.</h2>

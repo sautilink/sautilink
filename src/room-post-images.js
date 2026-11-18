@@ -1,7 +1,10 @@
 import { roomPublishRequestId, confirmRoomPublishRequest, roomPublishOutcome } from './room-publish-outcome.js';
-const ROOM_POST_IMAGE_LIMIT = 10;
+import { POST_BODY_LIMIT } from './post-text-formatting.js';
+import { POST_VIDEO_LIMIT } from './post-media-policy.js';
+import { uploadPostMedia } from './post-media-upload.js';
+const ROOM_POST_IMAGE_LIMIT = 5;
 const ROOM_POST_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
-const ROOM_POST_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const ROOM_POST_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'video/mp4']);
 const ROOM_POST_SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
 const ROOM_POST_SUPABASE_KEY = 'sb_publishable_omJ-5Mem-K4vgm6WLXRzJQ_jeGs65ca';
 const ROOM_POST_AUTH_KEY = 'sautilink.auth.session';
@@ -32,11 +35,7 @@ function roomPostAccessToken() {
 }
 
 function roomPostSlug() {
-  const route = location.pathname.match(/^\/(?:rooms|sautify|app\/(?:sautify|circles))\/([^/]+)\/?$/);
-  if (route?.[1]) return decodeURIComponent(route[1]);
-  return String(roomPostNode('circle-detail-slug')?.textContent || '')
-    .replace(/^\/(?:rooms|sautify)\//, '')
-    .trim();
+  return location.pathname.match(/^\/(?:app\/)?(?:rooms|sautify|circles)\/([a-z0-9][a-z0-9-]{2,49})\/?$/i)?.[1] || '';
 }
 
 function roomPostMessage(text, success = false) {
@@ -70,6 +69,10 @@ function renderRoomPostImages() {
   const add = roomPostNode('room-post-image-add');
   if (!root || !count || !add) return;
 
+  const form = roomPostNode('circle-sauti-composer');
+  form.dataset.roomAttachments = String(roomPostImages.length);
+  form.dataset.roomAttachmentsReady = String(roomPostImages.every((item) => item.status === 'ready' && item.id));
+  form.dispatchEvent(new Event('sautilink:room-attachments'));
   count.textContent = `${roomPostImages.length} / ${ROOM_POST_IMAGE_LIMIT}`;
   add.disabled = roomPostImages.length >= ROOM_POST_IMAGE_LIMIT || roomPostImageSubmitting;
   root.hidden = roomPostImages.length === 0;
@@ -80,9 +83,14 @@ function renderRoomPostImages() {
     tile.className = 'room-post-image-tile';
     tile.dataset.roomPostImageId = item.localId;
 
-    const image = document.createElement('img');
+    const image = document.createElement(item.type === 'video/mp4' ? 'video' : 'img');
     image.src = item.localUrl;
-    image.alt = '';
+    if (image.tagName === 'VIDEO') {
+      image.preload = 'metadata';
+      image.muted = true;
+      image.playsInline = true;
+      image.setAttribute('aria-label', item.name);
+    } else image.alt = '';
 
     const status = document.createElement('span');
     status.className = `room-post-image-status ${item.status}`;
@@ -112,38 +120,6 @@ function renderRoomPostImages() {
   });
 }
 
-function roomPostMentionReady() {
-  const textarea = roomPostNode('circle-sauti-body');
-  const replies = roomPostNode('circle-sauti-reply-access');
-  if (!textarea || !replies || replies.value !== 'mentioned') return true;
-  return /(^|\s)@[a-z0-9._-]{1,30}\b/i.test(textarea.value);
-}
-
-function syncRoomPostImageComposer() {
-  if (!roomPostImages.length) return;
-  const textarea = roomPostNode('circle-sauti-body');
-  const submit = roomPostNode('circle-sauti-submit');
-  const loading = roomPostNode('circle-stream-loading');
-  if (!textarea || !submit) return;
-
-  const currentSlug = roomPostSlug();
-  const sameRoom = !roomPostImageRoomSlug || !currentSlug || currentSlug === roomPostImageRoomSlug;
-  const hasContent = Boolean(textarea.value.trim()) || roomPostImages.length > 0;
-  const allReady = roomPostImages.every((item) => item.status === 'ready' && item.id);
-  const streamBusy = loading ? !loading.hidden : false;
-
-  submit.disabled =
-    textarea.disabled ||
-    !navigator.onLine ||
-    !sameRoom ||
-    !hasContent ||
-    textarea.value.length > 500 ||
-    !roomPostMentionReady() ||
-    !allReady ||
-    streamBusy ||
-    roomPostImageSubmitting;
-}
-
 async function removeRemoteRoomPostImage(id) {
   const token = roomPostAccessToken();
   if (!id || !token) return;
@@ -159,7 +135,7 @@ async function removeRoomPostImage(localId, { remote = true } = {}) {
   roomPostImages = roomPostImages.filter((entry) => entry.localId !== localId);
   if (item.localUrl) URL.revokeObjectURL(item.localUrl);
   renderRoomPostImages();
-  queueMicrotask(syncRoomPostImageComposer);
+  roomPostNode('circle-sauti-body')?.dispatchEvent(new Event('input', { bubbles: true }));
   if (remote && item.id) await removeRemoteRoomPostImage(item.id);
   if (!roomPostImages.length) roomPostImageRoomSlug = '';
 }
@@ -170,16 +146,14 @@ async function uploadRoomPostImage(localId) {
   const token = roomPostAccessToken();
   if (!token) {
     item.status = 'error';
-    item.error = 'Sign in again before uploading images.';
+    item.error = 'Sign in again before uploading attachments.';
     renderRoomPostImages();
-    syncRoomPostImageComposer();
     return;
   }
 
   item.status = 'uploading';
   item.error = '';
   renderRoomPostImages();
-  syncRoomPostImageComposer();
 
   try {
     if (item.id) await removeRemoteRoomPostImage(item.id);
@@ -191,41 +165,49 @@ async function uploadRoomPostImage(localId) {
       body: JSON.stringify({ content_type: item.type, size_bytes: item.size }),
     });
     const beginPayload = await begin.json().catch(() => null);
-    if (!begin.ok || beginPayload?.ok === false) {
-      throw new Error(beginPayload?.error?.message || 'Image upload could not start.');
+    if (!begin.ok || !beginPayload?.data?.id) {
+      throw new Error(beginPayload?.error?.message || 'Attachment upload could not start.');
     }
 
     item.id = beginPayload.data.id;
-    const upload = await fetch(beginPayload.data.upload_url, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': item.type },
-      body: item.file,
-    });
-    const uploadPayload = await upload.json().catch(() => null);
-    if (!upload.ok || uploadPayload?.ok === false) {
-      throw new Error(uploadPayload?.error?.message || 'Image upload failed.');
+    const active = () => roomPostImages.includes(item) && roomPostSlug() === roomPostImageRoomSlug;
+    if (!active()) {
+      await removeRemoteRoomPostImage(item.id);
+      return;
     }
+    await uploadPostMedia(beginPayload.data, item.file, () => {
+      const access = roomPostAccessToken();
+      return access && `Bearer ${access}`;
+    }, () => {}, async (path, bytes, authorization) => {
+      if (!/^\/api\/sauti-media\/upload\/[a-f0-9-]{36}(?:\?(?:part=[0-9]+|complete=1))?$/i.test(path)) {
+        throw new Error('The attachment upload session is invalid.');
+      }
+      const response = await fetch(path, { method: 'PUT', headers: { Authorization: authorization, 'Content-Type': item.type }, body: bytes });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || result?.ok === false) throw new Error(result?.error?.message || 'Attachment upload failed.');
+      return result;
+    }, active);
+    if (!active()) return;
 
     item.status = 'finalizing';
     renderRoomPostImages();
 
-    const finalize = await fetch(beginPayload.data.finalize_url, {
+    const finalize = await fetch(`/api/sauti-media/finalize/${encodeURIComponent(item.id)}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${roomPostAccessToken()}` },
     });
     const finalizePayload = await finalize.json().catch(() => null);
     if (!finalize.ok || finalizePayload?.ok === false) {
-      throw new Error(finalizePayload?.error?.message || 'Image upload could not be finalized.');
+      throw new Error(finalizePayload?.error?.message || 'Attachment could not be finalized.');
     }
 
     item.status = 'ready';
     renderRoomPostImages();
-    syncRoomPostImageComposer();
   } catch (error) {
     item.status = 'error';
-    item.error = error?.message || 'Image upload failed.';
+    if (!roomPostImages.includes(item)) return;
+    item.error = error?.message || 'Attachment upload failed.';
     renderRoomPostImages();
-    syncRoomPostImageComposer();
   }
 }
 
@@ -241,18 +223,19 @@ function addRoomPostImages(files) {
 
   const openSlots = Math.max(0, ROOM_POST_IMAGE_LIMIT - roomPostImages.length);
   if (!openSlots) {
-    roomPostMessage('A Room post can include up to ten images.');
+    roomPostMessage('A message can include up to five attachments.');
     return;
   }
 
   selected.slice(0, openSlots).forEach((file) => {
     const type = String(file.type || '').toLowerCase();
     if (!ROOM_POST_IMAGE_TYPES.has(type)) {
-      roomPostMessage('Use JPEG, PNG or WebP images.');
+      roomPostMessage('Choose a JPEG, PNG, WebP or MP4 file.');
       return;
     }
-    if (file.size < 1 || file.size > ROOM_POST_IMAGE_MAX_BYTES) {
-      roomPostMessage('Each image must be 5 MiB or smaller.');
+    const maxBytes = type === 'video/mp4' ? POST_VIDEO_LIMIT : ROOM_POST_IMAGE_MAX_BYTES;
+    if (file.size < 1 || file.size > maxBytes) {
+      roomPostMessage(type === 'video/mp4' ? 'Each video must be 250 MiB or smaller.' : 'Each photo must be 5 MiB or smaller.');
       return;
     }
 
@@ -272,8 +255,7 @@ function addRoomPostImages(files) {
   });
 
   renderRoomPostImages();
-  queueMicrotask(syncRoomPostImageComposer);
-  if (selected.length > openSlots) roomPostMessage('Only the first ten Room images were added.');
+  if (selected.length > openSlots) roomPostMessage('Only the first five attachments were added.');
 }
 
 async function clearRoomPostImages({ remote = false } = {}) {
@@ -308,38 +290,37 @@ async function publishRoomPostWithImages(event) {
   event.stopImmediatePropagation();
 
   const textarea = roomPostNode('circle-sauti-body');
-  const replies = roomPostNode('circle-sauti-reply-access');
   const submit = roomPostNode('circle-sauti-submit');
-  if (!textarea || !replies || !submit || roomPostImageSubmitting) return;
+  if (!textarea || !submit || roomPostImageSubmitting) return;
 
   const slug = roomPostSlug();
   if (roomPostImageRoomSlug && slug && slug !== roomPostImageRoomSlug) {
-    roomPostMessage('These images were selected for another Room. Add them again here.');
+    roomPostMessage('These attachments belong to another Room. Add them again here.');
     return;
   }
-  if (!navigator.onLine) return roomPostMessage('Connect to the internet before posting images.');
+  if (!navigator.onLine) return roomPostMessage('Connect to send attachments.');
   if (textarea.disabled) return roomPostMessage('You do not have permission to publish in this Room.');
-  if (textarea.value.length > 500) return roomPostMessage('Post text must be 500 characters or fewer.');
-  if (!roomPostMentionReady()) return roomPostMessage('Mention at least one @username or change who can comment.');
+  if (textarea.value.length > POST_BODY_LIMIT) return roomPostMessage(`Messages can contain up to ${POST_BODY_LIMIT} characters.`);
   if (!roomPostImages.every((item) => item.status === 'ready' && item.id)) {
-    return roomPostMessage('Wait for all images to finish uploading before posting.');
+    return roomPostMessage('Wait for attachments to finish uploading.');
   }
 
   const token = roomPostAccessToken();
-  if (!token) return roomPostMessage('Sign in again before posting.');
-  const room = await lookupRoomForPost();
-  if (!room?.id) return roomPostMessage('This Room could not be confirmed. Try again.');
-  if (roomPostAccessToken() !== token || roomPostSlug() !== slug) return;
-  const snapshot = { body: textarea.value.trim(), circle_id: room.id, reply_access: replies.value || 'everyone',
+  if (!token) return roomPostMessage('Sign in again before sending.');
+  const draft = { body: textarea.value.trim(), reply_access: 'everyone',
     ...(textarea.dataset.roomReplyTo ? { room_reply_to_id: textarea.dataset.roomReplyTo } : {}),
     media: roomPostImages.map((item) => ({ id: item.id, alt_text: '' })) };
-
   roomPostImageSubmitting = true;
   submit.disabled = true;
+  submit.setAttribute('aria-busy', 'true');
   renderRoomPostImages();
   roomPostMessage('');
 
   try {
+    const room = await lookupRoomForPost();
+    if (roomPostAccessToken() !== token || roomPostSlug() !== slug) return;
+    if (!room?.id) throw new Error('This Room could not be confirmed. Try again.');
+    const snapshot = { ...draft, circle_id: room.id };
     const response = await fetch('/api/sauti', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -357,14 +338,15 @@ async function publishRoomPostWithImages(event) {
     textarea.value = '';
     if (snapshot.room_reply_to_id) roomPostNode('room-reply-clear')?.click();
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    roomPostMessage(outcome.pending ? 'Submitted to Room admins for approval.' : 'Post published in this Room.', true);
+    roomPostMessage(outcome.pending ? 'Submitted to Room admins for approval.' : '', true);
     if (!outcome.pending) roomPostNode('circle-stream-retry')?.click();
   } catch (error) {
-    roomPostMessage(error?.message || 'The Room post could not be published.');
+    if (roomPostSlug() === slug) roomPostMessage(error?.message || 'The message could not be sent.');
   } finally {
     roomPostImageSubmitting = false;
+    submit.removeAttribute('aria-busy');
     renderRoomPostImages();
-    queueMicrotask(syncRoomPostImageComposer);
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
   }
 }
 
@@ -372,8 +354,7 @@ function installRoomPostImages() {
   const form = roomPostNode('circle-sauti-composer');
   const actions = form?.querySelector('.circle-sauti-actions');
   const textarea = roomPostNode('circle-sauti-body');
-  const replies = roomPostNode('circle-sauti-reply-access');
-  if (!form || !actions || !textarea || !replies || form.dataset.roomPostImages === 'true') return;
+  if (!form || !actions || !textarea || form.dataset.roomPostImages === 'true') return;
 
   form.dataset.roomPostImages = 'true';
   ensureRoomPostImageStyles();
@@ -388,7 +369,7 @@ function installRoomPostImages() {
   const preview = document.createElement('div');
   preview.id = 'room-post-image-preview';
   preview.className = 'room-post-image-preview';
-  preview.setAttribute('aria-label', 'Selected Room post images');
+  preview.setAttribute('aria-label', 'Selected message attachments');
   preview.hidden = true;
 
   const tools = document.createElement('div');
@@ -397,9 +378,36 @@ function installRoomPostImages() {
   add.id = 'room-post-image-add';
   add.type = 'button';
   add.className = 'room-post-image-add';
-  add.setAttribute('aria-label', 'Add photos to Room post');
-  add.setAttribute('title', 'Add photos');
-  add.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="9" cy="10" r="2"></circle><path d="m5.5 17 4.2-4 3 2.6 2.5-2.1 3.3 3.5"></path></svg><span>Photo</span>';
+  add.setAttribute('aria-label', 'Add attachments');
+  add.setAttribute('aria-expanded', 'false');
+  add.setAttribute('aria-controls', 'room-attachment-tray');
+  add.setAttribute('title', 'Add attachments');
+  add.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 13 6-6a2.8 2.8 0 0 1 4 4l-8 8a4.6 4.6 0 0 1-6.5-6.5L13 4"></path></svg>';
+  const tray = document.createElement('div');
+  tray.id = 'room-attachment-tray';
+  tray.className = 'room-attachment-tray';
+  tray.hidden = true;
+  const setTrayOpen = (open) => {
+    tray.hidden = !open;
+    add.setAttribute('aria-expanded', String(open));
+  };
+  const images = 'image/jpeg,image/png,image/webp';
+  const options = [
+    ['Photos', images, '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m4 17 5-5 4 4 3-3 4 4M8 8h.01"/>'],
+    ['Videos', 'video/mp4', '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m10 9 5 3-5 3z"/>'],
+    ['Files', `${images},video/mp4`, '<path d="M5 3h9l5 5v13H5zM14 3v5h5M8 13h8m-8 4h8"/>'],
+  ];
+  for (const [label, formats, glyph] of options) {
+    const choice = document.createElement('button');
+    choice.type = 'button';
+    choice.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${glyph}</svg><span>${label}</span>`;
+    choice.addEventListener('click', () => {
+      input.accept = formats;
+      setTrayOpen(false);
+      input.click();
+    });
+    tray.append(choice);
+  }
   const count = document.createElement('span');
   count.id = 'room-post-image-count';
   count.className = 'room-post-image-count';
@@ -408,20 +416,34 @@ function installRoomPostImages() {
 
   actions.parentNode.insertBefore(input, actions);
   actions.parentNode.insertBefore(preview, actions);
+  actions.parentNode.insertBefore(tray, actions);
   const textLabel = actions.querySelector(':scope > span');
   if (textLabel) textLabel.replaceWith(tools);
   else actions.prepend(tools);
 
-  add.addEventListener('click', () => input.click());
+  add.addEventListener('click', () => {
+    if (!textarea.disabled) setTrayOpen(tray.hidden);
+  });
+  form.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !tray.hidden) {
+      event.preventDefault();
+      setTrayOpen(false);
+      add.focus();
+    }
+  });
+  const syncAttachmentRoute = () => {
+    if (roomPostImageRoomSlug && roomPostImageRoomSlug !== roomPostSlug()) {
+      void clearRoomPostImages({ remote: !roomPostImageSubmitting });
+    }
+    if (!tray.hidden) setTrayOpen(false);
+  };
+  window.addEventListener('sautilink:routechange', syncAttachmentRoute);
+  window.addEventListener('popstate', syncAttachmentRoute);
   input.addEventListener('change', () => {
     addRoomPostImages(input.files);
     input.value = '';
   });
-  textarea.addEventListener('input', () => queueMicrotask(syncRoomPostImageComposer));
-  replies.addEventListener('change', () => queueMicrotask(syncRoomPostImageComposer));
   form.addEventListener('submit', publishRoomPostWithImages, true);
-  window.addEventListener('online', () => queueMicrotask(syncRoomPostImageComposer));
-  window.addEventListener('offline', () => queueMicrotask(syncRoomPostImageComposer));
   window.addEventListener('beforeunload', () => {
     roomPostImages.forEach((item) => { if (item.localUrl) URL.revokeObjectURL(item.localUrl); });
   });
