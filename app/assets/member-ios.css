@@ -390,3 +390,22 @@ body:not(.auth-entry):has(#member-view:not([hidden])) .app-footer { gap: 7px 13p
 @media (prefers-reduced-motion: reduce) {
   body:not(.auth-entry):has(#member-view:not([hidden])) :is(.nav-item, .share-sauti-button, .ios-quick-compose, .home-feed-tab, .theme-toggle) { transition: none; }
 }
+body:not(.auth-entry):has(#member-view:not([hidden])) .marketplace-preview {
+  box-sizing: border-box;
+  width: min(31rem, calc(100% - 2rem));
+  max-height: calc(100dvh - 3rem);
+  padding: 0;
+  border: 1px solid var(--ios-line, #d1d5dc);
+  border-radius: 24px;
+  color: var(--ios-ink, CanvasText);
+  background: var(--ios-surface, Canvas);
+}
+body:not(.auth-entry):has(#member-view:not([hidden])) .marketplace-preview::backdrop { background: rgb(9 16 15 / 55%); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .marketplace-preview-heading { padding: 1.5rem; background: rgb(80 170 127 / 14%); }
+body:not(.auth-entry):has(#member-view:not([hidden])) .marketplace-preview-heading span { font-size: .875rem; font-weight: 650; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .marketplace-preview-heading h2 { margin: .35rem 0 .5rem; font-size: 1.75rem; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .marketplace-preview p { margin: .35rem 0 0; line-height: 1.5; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .marketplace-preview section { padding: 1.25rem 1.5rem .5rem; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .marketplace-preview section h3 { margin: 1rem 0 0; font-size: 1rem; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .marketplace-preview section h3:first-child { margin-top: 0; }
+body:not(.auth-entry):has(#member-view:not([hidden])) .marketplace-preview form { padding: 1rem 1.5rem 1.5rem; text-align: right; }

@@ -7,7 +7,12 @@ const OWNER_ACTIONS_ID = 'profile-owner-dashboard-actions';
 const DASHBOARD_BUTTON_ID = 'profile-dashboard-button';
 const CSS_ID = 'sautilink-professional-dashboard-css';
 const POLL_MS = 15000;
-const VALID_WINDOWS = new Set([1, 7, 28, 90]);
+const DASHBOARD_WINDOWS = [[28, '28 days'], [7, '7 days'], [1, 'Today'], [90, '90 days']];
+const ACTIVITY_RINGS = [
+  ['posts', 'Posts', 'Posts in the last seven days', 7, ['M5 4.5h14v15H5z', 'M8 9h2m3 0h3m-8 4h8']],
+  ['stories', 'Stories', 'Stories used from your daily allowance', 6, ['M12 6c-3-2-6-2-9-1v13c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1v13']],
+  ['reception', 'Reception', 'Engagements in the last seven days', 10, ['M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z', 'M8 14c1.5 2.5 6.5 2.5 8 0M9 9h.01M15 9h.01']],
+];
 
 let installed = false;
 let analyticsClient = null;
@@ -35,7 +40,7 @@ function ensureStylesheet() {
   const link = document.createElement('link');
   link.id = CSS_ID;
   link.rel = 'stylesheet';
-  link.href = '/app/assets/professional-dashboard.css?v=20261004-dashboard-header1';
+  link.href = '/app/assets/professional-dashboard.css?v=20261118-activity1';
   document.head.append(link);
 }
 
@@ -206,6 +211,42 @@ function createMetricCard(key, label, help, iconPaths) {
   return card;
 }
 
+function createActivityRings() {
+  const group = document.createElement('div');
+  group.className = 'professional-activity-rings';
+  for (const [key, label, description, , paths] of ACTIVITY_RINGS) {
+    const ring = document.createElement('div');
+    ring.className = 'professional-activity-ring';
+    ring.dataset.activityRing = key;
+    ring.setAttribute('role', 'img');
+    ring.setAttribute('aria-label', description);
+    const track = document.createElement('div');
+    track.className = 'professional-activity-track';
+    const value = document.createElement('strong');
+    value.textContent = '—';
+    const mark = icon(paths);
+    mark.dataset.slStaticIcon = key;
+    track.append(mark, value);
+    const title = document.createElement('span');
+    title.textContent = label;
+    ring.append(track, title);
+    group.append(ring);
+  }
+  return group;
+}
+
+function updateActivityRings(values = {}) {
+  for (const [key, , description, goal] of ACTIVITY_RINGS) {
+    const ring = document.querySelector(`[data-activity-ring="${key}"]`);
+    if (!ring) continue;
+    const count = values[key];
+    const available = Number.isFinite(count);
+    ring.querySelector('strong').textContent = available ? `${compact(count)}/${goal}` : '—';
+    ring.style.setProperty('--activity-progress', available ? `${Math.min(count / goal, 1)}turn` : '0turn');
+    ring.setAttribute('aria-label', available ? `${description}: ${count} of ${goal}` : `${description}: unavailable`);
+  }
+}
+
 function createEarningsBlock(className = 'professional-earnings-card') {
   const block = document.createElement(className === 'professional-zero-earnings' ? 'div' : 'article');
   block.className = className;
@@ -309,22 +350,22 @@ function createDashboardSurface() {
   const liveDot = document.createElement('span');
   liveDot.setAttribute('aria-hidden', 'true');
   live.append(liveDot, document.createTextNode('Live'));
-  const select = document.createElement('select');
-  select.id = 'professional-dashboard-window';
-  select.setAttribute('aria-label', 'Analytics date range');
-  for (const [days, label] of [[28, '28 days'], [7, '7 days'], [1, 'Today'], [90, '90 days']]) {
-    const option = document.createElement('option');
-    option.value = String(days);
-    option.textContent = label;
-    option.selected = days === activeWindow;
-    select.append(option);
+  const ranges = document.createElement('div');
+  ranges.id = 'professional-dashboard-window';
+  ranges.setAttribute('role', 'group');
+  ranges.setAttribute('aria-label', 'Analytics date range');
+  for (const [days, label] of DASHBOARD_WINDOWS) {
+    const option = button(label);
+    option.setAttribute('aria-pressed', String(days === activeWindow));
+    option.addEventListener('click', () => {
+      if (days === activeWindow) return;
+      activeWindow = days;
+      for (const item of ranges.children) item.setAttribute('aria-pressed', String(item === option));
+      void refreshDashboard();
+    });
+    ranges.append(option);
   }
-  select.addEventListener('change', () => {
-    const next = Number(select.value);
-    activeWindow = VALID_WINDOWS.has(next) ? next : 28;
-    void refreshDashboard();
-  });
-  controls.append(live, select);
+  controls.append(live);
   summaryHead.append(copy, controls);
 
   const cards = document.createElement('div');
@@ -332,7 +373,7 @@ function createDashboardSurface() {
   cards.append(
     createMetricCard('content_views', 'Views', 'Unique meaningful views of your posts.', ['M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z', 'M9.5 12a2.5 2.5 0 1 0 5 0 2.5 2.5 0 0 0-5 0Z']),
     createMetricCard('engagements', 'Engagement', 'Reactions, reposts and replies to your content.', ['M4 5h16v11H8l-4 3V5Z', 'M8 9h8M8 12h5']),
-    createMetricCard('net_follows', 'Net follows', 'Follows gained minus follows lost.', ['M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2', 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z', 'M19 8v6M16 11h6']),
+    createMetricCard('net_follows', 'Net followers', 'Follows gained minus follows lost.', ['M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2', 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z', 'M19 8v6M16 11h6']),
     createMetricCard('profile_views', 'Profile visits', 'Unique signed-in visitors per day.', ['M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z', 'M9.5 12a2.5 2.5 0 1 0 5 0 2.5 2.5 0 0 0-5 0Z']),
   );
 
@@ -370,7 +411,7 @@ function createDashboardSurface() {
   status.className = 'professional-dashboard-status';
   status.hidden = true;
 
-  insights.append(summaryHead, cards, createEarningsBlock(), chartCard, content, status);
+  insights.append(createActivityRings(), summaryHead, ranges, cards, createEarningsBlock(), chartCard, content, status);
 
   const monetisation = document.createElement('div');
   monetisation.className = 'professional-dashboard-panel professional-monetisation-panel';
@@ -680,6 +721,7 @@ async function loadTopPosts(userId) {
     .select('id,body,created_at,like_count,comment_count,repost_count')
     .eq('author_id', userId)
     .is('parent_post_id', null)
+    .is('circle_id', null)
     .eq('post_status', 'published')
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -721,21 +763,31 @@ async function refreshDashboard() {
   }
   if (dashboardOwnerId !== userId) {
     clearDashboardPreviews(); lastSeries = []; dashboardOwnerId = userId;
+    updateActivityRings();
     byId('professional-top-content-list')?.replaceChildren();
   }
   const ownsRequest = () => requestId === dashboardRequest && dashboardOpen
     && dashboardOwnerId === userId && String(getCurrentMemberId() || '') === userId;
   setStatus('');
 
-  const start = dayStart(activeWindow * 2 - 1);
-  const { data, error } = await analyticsClient
-    .from(ANALYTICS_TABLE)
-    .select('metric_date,profile_views,content_views,engagements,follows_gained,follows_lost,updated_at')
-    .eq('user_id', userId)
-    .gte('metric_date', start)
-    .order('metric_date', { ascending: true });
+  const weekStart = dayStart(6);
+  const start = dayStart(Math.max(activeWindow * 2 - 1, 6));
+  const [{ data, error }, { count }, { data: stories }] = await Promise.all([
+    analyticsClient.from(ANALYTICS_TABLE)
+      .select('metric_date,profile_views,content_views,engagements,follows_gained,follows_lost,updated_at')
+      .eq('user_id', userId).gte('metric_date', start).order('metric_date', { ascending: true }),
+    analyticsClient.from('social_posts').select('id', { count: 'exact', head: true })
+      .eq('author_id', userId).is('parent_post_id', null).is('circle_id', null)
+      .eq('post_status', 'published').is('deleted_at', null).gte('created_at', `${weekStart}T00:00:00Z`),
+    analyticsClient.rpc('stories_quota'),
+  ]);
 
   if (!ownsRequest()) return;
+  updateActivityRings({
+    posts: count,
+    stories: stories ? number(stories.images_used) + number(stories.videos_used) : null,
+    reception: data?.reduce((total, row) => row.metric_date >= weekStart ? total + number(row.engagements) : total, 0),
+  });
   if (error) {
     setStatus('Analytics could not be loaded right now. Your statistics have not been replaced with estimates.', true);
     if (surface && loading) { delete surface.dataset.loading; loading.hidden = true; }

@@ -93,7 +93,8 @@ function createProviderButton(provider, context) {
   button.dataset.socialOauthProvider = provider.id;
   button.dataset.socialOauthContext = context;
   button.setAttribute('aria-label', provider.label);
-  button.innerHTML = `${provider.icon()}<span class="social-oauth-label">${provider.name}</span>`;
+  const label = provider.id === 'google' ? provider.label : provider.name;
+  button.innerHTML = `${provider.icon()}<span class="social-oauth-label">${label}</span>`;
   button.addEventListener('click', startSocialOAuth);
   return button;
 }
