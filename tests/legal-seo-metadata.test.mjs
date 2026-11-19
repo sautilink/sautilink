@@ -6,7 +6,7 @@ import { resolve, dirname } from 'node:path';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const pages = [
-  'privacy', 'terms', 'community-guidelines', 'merchant-policies',
+  'privacy', 'terms', 'copyrights', 'community-guidelines', 'merchant-policies',
   'account-deletion', 'upload-guidelines', 'help', 'contact', 'about', 'verify',
 ];
 const meta = (head, key) => {
