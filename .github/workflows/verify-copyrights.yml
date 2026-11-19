@@ -1,0 +1,117 @@
+name: Verify Copyrights page
+
+on:
+  push:
+    branches:
+      - verify/copyrights-seo-b5a5476
+    paths:
+      - .github/workflows/verify-copyrights.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+      - name: Test copyright policy and SEO metadata
+        run: node --test tests/legal-seo-metadata.test.mjs tests/legal-policy-current.test.mjs
+      - name: Prepare Chromium and Lighthouse
+        run: |
+          npm install --prefix "$RUNNER_TEMP/copyright-qa" --no-package-lock playwright@1.57.0 lighthouse@13.0.1
+          "$RUNNER_TEMP/copyright-qa/node_modules/.bin/playwright" install chromium --with-deps
+      - name: Check the public route, sitemap and page layout
+        run: |
+          cd "$RUNNER_TEMP/copyright-qa"
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { setTimeout } from 'node:timers/promises';
+          import { chromium } from 'playwright';
+
+          const origin = 'https://sautilink.com';
+          const url = origin + '/copyrights';
+          const check = await (async () => {
+            let last;
+            for (let attempt = 0; attempt < 12; attempt++) {
+              try {
+                const response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(8000) });
+                const markup = await response.text();
+                assert.equal(response.status, 200, 'Public HTTP status');
+                assert.doesNotMatch(response.headers.get('x-robots-tag') ?? '', /noindex/i);
+                assert.ok(markup.includes('<link rel="canonical" href="' + url + '">'), 'Public canonical');
+                assert.ok(markup.includes('Report copyright infringement'), 'Published copyright content');
+                return response.status;
+              } catch (error) {
+                last = error;
+                if (attempt < 11) await setTimeout(10000);
+              }
+            }
+            throw last;
+          })();
+          console.log('PUBLIC HTTP ' + check);
+          const sitemap = await fetch(origin + '/sitemap-static.xml');
+          assert.equal(sitemap.status, 200);
+          assert.ok((await sitemap.text()).includes('<loc>' + url + '</loc>'));
+          console.log('PUBLIC SITEMAP contains ' + url);
+          const oldUrl = await fetch(url + '.html', { redirect: 'manual' });
+          assert.ok([301, 302, 307, 308].includes(oldUrl.status), 'HTML alias redirects');
+          assert.equal(new URL(oldUrl.headers.get('location'), origin).href, url);
+
+          const browser = await chromium.launch();
+          try {
+            for (const width of [320, 390, 1440]) {
+              const page = await browser.newPage({ viewport: { width, height: 900 } });
+              const response = await page.goto(url, { waitUntil: 'load' });
+              assert.equal(response.status(), 200);
+              assert.equal(await page.getByRole('heading', { level: 1 }).innerText(), 'Copyrights');
+              await page.locator('#page-title [data-public-icon-ready=true]').waitFor();
+              const link = page.getByRole('link', { name: 'Email a copyright report' });
+              const href = await link.getAttribute('href');
+              assert.match(href, /^mailto:support@sautilink\.com\?subject=/);
+              assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), width, 'No horizontal overflow');
+              const theme = page.locator('[data-theme-toggle]');
+              await theme.waitFor();
+              const initial = await page.locator('html').getAttribute('data-theme');
+              await theme.click();
+              assert.notEqual(await page.locator('html').getAttribute('data-theme'), initial);
+              await link.scrollIntoViewIfNeeded();
+              assert.ok(await link.isVisible());
+              console.log('PUBLIC LAYOUT PASS ' + width + 'px');
+              await page.close();
+            }
+          } finally {
+            await browser.close();
+          }
+          JS
+      - name: Measure live SEO on mobile and desktop
+        run: |
+          cd "$RUNNER_TEMP/copyright-qa"
+          export CHROME_PATH="$(node -p "require('playwright').chromium.executablePath()")"
+          for device in mobile desktop; do
+            args=()
+            if [ "$device" = desktop ]; then args+=(--preset=desktop); fi
+            ./node_modules/.bin/lighthouse https://sautilink.com/copyrights "${args[@]}" \
+              --only-categories=seo --chrome-flags="--headless --no-sandbox" \
+              --quiet --output=json --output-path="$RUNNER_TEMP/copyright-seo-$device.json"
+          done
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import { readFile } from 'node:fs/promises';
+          for (const device of ['mobile', 'desktop']) {
+            const report = JSON.parse(await readFile(process.env.RUNNER_TEMP + '/copyright-seo-' + device + '.json', 'utf8'));
+            const score = report.categories.seo.score;
+            const audits = report.categories.seo.auditRefs
+              .map(({ id }) => report.audits[id])
+              .filter(({ score }) => score !== null && score < 1)
+              .map(({ id, title }) => ({ id, title }));
+            console.log('PUBLIC LIGHTHOUSE SEO ' + device + ' ' + (100 * score) + '/100 ' + JSON.stringify(audits));
+            assert.equal(score, 1, 'SEO score for ' + device);
+          }
+          JS
