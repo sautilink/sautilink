@@ -103,6 +103,12 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
   assert.ok(files.includes('app/index.html'));
   assert.ok(files.includes('app/assets/app.css'));
   assert.ok(files.includes('app/assets/app.js'));
+  for (const stickerAsset of [
+    'app/assets/sticker-engine.css',
+    'app/assets/sticker-engine.js',
+    'app/assets/sticker-token-codec.js',
+    'app/assets/vendor/lottie_light_canvas.min.js',
+  ]) assert.ok(files.includes(stickerAsset), 'missing first-party sticker asset: ' + stickerAsset);
   assert.ok(files.includes('app/assets/non-home-loading-init.js'));
   assert.ok(files.includes('app/assets/self-xss-console-warning.js'));
   assert.ok(files.includes('app/assets/mfa-totp.css'));
@@ -198,6 +204,10 @@ test('Cloudflare preview stage contains only allowlisted public assets', async (
     'app/index.html',
     'app/assets/app.css',
     'app/assets/app.js',
+    'app/assets/sticker-engine.css',
+    'app/assets/sticker-engine.js',
+    'app/assets/sticker-token-codec.js',
+    'app/assets/vendor/lottie_light_canvas.min.js',
     'app/assets/non-home-loading-init.js',
     'app/assets/self-xss-console-warning.js',
     'app/assets/mfa-totp.css',
