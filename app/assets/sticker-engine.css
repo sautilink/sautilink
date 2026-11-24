@@ -1,0 +1,42 @@
+/* SautiLink Inter / iOS theme: sticker picker for DM, Comments and Rooms */
+.sl-sticker-open{width:37px;height:37px;min-width:37px;display:inline-grid;place-items:center;border-radius:12px;background:rgba(120,130,150,.1);color:inherit;border:1px solid rgba(130,140,160,.22);font-size:22px;line-height:1;cursor:pointer}
+.sl-sticker-open:focus-visible,.sl-sticker-dialog button:focus-visible,.sl-sticker-dialog input:focus-visible{outline:3px solid #4583e9;outline-offset:2px}
+.sl-sticker-open:hover{color:#347bee;background:rgba(50,120,230,.12)}
+.sl-sticker-dialog{position:fixed;top:auto;bottom:12px;left:50%;transform:translateX(-50%);margin:0;width:min(430px,calc(100vw - 24px));max-height:min(625px,calc(100dvh - 24px));padding:19px;border:1px solid rgba(135,145,165,.25);border-radius:24px;background:var(--card,#fff);color:var(--text,#1d1d1f);box-shadow:0 20px 80px #0006;overflow:auto;font-family:Inter,system-ui,-apple-system,sans-serif}
+.sl-sticker-dialog::backdrop{background:rgba(0,0,0,.5)}
+.sl-sticker-dialog-head,.sl-sticker-tabs,.sl-sticker-filters{display:flex;align-items:center;gap:9px}
+.sl-sticker-dialog-head{justify-content:space-between;font-size:17px;letter-spacing:-.04em}
+.sl-sticker-dialog-head button{background:none;border:0;font-size:27px;color:inherit;cursor:pointer}
+.sl-sticker-tabs{margin:15px 0;gap:8px}
+.sl-sticker-tabs button{flex:1;padding:10px 12px;border-radius:99px;border:1px solid rgba(130,140,155,.2);background:transparent;color:inherit;font:600 12px Inter,system-ui;cursor:pointer}
+.sl-sticker-tabs button[aria-pressed="true"]{background:#2563eb;color:#fff;border-color:#2563eb}
+.sl-sticker-filters{flex-wrap:wrap}
+.sl-sticker-filters input[type=search],.sl-sticker-filters select{min-width:0;flex:1 1 150px;background:transparent;color:inherit;border-radius:11px;border:1px solid rgba(120,130,155,.3);padding:10px;font:12px Inter,system-ui}
+.sl-sticker-lite{display:flex;align-items:center;gap:4px;font-size:11px}
+.sl-sticker-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:320px;overflow-y:auto;margin-top:16px}
+.sl-sticker-option{display:grid;place-items:center;align-content:center;gap:4px;padding:8px 4px;border:1px solid transparent;border-radius:14px;background:rgba(120,130,160,.07);color:inherit;cursor:pointer;min-width:0}
+.sl-sticker-option:hover{border-color:#347bee;background:rgba(50,120,230,.12)}
+.sl-sticker-option small{max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font:500 10px Inter,system-ui}
+.sl-sticker-status{min-height:17px;font-size:11px;opacity:.7}
+.sl-sticker-render{width:72px;height:72px;max-width:100%;display:inline-grid;place-items:center;position:relative;vertical-align:middle}
+.sl-sticker-render.inline{width:29px;height:29px;margin:0 2px}
+.sl-sticker-render.large{width:132px;height:132px}
+.sl-sticker-render img,.sl-sticker-canvas,.sl-sticker-canvas canvas{width:100%;height:100%;max-width:100%;object-fit:contain;display:block}
+.sl-sticker-fallback{font-size:44px;line-height:1}
+.sl-sticker-render.inline .sl-sticker-fallback{font-size:24px}
+.sl-sticker-render.large .sl-sticker-fallback{font-size:76px}
+.dm-message>p:has(.sl-sticker-render),.comment-body:has(.sl-sticker-render),.sauti-comment-body:has(.sl-sticker-render),.sauti-card-body:has(.sl-sticker-render){white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:450px){.sl-sticker-dialog{bottom:0;width:100%;max-height:80dvh;border-radius:25px 25px 0 0}}
+
+html[data-theme="dark"] .sl-sticker-dialog,
+body[data-theme="dark"] .sl-sticker-dialog{background:#1b1e25;color:#f5f7fb;border-color:#3a404b}
+html[data-theme="dark"] .sl-sticker-option,
+html[data-theme="dark"] .sl-sticker-open{background:#292f3a;color:#e9edf5;border-color:#3b4655}
+html[data-theme="dark"] .sl-sticker-filters input,
+html[data-theme="dark"] .sl-sticker-filters select{background:#242a34;color:#f5f7fb;border-color:#3a4452}
+html[data-theme="dark"] .sl-sticker-tabs button:not([aria-pressed="true"]){background:#242a34;color:#d9e2ee}
+.sl-sticker-dialog{z-index:2200}
+.sl-sticker-render.large{display:inline-grid;margin:3px 0}
+.sl-sticker-render.inline{line-height:1;flex:none}
+.sl-sticker-dialog button{font-family:Inter,system-ui,sans-serif}
+@media(prefers-reduced-motion:reduce){.sl-sticker-dialog::backdrop{backdrop-filter:none}}
