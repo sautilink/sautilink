@@ -7,8 +7,8 @@ const stageRoot = resolve(projectRoot, 'dist-preview-site');
 const headersPath = resolve(stageRoot, '_headers');
 const appHtmlPath = resolve(stageRoot, 'app/index.html');
 
-const cspMarker = "img-src 'self' data: blob:; script-src";
-const cspReplacement = "img-src 'self' data: blob:; media-src 'self' blob:; script-src";
+const cspMarker = "img-src 'self' https://stickers.sautilink.com data: blob:; script-src";
+const cspReplacement = "img-src 'self' https://stickers.sautilink.com data: blob:; media-src 'self' blob:; script-src";
 const connectMarker = "connect-src 'self'";
 const connectReplacement = "connect-src 'self' wss://test.sautilink.com";
 const permissionsMarker = 'Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()';
