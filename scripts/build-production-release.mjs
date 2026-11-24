@@ -186,7 +186,7 @@ const appHtmlPath = resolve(siteRoot, 'app/index.html');
 let appHtml = productionText(await readFile(appHtmlPath, 'utf8'));
 appHtml = appHtml
   .replace(/\s*<meta name="robots" content="noindex, nofollow">\s*/i, '\n')
-  .replace("img-src 'self' data: blob:; script-src", "img-src 'self' https://stickers.sautilink.com data: blob:; media-src 'self' blob:; script-src")
+  .replace("img-src 'self' https://stickers.sautilink.com data: blob:; script-src", "img-src 'self' https://stickers.sautilink.com data: blob:; media-src 'self' blob:; script-src")
   .replace(
     /app\.js\?v=[^"']+/g,
     `app.js?v=${APP_JS_RELEASE}&feature=${APP_JS_FEATURE_RELEASE}&birthdate=${APP_JS_BIRTH_DATE_RELEASE}&signup=20261003-phone2&messages=20261020-native1&rooms=20261020-native2&menu=20261020-native1&thread=20261003-thread1&profile=20261007-video-poster1&profileui=20261020-compact1&verification=20261020-remove1&native=20261020-v1112&repost=20261020-direct1&comments=20261019-sheet1&postpreview=20261019-post2&video=20261021-stream-session1&other=20261009-skeleton1`,
@@ -258,7 +258,7 @@ await build({
 
 const productionHeaders = `/app/*
   Cache-Control: no-store, max-age=0
-  Content-Security-Policy: default-src 'self'; connect-src 'self' https://stickers.sautilink.com wss://sautilink.com wss://www.sautilink.com ${PRODUCTION_URL} wss://${PRODUCTION_REF}.supabase.co; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; connect-src 'self' https://stickers.sautilink.com wss://sautilink.com wss://www.sautilink.com ${PRODUCTION_URL} wss://${PRODUCTION_REF}.supabase.co; font-src 'self'; img-src 'self' https://stickers.sautilink.com data: blob:; media-src 'self' blob:; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   Cross-Origin-Opener-Policy: same-origin
   Permissions-Policy: camera=(), microphone=(self), geolocation=(), payment=(), usb=()
   Referrer-Policy: strict-origin-when-cross-origin
