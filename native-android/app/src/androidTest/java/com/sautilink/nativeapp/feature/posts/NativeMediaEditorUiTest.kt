@@ -187,11 +187,10 @@ class NativeMediaEditorUiTest {
                     onExportActivity = {}, onUse = { output.set(it); open = false })
             } }
             compose.waitUntil(30_000) { compose.onAllNodes(hasText("Use media") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
-            val endSlider = SemanticsMatcher("End of video clip") { node ->
-                node.config.contains(SemanticsActions.SetProgress) && node.config.contains(SemanticsProperties.ProgressBarRangeInfo) &&
-                    node.config[SemanticsProperties.ProgressBarRangeInfo].range.start == 1000f
-            }
-            compose.onNode(endSlider).performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) { assertTrue(it(2000f)) }
+            compose.waitUntil(15_000) { compose.onAllNodesWithContentDescription("Clip start").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithContentDescription("Clip start").performSemanticsAction(SemanticsActions.SetProgress) { assertTrue(it(60200f)) }
+            compose.onNodeWithContentDescription("Clip end").performSemanticsAction(SemanticsActions.SetProgress) { assertTrue(it(61700f)) }
+            screenshot("video-waveform-selected-section")
             compose.onNodeWithText("Filters").performClick()
             compose.onNodeWithText("Mono").performScrollTo().performClick().assertIsSelected()
             compose.onNodeWithText("Text").performClick()
@@ -219,6 +218,8 @@ class NativeMediaEditorUiTest {
             screenshot("creator-text-video-dark")
             compose.onNodeWithText("Use media").performClick()
             compose.waitUntil(90_000) { output.get() != null }
+            val encodedDuration = runBlocking { localVideoDuration(instrument.targetContext, output.get()!!.uri) }
+            assertTrue("The selected 60.2–61.7 second interval must survive text/filter editing: $encodedDuration", encodedDuration in 1200L..1800L)
             val frame = runBlocking { localVideoThumbnail(instrument.targetContext, output.get()!!.uri) }!!
             try {
                 var pink = 0

@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
@@ -131,7 +132,10 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
         }
     }
     if (audioPicker) com.sautilink.nativeapp.feature.music.NativeAudioPicker(auth,
-        onDismiss = { audioPicker = false }, onSelect = { music?.selection = it; audioPicker = false })
+        onDismiss = { audioPicker = false }, onSelect = { music?.selection = it; audioPicker = false },
+        initialSelection = music?.selection,
+        previewUri = mediaItems.firstOrNull()?.previewUri?.takeUnless { it == Uri.EMPTY },
+        previewVideo = mediaItems.firstOrNull()?.let { it.video || it.ready?.kind == "video" } == true)
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding()
         .padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -156,7 +160,8 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
                 }
             }
             music?.selection?.let { audio ->
-                ListItem(headlineContent = { Text(audio.title) }, supportingContent = { Text(audio.artist) },
+                ListItem(modifier = Modifier.clickable(enabled = !busy) { audioPicker = true },
+                    headlineContent = { Text(audio.title) }, supportingContent = { Text("${audio.artist} · Edit clip") },
                     leadingContent = { Icon(Icons.Rounded.MusicNote, null) }, trailingContent = {
                         IconButton(onClick = { music.selection = null }, enabled = !busy) { Icon(Icons.Rounded.Close, "Remove audio") }
                     })

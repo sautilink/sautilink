@@ -1,0 +1,9 @@
+Deterministic local test media, never packaged in the app.
+6 seconds, 180x320 H.264 baseline at 12 fps, 24 kHz mono AAC.
+1500 Hz tone at 0–2s and 4–6s; silence at 2–4s.
+Generated using the existing ffmpeg 9.0.2 tool:
+-f lavfi -i testsrc2=size=180x320:rate=12:duration=6
+-f lavfi -i sine=frequency=1500:sample_rate=24000:duration=6
+-af volume=0:enable='between(t,2,4)'
+-c:v libx264 -profile:v baseline -pix_fmt yuv420p -crf 34
+-c:a aac -b:a 32k -movflags +faststart

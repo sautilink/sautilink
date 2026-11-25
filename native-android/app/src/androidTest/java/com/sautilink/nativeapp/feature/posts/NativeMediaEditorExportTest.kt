@@ -18,6 +18,33 @@ import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
 class NativeMediaEditorExportTest {
+    @Test fun videoWaveformReadsTheRealLocalAudioWithoutChangingTheSource() = runBlocking {
+        val instrument = InstrumentationRegistry.getInstrumentation()
+        val original = File(instrument.targetContext.cacheDir, "waveform-analysis-${UUID.randomUUID()}.mp4")
+        instrument.context.assets.open("media-editor-62s.mp4").use { input -> original.outputStream().use { input.copyTo(it) } }
+        val before = MessageDigest.getInstance("SHA-256").digest(original.readBytes()).toList()
+        try {
+            val uri = Uri.fromFile(original)
+            val peaks = withTimeout(35_000) { localVideoWaveform(instrument.targetContext, uri, localVideoDuration(instrument.targetContext, uri)) }
+            assertEquals(512, peaks.size)
+            assertTrue("The silent fixture must produce a flat, authentic waveform", peaks.all { it < .001f })
+            assertTrue(peaks.all { it.isFinite() && it in 0f..1f })
+            assertEquals(before, MessageDigest.getInstance("SHA-256").digest(original.readBytes()).toList())
+        } finally { original.delete() }
+    }
+    @Test fun waveformKeepsToneAndSilenceAtTheirActualPositions() = runBlocking {
+        val instrument = InstrumentationRegistry.getInstrumentation()
+        val original = File(instrument.targetContext.cacheDir, "waveform-tone-${UUID.randomUUID()}.mp4")
+        instrument.context.assets.open("waveform-tone-silence.mp4").use { input -> original.outputStream().use { input.copyTo(it) } }
+        try {
+            val uri = Uri.fromFile(original)
+            val peaks = localVideoWaveform(instrument.targetContext, uri, localVideoDuration(instrument.targetContext, uri))
+            assertEquals(512, peaks.size)
+            assertTrue("First tone must occupy the first two seconds", peaks.take(150).count { it > .05f } > 140)
+            assertTrue("Silence must remain in the middle of the recording", peaks.subList(195,315).all { it < .005f })
+            assertTrue("Second tone must occupy the final two seconds", peaks.takeLast(150).count { it > .05f } > 140)
+        } finally { original.delete() }
+    }
     @Test fun imageCropFramingRotationAndAdjustmentsChangePixelsWithoutChangingSource() {
         val source = Bitmap.createBitmap(16, 8, Bitmap.Config.ARGB_8888).apply {
             setHasAlpha(false)

@@ -52,6 +52,7 @@ internal fun NativeMediaEditor(uri: Uri, video: Boolean, onCancel: () -> Unit,
     var exporting by remember { mutableStateOf(false) }
     var progress by remember { mutableIntStateOf(0) }
     var exportJob by remember { mutableStateOf<Job?>(null) }
+    val videoTrimming = video && tab == "Trim"
     LaunchedEffect(uri) {
         try {
             if (video) {
@@ -94,7 +95,10 @@ internal fun NativeMediaEditor(uri: Uri, video: Boolean, onCancel: () -> Unit,
                         Icon(Icons.Rounded.Check, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Use media")
                     }
                 }
-                if (video && videoSize != null) {
+                if (videoTrimming && videoSize != null && duration > 0) {
+                    NativeVideoTrimPanel(uri, duration, maximumVideoMs, trim, edits, videoSize!!, !exporting,
+                        Modifier.fillMaxWidth().weight(1f), onChange = { trim = it })
+                } else if (video && videoSize != null) {
                     LocalVideoPlayer(uri, trim.startMs, trim.endMs, Modifier.fillMaxWidth().height(260.dp),
                         edits = edits, videoSize = videoSize)
                 } else if (!video && preview != null) {
@@ -111,7 +115,8 @@ internal fun NativeMediaEditor(uri: Uri, video: Boolean, onCancel: () -> Unit,
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text(if (video) "Preparing video… $progress%" else "Saving your edits…", style = MaterialTheme.typography.bodySmall)
                 }
-                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column((if (videoTrimming && videoSize != null) Modifier.heightIn(max = 100.dp) else Modifier.weight(1f))
+                    .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     when (tab) {
                         "Text" -> NativeCreatorTextControls(edits.overlay, !exporting) { edits = edits.copy(overlay = it) }
                         "Filters" -> {
@@ -132,16 +137,7 @@ internal fun NativeMediaEditor(uri: Uri, video: Boolean, onCancel: () -> Unit,
                             MediaEditorSlider("Warmth", edits.warmth, -.2f.. .2f, !exporting) { edits = edits.copy(warmth = it) }
                         }
                         "Trim" -> if (duration > 0) {
-                            Text("${mediaTime(trim.startMs)} — ${mediaTime(trim.endMs)} · ${mediaTime(trim.durationMs)} selected", style = MaterialTheme.typography.titleMedium)
-                            Text("Select up to ${maximumVideoMs / 1000} seconds.", style = MaterialTheme.typography.bodySmall)
-                            if (duration > 1_000L) {
-                                MediaEditorSlider("Start", trim.startMs.toFloat(), 0f..(duration - 1_000L).toFloat(), !exporting) {
-                                    trim = NativeMediaEditPolicy.trim(duration, it.toLong(), trim.durationMs, maximumVideoMs)
-                                }
-                                val low = trim.startMs + minOf(1_000L, duration)
-                                val high = minOf(duration, trim.startMs + maximumVideoMs)
-                                if (high > low) MediaEditorSlider("End", trim.endMs.toFloat(), low.toFloat()..high.toFloat(), !exporting) { trim = trim.copy(endMs = it.toLong()) }
-                            }
+                            Text("Drag the waveform to move your clip. Adjust the dots to change its length. Up to ${maximumVideoMs / 1000} seconds.", style = MaterialTheme.typography.bodySmall)
                         }
                         "Crop" -> {
                             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -209,14 +205,19 @@ internal fun NativeComposerMediaPreview(uri: Uri, video: Boolean, label: String,
 
 @Composable
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
-private fun LocalVideoPlayer(uri: Uri, startMs: Long = 0L, endMs: Long? = null, modifier: Modifier = Modifier, playOnOpen: Boolean = false,
+internal fun LocalVideoPlayer(uri: Uri, startMs: Long = 0L, endMs: Long? = null, modifier: Modifier = Modifier, playOnOpen: Boolean = false,
     edits: NativeImageEdits = NativeImageEdits(), videoSize: NativeVideoSize? = null,
-    audio: com.sautilink.nativeapp.feature.music.NativeAudioSelection? = null) {
+    audio: com.sautilink.nativeapp.feature.music.NativeAudioSelection? = null,
+    playbackAllowed: Boolean = true, loop: Boolean = false, onPosition: ((Long) -> Unit)? = null) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val player = remember(context, uri) { ExoPlayer.Builder(context).build().apply { setVideoEffects(emptyList()) } }
     val soundtrack = remember(context, uri) { ExoPlayer.Builder(context).build() }
     val latestAudio by rememberUpdatedState(audio)
+    val positionCallback by rememberUpdatedState(onPosition)
+    LaunchedEffect(player, onPosition != null) {
+        if (onPosition != null) while (true) { positionCallback?.invoke(player.currentPosition); delay(40) }
+    }
     LaunchedEffect(audio, soundtrack, player) {
         player.volume = audio?.originalVolume ?: 1f
         if (audio == null) soundtrack.stop() else {
@@ -270,7 +271,11 @@ private fun LocalVideoPlayer(uri: Uri, startMs: Long = 0L, endMs: Long? = null, 
         if (endMs != null) builder.setClippingConfiguration(MediaItem.ClippingConfiguration.Builder()
             .setStartPositionMs(startMs).setEndPositionMs(endMs).build())
         player.setMediaItem(builder.build()); player.prepare()
-        if (playOnOpen) player.play()
+        player.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+        if (playOnOpen && playbackAllowed) player.play()
+    }
+    LaunchedEffect(player, playbackAllowed) {
+        if (!playbackAllowed) player.pause() else if (playOnOpen) player.play()
     }
     LaunchedEffect(player, edits, videoSize) {
         if (videoSize != null) {
@@ -290,7 +295,7 @@ private fun LocalVideoPlayer(uri: Uri, startMs: Long = 0L, endMs: Long? = null, 
         if (videoSize != null && !playing) editedFrame?.let { frame ->
             Image(frame.asImageBitmap(), "Edited video preview", Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black), contentScale = ContentScale.Fit)
         }
-        if (videoSize != null) FilledIconButton(onClick = { if (playing) player.pause() else player.play() },
+        if (videoSize != null) FilledIconButton(onClick = { if (playing) player.pause() else player.play() }, enabled = playbackAllowed,
             modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp)) {
             Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (playing) "Pause edited video" else "Play edited video")
         }

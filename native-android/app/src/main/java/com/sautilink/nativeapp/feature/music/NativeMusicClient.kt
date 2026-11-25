@@ -85,6 +85,17 @@ class NativeMusicClient(private val auth: StagingAuthClient) {
         }
     }
 
+    /** Fetch detailed peaks only for the selected track; the fast catalog stays compact. */
+    suspend fun waveform(trackId: String): List<Float> = withContext(Dispatchers.IO) {
+        require(Regex("[a-z0-9-]{1,80}").matches(trackId))
+        NativePublicAssets.http.newCall(Request.Builder().url("$MUSIC_ORIGIN/v1/tracks/$trackId?placement=feed").build()).execute().use { response ->
+            if (!response.isSuccessful) throw AuthRequestException("Waveform could not load.", response.code)
+            val row = JSONObject(response.body?.string()?.take(100_000).orEmpty()).optJSONObject("track")
+            val peaks = row?.optJSONArray("waveform") ?: return@withContext emptyList()
+            (0 until minOf(peaks.length(), 2048)).map { (peaks.optDouble(it, 0.0).toFloat() / 255f).coerceIn(0f, 1f) }
+        }
+    }
+
     suspend fun savedIds(): Set<String> {
         val owner = auth.account?.id ?: return emptySet()
         val rows = rest("social_saved_audio?owner_id=eq.$owner&select=track_id&order=saved_at.desc&limit=1000")

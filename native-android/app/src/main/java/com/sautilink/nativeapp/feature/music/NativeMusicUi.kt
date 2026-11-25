@@ -150,7 +150,7 @@ internal fun rememberPreviewPlayer(handleFocus: Boolean = true): ExoPlayer {
 }
 
 @Composable
-private fun NativeMusicCover(id: String, modifier: Modifier = Modifier) {
+internal fun NativeMusicCover(id: String, modifier: Modifier = Modifier) {
     val url = "$MUSIC_ORIGIN/v1/tracks/$id/cover"
     var bitmap by remember(id) { mutableStateOf(NativePublicAssets.bitmap(url)) }
     LaunchedEffect(id) {
@@ -210,7 +210,8 @@ fun NativeMusicIdentity(username: String, timestamp: String, selection: NativeAu
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NativeAudioPicker(auth: StagingAuthClient, onDismiss: () -> Unit, onSelect: (NativeAudioSelection) -> Unit) {
+fun NativeAudioPicker(auth: StagingAuthClient, onDismiss: () -> Unit, onSelect: (NativeAudioSelection) -> Unit,
+    initialSelection: NativeAudioSelection? = null, previewUri: android.net.Uri? = null, previewVideo: Boolean = false) {
     val client = remember(auth) { NativeMusicClient(auth) }
     val scope = rememberCoroutineScope()
     val player = rememberPreviewPlayer()
@@ -218,8 +219,10 @@ fun NativeAudioPicker(auth: StagingAuthClient, onDismiss: () -> Unit, onSelect: 
     var tab by remember { mutableStateOf("For you") }
     var rows by remember { mutableStateOf<List<NativeMusicTrack>>(emptyList()) }
     var selected by remember { mutableStateOf<NativeMusicTrack?>(null) }
-    var start by remember { mutableFloatStateOf(0f) }
-    var length by remember { mutableFloatStateOf(30_000f) }
+    var trimOpen by remember { mutableStateOf(false) }
+    var editorSelection by remember { mutableStateOf(initialSelection) }
+    var restoredSelection by remember { mutableStateOf(false) }
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     var playing by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -241,6 +244,11 @@ fun NativeAudioPicker(auth: StagingAuthClient, onDismiss: () -> Unit, onSelect: 
         catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) { error = failure.message ?: "Music could not load." }
         finally { loading = false }
+    }
+    LaunchedEffect(rows, initialSelection?.trackId) {
+        if (!restoredSelection && initialSelection != null) rows.firstOrNull { it.id == initialSelection.trackId }?.let {
+            selected = it; editorSelection = initialSelection; trimOpen = true; restoredSelection = true
+        }
     }
     val shown = when (tab) {
         "Saved" -> rows.filter { it.saved }
@@ -267,8 +275,9 @@ fun NativeAudioPicker(auth: StagingAuthClient, onDismiss: () -> Unit, onSelect: 
                 items(shown, key = { it.id }) { track ->
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable {
                         player.pause(); playing = null
-                        selected = track; start = track.windowStartMs.toFloat()
-                        length = minOf(30_000L, track.maxClipMs, track.windowEndMs - track.windowStartMs).toFloat()
+                        keyboard?.hide()
+                        if (selected?.id != track.id) editorSelection = null
+                        selected = track; trimOpen = true
                     }.padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         NativeMusicCover(track.id, Modifier.size(49.dp))
@@ -288,7 +297,7 @@ fun NativeAudioPicker(auth: StagingAuthClient, onDismiss: () -> Unit, onSelect: 
                         IconButton(onClick = {
                             if (playing == track.id) { player.pause(); playing = null }
                             else {
-                                val selection = if (selected?.id == track.id) track.selection(start.toLong(), length.toLong()) else track.selection()
+                                val selection = editorSelection?.takeIf { it.trackId == track.id } ?: track.selection()
                                 player.setMediaItem(MediaItem.Builder().setUri(selection.previewUrl()).setMediaId(track.id).build()); player.prepare(); player.play(); playing = track.id
                             }
                         }) { Icon(if (playing == track.id) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, "Preview ${track.title}") }
@@ -304,28 +313,14 @@ fun NativeAudioPicker(auth: StagingAuthClient, onDismiss: () -> Unit, onSelect: 
                 }
                 if (!loading && error == null && shown.isEmpty()) item { Text("No audio found.", Modifier.padding(vertical = 20.dp)) }
             }
-            selected?.let { track ->
-                Text(track.title, fontWeight = FontWeight.SemiBold)
-                val maxLength = minOf(track.maxClipMs, track.windowEndMs - track.windowStartMs).toFloat()
-                Text("Start ${audioTime(start.toLong())} · ${audioTime(length.toLong())}", style = MaterialTheme.typography.bodySmall)
-                val latestStart = (track.windowEndMs - length.toLong()).coerceAtLeast(track.windowStartMs).toFloat()
-                if (latestStart > track.windowStartMs) Slider(start.coerceIn(track.windowStartMs.toFloat(), latestStart),
-                    { start = it; player.pause() }, valueRange = track.windowStartMs.toFloat()..latestStart)
-                Text("Duration ${audioTime(length.toLong())}", style = MaterialTheme.typography.bodySmall)
-                if (maxLength > 1000) Slider(length, { length = it; start = minOf(start, track.windowEndMs - it); player.pause() },
-                    valueRange = 1000f..maxLength)
-                OutlinedButton(onClick = {
-                    val clip = track.selection(start.toLong(), length.toLong())
-                    if (player.isPlaying && player.currentMediaItem?.localConfiguration?.uri?.toString() == clip.previewUrl()) player.pause() else {
-                    player.setMediaItem(MediaItem.Builder().setUri(clip.previewUrl()).setMediaId(track.id).build()); player.prepare(); player.play(); playing = track.id
-                    }
-                }, modifier = Modifier.fillMaxWidth()) { Icon(if (playing == track.id) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, null); Text(if (playing == track.id) "Pause selected clip" else "Preview selected clip") }
-                Button(onClick = { player.pause(); onSelect(track.selection(start.toLong(), length.toLong())) }, Modifier.fillMaxWidth()) {
-                    Text("Use audio")
-                }
-            }
             Spacer(Modifier.navigationBarsPadding())
         }
+    }
+    if (trimOpen) selected?.let { track ->
+        NativeMusicTrimEditor(track, editorSelection?.takeIf { it.trackId == track.id }, previewUri, previewVideo,
+            loadPeaks = { client.waveform(track.id) },
+            musicVolume = initialSelection?.musicVolume ?: 1f, originalVolume = initialSelection?.originalVolume ?: 1f,
+            onBack = { trimOpen = false }, onUse = { audio -> editorSelection = audio; player.pause(); onSelect(audio) })
     }
 }
 
