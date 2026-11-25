@@ -189,7 +189,7 @@ fun NativeMusicIdentity(username: String, timestamp: String, selection: NativeAu
     LaunchedEffect(selection?.trackId) {
         if (selection != null) while (true) { delay(2600); showMusic = !showMusic }
     }
-    val identity = "${if (username.isNotBlank()) "@$username" else ""}${if (showTimestamp) " · $timestamp" else ""}"
+    val identity = "${if (username.isNotBlank()) "@$username" else ""}${if (showTimestamp) " • $timestamp" else ""}"
     val label = if (showMusic && selection != null) "♫ ${selection.title} · ${selection.artist}" else identity
     Row(Modifier.fillMaxWidth().height(24.dp).then(if (selection != null) Modifier.clickable { session?.details = selection } else Modifier),
         verticalAlignment = Alignment.CenterVertically) {

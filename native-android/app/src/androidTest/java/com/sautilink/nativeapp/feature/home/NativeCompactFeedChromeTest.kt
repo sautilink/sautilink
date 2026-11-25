@@ -25,11 +25,11 @@ class NativeCompactFeedChromeTest {
     @Test fun usernameAndMusicSharePositionAndTypeSize() {
         compose.mainClock.autoAdvance = false
         compose.setContent { MaterialTheme {
-            NativeMusicIdentity("sautilink", "now", NativeAudioSelection("preview-test", "Test sound", "SautiLink", 0, 30000),
-                showTimestamp = false)
+            NativeMusicIdentity("sautilink", "1h", NativeAudioSelection("preview-test", "Test sound", "SautiLink", 0, 30000),
+                showTimestamp = true)
         } }
         compose.mainClock.advanceTimeBy(100)
-        val first = compose.onNodeWithText("@sautilink")
+        val first = compose.onNodeWithText("@sautilink • 1h")
         val bounds = first.getUnclippedBoundsInRoot()
         val nameLayout = mutableListOf<TextLayoutResult>()
         first.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(nameLayout) }

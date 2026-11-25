@@ -959,7 +959,7 @@ internal fun FeedFollowButton(following: Boolean?, pending: Boolean?, enabled: B
 @Composable
 private fun FeedPostBodyAndMedia(post: StagingFeedPost, auth: StagingAuthClient,
     onDoubleTapLike: (() -> Unit)?, bufferingOverlayEnabled: Boolean) {
-    if (post.body.isNotBlank() && post.media.isEmpty() && post.mediaCount == 0) {
+    if (post.body.isNotBlank()) {
         com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(
             Modifier.fillMaxWidth(), onLike = onDoubleTapLike) {
             com.sautilink.nativeapp.ui.components.SautiPostText(post.body,
@@ -1069,7 +1069,7 @@ private fun RealPostCard(
                             post.authorName, size = 16.dp)
                     }
                     com.sautilink.nativeapp.feature.music.NativeMusicIdentity(
-                        post.authorHandle, relativePostTime(post.createdAt), post.audio, post.id, showTimestamp = false)
+                        post.authorHandle, relativePostTime(post.createdAt), post.audio, post.id, showTimestamp = true)
                 }
                 if (showFollow) {
                     FeedFollowButton(following, pendingFollow, online && !busyFollow, onFollow)
@@ -1155,14 +1155,6 @@ private fun RealPostCard(
                     }
                 }
             }
-            if (post.body.isNotBlank() && (post.media.isNotEmpty() || post.mediaCount > 0)) {
-                com.sautilink.nativeapp.ui.components.SautiPostText("**${post.authorHandle}** ${post.body}",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp))
-            }
-            Text(relativePostTime(post.createdAt), style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 14.dp, top = 4.dp, bottom = 14.dp).clickable(onClick = onOpenPost))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f))
 
         }
