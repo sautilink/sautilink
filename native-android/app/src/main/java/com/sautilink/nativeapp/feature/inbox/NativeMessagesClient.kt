@@ -299,18 +299,18 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
         }
     }
 
-    suspend fun peerActivityBucket(peerId: String): String {
-        if (!peerId.matches(uuid)) return "hidden"
+    internal suspend fun peerActivity(peerId: String): NativePeerActivity {
+        if (!peerId.matches(uuid)) return NativePeerActivity("hidden")
         val token = auth.accessTokenForStagingRead()
         return withContext(Dispatchers.IO) {
-            val response = http.newCall(Request.Builder()
-                .url(auth.restOrigin + "rpc/dm_peer_activity_bucket_native_phase38")
-                .header("apikey", auth.publicKeyForRead())
-                .header("Authorization", "Bearer $token")
-                .post(JSONObject().put("p_peer_id", peerId).toString().toRequestBody(jsonType))
-                .build()).execute()
-            response.use { if (!it.isSuccessful) "hidden" else
-                it.body?.string().orEmpty().trim().trim('"').ifBlank { "hidden" } }
+            http.newCall(Request.Builder().url(auth.restOrigin + "rpc/dm_peer_activity_native_v2")
+                .header("apikey", auth.publicKeyForRead()).header("Authorization", "Bearer $token")
+                .post(JSONObject().put("p_peer_id", peerId).toString().toRequestBody(jsonType)).build()).execute().use {
+                if (!it.isSuccessful) throw AuthRequestException("Activity status is temporarily unavailable.", it.code)
+                val row = JSONObject(it.body?.string().orEmpty())
+                NativePeerActivity(row.optString("visibility", "unavailable"),
+                    row.optString("last_seen_at").takeUnless { value -> value.isBlank() || value == "null" })
+            }
         }
     }
 

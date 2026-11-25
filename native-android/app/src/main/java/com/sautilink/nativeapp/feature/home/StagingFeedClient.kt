@@ -292,7 +292,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                     it.optLong("like_count").coerceAtLeast(0) +
                         2L * it.optLong("comment_count").coerceAtLeast(0) +
                         it.optLong("repost_count").coerceAtLeast(0)
-                }.thenByDescending { it.optString("created_at") }).take(20)
+                }.thenByDescending { it.optString("created_at") }.thenByDescending { it.optString("id") }).take(20)
                 JSONArray().apply {
                     ranked.drop(offset).take(batchSize).forEach { post ->
                         put(JSONObject().put("post_id", post.optString("id")))

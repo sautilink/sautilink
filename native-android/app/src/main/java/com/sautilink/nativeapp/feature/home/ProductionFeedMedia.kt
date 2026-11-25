@@ -90,7 +90,7 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
     mediaPath: ((FeedMedia) -> String)? = null,
     bufferingOverlayEnabled: Boolean = false,
     adaptivePlaybackEnabled: Boolean = true, suppressOriginalAudio: Boolean = false, playbackGroup: String? = null,
-    fillPhotoFrame: Boolean = false) {
+    fillPhotoFrame: Boolean = false, originalAudioVolume: Float = 1f) {
     if (media.isEmpty()) return
     var expandedPhoto by remember(auth) { mutableStateOf<FeedMedia?>(null) }
     val pager = androidx.compose.foundation.pager.rememberPagerState(pageCount = { media.size })
@@ -114,7 +114,7 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
                         InlineFeedVideo(auth, item, Modifier.fillMaxSize(), isCurrent = pager.currentPage == page,
                             onDoubleTapLike = onDoubleTapLike, mediaPath = path,
                             bufferingOverlayEnabled = bufferingOverlayEnabled,
-                            adaptivePlaybackEnabled = adaptivePlaybackEnabled, suppressOriginalAudio = suppressOriginalAudio, playbackGroup = playbackGroup)
+                            adaptivePlaybackEnabled = adaptivePlaybackEnabled, suppressOriginalAudio = suppressOriginalAudio, playbackGroup = playbackGroup, originalAudioVolume = originalAudioVolume)
                     } else {
                         SautiPostGestureSurface(Modifier.fillMaxSize(), onLike = onDoubleTapLike,
                             onTap = { expandedPhoto = item }) {
@@ -195,7 +195,7 @@ private fun InlineFeedVideo(
     onDoubleTapLike: (() -> Unit)?,
     mediaPath: String = "/api/sauti-media/${media.id}",
     bufferingOverlayEnabled: Boolean = false,
-    adaptivePlaybackEnabled: Boolean = true, suppressOriginalAudio: Boolean = false, playbackGroup: String? = null
+    adaptivePlaybackEnabled: Boolean = true, suppressOriginalAudio: Boolean = false, playbackGroup: String? = null, originalAudioVolume: Float = 1f
 ) {
     val context = LocalContext.current
     val lookahead = LocalFeedVideoLookahead.current
@@ -323,7 +323,7 @@ private fun InlineFeedVideo(
                     .setBufferDurationsMs(3_000, 15_000, 750, 1_500).setBackBuffer(5_000, true).build())
                 .build().apply {
                     repeatMode = Player.REPEAT_MODE_ONE
-                    volume = if (muted || suppressOriginalAudio) 0f else 1f
+                    volume = if (muted || suppressOriginalAudio) 0f else originalAudioVolume.coerceIn(0f, 1f)
                     // Published videos first ask the authorized backend which source is
                     // ready. Protected pending submissions remain MP4-only.
                     if (!adaptive) {
@@ -418,7 +418,7 @@ private fun InlineFeedVideo(
             }
         }
     }
-    LaunchedEffect(player, muted, suppressOriginalAudio) { player?.volume = if (muted || suppressOriginalAudio) 0f else 1f }
+    LaunchedEffect(player, muted, suppressOriginalAudio, originalAudioVolume) { player?.volume = if (muted || suppressOriginalAudio) 0f else originalAudioVolume.coerceIn(0f, 1f) }
     LaunchedEffect(player, speed) { player?.setPlaybackSpeed(speed) }
     LaunchedEffect(player, isCurrent, selected, visibleFraction, wantsToPlay, manualPaused, requestError, lifecycleState, streamSource, overlayBlocked) {
         if (player != null) {

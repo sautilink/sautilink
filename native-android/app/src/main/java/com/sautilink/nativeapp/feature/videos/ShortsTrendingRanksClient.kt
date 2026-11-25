@@ -25,7 +25,7 @@ internal fun shortsTrendingRanks(candidates: List<JSONObject>, excludedAuthors: 
         .distinctBy { it.optString("id") }.sortedWith(compareByDescending<JSONObject> {
             it.optLong("like_count").coerceAtLeast(0L) + 2L * it.optLong("comment_count").coerceAtLeast(0L) +
                 it.optLong("repost_count").coerceAtLeast(0L)
-        }.thenByDescending { it.optString("created_at") }).take(20).mapIndexed { index, row ->
+        }.thenByDescending { it.optString("created_at") }.thenByDescending { it.optString("id") }).take(20).mapIndexed { index, row ->
             row.getString("id").let { it to ShortsTrendingRank(it, index + 1) }
         }.toMap()
 

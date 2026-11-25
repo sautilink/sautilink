@@ -91,6 +91,7 @@ internal class NativeProfileActivityClient(private val auth: StagingAuthClient) 
                     hasAvatar = author.optString("avatar_key").takeIf { it.isNotBlank() && it != "null" } != null,
                     verified = author.optBoolean("is_verified"),
                     badgeType = author.optString("verification_badge_type", "standard"),
+                    audio = com.sautilink.nativeapp.feature.music.NativeAudioSelection.from(p.optJSONObject("audio_selection")),
                     body = p.optString("body").takeUnless { it == "null" }.orEmpty(),
                     postedAt = p.optString("created_at"),
                     likes = p.optInt("like_count").coerceAtLeast(0),
@@ -145,7 +146,8 @@ internal data class ProfileActivityEntry(
     val hasAvatar: Boolean, val verified: Boolean, val badgeType: String,
     val body: String, val postedAt: String, val likes: Int, val comments: Int,
     val reposts: Int, val liked: Boolean, val saved: Boolean, val reposted: Boolean,
-    val pinned: Boolean, val media: List<FeedMedia>, val isComment: Boolean = false
+    val pinned: Boolean, val media: List<FeedMedia>, val isComment: Boolean = false,
+    val audio: com.sautilink.nativeapp.feature.music.NativeAudioSelection? = null
 )
 internal data class ProfileHashtag(val label: String, val count: Int)
 internal data class ProfileActivityFeed(val entries: List<ProfileActivityEntry>, val hashtags: List<ProfileHashtag>)

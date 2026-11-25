@@ -21,13 +21,14 @@ data class ExplorePerson(val id: String, val username: String, val name: String,
     val hasAvatar: Boolean)
 data class ExplorePost(val id: String, val authorHandle: String, val authorName: String,
     val body: String, val createdAt: String, val likes: Int, val comments: Int, val mediaCount: Int,
-    val verified: Boolean, val badgeType: String)
+    val verified: Boolean, val badgeType: String,
+    val audio: com.sautilink.nativeapp.feature.music.NativeAudioSelection? = null)
 data class ExploreResults(val people: List<ExplorePerson>, val posts: List<ExplorePost>, val trending: Boolean = false)
 
 internal fun discoveryTrendingPosts(posts: List<com.sautilink.nativeapp.feature.home.StagingFeedPost>): List<ExplorePost> =
     posts.distinctBy { it.id }.take(5).map { post ->
         ExplorePost(post.id, post.authorHandle, post.authorName, post.body, post.createdAt,
-            post.likes, post.comments, post.mediaCount, post.verified, post.badgeType)
+            post.likes, post.comments, post.mediaCount, post.verified, post.badgeType, post.audio)
     }
 
 /** Search mirrors production Discover filters; every read is still subject to PostgREST RLS. */
@@ -101,7 +102,7 @@ class NativeExploreClient(private val auth: StagingAuthClient) {
                 return@withContext ExploreResults(people, discoveryTrendingPosts(page.posts), trending = true)
             }
             val postRows = rows(url("social_posts") {
-                addQueryParameter("select", "id,author_id,body,created_at,like_count,comment_count,media_count")
+                addQueryParameter("select", "id,author_id,body,created_at,like_count,comment_count,media_count,audio_selection")
                 addQueryParameter("visibility", "eq.public")
                 addQueryParameter("circle_id", "is.null")
                 addQueryParameter("reply_to_post_id", "is.null")
@@ -128,7 +129,8 @@ class NativeExploreClient(private val auth: StagingAuthClient) {
                     row.optString("created_at"), row.optInt("like_count").coerceAtLeast(0),
                     row.optInt("comment_count").coerceAtLeast(0), row.optInt("media_count").coerceAtLeast(0),
                     author?.optBoolean("is_verified", false) == true,
-                    author?.optString("verification_badge_type", "standard") ?: "standard")
+                    author?.optString("verification_badge_type", "standard") ?: "standard",
+                    com.sautilink.nativeapp.feature.music.NativeAudioSelection.from(row.optJSONObject("audio_selection")))
             }
             if (auth.account?.id != ownId) throw CancellationException("Explore account changed")
             ExploreResults(people, posts)

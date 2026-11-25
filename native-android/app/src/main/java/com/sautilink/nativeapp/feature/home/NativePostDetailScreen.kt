@@ -1,5 +1,7 @@
 package com.sautilink.nativeapp.feature.home
 
+import com.sautilink.nativeapp.feature.music.postAudioVisibility
+
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -63,6 +65,9 @@ fun NativePostDetailScreen(
     var reportOpen by remember(requestedPostId) { mutableStateOf(false) }
     var reportNote by remember(requestedPostId) { mutableStateOf<String?>(null) }
 
+    val musicSession = com.sautilink.nativeapp.feature.music.LocalNativeMusicComposer.current
+    SideEffect { musicSession?.commentsOpen = commentsMode || reportOpen }
+    DisposableEffect(musicSession) { onDispose { musicSession?.commentsOpen = false } }
     LaunchedEffect(requestedPostId, auth.account?.id, refresh) {
         if (auth.account == null) { loading = false; post = null; return@LaunchedEffect }
         loading = true
@@ -139,7 +144,7 @@ fun NativePostDetailScreen(
             else -> {
                 val item = post!!
                 LazyColumn(
-                    Modifier.fillMaxSize(),
+                    Modifier.fillMaxSize().postAudioVisibility(item.id, item.audio),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -186,7 +191,8 @@ fun NativePostDetailScreen(
                     if (item.media.isNotEmpty()) item {
                         val playbackBlocked = com.sautilink.nativeapp.ui.components.LocalNativePlaybackBlocked
                         CompositionLocalProvider(playbackBlocked provides (playbackBlocked.current || commentsMode)) {
-                            PostMediaGallery(auth, item.media,
+                            PostMediaGallery(auth, item.media, suppressOriginalAudio = false,
+                                originalAudioVolume = item.audio?.originalVolume ?: 1f, playbackGroup = item.id,
                                 onDoubleTapLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
                         }
                     }
@@ -238,12 +244,6 @@ fun NativePostDetailScreen(
                                 }
                             })
                         })
-                        OutlinedButton(onClick = { commentsMode = true },
-                            shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-                            Icon(Icons.Rounded.ChatBubbleOutline, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("View comments and replies")
-                        }
                         if (error != null) Text(error.orEmpty(),
                             color = MaterialTheme.colorScheme.error)
                     }

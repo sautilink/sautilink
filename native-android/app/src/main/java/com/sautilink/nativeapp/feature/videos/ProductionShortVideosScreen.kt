@@ -372,7 +372,27 @@ fun ProductionShortVideosScreen(
     val clip = clips.getOrNull(pager.settledPage)
     var timelineExpanded by remember(auth, accountId, clip?.mediaId) { mutableStateOf(false) }
     var playbackIntent by remember(auth, accountId, clip?.mediaId) { mutableStateOf<Boolean?>(null) }
-    val wantsPlayback = commentsFor == null && (playbackIntent ?: autoplay)
+    val musicSession = com.sautilink.nativeapp.feature.music.LocalNativeMusicComposer.current
+    val audioCoordinator = com.sautilink.nativeapp.feature.home.LocalNativeFeedPlayback.current
+    val overlayBlocked = com.sautilink.nativeapp.ui.components.LocalNativePlaybackBlocked.current
+    val wantsPlayback = commentsFor == null && !overlayBlocked && !qualityOpen && (playbackIntent ?: autoplay)
+    SideEffect { musicSession?.commentsOpen = commentsFor != null }
+    DisposableEffect(musicSession) { onDispose { musicSession?.commentsOpen = false } }
+    DisposableEffect(clip?.post?.id, musicSession, audioCoordinator) {
+        val current = clip?.post
+        val audioKey = "shorts-audio:${current?.id}"
+        if (current != null) {
+            musicSession?.visiblePosts?.set(audioKey, com.sautilink.nativeapp.feature.music.VisiblePostAudio(current.id, current.audio, 100, 0))
+            audioCoordinator?.update(audioKey, com.sautilink.nativeapp.feature.home.NativeFeedPlaybackCoordinator.Candidate(current.id, 1f, 0f))
+        }
+        onDispose { musicSession?.visiblePosts?.remove(audioKey); audioCoordinator?.remove(audioKey) }
+    }
+    SideEffect {
+        clip?.post?.id?.let { id ->
+            if (wantsPlayback) { audioCoordinator?.resumeGroup(id); musicSession?.manualPost = id }
+            else audioCoordinator?.pauseGroup(id)
+        }
+    }
     val accessToken = token
     // Current + five upcoming grants, with two recent entries retained only
     // within this open viewer and their original owner/credential/deadline.
@@ -450,7 +470,7 @@ fun ProductionShortVideosScreen(
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(player, muted) { player?.volume = if (muted) 0f else 1f }
+    LaunchedEffect(player, muted, clip?.post?.audio) { player?.volume = if (muted) 0f else clip?.post?.audio?.originalVolume ?: 1f }
     LaunchedEffect(player, playbackSpeed) { player?.setPlaybackSpeed(playbackSpeed) }
     val authorMetadata = rememberShortsAuthorMetadata(auth, actions, reload, player,
         lifecycleState.isAtLeast(Lifecycle.State.STARTED), online, clip?.post,

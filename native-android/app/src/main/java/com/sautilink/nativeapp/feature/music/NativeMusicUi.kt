@@ -57,6 +57,8 @@ class NativeMusicComposer(val create: () -> Unit) {
     var selection by mutableStateOf<NativeAudioSelection?>(null)
     var details by mutableStateOf<NativeAudioSelection?>(null)
     internal val visiblePosts = mutableStateMapOf<String, VisiblePostAudio>()
+    internal fun activeAudio(group: String?): VisiblePostAudio? = visiblePosts.values
+        .filter { it.postId == group }.maxWithOrNull(compareBy<VisiblePostAudio> { it.visiblePercent }.thenByDescending { it.distance })
     var commentsOpen by mutableStateOf(false)
     var manualPost by mutableStateOf<String?>(null)
 }
@@ -80,21 +82,15 @@ fun NativeMusicSession(auth: StagingAuthClient, onCreate: () -> Unit, feedEnable
     }
     val blocked = com.sautilink.nativeapp.ui.components.LocalNativePlaybackBlocked.current
     val coordinator = remember(auth.account?.id) { com.sautilink.nativeapp.feature.home.NativeFeedPlaybackCoordinator() }
-    val active = controller.visiblePosts[coordinator.activeGroup]
+    val active = controller.activeAudio(coordinator.activeGroup)
     DisposableEffect(player, coordinator) { onDispose { coordinator.release("feed-music") } }
     val audio = active?.audio
     val allowed = feedEnabled && foreground && !blocked && !coordinator.isPaused(active?.postId) && !controller.commentsOpen && controller.details == null &&
         (NativePlaybackPreferences.autoplayEnabled || controller.manualPost == active?.postId)
     LaunchedEffect(audio, feedEnabled, allowed, active?.postId, NativePlaybackPreferences.sessionMuted) {
-        if (audio == null || !feedEnabled) { player.stop(); return@LaunchedEffect }
-        val uri = audio.previewUrl()
-        if (player.currentMediaItem?.localConfiguration?.uri?.toString() != uri) {
-            player.pause()
-            player.repeatMode = Player.REPEAT_MODE_ONE
-            player.setMediaItem(MediaItem.fromUri(uri))
-            player.prepare()
-        }
-        player.volume = if (NativePlaybackPreferences.sessionMuted) 0f else 1f
+        if (audio == null || !feedEnabled) { player.stop(); player.clearMediaItems(); return@LaunchedEffect }
+        preparePostSoundtrack(player, active?.postId.orEmpty(), audio.previewUrl())
+        player.volume = if (NativePlaybackPreferences.sessionMuted) 0f else audio.musicVolume
         if (allowed && audio != null && active != null) coordinator.play("feed-music", active.postId, player::pause) { player.play() }
         else player.pause()
     }
@@ -119,7 +115,7 @@ fun Modifier.postAudioVisibility(postId: String, audio: NativeAudioSelection?): 
     val coordinator = com.sautilink.nativeapp.feature.home.LocalNativeFeedPlayback.current
     if (audio == null) return this
     val key = remember(postId) { "audio:$postId:${java.util.UUID.randomUUID()}" }
-    DisposableEffect(session, postId, key) { onDispose { session.visiblePosts.remove(postId); coordinator?.remove(key) } }
+    DisposableEffect(session, postId, key) { onDispose { session.visiblePosts.remove(key); coordinator?.remove(key) } }
     return onGloballyPositioned { coordinates ->
         if (!coordinates.isAttached) return@onGloballyPositioned
         val bounds = coordinates.boundsInRoot()
@@ -130,7 +126,7 @@ fun Modifier.postAudioVisibility(postId: String, audio: NativeAudioSelection?): 
             minOf(coordinates.size.height.toFloat(), viewport).coerceAtLeast(1f) * 100).toInt()
         coordinator?.update(key, com.sautilink.nativeapp.feature.home.NativeFeedPlaybackCoordinator.Candidate(
             postId, visible / 100f, kotlin.math.abs((shownTop + shownBottom) / 2 - viewport / 2)))
-        session.visiblePosts[postId] = VisiblePostAudio(postId, audio, visible,
+        session.visiblePosts[key] = VisiblePostAudio(postId, audio, visible,
             kotlin.math.abs((shownTop + shownBottom) / 2 - viewport / 2).toInt())
     }
 }
@@ -138,7 +134,7 @@ fun Modifier.postAudioVisibility(postId: String, audio: NativeAudioSelection?): 
 private fun audioTime(ms: Long) = "${ms / 60000}:${(ms / 1000 % 60).toString().padStart(2, '0')}"
 
 @Composable
-private fun rememberPreviewPlayer(handleFocus: Boolean = true): ExoPlayer {
+internal fun rememberPreviewPlayer(handleFocus: Boolean = true): ExoPlayer {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val player = remember(context) { ExoPlayer.Builder(context).build().apply {
@@ -182,7 +178,7 @@ private fun NativeMusicCover(id: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun NativeMusicIdentity(username: String, timestamp: String, selection: NativeAudioSelection?, postId: String = "",
-    showTimestamp: Boolean = true) {
+    showTimestamp: Boolean = true, ink: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant) {
     val session = LocalNativeMusicComposer.current
     val coordinator = com.sautilink.nativeapp.feature.home.LocalNativeFeedPlayback.current
     var showMusic by remember(selection?.trackId) { mutableStateOf(false) }
@@ -196,7 +192,7 @@ fun NativeMusicIdentity(username: String, timestamp: String, selection: NativeAu
         AnimatedContent(label, Modifier.weight(1f), contentAlignment = Alignment.CenterStart,
             transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "Post music credit") { value ->
             Text(value, Modifier.fillMaxWidth(), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = ink,
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp))
         }
         if (selection != null) IconButton(onClick = {
@@ -234,7 +230,7 @@ fun NativeAudioPicker(auth: StagingAuthClient, onDismiss: () -> Unit, onSelect: 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onPlayerError(failure: PlaybackException) { error = "This audio could not play. Try another track."; playing = null }
-            override fun onIsPlayingChanged(isPlaying: Boolean) { if (!isPlaying) playing = null }
+            override fun onIsPlayingChanged(isPlaying: Boolean) { playing = if (isPlaying) player.currentMediaItem?.mediaId else null }
         }
         player.addListener(listener)
         onDispose { player.removeListener(listener) }
@@ -270,6 +266,7 @@ fun NativeAudioPicker(auth: StagingAuthClient, onDismiss: () -> Unit, onSelect: 
             LazyColumn(Modifier.weight(1f), state = listState, verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 items(shown, key = { it.id }) { track ->
                     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable {
+                        player.pause(); playing = null
                         selected = track; start = track.windowStartMs.toFloat()
                         length = minOf(30_000L, track.maxClipMs, track.windowEndMs - track.windowStartMs).toFloat()
                     }.padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically,
@@ -290,7 +287,10 @@ fun NativeAudioPicker(auth: StagingAuthClient, onDismiss: () -> Unit, onSelect: 
                         }
                         IconButton(onClick = {
                             if (playing == track.id) { player.pause(); playing = null }
-                            else { player.setMediaItem(MediaItem.fromUri(track.selection().previewUrl())); player.prepare(); player.play(); playing = track.id }
+                            else {
+                                val selection = if (selected?.id == track.id) track.selection(start.toLong(), length.toLong()) else track.selection()
+                                player.setMediaItem(MediaItem.Builder().setUri(selection.previewUrl()).setMediaId(track.id).build()); player.prepare(); player.play(); playing = track.id
+                            }
                         }) { Icon(if (playing == track.id) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, "Preview ${track.title}") }
                         IconButton(enabled = saving == null, onClick = {
                             saving = track.id
@@ -307,12 +307,19 @@ fun NativeAudioPicker(auth: StagingAuthClient, onDismiss: () -> Unit, onSelect: 
             selected?.let { track ->
                 Text(track.title, fontWeight = FontWeight.SemiBold)
                 val maxLength = minOf(track.maxClipMs, track.windowEndMs - track.windowStartMs).toFloat()
-                Text("Clip ${audioTime(start.toLong())} · ${audioTime(length.toLong())}", style = MaterialTheme.typography.bodySmall)
+                Text("Start ${audioTime(start.toLong())} · ${audioTime(length.toLong())}", style = MaterialTheme.typography.bodySmall)
                 val latestStart = (track.windowEndMs - length.toLong()).coerceAtLeast(track.windowStartMs).toFloat()
                 if (latestStart > track.windowStartMs) Slider(start.coerceIn(track.windowStartMs.toFloat(), latestStart),
                     { start = it; player.pause() }, valueRange = track.windowStartMs.toFloat()..latestStart)
+                Text("Duration ${audioTime(length.toLong())}", style = MaterialTheme.typography.bodySmall)
                 if (maxLength > 1000) Slider(length, { length = it; start = minOf(start, track.windowEndMs - it); player.pause() },
                     valueRange = 1000f..maxLength)
+                OutlinedButton(onClick = {
+                    val clip = track.selection(start.toLong(), length.toLong())
+                    if (player.isPlaying && player.currentMediaItem?.localConfiguration?.uri?.toString() == clip.previewUrl()) player.pause() else {
+                    player.setMediaItem(MediaItem.Builder().setUri(clip.previewUrl()).setMediaId(track.id).build()); player.prepare(); player.play(); playing = track.id
+                    }
+                }, modifier = Modifier.fillMaxWidth()) { Icon(if (playing == track.id) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, null); Text(if (playing == track.id) "Pause selected clip" else "Preview selected clip") }
                 Button(onClick = { player.pause(); onSelect(track.selection(start.toLong(), length.toLong())) }, Modifier.fillMaxWidth()) {
                     Text("Use audio")
                 }
@@ -376,4 +383,14 @@ private fun NativeSoundDetails(auth: StagingAuthClient, audio: NativeAudioSelect
             Spacer(Modifier.navigationBarsPadding())
         }
     }
+}
+
+/** stop() retains the MediaItem but leaves ExoPlayer idle; returning to the same post must prepare again. */
+internal fun preparePostSoundtrack(player: ExoPlayer, postId: String, uri: String) {
+    if (player.currentMediaItem?.localConfiguration?.uri?.toString() != uri || player.currentMediaItem?.mediaId != postId) {
+        player.pause()
+        player.repeatMode = Player.REPEAT_MODE_ONE
+        player.setMediaItem(MediaItem.Builder().setUri(uri).setMediaId(postId).build())
+    }
+    if (player.playbackState == Player.STATE_IDLE) player.prepare()
 }

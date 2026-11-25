@@ -97,7 +97,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     var searchingThread by remember { mutableStateOf(false) }
     var threadQuery by remember { mutableStateOf("") }
     var replyTo by remember { mutableStateOf<NativeMessage?>(null) }
-    var statusBucket by remember { mutableStateOf("hidden") }
+    var peerActivity by remember { mutableStateOf(NativePeerActivity("loading")) }
     var visibilityRevision by remember { mutableIntStateOf(0) }
     var mediaByMessage by remember { mutableStateOf<Map<String, DmMedia>>(emptyMap()) }
     val mediaClient = remember(auth) { NativeDmMediaClient(auth) }
@@ -396,11 +396,13 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     LaunchedEffect(auth.account?.id, livePeerId, foreground, visibilityRevision, peerOnline) {
         val peer = livePeerId ?: return@LaunchedEffect
         if (!foreground) return@LaunchedEffect
-        statusBucket = "hidden"
+        peerActivity = NativePeerActivity("loading")
         while (true) {
-            val updated = runCatching { client.peerActivityBucket(peer) }.getOrDefault("hidden")
+            val updated = try { client.peerActivity(peer) }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { NativePeerActivity("unavailable") }
             currentCoroutineContext().ensureActive()
-            statusBucket = updated
+            peerActivity = updated
             delay(if (peerOnline) 45_000 else 5_000)
         }
     }
@@ -428,7 +430,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             onVisibilityChanged = {
                 peerOnline = false
                 peerTyping = false
-                statusBucket = "hidden"
+                peerActivity = NativePeerActivity("loading")
                 visibilityRevision++
                 onActivityVisibilityChanged()
             }
@@ -478,18 +480,15 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                             SautiVerificationBadge(peer.verified, peer.badgeType, peer.name, size = 17.dp)
                         }
                     }
-                    val status = when {
-                        peerTyping -> "typing…"
-                        peerOnline -> "online"
-                        statusBucket == "recently" -> "Active recently"
-                        statusBucket == "week" -> "Last seen within a week"
-                        statusBucket == "month" -> "Last seen within a month"
-                        statusBucket == "long_ago" -> "Last seen long time ago"
-                        else -> ""
+                    val status = peerActivity.label(peerOnline, peerTyping)
+                    if (status.isNotEmpty()) Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (peerActivity.visibility == "hidden") Icon(Icons.Rounded.Lock, null, Modifier.size(12.dp))
+                        Text(status, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (peerActivity.visibility == "visible" && (peerOnline || peerTyping)) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.bodySmall,
-                        color = if (peerOnline || peerTyping) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 }
                 if (selectedMessage != null) {

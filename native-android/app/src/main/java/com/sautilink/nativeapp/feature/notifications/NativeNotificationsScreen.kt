@@ -188,6 +188,7 @@ fun NativeNotificationsScreen(
                         shape = CircleShape, color = MaterialTheme.colorScheme.surface) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(when (item.type) {
+                                "trending" -> Icons.Rounded.EmojiEvents
                                 "follow" -> Icons.Rounded.PersonAdd
                                 "like" -> Icons.Rounded.FavoriteBorder
                                 "story_like" -> Icons.Rounded.FavoriteBorder
@@ -234,9 +235,10 @@ fun NativeNotificationsScreen(
     }
 }
 
-private fun notificationActionCopy(item: NativeNotification): String {
+internal fun notificationActionCopy(item: NativeNotification): String {
     val room = item.circleName.ifBlank { "your Room" }
     return when (item.type) {
+        "trending" -> trendingAchievementCopy(item.achievementCount, item.bestRank)
         "follow" -> "followed you."
         "like" -> if ((item.postDepth ?: 0) > 0) "liked your comment." else "liked your post."
         "story_like" -> "liked your story."

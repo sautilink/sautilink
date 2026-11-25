@@ -161,6 +161,11 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
                         IconButton(onClick = { music.selection = null }, enabled = !busy) { Icon(Icons.Rounded.Close, "Remove audio") }
                     })
             }
+            music?.selection?.let { audio ->
+                com.sautilink.nativeapp.feature.music.NativeAudioMixControls(audio,
+                    hasVideo = mediaItems.any { it.video || it.ready?.kind == "video" }, enabled = !busy,
+                    onChange = { music.selection = it })
+            }
             PostComposerTextEditor(editor, draft.length, previewOpen, !busy, editorFocus,
                 onValueChange = { value ->
                     editor = value.copy(text = value.text.take(2001))
@@ -209,7 +214,7 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
                                 removeItem(item)
                             }, enabled = !busy) { Text("Remove") }
                         }
-                        NativeComposerMediaPreview(item.previewUri, item.video || item.ready?.kind == "video", item.label)
+                        NativeComposerMediaPreview(item.previewUri, item.video || item.ready?.kind == "video", item.label, music?.selection)
                         Text("${item.status}${if (item.status == "Uploading") " ${item.progress}%" else ""}",
                             style = MaterialTheme.typography.bodySmall)
                         if (item.status == "Uploading") LinearProgressIndicator(progress = { item.progress / 100f },

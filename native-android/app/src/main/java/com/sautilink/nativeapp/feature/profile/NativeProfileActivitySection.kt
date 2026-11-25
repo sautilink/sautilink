@@ -42,6 +42,7 @@ import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.AuthRequestException
 import com.sautilink.nativeapp.feature.home.AuthorizedImage
 import com.sautilink.nativeapp.feature.home.PostInteractionsClient
+import com.sautilink.nativeapp.feature.music.postAudioVisibility
 import com.sautilink.nativeapp.feature.home.PostMediaGallery
 import com.sautilink.nativeapp.feature.home.relativePostTime
 import com.sautilink.nativeapp.ui.components.SautiPostSkeleton
@@ -365,7 +366,7 @@ private fun ProfileActivityCard(
         color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(22.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .4f)),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().postAudioVisibility(item.id, item.audio)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp),
@@ -391,9 +392,8 @@ private fun ProfileActivityCard(
                         SautiVerificationBadge(item.verified, item.badgeType,
                             item.authorName, size = 14.dp)
                     }
-                    Text("@${item.authorHandle} · ${relativePostTime(item.postedAt)}",
-                        style = MaterialTheme.typography.bodySmall, maxLines = 1,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    com.sautilink.nativeapp.feature.music.NativeMusicIdentity(item.authorHandle,
+                        relativePostTime(item.postedAt), item.audio, item.id)
                 }
                 if (!item.isComment && owner && item.authorId == auth.account?.id) {
                     if (item.body.isNotBlank()) TextButton(onClick = onManagePosts) {
@@ -417,7 +417,8 @@ private fun ProfileActivityCard(
                         fontSize = 15.sp, lineHeight = 21.sp),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp))
             }
-            if (item.media.isNotEmpty()) PostMediaGallery(auth, item.media,
+            if (item.media.isNotEmpty()) PostMediaGallery(auth, item.media, playbackGroup = item.id,
+                originalAudioVolume = item.audio?.originalVolume ?: 1f,
                 onDoubleTapLike = if (!item.isComment && !busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
             if (failure != null) Text(failure.orEmpty(), color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(horizontal = 14.dp), style = MaterialTheme.typography.bodySmall)

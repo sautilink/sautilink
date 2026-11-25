@@ -23,9 +23,10 @@ import java.util.concurrent.TimeUnit
 const val MUSIC_ORIGIN = "https://music.sautilink.com"
 
 data class NativeAudioSelection(val trackId: String, val title: String, val artist: String,
-    val startMs: Long, val durationMs: Long) {
+    val startMs: Long, val durationMs: Long, val musicVolume: Float = 1f, val originalVolume: Float = 0f) {
     fun json() = JSONObject().put("trackId", trackId).put("title", title).put("artist", artist)
         .put("startMs", startMs).put("durationMs", durationMs)
+        .put("musicVolume", musicVolume).put("originalVolume", originalVolume)
     fun previewUrl() = "$MUSIC_ORIGIN/v1/tracks/$trackId/preview?placement=feed&startMs=$startMs&durationMs=$durationMs"
     companion object {
         fun from(row: JSONObject?): NativeAudioSelection? {
@@ -35,7 +36,9 @@ data class NativeAudioSelection(val trackId: String, val title: String, val arti
             val start = row.optLong("startMs", -1)
             val duration = row.optLong("durationMs", -1)
             if (start < 0 || duration !in 1000..180000) return null
-            return NativeAudioSelection(id, row.optString("title"), row.optString("artist"), start, duration)
+            return NativeAudioSelection(id, row.optString("title"), row.optString("artist"), start, duration,
+                row.optDouble("musicVolume", 1.0).toFloat().takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 1f,
+                row.optDouble("originalVolume", 0.0).toFloat().takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 0f)
         }
     }
 }
@@ -43,8 +46,12 @@ data class NativeAudioSelection(val trackId: String, val title: String, val arti
 data class NativeMusicTrack(val id: String, val title: String, val artist: String,
     val durationMs: Long, val windowStartMs: Long, val windowEndMs: Long, val maxClipMs: Long,
     val releasedOn: String?, val original: Boolean, val uses: Long = 0, val saved: Boolean = false) {
-    fun selection(start: Long = windowStartMs, duration: Long = minOf(30_000L, maxClipMs)) =
-        NativeAudioSelection(id, title, artist, start, minOf(duration, maxClipMs, windowEndMs - start))
+    fun selection(start: Long = windowStartMs, duration: Long = minOf(30_000L, maxClipMs)): NativeAudioSelection {
+        val maximum = minOf(maxClipMs, windowEndMs - windowStartMs, 180_000L).coerceAtLeast(1000L)
+        val length = duration.coerceIn(1000L, maximum)
+        val offset = start.coerceIn(windowStartMs, (windowEndMs - length).coerceAtLeast(windowStartMs))
+        return NativeAudioSelection(id, title, artist, offset, length, originalVolume = 1f)
+    }
     val isNew: Boolean get() = isNewMusicRelease(releasedOn)
 }
 

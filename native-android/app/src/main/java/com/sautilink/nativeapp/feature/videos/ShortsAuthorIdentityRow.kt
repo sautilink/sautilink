@@ -52,7 +52,10 @@ internal fun ShortsAuthorIdentityRow(auth: StagingAuthClient, post: StagingFeedP
                     modifier = Modifier.weight(1f, fill = false))
                 SautiVerificationBadge(post.verified, post.badgeType, post.authorName, size = 13.dp, onDarkSurface = true)
             }
-            Text(buildAnnotatedString {
+            if (post.audio != null) com.sautilink.nativeapp.feature.music.NativeMusicIdentity(post.authorHandle,
+                verifiedRank?.let { "#$it on trending" }.orEmpty(), post.audio, post.id,
+                showTimestamp = verifiedRank != null, ink = Color.White.copy(alpha = .85f))
+            else Text(buildAnnotatedString {
                 append("@${post.authorHandle}")
                 if (verifiedRank != null) {
                     append(" • ")

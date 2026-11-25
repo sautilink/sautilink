@@ -51,7 +51,7 @@ internal fun NativeAuthenticatedAppHost(
     destinationContent: @Composable () -> Unit,
     overlayContent: @Composable () -> Unit,
 ) {
-    com.sautilink.nativeapp.feature.music.NativeMusicSession(auth, onCreatePost, feedEnabled = destination == "home") {
+    com.sautilink.nativeapp.feature.music.NativeMusicSession(auth, onCreatePost, feedEnabled = true) {
     NativeVideoReplaySession(auth) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),

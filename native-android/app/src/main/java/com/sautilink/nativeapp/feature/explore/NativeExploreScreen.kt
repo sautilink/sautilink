@@ -1,5 +1,7 @@
 package com.sautilink.nativeapp.feature.explore
 
+import com.sautilink.nativeapp.feature.music.postAudioVisibility
+
 import com.sautilink.nativeapp.ui.components.NativeSearchField
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -199,7 +201,7 @@ fun NativeExploreScreen(
             }
             items(results.posts, key = { "post:${it.id}" }) { post ->
                 Surface(color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp).postAudioVisibility(post.id, post.audio),
                     shape = RoundedCornerShape(22.dp),
                     border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .6f))) {
                     Column(
@@ -217,6 +219,8 @@ fun NativeExploreScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall)
                         }
+                        com.sautilink.nativeapp.feature.music.NativeMusicIdentity(post.authorHandle,
+                            relativePostTime(post.createdAt), post.audio, post.id, showTimestamp = false)
                         SautiPostText(post.body.ifBlank { "Media post" },
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
                             maxLines = 5, overflow = TextOverflow.Ellipsis)

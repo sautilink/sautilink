@@ -177,7 +177,7 @@ private fun mediaTime(milliseconds: Long): String {
 }
 
 @Composable
-internal fun NativeComposerMediaPreview(uri: Uri, video: Boolean, label: String) {
+internal fun NativeComposerMediaPreview(uri: Uri, video: Boolean, label: String, audio: com.sautilink.nativeapp.feature.music.NativeAudioSelection? = null) {
     if (uri == Uri.EMPTY) return
     val context = LocalContext.current
     var thumbnail by remember(uri) { mutableStateOf<Bitmap?>(null) }
@@ -201,7 +201,7 @@ internal fun NativeComposerMediaPreview(uri: Uri, video: Boolean, label: String)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     IconButton(onClick = { playing = false }) { Icon(Icons.Rounded.Close, "Close video preview") }
                 }
-                LocalVideoPlayer(uri, modifier = Modifier.fillMaxWidth().height(340.dp), playOnOpen = true)
+                LocalVideoPlayer(uri, modifier = Modifier.fillMaxWidth().height(340.dp), playOnOpen = true, audio = audio)
             }
         }
     }
@@ -210,10 +210,37 @@ internal fun NativeComposerMediaPreview(uri: Uri, video: Boolean, label: String)
 @Composable
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 private fun LocalVideoPlayer(uri: Uri, startMs: Long = 0L, endMs: Long? = null, modifier: Modifier = Modifier, playOnOpen: Boolean = false,
-    edits: NativeImageEdits = NativeImageEdits(), videoSize: NativeVideoSize? = null) {
+    edits: NativeImageEdits = NativeImageEdits(), videoSize: NativeVideoSize? = null,
+    audio: com.sautilink.nativeapp.feature.music.NativeAudioSelection? = null) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val player = remember(context, uri) { ExoPlayer.Builder(context).build().apply { setVideoEffects(emptyList()) } }
+    val soundtrack = remember(context, uri) { ExoPlayer.Builder(context).build() }
+    val latestAudio by rememberUpdatedState(audio)
+    LaunchedEffect(audio, soundtrack, player) {
+        player.volume = audio?.originalVolume ?: 1f
+        if (audio == null) soundtrack.stop() else {
+            if (soundtrack.currentMediaItem?.localConfiguration?.uri?.toString() != audio.previewUrl()) {
+                soundtrack.setMediaItem(MediaItem.fromUri(audio.previewUrl())); soundtrack.prepare()
+                soundtrack.repeatMode = Player.REPEAT_MODE_ONE
+            }
+            soundtrack.volume = audio.musicVolume
+            soundtrack.seekTo(player.currentPosition % audio.durationMs)
+            soundtrack.playWhenReady = player.isPlaying
+        }
+    }
+    DisposableEffect(soundtrack, player) {
+        val sync = object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (latestAudio != null) soundtrack.playWhenReady = isPlaying else soundtrack.pause()
+            }
+            override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
+                latestAudio?.let { soundtrack.seekTo(newPosition.positionMs % it.durationMs) }
+            }
+        }
+        player.addListener(sync)
+        onDispose { player.removeListener(sync); soundtrack.release() }
+    }
     var playing by remember(player) { mutableStateOf(false) }
     var pausePosition by remember(player) { mutableLongStateOf(0L) }
     DisposableEffect(player) {

@@ -986,7 +986,7 @@ private fun FeedPostBodyAndMedia(post: StagingFeedPost, auth: StagingAuthClient,
     // Gallery is flush with card edges; caption is never overlaid onto the media.
     if (post.media.isNotEmpty()) {
         PostMediaGallery(auth, post.media, onDoubleTapLike = onDoubleTapLike,
-            bufferingOverlayEnabled = bufferingOverlayEnabled, suppressOriginalAudio = post.audio != null, playbackGroup = post.id, fillPhotoFrame = true)
+            bufferingOverlayEnabled = bufferingOverlayEnabled, suppressOriginalAudio = false, playbackGroup = post.id, fillPhotoFrame = true, originalAudioVolume = post.audio?.originalVolume ?: 1f)
     } else if (post.mediaCount > 0) {
         Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
             Row(Modifier.fillMaxWidth().padding(14.dp),
