@@ -12,6 +12,11 @@ export async function validatePostAudio(input, country, fetcher = fetch) {
       !Number.isSafeInteger(input.startMs) || !Number.isSafeInteger(input.durationMs)) {
     throw new PostAudioError(400, 'Choose a valid audio track and clip.');
   }
+  for (const key of ['musicVolume', 'originalVolume']) {
+    if (input[key] !== undefined && (typeof input[key] !== 'number' || !Number.isFinite(input[key]) || input[key] < 0 || input[key] > 1)) {
+      throw new PostAudioError(400, 'Choose audio volumes between 0 and 100%.');
+    }
+  }
   const response = await fetcher(`${MUSIC_ORIGIN}/v1/tracks/${input.trackId}?placement=feed`, {
     headers: { Accept: 'application/json' }, redirect: 'manual', signal: AbortSignal.timeout(12000),
   });
@@ -30,5 +35,6 @@ export async function validatePostAudio(input, country, fetcher = fetch) {
     throw new PostAudioError(400, 'Choose a clip within the permitted audio range.');
   }
   return { trackId: track.id, title: track.title, artist: track.artist,
-    startMs: input.startMs, durationMs: input.durationMs };
+    startMs: input.startMs, durationMs: input.durationMs,
+    musicVolume: input.musicVolume ?? 1, originalVolume: input.originalVolume ?? 0 };
 }

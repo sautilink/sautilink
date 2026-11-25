@@ -6303,6 +6303,11 @@ function notificationCopy(notification, actorName, circleName = '', post) {
     return circleCopy[notification.circle_event] || [actorName ? actor : 'SautiLink', ' sent you a Room update.'];
   }
 
+  if (notification.notification_type === 'trending') {
+    const count = Math.max(1, Number(notification.event_data?.post_count) || 1);
+    const rank = Number(notification.event_data?.best_rank) || 0;
+    return ['Congratulations! 🎉', ` ${count === 1 ? 'Your post' : `${count} of your posts`} made the Trending Charts${rank >= 1 && rank <= 20 ? ` · #${rank}` : ''}. Your voice is connecting people. Keep sharing!`];
+  }
   const location = notification.circle_id ? circleLabel : '';
   const likedContent = notification.circle_id ? 'your message' : post?.parent_post_id ? 'your comment' : 'your post';
   const replyAction = post?.thread_depth === 1 ? 'commented on your post'
@@ -6389,7 +6394,7 @@ async function loadNotifications() {
 
   const { data, error } = await supabase
     .from('social_notifications')
-    .select('id, actor_id, post_id, circle_id, circle_event, notification_type, read_at, created_at')
+    .select('id, actor_id, post_id, circle_id, circle_event, notification_type, event_data, read_at, created_at')
     .not('notification_type', 'in', '(story_like,story_dislike)')
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })

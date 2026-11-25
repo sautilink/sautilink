@@ -242,7 +242,7 @@ function memberNoticeCopy(event: string) {
 async function buildSocialPayload(sourceId: string, recipientId: string) {
   if (!/^\d+$/.test(sourceId)) return null;
   const result = await adminRest(
-    `social_notifications?id=eq.${encodeURIComponent(sourceId)}&recipient_id=eq.${encodeURIComponent(recipientId)}&select=id,recipient_id,actor_id,post_id,story_id,notification_type,notification_event,moderation_action_id,verification_case_id&limit=1`,
+    `social_notifications?id=eq.${encodeURIComponent(sourceId)}&recipient_id=eq.${encodeURIComponent(recipientId)}&select=id,recipient_id,actor_id,post_id,story_id,notification_type,notification_event,event_data,moderation_action_id,verification_case_id&limit=1`,
     { method: "GET" },
   );
   if (!result.ok || !Array.isArray(result.body) || !result.body[0]) return null;
@@ -282,6 +282,21 @@ async function buildSocialPayload(sourceId: string, recipientId: string) {
   else if (!event && type === "story_like") body = `${name} liked your story.`;
   else if (!event && type === "story_dislike") body = `${name} disliked your story.`;
 
+  if (type === "trending") {
+    if (!isUuid(postId)) return null;
+    const [postCheck, profileCheck, preferences] = await Promise.all([
+      adminRest(`social_posts?id=eq.${postId}&author_id=eq.${recipientId}&visibility=eq.public&circle_id=is.null&post_status=eq.published&moderation_state=eq.visible&deleted_at=is.null&select=id&limit=1`),
+      adminRest(`social_profiles?id=eq.${recipientId}&is_discoverable=eq.true&select=id&limit=1`),
+      adminRest(`social_member_preferences?user_id=eq.${recipientId}&select=notify_post_activity&limit=1`),
+    ]);
+    if (!postCheck.ok || !profileCheck.ok || !preferences.ok) throw new Error("achievement_access_unavailable");
+    if (!Array.isArray(postCheck.body) || !postCheck.body[0] || !Array.isArray(profileCheck.body) || !profileCheck.body[0] ||
+      (Array.isArray(preferences.body) && preferences.body[0]?.notify_post_activity === false)) return null;
+    const data = notification.event_data as Record<string, unknown> | null;
+    const count = Math.max(1, Number(data?.post_count) || 1);
+    const rank = Number(data?.best_rank) || 0;
+    body = `Congratulations! ${count === 1 ? "Your post" : `${count} of your posts`} made the Trending Charts${rank >= 1 && rank <= 20 ? ` · #${rank}` : ""}. 🎉 Keep sharing your voice!`;
+  }
   let route = "/notifications";
   if (storyReaction) {
     route = `/stories/${storyId}`;

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { validatePostAudio } from '../src/post-audio.js';
 
-const track = { id: 'track-1', title: 'Approved title', artist: 'Approved artist', license: {
+const track = { id: 'track-1', title: 'Approved title', artist: 'Approved artist', musicVolume: 1, originalVolume: 0, license: {
   startsOn: '2026-01-01', endsOn: null, placements: ['feed'], territories: ['TZ'],
   windowStartMs: 5000, windowEndMs: 60000, maxClipMs: 30000,
 } };
@@ -14,7 +14,7 @@ const catalog = async (url, options) => {
 
 test('Post audio uses approved metadata and enforces clip, placement, territory and withdrawal', async () => {
   assert.deepEqual(await validatePostAudio(input, 'TZ', catalog), {
-    trackId: 'track-1', startMs: 5000, durationMs: 12000, title: 'Approved title', artist: 'Approved artist',
+    trackId: 'track-1', startMs: 5000, durationMs: 12000, title: 'Approved title', artist: 'Approved artist', musicVolume: 1, originalVolume: 0,
   });
   for (const change of [{ startMs: 0 }, { startMs: 59000 }, { durationMs: 0 },
     { durationMs: 30001 }, { durationMs: 1500.5 }, { trackId: '../private' }]) {
@@ -29,3 +29,11 @@ test('Post audio uses approved metadata and enforces clip, placement, territory 
   }
   assert.equal(await validatePostAudio(null, 'TZ', catalog), null);
 });
+
+ test('audio mix gains survive canonicalization and reject malformed or unbounded levels', async () => {
+  const selection = await validatePostAudio({ ...input, musicVolume: .35, originalVolume: .8 }, 'TZ', catalog);
+  assert.equal(selection.musicVolume, .35); assert.equal(selection.originalVolume, .8);
+  for (const key of ['musicVolume','originalVolume']) for (const level of [-1,1.01,NaN,Infinity,null,'0.5']) {
+    await assert.rejects(validatePostAudio({...input,[key]:level}, 'TZ', catalog));
+  }
+ });
