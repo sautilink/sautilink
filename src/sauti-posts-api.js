@@ -1,3 +1,4 @@
+import { validatePostAudio, PostAudioError } from './post-audio.js';
 import { sautiMediaObjectKeys } from './sauti-media-api.js';
 import { POST_BODY_LIMIT } from './post-text-formatting.js';
 import { maybeQueueRoomPost, heldRoomMedia, roomPostSubmissionRoute } from './room-post-approval-api.js';
@@ -112,12 +113,28 @@ async function createSauti(request, env, ctx = null) {
   if (!requestedReplyAccess) return apiError(400, 'INVALID_REPLY_ACCESS', 'Choose who can comment on this post.');
   if (!requestedVisibility) return apiError(400, 'INVALID_AUDIENCE', 'Choose a valid post audience.');
   if (requestedMedia.length > 10) return apiError(400, 'MEDIA_LIMIT', 'A post can include up to ten media items.');
-  if (!body && !requestedQuote && !requestedMedia.length) {
+  if (!body && !requestedQuote && !requestedMedia.length && payload?.audio == null) {
     return apiError(400, 'BODY_REQUIRED', 'Write something or add media before sharing.');
   }
   if (body.length > POST_BODY_LIMIT) return apiError(400, 'BODY_TOO_LONG', `Post text must be ${POST_BODY_LIMIT} characters or fewer.`);
   if (requestedReplyAccess === 'mentioned' && !hasMentionToken(body)) {
     return apiError(400, 'MENTION_REQUIRED', 'Mention at least one SautiLink username or change who can comment.');
+  }
+
+  let audio = null;
+  if (payload?.audio != null) {
+    if (requestedCircle) return apiError(400, 'ROOM_AUDIO_UNSUPPORTED', 'Choose audio in the main post composer.');
+    try {
+      const musicFetch = env.SAUTILINK_MUSIC?.fetch
+        ? (url, options) => env.SAUTILINK_MUSIC.fetch(new Request(url, { ...options, cf: request.cf }))
+        : fetch;
+      audio = await validatePostAudio(payload.audio, request.cf?.country || 'ZZ', musicFetch);
+    }
+    catch (error) {
+      if (error instanceof PostAudioError) return apiError(error.status, 'AUDIO_UNAVAILABLE', error.message);
+      console.warn('post_audio_verification_failed', error?.name, String(error?.message || '').slice(0, 180));
+      return apiError(503, 'AUDIO_UNAVAILABLE', 'Music could not be verified. Please try again.');
+    }
   }
 
   const clientRequestId = suppliedRequestId || crypto.randomUUID();
@@ -231,6 +248,7 @@ async function createSauti(request, env, ctx = null) {
       quote_post_id: requestedQuote || null,
       client_request_id: clientRequestId,
       media_count: media.length,
+      ...(audio && { audio_selection: audio }),
     }),
   });
 
