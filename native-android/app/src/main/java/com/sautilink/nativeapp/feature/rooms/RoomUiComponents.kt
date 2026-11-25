@@ -431,9 +431,9 @@ private fun RoomCountAction(label: String, count: Int, enabled: Boolean,
             role = Role.Button, onClick = onClick), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center) {
         SautiPostHeart(active, label, Modifier.size(24.dp).sautiActionFeedback(interaction))
-        if (count > 0) Spacer(Modifier.width(2.dp))
-        Text(if (count <= 0) "" else when { count >= 1_000_000 -> "${count / 1_000_000}m"
-            count >= 1000 -> "${count / 1000}k"; else -> count.toString() }, style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        com.sautilink.nativeapp.ui.components.sautiReactionCount(count)?.let { total ->
+            Spacer(Modifier.width(2.dp))
+            Text(total, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }

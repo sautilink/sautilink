@@ -224,9 +224,11 @@ fun NativeExploreScreen(
                         SautiPostText(post.body.ifBlank { "Media post" },
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
                             maxLines = 5, overflow = TextOverflow.Ellipsis)
-                        Text("${post.likes} likes · ${post.comments} comments" +
-                            if (post.mediaCount > 0) " · ${post.mediaCount} media" else "",
-                            style = MaterialTheme.typography.bodySmall,
+                        val totals = listOfNotNull(
+                            com.sautilink.nativeapp.ui.components.sautiPostReactionSummary(post.likes, post.comments).takeIf { it.isNotEmpty() },
+                            if (post.mediaCount > 0) "${post.mediaCount} media" else null
+                        ).joinToString(" · ")
+                        if (totals.isNotEmpty()) Text(totals, style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }

@@ -93,7 +93,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import java.util.Locale
 
 private data class LiveClip(val post: StagingFeedPost, val mediaId: String)
 private data class ShortsReturnPresentation(val clips: List<LiveClip>, val nextOffset: Int,
@@ -786,11 +785,7 @@ private fun List<StagingFeedPost>.toLiveClips(): List<LiveClip> = mapNotNull { p
 }
 
 
-private fun formatVideoCount(value: Int): String = when {
-    value >= 1_000_000 -> String.format(Locale.US, "%.1fM", value / 1_000_000.0)
-    value >= 1_000 -> String.format(Locale.US, "%.1fK", value / 1_000.0)
-    else -> value.coerceAtLeast(0).toString()
-}
+private fun formatVideoCount(value: Int): String = com.sautilink.nativeapp.ui.components.sautiReactionCount(value).orEmpty()
 
 /** Tap animation + explicit semantics for TalkBack and large-screen navigation. */
 @Composable
@@ -816,8 +811,11 @@ private fun VideoRailAction(
             if (heart) SautiPostHeart(active, label, Modifier.fillMaxSize(), Color.White)
             else Icon(icon, contentDescription = label, modifier = Modifier.fillMaxSize(), tint = tint, selected = active)
         }
-        Spacer(Modifier.height(2.dp))
-        Text(count ?: label, color = Color.White,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), maxLines = 1)
+        val caption = count ?: label
+        if (caption.isNotEmpty()) {
+            Spacer(Modifier.height(2.dp))
+            Text(caption, color = Color.White,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), maxLines = 1)
+        }
     }
 }

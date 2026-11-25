@@ -87,7 +87,6 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
-import java.util.Locale
 
 @Composable
 internal fun RoomsHomeShortcut(onOpen: () -> Unit) {
@@ -900,11 +899,7 @@ fun StagingFeedScreen(
     }
 }
 
-internal fun feedCount(count: Int): String = when {
-    count >= 1_000_000 -> String.format(Locale.US, "%.1fM", count / 1_000_000.0)
-    count >= 1_000 -> String.format(Locale.US, "%.1fK", count / 1_000.0)
-    else -> count.toString()
-}
+internal fun feedCount(count: Int): String? = com.sautilink.nativeapp.ui.components.sautiReactionCount(count)
 
 /** Compact elapsed time for native social posts and comments, matching familiar social UI.
  * Supabase uses ISO-8601 timestamps, usually with a Z or +00:00 offset.
@@ -1164,8 +1159,8 @@ private fun RealPostCard(
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("${post.likes} likes · ${post.comments} comments · ${post.reposts} reposts",
-                        style = MaterialTheme.typography.labelMedium)
+                    val totals = com.sautilink.nativeapp.ui.components.sautiPostReactionSummary(post.likes, post.comments, post.reposts)
+                    if (totals.isNotEmpty()) Text(totals, style = MaterialTheme.typography.labelMedium)
                     TextButton(onClick = onShare) {
                         Icon(Icons.Rounded.Share, "Share test post link", modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))

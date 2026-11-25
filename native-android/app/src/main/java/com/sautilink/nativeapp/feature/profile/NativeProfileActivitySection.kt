@@ -425,13 +425,13 @@ private fun ProfileActivityCard(
             if (!item.isComment) SautiPostActionRow(modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp), actions = {
                 ProfileAction(
                     Icons.Rounded.FavoriteBorder,
-                    likeTotal.toString(), "Like", Modifier, selected = liked
+                    com.sautilink.nativeapp.feature.home.feedCount(likeTotal), "Like", Modifier, selected = liked
                 ) {
                     changeLike()
                 }
-                ProfileAction(Icons.Rounded.ChatBubbleOutline, item.comments.toString(), "Comments",
+                ProfileAction(Icons.Rounded.ChatBubbleOutline, com.sautilink.nativeapp.feature.home.feedCount(item.comments), "Comments",
                     Modifier) { onOpenPost(item.id) }
-                ProfileAction(Icons.Rounded.Repeat, repostTotal.toString(), "Repost",
+                ProfileAction(Icons.Rounded.Repeat, com.sautilink.nativeapp.feature.home.feedCount(repostTotal), "Repost",
                     Modifier, selected = reposted) {
                     if (!busy) {
                         busy = true; failure = null
@@ -469,7 +469,7 @@ private fun ProfileActivityCard(
 
 @Composable
 private fun ProfileAction(
-    icon: androidx.compose.ui.graphics.vector.ImageVector, count: String, description: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector, count: String?, description: String,
     modifier: Modifier = Modifier, selected: Boolean = false, onClick: () -> Unit
 ) {
     com.sautilink.nativeapp.feature.home.CompactPostAction(icon, description, count, modifier,

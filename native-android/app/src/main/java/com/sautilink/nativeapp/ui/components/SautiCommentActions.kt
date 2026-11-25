@@ -73,7 +73,7 @@ private fun CommentAction(icon: ImageVector, label: String, count: Int,
         Icon(icon, null, Modifier.size(18.dp).sautiActionFeedback(interaction), tint = tint)
         if (count > 0) {
             Spacer(Modifier.width(2.dp))
-            Text(count.toString(), style = MaterialTheme.typography.labelSmall, color = tint,
+            Text(sautiReactionCount(count).orEmpty(), style = MaterialTheme.typography.labelSmall, color = tint,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
