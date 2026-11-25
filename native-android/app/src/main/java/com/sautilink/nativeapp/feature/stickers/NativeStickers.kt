@@ -80,8 +80,11 @@ private fun decodeSticker(row: JSONObject): NativeSticker? {
     }
     if (asset.scheme != "https" || asset.host != "stickers.sautilink.com" || asset.port != 443 ||
         asset.query != null || asset.fragment != null || !validPath) return null
+    val revision = row.optInt("render_revision", 0)
+    val resolvedAsset = if (format == "lottie" && revision in 1..9999)
+        asset.newBuilder().addQueryParameter("v", revision.toString()).build() else asset
     return NativeSticker(id, row.optString("title"), row.optString("emoji", "✨"), format,
-        asset.toString(), row.optBoolean("inline_emoji"))
+        resolvedAsset.toString(), row.optBoolean("inline_emoji"))
 }
 
 private suspend fun stickerRows(query: String = "", motion: Boolean = false, ids: String? = null,
