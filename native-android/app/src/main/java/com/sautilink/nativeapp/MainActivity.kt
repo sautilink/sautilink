@@ -88,6 +88,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.sautilink.nativeapp.ui.components.NativePublicAssets.configure(applicationContext)
         playUpdate = NativePlayUpdate(this)
         NativePlaybackPreferences.restore(this)
         if (savedInstanceState == null) NativePlaybackPreferences.resetSessionSound()
@@ -846,7 +847,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                     },
                     overlayContent = {
                         if (composerOpen) {
-                            ModalBottomSheet(onDismissRequest = {
+                            ModalBottomSheet(sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), onDismissRequest = {
                                 if (!composerInFlight) composerOpen = false else notice("Wait for upload to finish")
                             }, shape = SautiShape.Sheet) {
                                 NativePostComposer(auth = productionAuth, draft = postDraft, onDraftChange = { postDraft = it },

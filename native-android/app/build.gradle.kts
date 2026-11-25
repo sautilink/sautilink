@@ -48,8 +48,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "STAGING_SUPABASE_PUBLISHABLE_KEY", "\"${stagingPublishableKey}\"")
         buildConfigField("String", "PRODUCTION_SUPABASE_PUBLISHABLE_KEY", "\"${productionPublishableKey}\"")
-        versionCode = 53
-        versionName = "1.1.8"
+        versionCode = 54
+        versionName = "1.1.9-preview"
     }
     flavorDimensions += "distribution"
     productFlavors {
@@ -108,6 +108,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     // Bundled, cached vector buffering overlay for Home and Short Videos.
     implementation("com.airbnb.android:lottie-compose:6.7.1")
+    implementation("com.caverock:androidsvg-aar:1.4")
     // Downloads Inter from the Google Play services fonts provider when available.
     implementation("androidx.compose.ui:ui-text-google-fonts:1.10.0")
     // Tested on-device after Android Studio sync. Keep all Media3 modules on one version.

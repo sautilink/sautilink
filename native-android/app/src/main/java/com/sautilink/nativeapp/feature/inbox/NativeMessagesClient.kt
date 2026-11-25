@@ -92,14 +92,8 @@ class NativeMessagesClient(private val auth: StagingAuthClient) {
 
     suspend fun searchAccounts(rawQuery: String): List<NativeMessageAccount> {
         val own = viewer()
-        val query = rawQuery.trim().removePrefix("@").take(64).replace("%", "").replace("*", "")
-            .replace("\\", "\\\\").replace("_", "\\_")
-        if (query.length < 2) return emptyList()
-        val filter = java.net.URLEncoder.encode("ilike.*$query*", "UTF-8")
-        val select = "id,username,display_name,is_verified,verification_badge_type,avatar_key"
-        val left = rest("social_profiles?select=$select&is_discoverable=eq.true&id=neq.$own&username=$filter&order=username.asc&limit=12")
-        val right = rest("social_profiles?select=$select&is_discoverable=eq.true&id=neq.$own&display_name=$filter&order=username.asc&limit=12")
-        return (left.objects() + right.objects()).distinctBy { it.optString("id") }.take(12).mapNotNull { row ->
+        val rows = com.sautilink.nativeapp.feature.explore.NativeUserSearch(auth).search(rawQuery, 20)
+        return rows.filter { it.optString("id") != own }.mapNotNull { row ->
             val id = row.optString("id")
             if (!uuid.matches(id)) null else {
                 val handle = row.optString("username")

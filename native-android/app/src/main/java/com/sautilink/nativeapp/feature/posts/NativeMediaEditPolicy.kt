@@ -38,9 +38,10 @@ internal object NativeMediaEditPolicy {
 internal data class NativeImageEdits(val rotation: Int = 0, val aspect: Float? = null,
     val zoom: Float = 1f, val panX: Float = 0f, val panY: Float = 0f,
     val brightness: Float = 0f, val contrast: Float = 1f,
-    val saturation: Float = 1f, val warmth: Float = 0f)
+    val saturation: Float = 1f, val warmth: Float = 0f,
+    val overlay: NativeCreatorText = NativeCreatorText())
 
-/** These edits are rendered into the exported photo; filters never affect video. */
+/** Shared color presets for photo and video exports. */
 internal enum class NativePhotoFilter(val label: String, val brightness: Float = 0f,
     val contrast: Float = 1f, val saturation: Float = 1f, val warmth: Float = 0f) {
     Original("Original"), Vivid("Vivid", .015f, 1.10f, 1.22f),
@@ -48,7 +49,16 @@ internal enum class NativePhotoFilter(val label: String, val brightness: Float =
     Cool("Cool", .01f, 1.06f, .95f, -.11f),
     Soft("Soft", .035f, .88f, .88f, .025f),
     Mono("Mono", .01f, 1.12f, 0f),
-    Film("Film", .02f, .92f, .72f, .075f);
+    Film("Film", .02f, .92f, .72f, .075f),
+    Sunset("Sunset", .02f, 1.08f, 1.18f, .18f),
+    Arctic("Arctic", .035f, 1.08f, .80f, -.18f),
+    Noir("Noir", -.025f, 1.28f, 0f),
+    Fade("Fade", .055f, .78f, .70f, .025f),
+    Pop("Pop", .015f, 1.22f, 1.45f),
+    Vintage("Vintage", .03f, .88f, .55f, .15f),
+    Clean("Clean", .045f, 1.04f, 1.05f),
+    Moody("Moody", -.08f, 1.18f, .72f, -.045f),
+    Rose("Rose", .02f, 1.04f, .90f, .08f);
 
     fun applyTo(edits: NativeImageEdits) = edits.copy(brightness = brightness,
         contrast = contrast, saturation = saturation, warmth = warmth)

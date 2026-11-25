@@ -26,6 +26,7 @@ import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.runBlocking
 
 /** Actual production editor dialog in an empty test host, using only local fixture media. */
 @OptIn(ExperimentalTestApi::class)
@@ -59,14 +60,14 @@ class NativeMediaEditorUiTest {
     private fun screenshot(name: String) {
         compose.mainClock.advanceTimeBy(600)
         compose.waitForIdle()
-        val context = InstrumentationRegistry.getInstrumentation().context
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         val supplied = InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")
         val directory = File(supplied ?: (context.externalCacheDir ?: context.cacheDir).absolutePath,
             "sautilink-ui").apply { mkdirs() }
         val file = File(directory, "$name.png")
         file.outputStream().use {
-            assertTrue(compose.onNode(isDialog()).captureToImage().asAndroidBitmap()
-                .compress(Bitmap.CompressFormat.PNG, 100, it))
+            val screen = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            try { assertTrue(screen.compress(Bitmap.CompressFormat.PNG, 100, it)) } finally { screen.recycle() }
         }
         Log.i("SautiUiScreenshot", file.absolutePath)
     }
@@ -90,6 +91,7 @@ class NativeMediaEditorUiTest {
             compose.onNodeWithText("Rotate").performScrollTo().assertIsDisplayed().performClick()
             compose.onNodeWithText("Use media").assertIsDisplayed().assertIsEnabled()
             screenshot("media-image-editor-crop-light")
+            compose.onNodeWithText("Adjust").performClick()
 
             // Production sliders expose their ranges through standard accessibility semantics.
             // Brightness is the only range -0.3..0.3, so no production-only test tags are needed.
@@ -125,6 +127,108 @@ class NativeMediaEditorUiTest {
             output.get()?.ownedFile?.delete()
             original.delete()
         }
+    }
+
+    @Test fun creatorTextFontBoldCardColorAndResizeExportThroughEditor() {
+        val original = sourceImage()
+        val output = AtomicReference<NativeEditedMedia?>(null)
+        var open by mutableStateOf(true)
+        var keyboard: androidx.compose.ui.platform.SoftwareKeyboardController? = null
+        try {
+            compose.setContent { SautiTheme(darkTheme = false) {
+                keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+                if (open) NativeMediaEditor(Uri.fromFile(original), false, onCancel = { open = false },
+                    onExportActivity = {}, onUse = { output.set(it); open = false })
+            } }
+            awaitImage()
+            compose.onNodeWithText("Filters").performClick()
+            compose.onNodeWithText("Sunset").performScrollTo().performClick().assertIsSelected()
+            compose.onNodeWithText("Text").performClick()
+            compose.onNodeWithText("Text on media").performTextInput("Link it. Share. Connect")
+            compose.runOnIdle { keyboard?.hide() }
+            Thread.sleep(500)
+            compose.waitForIdle()
+            compose.onNodeWithText("Font · Montserrat").performScrollTo().performClick()
+            compose.onNodeWithText("Caveat").performScrollTo()
+            compose.waitForIdle()
+            compose.onNodeWithText("Caveat").performClick()
+            compose.onNodeWithText("Font · Caveat").assertIsDisplayed()
+            compose.onNodeWithText("Bold").performScrollTo().performClick().assertIsOn()
+            compose.onNodeWithText("Dark card").performScrollTo().performClick().assertIsSelected()
+            compose.onNodeWithContentDescription("Pink text color").performScrollTo().performClick().assertIsSelected()
+            compose.onNodeWithContentDescription("Text size").performScrollTo()
+                .performSemanticsAction(SemanticsActions.SetProgress) { assertTrue(it(.12f)) }
+            screenshot("creator-text-photo-light")
+            compose.onNodeWithText("Use media").performClick()
+            compose.waitUntil(20_000) { output.get() != null }
+            val decoded = BitmapFactory.decodeFile(output.get()!!.ownedFile!!.path)
+            try {
+                var pink = 0
+                for (y in 0 until decoded.height) for (x in 0 until decoded.width) {
+                    val color = decoded.getPixel(x, y)
+                    if (Color.red(color) > 160 && Color.blue(color) > 65 && Color.green(color) < 110) pink++
+                }
+                assertTrue("The UI's selected text must remain in the saved photo", pink > 20)
+            } finally { decoded.recycle() }
+        } finally { compose.runOnIdle { open = false }; output.get()?.ownedFile?.delete(); original.delete() }
+    }
+
+    @Test fun videoDialogShowsEffectsAndExportsTextWithItsSelectedClip() {
+        val instrument = InstrumentationRegistry.getInstrumentation()
+        val original = File(instrument.targetContext.cacheDir, "creator-video-ui-fixture.mp4")
+        instrument.context.assets.open("media-editor-62s.mp4").use { input -> original.outputStream().use { input.copyTo(it) } }
+        val output = AtomicReference<NativeEditedMedia?>(null)
+        var open by mutableStateOf(true)
+        var keyboard: androidx.compose.ui.platform.SoftwareKeyboardController? = null
+        try {
+            compose.setContent { SautiTheme(darkTheme = true) {
+                keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+                if (open) NativeMediaEditor(Uri.fromFile(original), true, onCancel = { open = false },
+                    onExportActivity = {}, onUse = { output.set(it); open = false })
+            } }
+            compose.waitUntil(30_000) { compose.onAllNodes(hasText("Use media") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
+            val endSlider = SemanticsMatcher("End of video clip") { node ->
+                node.config.contains(SemanticsActions.SetProgress) && node.config.contains(SemanticsProperties.ProgressBarRangeInfo) &&
+                    node.config[SemanticsProperties.ProgressBarRangeInfo].range.start == 1000f
+            }
+            compose.onNode(endSlider).performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) { assertTrue(it(2000f)) }
+            compose.onNodeWithText("Filters").performClick()
+            compose.onNodeWithText("Mono").performScrollTo().performClick().assertIsSelected()
+            compose.onNodeWithText("Text").performClick()
+            compose.onNodeWithText("Text on media").performTextInput("SAUTI")
+            compose.onNodeWithText("SAUTI").assertExists().performImeAction()
+            compose.runOnIdle { keyboard?.hide() }
+            Thread.sleep(500)
+            compose.waitForIdle()
+            compose.onNodeWithContentDescription("Pink text color").performScrollTo().performClick().assertIsSelected()
+            compose.onNodeWithText("Bold").performScrollTo().performClick().assertIsOn()
+            compose.onNodeWithContentDescription("Text size").performScrollTo()
+                .performSemanticsAction(SemanticsActions.SetProgress) { assertTrue(it(.14f)) }
+            compose.waitUntil(10_000) {
+                val nodes = compose.onAllNodesWithContentDescription("Edited video preview").fetchSemanticsNodes()
+                if (nodes.isEmpty()) false else {
+                    val preview = compose.onNodeWithContentDescription("Edited video preview").captureToImage().asAndroidBitmap()
+                    var pinkPixels = 0
+                    for (y in 0 until preview.height step 3) for (x in 0 until preview.width step 3) {
+                        val pixel = preview.getPixel(x, y)
+                        if (Color.red(pixel) > 160 && Color.blue(pixel) > 60 && Color.green(pixel) < 110) pinkPixels++
+                    }
+                    pinkPixels > 10
+                }
+            }
+            screenshot("creator-text-video-dark")
+            compose.onNodeWithText("Use media").performClick()
+            compose.waitUntil(90_000) { output.get() != null }
+            val frame = runBlocking { localVideoThumbnail(instrument.targetContext, output.get()!!.uri) }!!
+            try {
+                var pink = 0
+                for (y in 0 until frame.height) for (x in 0 until frame.width) {
+                    val color = frame.getPixel(x, y)
+                    if (Color.red(color) > 160 && Color.blue(color) > 60 && Color.green(color) < 110) pink++
+                }
+                assertTrue("Text selected in the video editor must be encoded into the MP4", pink > 10)
+            } finally { frame.recycle() }
+        } finally { compose.runOnIdle { open = false }; output.get()?.ownedFile?.delete(); original.delete() }
     }
 
     @Test fun imageDialogCancelPreservesTheOriginalAndDoesNotExport() {

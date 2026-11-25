@@ -166,9 +166,8 @@ fun NativePostDetailScreen(
                                     SautiVerificationBadge(item.verified, item.badgeType,
                                         item.authorName, size = 16.dp)
                                 }
-                                Text("@${item.authorHandle} · ${relativePostTime(item.createdAt)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                com.sautilink.nativeapp.feature.music.NativeMusicIdentity(
+                                    item.authorHandle, relativePostTime(item.createdAt), item.audio, item.id)
                             }
                             if (item.authorId != auth.account?.id) {
                                 IconButton(onClick = { reportOpen = true }) {

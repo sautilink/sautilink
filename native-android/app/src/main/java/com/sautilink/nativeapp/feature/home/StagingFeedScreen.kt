@@ -1,5 +1,7 @@
 package com.sautilink.nativeapp.feature.home
 
+import com.sautilink.nativeapp.feature.music.postAudioVisibility
+
 import com.sautilink.nativeapp.ui.theme.sautiChromeInk
 import android.content.Intent
 import androidx.compose.animation.animateColorAsState
@@ -195,6 +197,9 @@ fun StagingFeedScreen(
     var actionRetryVersion by remember(auth, accountId) { mutableIntStateOf(0) }
     var busyKeys by remember(auth, accountId) { mutableStateOf<Set<String>>(emptySet()) }
     var commentsFor by remember(auth, accountId) { mutableStateOf<StagingFeedPost?>(null) }
+    val musicSession = com.sautilink.nativeapp.feature.music.LocalNativeMusicComposer.current
+    SideEffect { musicSession?.commentsOpen = commentsFor != null }
+    DisposableEffect(musicSession) { onDispose { musicSession?.commentsOpen = false } }
     var commentCountSyncVersion by remember(auth, accountId) { mutableIntStateOf(0) }
     DisposableEffect(presentations, accountId, mode) {
         onDispose {
@@ -632,7 +637,7 @@ fun StagingFeedScreen(
             lifecycleState.isAtLeast(Lifecycle.State.STARTED) && commentsFor == null,
         online = online) else null
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
           Column {
@@ -689,9 +694,9 @@ fun StagingFeedScreen(
         LazyColumn(
             Modifier.fillMaxSize(),
             state = feedListState,
-            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp,
+            contentPadding = PaddingValues(top = 0.dp,
                 bottom = if (asHome) 90.dp else 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             if (mode == "saved" && auth.backend == SautiBackend.PRODUCTION) item {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -954,7 +959,7 @@ internal fun FeedFollowButton(following: Boolean?, pending: Boolean?, enabled: B
 @Composable
 private fun FeedPostBodyAndMedia(post: StagingFeedPost, auth: StagingAuthClient,
     onDoubleTapLike: (() -> Unit)?, bufferingOverlayEnabled: Boolean) {
-    if (post.body.isNotBlank()) {
+    if (post.body.isNotBlank() && post.media.isEmpty() && post.mediaCount == 0) {
         com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(
             Modifier.fillMaxWidth(), onLike = onDoubleTapLike) {
             com.sautilink.nativeapp.ui.components.SautiPostText(post.body,
@@ -965,7 +970,7 @@ private fun FeedPostBodyAndMedia(post: StagingFeedPost, auth: StagingAuthClient,
     // Gallery is flush with card edges; caption is never overlaid onto the media.
     if (post.media.isNotEmpty()) {
         PostMediaGallery(auth, post.media, onDoubleTapLike = onDoubleTapLike,
-            bufferingOverlayEnabled = bufferingOverlayEnabled)
+            bufferingOverlayEnabled = bufferingOverlayEnabled, suppressOriginalAudio = post.audio != null, playbackGroup = post.id, fillPhotoFrame = true)
     } else if (post.mediaCount > 0) {
         Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
             Row(Modifier.fillMaxWidth().padding(14.dp),
@@ -1019,11 +1024,10 @@ private fun RealPostCard(
     val doubleTapLike = feedLikeGesture(auth, online, busyLike, onDoubleTapLike)
     val showFollow = feedFollowVisible(auth, post) && feedFollowButtonVisible(following, showFollowingFeedback, pendingFollow)
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = androidx.compose.ui.graphics.RectangleShape,
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .18f)),
         shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().postAudioVisibility(post.id, post.audio)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
             if (trendingRank != null) {
@@ -1057,19 +1061,15 @@ private fun RealPostCard(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(post.authorName, style = MaterialTheme.typography.titleMedium,
+                        Text(post.authorName, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 18.sp),
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.weight(1f, fill = false),
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                         SautiVerificationBadge(post.verified, post.badgeType,
                             post.authorName, size = 16.dp)
                     }
-                    Text(
-                        "${if (post.authorHandle.isNotBlank()) "@${post.authorHandle} · " else ""}${relativePostTime(post.createdAt)}",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis
-                    )
+                    com.sautilink.nativeapp.feature.music.NativeMusicIdentity(
+                        post.authorHandle, relativePostTime(post.createdAt), post.audio, post.id, showTimestamp = false)
                 }
                 if (showFollow) {
                     FeedFollowButton(following, pendingFollow, online && !busyFollow, onFollow)
@@ -1155,6 +1155,16 @@ private fun RealPostCard(
                     }
                 }
             }
+            if (post.body.isNotBlank() && (post.media.isNotEmpty() || post.mediaCount > 0)) {
+                com.sautilink.nativeapp.ui.components.SautiPostText("**${post.authorHandle}** ${post.body}",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp))
+            }
+            Text(relativePostTime(post.createdAt), style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 14.dp, top = 4.dp, bottom = 14.dp).clickable(onClick = onOpenPost))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f))
+
         }
     }
 }

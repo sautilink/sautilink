@@ -69,7 +69,7 @@ class NativePostsClient(private val auth: StagingAuthClient) {
     }
 
     suspend fun create(body: String, visibility: String = "public", replyAccess: String = "everyone",
-        media: List<NativeReadyMedia> = emptyList()): String {
+        media: List<NativeReadyMedia> = emptyList(), audio: com.sautilink.nativeapp.feature.music.NativeAudioSelection? = null): String {
         accountId()
         if (visibility !in setOf("public", "followers") || replyAccess !in setOf("everyone", "following"))
             throw AuthRequestException("Invalid audience or comment setting.")
@@ -77,8 +77,9 @@ class NativePostsClient(private val auth: StagingAuthClient) {
             throw AuthRequestException("One or more media items are invalid.")
         val mediaPayload = JSONArray().apply { media.forEach { put(JSONObject()
             .put("id", it.id).put("alt_text", it.altText.trim())) } }
-        val data = JSONObject().put("body", validBody(body, media.size)).put("visibility", visibility)
+        val data = JSONObject().put("body", validBody(body, media.size + if (audio != null) 1 else 0)).put("visibility", visibility)
             .put("reply_access", replyAccess).put("media", mediaPayload)
+        if (audio != null) data.put("audio", audio.json())
         val payload = JSONObject(request("${auth.backend.siteOrigin}/api/sauti", "POST", data))
         val id = payload.optJSONObject("data")?.optJSONObject("post")?.optString("id").orEmpty()
         if (!payload.optBoolean("ok") || !uuid.matches(id)) throw AuthRequestException("Publishing could not be confirmed.")

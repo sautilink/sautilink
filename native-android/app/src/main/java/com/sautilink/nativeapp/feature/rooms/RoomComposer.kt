@@ -1,5 +1,6 @@
 package com.sautilink.nativeapp.feature.rooms
 
+import com.sautilink.nativeapp.feature.stickers.*
 import android.graphics.Bitmap
 import android.os.Build
 import android.util.Size
@@ -114,6 +115,7 @@ internal fun RoomInlineComposer(
                     }
                 }
             }
+            NativeStickerDraftPreview(text.text, !publishing) { draft.edit(TextFieldValue(it, TextRange(stickerCaption(text).selection.end.coerceAtMost(it.length)))) }
             val error = draft.error
             if (error != null) Text(error, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp),
                 style = MaterialTheme.typography.bodySmall, color = colors.error, maxLines = 3,
@@ -129,9 +131,12 @@ internal fun RoomInlineComposer(
                 Surface(Modifier.weight(1f), shape = RoundedCornerShape(24.dp),
                     color = colors.surfaceContainer, border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = .4f))) {
                     Row(verticalAlignment = Alignment.Bottom) {
-                        BasicTextField(text, { input ->
+                        com.sautilink.nativeapp.feature.stickers.NativeStickerButton(!publishing) { token ->
+                            draft.edit(com.sautilink.nativeapp.feature.stickers.insertNativeSticker(draft.editor, token, 2000))
+                        }
+                        BasicTextField(stickerCaption(text), { input ->
                             panel = null
-                            draft.edit(boundedRoomEditor(input, 2000))
+                            draft.edit(editStickerCaption(text.text, input, 2000))
                         }, enabled = !publishing,
                             modifier = Modifier.weight(1f).focusRequester(focusRequester)
                                 .onFocusChanged { if (it.isFocused) panel = null },

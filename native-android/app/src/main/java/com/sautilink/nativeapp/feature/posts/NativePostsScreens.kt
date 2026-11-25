@@ -1,5 +1,6 @@
 package com.sautilink.nativeapp.feature.posts
 
+import com.sautilink.nativeapp.feature.stickers.*
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -55,6 +56,8 @@ private data class ComposerMediaItem(val localId: String, val uri: Uri, val labe
 fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (String) -> Unit,
     onDismiss: () -> Unit, onPublished: (String) -> Unit, onSignIn: () -> Unit,
     onUploadActivity: (Boolean) -> Unit = {}) {
+    val music = com.sautilink.nativeapp.feature.music.LocalNativeMusicComposer.current
+    var audioPicker by remember { mutableStateOf(false) }
     val client = remember(auth) { NativePostsClient(auth) }
     val context = LocalContext.current
     val mediaClient = remember(auth, context) { NativeMediaClient(auth, context.applicationContext) }
@@ -127,6 +130,8 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
                 onUse = { edited -> editingId = null; uploadEdited(item.localId, edited) })
         }
     }
+    if (audioPicker) com.sautilink.nativeapp.feature.music.NativeAudioPicker(auth,
+        onDismiss = { audioPicker = false }, onSelect = { music?.selection = it; audioPicker = false })
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding()
         .padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -140,6 +145,22 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
             Text("Sign in to publish on SautiLink.")
             Button(onClick = onSignIn) { Text("Sign in") }
         } else {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { audioPicker = true }, enabled = !busy && music != null) {
+                    Icon(Icons.Rounded.MusicNote, null, Modifier.size(19.dp))
+                    Spacer(Modifier.width(6.dp)); Text("Audio")
+                }
+                com.sautilink.nativeapp.feature.stickers.NativeStickerButton(!busy) { token ->
+                    editor = com.sautilink.nativeapp.feature.stickers.insertNativeSticker(editor, token, 2000)
+                    onDraftChange(editor.text)
+                }
+            }
+            music?.selection?.let { audio ->
+                ListItem(headlineContent = { Text(audio.title) }, supportingContent = { Text(audio.artist) },
+                    leadingContent = { Icon(Icons.Rounded.MusicNote, null) }, trailingContent = {
+                        IconButton(onClick = { music.selection = null }, enabled = !busy) { Icon(Icons.Rounded.Close, "Remove audio") }
+                    })
+            }
             PostComposerTextEditor(editor, draft.length, previewOpen, !busy, editorFocus,
                 onValueChange = { value ->
                     editor = value.copy(text = value.text.take(2001))
@@ -226,12 +247,16 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
             Button(onClick = {
                 busy = true; error = null
                 scope.launch {
-                    try { onPublished(client.create(draft, visibility, replyAccess,
-                        mediaItems.mapNotNull { it.ready?.copy(altText = it.altText) })) }
+                    try {
+                        val postId = client.create(draft, visibility, replyAccess,
+                            mediaItems.mapNotNull { it.ready?.copy(altText = it.altText) }, music?.selection)
+                        music?.selection = null
+                        onPublished(postId)
+                    }
                     catch (e: Exception) { error = e.message ?: "Could not publish post." }
                     finally { busy = false }
                 }
-            }, enabled = !busy && (draft.trim().isNotEmpty() || mediaItems.any { it.ready != null }) &&
+            }, enabled = !busy && (draft.trim().isNotEmpty() || mediaItems.any { it.ready != null } || music?.selection != null) &&
                 draft.trim().length <= 2000 && mediaItems.all { it.ready != null && it.altText.length <= 1000 },
                 modifier = Modifier.fillMaxWidth().height(50.dp), shape = SautiShape.Pill) {
                 Icon(Icons.Rounded.Send, null, Modifier.size(19.dp))
@@ -265,11 +290,12 @@ private fun PostComposerTextEditor(editor: TextFieldValue, draftLength: Int,
     previewOpen: Boolean, enabled: Boolean, focus: FocusRequester,
     onValueChange: (TextFieldValue) -> Unit, onFormat: (PostTextFormat) -> Unit,
     onPreviewToggle: () -> Unit) {
-    OutlinedTextField(editor, onValueChange, label = { Text("What's happening?") },
+    OutlinedTextField(stickerCaption(editor), { onValueChange(editStickerCaption(editor.text, it, 2000)) }, label = { Text("What's happening?") },
         supportingText = { Text("$draftLength/2000") }, minLines = 4,
         shape = SautiShape.Card,
         textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp, lineHeight = 22.sp),
         modifier = Modifier.fillMaxWidth().focusRequester(focus), enabled = enabled)
+    NativeStickerDraftPreview(editor.text, enabled) { onValueChange(TextFieldValue(it, androidx.compose.ui.text.TextRange(stickerCaption(editor).selection.end.coerceAtMost(it.length)))) }
     ComposerSectionTitle("Text style", Icons.Rounded.TextFields)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         PostTextFormat.entries.forEach { format ->
@@ -357,8 +383,9 @@ fun NativeOwnPostsScreen(auth: StagingAuthClient, refreshKey: Int, onBack: () ->
             title = { Text("Edit post") },
             text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Posts can be edited once. Media and audience stay the same.")
-                OutlinedTextField(editBody, { editBody = it.take(2001) }, minLines = 4,
+                OutlinedTextField(stickerCaption(TextFieldValue(editBody)).text, { editBody = editStickerCaption(editBody, TextFieldValue(it), 2000).text }, minLines = 4,
                     supportingText = { Text("${editBody.length}/2000") }, enabled = busyId == null)
+                NativeStickerDraftPreview(editBody, busyId == null) { editBody = it }
             } },
             confirmButton = { TextButton(onClick = {
                 busyId = post.id; error = null

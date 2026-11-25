@@ -54,7 +54,14 @@ val LocalSautiTextNavigation = staticCompositionLocalOf<SautiTextNavigation?> { 
 fun SautiPostText(text: String, modifier: Modifier = Modifier,
     color: Color = Color.Unspecified, style: TextStyle = LocalTextStyle.current,
     maxLines: Int = Int.MAX_VALUE, overflow: TextOverflow = TextOverflow.Clip,
-    linkEntities: Boolean = true, expandedMaxHeight: Dp? = null) {
+    linkEntities: Boolean = true, expandedMaxHeight: Dp? = null, renderStickers: Boolean = true) {
+    if (renderStickers && com.sautilink.nativeapp.feature.stickers.hasStickerTokens(text)) {
+        com.sautilink.nativeapp.feature.stickers.NativeStickerText(text, modifier) { part ->
+            SautiPostText(part, color = color, style = style, maxLines = maxLines,
+                overflow = overflow, linkEntities = linkEntities, expandedMaxHeight = expandedMaxHeight, renderStickers = false)
+        }
+        return
+    }
     val formatted = remember(text) {
         buildAnnotatedString {
             fun appendNodes(nodes: List<PostFormatNode>, inherited: Set<PostTextFormat>) {
@@ -88,7 +95,14 @@ fun SautiPostText(text: String, modifier: Modifier = Modifier,
 fun SautiEntityText(text: String, modifier: Modifier = Modifier,
     color: Color = Color.Unspecified, style: TextStyle = LocalTextStyle.current,
     maxLines: Int = Int.MAX_VALUE, overflow: TextOverflow = TextOverflow.Clip,
-    linkSocialEntities: Boolean = true) {
+    linkSocialEntities: Boolean = true, renderStickers: Boolean = true) {
+    if (renderStickers && com.sautilink.nativeapp.feature.stickers.hasStickerTokens(text)) {
+        com.sautilink.nativeapp.feature.stickers.NativeStickerText(text, modifier) { part ->
+            SautiEntityText(part, color = color, style = style, maxLines = maxLines,
+                overflow = overflow, linkSocialEntities = linkSocialEntities, renderStickers = false)
+        }
+        return
+    }
     val literal = remember(text) { buildAnnotatedString { append(text) } }
     SautiEntityTextContent(literal, modifier, color, style, maxLines, overflow,
         linkEntities = true, linkSocialEntities = linkSocialEntities)

@@ -1,5 +1,7 @@
 package com.sautilink.nativeapp.feature.inbox
 
+import com.sautilink.nativeapp.ui.components.NativeSearchField
+import com.sautilink.nativeapp.feature.stickers.*
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -545,15 +547,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 }
             }
             if (searchingThread) {
-                OutlinedTextField(threadQuery, { threadQuery = it.take(120) },
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                    placeholder = { Text("Search in this conversation") },
-                    leadingIcon = { Icon(Icons.Rounded.Search, null) },
-                    trailingIcon = {
-                        IconButton(onClick = { searchingThread = false; threadQuery = "" }) {
-                            Icon(Icons.Rounded.Close, "Close chat search")
-                        }
-                    }, singleLine = true, shape = RoundedCornerShape(18.dp))
+                NativeSearchField(threadQuery, { threadQuery = it.take(120) }, Modifier.fillMaxWidth().padding(horizontal = 12.dp), placeholder = "Search in this conversation")
             }
             if (threadLoading && active == null) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (threadReadIssue != null) {
@@ -664,7 +658,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                                     fontWeight = FontWeight.SemiBold,
                                                     style = MaterialTheme.typography.labelSmall,
                                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                Text(quoted?.body?.ifBlank { "Attachment" } ?: "Original message",
+                                                Text(quoted?.body?.let(::stickerSummary)?.ifBlank { "Attachment" } ?: "Original message",
                                                     color = quoteColor.copy(alpha = .82f),
                                                     style = MaterialTheme.typography.labelSmall,
                                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -744,7 +738,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.SemiBold,
                                     style = MaterialTheme.typography.labelMedium)
-                                Text(replyTo?.body?.take(85) ?: "",
+                                Text(replyTo?.body?.let(::stickerSummary)?.take(85) ?: "",
                                     style = MaterialTheme.typography.bodySmall,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
@@ -754,12 +748,18 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                         }
                     }
                 }
+                NativeStickerDraftPreview(draft, !sending) { draft = it }
                 Row(Modifier.fillMaxWidth().imePadding()
                     .background(MaterialTheme.colorScheme.surface).padding(6.dp),
                     verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                     NativeDmMediaControls(auth, active.conversation.id,
                         onSent = { refresh++ }, onError = { error = it })
-                    OutlinedTextField(draft, { draft = it.take(4000) },
+                    com.sautilink.nativeapp.feature.stickers.NativeStickerButton(!sending) { token ->
+                        val value = com.sautilink.nativeapp.feature.stickers.insertNativeSticker(
+                            androidx.compose.ui.text.input.TextFieldValue(draft, androidx.compose.ui.text.TextRange(draft.length)), token, 4000)
+                        draft = value.text
+                    }
+                    OutlinedTextField(stickerCaption(androidx.compose.ui.text.input.TextFieldValue(draft)).text, { draft = editStickerCaption(draft, androidx.compose.ui.text.input.TextFieldValue(it), 4000).text },
                         modifier = Modifier.weight(1f), placeholder = { Text("Message") },
                         shape = RoundedCornerShape(25.dp),
                         maxLines = 5)
@@ -837,8 +837,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
             AlertDialog(onDismissRequest = { editing = false },
                 title = { Text("Edit message") },
                 text = {
-                    OutlinedTextField(editedText, { editedText = it.take(4000) },
-                        label = { Text("Message") }, minLines = 2, maxLines = 5)
+                    Column {
+                        OutlinedTextField(stickerCaption(androidx.compose.ui.text.input.TextFieldValue(editedText)).text,
+                            { editedText = editStickerCaption(editedText, androidx.compose.ui.text.input.TextFieldValue(it), 4000).text },
+                            label = { Text("Message") }, minLines = 2, maxLines = 5)
+                        NativeStickerDraftPreview(editedText, !sending) { editedText = it }
+                    }
                 },
                 confirmButton = {
                     TextButton(enabled = !sending && editedText.isNotBlank(), onClick = {
@@ -949,10 +953,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 }
                 Text("New message", style = MaterialTheme.typography.titleLarge)
             }
-            OutlinedTextField(newQuery, { newQuery = it.take(64) },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-                placeholder = { Text("Search member") }, singleLine = true,
-                leadingIcon = { Icon(Icons.Rounded.Search, null) })
+            NativeSearchField(newQuery, { newQuery = it.take(64) }, Modifier.fillMaxWidth().padding(horizontal = 18.dp), placeholder = "Search member")
             if (newLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (error != null) Text(error.orEmpty(), Modifier.padding(18.dp), color = MaterialTheme.colorScheme.error)
             LazyColumn {
@@ -986,8 +987,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
         return
     }
     val shown = conversations.filter { item ->
-        (!unreadOnly || item.unread > 0) && (query.isBlank() || item.name.contains(query, true)
-            || item.handle.contains(query.removePrefix("@"), true) || item.latestBody.contains(query, true))
+        (!unreadOnly || item.unread > 0) && (query.isBlank() || com.sautilink.nativeapp.feature.explore.userNameMatches(query, item.name, item.handle) || item.latestBody.contains(query, true))
     }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 12.dp),
@@ -1004,13 +1004,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 Icon(Icons.Rounded.Edit, "New message")
             }
         }
-        OutlinedTextField(query, { query = it.take(80) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-            placeholder = { Text("Search conversations") }, leadingIcon = { Icon(Icons.Rounded.Search, null) },
-            singleLine = true, shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                unfocusedBorderColor = Color.Transparent))
+        NativeSearchField(query, { query = it.take(80) }, Modifier.fillMaxWidth().padding(horizontal = 18.dp), placeholder = "Search conversations")
         Row(Modifier.padding(horizontal = 18.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(selected = !unreadOnly, onClick = { unreadOnly = false }, shape = SautiShape.Pill,
                 leadingIcon = { Icon(Icons.Rounded.Forum, null, Modifier.size(18.dp), selected = !unreadOnly) }, label = { Text("All") })

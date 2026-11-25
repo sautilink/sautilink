@@ -55,24 +55,19 @@ internal suspend fun loadEditableBitmap(context: Context, uri: Uri, maximum: Int
     }
 }
 
-internal fun renderEditedBitmap(source: Bitmap, edits: NativeImageEdits): Bitmap {
+internal fun renderEditedBitmap(source: Bitmap, edits: NativeImageEdits, context: Context? = null): Bitmap {
     val rotation = Matrix().apply { postRotate(edits.rotation.toFloat()) }
     val rotated = if (edits.rotation % 360 == 0) source else Bitmap.createBitmap(source, 0, 0, source.width, source.height, rotation, true)
     try {
         val crop = NativeMediaEditPolicy.crop(rotated.width, rotated.height, edits.aspect, edits.zoom, edits.panX, edits.panY)
         val result = Bitmap.createBitmap(crop.width, crop.height, Bitmap.Config.ARGB_8888)
         result.setHasAlpha(source.hasAlpha())
-        val contrast = edits.contrast.coerceIn(.7f, 1.3f)
-        val offset = 128f * (1f - contrast) + edits.brightness.coerceIn(-.3f, .3f) * 255f
-        val saturation = ColorMatrix().apply { setSaturation(edits.saturation.coerceIn(0f, 1.5f)) }
-        val warmth = edits.warmth.coerceIn(-.2f, .2f)
-        val adjustment = ColorMatrix(floatArrayOf(contrast * (1f + warmth),0f,0f,0f,offset,
-            0f,contrast,0f,0f,offset, 0f,0f,contrast * (1f - warmth),0f,offset, 0f,0f,0f,1f,0f))
-        adjustment.postConcat(saturation)
+        val adjustment = creatorColorMatrix(edits)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
             colorFilter = ColorMatrixColorFilter(adjustment)
         }
         Canvas(result).drawBitmap(rotated, Rect(crop.left, crop.top, crop.left + crop.width, crop.top + crop.height), Rect(0, 0, crop.width, crop.height), paint)
+        if (edits.overlay.text.isNotBlank()) drawCreatorText(requireNotNull(context), Canvas(result), result.width, result.height, edits.overlay)
         return result
     } finally { if (rotated !== source) rotated.recycle() }
 }
@@ -81,7 +76,7 @@ internal suspend fun exportEditedImage(context: Context, bitmap: Bitmap, edits: 
     val output = File(context.cacheDir, "sauti-edit-${UUID.randomUUID()}.${if (bitmap.hasAlpha()) "png" else "jpg"}")
     try {
         return withContext(Dispatchers.IO) {
-            val result = renderEditedBitmap(bitmap, edits)
+            val result = renderEditedBitmap(bitmap, edits, context)
             try {
                 ensureActive()
                 output.outputStream().use { check(result.compress(if (result.hasAlpha()) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG, 90, it)) { "Could not save the edited image." } }
@@ -117,13 +112,14 @@ internal suspend fun localVideoThumbnail(context: Context, uri: Uri): Bitmap? = 
 /** Export only the selected interval; the original picker item is never modified. */
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 internal suspend fun exportTrimmedVideo(context: Context, uri: Uri, durationMs: Long, trim: NativeMediaEditPolicy.Trim,
-    maximumMs: Long = NativeMediaEditPolicy.MAX_VIDEO_MS,
+    maximumMs: Long = NativeMediaEditPolicy.MAX_VIDEO_MS, edits: NativeImageEdits = NativeImageEdits(),
     onProgress: (Int) -> Unit): NativeEditedMedia {
     var pendingOutput: File? = null
     try {
         return withContext(Dispatchers.Main.immediate) {
             require(NativeMediaEditPolicy.validTrim(durationMs, trim.startMs, trim.endMs, maximumMs)) { "Select a clip of ${maximumMs / 1000} seconds or less." }
-            if (trim.startMs == 0L && trim.endMs == durationMs && context.contentResolver.getType(uri) == "video/mp4" &&
+            val effects = creatorVideoEffects(context, edits, localVideoSize(context, uri))
+            if (effects.isEmpty() && trim.startMs == 0L && trim.endMs == durationMs && context.contentResolver.getType(uri) == "video/mp4" &&
                 localVideoDuration(context, uri) in 1..maximumMs) return@withContext NativeEditedMedia(uri)
             // AAC packets, edit lists and muxer timestamps can add a few samples
             // beyond a nominal clipping end (Samsung returned 30,080ms for 30s).
@@ -136,7 +132,7 @@ internal suspend fun exportTrimmedVideo(context: Context, uri: Uri, durationMs: 
                 ensureActive()
                 val output = File(context.cacheDir, "sauti-edit-${UUID.randomUUID()}.mp4")
                 pendingOutput = output
-                exportVideoInterval(context, uri, trim.startMs, endMs, output) { value ->
+                exportVideoInterval(context, uri, trim.startMs, endMs, output, effects) { value ->
                     lastProgress = maxOf(lastProgress, value.coerceIn(0, 95)); onProgress(lastProgress)
                 }
                 ensureActive()
@@ -160,7 +156,7 @@ internal suspend fun exportTrimmedVideo(context: Context, uri: Uri, durationMs: 
  * encoded result, so they do not accumulate quality loss or touch source files.
  */
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
-private suspend fun exportVideoInterval(context: Context, uri: Uri, startMs: Long, endMs: Long, output: File,
+private suspend fun exportVideoInterval(context: Context, uri: Uri, startMs: Long, endMs: Long, output: File, effects: List<androidx.media3.common.Effect>,
     onProgress: (Int) -> Unit): Unit = withContext(Dispatchers.Main.immediate) {
             suspendCancellableCoroutine { continuation ->
                 val handler = Handler(Looper.getMainLooper())
@@ -189,7 +185,7 @@ private suspend fun exportVideoInterval(context: Context, uri: Uri, startMs: Lon
                 try {
                     val item = MediaItem.Builder().setUri(uri).setClippingConfiguration(MediaItem.ClippingConfiguration.Builder()
                         .setStartPositionMs(startMs).setEndPositionMs(endMs).build()).build()
-                    transformer.start(EditedMediaItem.Builder(item).build(), output.absolutePath)
+                    transformer.start(EditedMediaItem.Builder(item).setEffects(Effects(emptyList(), effects)).build(), output.absolutePath)
                     handler.post(poll!!)
                 } catch (error: Exception) {
                     transformer.cancel(); output.delete()

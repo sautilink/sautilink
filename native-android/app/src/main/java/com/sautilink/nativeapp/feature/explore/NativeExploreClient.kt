@@ -73,7 +73,7 @@ class NativeExploreClient(private val auth: StagingAuthClient) {
                 addQueryParameter("select", "muted_id")
             }, token).objects().mapNotNull { it.optString("muted_id").takeIf(uuid::matches) }.toSet()
             val personSelect = "id,username,display_name,bio,followers_count,is_verified,verification_badge_type,avatar_key"
-            val personRows = (if (query.isBlank()) listOf("" ) else listOf("username", "display_name"))
+            val personRows = if (query.isNotBlank()) NativeUserSearch(auth).search(query, 20) else listOf("")
                 .flatMap { column -> rows(url("social_profiles") {
                     addQueryParameter("select", personSelect)
                     addQueryParameter("is_discoverable", "eq.true")

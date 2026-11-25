@@ -89,7 +89,8 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
     onDoubleTapLike: (() -> Unit)? = null,
     mediaPath: ((FeedMedia) -> String)? = null,
     bufferingOverlayEnabled: Boolean = false,
-    adaptivePlaybackEnabled: Boolean = true) {
+    adaptivePlaybackEnabled: Boolean = true, suppressOriginalAudio: Boolean = false, playbackGroup: String? = null,
+    fillPhotoFrame: Boolean = false) {
     if (media.isEmpty()) return
     var expandedPhoto by remember(auth) { mutableStateOf<FeedMedia?>(null) }
     val pager = androidx.compose.foundation.pager.rememberPagerState(pageCount = { media.size })
@@ -106,22 +107,21 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
                     val path = checkedPostMediaPath(item.id, mediaPath?.invoke(item))
                 Box(
                     Modifier.fillMaxSize()
-                        .background(if (item.kind == "video") Color.Black else MaterialTheme.colorScheme.surfaceVariant)
-                        .clip(RoundedCornerShape(7.dp)),
+                        .background(if (item.kind == "video") Color.Black else MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     if (item.kind == "video") {
                         InlineFeedVideo(auth, item, Modifier.fillMaxSize(), isCurrent = pager.currentPage == page,
                             onDoubleTapLike = onDoubleTapLike, mediaPath = path,
                             bufferingOverlayEnabled = bufferingOverlayEnabled,
-                            adaptivePlaybackEnabled = adaptivePlaybackEnabled)
+                            adaptivePlaybackEnabled = adaptivePlaybackEnabled, suppressOriginalAudio = suppressOriginalAudio, playbackGroup = playbackGroup)
                     } else {
                         SautiPostGestureSurface(Modifier.fillMaxSize(), onLike = onDoubleTapLike,
                             onTap = { expandedPhoto = item }) {
                             AuthorizedImage(auth, "$path?w=960",
                                 "Photo ${page + 1} of ${media.size}",
                                 modifier = Modifier.fillMaxSize(),
-                                crop = false)
+                                crop = fillPhotoFrame)
                         }
                     }
                 }
@@ -195,7 +195,7 @@ private fun InlineFeedVideo(
     onDoubleTapLike: (() -> Unit)?,
     mediaPath: String = "/api/sauti-media/${media.id}",
     bufferingOverlayEnabled: Boolean = false,
-    adaptivePlaybackEnabled: Boolean = true
+    adaptivePlaybackEnabled: Boolean = true, suppressOriginalAudio: Boolean = false, playbackGroup: String? = null
 ) {
     val context = LocalContext.current
     val lookahead = LocalFeedVideoLookahead.current
@@ -203,6 +203,11 @@ private fun InlineFeedVideo(
     val owner = LocalLifecycleOwner.current
     val lifecycleState by owner.lifecycle.currentStateAsState()
     val accountId = auth.account?.id
+    val coordinator = LocalNativeFeedPlayback.current
+    val candidateKey = remember(media.id) { "video:${media.id}:${java.util.UUID.randomUUID()}" }
+    val group = playbackGroup ?: media.id
+    val selected = coordinator == null || coordinator.activeGroup == group
+    var distanceFromCenter by remember(media.id) { mutableFloatStateOf(Float.MAX_VALUE) }
     var quality by remember(auth, accountId, media.id) { mutableStateOf("auto") }
     var speed by remember(auth, accountId, media.id) { mutableFloatStateOf(1f) }
     var settingsOpen by remember(auth, accountId, media.id) { mutableStateOf(false) }
@@ -217,6 +222,9 @@ private fun InlineFeedVideo(
     val density = LocalDensity.current
     val windowHeight = with(density) { configuration.screenHeightDp.dp.toPx() }
     var visibleFraction by remember(auth, accountId, media.id) { mutableFloatStateOf(0f) }
+    SideEffect { coordinator?.update(candidateKey, NativeFeedPlaybackCoordinator.Candidate(group,
+        if (isCurrent) visibleFraction else 0f, distanceFromCenter)) }
+    DisposableEffect(coordinator, candidateKey) { onDispose { coordinator?.remove(candidateKey); coordinator?.release(candidateKey) } }
     var started by remember(auth, accountId, media.id) { mutableStateOf(false) }
     var wantsToPlay by remember(auth, accountId, media.id) { mutableStateOf(false) }
     var manualPaused by remember(auth, accountId, media.id) { mutableStateOf(false) }
@@ -267,8 +275,8 @@ private fun InlineFeedVideo(
             lifecycleState.isAtLeast(Lifecycle.State.STARTED), isCurrent, visibleFraction,
             NativePlaybackPreferences.autoplayEnabled, started, userInitiatedPlayback, manualPaused), fallbackPath = mediaPath)
     val warmupHandoff = remember(auth, accountId, media.id, mediaPath) { FeedVideoWarmupHandoff() }
-    LaunchedEffect(accountId, visibleFraction, isCurrent, NativePlaybackPreferences.autoplayEnabled) {
-        val visible = visibleFraction >= .58f && isCurrent
+    LaunchedEffect(accountId, visibleFraction, isCurrent, selected, NativePlaybackPreferences.autoplayEnabled) {
+        val visible = visibleFraction >= .58f && isCurrent && selected
         if ((NativePlaybackPreferences.autoplayEnabled || userInitiatedPlayback) && visible && !manualPaused) {
             if (!started) {
                 NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.VIEWPORT_INTENT)
@@ -315,7 +323,7 @@ private fun InlineFeedVideo(
                     .setBufferDurationsMs(3_000, 15_000, 750, 1_500).setBackBuffer(5_000, true).build())
                 .build().apply {
                     repeatMode = Player.REPEAT_MODE_ONE
-                    volume = if (muted) 0f else 1f
+                    volume = if (muted || suppressOriginalAudio) 0f else 1f
                     // Published videos first ask the authorized backend which source is
                     // ready. Protected pending submissions remain MP4-only.
                     if (!adaptive) {
@@ -403,13 +411,16 @@ private fun InlineFeedVideo(
             NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.SOURCE_PREPARE)
             replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(media.id).setUri(uri)
                 .setMimeType(if (hls) androidx.media3.common.MimeTypes.APPLICATION_M3U8 else androidx.media3.common.MimeTypes.VIDEO_MP4).build(),
-                keepPosition = true, requested = !overlayBlocked && wantsToPlay && !manualPaused && isCurrent &&
-                    owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+                keepPosition = true, requested = false)
+            if (!overlayBlocked && selected && wantsToPlay && !manualPaused && isCurrent &&
+                owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                if (coordinator != null) coordinator.play(candidateKey, group, player::pause) { player.play() } else player.play()
+            }
         }
     }
-    LaunchedEffect(player, muted) { player?.volume = if (muted) 0f else 1f }
+    LaunchedEffect(player, muted, suppressOriginalAudio) { player?.volume = if (muted || suppressOriginalAudio) 0f else 1f }
     LaunchedEffect(player, speed) { player?.setPlaybackSpeed(speed) }
-    LaunchedEffect(player, isCurrent, visibleFraction, wantsToPlay, requestError, lifecycleState, streamSource, overlayBlocked) {
+    LaunchedEffect(player, isCurrent, selected, visibleFraction, wantsToPlay, manualPaused, requestError, lifecycleState, streamSource, overlayBlocked) {
         if (player != null) {
             if (overlayBlocked) {
                 player.pause() // Retain the prepared source and its samples while composing.
@@ -425,13 +436,15 @@ private fun InlineFeedVideo(
                     stoppedOffscreen = true
                     firstFrame = false
                 }
+            } else if (!selected || manualPaused) {
+                player.pause()
             } else if (wantsToPlay && requestError == null && (!adaptive || streamSource != null)) {
                 if (stoppedOffscreen) {
                     player.seekTo(stoppedPosition)
                     player.prepare()
                     stoppedOffscreen = false
                 }
-                player.play()
+                if (coordinator != null) coordinator.play(candidateKey, group, player::pause) { player.play() } else player.play()
             }
             else player.pause()
         }
@@ -443,6 +456,10 @@ private fun InlineFeedVideo(
         (token == null || adaptive && streamSource == null && !playbackRead.denied || playbackRequested && playbackState == Player.STATE_BUFFERING)
     Box(modifier.background(Color.Black).onGloballyPositioned { coordinates ->
         visibleFraction = measuredVideoVisibleFraction(coordinates, windowHeight)
+        val frame = coordinates.boundsInWindow()
+        distanceFromCenter = kotlin.math.abs((frame.top + frame.bottom) / 2f - windowHeight / 2f)
+        coordinator?.update(candidateKey, NativeFeedPlaybackCoordinator.Candidate(group,
+            if (isCurrent) visibleFraction else 0f, distanceFromCenter))
     }, contentAlignment = Alignment.Center) {
         if (player != null) {
             AndroidView(
@@ -473,6 +490,8 @@ private fun InlineFeedVideo(
         val playPrompt = !playing && (firstFrame || manualPaused ||
             !NativePlaybackPreferences.autoplayEnabled || requestError != null || !started)
         val startPlayback = {
+            coordinator?.resumeGroup(group)
+            coordinator?.selectManually(candidateKey)
             warmupHandoff.consumeManualIntent()
             requestError = null
             if (tokenRead.token == null && !tokenRead.loading) tokenRetryAttempt++
@@ -485,13 +504,18 @@ private fun InlineFeedVideo(
             if (player?.playerError != null) {
                 if (adaptive && playbackUri != null) replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(media.id)
                     .setUri(playbackUri).setMimeType(if (hls) androidx.media3.common.MimeTypes.APPLICATION_M3U8 else androidx.media3.common.MimeTypes.VIDEO_MP4).build(),
-                    keepPosition = true, requested = owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+                    keepPosition = true, requested = false)
                 else player.prepare()
             }
             if (player?.playbackState == androidx.media3.common.Player.STATE_ENDED) player.seekToDefaultPosition()
-            player?.play()
+            player?.let { current ->
+                if (!overlayBlocked && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                    if (coordinator != null) coordinator.play(candidateKey, group, current::pause) { current.play() } else current.play()
+                }
+            }
         }
         val pausePlayback = {
+            coordinator?.pauseGroup(group)
             wantsToPlay = false
             manualPaused = true
             userInitiatedPlayback = false

@@ -290,6 +290,7 @@ internal fun RoomInviteSheet(room: NativeRoom, state: RoomsState, onDismiss: () 
         TextButton(onClick = onOutgoing) { RoomActionLabel("Outgoing invitations", Icons.Rounded.Send) }
         OutlinedTextField(handle, { handle = it.take(31) }, label = { Text("Username") },
             prefix = { Text("@") }, singleLine = true, enabled = !state.busy("invite"), modifier = Modifier.fillMaxWidth())
+        com.sautilink.nativeapp.feature.explore.NativeUserSuggestions(state.auth, handle) { handle = it }
         if (state.roomError != null) RoomNotice(state.roomError.orEmpty(), true)
         Button(onClick = { state.invite(room, handle.trim().removePrefix("@")) { onDismiss() } },
             enabled = !state.busy("invite") && NativeRoomRules.handle.matches(handle.trim().removePrefix("@").lowercase(Locale.ROOT)),

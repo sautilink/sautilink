@@ -30,7 +30,8 @@ data class StagingFeedPost(
     val reposts: Int,
     val mediaCount: Int,
     val media: List<FeedMedia>,
-    val hasAvatar: Boolean
+    val hasAvatar: Boolean,
+    val audio: com.sautilink.nativeapp.feature.music.NativeAudioSelection? = null
 )
 
 data class FeedMedia(val id: String, val kind: String, val position: Int,
@@ -203,7 +204,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
         return withContext(Dispatchers.IO) {
             val owner = auth.account?.id
             val stamp = cache.readStamp(auth.backend.id, owner, "for_you")
-            val post = getJsonArray("social_posts?id=eq.$postId&circle_id=is.null&select=id,author_id,body,created_at,like_count,comment_count,repost_count,media_count&limit=1", token)
+            val post = getJsonArray("social_posts?id=eq.$postId&circle_id=is.null&select=id,author_id,body,created_at,like_count,comment_count,repost_count,media_count,audio_selection&limit=1", token)
                 .optJSONObject(0) ?: return@withContext null
             val authorId = post.optString("author_id")
             val author = if (uuid.matches(authorId)) getJsonArray(
@@ -231,7 +232,8 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                 post.optString("created_at"), post.optInt("like_count").coerceAtLeast(0),
                 post.optInt("comment_count").coerceAtLeast(0), post.optInt("repost_count").coerceAtLeast(0),
                 post.optInt("media_count").coerceAtLeast(0), media,
-                author?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null)
+                author?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null,
+                com.sautilink.nativeapp.feature.music.NativeAudioSelection.from(post.optJSONObject("audio_selection")))
             cache.finishPost(auth.backend.id, owner, result, stamp)
         }
     }
@@ -326,7 +328,7 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
             val details = readNativeFeedDetails(
                 checkOwner = { if (auth.account?.id != requestedOwner) throw CancellationException("Feed account changed") },
                 readPosts = { detailRows(
-                    "social_posts?id=in.(${ids.joinToString(",")})&select=id,author_id,body,created_at,like_count,comment_count,repost_count,media_count") },
+                    "social_posts?id=in.(${ids.joinToString(",")})&select=id,author_id,body,created_at,like_count,comment_count,repost_count,media_count,audio_selection") },
                 readAuthors = { rows ->
                     val authorIds = (0 until rows.length()).mapNotNull { rows.optJSONObject(it) }
                         .mapNotNull { it.optString("author_id").takeIf(uuid::matches) }.distinct()
@@ -374,7 +376,8 @@ class StagingFeedClient(private val auth: StagingAuthClient) {
                     reposts = p.optInt("repost_count", 0).coerceAtLeast(0),
                     mediaCount = p.optInt("media_count", 0).coerceAtLeast(0),
                     media = mediaByPost[postId].orEmpty(),
-                    hasAvatar = a?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null
+                    hasAvatar = a?.optString("avatar_key")?.takeIf { it.isNotBlank() && it != "null" } != null,
+                    audio = com.sautilink.nativeapp.feature.music.NativeAudioSelection.from(p.optJSONObject("audio_selection"))
                 )
             }
             val page = StagingFeedPage(results, offset + pointers.length(),

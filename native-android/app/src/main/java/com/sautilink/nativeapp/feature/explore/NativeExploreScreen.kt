@@ -1,5 +1,6 @@
 package com.sautilink.nativeapp.feature.explore
 
+import com.sautilink.nativeapp.ui.components.NativeSearchField
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -57,6 +58,7 @@ fun NativeExploreScreen(
     }
     var loading by remember(auth.account?.id) { mutableStateOf(auth.account != null) }
     var error by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(query) { kotlinx.coroutines.delay(300); committedQuery = query.trim() }
     LaunchedEffect(auth.account?.id, committedQuery, searchRevision) {
         if (auth.account == null) { results = ExploreResults(emptyList(), emptyList()); return@LaunchedEffect }
         loading = true; error = null
@@ -80,23 +82,8 @@ fun NativeExploreScreen(
                     if (onBack != null) IconButton(onClick = onBack) {
                         Icon(Icons.Rounded.ArrowBack, "Back")
                     }
-                    OutlinedTextField(
-                        query, { query = limitExploreQueryInput(it) },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Search people or posts") },
-                        leadingIcon = { Icon(Icons.Rounded.Search, null, Modifier.size(21.dp)) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(onSearch = {
-                            committedQuery = query.trim()
-                            searchRevision++
-                        })
-                    )
-                    FilledTonalIconButton(onClick = { committedQuery = query.trim(); searchRevision++ },
-                        modifier = Modifier.size(48.dp), shape = RoundedCornerShape(16.dp)) {
-                        Icon(Icons.Rounded.ArrowForward, "Search")
-                    }
+                    NativeSearchField(query, { query = limitExploreQueryInput(it) }, Modifier.weight(1f),
+                        placeholder = "Search people or posts", onSearch = { committedQuery = query.trim(); searchRevision++ })
                 }
             }
         }

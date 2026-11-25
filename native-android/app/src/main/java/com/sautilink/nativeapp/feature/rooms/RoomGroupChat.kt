@@ -1,5 +1,6 @@
 package com.sautilink.nativeapp.feature.rooms
 
+import com.sautilink.nativeapp.ui.components.NativeSearchField
 import android.text.format.DateFormat
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Canvas
@@ -181,15 +182,7 @@ internal fun RoomSearchField(value: String, onValue: (String) -> Unit, placehold
     val colors = MaterialTheme.colorScheme
     val focus = remember { FocusRequester() }
     LaunchedEffect(requestFocus) { if (requestFocus) focus.requestFocus() }
-    TextField(value, onValue, modifier = modifier.fillMaxWidth().focusRequester(focus), singleLine = true,
-        shape = RoundedCornerShape(22.dp), placeholder = { Text(placeholder) },
-        leadingIcon = { Icon(Icons.Rounded.Search, null) },
-        trailingIcon = if (value.isNotEmpty()) ({
-            IconButton(onClick = { onValue("") }) { Icon(Icons.Rounded.Close, "Clear search") }
-        }) else null,
-        colors = TextFieldDefaults.colors(focusedContainerColor = colors.surfaceContainerHigh,
-            unfocusedContainerColor = colors.surfaceContainer, focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent))
+    NativeSearchField(value, onValue, modifier.fillMaxWidth().focusRequester(focus), placeholder = placeholder)
 }
 
 @Composable

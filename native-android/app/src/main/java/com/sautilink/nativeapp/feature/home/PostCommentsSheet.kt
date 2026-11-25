@@ -1,5 +1,6 @@
 package com.sautilink.nativeapp.feature.home
 
+import com.sautilink.nativeapp.feature.stickers.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -313,22 +314,24 @@ internal fun PostCommentsSheet(
                         style = MaterialTheme.typography.bodySmall)
                 }
                 if (allowWrite) {
+                    NativeStickerDraftPreview(draft.text, !busySend && deletingId == null) { draft = TextFieldValue(it, TextRange(stickerCaption(draft).selection.end.coerceAtMost(it.length))); requestId = UUID.randomUUID().toString() }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .6f))
+                    NativeRecommendedEmojis(!busySend && deletingId == null) { emoji ->
+                        val next = insertCommentEmoji(draft, emoji)
+                        if (next != draft) { draft = next; requestId = UUID.randomUUID().toString(); writeError = null; focus.requestFocus() }
+                    }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        com.sautilink.nativeapp.feature.stickers.NativeStickerButton(!busySend && deletingId == null) { token ->
+                            val next = com.sautilink.nativeapp.feature.stickers.insertNativeSticker(draft, token, 500)
+                            if (next != draft) { draft = next; requestId = UUID.randomUUID().toString(); writeError = null }
+                        }
                         OutlinedTextField(
-                            value = draft,
+                            value = stickerCaption(draft),
                             onValueChange = { newValue ->
-                                val limited = newValue.text.take(500).let { text ->
-                                    if (text.lastOrNull()?.isHighSurrogate() == true) text.dropLast(1) else text
-                                }
-                                if (limited != draft.text) {
-                                    requestId = UUID.randomUUID().toString()
-                                    writeError = null
-                                }
-                                draft = if (limited == newValue.text) newValue else newValue.copy(
-                                    text = limited, selection = TextRange(newValue.selection.start.coerceAtMost(limited.length),
-                                        newValue.selection.end.coerceAtMost(limited.length)), composition = null)
+                                val next = editStickerCaption(draft.text, newValue, 500)
+                                if (next.text != draft.text) { requestId = UUID.randomUUID().toString(); writeError = null }
+                                draft = next
                             },
                             modifier = Modifier.weight(1f).focusRequester(focus), shape = SautiShape.Pill,
                             textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp),

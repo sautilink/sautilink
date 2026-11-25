@@ -1,5 +1,6 @@
 package com.sautilink.nativeapp.feature.profile
 
+import com.sautilink.nativeapp.ui.components.NativeSearchField
 import com.sautilink.nativeapp.ui.components.SautiEntityText
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -595,11 +596,7 @@ fun NativeProfileScreen(
             title = { Text("Profile category") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(search, { search = it.take(80) },
-                        label = { Text("Search all categories") },
-        leadingIcon = { Icon(Icons.Rounded.Category, null, Modifier.size(21.dp)) },
-        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    NativeSearchField(search, { search = it.take(80) }, Modifier.fillMaxWidth(), placeholder = "Search all categories")
                     Text(if (search.isBlank()) "Popular categories · 20 suggestions"
                          else "Matching categories",
                          style = MaterialTheme.typography.labelMedium,
