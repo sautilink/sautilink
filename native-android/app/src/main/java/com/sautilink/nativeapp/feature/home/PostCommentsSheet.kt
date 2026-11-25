@@ -326,18 +326,16 @@ internal fun PostCommentsSheet(
                             val next = com.sautilink.nativeapp.feature.stickers.insertNativeSticker(draft, token, 500)
                             if (next != draft) { draft = next; requestId = UUID.randomUUID().toString(); writeError = null }
                         }
-                        OutlinedTextField(
+                        com.sautilink.nativeapp.ui.components.NativeCommentField(
                             value = stickerCaption(draft),
                             onValueChange = { newValue ->
                                 val next = editStickerCaption(draft.text, newValue, 500)
                                 if (next.text != draft.text) { requestId = UUID.randomUUID().toString(); writeError = null }
                                 draft = next
                             },
-                            modifier = Modifier.weight(1f).focusRequester(focus), shape = SautiShape.Pill,
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp),
-                            placeholder = { Text(if (parent == null) "Write a comment..." else "Write a reply...") },
-                            maxLines = 3,
-                            supportingText = if (draft.text.length >= 400) ({ Text("${draft.text.length}/500") }) else null,
+                            modifier = Modifier.weight(1f).focusRequester(focus),
+                            placeholder = if (parent == null) "Write a comment..." else "Write a reply...",
+                            counter = if (draft.text.length >= 400) "${draft.text.length}/500" else null,
                             enabled = !busySend && deletingId == null
                         )
                         IconButton(onClick = {

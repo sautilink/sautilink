@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.testTag
 import com.sautilink.nativeapp.ui.theme.SautiColors
 
 @Composable
@@ -65,10 +66,8 @@ fun SautiBottomBar(selected: Int, unreadNotifications: Int = 0, onSelect: (Int) 
     val dark = colors.surface.luminance() < .2f
     val shape = RoundedCornerShape(27.dp)
     val ink = sautiChromeInk()
-    val glass = Brush.verticalGradient(listOf(colors.surfaceBright.copy(alpha = .96f),
-        colors.surfaceContainer.copy(alpha = .88f)))
-    val rim = Brush.verticalGradient(listOf(Color.White.copy(alpha = if (dark) .22f else .96f),
-        colors.outline.copy(alpha = if (dark) .24f else .18f)))
+    val navigationSurface = if (dark) Color.Black else Color.White
+    val rim = if (dark) Color.White.copy(alpha = .16f) else Color.Black.copy(alpha = .07f)
     BoxWithConstraints(
         Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 9.dp),
         contentAlignment = Alignment.Center
@@ -83,7 +82,8 @@ fun SautiBottomBar(selected: Int, unreadNotifications: Int = 0, onSelect: (Int) 
         Box(Modifier.width(barWidth).height(54.dp)
             .shadow(9.dp, shape, ambientColor = colors.onSurface.copy(alpha = .28f),
                 spotColor = colors.onSurface.copy(alpha = .34f))
-            .clip(shape).background(glass).border(1.dp, rim, shape)) {
+            .clip(shape).background(navigationSurface).border(1.dp, rim, shape)
+            .then(Modifier.testTag("sauti-navigation-surface"))) {
             val indicatorWidth = 18.dp
             Box(Modifier.align(Alignment.BottomStart)
                 .offset(x = itemWidth * position + (itemWidth - indicatorWidth) / 2, y = (-7).dp)

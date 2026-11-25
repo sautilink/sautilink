@@ -427,10 +427,10 @@ private fun RoomCountAction(label: String, count: Int, enabled: Boolean,
     active: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     Row(modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-        .clickable(interactionSource = interaction, indication = ripple(), enabled = enabled,
+        .clickable(interactionSource = interaction, indication = null, enabled = enabled,
             role = Role.Button, onClick = onClick), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center) {
-        SautiPostHeart(active, label, Modifier.size(20.dp).sautiActionFeedback(interaction))
+        SautiPostHeart(active, label, Modifier.size(24.dp).sautiActionFeedback(interaction))
         if (count > 0) Spacer(Modifier.width(2.dp))
         Text(if (count <= 0) "" else when { count >= 1_000_000 -> "${count / 1_000_000}m"
             count >= 1000 -> "${count / 1000}k"; else -> count.toString() }, style = MaterialTheme.typography.labelSmall,

@@ -442,34 +442,26 @@ private fun ProfileActivityCard(
                         }
                     }
                 }
-                IconButton(onClick = {
+                com.sautilink.nativeapp.feature.home.CompactPostAction(Icons.Rounded.Share, "Share post", null, Modifier, onClick = {
                     val send = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, actions.postShareUrl(item.id))
+                        type = "text/plain"; putExtra(Intent.EXTRA_TEXT, actions.postShareUrl(item.id))
                     }
                     runCatching { context.startActivity(Intent.createChooser(send, "Share post")) }
                         .onFailure { failure = "Could not open sharing." }
-                }, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Rounded.Share, contentDescription = "Share post", modifier = Modifier.size(20.dp), tint = sautiChromeInk())
-                }
+                })
             }, trailing = {
-                IconButton(onClick = {
-                    if (!busy) {
-                        busy = true; failure = null
-                        scope.launch {
-                            try { actions.setSaved(item.id, !saved); saved = !saved }
-                            catch (e: Exception) { failure = e.message }
-                            finally { busy = false }
+                com.sautilink.nativeapp.feature.home.CompactPostAction(Icons.Rounded.BookmarkBorder,
+                    if (saved) "Remove from saved" else "Save post", null, Modifier, onClick = {
+                        if (!busy) {
+                            busy = true; failure = null
+                            scope.launch {
+                                try { actions.setSaved(item.id, !saved); saved = !saved }
+                                catch (e: Exception) { failure = e.message }
+                                finally { busy = false }
+                            }
                         }
-                    }
-                }, enabled = !busy, modifier = Modifier.size(48.dp)
-                    .background(sautiChromeInk().copy(alpha = if (saved) .11f else 0f), RoundedCornerShape(14.dp))
-                    .semantics { this.selected = saved }) {
-                    Icon(if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                        contentDescription = if (saved) "Remove from saved" else "Save post",
-                        modifier = Modifier.size(21.dp), selected = saved,
-                        tint = sautiChromeInk())
-                }
+                    }, enabled = !busy, activeIcon = if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                    selected = saved)
             })
         }
     }
@@ -480,17 +472,6 @@ private fun ProfileAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector, count: String, description: String,
     modifier: Modifier = Modifier, selected: Boolean = false, onClick: () -> Unit
 ) {
-    val ink = sautiChromeInk()
-    val heart = icon == Icons.Rounded.FavoriteBorder
-    val tint = if (icon == Icons.Rounded.Repeat && selected) MaterialTheme.colorScheme.primary else ink
-    Row(modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-        .semantics { this.selected = selected }
-        .clickable(role = Role.Button, onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center) {
-        if (heart) SautiPostHeart(selected, description, Modifier.size(20.dp), ink)
-        else Icon(icon, description, modifier = Modifier.size(20.dp), selected = selected, tint = tint)
-        Spacer(Modifier.width(2.dp))
-        Text(count, style = MaterialTheme.typography.labelSmall)
-    }
+    com.sautilink.nativeapp.feature.home.CompactPostAction(icon, description, count, modifier,
+        onClick = onClick, selected = selected)
 }

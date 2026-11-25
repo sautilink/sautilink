@@ -2,6 +2,12 @@ package com.sautilink.nativeapp.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -27,8 +33,15 @@ internal fun SautiPostHeart(
     active: Boolean, label: String?, modifier: Modifier = Modifier, tint: Color = sautiChromeInk()
 ) {
     val vector = requireNotNull(SautiHugeVectors.get(if (active) "heart-filled" else "heart"))
+    val pulse = remember { Animatable(1f) }
+    var previous by remember { mutableStateOf(active) }
+    LaunchedEffect(active) {
+        if (active && !previous) { pulse.animateTo(1.16f, tween(95)); pulse.animateTo(1f, spring(dampingRatio = .7f)) }
+        previous = active
+    }
+    val artwork = modifier.graphicsLayer { scaleX = pulse.value; scaleY = pulse.value }
     if (active) {
-        Icon(vector, label, tint = Color.White, modifier = modifier
+        Icon(vector, label, tint = Color.White, modifier = artwork
             .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
             .drawWithCache {
                 val fill = Brush.linearGradient(listOf(SautiColors.LogoOrange, SautiColors.LogoPink))
@@ -38,7 +51,7 @@ internal fun SautiPostHeart(
                 }
             })
     } else {
-        Icon(vector, label, modifier, tint = tint)
+        Icon(vector, label, artwork, tint = tint)
     }
 }
 

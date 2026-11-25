@@ -22,8 +22,9 @@ import kotlin.math.sin
 @Composable
 fun SautiIcon(imageVector: ImageVector, contentDescription: String?, modifier: Modifier = Modifier,
     tint: Color = LocalContentColor.current, selected: Boolean = false) {
-    val name = nativeHugeIconName(imageVector.name)
-    val vector = remember(imageVector.name) { name?.let(SautiHugeVectors::get) ?: imageVector }
+    val baseName = nativeHugeIconName(imageVector.name)
+    val name = if (baseName == "bookmark" && (selected || imageVector.name.substringAfterLast('.') == "Bookmark")) "bookmark-filled" else baseName
+    val vector = remember(imageVector.name, name) { name?.let(SautiHugeVectors::get) ?: imageVector }
     MaterialIcon(vector, contentDescription, modifier.sautiIconMotion(name ?: imageVector.name, selected), tint)
 }
 

@@ -1196,19 +1196,16 @@ internal fun CompactPostAction(
     val heart = icon == Icons.Rounded.FavoriteBorder
     val repost = icon == Icons.Rounded.Repeat
     val actionTint = if (repost && selected) MaterialTheme.colorScheme.primary else ink
-    val selection by animateColorAsState(ink.copy(alpha = if (selected && !heart && !repost) .11f else 0f),
-        tween(150), label = "Post action selection")
     Row(
         modifier = modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-            .background(selection, RoundedCornerShape(14.dp))
             .semantics { this.selected = selected }
-            .clickable(interactionSource = interaction, indication = if (repost) null else ripple(),
+            .clickable(interactionSource = interaction, indication = null,
                 enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 1.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val artwork = Modifier.size(20.dp).sautiActionFeedback(interaction)
+        val artwork = Modifier.size(24.dp).sautiActionFeedback(interaction)
         if (heart) SautiPostHeart(selected, label, artwork, ink)
         else Icon(activeIcon, contentDescription = label, tint = actionTint, selected = selected, modifier = artwork)
         if (count != null) {
