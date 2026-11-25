@@ -13,10 +13,10 @@ object NativePlaybackPreferences {
         private set
 
     // Sound follows all videos in the current app session and is never persisted.
-    var sessionMuted by mutableStateOf(true)
+    var sessionMuted by mutableStateOf(false)
         private set
 
-    fun resetSessionSound() { sessionMuted = true }
+    fun resetSessionSound() { sessionMuted = false }
 
     fun toggleSessionSound() { sessionMuted = !sessionMuted }
 

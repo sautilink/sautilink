@@ -353,8 +353,8 @@ internal fun PostCommentsSheet(
                                     withTimeout(20_000L) { actions.sendComment(destination, body, key) }
                                     draft = initialDraft
                                     requestId = UUID.randomUUID().toString()
-                                    if (rootWrite) onRootPosted()
-                                    else {
+                                    onRootPosted()
+                                    if (!rootWrite) {
                                         trail = trail.mapIndexed { index, ancestor ->
                                             if (index == trail.lastIndex) ancestor.copy(replyCount = ancestor.replyCount + 1) else ancestor
                                         }
@@ -399,8 +399,8 @@ internal fun PostCommentsSheet(
                     scope.launch {
                         try {
                             withTimeout(20_000L) { actions.deleteOwnComment(toDelete.id) }
-                            if (deletedFromRoot) onRootDeleted()
-                            else if (parent != null && comments.any { it.id == toDelete.id }) {
+                            onRootDeleted()
+                            if (!deletedFromRoot && parent != null && comments.any { it.id == toDelete.id }) {
                                 trail = trail.mapIndexed { index, ancestor ->
                                     if (index == trail.lastIndex) ancestor.copy(replyCount = (ancestor.replyCount - 1).coerceAtLeast(0)) else ancestor
                                 }

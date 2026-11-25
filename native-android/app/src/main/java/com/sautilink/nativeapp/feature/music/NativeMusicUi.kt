@@ -191,7 +191,7 @@ fun NativeMusicIdentity(username: String, timestamp: String, selection: NativeAu
     }
     val identity = "${if (username.isNotBlank()) "@$username" else ""}${if (showTimestamp) " • $timestamp" else ""}"
     val label = if (showMusic && selection != null) "♫ ${selection.title} · ${selection.artist}" else identity
-    Row(Modifier.fillMaxWidth().height(24.dp).then(if (selection != null) Modifier.clickable { session?.details = selection } else Modifier),
+    Row(Modifier.fillMaxWidth().height(22.dp).then(if (selection != null) Modifier.clickable { session?.details = selection } else Modifier),
         verticalAlignment = Alignment.CenterVertically) {
         AnimatedContent(label, Modifier.weight(1f), contentAlignment = Alignment.CenterStart,
             transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "Post music credit") { value ->

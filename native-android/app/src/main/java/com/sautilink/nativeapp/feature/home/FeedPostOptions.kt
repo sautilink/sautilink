@@ -23,7 +23,8 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun FeedPostOptions(
     post: StagingFeedPost, auth: StagingAuthClient, online: Boolean,
-    onOpenProfile: () -> Unit, onOpenPost: () -> Unit, onShare: () -> Unit
+    onOpenProfile: () -> Unit, onOpenPost: () -> Unit, onShare: () -> Unit,
+    onUpdated: (String) -> Unit = {}, onDeleted: () -> Unit = {}
 ) {
     val accountId = auth.account?.id
     val context = LocalContext.current
@@ -34,11 +35,31 @@ internal fun FeedPostOptions(
     var busy by remember(post.id, accountId) { mutableStateOf(false) }
     var error by remember(post.id, accountId) { mutableStateOf<String?>(null) }
     var submitted by remember(post.id, accountId) { mutableStateOf(false) }
+    val ownsPost = accountId != null && post.authorId == accountId
+    val postClient = remember(auth) { lazy { com.sautilink.nativeapp.feature.posts.NativePostsClient(auth) } }
+    var editOpen by remember(post.id, accountId) { mutableStateOf(false) }
+    var deleteOpen by remember(post.id, accountId) { mutableStateOf(false) }
+    var editLoading by remember(post.id, accountId) { mutableStateOf(false) }
+    var ownPost by remember(post.id, accountId) { mutableStateOf<com.sautilink.nativeapp.feature.posts.NativeOwnPost?>(null) }
+    var editBody by remember(post.id, accountId) { mutableStateOf("") }
+    LaunchedEffect(editOpen, post.id, accountId) {
+        if (!editOpen || !ownsPost) return@LaunchedEffect
+        editLoading = true; error = null; ownPost = null
+        try {
+            val loaded = postClient.value.ownPost(post.id)
+            if (auth.account?.id == accountId) { ownPost = loaded; editBody = loaded.body }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (failure: Exception) { error = failure.message ?: "Could not load this post." }
+        finally { editLoading = false }
+    }
     Box {
         IconButton(onClick = { expanded = true }, modifier = Modifier.size(48.dp)) {
             Icon(Icons.Rounded.MoreHoriz, contentDescription = "Post options", modifier = Modifier.size(23.dp))
         }
         DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
+            FeedOwnerPostMenuItems(ownsPost, online && !busy,
+                onEdit = { expanded = false; error = null; editOpen = true },
+                onDelete = { expanded = false; error = null; deleteOpen = true })
             DropdownMenuItem(text = { Text("View profile") }, enabled = post.authorHandle.isNotBlank(),
                 leadingIcon = { Icon(Icons.Rounded.PersonOutline, null) },
                 onClick = { expanded = false; onOpenProfile() })
@@ -57,6 +78,33 @@ internal fun FeedPostOptions(
                     leadingIcon = { Icon(Icons.Rounded.Flag, null, tint = MaterialTheme.colorScheme.error) },
                     enabled = online && !busy, onClick = { expanded = false; error = null; reportOpen = true })
             }
+        }
+    }
+    if (editOpen && ownsPost) FeedEditPostDialog(ownPost, editBody, editLoading, busy, online, error,
+        onBodyChange = { editBody = it; error = null }, onCancel = { editOpen = false }) {
+        val target = ownPost ?: return@FeedEditPostDialog
+        if (busy || !online || auth.account?.id != accountId) return@FeedEditPostDialog
+        busy = true; error = null
+        scope.launch {
+            try {
+                val updated = postClient.value.edit(target, editBody)
+                if (auth.account?.id == accountId) { editOpen = false; onUpdated(updated.body) }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) { error = failure.message ?: "Could not edit post. Try again." }
+            finally { busy = false }
+        }
+    }
+    if (deleteOpen && ownsPost) FeedDeletePostDialog(busy, online, error, onCancel = { deleteOpen = false }) {
+        if (busy || !online || auth.account?.id != accountId) return@FeedDeletePostDialog
+        busy = true; error = null
+        scope.launch {
+            try {
+                postClient.value.delete(com.sautilink.nativeapp.feature.posts.NativeOwnPost(post.id, post.body,
+                    post.createdAt, 0, post.mediaCount, "public"))
+                if (auth.account?.id == accountId) { deleteOpen = false; onDeleted() }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) { error = failure.message ?: "Could not delete post. Try again." }
+            finally { busy = false }
         }
     }
     if (reportOpen) NativeReportDialog("post", busy, error,

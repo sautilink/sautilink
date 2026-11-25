@@ -798,6 +798,22 @@ fun StagingFeedScreen(
                         onComments = { commentsFor = post },
                         onRepost = { changeRepost(post) },
                         onShare = { sharePost(post) },
+                        onUpdated = { body ->
+                            if (auth.account?.id == accountId) {
+                                client.invalidatePostActions(accountId!!); client.clearCache()
+                                presentations.invalidate("feed:"); presentations.invalidate("short-videos")
+                                posts = posts.map { if (it.id == post.id) it.copy(body = body) else it }
+                                refreshVersion++
+                            }
+                        },
+                        onDeleted = {
+                            if (auth.account?.id == accountId) {
+                                client.invalidatePostActions(accountId!!); client.clearCache()
+                                presentations.invalidate("feed:"); presentations.invalidate("short-videos")
+                                posts = posts.filterNot { it.id == post.id }
+                                refreshVersion++
+                            }
+                        },
                         onOpenProfile = { if (post.authorHandle.isNotBlank()) onOpenProfile(post.authorHandle) },
                         onOpenPost = { onOpenPost(post.id) },
                         onFollow = { changeFollow(post) },
@@ -1014,6 +1030,8 @@ private fun RealPostCard(
     onComments: () -> Unit,
     onRepost: () -> Unit,
     onShare: () -> Unit,
+    onUpdated: (String) -> Unit,
+    onDeleted: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenPost: () -> Unit,
     onFollow: () -> Unit,
@@ -1057,7 +1075,7 @@ private fun RealPostCard(
                 }
                 Column(
                     modifier = Modifier.weight(1f).clickable(onClick = onOpenProfile),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1075,7 +1093,7 @@ private fun RealPostCard(
                     FeedFollowButton(following, pendingFollow, online && !busyFollow, onFollow)
                 }
                 if (auth.backend == SautiBackend.PRODUCTION) {
-                    FeedPostOptions(post, auth, online, onOpenProfile, onOpenPost, onShare)
+                    FeedPostOptions(post, auth, online, onOpenProfile, onOpenPost, onShare, onUpdated, onDeleted)
                 }
             }
             if (showFollow && followReadError != null) {

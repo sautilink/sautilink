@@ -97,8 +97,8 @@ fun PremiumVideosScreen(onBack: () -> Unit, onOpenMedia: (Int) -> Unit, onNotice
     val clips = if (localClips.isEmpty()) defaultClips else localClips
     val pager = rememberPagerState(pageCount = { clips.size })
     var liked by remember { mutableStateOf(setOf<String>()) }
-    // Sound always starts muted when opening Short Videos, even if previously unmuted.
-    var muted by remember { mutableStateOf(true) }
+    // Share the session sound choice with the production feed and Short Videos.
+    val muted = com.sautilink.nativeapp.feature.home.NativePlaybackPreferences.sessionMuted
     val preferences = remember(context) { context.getSharedPreferences("sautilink_video_preview", Context.MODE_PRIVATE) }
     var autoPlay by remember { mutableStateOf(preferences.getBoolean("autoplay", true)) }
     var playbackSpeed by remember { mutableFloatStateOf(preferences.getFloat("speed", 1f)) }
@@ -127,7 +127,7 @@ fun PremiumVideosScreen(onBack: () -> Unit, onOpenMedia: (Int) -> Unit, onNotice
     val player = remember(preloadBuilder) {
         preloadBuilder.buildExoPlayer().apply {
             repeatMode = Player.REPEAT_MODE_ONE
-            volume = 0f // Never play unexpected audio when opening Short Videos.
+            volume = if (com.sautilink.nativeapp.feature.home.NativePlaybackPreferences.sessionMuted) 0f else 1f
         }
     }
     val mediaItems = remember(clips) {
@@ -317,7 +317,7 @@ fun PremiumVideosScreen(onBack: () -> Unit, onOpenMedia: (Int) -> Unit, onNotice
             IconButton(onClick = { playbackOptionsOpen = true }) {
                 Icon(Icons.Rounded.Tune, contentDescription = "Playback options", tint = Color.White)
             }
-            IconButton(onClick = { muted = !muted }) {
+            IconButton(onClick = { com.sautilink.nativeapp.feature.home.NativePlaybackPreferences.toggleSessionSound() }) {
                 Icon(if (muted) Icons.Rounded.VolumeOff else Icons.Rounded.VolumeUp,
                     contentDescription = if (muted) "Unmute video" else "Mute video", tint = Color.White)
             }

@@ -95,6 +95,16 @@ class NativePostsClient(private val auth: StagingAuthClient) {
         }.filter { uuid.matches(it.id) }
     }
 
+    suspend fun ownPost(postId: String): NativeOwnPost {
+        val owner = accountId()
+        require(uuid.matches(postId)) { "Invalid post reference." }
+        val rows = JSONArray(request("${auth.restOrigin}social_posts?id=eq.$postId&author_id=eq.$owner&parent_post_id=is.null&select=id,body,created_at,edit_count,media_count,visibility&limit=1", "GET", rest = true))
+        if (auth.account?.id != owner) throw kotlinx.coroutines.CancellationException("Post account changed")
+        val row = rows.optJSONObject(0) ?: throw AuthRequestException("This post is unavailable.")
+        return NativeOwnPost(row.getString("id"), row.optString("body"), row.optString("created_at"),
+            row.optInt("edit_count"), row.optInt("media_count"), row.optString("visibility"))
+    }
+
     suspend fun edit(post: NativeOwnPost, body: String): NativeOwnPost {
         accountId()
         if (!uuid.matches(post.id) || post.editCount > 0 || post.body.isBlank())
