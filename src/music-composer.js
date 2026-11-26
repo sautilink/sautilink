@@ -1,6 +1,7 @@
 import { createMusicClient, MUSIC_ORIGIN, audioClipUrl, clampAudioClip } from './music-client.js';
 import { isNewMusicRelease, formatEngagementCount, audioTime } from './social-presentation.js';
 import { createAudioWaveform } from './audio-waveform.js';
+import { createPostActionIcon } from './social-icons.js';
 
 function element(tag, cls = '', text = '') {
   const node = document.createElement(tag); node.className = cls; node.textContent = text; return node;
@@ -15,10 +16,12 @@ export function createMusicComposer({ supabase, getMemberId, onChange = () => {}
   let rows = [], saved = new Set(), uses = new Map(), tab = 'For you', nextOffset = null;
   let timeline = null, selectedTrack = null, pendingSelection = null, searchTimer = 0;
   let library, list, search, status, editor, summary, libraryOwner = null;
+  const saving = new Map(); let saveEpoch = 0;
   const owner = () => getMemberId();
   function resetAccount() {
     if (libraryOwner === owner()) return;
     libraryOwner = owner(); saved = new Set(); uses = new Map(); rows = [];
+    saving.clear(); saveEpoch++;
   }
   function stop() { audio?.pause(); if (audio) { audio.removeAttribute('src'); audio.load(); } audio = null; }
   function preview(selection, button) {
@@ -33,14 +36,20 @@ export function createMusicComposer({ supabase, getMemberId, onChange = () => {}
     onChange();
   }
   async function saveTrack(track, button) {
+    if (saving.has(track.id)) return;
     const id = owner(); button.disabled = true;
+    const enabled = !saved.has(track.id), operation = client.save(track.id, enabled);
+    saving.set(track.id, operation);
     try {
-      const enabled = !saved.has(track.id); await client.save(track.id, enabled);
+      await operation;
       if (id !== owner()) return;
       if (enabled) saved.add(track.id); else saved.delete(track.id);
-      button.textContent = enabled ? 'Saved' : 'Save'; button.setAttribute('aria-pressed', String(enabled));
+      saveEpoch++;
+      if (!button.dataset.musicSaveIcon) button.textContent = enabled ? 'Saved' : 'Save';
+      button.setAttribute('aria-pressed', String(enabled)); saving.delete(track.id);
+      if (dialog.open && !library.hidden) { if (tab === 'Saved') void load(); else renderRows(); }
     } catch (error) { status.textContent = error.message; }
-    finally { button.disabled = false; }
+    finally { if (saving.get(track.id) === operation) saving.delete(track.id); button.disabled = false; }
   }
   function renderRows() {
     const available = rows.filter(row => tab !== 'Saved' || saved.has(row.id)).filter(row => tab !== 'Original audio' || row.originalAudio);
@@ -53,9 +62,11 @@ export function createMusicComposer({ supabase, getMemberId, onChange = () => {}
       const copy = action('', () => void selectTrack(track.id), 'music-track-copy');
       const title = element('strong', '', track.title); if (isNewMusicRelease(track.releasedOn)) title.append(element('span', 'music-new', 'New'));
       copy.append(title, element('span', '', `${track.artist} · ${audioTime(track.durationMs)}`),
-        element('small', '', `${formatEngagementCount(uses.get(track.id)) || '0'} uses`));
+        element('small', '', `${formatEngagementCount(uses.get(track.id)) || '0'} ${uses.get(track.id) === 1 ? 'use' : 'uses'}`));
       const play = action('▶', () => preview(clampAudioClip(track), play), 'music-track-play'); play.setAttribute('aria-label', `Preview ${track.title}`);
-      const save = action(saved.has(track.id) ? 'Saved' : 'Save', () => void saveTrack(track, save), 'music-track-save'); save.setAttribute('aria-pressed', String(saved.has(track.id)));
+      const save = action('', () => void saveTrack(track, save), 'music-track-save'); save.dataset.musicSaveIcon = 'true';
+      save.append(createPostActionIcon('save')); save.setAttribute('aria-label', `Save audio: ${track.title}`);
+      save.setAttribute('aria-pressed', String(saved.has(track.id))); save.disabled = saving.has(track.id);
       row.append(cover, copy, play, save); list.append(row);
     }
     if (!available.length) list.append(element('p', 'music-empty', tab === 'Saved' ? 'Save audio to find it here.' : 'No matching audio. Try another search.'));
@@ -64,9 +75,13 @@ export function createMusicComposer({ supabase, getMemberId, onChange = () => {}
   async function load(more = false) {
     const id = ++request, member = owner(); controller?.abort(); controller = new AbortController(); status.textContent = 'Loading audio…';
     try {
+      await Promise.allSettled([...saving.values()]);
+      if (id !== request || member !== owner() || !dialog.open) return;
       const query = search.value.trim();
       if (tab === 'Saved') {
-        saved = await client.savedIds();
+        const epoch = saveEpoch, result = await client.savedIds();
+        if (id !== request || member !== owner() || !dialog.open) return;
+        if (epoch === saveEpoch) saved = result;
         const selected = [];
         const ids = [...saved];
         for (let offset = 0; offset < ids.length; offset += 8) {
@@ -86,9 +101,10 @@ export function createMusicComposer({ supabase, getMemberId, onChange = () => {}
       rows = more ? [...new Map([...rows, ...incoming].map(row => [row.id, row])).values()] : incoming;
       nextOffset = Number.isSafeInteger(result.nextOffset) ? result.nextOffset : null;
       renderRows(); status.textContent = '';
+      const epoch = saveEpoch;
       const [savedResult, useResult] = await Promise.allSettled([client.savedIds(), client.usage(rows.map(row => row.id))]);
       if (id !== request || member !== owner() || !dialog.open) return;
-      if (savedResult.status === 'fulfilled') saved = savedResult.value;
+      if (savedResult.status === 'fulfilled' && epoch === saveEpoch) saved = savedResult.value;
       if (useResult.status === 'fulfilled') uses = useResult.value;
       renderRows();
       if (savedResult.status === 'rejected' || useResult.status === 'rejected') status.textContent = 'Some library details could not load. Try again.';
@@ -161,9 +177,12 @@ export function createMusicComposer({ supabase, getMemberId, onChange = () => {}
       status.textContent = '';
       const member = owner(), sequence = ++request;
       try {
+        await Promise.allSettled([...saving.values()]);
+        const epoch = saveEpoch;
         const result = await client.savedIds();
         if (sequence !== request || member !== owner() || !dialog.open) return;
-        saved = result; save.textContent = saved.has(selection.trackId) ? 'Saved' : 'Save';
+        if (epoch === saveEpoch) saved = result;
+        save.textContent = saved.has(selection.trackId) ? 'Saved' : 'Save';
         save.setAttribute('aria-pressed', String(saved.has(selection.trackId)));
       } catch { if (sequence === request && dialog.open) status.textContent = 'Saved audio could not load. Try again.'; }
     },

@@ -5,9 +5,9 @@ html[data-theme="dark"] { --sl54-surface:#101113; --sl54-ink:#fff; --sl54-soft:#
 .sauti-canonical-icon { display:block; width:26px; height:26px; flex:0 0 26px; fill:currentColor !important; stroke:currentColor !important; stroke-width:2.5px; stroke-linecap:round; stroke-linejoin:round; }
 .sauti-canonical-icon:is([data-icon="save"],[data-icon="repost"]) { fill:none !important; stroke-width:1.65px; }
 .sauti-canonical-icon .icon-filled { display:none; stroke:none; }
-:is([aria-pressed="true"],[data-active="true"]) > .sauti-canonical-icon[data-icon="heart"] .icon-outline { display:none; }
-:is([aria-pressed="true"],[data-active="true"]) > .sauti-canonical-icon[data-icon="heart"] .icon-filled { display:block; }
-:is([aria-pressed="true"],[data-active="true"]) > .sauti-canonical-icon[data-icon="save"] { fill:currentColor !important; }
+:is([aria-pressed="true"],[data-active="true"]) .sauti-canonical-icon[data-icon="heart"] .icon-outline { display:none; }
+:is([aria-pressed="true"],[data-active="true"]) .sauti-canonical-icon[data-icon="heart"] .icon-filled { display:block; }
+:is([aria-pressed="true"],[data-active="true"]) .sauti-canonical-icon[data-icon="save"] { fill:currentColor !important; }
 body:not(.auth-entry) :is([data-sauti-action],[data-short-action]) { -webkit-tap-highlight-color:transparent; box-shadow:none; transition:color 160ms ease; }
 body:not(.auth-entry) .sauti-actions > button.sauti-action[data-sauti-action] { min-width:40px; min-height:44px; padding:6px 3px; gap:5px; border:0; border-radius:0; background:transparent !important; color:var(--sl54-ink); }
 body:not(.auth-entry) .sauti-actions > button.sauti-action[data-sauti-action] > svg { width:26px; height:26px; }
@@ -35,7 +35,8 @@ body:not(.auth-entry) :is(#profile-edit-button,#profile-dashboard-button,.profil
 .post-audio-toggle { position:absolute; right:0; bottom:0; min-width:24px; min-height:24px; padding:2px; border:0; background:none; color:inherit; font-size:17px; }
 @keyframes sl54-handle { 0%,40%,100%{opacity:1;visibility:visible;transform:translateY(0)} 45%,90%{opacity:0;visibility:hidden;transform:translateY(-4px)} }
 @keyframes sl54-audio { 0%,40%,100%{opacity:0;visibility:hidden;transform:translateY(4px)} 45%,90%{opacity:1;visibility:visible;transform:translateY(0)} }
-.sauti-short-video-stage,.sauti-short-video-frame,.sauti-short-video-frame::before,.sauti-short-video-frame video,.sauti-short-video-stage .sauti-video-player { background:#000 !important; }
+.sauti-short-video-stage,.sauti-short-video-frame,.sauti-short-video-frame video { background:#000 !important; }
+.sauti-short-video-stage .sauti-video-player { background:transparent !important; }
 .sauti-short-actions :is(svg,button),.sauti-short-profile { filter:none; text-shadow:none; }
 .sauti-short-actions .sauti-canonical-icon { width:28px; height:28px; }
 .sauti-short-metadata:has(.post-music-slot) { display:block; }
@@ -165,3 +166,15 @@ body:not(.auth-entry) .profile-activity-metric[data-profile-activity-action="rep
 body:not(.auth-entry) .profile-activity-card { border-radius:0; box-shadow:none; border-inline:0; background:var(--sl54-surface); }
 .post-music-slot:focus-within .post-music-title { animation:none; opacity:1; visibility:visible; }
 .post-music-slot:focus-within .post-music-username { animation:none; opacity:0; visibility:hidden; }
+
+/* Visual draft surface occupies the established message input cell. */
+#member-view #messages-surface.messages-whatsapp-ui #message-composer > .sl-sticker-draft-editor { grid-column:2; grid-row:1; min-width:0; width:100%; box-sizing:border-box; min-height:38px; padding:8px 38px 8px 12px; border-radius:22px; line-height:20px; }
+#member-view #messages-surface.messages-whatsapp-ui #message-composer > .sl-sticker-open { grid-column:2; grid-row:1; justify-self:end; align-self:end; z-index:2; width:34px; min-width:34px; height:36px; margin:0 4px 1px 0; padding:0; border:0; background:transparent; color:var(--sl54-ink); font-size:23px; }
+#member-view #messages-surface.messages-whatsapp-ui #message-composer.has-message-attachment > :is(.sl-sticker-draft-editor,.sl-sticker-open) { grid-row:2; }
+#member-view #messages-surface.messages-whatsapp-ui #message-composer:has(.message-recording-state:not([hidden])) > :is(.sl-sticker-draft-editor,.sl-sticker-open) { grid-row:1; }
+#member-view #messages-surface.messages-whatsapp-ui .dm-message.sticker-only > .dm-message-meta,
+#member-view #messages-surface.messages-whatsapp-ui .dm-message.sticker-only .dm-message-meta :is(time,small) { color:var(--sl54-muted); }
+#member-view #messages-surface.messages-whatsapp-ui .dm-message.sticker-only .dm-read-receipt { color:#1c9aff; }
+body > dialog.music-dialog { margin-inline:auto; max-width:520px; }
+.music-track-save { display:grid; place-items:center; }
+@media(max-width:680px) { body > dialog.music-dialog { width:100%; max-width:none; margin:0; inset:auto 0 0; box-sizing:border-box; } }

@@ -10,6 +10,7 @@ import { installPostAudio, configurePostMusic } from './post-music.js';
 import { createMusicComposer } from './music-composer.js';
 import { installCommentEmojis } from './comment-emojis.js';
 import { installForegroundTones } from './foreground-tones.js';
+import { stickerPreviewText } from './sticker-preview.js';
 import { createClient } from '@supabase/supabase-js';
 import { getVideoAutoplayPreference, setVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autoplay-preference.js';
 import { installVideoPlaybackCoordinator } from './video-playback-coordinator.js';
@@ -1820,14 +1821,16 @@ function globalDmPresenceActive() {
 }
 
 function renderGlobalDmPeerActivity() {
-  if (!globalDmPresenceActive()) return false;
+  if (!activeConversation?.peerId) return false;
+  if (!globalDmPresenceActive() && activityStatusEnabled() && dmPeerVisibility === 'unknown') return false;
   const activity = byId('message-thread-activity');
   const typing = byId('message-typing-status');
   if (!activity) return true;
 
-  if (dmPeerVisibility !== 'visible') {
-    activity.textContent = dmPeerVisibility === 'hidden' ? '🔒 Privacy Mode' : '';
-    activity.hidden = dmPeerVisibility !== 'hidden'; activity.dataset.state = 'privacy'; return true;
+  if (!activityStatusEnabled() || dmPeerVisibility !== 'visible') {
+    const hidden = !activityStatusEnabled() || dmPeerVisibility === 'hidden';
+    activity.textContent = hidden ? '🔒 Privacy Mode' : '';
+    activity.hidden = !hidden; activity.dataset.state = 'privacy'; return true;
   }
   if (typing && !typing.hidden) {
     activity.textContent = 'Typing…';
@@ -2021,6 +2024,9 @@ async function startDmPeerActivityPresence(peerId = String(activeConversation?.p
     || activeConversation?.blockedByYou
   ) {
     await stopDmPeerActivityPresence();
+    if (normalizedPeerId === String(activeConversation?.peerId || '') && !activityStatusEnabled()) {
+      dmPeerVisibility = 'hidden'; renderGlobalDmPeerActivity();
+    }
     return;
   }
 
@@ -2047,6 +2053,7 @@ async function startDmPeerActivityPresence(peerId = String(activeConversation?.p
 
     dmPeerActivityChannel = channel;
     dmPeerActivityId = normalizedPeerId;
+    void refreshDmPeerRecentActivity(normalizedPeerId);
 
     channel
       .on('presence', { event: 'sync' }, () => syncDmPeerGlobalPresence(channel))
@@ -2064,6 +2071,7 @@ async function startDmPeerActivityPresence(peerId = String(activeConversation?.p
           dmPeerActivityOnline = false;
           dmPeerActivityRecent = false;
           dmPeerVisibility = 'unknown'; dmPeerLastSeen = null;
+          void refreshDmPeerRecentActivity(normalizedPeerId);
           syncDmPresenceState();
         }
       });
@@ -7441,7 +7449,7 @@ function renderMessageInboxItem(row, peer) {
 
   const preview = document.createElement('span');
   preview.className = 'message-inbox-preview';
-  preview.textContent = row.latest_body || 'New conversation';
+  preview.textContent = stickerPreviewText(row.latest_body) || 'New conversation';
 
   copy.append(top, preview);
 
