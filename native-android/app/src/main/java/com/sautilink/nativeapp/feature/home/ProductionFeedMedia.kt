@@ -22,6 +22,7 @@ import androidx.compose.material3.*
 import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
@@ -41,7 +42,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.ui.PlayerView
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.feature.auth.StagingSessionState
 import com.sautilink.nativeapp.ui.components.SautiPostGestureSurface
@@ -98,32 +98,21 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
     val carouselAspect = media.minOf(::stableFeedAspect)
     Column(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth()) {
-            androidx.compose.foundation.pager.HorizontalPager(
-                state = pager,
-                modifier = Modifier.fillMaxWidth().aspectRatio(carouselAspect),
-                key = { index -> media[index].id }
-            ) { page ->
-                val item = media[page]
-                    val path = checkedPostMediaPath(item.id, mediaPath?.invoke(item))
-                Box(
-                    Modifier.fillMaxSize()
-                        .background(if (item.kind == "video") Color.Black else MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (item.kind == "video") {
-                        InlineFeedVideo(auth, item, Modifier.fillMaxSize(), isCurrent = pager.currentPage == page,
-                            onDoubleTapLike = onDoubleTapLike, mediaPath = path,
-                            bufferingOverlayEnabled = bufferingOverlayEnabled,
-                            adaptivePlaybackEnabled = adaptivePlaybackEnabled, suppressOriginalAudio = suppressOriginalAudio, playbackGroup = playbackGroup, originalAudioVolume = originalAudioVolume)
-                    } else {
-                        SautiPostGestureSurface(Modifier.fillMaxSize(), onLike = onDoubleTapLike,
-                            onTap = { expandedPhoto = item }) {
-                            AuthorizedImage(auth, "$path?w=960",
-                                "Photo ${page + 1} of ${media.size}",
-                                modifier = Modifier.fillMaxSize(),
-                                crop = fillPhotoFrame)
-                        }
-                    }
+            if (media.size == 1) {
+                FeedMediaPage(auth, media.single(), 0, 1, true,
+                    Modifier.fillMaxWidth().aspectRatio(carouselAspect), mediaPath,
+                    onDoubleTapLike, bufferingOverlayEnabled, adaptivePlaybackEnabled,
+                    suppressOriginalAudio, playbackGroup, originalAudioVolume, fillPhotoFrame,
+                    onPhoto = { expandedPhoto = it })
+            } else {
+                androidx.compose.foundation.pager.HorizontalPager(
+                    state = pager, modifier = Modifier.fillMaxWidth().aspectRatio(carouselAspect),
+                    key = { index -> media[index].id }
+                ) { page ->
+                    FeedMediaPage(auth, media[page], page, media.size, pager.currentPage == page,
+                        Modifier.fillMaxSize(), mediaPath, onDoubleTapLike, bufferingOverlayEnabled,
+                        adaptivePlaybackEnabled, suppressOriginalAudio, playbackGroup,
+                        originalAudioVolume, fillPhotoFrame, onPhoto = { expandedPhoto = it })
                 }
             }
             if (media.size > 1) {
@@ -184,6 +173,31 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
     }
 }
 
+/** A single attachment is a plain frame, not a one-page nested lazy layout. */
+@Composable
+private fun FeedMediaPage(auth: StagingAuthClient, item: FeedMedia, page: Int, count: Int,
+    current: Boolean, modifier: Modifier, mediaPath: ((FeedMedia) -> String)?,
+    onLike: (() -> Unit)?, bufferingOverlayEnabled: Boolean, adaptivePlaybackEnabled: Boolean,
+    suppressOriginalAudio: Boolean, playbackGroup: String?, originalAudioVolume: Float,
+    fillPhotoFrame: Boolean, onPhoto: (FeedMedia) -> Unit) {
+    val path = checkedPostMediaPath(item.id, mediaPath?.invoke(item))
+    Box(modifier.background(if (item.kind == "video") Color.Black else MaterialTheme.colorScheme.surfaceVariant)
+        .then(Modifier.testTag("post-media:${item.id}")), contentAlignment = Alignment.Center) {
+        if (item.kind == "video") {
+            InlineFeedVideo(auth, item, Modifier.fillMaxSize(), isCurrent = current,
+                onDoubleTapLike = onLike, mediaPath = path,
+                bufferingOverlayEnabled = bufferingOverlayEnabled,
+                adaptivePlaybackEnabled = adaptivePlaybackEnabled, suppressOriginalAudio = suppressOriginalAudio,
+                playbackGroup = playbackGroup, originalAudioVolume = originalAudioVolume)
+        } else {
+            SautiPostGestureSurface(Modifier.fillMaxSize(), onLike = onLike, onTap = { onPhoto(item) }) {
+                AuthorizedImage(auth, "$path?w=960", "Photo ${page + 1} of $count",
+                    modifier = Modifier.fillMaxSize(), crop = fillPhotoFrame)
+            }
+        }
+    }
+}
+
 /** Same-player inline video, no popup/Dialog and no route transition.
  * Poster is kept visible until the first decoded frame, removing sudden video flashes.
  */
@@ -225,6 +239,7 @@ private fun InlineFeedVideo(
     SideEffect { coordinator?.update(candidateKey, NativeFeedPlaybackCoordinator.Candidate(group,
         if (isCurrent) viewport.fraction else 0f, viewport.distance)) }
     DisposableEffect(coordinator, candidateKey) { onDispose { coordinator?.remove(candidateKey); coordinator?.release(candidateKey) } }
+    val autoplayReady by LocalFeedAutoplayReady.current
     var started by remember(auth, accountId, media.id) { mutableStateOf(false) }
     var wantsToPlay by remember(auth, accountId, media.id) { mutableStateOf(false) }
     var manualPaused by remember(auth, accountId, media.id) { mutableStateOf(false) }
@@ -275,9 +290,13 @@ private fun InlineFeedVideo(
             lifecycleState.isAtLeast(Lifecycle.State.STARTED), isCurrent, visibleFraction,
             NativePlaybackPreferences.autoplayEnabled, started, userInitiatedPlayback, manualPaused), fallbackPath = mediaPath)
     val warmupHandoff = remember(auth, accountId, media.id, mediaPath) { FeedVideoWarmupHandoff() }
-    LaunchedEffect(accountId, visibleFraction, isCurrent, selected, NativePlaybackPreferences.autoplayEnabled) {
+    LaunchedEffect(accountId, visibleFraction, isCurrent, selected, NativePlaybackPreferences.autoplayEnabled, autoplayReady) {
         val visible = visibleFraction >= .58f && isCurrent && selected
         if ((NativePlaybackPreferences.autoplayEnabled || userInitiatedPlayback) && visible && !manualPaused) {
+            if (!started && !autoplayReady && !userInitiatedPlayback) {
+                wantsToPlay = false
+                return@LaunchedEffect
+            }
             if (!started) {
                 NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.VIEWPORT_INTENT)
                 warmupHandoff.onAutoplayIntent(playbackRead, accountId, media.id,
@@ -387,8 +406,8 @@ private fun InlineFeedVideo(
         onDispose {
             owner.lifecycle.removeObserver(observer)
             player.removeListener(listener)
-            player.release()
-            resources?.close()
+            android.os.Trace.beginSection("Sauti:retire-feed-video")
+            try { retireFeedVideo(player, resources) } finally { android.os.Trace.endSection() }
         }
     }
     com.sautilink.nativeapp.feature.music.BindNativePostVideoClock(player, group, media.id,
@@ -429,10 +448,9 @@ private fun InlineFeedVideo(
             } else if (!isCurrent || visibleFraction < .1f || !lifecycleState.isAtLeast(Lifecycle.State.STARTED)) {
                 if (!stoppedOffscreen && player.playbackState != Player.STATE_IDLE) {
                     player.pause()
-                    // A quick scroll past and back keeps its decoder/buffer.
-                    // Cancellation when visible again preserves this same source;
-                    // longer absences still release decoder buffers promptly.
-                    if (lifecycleState.isAtLeast(Lifecycle.State.STARTED)) kotlinx.coroutines.delay(1_500L)
+                    // Stop the decoder before its Surface is removed by the lazy
+                    // list. Keeping it alive offscreen made Surface destruction
+                    // synchronously wait for that decoder during a scroll frame.
                     stoppedPosition = player.currentPosition.coerceAtLeast(0L)
                     player.stop()
                     stoppedOffscreen = true
@@ -465,13 +483,14 @@ private fun InlineFeedVideo(
     }, contentAlignment = Alignment.Center) {
         if (player != null) {
             AndroidView(
-                factory = { ctx -> PlayerView(ctx).apply {
+                factory = { ctx -> createNativeFeedPlayerView(ctx).apply {
                     useController = false
                     this.player = player
                     resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                 } },
                 update = { it.player = player },
-                onRelease = { it.player = null },
+                onReset = { detachNativeFeedPlayerView(it) },
+                onRelease = { detachNativeFeedPlayerView(it) },
                 modifier = Modifier.fillMaxSize()
                     .graphicsLayer { alpha = if (firstFrame) 1f else 0f }
             )

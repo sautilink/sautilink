@@ -2,7 +2,8 @@
 
 Jetpack Compose client for the existing SautiLink production backend. Android package identities:
 
-- `previewDebug`: `com.sautilink.preview.nativeapp` for physical-device QA.
+- `previewDebug`: `com.sautilink.preview.nativeapp` for functional/device tests.
+- `previewPerformance`: the same Preview package and test certificate, with release runtime/compiler settings and shell profiling enabled. Use it for scroll/frame measurements; it is not debuggable.
 - `productionRelease`: `com.sautilink.app` for the existing Play listing. A higher versionCode and the same registered upload key are required for an update.
 
 The app includes native authentication, profiles, posting and media upload, short videos, search, rooms, messaging, notifications, settings, safety controls and deep links. Recent-session feed caching and offline handling are implemented. It uses the existing Supabase production project; do not place a service role key in this app.
@@ -14,6 +15,10 @@ Use JDK 21, Android SDK 36 and Gradle 8.13. The project supports both Windows an
 ```text
 ./gradlew :app:assemblePreviewDebug :app:lintPreviewDebug
 ```
+
+Feed playback keeps metadata/posters warm while scrolling. A fresh autoplay decoder waits for 120 ms of scroll idle; an already-started visible video and explicit play taps are not delayed. Fully offscreen decoders stop before their surfaces leave the lazy list. Single attachments use a plain frame; multi-attachment posts retain their pager.
+
+For scroll QA, build `./gradlew :app:assemblePreviewPerformance`. Compare identical warmed Home gestures and media on the same device/build mode; debug frame timing is not representative of release. This variant does not change the production release signing or minification settings. Install with the same Preview signing certificate to retain the account and data.
 
 `app/google-services.json` must come from Firebase project `sautilink` and contain the exact Android package for the variant being built. The build is allowed without this file for source-level CI checks, but FCM is disabled. Keep the file out of Git; CI restores it from the existing `FIREBASE_GOOGLE_SERVICES_JSON_BASE64` repository secret.
 

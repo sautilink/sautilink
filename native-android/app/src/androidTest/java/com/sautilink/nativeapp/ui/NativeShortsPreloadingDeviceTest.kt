@@ -169,7 +169,7 @@ class NativeShortsPreloadingDeviceTest {
         lateinit var resources: NativeVideoPlaybackResources
         lateinit var preload: NativeShortsPreloading
         var view: PlayerView? = null
-        fun mount() {
+        fun mount(feedView: Boolean = false, tallFrame: Boolean = false) {
             val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
             assertFalse("Unlock the device before checking a real decoder Surface", keyguard.isKeyguardLocked)
             compose.setContent {
@@ -203,8 +203,8 @@ class NativeShortsPreloadingDeviceTest {
                         closeOnMain()
                     }
                 }
-                AndroidView(factory = { PlayerView(it).apply { useController = false; player = manager.player }.also { view = it } },
-                    onRelease = { it.player = null }, modifier = Modifier.requiredSize(320.dp, 180.dp))
+                AndroidView(factory = { (if (feedView) com.sautilink.nativeapp.feature.home.createNativeFeedPlayerView(it) else PlayerView(it)).apply { useController = false; player = manager.player }.also { view = it } },
+                    onRelease = { it.player = null }, modifier = Modifier.requiredSize(320.dp, if (tallFrame) 320.dp else 180.dp))
             }
             await {
                 view?.let { it.isShown && it.width > 0 && it.height > 0 &&
@@ -242,6 +242,78 @@ class NativeShortsPreloadingDeviceTest {
             compose.runOnIdle(assertion)
             SystemClock.sleep(25)
         }
+    }
+
+    @Test fun landscapeVideoRemainsCenteredInsideATallerFeedFrame() {
+        val h = Harness()
+        try {
+            h.mount(feedView = true, tallFrame = true)
+            compose.runOnIdle {
+                val view = requireNotNull(h.view)
+                val content = view.findViewById<android.view.View>(androidx.media3.ui.R.id.exo_content_frame)
+                assertTrue("Fixture must leave vertical letterboxing", content.height < view.height)
+                assertEquals(view.height/2f, content.top + content.height/2f, 1f)
+                assertEquals(view.width/2f, content.left + content.width/2f, 1f)
+            }
+        } finally { h.close() }
+    }
+
+    @Test fun recyclingFeedSurfaceStopsTheOldDecoderBeforeTheNextRowBinds() {
+        val h = Harness()
+        try {
+            h.mount(feedView = true)
+            compose.runOnIdle {
+                val view = requireNotNull(h.view)
+                com.sautilink.nativeapp.feature.home.detachNativeFeedPlayerView(view)
+                assertNull(view.player)
+                assertFalse(h.preload.player.isPlaying)
+                assertEquals(Player.STATE_IDLE, h.preload.player.playbackState)
+                view.player = h.preload.player
+                h.preload.player.prepare()
+                h.preload.player.play()
+            }
+            val frames = h.frameCount(1)
+            await { h.frameCount(1) > frames && h.preload.player.isPlaying }
+            compose.runOnIdle { assertNull(h.preload.player.playerError) }
+        } finally { h.close() }
+    }
+
+    @Test fun lightweightFeedViewRendersRealVideo_andKeepsSubtitlesWithoutHiddenControls() {
+        val h = Harness()
+        try {
+            h.mount(feedView = true)
+            compose.runOnIdle {
+                val view = requireNotNull(h.view)
+                assertTrue(h.frameCount(1) > 0)
+                assertNotNull(view.findViewById<androidx.media3.ui.SubtitleView>(androidx.media3.ui.R.id.exo_subtitles))
+                assertNull(view.findViewById<android.view.View>(androidx.media3.ui.R.id.exo_controller))
+                assertNull(view.findViewById<android.view.View>(androidx.media3.ui.R.id.exo_buffering))
+                assertFalse(view.useController)
+                assertNull(h.preload.player.playerError)
+            }
+        } finally { h.close() }
+    }
+
+    @Test fun retiredFeedDecoderStopsAndRevokesItsSourceBeforeDeferredRelease() {
+        val h = Harness()
+        try {
+            h.mount()
+            var release: (() -> Unit)? = null
+            compose.runOnIdle {
+                com.sautilink.nativeapp.feature.home.retireFeedVideo(h.preload.player, h.resources) { release = it }
+                assertFalse(h.preload.player.isPlaying)
+                assertEquals(Player.STATE_IDLE, h.preload.player.playbackState)
+                val source = h.resources.dataSourceFactory.createDataSource()
+                var denied = false
+                try { source.open(DataSpec.Builder().setUri(h.sources.getValue(1).url).build()) }
+                catch (_: IOException) { denied = true }
+                finally { source.close() }
+                assertTrue("Retired resources must reject reads before codec release", denied)
+                assertNotNull(release)
+            }
+            android.os.SystemClock.sleep(180L)
+            compose.runOnIdle { release!!.invoke() }
+        } finally { h.close() }
     }
 
     @Test fun onlyNextPreloads_whileCurrentKeepsPlaying_andItsPreparedSourceHandsOffWithoutNewManifestReads() {

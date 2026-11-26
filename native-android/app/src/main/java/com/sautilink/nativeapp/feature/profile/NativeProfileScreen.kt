@@ -1,5 +1,8 @@
 package com.sautilink.nativeapp.feature.profile
 
+import com.sautilink.nativeapp.ui.components.SautiActionOutlineWidth
+import com.sautilink.nativeapp.ui.components.SautiActionButtonShape
+import com.sautilink.nativeapp.ui.components.SautiActionButtonHeight
 import com.sautilink.nativeapp.ui.components.NativeSearchField
 import com.sautilink.nativeapp.ui.components.SautiEntityText
 import androidx.activity.compose.BackHandler
@@ -437,16 +440,20 @@ fun NativeProfileScreen(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         OutlinedButton(onClick = { actionError = null; edit = true },
                                             colors = ButtonDefaults.outlinedButtonColors(contentColor = sautiChromeInk()),
-                                            shape = RoundedCornerShape(14.dp),
-                                            modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                                            shape = SautiActionButtonShape,
+                                            border = BorderStroke(SautiActionOutlineWidth, sautiChromeInk().copy(alpha = .82f)),
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                                            modifier = Modifier.weight(1f).heightIn(min = SautiActionButtonHeight)) {
                                             Icon(Icons.Rounded.Edit, null, Modifier.size(18.dp))
                                             Spacer(Modifier.width(5.dp))
                                             Text("Edit Profile")
                                         }
                                         OutlinedButton(onClick = onOpenDashboard,
                                             colors = ButtonDefaults.outlinedButtonColors(contentColor = sautiChromeInk()),
-                                            shape = RoundedCornerShape(14.dp),
-                                            modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                                            shape = SautiActionButtonShape,
+                                            border = BorderStroke(SautiActionOutlineWidth, sautiChromeInk().copy(alpha = .82f)),
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                                            modifier = Modifier.weight(1f).heightIn(min = SautiActionButtonHeight)) {
                                             Icon(Icons.Rounded.Dashboard, null, Modifier.size(18.dp))
                                             Spacer(Modifier.width(5.dp))
                                             Text("Dashboard")
@@ -455,7 +462,7 @@ fun NativeProfileScreen(
                                 } else if (member.id != account.id) {
                                     Row(Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Button(onClick = {
+                                    OutlinedButton(onClick = {
                                         val desired = following != true
                                         followBusy = true; actionError = null
                                         scope.launch {
@@ -470,14 +477,20 @@ fun NativeProfileScreen(
                                             } finally { followBusy = false }
                                         }
                                     }, enabled = !followBusy && following != null && safetyState?.blocked != true,
-                                        shape = RoundedCornerShape(14.dp),
-                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = sautiChromeInk()),
+                                        shape = SautiActionButtonShape,
+                                        border = BorderStroke(SautiActionOutlineWidth, sautiChromeInk().copy(alpha = .82f)),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                                        modifier = Modifier.weight(1f).heightIn(min = SautiActionButtonHeight)) {
                                         Text(if (following == true) "Following" else "Follow")
                                     }
                                     if (canMessage && safetyState?.blocked != true) {
                                         OutlinedButton(onClick = { onStartMessage(member.id) },
-                                            shape = RoundedCornerShape(14.dp),
-                                            modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = sautiChromeInk()),
+                                            shape = SautiActionButtonShape,
+                                            border = BorderStroke(SautiActionOutlineWidth, sautiChromeInk().copy(alpha = .82f)),
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                                            modifier = Modifier.weight(1f).heightIn(min = SautiActionButtonHeight)) {
                                             Icon(Icons.Rounded.ChatBubbleOutline, null, Modifier.size(18.dp))
                                             Spacer(Modifier.width(6.dp))
                                             Text("Message")

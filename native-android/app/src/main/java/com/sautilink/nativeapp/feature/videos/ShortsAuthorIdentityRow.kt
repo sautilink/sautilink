@@ -1,5 +1,8 @@
 package com.sautilink.nativeapp.feature.videos
 
+import com.sautilink.nativeapp.ui.components.SautiActionOutlineWidth
+import com.sautilink.nativeapp.ui.components.SautiActionButtonShape
+import com.sautilink.nativeapp.ui.components.SautiActionButtonHeight
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -68,9 +71,9 @@ internal fun ShortsAuthorIdentityRow(auth: StagingAuthClient, post: StagingFeedP
         if (button != ShortsFollowPresentation.HIDDEN) {
             OutlinedButton(onClick = if (button == ShortsFollowPresentation.RETRY_READ) onRetryRead else onFollow,
                 enabled = enabled && handleValid && button in setOf(ShortsFollowPresentation.FOLLOW, ShortsFollowPresentation.RETRY_READ),
-                shape = RoundedCornerShape(11.dp), border = BorderStroke(1.dp, Color.White.copy(alpha = .65f)),
+                shape = SautiActionButtonShape, border = BorderStroke(SautiActionOutlineWidth, Color.White.copy(alpha = .82f)),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                modifier = Modifier.heightIn(min = 38.dp),
+                modifier = Modifier.heightIn(min = SautiActionButtonHeight),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White, disabledContentColor = Color.White.copy(alpha = .8f))) {
                 if (button == ShortsFollowPresentation.READING) {
                     CircularProgressIndicator(Modifier.size(15.dp), color = Color.White.copy(alpha = .65f), strokeWidth = 1.5.dp)

@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -24,6 +25,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.R
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 
 /** The original SautiLink PNG artwork, with status and type always supplied by the server. */
 @Composable
@@ -43,14 +48,18 @@ fun SautiVerificationBadge(
     val art = if (team) R.raw.sauti_verified_team else if (dark)
         R.raw.sauti_verified_standard_dark else R.raw.sauti_verified_standard_light
     val context = LocalContext.current
-    val image = remember(art) { BadgeArtwork.load(context.resources, art) }
+    val image = remember(art) { mutableStateOf(BadgeArtwork.cached(art)) }
+    LaunchedEffect(art) {
+        image.value = withContext(Dispatchers.Default) { BadgeArtwork.load(context.resources, art) }
+    }
     val label = if (!interactive) "Illustrative SautiLink verification artwork" else
         if (team) "Verified brand or entity profile" else "Verified account"
     var showInfo by rememberSaveable { mutableStateOf(false) }
-    Image(bitmap = image, contentDescription = label,
-        modifier = modifier.size(size).then(if (interactive)
-            Modifier.clickable(onClickLabel = "About this verified profile") { showInfo = true }
-            else Modifier))
+    val target = modifier.size(size).then(if (interactive)
+        Modifier.clickable(onClickLabel = "About this verified profile") { showInfo = true }
+        else Modifier)
+    image.value?.let { Image(bitmap = it, contentDescription = label, modifier = target) }
+        ?: androidx.compose.foundation.layout.Spacer(target.semantics { contentDescription = label })
     val info = verificationBadgeCopy(team, profileOwner, displayName)
     if (showInfo) AlertDialog(
         onDismissRequest = { showInfo = false },
@@ -62,7 +71,8 @@ fun SautiVerificationBadge(
 
 /** Decode a small, tightly cropped copy once; the source PNGs are 3264 px square. */
 private object BadgeArtwork {
-    private val cache = mutableMapOf<Int, ImageBitmap>()
+    private val cache = java.util.concurrent.ConcurrentHashMap<Int, ImageBitmap>()
+    fun cached(resourceId: Int): ImageBitmap? = cache[resourceId]
 
     @Synchronized fun load(resources: android.content.res.Resources, resourceId: Int): ImageBitmap =
         cache.getOrPut(resourceId) {

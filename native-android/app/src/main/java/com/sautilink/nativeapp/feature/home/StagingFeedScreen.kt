@@ -1,6 +1,9 @@
 package com.sautilink.nativeapp.feature.home
 
 import com.sautilink.nativeapp.feature.music.postAudioVisibility
+import com.sautilink.nativeapp.ui.components.SautiActionOutlineWidth
+import com.sautilink.nativeapp.ui.components.SautiActionButtonShape
+import com.sautilink.nativeapp.ui.components.SautiActionButtonHeight
 
 import com.sautilink.nativeapp.ui.theme.sautiChromeInk
 import android.content.Intent
@@ -157,6 +160,7 @@ fun StagingFeedScreen(
     var scrollAfterRefresh by remember(auth, accountId, mode) { mutableStateOf(false) }
     var newPostsAvailable by remember(auth, accountId, mode) { mutableStateOf(false) }
     val newPostsTracker = remember(auth, accountId, mode) { FeedNewPostsTracker() }
+    val autoplayReady = rememberFeedAutoplayReady(feedListState)
     val farFromTop by remember(feedListState) { derivedStateOf { feedListState.firstVisibleItemIndex >= 3 } }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -689,7 +693,7 @@ fun StagingFeedScreen(
             newPostsAvailable = asHome && farFromTop && newPostsAvailable,
             onRefresh = { requestRefresh(scrollToTop = false) },
             onNewPosts = { requestRefresh(scrollToTop = true) }, modifier = Modifier.fillMaxSize().padding(insets)) {
-        CompositionLocalProvider(LocalFeedVideoLookahead provides videoLookahead) {
+        CompositionLocalProvider(LocalFeedVideoLookahead provides videoLookahead, LocalFeedAutoplayReady provides autoplayReady) {
         LazyColumn(
             Modifier.fillMaxSize(),
             state = feedListState,
@@ -957,10 +961,10 @@ internal fun FeedFollowButton(following: Boolean?, pending: Boolean?, enabled: B
     val ink = sautiChromeInk()
     val label = if (pending == true) "Following…" else if (following == true) "Following" else "Follow"
     OutlinedButton(onClick = onFollow, enabled = enabled && following != true && pending != true, interactionSource = interaction,
-        modifier = Modifier.heightIn(min = 40.dp), shape = RoundedCornerShape(13.dp),
+        modifier = Modifier.heightIn(min = SautiActionButtonHeight), shape = SautiActionButtonShape,
         colors = ButtonDefaults.outlinedButtonColors(contentColor = ink,
             disabledContentColor = if (following == true) ink else ink.copy(alpha = .54f)),
-        border = BorderStroke(1.dp, ink.copy(alpha = if (enabled) .82f else .32f)),
+        border = BorderStroke(SautiActionOutlineWidth, ink.copy(alpha = if (enabled) .82f else .32f)),
         contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp)) {
         Text(label, modifier = Modifier.sautiActionFeedback(interaction),
             style = MaterialTheme.typography.labelMedium, maxLines = 1)

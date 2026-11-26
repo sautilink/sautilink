@@ -75,6 +75,14 @@ android {
             isMinifyEnabled = false
             signingConfig = signingConfigs.findByName("productionRelease")
         }
+        // Same runtime/compiler mode as the shipped release, under the Preview
+        // package and test certificate. Debug tooling must not distort scroll QA.
+        create("performance") {
+            initWith(getByName("release"))
+            isDebuggable = false
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -87,7 +95,7 @@ android {
 androidComponents {
     beforeVariants(selector().all()) { variant ->
         val distribution = variant.productFlavors.firstOrNull { it.first == "distribution" }?.second
-        if ((distribution == "production" && variant.buildType == "debug") ||
+        if ((distribution == "production" && variant.buildType != "release") ||
             (distribution == "preview" && variant.buildType == "release")) variant.enable = false
     }
 }

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Feed controls, errors, poster and buffering are owned by Compose. Do not
+         inflate Media3's hidden controller or Samsung's expensive ProgressBar. -->
+    <androidx.media3.ui.AspectRatioFrameLayout android:id="@id/exo_content_frame"
+        android:layout_width="match_parent" android:layout_height="match_parent" android:layout_gravity="center">
+        <View android:id="@id/exo_shutter" android:layout_width="match_parent"
+            android:layout_height="match_parent" android:background="@android:color/black" />
+        <androidx.media3.ui.SubtitleView android:id="@id/exo_subtitles"
+            android:layout_width="match_parent" android:layout_height="match_parent" />
+    </androidx.media3.ui.AspectRatioFrameLayout>
+</merge>

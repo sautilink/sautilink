@@ -14,7 +14,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -135,8 +134,18 @@ internal fun AuthorizedImage(
             val token = auth.accessTokenForStagingRead()
             currentCoroutineContext().ensureActive()
             if (!stillOwnsImage()) return@LaunchedEffect
-            val fingerprint = MessageDigest.getInstance("SHA-256").digest(token.toByteArray())
-                .joinToString("") { "%02x".format(it) }
+            val fingerprint = withContext(Dispatchers.Default) {
+                val digest = MessageDigest.getInstance("SHA-256").digest(token.toByteArray(Charsets.UTF_8))
+                val hex = "0123456789abcdef"
+                buildString(digest.size * 2) {
+                    digest.forEach { byte ->
+                        val value = byte.toInt() and 255
+                        append(hex[value ushr 4]); append(hex[value and 15])
+                    }
+                }
+            }
+            ensureActive()
+            if (!stillOwnsImage()) return@LaunchedEffect
             val scope = "${auth.mediaOrigin}|$accountId|$fingerprint"
             val stamp = cache.activate(scope)
             val previewRoute = authorizedImagePreviewRoute(route)
@@ -190,7 +199,9 @@ internal fun AuthorizedImage(
                 modifier = Modifier.fillMaxSize())
             loading && blurred != null -> Image(blurred.asImageBitmap(), contentDescription = null,
                 contentScale = if (crop) ContentScale.Crop else ContentScale.Fit,
-                modifier = Modifier.fillMaxSize().blur(8.dp))
+                // The cached pixels are already softened off the UI thread.
+                // A second full-size GPU blur made scrolling loaded previews expensive.
+                modifier = Modifier.fillMaxSize())
             loading -> if (showFallbackWhileLoading) fallback() else SautiSkeletonBlock(Modifier.fillMaxSize(), 6.dp)
             showFailureFallback -> AuthorizedImageFailureContent(failed, retry, fallback = fallback)
         }

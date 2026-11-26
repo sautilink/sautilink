@@ -5,15 +5,14 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -21,13 +20,17 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SautiSkeletonBlock(modifier: Modifier = Modifier, rounded: Dp = 12.dp) {
     val transition = rememberInfiniteTransition(label = "SautiLink skeleton")
-    val opacity by transition.animateFloat(
+    val opacity = transition.animateFloat(
         initialValue = .38f, targetValue = .78f,
         animationSpec = infiniteRepeatable(tween(980), RepeatMode.Reverse),
         label = "Skeleton pulse"
     )
-    Spacer(modifier.clip(RoundedCornerShape(rounded))
-        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = .10f * opacity)))
+    val ink = MaterialTheme.colorScheme.onSurface
+    // Only invalidate drawing as the pulse advances; never recompose/re-layout
+    // each loading block on every animation frame during a feed fling.
+    Spacer(modifier.clip(RoundedCornerShape(rounded)).drawBehind {
+        drawRect(ink.copy(alpha = .10f * opacity.value))
+    })
 }
 
 @Composable
