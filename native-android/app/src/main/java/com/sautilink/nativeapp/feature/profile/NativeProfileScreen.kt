@@ -233,7 +233,7 @@ fun NativeProfileScreen(
                         }
                         DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
                             DropdownMenuItem(text = { Text("Share profile") },
-                                leadingIcon = { Icon(Icons.Rounded.Share, null, Modifier.size(20.dp)) }, onClick = {
+                                leadingIcon = { Icon(com.sautilink.nativeapp.ui.components.SautiPostIcons.Share, null, Modifier.size(20.dp)) }, onClick = {
                                 moreOpen = false
                                 val handle = profile?.username ?: return@DropdownMenuItem
                                 val share = Intent(Intent.ACTION_SEND).apply {

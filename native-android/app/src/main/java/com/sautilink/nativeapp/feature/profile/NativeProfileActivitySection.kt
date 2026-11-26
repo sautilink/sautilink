@@ -442,7 +442,7 @@ private fun ProfileActivityCard(
                         }
                     }
                 }
-                com.sautilink.nativeapp.feature.home.CompactPostAction(Icons.Rounded.Share, "Share post", null, Modifier, onClick = {
+                com.sautilink.nativeapp.feature.home.CompactPostAction(com.sautilink.nativeapp.ui.components.SautiPostIcons.Share, "Share post", null, Modifier, onClick = {
                     val send = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"; putExtra(Intent.EXTRA_TEXT, actions.postShareUrl(item.id))
                     }
