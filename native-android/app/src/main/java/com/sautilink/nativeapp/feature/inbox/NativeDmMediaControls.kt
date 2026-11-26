@@ -13,6 +13,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.core.*
@@ -56,7 +57,8 @@ internal fun NativeDmMediaControls(
     auth: StagingAuthClient,
     conversationId: String,
     onSent: () -> Unit,
-    onError: (String) -> Unit
+    onError: (String) -> Unit,
+    composer: @Composable (Boolean, () -> Unit, () -> Unit, () -> Unit) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -260,54 +262,28 @@ internal fun NativeDmMediaControls(
         }
     }
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box {
-            IconButton(onClick = { menu = true }, enabled = !busy && !recording,
-                modifier = Modifier.size(44.dp)) {
-                Icon(Icons.Rounded.AddCircleOutline, "Attach photo, camera or document")
-            }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(text = { Text("Photo gallery") },
-                    leadingIcon = { Icon(Icons.Rounded.Image, null) }, onClick = {
-                        menu = false; gallery.launch("image/*")
-                    })
-                DropdownMenuItem(text = { Text("Document") },
-                    leadingIcon = { Icon(Icons.Rounded.Description, null) }, onClick = {
-                        menu = false; document.launch("*/*")
-                    })
-                DropdownMenuItem(text = { Text("Camera") },
-                    leadingIcon = { Icon(Icons.Rounded.PhotoCamera, null) }, onClick = {
-                        menu = false
-                        try {
-                            val dir = File(context.cacheDir, "chat-camera").apply { mkdirs() }
-                            val file = File.createTempFile("sauti_camera_", ".jpg", dir)
-                            val capture = FileProvider.getUriForFile(context,
-                                context.packageName + ".fileprovider", file)
-                            cameraFile = file
-                            cameraUri = capture
-                            camera.launch(capture)
-                        } catch (_: Exception) { onError("Camera is unavailable.") }
-                    })
-            }
-        }
-        IconButton(
-            onClick = {
-                if (recording) stopVoice()
-                else if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-                    == PackageManager.PERMISSION_GRANTED) startVoice()
-                else microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
-            },
-            enabled = !busy,
-            modifier = Modifier.size(44.dp)
-        ) {
-            Icon(if (recording) Icons.Rounded.StopCircle else Icons.Rounded.Mic,
-                if (recording) "Stop and send voice note" else "Record voice note (max 1 minute)",
-                tint = if (recording) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurface)
-        }
-        if (recording) Text("REC", color = MaterialTheme.colorScheme.error,
-            fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelSmall)
-        if (busy) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
+    fun openCamera() {
+        try {
+            val directory = File(context.cacheDir, "chat-camera").apply { mkdirs() }
+            val file = File.createTempFile("sauti_camera_", ".jpg", directory)
+            cameraUri = FileProvider.getUriForFile(context,context.packageName + ".fileprovider",file)
+            cameraFile = file; camera.launch(cameraUri!!)
+        } catch (_: Exception) { onError("Camera is unavailable.") }
+    }
+    composer(!busy && !recording, { menu = true }, { openCamera() }, {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startVoice()
+        else microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
+    })
+    if (menu) ModalBottomSheet(onDismissRequest = { menu = false }) {
+        Text("Add to chat", Modifier.padding(horizontal=20.dp,vertical=8.dp),style=MaterialTheme.typography.titleMedium)
+        ListItem(headlineContent={Text("Photo gallery")}, leadingContent={Icon(Icons.Rounded.Image,null)},
+            modifier=Modifier.clickable {menu=false;gallery.launch("image/*")})
+        ListItem(headlineContent={Text("Document")}, leadingContent={Icon(Icons.Rounded.Description,null)},
+            modifier=Modifier.clickable {menu=false;document.launch("*/*")})
+        ListItem(headlineContent={Text("Camera")}, leadingContent={Icon(Icons.Rounded.PhotoCamera,null)},
+            modifier=Modifier.clickable {menu=false;openCamera()})
+        if(busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        Spacer(Modifier.height(18.dp))
     }
 }
 
@@ -319,6 +295,7 @@ internal fun NativeDmAttachmentBubble(
     modifier: Modifier = Modifier,
     autoLoadPhotos: Boolean = true,
     isOutgoing: Boolean = false,
+    contentColor: Color = Color.Unspecified,
     onLongClick: (() -> Unit)? = null,
     onError: (String) -> Unit
 ) {
@@ -360,7 +337,7 @@ internal fun NativeDmAttachmentBubble(
         }
         "voice" -> NativeVoiceNotePlayer(auth, media.id, media.durationMs)
         else -> {
-            val foreground = if (isOutgoing) Color.White else MaterialTheme.colorScheme.onSurface
+            val foreground = if(contentColor != Color.Unspecified) contentColor else if (isOutgoing) Color.White else MaterialTheme.colorScheme.onSurface
             Surface(
                 modifier = modifier.fillMaxWidth().heightIn(min = 60.dp)
                     .combinedClickable(enabled = !download, role = Role.Button,

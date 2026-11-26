@@ -18,6 +18,12 @@ import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import java.time.Instant
 import java.time.OffsetDateTime
@@ -34,26 +40,33 @@ private fun asTimestamp(raw: String?): Instant? {
  * Two grey ticks: receiver acknowledged device delivery.
  * Two blue ticks: receiver opened/read, if reciprocal read-receipts privacy allows.
  */
-@Composable
-internal fun NativeDmReceiptTicks(
-    messageSentAt: String,
-    peer: NativePeerReceipts,
-    color: Color
-) {
+internal enum class NativeDmReceiptState { Sent, Delivered, Seen }
+internal fun dmReceiptState(messageSentAt: String, peer: NativePeerReceipts): NativeDmReceiptState {
     val sent = asTimestamp(messageSentAt)
     val seen = sent != null && asTimestamp(peer.readAt)?.let { !it.isBefore(sent) } == true
     val delivered = seen || (sent != null &&
         asTimestamp(peer.deliveredAt)?.let { !it.isBefore(sent) } == true)
-    Icon(
-        imageVector = if (delivered) Icons.Rounded.DoneAll else Icons.Rounded.Done,
-        contentDescription = when {
-            seen -> "Seen"
-            delivered -> "Delivered"
-            else -> "Sent"
-        },
-        tint = if (seen) Color(0xFF53C8FF) else color,
-        modifier = Modifier.size(19.dp)
-    )
+    return when { seen -> NativeDmReceiptState.Seen; delivered -> NativeDmReceiptState.Delivered; else -> NativeDmReceiptState.Sent }
+}
+
+@Composable
+internal fun NativeDmReceiptTicks(messageSentAt: String, peer: NativePeerReceipts, color: Color) {
+    val state = dmReceiptState(messageSentAt, peer)
+    val ink = if (state == NativeDmReceiptState.Seen)
+        if (color.luminance() > .5f) Color(0xFFA8EAFF) else Color(0xFF008DDB) else color
+    Canvas(Modifier.size(19.dp,13.dp).semantics { contentDescription = state.name }) {
+        fun point(x: Float,y: Float) = Offset(x / 22f * size.width, y / 16f * size.height)
+        val stroke = 1.65.dp.toPx()
+        if (state == NativeDmReceiptState.Sent) {
+            drawLine(ink,point(4f,8f),point(8f,12f),stroke,StrokeCap.Round)
+            drawLine(ink,point(8f,12f),point(17f,2f),stroke,StrokeCap.Round)
+        } else {
+            drawLine(ink,point(1f,8f),point(5f,12f),stroke,StrokeCap.Round)
+            drawLine(ink,point(5f,12f),point(14f,2f),stroke,StrokeCap.Round)
+            drawLine(ink,point(10f,10f),point(12f,12f),stroke,StrokeCap.Round)
+            drawLine(ink,point(12f,12f),point(21f,2f),stroke,StrokeCap.Round)
+        }
+    }
 }
 
 /** Compact iOS / Telegram-like typing bubble that animates while the peer is composing. */

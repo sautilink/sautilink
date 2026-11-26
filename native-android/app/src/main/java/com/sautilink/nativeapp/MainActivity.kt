@@ -266,6 +266,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
         context.applicationContext.getSharedPreferences("sautilink_native_welcome_v1", Context.MODE_PRIVATE)
     }
     val activeAccountId = productionAuth.account?.id
+    var dmConversationOpen by remember(activeAccountId) { mutableStateOf(false) }
     LaunchedEffect(activeAccountId) { if (activeAccountId != null) showLogin = false }
     var homeRequest by remember(activeAccountId) { mutableStateOf<com.sautilink.nativeapp.feature.home.HomeFeedRequest?>(null) }
     DisposableEffect(productionAuth, activeAccountId) {
@@ -579,7 +580,8 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                     "entity-explore" -> entityExploreQuery
                     else -> ""
                 }
-                val selectedTab: Int? = if (detail == null || detail == "notifications" || detail == "videos") {
+                val selectedTab: Int? = if(detail == null && root == 3 && dmConversationOpen) null
+                else if (detail == null || detail == "notifications" || detail == "videos") {
                     when (detail) {
                         "notifications" -> 3
                         "videos" -> 4
@@ -811,6 +813,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                             },
                             onOpenPost = { id -> notificationPostId = id; postReturn = null; detail = "post" })
                         3 -> NativeInboxScreen(auth = productionAuth,
+                            onConversationVisibleChanged = { dmConversationOpen = it },
                             onSignIn = { detail = "production-auth" },
                             onOpenPrivacy = { settingsPrivacyFocus = true; detail = "settings" },
                             onActivityVisibilityChanged = { activityRevision++ },

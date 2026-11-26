@@ -72,7 +72,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     initialConversationId: String? = null, onDeepLinkConsumed: () -> Unit = {},
     initialPeerId: String? = null, onPeerConsumed: () -> Unit = {},
     onOpenPrivacy: () -> Unit = {},
-    onActivityVisibilityChanged: () -> Unit = {}) {
+    onActivityVisibilityChanged: () -> Unit = {}, onConversationVisibleChanged: (Boolean) -> Unit = {}) {
     val client = remember(auth) { NativeMessagesClient(auth) }
     val presentations = rememberSessionScreenPresentationAccess()
     val returnInitial = remember(presentations, auth.account?.id) {
@@ -112,6 +112,9 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     val safety = remember(auth) { NativeSafetyClient(auth) }
     var conversations by remember { mutableStateOf<List<NativeConversation>>(emptyList()) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(returnInitial.snapshot.selectedId) }
+    val conversationVisibility by rememberUpdatedState(onConversationVisibleChanged)
+    SideEffect { conversationVisibility(selectedId != null) }
+    DisposableEffect(Unit) { onDispose { conversationVisibility(false) } }
     var peerReceipts by remember(selectedId) {
         mutableStateOf(NativePeerReceipts(null, null))
     }
@@ -440,13 +443,13 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
     val active = thread?.takeIf { it.conversation.id == selectedId }
     if (selectedId != null) {
         Column(Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)
-                .background(MaterialTheme.colorScheme.surface),
+            Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
+                .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = {
+                IconButton(modifier=Modifier.size(44.dp),onClick = {
                     if (selectedMessage != null) selectedMessage = null
                     else { selectedId = null; thread = null; refresh++ }
-                }, Modifier.size(44.dp)) {
+                }) {
                     Icon(if (selectedMessage != null) Icons.Rounded.Close
                         else Icons.AutoMirrored.Rounded.ArrowBack,
                         if (selectedMessage != null) "Cancel selection" else "Back to inbox")
@@ -514,12 +517,12 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                 } else {
                     IconButton(onClick = {
                         android.widget.Toast.makeText(context, "Audio calls rolling out soon", android.widget.Toast.LENGTH_SHORT).show()
-                    }) { Icon(Icons.Rounded.Phone, "Audio call") }
+                    },modifier=Modifier.size(44.dp)) { Icon(Icons.Rounded.Phone, "Audio call") }
                     IconButton(onClick = {
                         android.widget.Toast.makeText(context, "Video calls rolling out soon", android.widget.Toast.LENGTH_SHORT).show()
-                    }) { Icon(Icons.Rounded.Videocam, "Video call") }
+                    },modifier=Modifier.size(44.dp)) { Icon(Icons.Rounded.Videocam, "Video call") }
                     Box {
-                        IconButton(onClick = { chatMenu = true }) {
+                        IconButton(onClick = { chatMenu = true },modifier=Modifier.size(44.dp)) {
                             Icon(Icons.Rounded.MoreHoriz, "Conversation options")
                         }
                         DropdownMenu(expanded = chatMenu, onDismissRequest = { chatMenu = false }) {
@@ -586,17 +589,18 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                     previousTail = tail?.id
                     previousLastIndex = shownMessages.lastIndex
                 }
-                LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth()
-                    .background(chatWallpaper),
-                    contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 5.dp)) {
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()
+                    .background(chatWallpaper).dmWallpaperDoodles(chatWallpaper),
+                    contentPadding = PaddingValues(horizontal=7.dp,vertical=10.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (compact) 1.dp else 2.dp)) {
                     if (shownMessages.isEmpty()) item {
                         Text(if (threadQuery.isBlank()) "No messages yet." else "No matching messages.")
                     }
                     itemsIndexed(shownMessages, key = { _, entry -> entry.id }) { index, message ->
                         val own = message.senderId == ownId
                         Column(Modifier.animateItem()) {
-                        if (index == 0 || shownMessages[index - 1].sentAt.take(10) != message.sentAt.take(10)) {
+                        if (index == 0 || dmMessageDayKey(shownMessages[index - 1].sentAt) != dmMessageDayKey(message.sentAt)) {
                             Box(Modifier.fillMaxWidth().padding(vertical = 9.dp),
                                 contentAlignment = Alignment.Center) {
                                 Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = .86f),
@@ -607,12 +611,13 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                 }
                             }
                         }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = if (own) Arrangement.End else Arrangement.Start) {
-                            NativeDmMessageBubbleSurface(
-                                own = own,
-                                outgoingChoice = bubble,
-                                wallpaper = chatWallpaper,
-                                modifier = Modifier.widthIn(max = bubbleLimit)
+                        val grouped = dmSameMessageGroup(shownMessages.getOrNull(index-1),message)
+                        val stickerOnly = message.kind == "text" && dmUsesStickerLayout(message.body)
+                        val bubbleFill = if(own) outgoingBubble(bubble) else incomingMessageBubbleColor(chatWallpaper,MaterialTheme.colorScheme)
+                        val quoted = message.replyTo?.let { id -> active.messages.firstOrNull { it.id == id } }
+                        val quotedMedia = quoted?.let { mediaByMessage[it.id] }?.takeIf { it.kind == "photo" }
+                        Row(Modifier.fillMaxWidth().padding(top=if(grouped) 0.dp else 5.dp), horizontalArrangement = if (own) Arrangement.End else Arrangement.Start) {
+                            val messageModifier = Modifier.widthIn(max = bubbleLimit)
                                     .pointerInput(message.id) {
                                         var movement = 0f
                                         detectHorizontalDragGestures(
@@ -621,7 +626,6 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                             }, onDragEnd = {
                                                 if (movement >= 75f) {
                                                     replyTo = message
-                                                    draft = ""
                                                 }
                                                 movement = 0f
                                             }
@@ -630,80 +634,44 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                                     .combinedClickable(
                                         onClick = { if (selectedMessage != null) selectedMessage = message },
                                         onLongClick = { selectedMessage = message })
-                            ) {
-                                Column(Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    if (message.replyTo != null) {
-                                        val quoted = active.messages.firstOrNull { it.id == message.replyTo }
-                                        val author = if (quoted?.senderId == ownId) "You" else active.conversation.name
-                                        val quoteColor = if (own && bubble != "neutral") Color.White
-                                            else MaterialTheme.colorScheme.primary
-                                        Row(
-                                            Modifier.clickable {
-                                                val at = shownMessages.indexOfFirst { it.id == message.replyTo }
-                                                if (at >= 0) scope.launch { listState.animateScrollToItem(at) }
-                                            }.background(
-                                                if (own && bubble != "neutral") Color.White.copy(alpha = .12f)
-                                                else MaterialTheme.colorScheme.primary.copy(alpha = .08f),
-                                                RoundedCornerShape(8.dp))
-                                                .padding(horizontal = 7.dp, vertical = 6.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(7.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Box(Modifier.width(3.dp).height(34.dp)
-                                                .background(quoteColor, RoundedCornerShape(2.dp)))
-                                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                                Text(author, color = quoteColor,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                Text(quoted?.body?.let(::stickerSummary)?.ifBlank { "Attachment" } ?: "Original message",
-                                                    color = quoteColor.copy(alpha = .82f),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                            }
-                                        }
-                                    }
-                                    if (message.kind != "text") {
-                                        val media = mediaByMessage[message.id]
-                                        if (media != null) NativeDmAttachmentBubble(
-                                            auth, media, autoLoadPhotos = autoPhotos,
-                                            isOutgoing = own,
-                                            onLongClick = { selectedMessage = message },
-                                            onError = { error = it })
-                                        else Text("Attachment unavailable",
-                                            style = MaterialTheme.typography.bodySmall)
-                                    }
-                                    if (message.body.isNotBlank()) {
-                                        SautiEntityText(message.body, linkSocialEntities = false,
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
-                                            color = if (own && bubble != "neutral") Color.White
-                                                else MaterialTheme.colorScheme.onSurface)
-                                    }
-                                    Row(
-                                        modifier = Modifier.align(Alignment.End),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                    ) {
-                                        Text(chatClock(message.sentAt) +
-                                            if (message.editedAt != null) " · edited" else "",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = if (own && bubble != "neutral") Color.White.copy(alpha = .78f)
-                                                else MaterialTheme.colorScheme.onSurfaceVariant)
-                                        if (own) NativeDmReceiptTicks(
-                                            message.sentAt, peerReceipts,
-                                            color = if (bubble != "neutral") Color.White.copy(alpha = .8f)
-                                                else MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
- 
-                                }
+                            val content: @Composable () -> Unit = {
+                                NativeDmMessageContent(message.body,own,bubbleFill,chatClock(message.sentAt),message.sentAt,
+                                    message.editedAt != null,peerReceipts,stickerOnly,
+                                    quoteAuthor=if(message.replyTo==null) null else if(quoted?.senderId==ownId) "You" else active.conversation.name,
+                                    quoteBody=quoted?.body ?: "Original message",
+                                    onQuote={
+                                        val at=shownMessages.indexOfFirst {it.id==message.replyTo}
+                                        if(at>=0) scope.launch {listState.animateScrollToItem(at)}
+                                    },
+                                    quoteThumbnail=if(quotedMedia==null || !autoPhotos) null else ({
+                                        NativeDmCachedPhoto(auth,quotedMedia,Modifier.fillMaxSize(),thumbnail=true,onError={error=it})
+                                    }),
+                                    attachment=if(message.kind=="text") null else ({
+                                        val media=mediaByMessage[message.id]
+                                        if(media!=null) NativeDmAttachmentBubble(auth,media,autoLoadPhotos=autoPhotos,isOutgoing=own,contentColor=dmBubbleInk(bubbleFill),
+                                            onLongClick={selectedMessage=message},onError={error=it})
+                                        else Text("Attachment unavailable",style=MaterialTheme.typography.bodySmall,color=dmBubbleInk(bubbleFill))
+                                    }),
+                                    modifier=Modifier.padding(start=if(!own && !grouped && !stickerOnly) 15.dp else 9.dp,
+                                        end=if(own && !grouped && !stickerOnly) 15.dp else 9.dp,top=6.dp,bottom=5.dp))
                             }
+                            if(stickerOnly) Box(messageModifier) {content()}
+                            else NativeDmMessageBubbleSurface(own,bubble,chatWallpaper,messageModifier,tail=!grouped) {content()}
+
                         }
                         }
                     }
                     if (peerTyping) item(key = "peer-typing") {
                         NativeDmTypingBubble()
                     }
+                }
+                val jumpVisible by remember(listState) { derivedStateOf {listState.canScrollForward} }
+                if(jumpVisible) SmallFloatingActionButton(onClick={scope.launch {
+                    listState.animateScrollToItem((shownMessages.lastIndex+if(peerTyping) 1 else 0).coerceAtLeast(0))
+                }},modifier=Modifier.align(Alignment.BottomEnd).padding(12.dp),shape=CircleShape,
+                    containerColor=MaterialTheme.colorScheme.surfaceContainerHigh,contentColor=MaterialTheme.colorScheme.onSurface) {
+                    Icon(Icons.Rounded.KeyboardDoubleArrowDown,"Jump to latest message",Modifier.size(22.dp))
+                }
                 }
                 if (receiptIssue) {
                     TextButton(
@@ -747,45 +715,26 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                         }
                     }
                 }
-                NativeStickerDraftPreview(draft, !sending) { draft = it }
-                Row(Modifier.fillMaxWidth().imePadding()
-                    .background(MaterialTheme.colorScheme.surface).padding(6.dp),
-                    verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    NativeDmMediaControls(auth, active.conversation.id,
-                        onSent = { refresh++ }, onError = { error = it })
-                    com.sautilink.nativeapp.feature.stickers.NativeStickerButton(!sending) { token ->
-                        val value = com.sautilink.nativeapp.feature.stickers.insertNativeSticker(
-                            androidx.compose.ui.text.input.TextFieldValue(draft, androidx.compose.ui.text.TextRange(draft.length)), token, 4000)
-                        draft = value.text
-                    }
-                    OutlinedTextField(stickerCaption(androidx.compose.ui.text.input.TextFieldValue(draft)).text, { draft = editStickerCaption(draft, androidx.compose.ui.text.input.TextFieldValue(it), 4000).text },
-                        modifier = Modifier.weight(1f), placeholder = { Text("Message") },
-                        shape = RoundedCornerShape(25.dp),
-                        maxLines = 5)
-                    Button(onClick = {
-                        if (sending) return@Button
-                        val body = draft.trim()
-                        if (body.isEmpty()) return@Button
-                        sending = true; error = null
-                        scope.launch {
-                            try {
-                                client.send(active.conversation.id, body, replyTo?.id)
-                                replyTo = null
-                                realtime?.typing(false)
-                                durableRealtime?.typing(false)
-                                if (selectedId == active.conversation.id) {
-                                    if (draft.trim() == body) draft = ""
-                                    thread = client.thread(active.conversation.id)
-                                }
-                            } catch (cancelled: CancellationException) { throw cancelled }
-                            catch (e: Exception) { error = e.message ?: "Message could not be sent." }
-                            finally { sending = false }
+                NativeDmMediaControls(auth, active.conversation.id,
+                    onSent = { refresh++ }, onError = { error = it }) { mediaEnabled, attach, camera, voice ->
+                    NativeDmComposer(draft,{draft=it},sending,mediaEnabled,attach,camera,voice,onSend={
+                        val body=draft.trim()
+                        if(!sending && body.isNotEmpty()) {
+                            sending=true;error=null
+                            scope.launch {
+                                try {
+                                    client.send(active.conversation.id,body,replyTo?.id)
+                                    replyTo=null;realtime?.typing(false);durableRealtime?.typing(false)
+                                    if(selectedId==active.conversation.id) {
+                                        if(draft.trim()==body) draft=""
+                                        thread=client.thread(active.conversation.id)
+                                    }
+                                } catch(cancelled:CancellationException) {throw cancelled}
+                                catch(e:Exception) {error=e.message ?: "Message could not be sent."}
+                                finally {sending=false}
+                            }
                         }
-                    }, enabled = draft.isNotBlank() && !sending,
-                        contentPadding = PaddingValues(horizontal = 12.dp),
-                        shape = CircleShape) {
-                        Icon(Icons.Rounded.Send, "Send message")
-                    }
+                    })
                 }
             }
         }
@@ -1057,7 +1006,7 @@ fun NativeInboxScreen(auth: StagingAuthClient, onSignIn: () -> Unit, onOpenProfi
                             Text("@${item.handle}" + if (item.muted) " · Muted" else "",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(item.latestBody.ifBlank { "Conversation" }, maxLines = 1,
+                            Text(dmConversationPreview(item.latestBody), maxLines = 1,
                                 style = MaterialTheme.typography.bodyMedium,
                                 overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }

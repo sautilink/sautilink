@@ -178,6 +178,7 @@ fun NativeStickerArt(sticker: NativeSticker, modifier: Modifier = Modifier) {
 
 @Composable
 fun NativeStickerText(text: String, modifier: Modifier = Modifier,
+    stickerSize: androidx.compose.ui.unit.Dp = 116.dp, motionSize: androidx.compose.ui.unit.Dp = 32.dp,
     plainText: @Composable (String) -> Unit) {
     val matches = remember(text) { tokenPattern.findAll(text).toList() }
     var resolved by remember(text) { mutableStateOf<Map<String, NativeSticker>>(emptyMap()) }
@@ -198,7 +199,7 @@ fun NativeStickerText(text: String, modifier: Modifier = Modifier,
             val id = match.groups[1]?.value ?: "slv-${match.groups[2]!!.value}"
             val sticker = resolved[id]
             if (sticker == null) plainText("Sticker unavailable")
-            else NativeStickerArt(sticker, Modifier.size(if (match.groups[2] != null) 32.dp else 116.dp))
+            else NativeStickerArt(sticker, Modifier.size(if (match.groups[2] != null) motionSize else stickerSize))
             cursor = match.range.last + 1
         }
         if (cursor < text.length) plainText(text.substring(cursor))
@@ -207,10 +208,11 @@ fun NativeStickerText(text: String, modifier: Modifier = Modifier,
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NativeStickerButton(enabled: Boolean = true, onInsert: (String) -> Unit) {
+fun NativeStickerButton(enabled: Boolean = true, modifier: Modifier = Modifier,
+    artwork: (@Composable () -> Unit)? = null, onInsert: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    IconButton(onClick = { open = true }, enabled = enabled) {
-        Icon(Icons.Rounded.SentimentSatisfiedAlt, "Stickers and motion emoji")
+    IconButton(onClick = { open = true }, enabled = enabled, modifier = modifier) {
+        if (artwork != null) artwork() else Icon(Icons.Rounded.SentimentSatisfiedAlt, "Stickers and motion emoji")
     }
     if (!open) return
     var query by remember { mutableStateOf("") }

@@ -72,6 +72,7 @@ internal fun NativeDmCachedPhoto(
     auth: StagingAuthClient,
     media: DmMedia,
     modifier: Modifier = Modifier,
+    thumbnail: Boolean = false,
     onLongClick: (() -> Unit)? = null,
     onError: (String) -> Unit
 ) {
@@ -102,9 +103,9 @@ internal fun NativeDmCachedPhoto(
         }
     }
 
-    Box(modifier.fillMaxWidth().height(218.dp).clip(RoundedCornerShape(12.dp))
+    Box(modifier.fillMaxWidth().then(if (thumbnail) Modifier.fillMaxHeight() else Modifier.height(218.dp)).clip(RoundedCornerShape(if (thumbnail) 5.dp else 12.dp))
         .background(MaterialTheme.colorScheme.surfaceVariant)
-        .combinedClickable(enabled = photo != null,
+        .combinedClickable(enabled = photo != null && !thumbnail,
             onLongClick = onLongClick,
             onLongClickLabel = if (onLongClick != null) "Select message" else null,
             onClick = { enlarged = true }),
@@ -112,9 +113,9 @@ internal fun NativeDmCachedPhoto(
         val image = photo
         when {
             image != null -> Image(image.asImageBitmap(), contentDescription = "Chat photo",
-                contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+                contentScale = if (thumbnail) ContentScale.Crop else ContentScale.Fit, modifier = Modifier.fillMaxSize())
             loading -> CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-            failed -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            failed -> if(thumbnail) Icon(Icons.Rounded.BrokenImage,null,Modifier.size(18.dp)) else Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Rounded.BrokenImage, null, Modifier.size(23.dp))
                 TextButton(onClick = { retry++ }) { Text("Retry photo") }
             }

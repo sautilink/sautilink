@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 
 /** Preferences are local to the authenticated account, never written into others' DM rows. */
@@ -62,7 +63,7 @@ internal fun messageWallpaper(choice: String): Color = when (choice) {
     "warm" -> Color(0xFFF3EFE8)
     "blue" -> Color(0xFFE6F0FA)
     "dark" -> Color(0xFF202530)
-    else -> MaterialTheme.colorScheme.surfaceContainerLow
+    else -> if (MaterialTheme.colorScheme.surface.luminance() < .5f) Color(0xFF0B141A) else Color(0xFFEAE6DD)
 }
 
 @Composable

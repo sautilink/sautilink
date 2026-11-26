@@ -88,8 +88,8 @@ class NativeDmBubbleAppearanceTest {
                 contrast(foregrounds.getValue(tag), actual) >= 4.5f)
         }
         assertEquals(8, backgrounds.size)
-        assertTrue("Auto light must not render another white-on-white bubble",
-            renderedCenter("false-system") != Color.White)
+        assertTrue("Auto light wallpaper must separate from its white incoming bubble",
+            contrast(renderedCenter("false-system"),backgrounds.getValue("false-system")) >= 1.10f)
     }
 
     @Test fun incomingFillAdaptsToExplicitWhiteWallpaper_inBothThemes() {
@@ -193,7 +193,7 @@ class NativeDmBubbleAppearanceTest {
     }
 
     private fun savePreview() {
-        val context = InstrumentationRegistry.getInstrumentation().context
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         val supplied = InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")
         val directory = File(supplied ?: (context.externalCacheDir ?: context.cacheDir).absolutePath,
             "sautilink-chat-bubbles").apply { mkdirs() }
