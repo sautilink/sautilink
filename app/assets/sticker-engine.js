@@ -146,7 +146,9 @@ function mountButton(form,input,send){
  installStickerDraftEditor(input,async part=>{await resolveIds([part.id]);const s=cache.get(part.id);return s?media(s,{preview:true,inline:part.type==='inline'}):null;});
  const button=el('button','sl-sticker-open','☺');
  button.type='button';button.title='Stickers and animated emoji';button.setAttribute('aria-label','Choose a sticker');
- button.addEventListener('click',()=>open(input));send.before(button);
+ button.addEventListener('click',()=>open(input));
+ if(input.id==='message-body')form.append(button);
+ else send.before(button);
 }
 function initButtons(){
  for(const [inputId,formId,submitId] of inputs){
