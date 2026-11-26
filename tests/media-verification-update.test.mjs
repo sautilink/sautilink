@@ -129,7 +129,7 @@ test('all media entry paths share 180-second preparation and oversized files fai
   const source = extract(formats, 'export async function preparePostComposerFiles(', 'async function validateSelectedShortVideo(').replace('export ', '');
   let reads = 0, trims = 0;
   const prepare = runInNewContext(`${source}\npreparePostComposerFiles;`, {
-    POST_VIDEO_LIMIT_SECONDS: 180, POST_VIDEO_MAX_BYTES: 262144000, preparedPostVideos: new WeakSet(),
+    editCreatorMedia: async file => file, POST_VIDEO_LIMIT_SECONDS: 180, POST_VIDEO_MAX_BYTES: 262144000, preparedPostVideos: new WeakSet(),
     videoDuration: async (file) => { reads++; return file.duration; },
     promptVideoTrim: async (file) => { trims++; return { ...file, duration: 180, trimmed: true }; },
   });

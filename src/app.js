@@ -4,6 +4,12 @@ import { preparePostComposerFiles } from './composer-formats.js';
 import { uploadPostMedia } from './post-media-upload.js';
 import { runMediaPreviewRequest, readMediaPreviewBlob, mediaPreviewPriority } from './media-preview-queue.js';
 import { roomPublishRequestId, confirmRoomPublishRequest, roomPublishOutcome } from './room-publish-outcome.js';
+import { formatEngagementCount, setEngagementCount } from './social-presentation.js';
+import { createPostActionIcon, installSocialIcons } from './social-icons.js';
+import { installPostAudio, configurePostMusic } from './post-music.js';
+import { createMusicComposer } from './music-composer.js';
+import { installCommentEmojis } from './comment-emojis.js';
+import { installForegroundTones } from './foreground-tones.js';
 import { createClient } from '@supabase/supabase-js';
 import { getVideoAutoplayPreference, setVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autoplay-preference.js';
 import { installVideoPlaybackCoordinator } from './video-playback-coordinator.js';
@@ -160,6 +166,7 @@ let recoverySession = false;
 let actionErrorTimer = 0;
 let currentMember = null;
 let currentMemberId = '';
+let musicComposer = null;
 window.__sautilinkMessagesUserId = () => currentMemberId;
 let currentAccountEmail = '';
 let pendingPasswordlessEmail = sessionStorage.getItem('sautilink.auth.passwordless_email') || '';
@@ -259,6 +266,8 @@ let dmPeerActivityChannel = null;
 let dmPeerActivityId = '';
 let dmPeerActivityOnline = false;
 let dmPeerActivityRecent = false;
+let dmPeerVisibility = 'unknown';
+let dmPeerLastSeen = null;
 let dmPeerActivityRequest = 0;
 let discoverRequest = 0;
 let savedRequest = 0;
@@ -266,7 +275,7 @@ let sautiConversationRequest = 0;
 let activeSautiConversation = null;
 let threadReplyRequestId = '';
 const THREAD_DRAFT_PREFIX = 'sautilink.thread.draft.v1:';
-const THREAD_POST_SELECT = 'id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)';
+const THREAD_POST_SELECT = 'id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, audio_selection, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)';
 const THREAD_RENDER_DEPTH = 4;
 let circlesRequest = 0;
 let activeCircle = null;
@@ -629,6 +638,7 @@ function showAuthPanel(name) {
 }
 
 function showSignedOut(mode = 'login') {
+  musicComposer?.clear();
   memberSurfaceRetention.invalidate();
   void stopDmRealtime();
   void stopDmPeerActivityPresence();
@@ -1815,6 +1825,10 @@ function renderGlobalDmPeerActivity() {
   const typing = byId('message-typing-status');
   if (!activity) return true;
 
+  if (dmPeerVisibility !== 'visible') {
+    activity.textContent = dmPeerVisibility === 'hidden' ? '🔒 Privacy Mode' : '';
+    activity.hidden = dmPeerVisibility !== 'hidden'; activity.dataset.state = 'privacy'; return true;
+  }
   if (typing && !typing.hidden) {
     activity.textContent = 'Typing…';
     activity.hidden = false;
@@ -1827,7 +1841,7 @@ function renderGlobalDmPeerActivity() {
     activity.hidden = false;
     activity.dataset.state = 'online';
   } else if (dmPeerActivityRecent) {
-    activity.textContent = 'Active recently';
+    activity.textContent = dmPeerLastSeen ? `Last seen ${new Date(dmPeerLastSeen).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : 'Offline';
     activity.hidden = false;
     activity.dataset.state = 'recent';
   } else {
@@ -1952,7 +1966,7 @@ async function syncMemberActivityPresence() {
 async function refreshDmPeerRecentActivity(peerId = dmPeerActivityId) {
   if (!peerId || peerId !== String(activeConversation?.peerId || '') || !activityStatusEnabled()) return;
   const requestId = ++dmPeerActivityRequest;
-  const { data, error } = await supabase.rpc('dm_peer_recent_activity_phase37', {
+  const { data, error } = await supabase.rpc('dm_peer_activity_native_v2', {
     p_peer_id: peerId,
   });
   if (
@@ -1961,7 +1975,9 @@ async function refreshDmPeerRecentActivity(peerId = dmPeerActivityId) {
     || peerId !== String(activeConversation?.peerId || '')
   ) return;
 
-  dmPeerActivityRecent = !error && data === true;
+  dmPeerVisibility = !error && data?.visibility === 'visible' ? 'visible' : !error && data?.visibility === 'hidden' ? 'hidden' : 'unknown';
+  dmPeerLastSeen = dmPeerVisibility === 'visible' && Number.isFinite(Date.parse(data.last_seen_at)) ? data.last_seen_at : null;
+  dmPeerActivityRecent = Boolean(dmPeerLastSeen);
   renderGlobalDmPeerActivity();
 }
 
@@ -1987,6 +2003,7 @@ async function stopDmPeerActivityPresence() {
   dmPeerActivityId = '';
   dmPeerActivityOnline = false;
   dmPeerActivityRecent = false;
+  dmPeerVisibility = 'unknown'; dmPeerLastSeen = null;
   const surface = byId('messages-surface');
   if (surface) delete surface.dataset.globalPresenceTransport;
 
@@ -2046,6 +2063,7 @@ async function startDmPeerActivityPresence(peerId = String(activeConversation?.p
           if (surface) delete surface.dataset.globalPresenceTransport;
           dmPeerActivityOnline = false;
           dmPeerActivityRecent = false;
+          dmPeerVisibility = 'unknown'; dmPeerLastSeen = null;
           syncDmPresenceState();
         }
       });
@@ -3405,13 +3423,14 @@ function currentComposerSnapshot() {
     audience,
     replyAccess,
     media: serializeComposerMedia(),
+    audio: musicComposer?.value || null,
   };
 }
 
 function persistComposerCurrent() {
   if (restoringComposerState || !currentMemberId) return;
   const snapshot = currentComposerSnapshot();
-  if (!snapshot.body && !snapshot.media?.length) {
+  if (!snapshot.body && !snapshot.media?.length && !snapshot.audio) {
     writeComposerStorage(COMPOSER_CURRENT_PREFIX, null);
     return;
   }
@@ -3476,6 +3495,7 @@ function loadComposerDraftsFromStorage() {
 }
 
 function clearComposerCurrent({ resetControls = false } = {}) {
+  musicComposer?.clear();
   const textarea = byId('sauti-body');
   if (textarea) textarea.value = '';
   restoreComposerMedia([]);
@@ -3489,7 +3509,7 @@ function clearComposerCurrent({ resetControls = false } = {}) {
 
 function saveComposerDraft({ offline = false } = {}) {
   const snapshot = currentComposerSnapshot();
-  if (!String(snapshot.body || '').trim() && !snapshot.media?.length) return false;
+  if (!String(snapshot.body || '').trim() && !snapshot.media?.length && !snapshot.audio) return false;
   if (composerMedia.some((item) => item.status !== 'ready' && !item.cacheReady)) {
     showToast('Media is still being prepared for device storage. Try saving the draft again.', 'error');
     return false;
@@ -3527,6 +3547,7 @@ function applyComposerSnapshot(snapshot) {
   } else if (replies) {
     replies.value = 'everyone';
   }
+  musicComposer?.set(snapshot.audio || null);
   restoreComposerMedia(snapshot.media || []);
   restoringComposerState = false;
   updateComposerState({ persist: false });
@@ -3755,7 +3776,7 @@ function updateComposerState({ persist = true } = {}) {
   const replies = byId('sauti-reply-access');
   const body = textarea.value.trim();
   const hasMedia = composerMedia.length > 0;
-  const hasContent = Boolean(body || hasMedia);
+  const hasContent = Boolean(body || hasMedia || musicComposer?.value);
   const mediaReady = composerMedia.every((item) => item.status === 'ready');
   const mediaDraftReady = composerMedia.every((item) => item.status === 'ready' || item.cacheReady);
   const mentionedReady = replies.value !== 'mentioned' || composerHasMention(textarea.value);
@@ -3847,6 +3868,10 @@ function profileValue(value) {
 }
 
 function sautiActionIcon(action) {
+  return createPostActionIcon(action);
+}
+
+function legacySautiActionIcon(action) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
@@ -3888,7 +3913,7 @@ function interactionButton(action, label, count = null, active = false) {
     const number = document.createElement('span');
     number.className = 'sauti-action-count';
     number.dataset.countFor = action;
-    number.textContent = String(Number(count) || 0);
+    setEngagementCount(number, count);
     button.append(number);
   }
 
@@ -3930,7 +3955,7 @@ function createSautiCaption(value) {
     toggle.dataset.captionToggle = '';
     toggle.setAttribute('aria-expanded', 'false');
     toggle.setAttribute('aria-label', 'Show full caption');
-    toggle.textContent = 'more';
+    toggle.textContent = 'see more';
     caption.append(document.createTextNode(' '), toggle);
   }
 
@@ -4047,6 +4072,12 @@ function createHomePostHeadActions(item, post, username) {
     menu.append(homePostMenuItem('report', 'Report', { danger: true }));
   }
 
+  if (post.author_id === currentMemberId) {
+    const remove = document.createElement('button');
+    remove.type = 'button'; remove.className = 'sauti-head-menu-item danger';
+    remove.dataset.deleteSauti = post.id; remove.setAttribute('role', 'menuitem');
+    remove.textContent = 'Delete post'; menu.append(remove);
+  }
   menuShell.append(menuToggle, menu);
   controls.append(menuShell);
   return controls;
@@ -4102,7 +4133,7 @@ function commentReactionButton(action, count, active) {
   const number = document.createElement('span');
   number.className = 'comment-reaction-count';
   number.dataset.commentReactionCount = action;
-  number.textContent = String(Number(count) || 0);
+  setEngagementCount(number, count);
   number.hidden = Number(count) < 1;
   button.append(number);
   return button;
@@ -4308,6 +4339,7 @@ function createSautiCard(item, { home = false } = {}) {
     head.append(edited);
   }
 
+  installPostAudio(article, post, { identity, profileLink, time });
   const body = document.createElement('p');
   body.className = 'sauti-card-body';
   body.textContent = String(post.body || '');
@@ -4496,7 +4528,7 @@ async function loadQuotedPostMap(posts) {
 
   const { data, error } = await supabase
     .from('social_posts')
-    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, audio_selection, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
     .in('id', quoteIds);
 
   if (error) throw error;
@@ -4550,7 +4582,7 @@ async function hydrateStreamEvents(events) {
 
   const postQuery = supabase
     .from('social_posts')
-    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+    .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, audio_selection, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
     .in('id', postIds);
 
   const actorQuery = actorIds.length ? supabase
@@ -4777,7 +4809,7 @@ function syncCommentReactionCard(card, data) {
     const count = button.querySelector(`[data-comment-reaction-count="${action}"]`);
     const value = Math.max(0, Number(data?.[`${action}_count`]) || 0);
     if (count) {
-      count.textContent = String(value);
+      setEngagementCount(count, value);
       count.hidden = value < 1;
     }
   }
@@ -4870,7 +4902,7 @@ function setPostInteractionState(postId, action, active, countDelta = 0, { pendi
     syncPostActionButton(button, action, active, { pending });
     const count = button.querySelector('[data-count-for]');
     if (count && countDelta) {
-      count.textContent = String(Math.max(0, Number(count.textContent || 0) + countDelta));
+      setEngagementCount(count, Math.max(0, Number(count.dataset.rawCount || 0) + countDelta));
     }
   });
 }
@@ -4921,7 +4953,7 @@ async function refreshPostInteractionControls(postId) {
     Object.entries(values).forEach(([action, count]) => {
       const button = card.querySelector(`[data-sauti-action="${action}"]`);
       const countNode = button?.querySelector('[data-count-for]');
-      if (countNode) countNode.textContent = String(Number(count) || 0);
+      if (countNode) setEngagementCount(countNode, count);
     });
 
     const likeButton = card.querySelector('[data-sauti-action="like"]');
@@ -5509,10 +5541,11 @@ async function shareSauti() {
   const replyAccess = byId('sauti-reply-access').value || 'everyone';
   const body = textarea.value.trim();
   const circleId = audienceValue.startsWith('circle:') ? audienceValue.slice(7) : '';
+  if (circleId && musicComposer?.value) return setMessage(message, 'Remove audio or select a Home post audience.');
   const visibility = circleId ? 'circle' : audienceValue === 'followers' ? 'followers' : 'public';
   setMessage(message, '', '');
 
-  if (!body && !composerMedia.length) return setMessage(message, 'Write something or add media before sharing.');
+  if (!body && !composerMedia.length && !musicComposer?.value) return setMessage(message, 'Write something or add media before sharing.');
   if (composerMedia.length > 4) return setMessage(message, 'A post can include up to four media items.');
   if (composerMedia.some((item) => item.status !== 'ready' || !item.id)) {
     return setMessage(message, navigator.onLine ? 'Wait for media uploads to finish or retry the failed item.' : 'Media is waiting for connection.');
@@ -5549,6 +5582,7 @@ async function shareSauti() {
         visibility,
         circle_id: circleId || null,
         reply_access: replyAccess,
+        ...(musicComposer?.value && !circleId ? { audio: musicComposer.value } : {}),
         media: composerMedia.map((item) => ({
           id: item.id,
           alt_text: String(item.altText || '').trim(),
@@ -6303,6 +6337,11 @@ function notificationCopy(notification, actorName, circleName = '', post) {
     return circleCopy[notification.circle_event] || [actorName ? actor : 'SautiLink', ' sent you a Room update.'];
   }
 
+  if (notification.notification_type === 'trending') {
+    const count = Math.max(1, Number(notification.event_data?.post_count) || 1);
+    const rank = Number(notification.event_data?.best_rank) || 0;
+    return ['Congratulations! 🎉', ` ${count === 1 ? 'Your post' : `${count} of your posts`} made the Trending Charts${rank >= 1 && rank <= 20 ? ` · #${rank}` : ''}. Your voice is connecting people. Keep sharing!`];
+  }
   const location = notification.circle_id ? circleLabel : '';
   const likedContent = notification.circle_id ? 'your message' : post?.parent_post_id ? 'your comment' : 'your post';
   const replyAction = post?.thread_depth === 1 ? 'commented on your post'
@@ -6389,7 +6428,7 @@ async function loadNotifications() {
 
   const { data, error } = await supabase
     .from('social_notifications')
-    .select('id, actor_id, post_id, circle_id, circle_event, notification_type, read_at, created_at')
+    .select('id, actor_id, post_id, circle_id, circle_event, notification_type, event_data, read_at, created_at')
     .not('notification_type', 'in', '(story_like,story_dislike)')
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
@@ -6588,24 +6627,7 @@ async function loadDiscover(queryValue = byId('discover-query').value) {
     let profilePromise;
 
     if (query) {
-      profilePromise = Promise.all([
-        supabase
-          .from('social_profiles')
-          .select(profileSelect)
-          .eq('is_discoverable', true)
-          .neq('id', currentMemberId)
-          .ilike('username', `%${query}%`)
-          .order('followers_count', { ascending: false })
-          .limit(12),
-        supabase
-          .from('social_profiles')
-          .select(profileSelect)
-          .eq('is_discoverable', true)
-          .neq('id', currentMemberId)
-          .ilike('display_name', `%${query}%`)
-          .order('followers_count', { ascending: false })
-          .limit(12),
-      ]);
+      profilePromise = Promise.all([supabase.rpc('social_user_suggestions', { query_text: query, max_results: 24 })]);
     } else {
       profilePromise = Promise.all([
         supabase
@@ -6717,7 +6739,7 @@ async function loadSavedSauti() {
 
     const { data: posts, error: postError } = await supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, audio_selection, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
       .in('id', postIds);
 
     if (postError) throw postError;
@@ -6781,7 +6803,7 @@ async function loadSharedSautiTarget(postId) {
   try {
     const { data: post, error } = await supabase
       .from('social_posts')
-      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
+      .select('id, author_id, circle_id, visibility, reply_access, quote_post_id, parent_post_id, root_post_id, thread_depth, audience_owner_id, body, audio_selection, edit_count, edited_at, created_at, like_count, dislike_count, comment_count, repost_count, author:social_profiles!social_posts_author_id_fkey(username, display_name, avatar_key, updated_at, is_discoverable, is_verified, verification_badge_type)')
       .eq('id', postId)
       .maybeSingle();
 
@@ -6884,6 +6906,14 @@ function setConversationReplyTarget(post, { persistDraft = true } = {}) {
   byId('conversation-reply-body').placeholder = post.id === activeSautiConversation.rootId
     ? 'Write a comment…'
     : `Reply to ${conversationAuthorLabel(post)}…`;
+  if (canComment && persistDraft && post.id !== activeSautiConversation.rootId) {
+    const username = authorFromPost(post)?.username;
+    const field = byId('conversation-reply-body');
+    if (username) {
+      const text = field.value.replace(/^@[a-z0-9._]+\s*/i, '');
+      field.value = `@${username} ${text}`.slice(0, 500);
+    }
+  }
   updateConversationReplyState();
   if (canComment && persistDraft) persistThreadReplyDraft();
   return canComment;
@@ -7349,14 +7379,8 @@ async function searchMessageAccounts(query, requestId, inboxRequest) {
   let usernameResult;
   let nameResult;
   try {
-    [usernameResult, nameResult] = await Promise.all([
-      supabase.from('social_profiles').select(profileSelect)
-        .eq('is_discoverable', true).neq('id', currentMemberId)
-        .ilike('username', pattern).order('username').limit(12),
-      supabase.from('social_profiles').select(profileSelect)
-        .eq('is_discoverable', true).neq('id', currentMemberId)
-        .ilike('display_name', pattern).order('username').limit(12),
-    ]);
+    usernameResult = await supabase.rpc('social_user_suggestions', { query_text: query, max_results: 24 });
+    nameResult = { data: [], error: null };
   } catch {
     if (requestId === messagesSearchRequest && inboxRequest === messagesRequest) setMessageSearchLoading(false);
     return;
@@ -7559,7 +7583,9 @@ async function renderPeerReadReceipt(conversationId, messages = []) {
     if (!meta || meta.querySelector('.dm-read-receipt')) return;
     const seen = document.createElement('span');
     seen.className = 'dm-read-receipt';
-    seen.textContent = '✓✓';
+    const receipt = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    receipt.setAttribute('class', 'dm-receipt-icon'); receipt.setAttribute('viewBox', '0 0 24 16'); receipt.setAttribute('aria-hidden', 'true');
+    const ticks = document.createElementNS('http://www.w3.org/2000/svg', 'path'); ticks.setAttribute('d', 'm1 8 4 4L15 2M10 12l3 0L23 2'); receipt.append(ticks); seen.append(receipt);
     seen.setAttribute('aria-label', 'Read');
     seen.title = 'Read';
     meta.append(seen);
@@ -11882,4 +11908,11 @@ installHomeFeedPagination({
   loadMore: () => loadStream(),
 });
 
+musicComposer = createMusicComposer({ supabase, getMemberId: () => currentMemberId,
+  onChange: () => updateComposerState(), onCreate: () => openSautiComposer() });
+configurePostMusic({ details: selection => musicComposer.details(selection) });
+installSocialIcons();
+installCommentEmojis();
+installForegroundTones(() => currentMemberId);
+document.addEventListener('sautilink:music-dialog-toggle', syncHomeFeedVideoPlayback);
 bootstrap();

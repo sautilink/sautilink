@@ -113,6 +113,11 @@ self.addEventListener("push", (event) => {
   const body = String(payload.body || "You have a new notification.").slice(0, 240);
   const route = safeNotificationRoute(payload.route);
   event.waitUntil(Promise.all([
+    self.clients.matchAll({ type: "window" }).then(clients => {
+      const client = clients.find(item => item.visibilityState === "visible" && item.focused);
+      client?.postMessage({ type: "sautilink:notification-received", id: `${String(payload.type || "update")}-${String(payload.source_id || "new")}`,
+        category: route.startsWith("/messages") ? "message" : "activity" });
+    }),
     self.registration.showNotification(title, {
       body,
       icon: "/assets/icon-192.png",

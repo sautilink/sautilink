@@ -74,7 +74,7 @@ test('Phase 35 enables microphone only for the SautiLink app and leaves camera b
   for (const source of [previewStep, productionBuild]) {
     assert.match(source, /microphone=\(self\)/);
     assert.match(source, /camera=\(\)/);
-    assert.match(source, /media-src 'self' blob:/);
+    assert.match(source, /media-src 'self'(?: https:\/\/music\.sautilink\.com)? blob:/);
   }
 
   assert.match(androidRelease, /android\.permission\.RECORD_AUDIO/);

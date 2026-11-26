@@ -1,3 +1,4 @@
+import { installShortPostAudio } from './post-music.js';
 import { getVideoAutoplayPreference, VIDEO_AUTOPLAY_EVENT } from './video-autoplay-preference.js';
 import { refreshClonedVerificationSvgs } from './verification-inline-svg.js';
 import { updateShortsMediaReadiness } from './web-media-readiness.js';
@@ -326,6 +327,7 @@ function createShortVideoSlide(tile) {
   rail.querySelector('[data-short-action="heart"]').dataset.shortAction = 'like';
   rail.querySelector('[data-short-action="comment"]').dataset.shortAction = 'comments';
 
+  installShortPostAudio(slide, card, identity, usernameLink);
   slide.append(stage, meta, rail);
   return slide;
 }

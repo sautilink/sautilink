@@ -1,3 +1,4 @@
+import { setEngagementCount } from '../src/social-presentation.js';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as settle } from 'node:timers/promises';
@@ -34,7 +35,7 @@ function repostHarness({ active = false, count = 2 } = {}) {
   const refreshed = [];
   const toasts = [];
   const makeCard = (postId) => {
-    const metric = { textContent: String(count) };
+    const metric = { ...control({ rawCount: String(count) }), textContent: String(count) };
     const label = { textContent: active ? 'Undo repost' : 'Repost' };
     const button = control({ sautiAction: 'repost', active: String(active), pending: 'false' });
     const card = {
@@ -50,7 +51,7 @@ function repostHarness({ active = false, count = 2 } = {}) {
   const duplicate = makeCard('sample-post');
   const other = makeCard('other-post');
   const cards = [primary, duplicate, other];
-  const context = {
+  const context = { setEngagementCount, musicComposer: null,
     document: { querySelectorAll: (selector) => selector === '.sauti-card' ? cards.map(({ card }) => card) : [] },
     socialMutation: (path, options) => new Promise((resolve, reject) => requests.push({ path, method: options.method, resolve, reject })),
     refreshPostInteractionControls: (postId) => refreshed.push(postId),
@@ -146,7 +147,7 @@ function shortHarness(core) {
   const start = shorts.indexOf("  track.addEventListener('click', (event) => {");
   const end = shorts.indexOf("  track.addEventListener('keydown'", start);
   assert.ok(start >= 0 && end > start, 'Short Videos track click path must exist');
-  const context = {
+  const context = { setEngagementCount, musicComposer: null,
     SHORT_VIDEOS_ROOT_ID: 'sauti-short-videos',
     document: { querySelectorAll: () => [core.card] },
     window: { setTimeout: (callback) => callback() },
@@ -208,7 +209,7 @@ test('legacy quote drafts retain authored text and media while restoration and f
     'composer-drafts': { hidden: false },
     'sauti-drafts-toggle': control(),
   };
-  const context = {
+  const context = { setEngagementCount, musicComposer: null,
     currentMemberId: 'member', composerDrafts: [], composerMedia: [], restoringComposerState: false,
     POST_BODY_LIMIT: 2000, COMPOSER_CURRENT_PREFIX: currentPrefix, COMPOSER_DRAFTS_PREFIX: prefix, COMPOSER_DRAFT_LIMIT: 20,
     window: { localStorage: { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: (key) => storage.delete(key) } },
@@ -250,7 +251,7 @@ test('publishing sends authored text and media without a quote and rejects an em
     'sauti-audience': { value: 'followers', selectedOptions: [{ textContent: 'Followers' }] },
     'sauti-reply-access': { value: 'following' },
   };
-  const context = {
+  const context = { setEngagementCount, musicComposer: null,
     currentMember: { id: 'member' }, currentMemberId: 'member',
     activeComposerQuote: { id: 'legacy-target' },
     composerMedia: [{ id: 'photo', status: 'ready', altText: '  Original photo  ' }],

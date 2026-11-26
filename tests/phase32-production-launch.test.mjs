@@ -81,7 +81,7 @@ test('Phase 32 production headers use production CSP without staging noindex', a
   const headers = await read('dist-production-site/_headers');
   assert.match(headers, /rggpyiterdbbugluejcs\.supabase\.co/);
   assert.match(headers, /wss:\/\/sautilink\.com/);
-  assert.match(headers, /media-src 'self' blob:/);
+  assert.match(headers, /media-src 'self'(?: https:\/\/music\.sautilink\.com)? blob:/);
   assert.match(headers, /style-src 'self'/);
   assert.match(headers, /frame-ancestors 'none'/);
   assert.doesNotMatch(headers, /X-Robots-Tag:\s*noindex/i);

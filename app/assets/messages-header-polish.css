@@ -66,7 +66,7 @@ body:has(#messages-surface:not([hidden])) .stream-header {
 .messages-whatsapp-ui {
   --message-ios-incoming: #202c33;
   --message-ios-incoming-text: #e9edef;
-  --message-ios-outgoing: #005c4b;
+  --message-ios-outgoing: #153e68;
   --message-ios-outgoing-text: #e9edef;
   --message-ios-meta: #8696a0;
   --message-ios-outgoing-meta: #b7d8d0;
@@ -76,7 +76,7 @@ body:has(#messages-surface:not([hidden])) .stream-header {
 :root[data-theme="light"] .messages-whatsapp-ui {
   --message-ios-incoming: #ffffff;
   --message-ios-incoming-text: #111b21;
-  --message-ios-outgoing: #d9fdd3;
+  --message-ios-outgoing: #dceeff;
   --message-ios-outgoing-text: #111b21;
   --message-ios-meta: #667781;
   --message-ios-outgoing-meta: #5f756f;

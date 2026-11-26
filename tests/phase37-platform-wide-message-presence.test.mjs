@@ -38,20 +38,20 @@ test('Phase 37 publishes platform-wide Presence while typing remains conversatio
     'MEMBER_ACTIVITY_HEARTBEAT_MS',
     'member-activity:',
     'touch_member_activity_phase37',
-    'dm_peer_recent_activity_phase37',
+    'dm_peer_activity_native_v2',
     'syncMemberActivityPresence',
     'startDmPeerActivityPresence',
     'channel.track',
     'channel.untrack',
     'globalPresenceTransport',
     'renderGlobalDmPeerActivity',
-    'Active recently',
+    'Last seen',
   ]) {
     assert.ok(app.includes(marker), `Platform presence client missing ${marker}`);
   }
 
   assert.match(app, /document\.addEventListener\('visibilitychange'[\s\S]*syncMemberActivityVisibility/);
-  assert.match(app, /if \(dmPeerActivityOnline\)[\s\S]*Online[\s\S]*else if \(dmPeerActivityRecent\)[\s\S]*Active recently/);
+  assert.match(app, /if \(dmPeerActivityOnline\)[\s\S]*Online[\s\S]*else if \(dmPeerActivityRecent\)[\s\S]*Last seen/);
   assert.match(durable, /__sautilinkRenderDmPeerActivity/);
   assert.match(durable, /durablePeerTyping[\s\S]*Typing…[\s\S]*globalRenderer/);
   assert.doesNotMatch(app, /Last seen at|Last seen \d|Active \d+[mh]/i);

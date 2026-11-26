@@ -45,7 +45,7 @@ test('verification approval notice explains the badge and continuing policy obli
 
 test('push dispatcher sends dedicated safety and verification copy with deep links', async () => {
   const source = await read('supabase/functions/sautilink-push-dispatch/index.ts');
-  assert.match(source, /notification_event,moderation_action_id,verification_case_id/);
+  assert.match(source, /notification_event,event_data,moderation_action_id,verification_case_id/);
   assert.match(source, /post_removed_reporter/);
   assert.match(source, /Your identity was not shared with the author/);
   assert.match(source, /verification_approved/);

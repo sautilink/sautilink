@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "sautilink-social-production",
+  "services": [{ "binding": "SAUTILINK_MUSIC", "service": "sautilink-music" }],
   "compatibility_date": "2026-08-17",
   "main": "./dist-production-worker/src/worker-entry.js",
   "placement": {

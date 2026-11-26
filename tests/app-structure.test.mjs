@@ -10,8 +10,8 @@ test('app shell is self-hosted and carries a restrictive CSP', async () => {
   const headers = await read('_headers');
   assert.match(html, /Content-Security-Policy/);
   assert.match(html, /script-src 'self'/);
-  assert.match(html, /connect-src 'self' https:\/\/stickers\.sautilink\.com https:\/\/rggpyiterdbbugluejcs\.supabase\.co/);
-  assert.match(html, /img-src 'self' https:\/\/stickers\.sautilink\.com data: blob:/);
+  assert.match(html, /connect-src 'self' https:\/\/stickers\.sautilink\.com https:\/\/music\.sautilink\.com https:\/\/rggpyiterdbbugluejcs\.supabase\.co/);
+  assert.match(html, /img-src 'self' https:\/\/stickers\.sautilink\.com https:\/\/music\.sautilink\.com data: blob:/);
   assert.match(html, /wss:\/\/rggpyiterdbbugluejcs\.supabase\.co/);
   assert.doesNotMatch(html, /bbrydwzlhweuqxpgbahu/);
   assert.doesNotMatch(html, /<script[^>]+https?:\/\//i);

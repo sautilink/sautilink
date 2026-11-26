@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
 import test from 'node:test';
+import { setEngagementCount } from '../src/social-presentation.js';
 
 const source = await readFile(new URL('../src/profile-activity.js', import.meta.url), 'utf8');
 const actions = source.slice(
@@ -10,7 +11,7 @@ const actions = source.slice(
 );
 
 function harness(fetch) {
-  const count = { textContent: '1' };
+  const count = { textContent: '1', dataset: { rawCount: '1' }, setAttribute() {} };
   const button = {
     dataset: { active: 'false' },
     attributes: {},
@@ -30,6 +31,7 @@ function harness(fetch) {
   };
   const statuses = [];
   const context = {
+    setEngagementCount,
     document: { querySelectorAll: () => [card] },
     fetch,
     crypto: { randomUUID: () => 'request-id' },

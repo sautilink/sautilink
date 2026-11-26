@@ -1,3 +1,6 @@
+import { createPostActionIcon } from './social-icons.js';
+import { setEngagementCount } from './social-presentation.js';
+import { installPostAudio } from './post-music.js';
 import { createInlineVerificationSvg } from './verification-inline-svg.js';
 const PROFILE_ACTIVITY_STYLESHEET = '/app/assets/profile-activity.css?v=20261007-stable-media1';
 const PROFILE_ACTIVITY_SUPABASE_URL = 'https://rggpyiterdbbugluejcs.supabase.co';
@@ -271,19 +274,11 @@ function createProfileActivityMetric(kind, count, active = false) {
     metric.setAttribute('aria-label', kind === 'reply' ? 'Comment' : active ? (kind === 'like' ? 'Unlike' : 'Undo repost') : (kind === 'like' ? 'Like' : 'Repost'));
     if (kind !== 'reply') metric.setAttribute('aria-pressed', String(active));
   }
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('aria-hidden', 'true');
-  const paths = {
-    reply: '<path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-6.5A8 8 0 1 1 21 12Z"></path>',
-    like: '<path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z"></path>',
-    repost: '<path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3"></path>',
-    save: '<path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z"></path>',
-  };
-  svg.innerHTML = paths[kind] || '';
+  const svg = createPostActionIcon(kind === 'reply' ? 'comment' : kind);
   const value = document.createElement('span');
   value.className = 'profile-activity-metric-count';
-  value.textContent = kind === 'save' ? (active ? 'Saved' : '') : String(Number(count) || 0);
+  if (kind === 'save') value.textContent = active ? 'Saved' : '';
+  else setEngagementCount(value, count);
   metric.append(svg, value);
   if (kind === 'save' && !active) metric.hidden = true;
   return metric;
@@ -523,6 +518,7 @@ function createProfileActivityCard(item, { pinned = false, allowPin = false, req
   time.dateTime = String(item.created_at || '');
   time.textContent = profileActivityTime(item.created_at);
   head.append(authorName, handle, dot, time);
+  if (item.audio_selection) { dot.remove(); installPostAudio(card, item, { identity: head, profileLink: handle, time }); }
   if (profileActivityState?.owner && item.author_id === profileActivityState?.profile?.id
     && !item.parent_post_id) {
     const edit = document.createElement('button');
@@ -618,7 +614,7 @@ function updateProfileActivityMetric(postId, kind, active, delta = 0, pending = 
     button.setAttribute('aria-busy', String(pending));
     button.setAttribute('aria-label', kind === 'like' ? (active ? 'Unlike' : 'Like') : (active ? 'Undo repost' : 'Repost'));
     const count = button.querySelector('.profile-activity-metric-count');
-    if (count && delta) count.textContent = String(Math.max(0, Number(count.textContent) + delta));
+    if (count && delta) setEngagementCount(count, Math.max(0, Number(count.dataset.rawCount ?? count.textContent) + delta));
   });
 }
 

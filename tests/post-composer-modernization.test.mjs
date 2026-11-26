@@ -26,7 +26,7 @@ test('home video audio choice follows the tab session and resets on sign-out', (
     resetHomeVideoAudio();
     const first = { dataset: {} };
     applyHomeVideoAudio(first);
-    assert.equal(first.muted, true);
+    assert.equal(first.muted, false);
     rememberHomeVideoAudio(false, .65);
     const next = { dataset: {} };
     applyHomeVideoAudio(next);
@@ -42,7 +42,7 @@ test('home video audio choice follows the tab session and resets on sign-out', (
     resetHomeVideoAudio();
     const fresh = { dataset: {} };
     applyHomeVideoAudio(fresh);
-    assert.equal(fresh.muted, true);
+    assert.equal(fresh.muted, false);
     assert.equal(store.size, 0);
   } finally {
     delete globalThis.sessionStorage;

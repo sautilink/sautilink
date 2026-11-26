@@ -39,7 +39,7 @@
     for (const id of postSurfaceIds) {
       document.getElementById(id)?.querySelectorAll('.sauti-card-head').forEach((head) => {
         const identity = head.querySelector('.sauti-card-identity');
-        if (!identity) return;
+        if (!identity || identity.querySelector('.post-music-slot')) return;
         const handle = identity.querySelector('a');
         const time = head.querySelector('time');
         const edited = head.querySelector('.sauti-edited-label');

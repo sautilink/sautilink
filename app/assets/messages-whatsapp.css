@@ -7,11 +7,11 @@
   --wa-line: #2a3942;
   --wa-text: #e9edef;
   --wa-muted: #8696a0;
-  --wa-green: #00a884;
-  --wa-green-strong: #008069;
+  --wa-green: #0b84ff;
+  --wa-green-strong: #006bd6;
   --wa-incoming: #202c33;
-  --wa-outgoing: #005c4b;
-  --wa-unread: #00a884;
+  --wa-outgoing: #153e68;
+  --wa-unread: #0b84ff;
   min-height: 620px;
   background: var(--wa-bg);
   color: var(--wa-text);
@@ -25,11 +25,11 @@
   --wa-line: #e9edef;
   --wa-text: #111b21;
   --wa-muted: #667781;
-  --wa-green: #00a884;
-  --wa-green-strong: #008069;
+  --wa-green: #0b84ff;
+  --wa-green-strong: #006bd6;
   --wa-incoming: #ffffff;
-  --wa-outgoing: #d9fdd3;
-  --wa-unread: #25d366;
+  --wa-outgoing: #dceeff;
+  --wa-unread: #0b84ff;
 }
 
 .messages-whatsapp-ui .messages-wa-shell {
