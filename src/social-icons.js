@@ -31,9 +31,10 @@ export function installSocialIcons(root = document) {
     for (const button of controls) {
       const action = button.dataset.sautiAction || button.dataset.shortAction || button.dataset.memberView;
       if (!names[action] && !['repost', 'save'].includes(action)) continue;
-      const old = button.querySelector(':scope > svg');
+      const host = button.querySelector('.sauti-short-action-icon') || button;
+      const old = host.querySelector('svg');
       if (old?.classList.contains('sauti-canonical-icon')) continue;
-      const icon = createPostActionIcon(action); if (old) old.replaceWith(icon); else button.prepend(icon);
+      const icon = createPostActionIcon(action); if (old) old.replaceWith(icon); else host.prepend(icon);
     }
   }
   update(root);

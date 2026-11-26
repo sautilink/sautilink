@@ -47,3 +47,18 @@ browser's MediaRecorder support; unsupported browsers can retain the original
 file and show an explicit explanation. Background notification sounds are
 controlled by the browser/OS, not by the web page. These platform constraints
 are not bypassed.
+
+## Authenticated production follow-up
+
+After the first deployment, the signed-in browser loaded the live catalog and
+384-pixel cover variants, exercised a reversible saved-audio toggle, inserted a
+visual motion emoji into an unpublished draft, opened the comment sheet and
+prefilled a reply mention, and returned fuzzy user suggestions. Room discovery
+and public information loaded; a non-member correctly could not read chat
+history. No post or message was published during these checks.
+
+The follow-up corrects duplicated Shorts icons and an opaque player overlay,
+keeps the visual DM input and sticker control in the same grid row, makes
+sticker-only timestamps readable, replaces wire tokens in inbox previews, and
+protects saved-audio state against late reads during a tab change. A deliberately
+slow local save followed immediately by the Saved tab retained the correct item.
