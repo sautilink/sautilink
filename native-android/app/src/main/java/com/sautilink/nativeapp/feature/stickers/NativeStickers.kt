@@ -182,7 +182,9 @@ fun NativeStickerText(text: String, modifier: Modifier = Modifier,
     plainText: @Composable (String) -> Unit) {
     val matches = remember(text) { tokenPattern.findAll(text).toList() }
     var resolved by remember(text) { mutableStateOf<Map<String, NativeSticker>>(emptyMap()) }
+    var resolving by remember(text) { mutableStateOf(true) }
     LaunchedEffect(text) {
+        resolving = true
         val ids = matches.map { it.groups[1]?.value ?: "slv-${it.groups[2]!!.value}" }.distinct().take(60)
         val known = ids.mapNotNull { id -> stickerCache.get(id)?.let { id to it } }.toMap()
         resolved = known
@@ -191,6 +193,7 @@ fun NativeStickerText(text: String, modifier: Modifier = Modifier,
             if (missing.isNotEmpty()) resolved = known + stickerRows(ids = missing.joinToString(",")).first.associateBy { it.id }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { }
+        finally { resolving = false }
     }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
         var cursor = 0
@@ -198,7 +201,7 @@ fun NativeStickerText(text: String, modifier: Modifier = Modifier,
             if (match.range.first > cursor) plainText(text.substring(cursor, match.range.first))
             val id = match.groups[1]?.value ?: "slv-${match.groups[2]!!.value}"
             val sticker = resolved[id]
-            if (sticker == null) plainText("Sticker unavailable")
+            if (sticker == null) plainText(if (resolving) "Loading sticker…" else "Sticker unavailable")
             else NativeStickerArt(sticker, Modifier.size(if (match.groups[2] != null) motionSize else stickerSize))
             cursor = match.range.last + 1
         }

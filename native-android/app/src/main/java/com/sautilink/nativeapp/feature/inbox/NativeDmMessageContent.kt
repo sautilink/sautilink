@@ -64,7 +64,10 @@ internal fun NativeDmMessageContent(body: String, own: Boolean, bubbleColor: Col
             }
             val tokens=draftStickerPattern.findAll(body).joinToString(" "){it.value}
             NativeStickerText(tokens, Modifier.align(if (own) Alignment.End else Alignment.Start), stickerSize = 172.dp, motionSize = 96.dp) { part ->
-                if (part.isNotBlank()) Text(part, color = ink, style = MaterialTheme.typography.bodySmall)
+                if (part.isNotBlank()) Surface(color=MaterialTheme.colorScheme.surface.copy(alpha=.94f),shape=RoundedCornerShape(8.dp)) {
+                    Text(part,Modifier.padding(horizontal=8.dp,vertical=5.dp),color=MaterialTheme.colorScheme.onSurface,
+                        style=MaterialTheme.typography.bodySmall)
+                }
             }
             Surface(Modifier.align(Alignment.End), shape = RoundedCornerShape(10.dp), color = bubbleColor.copy(alpha=.93f)) {
                 Box(Modifier.padding(horizontal=7.dp,vertical=3.dp)) { footer() }
