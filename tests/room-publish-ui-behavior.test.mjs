@@ -23,7 +23,7 @@ function nodes() {
     return map.get(id);
   };
 }
-const helpers = { roomPublishRequestId, confirmRoomPublishRequest, roomPublishOutcome, Event, navigator: { onLine: true }, POST_BODY_LIMIT: 2000 };
+const helpers = { musicComposer: null, roomPublishRequestId, confirmRoomPublishRequest, roomPublishOutcome, Event, navigator: { onLine: true }, POST_BODY_LIMIT: 2000 };
 
 test('Home composer pending Room acknowledgement clears local draft without a live toast, feed refresh or own-post pin', async () => {
   const byId = nodes(), calls = [], messages = [], toasts = [], requests = [];

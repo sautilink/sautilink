@@ -1,4 +1,5 @@
 import router from './asset-router.js';
+import { handleMusicWebRequest } from './music-web-api.js';
 import { handleDmRealtimeRequest } from './dm-realtime-api.js';
 import { handleMaintenanceRequest } from './maintenance-premium-surface.js';
 import { handlePublicIndexingRoutes } from './public-indexing-routes.js';
@@ -12,6 +13,8 @@ export default {
 
     const maintenanceResponse = await handleMaintenanceRequest(request, url);
     if (maintenanceResponse) return maintenanceResponse;
+    const musicResponse = await handleMusicWebRequest(request, env);
+    if (musicResponse) return musicResponse;
 
     if (url.pathname.startsWith('/api/stories')) {
       const response = await handleStoriesRequest(request, env);

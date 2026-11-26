@@ -22,6 +22,13 @@ function video() {
   };
 }
 
+test('an inline voice or audio player also stops the previous video', () => {
+  const target=playbackTarget(),cleanup=installVideoPlaybackCoordinator(target),first=video(),voice={...video(),nodeName:'AUDIO'};
+  first.paused=false;target.emit('play',first);target.emit('play',voice);
+  assert.equal(first.paused,true);assert.equal(getActivePlaybackVideo(),null);
+  target.emit('play',first);assert.equal(voice.pauseCount,1);cleanup();
+});
+
 test('playing another video stops the previous one, including a detached video', () => {
   const target = playbackTarget();
   const cleanup = installVideoPlaybackCoordinator(target);

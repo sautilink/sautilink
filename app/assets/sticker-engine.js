@@ -1,4 +1,5 @@
 import {makeStickerToken,splitStickerTokens,stickerIds,insertStickerToken,trustedStickerAsset} from './sticker-token-codec.js';
+import {installStickerDraftEditor} from './sticker-draft-editor.js';
 
 // The existing SautiLink text transport is intentionally preserved.
 // Old clients see readable tokens; upgraded Web clients render approved media.
@@ -7,11 +8,13 @@ const scopes=[
  ['message-thread-feed','.dm-message:not(.deleted) > p'],
  ['conversation-thread','.comment-body,.sauti-comment-body'],
  ['circle-stream-feed','.sauti-card-body,.comment-body,.sauti-comment-body'],
- ['stream-feed','.sauti-comment-body'],
- ['discover-sauti-feed','.sauti-comment-body'],
- ['saved-sauti-feed','.sauti-comment-body']
+ ['stream-feed','.sauti-card-body,.sauti-caption-text,.sauti-comment-body'],
+ ['discover-sauti-feed','.sauti-card-body,.sauti-caption-text,.sauti-comment-body'],
+ ['saved-sauti-feed','.sauti-card-body,.sauti-caption-text,.sauti-comment-body'],
+ ['profile-surface','.profile-activity-body,.sauti-card-body,.sauti-caption-text']
 ];
 const inputs=[
+ ['sauti-body','sauti-composer','sauti-submit'],
  ['message-body','message-composer','message-send'],
  ['conversation-reply-body','conversation-reply-form','conversation-reply-submit'],
  ['circle-sauti-body','circle-sauti-composer','circle-sauti-submit']
@@ -27,6 +30,9 @@ function el(tag,cls='',text=''){
  return node;
 }
 const safeSticker=s=>trustedStickerAsset(s,API);
+function stickerPreview(s){
+ try { const u=new URL(s.preview_url);return u.origin===API&&!u.search&&!u.hash&&/^\/assets\/[a-z0-9/_-]+\.webp$/.test(u.pathname)?u.href:null; } catch {return null;}
+}
 async function api(path,signal){
  const response=await fetch(API+path,{method:'GET',mode:'cors',credentials:'omit',headers:{accept:'application/json'},signal});
  if(!response.ok)throw Error('Sticker service unavailable');
@@ -64,6 +70,7 @@ function cleanup(){
 async function mountMotion(node,sticker,url){
  let placeholder;
  try{
+  if(Number.isInteger(sticker.render_revision)&&sticker.render_revision>0&&sticker.render_revision<=9999){const versioned=new URL(url);versioned.searchParams.set('v',String(sticker.render_revision));url=versioned.href;}
   const [lottie,response]=await Promise.all([player(),fetch(url,{mode:'cors',credentials:'omit'})]);
   if(!response.ok)throw Error('Motion unavailable');
   const text=await response.text();if(text.length>512000)throw Error('Motion too large');
@@ -81,14 +88,15 @@ async function mountMotion(node,sticker,url){
   if(placeholder?.parentNode===node)node.replaceChildren(el('span','sl-sticker-fallback',node.dataset.fallback||'✨'));
  }
 }
-function media(s,{inline=false,large=false}={}){
+function media(s,{inline=false,large=false,preview=false}={}){
  const node=el('span','sl-sticker-render'+(inline?' inline':'')+(large?' large':''));
  node.setAttribute('role','img');node.setAttribute('aria-label',s.title||'Sticker');
  node.dataset.fallback=s.emoji||'✨';
  node.append(el('span','sl-sticker-fallback',node.dataset.fallback));
- const url=safeSticker(s);
+ const thumbnail=preview&&stickerPreview(s);
+ const url=thumbnail||safeSticker(s);
  if(!url||lite||reduced())return node;
- if(s.format!=='lottie'){
+ if(thumbnail||s.format!=='lottie'){
   const image=el('img');image.src=url;image.alt='';image.loading='lazy';image.decoding='async';
   image.onerror=()=>image.replaceWith(el('span','sl-sticker-fallback',node.dataset.fallback));node.replaceChildren(image);
  }else{
@@ -118,7 +126,7 @@ function hydrate(node,{force=false}={}){
    fragment.append(media(s,{inline:part.type==='inline',large:part.type==='sticker'}));
    replaced=true;
   }
-  if(replaced){node.dataset.slStickerSource=raw;node.replaceChildren(fragment);}
+  if(replaced){node.dataset.slStickerSource=raw;node.replaceChildren(fragment);const only=splitStickerTokens(raw).every(p=>p.id||!String(p.value||'').trim());node.closest('.dm-message')?.classList.toggle('sticker-only',only);}
  }).catch(()=>{/* Preserve readable tokens when offline. */});
 }
 function scanFeed(node,selector){
@@ -135,6 +143,7 @@ function scanAll(){
 function queueScan(){if(!scanFrame)scanFrame=requestAnimationFrame(scanAll);}
 function mountButton(form,input,send){
  if(!form||!input||!send||form.querySelector('.sl-sticker-open'))return;
+ installStickerDraftEditor(input,async part=>{await resolveIds([part.id]);const s=cache.get(part.id);return s?media(s,{preview:true,inline:part.type==='inline'}):null;});
  const button=el('button','sl-sticker-open','☺');
  button.type='button';button.title='Stickers and animated emoji';button.setAttribute('aria-label','Choose a sticker');
  button.addEventListener('click',()=>open(input));send.before(button);
@@ -194,7 +203,7 @@ async function list(){
    if((mode==='inline'&&!s.inline_emoji)||!safeSticker(s))continue;
    cache.set(s.id,s);
    const button=el('button','sl-sticker-option');button.type='button';button.setAttribute('aria-label',s.title);
-   button.append(media(s),el('small','',s.title));
+   button.append(media(s,{preview:true}),el('small','',s.title));
    button.addEventListener('click',()=>choose(s));grid.append(button);
   }
   status.textContent=grid.children.length+' stickers available';

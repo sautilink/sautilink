@@ -11,7 +11,7 @@ function storedPreference() {
   }
 }
 
-let preference = storedPreference() || { muted: true, volume: 1 };
+let preference = storedPreference() || { muted: false, volume: 1 };
 let revision = 0;
 
 export function homeVideoAudioPreference() {
@@ -40,7 +40,7 @@ export function applyHomeVideoAudio(video) {
 }
 
 export function resetHomeVideoAudio() {
-  preference = { muted: true, volume: 1 };
+  preference = { muted: false, volume: 1 };
   revision += 1;
   try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* Session storage is optional. */ }
 }

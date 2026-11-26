@@ -271,7 +271,7 @@ test('preparing several existing video attachments retains every selected trimme
   const input = { files: [first, photo, second], dataset: {}, value: 'selection', dispatchEvent(event) { this.event = event; } };
   const code = formats.slice(formats.indexOf('export async function preparePostComposerFiles('), formats.indexOf('function updateMediaCopy(')).replace('export ', '');
   const validate = runInNewContext(`${code}\nvalidateSelectedShortVideo;`, {
-    POST_VIDEO_LIMIT_SECONDS: 180, POST_VIDEO_MAX_BYTES: 262144000, preparedPostVideos: new WeakSet(),
+    editCreatorMedia: async file => file, POST_VIDEO_LIMIT_SECONDS: 180, POST_VIDEO_MAX_BYTES: 262144000, preparedPostVideos: new WeakSet(),
     videoDuration: async () => 182,
     promptVideoTrim: async (file) => { const clip = { ...file, name: `${file.name}-trimmed` }; trimmed.push(clip); return clip; },
     DataTransfer: class { constructor() { this.files = []; this.items = { add: (file) => this.files.push(file) }; } },
@@ -302,7 +302,7 @@ test('the shared trim dialog can export consecutive clips while keeping controls
   };
   const code = formats.slice(formats.indexOf('function promptVideoTrim('), formats.indexOf('export async function preparePostComposerFiles('));
   const prompt = runInNewContext(`${code}\npromptVideoTrim;`, {
-    trimDialog: () => dialog, MIN_TRIM_SECONDS: 1, POST_VIDEO_LIMIT_SECONDS: 180, POST_VIDEO_MAX_BYTES: 262144000,
+    trimDialog: () => dialog, MIN_TRIM_SECONDS: 1, editCreatorMedia: async file => file, POST_VIDEO_LIMIT_SECONDS: 180, POST_VIDEO_MAX_BYTES: 262144000,
     formatTrimTime: String,
     URL: { createObjectURL: (file) => `blob:${file.name}`, revokeObjectURL: (url) => revoked.push(url) },
     trimVideoFile: (file, start, end, onProgress) => {

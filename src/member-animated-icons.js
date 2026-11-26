@@ -50,6 +50,7 @@ import { iconRules, glyphIcons, textIconRules, excludedIconSelector, glyphSignat
     return badge && !badge.hidden ? Number.parseInt(badge.textContent, 10) || 0 : 0;
   }
   function excluded(svg) {
+    if (svg.classList.contains('sauti-canonical-icon')) return true;
     return Boolean(svg.closest('#auth-view, .auth-view, .auth-result, [id^="auth-"], .auth-entry-header, .auth-art, .auth-panel-symbol')
       || svg.closest(excludedIconSelector));
   }

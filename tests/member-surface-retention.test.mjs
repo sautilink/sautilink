@@ -41,7 +41,7 @@ function nodes() {
   return { map, byId };
 }
 function supabaseFor(read) {
-  return { from(table) {
+  return { rpc(name, args) { assert.equal(name, 'social_user_suggestions'); return Promise.resolve(read('social_profiles')); }, from(table) {
     const chain = new Proxy({}, { get(_target, name) {
       if (name === 'then') return (resolve, reject) => Promise.resolve(read(table)).then(resolve, reject);
       return () => chain;
@@ -258,7 +258,7 @@ for (const [label, source] of [['source', raw], ['built transform', transformed]
 
   test(`${label}: Discover searches latest public posts without rankings and excludes blocked/muted authors`, async () => {
     const calls = [];
-    const h = context({ supabase: { from(table) {
+    const h = context({ supabase: { rpc: async () => ({ data: [] }), from(table) {
       const chain = new Proxy({}, { get(_target, name) {
         if (name === 'then') return (resolve) => resolve({ data: table === 'social_blocks' ? [{ blocked_id: 'blocked' }]
           : table === 'social_mutes' ? [{ muted_id: 'muted' }]

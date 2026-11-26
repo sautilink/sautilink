@@ -90,8 +90,8 @@ test('Messages bubbles use WhatsApp iOS geometry and stable light/dark colour pa
     read('src/app.js'),
   ]);
 
-  assert.match(css, /\.messages-whatsapp-ui\s*\{[^}]*--message-ios-incoming:\s*#202c33;[^}]*--message-ios-outgoing:\s*#005c4b;[^}]*--message-ios-outgoing-text:\s*#e9edef;/s);
-  assert.match(css, /:root\[data-theme="light"\] \.messages-whatsapp-ui\s*\{[^}]*--message-ios-incoming:\s*#ffffff;[^}]*--message-ios-incoming-text:\s*#111b21;[^}]*--message-ios-outgoing:\s*#d9fdd3;[^}]*--message-ios-outgoing-text:\s*#111b21;/s);
+  assert.match(css, /\.messages-whatsapp-ui\s*\{[^}]*--message-ios-incoming:\s*#202c33;[^}]*--message-ios-outgoing:\s*#153e68;[^}]*--message-ios-outgoing-text:\s*#e9edef;/s);
+  assert.match(css, /:root\[data-theme="light"\] \.messages-whatsapp-ui\s*\{[^}]*--message-ios-incoming:\s*#ffffff;[^}]*--message-ios-incoming-text:\s*#111b21;[^}]*--message-ios-outgoing:\s*#dceeff;[^}]*--message-ios-outgoing-text:\s*#111b21;/s);
   assert.match(css, /\.messages-whatsapp-ui \.dm-message\.incoming\s*\{[^}]*border-bottom-left-radius:\s*4px;/s);
   assert.match(css, /\.messages-whatsapp-ui \.dm-message\.own\s*\{[^}]*border-bottom-right-radius:\s*4px;[^}]*background:\s*var\(--message-ios-outgoing\);/s);
   assert.match(css, /\.messages-whatsapp-ui \.dm-message\.incoming::after\s*\{[^}]*clip-path:/s);
@@ -103,7 +103,8 @@ test('Messages bubbles use WhatsApp iOS geometry and stable light/dark colour pa
   assert.match(css, /\.messages-whatsapp-ui \.dm-message \.dm-message-meta\s*\{[^}]*grid-column:\s*2;[^}]*white-space:\s*nowrap;/s);
   assert.match(css, /\.messages-whatsapp-ui \.dm-message \.dm-read-receipt\s*\{[^}]*color:\s*var\(--message-ios-read\);/s);
   assert.match(css, /@media \(max-width: 680px\)[\s\S]*\.messages-whatsapp-ui \.dm-message,[\s\S]*max-width:\s*82%;[^}]*border-radius:\s*12px;/s);
-  assert.match(source, /seen\.textContent = '✓✓';/);
+  assert.match(source, /receipt\.setAttribute\('class', 'dm-receipt-icon'\)/);
+  assert.match(source, /seen\.append\(receipt\)/);
   assert.match(source, /seen\.setAttribute\('aria-label', 'Read'\);/);
 });
 

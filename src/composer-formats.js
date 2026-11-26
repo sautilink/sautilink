@@ -1,6 +1,7 @@
 import { appendFormattedPostText } from './caption-entities.js';
 import { insertPostFormatting } from './post-text-formatting.js';
 import { readPostVideoContainerDuration } from './post-video-metadata.js';
+import { editCreatorMedia } from './creator-media-editor.js';
 
 const POST_VIDEO_LIMIT_SECONDS = 180;
 const POST_VIDEO_MAX_BYTES = 250 * 1024 * 1024;
@@ -769,7 +770,10 @@ function promptVideoTrim(file, duration) {
 
 export async function preparePostComposerFiles(files) {
   const prepared = [];
-  for (const file of files) {
+  for (const original of files) {
+    if (original.type === 'video/mp4' && original.size > POST_VIDEO_MAX_BYTES) throw new Error('Videos must be 250 MiB or smaller.');
+    const file = await editCreatorMedia(original);
+    if (!file) return [];
     if (String(file.type || '').toLowerCase() !== 'video/mp4' || preparedPostVideos.has(file)) {
       prepared.push(file);
       continue;

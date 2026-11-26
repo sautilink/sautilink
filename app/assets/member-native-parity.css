@@ -3,7 +3,7 @@
 
 body:not(.auth-entry):has(#member-view:not([hidden])) {
   --native-control-ink: #000;
-  --native-heart: #fa5353;
+  --native-heart: #ff4c68;
 }
 html[data-theme="dark"] body:not(.auth-entry):has(#member-view:not([hidden])) {
   --native-control-ink: #fff;
@@ -26,8 +26,8 @@ body:not(.auth-entry):has(#member-view:not([hidden])) :is(
   color: var(--native-control-ink);
 }
 body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style="bold-outline"] .mobile-nav-icon {
-  width: 23px;
-  height: 23px;
+  width: 26px;
+  height: 26px;
 }
 body:not(.auth-entry):has(#member-view:not([hidden])) .mobile-nav[data-icon-style="bold-outline"] button:is(.active, [aria-current="page"]) {
   background: transparent;
@@ -38,8 +38,8 @@ body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button.sa
   background: transparent;
 }
 body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button.sauti-action[data-sauti-action] > svg {
-  width: 21px;
-  height: 21px;
+  width: 26px;
+  height: 26px;
 }
 body:not(.auth-entry):has(#member-view:not([hidden])) .sauti-actions > button.sauti-action[data-sauti-action="like"]:is(.active, [aria-pressed="true"]) {
   color: var(--native-heart);
@@ -64,15 +64,15 @@ body:not(.auth-entry):has(#member-view:not([hidden])) #home-feed-tabs .home-feed
   white-space: normal;
 }
 body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #conversation-surface) .sauti-card {
-  margin-bottom: 14px;
-  border-radius: 22px;
+  margin-bottom: 0;
+  border-radius: 0;
   border-color: color-mix(in srgb, var(--ios-line) 60%, transparent);
   box-shadow: none;
 }
 body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #conversation-surface) .sauti-card-head {
-  min-height: 64px;
+  min-height: 58px;
   gap: 9px;
-  padding: 10px 12px 8px;
+  padding: 9px 12px 7px;
 }
 body:not(.auth-entry):has(#member-view:not([hidden])) :is(#stream-surface, #saved-surface, #discover-surface, #profile-surface, #conversation-surface) .sauti-card-avatar {
   width: 44px;
@@ -163,8 +163,8 @@ body:not(.auth-entry):has(#member-view:not([hidden])) #discover-surface .discove
   z-index: 1;
   top: 50%;
   left: 14px;
-  width: 21px;
-  height: 21px;
+  width: 26px;
+  height: 26px;
   margin: 0;
   transform: translateY(-50%);
   pointer-events: none;
@@ -299,8 +299,8 @@ body:not(.auth-entry):has(#member-view:not([hidden])) #notifications-list .nativ
   right: -4px;
   bottom: -3px;
   display: grid;
-  width: 23px;
-  height: 23px;
+  width: 26px;
+  height: 26px;
   place-items: center;
   border-radius: 50%;
   background: var(--ios-surface);

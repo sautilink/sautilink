@@ -27,6 +27,7 @@ function makeSearch({ usernameRows = [], nameRows = [], conversations = [] } = {
   const searchLoading = { hidden: true };
   const byId = (id) => ({ 'messages-inbox-list': list, 'messages-search': input, 'messages-empty': empty, 'messages-inbox': inbox, 'messages-search-loading': searchLoading })[id];
   const supabase = {
+    rpc(name,args) { calls.push(['rpc',name,args]); return Promise.resolve({data:[...usernameRows,...nameRows],error:null}); },
     from(table) {
       assert.equal(table, 'social_profiles');
       const query = {
@@ -65,8 +66,8 @@ test('search keeps matching chats and adds only new discoverable account results
   assert.equal(search.searchLoading.hidden, true);
   assert.equal(search.list.items.length, 2);
   assert.equal(search.list.items[1].dataset.messageAccountId, 'bob');
-  assert.equal(search.calls.filter(([method, field, value]) => method === 'eq' && field === 'is_discoverable' && value === true).length, 2);
-  assert.ok(search.calls.some(([method, field, value]) => method === 'ilike' && field === 'display_name' && value === '%bo%'));
+  assert.equal(search.calls.filter(([method, name]) => method === 'rpc' && name === 'social_user_suggestions').length, 1);
+  assert.deepEqual(search.calls[0].slice(0,2), ['rpc','social_user_suggestions']); assert.equal(search.calls[0][2].query_text,'bo'); assert.equal(search.calls[0][2].max_results,24);
 
   search.input.value = '';
   search.context.search.filterMessageInbox();

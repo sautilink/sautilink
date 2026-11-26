@@ -8,15 +8,15 @@ const headersPath = resolve(stageRoot, '_headers');
 const appHtmlPath = resolve(stageRoot, 'app/index.html');
 
 const cspMarker = "img-src 'self' https://stickers.sautilink.com data: blob:; script-src";
-const cspReplacement = "img-src 'self' https://stickers.sautilink.com data: blob:; media-src 'self' blob:; script-src";
+const cspReplacement = "img-src 'self' https://stickers.sautilink.com https://music.sautilink.com data: blob:; media-src 'self' https://music.sautilink.com blob:; script-src";
 const connectMarker = "connect-src 'self'";
-const connectReplacement = "connect-src 'self' wss://test.sautilink.com";
+const connectReplacement = "connect-src 'self' wss://test.sautilink.com https://music.sautilink.com";
 const permissionsMarker = 'Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()';
 const permissionsReplacement = 'Permissions-Policy: camera=(), microphone=(self), geolocation=(), payment=(), usb=()';
 
 let appHtml = await readFile(appHtmlPath, 'utf8');
 let appHtmlChanged = false;
-if (!appHtml.includes("media-src 'self' blob:")) {
+if (!appHtml.includes("media-src 'self'")) {
   if (!appHtml.includes(cspMarker)) throw new Error('Staging Messages media CSP marker is missing.');
   appHtml = appHtml.replace(cspMarker, cspReplacement);
   appHtmlChanged = true;
@@ -37,7 +37,7 @@ const prefix = headers.slice(0, appBlockStart);
 let appBlock = headers.slice(appBlockStart, appBlockEnd);
 const remainder = headers.slice(appBlockEnd);
 
-if (!appBlock.includes("media-src 'self' blob:")) {
+if (!appBlock.includes("media-src 'self'")) {
   if (!appBlock.includes(cspMarker)) throw new Error('Staging /app/* CSP marker is missing.');
   appBlock = appBlock.replace(cspMarker, cspReplacement);
 }
