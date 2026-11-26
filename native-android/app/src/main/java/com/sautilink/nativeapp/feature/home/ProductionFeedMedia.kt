@@ -207,7 +207,7 @@ private fun InlineFeedVideo(
     val candidateKey = remember(media.id) { "video:${media.id}:${java.util.UUID.randomUUID()}" }
     val group = playbackGroup ?: media.id
     val selected = coordinator == null || coordinator.activeGroup == group
-    var distanceFromCenter by remember(media.id) { mutableFloatStateOf(Float.MAX_VALUE) }
+    val viewport = remember(auth, accountId, media.id) { NativeFeedVideoViewport() }
     var quality by remember(auth, accountId, media.id) { mutableStateOf("auto") }
     var speed by remember(auth, accountId, media.id) { mutableFloatStateOf(1f) }
     var settingsOpen by remember(auth, accountId, media.id) { mutableStateOf(false) }
@@ -221,9 +221,9 @@ private fun InlineFeedVideo(
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val windowHeight = with(density) { configuration.screenHeightDp.dp.toPx() }
-    var visibleFraction by remember(auth, accountId, media.id) { mutableFloatStateOf(0f) }
+    val visibleFraction = viewport.visibility.fraction
     SideEffect { coordinator?.update(candidateKey, NativeFeedPlaybackCoordinator.Candidate(group,
-        if (isCurrent) visibleFraction else 0f, distanceFromCenter)) }
+        if (isCurrent) viewport.fraction else 0f, viewport.distance)) }
     DisposableEffect(coordinator, candidateKey) { onDispose { coordinator?.remove(candidateKey); coordinator?.release(candidateKey) } }
     var started by remember(auth, accountId, media.id) { mutableStateOf(false) }
     var wantsToPlay by remember(auth, accountId, media.id) { mutableStateOf(false) }
@@ -457,11 +457,11 @@ private fun InlineFeedVideo(
     val showBufferingOverlay = overlayEligible &&
         (token == null || adaptive && streamSource == null && !playbackRead.denied || playbackRequested && playbackState == Player.STATE_BUFFERING)
     Box(modifier.background(Color.Black).onGloballyPositioned { coordinates ->
-        visibleFraction = measuredVideoVisibleFraction(coordinates, windowHeight)
+        val fraction = measuredVideoVisibleFraction(coordinates, windowHeight)
         val frame = coordinates.boundsInWindow()
-        distanceFromCenter = kotlin.math.abs((frame.top + frame.bottom) / 2f - windowHeight / 2f)
+        viewport.update(fraction, kotlin.math.abs((frame.top + frame.bottom) / 2f - windowHeight / 2f))
         coordinator?.update(candidateKey, NativeFeedPlaybackCoordinator.Candidate(group,
-            if (isCurrent) visibleFraction else 0f, distanceFromCenter))
+            if (isCurrent) viewport.fraction else 0f, viewport.distance))
     }, contentAlignment = Alignment.Center) {
         if (player != null) {
             AndroidView(

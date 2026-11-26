@@ -168,4 +168,21 @@ class NativeIconPerformanceTest {
         assertTrue("Rooms should match the Stories artwork size", kotlin.math.abs(extent("Rooms")-extent("Stories")) < 1f)
     }
 
+    @Test fun videoScrollGeometryDoesNotRecomposePlaybackUntilAVisibilityThresholdChanges() {
+        val viewport = com.sautilink.nativeapp.feature.home.NativeFeedVideoViewport().apply { update(.8f, 0f) }
+        var commits = 0
+        compose.setContent {
+            val band = viewport.visibility
+            SideEffect { commits++ }
+            Text(band.name)
+        }
+        val before = commits
+        compose.runOnIdle { repeat(100) { viewport.update(.6f + it*.004f, it.toFloat()) } }
+        compose.waitForIdle()
+        assertEquals("Scroll pixels must not recreate playback effects", before, commits)
+        compose.runOnIdle { viewport.update(.3f, 500f) }
+        compose.onNodeWithText("PARTIAL").assertExists()
+        assertTrue(commits > before)
+    }
+
 }
