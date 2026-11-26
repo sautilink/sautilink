@@ -185,4 +185,30 @@ class NativeIconPerformanceTest {
         assertTrue(commits > before)
     }
 
+    @Test fun videoPreparationHealthUpdatesDoNotRecomposeTheCallingFeedScreen() {
+        val storage = object : android.content.ContextWrapper(
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext) {
+            override fun getApplicationContext(): android.content.Context = this
+            override fun getSharedPreferences(name: String, mode: Int): android.content.SharedPreferences =
+                baseContext.getSharedPreferences("lookahead_scope_fixture_$name", mode)
+        }
+        val auth = com.sautilink.nativeapp.feature.auth.StagingAuthClient("sb_publishable_offline_ui_fixture", storage,
+            com.sautilink.nativeapp.feature.auth.SautiBackend.PRODUCTION).apply { forgetSavedSession() }
+        var commits = 0
+        lateinit var health: com.sautilink.nativeapp.feature.home.FeedVideoLookaheadState
+        compose.setContent {
+            val state = com.sautilink.nativeapp.feature.home.rememberFeedVideoLookahead(auth, emptyList(),
+                androidx.compose.foundation.lazy.rememberLazyListState(), "fixture", false, false)
+            SideEffect { health = state; commits++ }
+            Text("Feed screen")
+        }
+        val before = commits
+        repeat(5) { index ->
+            compose.runOnIdle { health.report(com.sautilink.nativeapp.feature.home.FeedVideoHealth(
+                "fixture-video", true, 3000L+index, true, index.toLong())) }
+            compose.waitForIdle()
+        }
+        assertEquals("Video health must invalidate only the preparation worker", before, commits)
+    }
+
 }

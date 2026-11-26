@@ -49,6 +49,18 @@ internal fun rememberFeedVideoLookahead(auth: StagingAuthClient, posts: List<Sta
     listState: LazyListState, scopeKey: Any, enabled: Boolean, online: Boolean): FeedVideoLookaheadState {
     val account = auth.account?.id
     val state = remember(auth, account, scopeKey) { FeedVideoLookaheadState() }
+    FeedVideoLookaheadWorker(auth, posts, listState, scopeKey, enabled, online, state)
+    return state
+}
+
+/** Returning state from a composable cannot own a restart scope. Keep polling,
+ * player-health and grant/preload updates in this Unit worker so they never
+ * invalidate the entire calling feed screen. */
+@Composable
+@androidx.annotation.OptIn(markerClass = [UnstableApi::class])
+private fun FeedVideoLookaheadWorker(auth: StagingAuthClient, posts: List<StagingFeedPost>,
+    listState: LazyListState, scopeKey: Any, enabled: Boolean, online: Boolean, state: FeedVideoLookaheadState) {
+    val account = auth.account?.id
     val reads = remember(auth, account, scopeKey) { linkedMapOf<String, NativePlaybackRead>() }
     val context = LocalContext.current
     val network = rememberNativeVideoNetwork()
@@ -111,5 +123,4 @@ internal fun rememberFeedVideoLookahead(auth: StagingAuthClient, posts: List<Sta
         sources.forEach { (_, source) -> resources?.hlsGrants?.authorize(source) }
         loader?.warmWindow(current,sources,bytesAllowed,retainPrepared=metadataAllowed)
     }
-    return state
 }
