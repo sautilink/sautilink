@@ -260,6 +260,7 @@ internal class NativeWebBrowserActivity : ComponentActivity() {
                 }
             }
 
+            @androidx.annotation.RequiresApi(27)
             override fun onSafeBrowsingHit(view: WebView, request: WebResourceRequest, threatType: Int,
                 callback: SafeBrowsingResponse) {
                 callback.backToSafety(false)

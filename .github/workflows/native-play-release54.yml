@@ -5,6 +5,8 @@ on:
     branches: [release/android-1.1.9]
     paths:
       - .github/workflows/native-play-release54.yml
+      - .github/scripts/play-candidate/**
+      - native-android/**
 
 permissions:
   contents: read
