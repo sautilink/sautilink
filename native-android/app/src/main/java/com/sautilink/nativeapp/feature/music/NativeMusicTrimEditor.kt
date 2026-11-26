@@ -66,6 +66,9 @@ internal fun NativeMusicTrimEditor(track: NativeMusicTrack, initial: NativeAudio
     var waveformFailed by remember { mutableStateOf(false) }
     var playbackError by remember { mutableStateOf<String?>(null) }
     var durationMenu by remember { mutableStateOf(false) }
+    var previewClock by remember(previewUri, previewVideo) { mutableStateOf(
+        if (previewVideo && previewUri != null) NativePostVideoClock("trim:${track.id}", "trim:${track.id}", null, true, false, false) else null) }
+    val preparedRange = remember(track.id) { arrayOfNulls<NativeAudioTrimRange>(1) }
     val currentRange by rememberUpdatedState(range)
     LaunchedEffect(track.id, waveformRetry) {
         loading = true; waveformFailed = false
@@ -82,13 +85,19 @@ internal fun NativeMusicTrimEditor(track: NativeMusicTrack, initial: NativeAudio
         player.addListener(listener)
         onDispose { player.removeListener(listener) }
     }
-    LaunchedEffect(track.id, range, scrubbing, wantsPlayback) {
-        if (scrubbing) { player.pause(); playhead = 0; return@LaunchedEffect }
-        val selection = track.selection(range.startMs, range.durationMs)
-        preparePostSoundtrack(player, track.id, selection.previewUrl())
-        player.volume = musicVolume
-        if (wantsPlayback) player.play() else player.pause()
-    }
+    NativeSyncedPostSoundtrack(player,
+        playbackKey = listOf(track.id, range, scrubbing, musicVolume),
+        allowed = !scrubbing && wantsPlayback, video = previewClock, clipDurationMs = range.durationMs,
+        prepare = {
+            if (scrubbing) { player.pause(); playhead = 0; false }
+            else {
+                if (preparedRange[0] != range) { previewClock?.player?.seekTo(0); preparedRange[0] = range }
+                val selection = track.selection(range.startMs, range.durationMs)
+                preparePostSoundtrack(player, track.id, selection.previewUrl())
+                player.volume = musicVolume
+                true
+            }
+        })
     LaunchedEffect(player) {
         while (true) { if (!scrubbing) playhead = player.currentPosition.coerceIn(0, currentRange.durationMs); delay(40) }
     }
@@ -115,7 +124,7 @@ internal fun NativeMusicTrimEditor(track: NativeMusicTrack, initial: NativeAudio
             BoxWithConstraints(Modifier.fillMaxWidth().height(editorHeight)) {
             val previewHeight = maxHeight * .70f
             Box(Modifier.fillMaxWidth().height(previewHeight).clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))) {
-                TrimMediaBackdrop(track.id, previewUri, previewVideo, playing, range, Modifier.fillMaxSize())
+                TrimMediaBackdrop(track.id, previewUri, previewVideo, wantsPlayback && !scrubbing, Modifier.fillMaxSize()) { previewClock = it }
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .20f),
                     Color.Transparent, Color.Black.copy(alpha = .52f)))))
             }
@@ -161,11 +170,10 @@ internal fun NativeMusicTrimEditor(track: NativeMusicTrack, initial: NativeAudio
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     FilledIconButton(onClick = {
                         playbackError = null
-                        wantsPlayback = !playing
-                        if (wantsPlayback) { preparePostSoundtrack(player, track.id, track.selection(range.startMs, range.durationMs).previewUrl()); player.play() }
-                        else player.pause()
+                        wantsPlayback = !wantsPlayback
+                        if (!wantsPlayback) player.pause()
                     }, modifier = Modifier.size(48.dp), colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color(0xFF242424), contentColor = Color.White)) {
-                        Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (playing) "Pause selected audio" else "Play selected audio")
+                        Icon(if (wantsPlayback) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (wantsPlayback) "Pause selected audio" else "Play selected audio")
                     }
                     Column(Modifier.weight(1f)) {
                         Text(track.title, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -185,10 +193,11 @@ internal fun NativeMusicTrimEditor(track: NativeMusicTrack, initial: NativeAudio
 
 @Composable
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
-private fun TrimMediaBackdrop(trackId: String, uri: Uri?, video: Boolean, playing: Boolean, restartKey: NativeAudioTrimRange, modifier: Modifier) {
+private fun TrimMediaBackdrop(trackId: String, uri: Uri?, video: Boolean, playing: Boolean, modifier: Modifier, onClock: (NativePostVideoClock?) -> Unit) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var bitmap by remember(uri) { mutableStateOf<Bitmap?>(null) }
+    if (!video || uri == null) SideEffect { onClock(null) }
     if (uri != null && !video) {
         LaunchedEffect(uri) {
             try { bitmap = loadEditableBitmap(context, uri, 1440) }
@@ -199,14 +208,22 @@ private fun TrimMediaBackdrop(trackId: String, uri: Uri?, video: Boolean, playin
             ?: NativeMusicCover(trackId, modifier)
     } else if (uri != null) {
         val player = remember(uri) { ExoPlayer.Builder(context).build().apply {
-            volume = 0f; repeatMode = Player.REPEAT_MODE_ONE; setMediaItem(MediaItem.fromUri(uri)); prepare()
+            volume = 0f; repeatMode = Player.REPEAT_MODE_ONE; setMediaItem(MediaItem.Builder().setUri(uri).setMediaId("trim:$trackId").build()); prepare()
         } }
-        LaunchedEffect(player, restartKey) { player.seekTo(0) }
+        var frameReady by remember(player) { mutableStateOf(false) }
+        var videoPlaying by remember(player) { mutableStateOf(false) }
+        val clock = NativePostVideoClock("trim:$trackId", "trim:$trackId", player, true, frameReady, videoPlaying)
+        SideEffect { onClock(clock) }
         LaunchedEffect(player, playing) { player.playWhenReady = playing }
         DisposableEffect(player, lifecycle) {
+            val listener = object : Player.Listener {
+                override fun onRenderedFirstFrame() { frameReady = true }
+                override fun onIsPlayingChanged(isPlaying: Boolean) { videoPlaying = isPlaying }
+            }
+            player.addListener(listener)
             val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) player.pause() }
             lifecycle.addObserver(observer)
-            onDispose { lifecycle.removeObserver(observer); player.release() }
+            onDispose { lifecycle.removeObserver(observer); player.removeListener(listener); player.release() }
         }
         AndroidView(factory = { PlayerView(it).apply { this.player = player; useController = false; resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM } },
             update = { it.player = player }, onRelease = { it.player = null }, modifier = modifier)

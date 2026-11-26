@@ -25,9 +25,9 @@ import java.io.Closeable
  */
 internal fun shortsPreloadEligible(foreground: Boolean, online: Boolean, autoplay: Boolean,
     playing: Boolean, bufferedMs: Long, saveData: Boolean, metered: Boolean,
-    measuredMbps: Double?, stressed: Boolean, autoQuality: Boolean): Boolean =
-    foreground && online && autoplay && playing && bufferedMs >= 6_000L &&
-        !saveData && !stressed && autoQuality &&
+    measuredMbps: Double?, stressed: Boolean, qualityAligned: Boolean): Boolean =
+    foreground && online && autoplay && playing && bufferedMs >= 2_000L &&
+        !saveData && !stressed && qualityAligned &&
         (!metered || measuredMbps?.let { it.isFinite() && it >= 3.0 } == true)
 
 internal enum class ShortsPreloadTarget { NONE, RETAIN_CURRENT, RETAIN_SOURCE, LOAD_NEXT }
@@ -85,7 +85,22 @@ internal fun videoDeviceStressed(context: Context): Boolean {
  */
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 internal class NativeShortsPreloading(context: Context, resources: NativeVideoPlaybackResources,
-    createPlayer: Boolean = true, onPreloadCompleted: (String) -> Unit = {}) : Closeable {
+    createPlayer: Boolean = true, initialQuality: String = "auto", onPreloadCompleted: (String) -> Unit = {}) : Closeable {
+    @Volatile private var qualityPreference = NativeVideoQualityPolicy.normalizePreference(initialQuality)
+    fun qualityAligned(preference: String): Boolean =
+        qualityPreference == NativeVideoQualityPolicy.normalizePreference(preference) && qualityPreference != "data-saver"
+
+    /** Quality changes discard only unclaimed future queues. The visible
+     * decoder, position, current source and its original grant remain intact. */
+    fun setQualityPreference(preference: String) {
+        if (closed) return
+        val next = NativeVideoQualityPolicy.normalizePreference(preference)
+        if (next == qualityPreference) return
+        qualityPreference = next
+        items.filterValues { it.second > currentIndex && it.second != incomingHandoffIndex }.keys.toList().forEach(::removeSource)
+        manager.invalidate()
+    }
+
     private var currentIndex = 0
     private var nextIndices: Set<Int> = emptySet()
     private var permitted = false
@@ -118,6 +133,7 @@ internal class NativeShortsPreloading(context: Context, resources: NativeVideoPl
         }
     }
     private val builder = DefaultPreloadManager.Builder(context, control)
+        .setTrackSelectorFactory { trackContext -> NativePreloadTrackSelector(trackContext) { qualityPreference } }
         .setMediaSourceFactory(DefaultMediaSourceFactory(resources.dataSourceFactory))
         .setBandwidthMeter(DefaultBandwidthMeter.getSingletonInstance(context))
         .setLoadControl(DefaultLoadControl.Builder()

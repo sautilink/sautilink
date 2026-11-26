@@ -40,6 +40,7 @@ internal fun createShortsPlaybackEngine(
     replayOwner: NativeVideoReplayOwner?,
     authorizationToken: () -> String?,
     muted: Boolean,
+    quality: String = "auto",
 ): ShortsPlaybackEngine? {
     if (initialToken == null) return null
     val replay: NativeVideoReplayBinding? = if (accountId != null && replayOwner != null) {
@@ -49,7 +50,7 @@ internal fun createShortsPlaybackEngine(
         context, auth.mediaOrigin, initialToken, authorizationToken = authorizationToken, replay = replay,
     ) { accountId != null && auth.account?.id == accountId }
     val preloading: NativeShortsPreloading = try {
-        NativeShortsPreloading(context, resources)
+        NativeShortsPreloading(context, resources, initialQuality = quality)
     } catch (error: Exception) {
         resources.close()
         throw error

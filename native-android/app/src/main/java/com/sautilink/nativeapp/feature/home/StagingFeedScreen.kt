@@ -1190,7 +1190,7 @@ internal fun CompactPostAction(
     val ink = sautiChromeInk()
     val heart = icon == Icons.Rounded.FavoriteBorder
     val repost = icon == Icons.Rounded.Repeat
-    val actionTint = if (repost && selected) MaterialTheme.colorScheme.primary else ink
+    val actionTint = if (repost && selected) com.sautilink.nativeapp.ui.theme.SautiColors.LogoOrange else ink
     Row(
         modifier = modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .semantics { this.selected = selected }
@@ -1200,7 +1200,7 @@ internal fun CompactPostAction(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val artwork = Modifier.size(24.dp).sautiActionFeedback(interaction)
+        val artwork = Modifier.size(26.dp).sautiActionFeedback(interaction)
         if (heart) SautiPostHeart(selected, label, artwork, ink)
         else Icon(activeIcon, contentDescription = label, tint = actionTint, selected = selected, modifier = artwork)
         if (count != null) {

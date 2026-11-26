@@ -14,10 +14,10 @@ internal fun videoMetadataWarmupEligible(foreground: Boolean, online: Boolean, a
     saveData: Boolean, stressed: Boolean, denied: Boolean): Boolean =
     foreground && online && autoplay && !saveData && !stressed && !denied
 
-/** Start only with six seconds ready; a healthy continuing queue stops below
- * three. Small buffer fluctuations must not repeatedly discard/reload five manifests. */
+/** Start with two seconds ready; a healthy continuing queue stops below
+ * one second. Small buffer fluctuations must not repeatedly discard/reload five manifests. */
 internal fun videoPreloadRunway(bufferedMs: Long, continuing: Boolean): Long =
-    if (continuing && bufferedMs >= 3_000L) maxOf(6_000L,bufferedMs) else bufferedMs
+    if (continuing && bufferedMs >= 1_000L) maxOf(2_000L,bufferedMs) else bufferedMs
 
 /** Two metadata requests at a time, including later grant refreshes. The visible
  * player's resolver does not wait behind this speculative-only semaphore. */

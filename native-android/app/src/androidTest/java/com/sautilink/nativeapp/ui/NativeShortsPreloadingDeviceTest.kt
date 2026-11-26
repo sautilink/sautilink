@@ -58,7 +58,7 @@ class NativeShortsPreloadingDeviceTest {
     private val origin = "https://sautilink.com"
     private val generation = "11111111-1111-4111-8111-111111111111"
     private fun id(number: Int) = "00000000-0000-4000-8000-${number.toString().padStart(12, '0')}"
-    private val paths = listOf("master.m3u8", "360.m3u8") + (0..5).map { "360-${it.toString().padStart(2, '0')}.ts" }
+    private val paths = listOf("master.m3u8", "360.m3u8", "720.m3u8") + listOf("360", "720").flatMap { quality -> (0..5).map { "$quality-${it.toString().padStart(2, '0')}.ts" } }
     private fun opaque(path: String) = (if (path.endsWith(".m3u8")) "m_" else "s_") +
         Base64.getUrlEncoder().withoutPadding().encodeToString(MessageDigest.getInstance("SHA-256").digest(path.toByteArray()))
     private fun url(number: Int, path: String) = "$origin/api/sauti-media/${id(number)}/hls/${opaque(path)}?c=fixture.${"a".repeat(43)}"
@@ -83,6 +83,7 @@ class NativeShortsPreloadingDeviceTest {
         private val activeByMedia = ConcurrentHashMap<String, AtomicInteger>()
         private val bytesByMedia = ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicLong>()
         val active = AtomicInteger()
+        var dualVariants = false
         val manifestDelayMs = java.util.concurrent.atomic.AtomicLong()
         val blockedMedia = AtomicReference<String?>()
         val blockedReadEntered = CountDownLatch(1)
@@ -107,11 +108,12 @@ class NativeShortsPreloadingDeviceTest {
                 val path = paths.firstOrNull { opaque(it) == spec.uri.lastPathSegment }
                     ?: throw IOException("Unknown synthetic resource")
                 val bytes = when (path) {
-                    "master.m3u8" -> "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=300000,RESOLUTION=640x360,FRAME-RATE=30.0\n${url(number, "360.m3u8")}\n".toByteArray()
-                    "360.m3u8" -> assets.open("native-hls/360.m3u8").bufferedReader().use { it.readLines() }
-                        .joinToString("\n", postfix = "\n") { line -> if (line.isBlank() || line.startsWith('#')) line else url(number, line) }
+                    "master.m3u8" -> ("#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=300000,RESOLUTION=640x360,FRAME-RATE=30.0${if (dualVariants) ",CODECS=\"avc1.42c01e\"" else ""}\n${url(number, "360.m3u8")}\n" +
+                        if (dualVariants) "#EXT-X-STREAM-INF:BANDWIDTH=1500000,RESOLUTION=720x1280,FRAME-RATE=30.0,CODECS=\"avc1.42c01e\"\n${url(number, "720.m3u8")}\n" else "").toByteArray()
+                    "360.m3u8", "720.m3u8" -> assets.open("native-hls/360.m3u8").bufferedReader().use { it.readLines() }
+                        .joinToString("\n", postfix = "\n") { line -> if (line.isBlank() || line.startsWith('#')) line else url(number, if (path == "720.m3u8") line.replace("360-", "720-") else line) }
                         .toByteArray()
-                    else -> assets.open("native-hls/$path").use { it.readBytes() }
+                    else -> assets.open("native-hls/${path.replace("720-", "360-")}").use { it.readBytes() }
                 }
                 if (path.endsWith(".m3u8") && manifestDelayMs.get()>0L) try {
                     Thread.sleep(manifestDelayMs.get())
@@ -283,6 +285,43 @@ class NativeShortsPreloadingDeviceTest {
                 assertEquals("Prepared sample queues must survive handoff; a disk-cache reread still means they were discarded",
                     firstSegmentLoads, h.incomingFirstSegmentLoads.get())
                 assertEquals(0, h.factory.opens(3))
+            }
+        } finally { h.close() }
+    }
+
+    @Test fun manualQualityPreparesFiveMatchingPortraitTracks_andChangingQualityKeepsCurrentDecoder() {
+        val h = Harness()
+        h.factory.dualVariants = true
+        try {
+            h.mount()
+            val onlyPlayer = h.preload.player
+            compose.runOnIdle {
+                h.preload.setQualityPreference("720")
+                assertTrue(h.preload.qualityAligned("720"))
+                assertFalse(h.preload.qualityAligned("auto"))
+                h.preload.updateWindow(0, (2..6).map { it-1 to h.sources.getValue(it) }, true)
+            }
+            await { (2..6).all { h.factory.opens(it,"720.m3u8") > 0 && h.factory.opens(it,"720-00.ts") > 0 && (h.completedPreloads[id(it)]?.get() ?: 0) > 0 } }
+            val oldCompletions = (2..6).associateWith { h.completedPreloads.getValue(id(it)).get() }
+            compose.runOnIdle {
+                for (number in 2..6) {
+                    // HLS may inspect the default playlist while discovering groups.
+                    // The prepared samples must come from the requested variant.
+                    assertTrue("Manual 720p samples must be prepared", h.factory.opens(number,"720-00.ts") > 0)
+                    assertEquals("Preloading must never render an offscreen frame", 0, h.frameCount(number))
+                }
+                h.preload.setQualityPreference("360")
+                h.preload.updateWindow(0, (2..6).map { it-1 to h.sources.getValue(it) }, true)
+            }
+            await { (2..6).all { h.factory.opens(it,"360.m3u8") > 0 &&
+                (h.completedPreloads[id(it)]?.get() ?: 0) > oldCompletions.getValue(it) } }
+            compose.runOnIdle {
+                assertSame(onlyPlayer, h.preload.player)
+                assertTrue(h.preload.player.isPlaying)
+                assertNull(h.preload.player.playerError)
+                assertEquals("Quality changes must not reprepare the current decoder", 1, h.frameCount(1))
+                h.preload.setQualityPreference("data-saver")
+                assertFalse("Explicit Data Saver does not speculate sample bytes", h.preload.qualityAligned("data-saver"))
             }
         } finally { h.close() }
     }

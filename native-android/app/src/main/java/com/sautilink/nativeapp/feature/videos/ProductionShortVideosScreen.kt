@@ -121,24 +121,25 @@ private fun PrepareNextShort(auth: StagingAuthClient, candidates: List<Pair<Int,
     retained: Map<String, NativePlaybackRead>, token: String?, player: ExoPlayer?,
     resources: NativeVideoPlaybackResources?, preloading: NativeShortsPreloading?, index: Int, currentId: String?,
     network: com.sautilink.nativeapp.ui.components.NativeVideoNetwork, foreground: Boolean,
-    online: Boolean, playbackAllowed: Boolean, autoQuality: Boolean, denied: Boolean, currentIsMp4: Boolean) {
+    online: Boolean, playbackAllowed: Boolean, quality: String, denied: Boolean, currentIsMp4: Boolean) {
     val context = LocalContext.current
-    var mayPreload by remember(player, currentId) { mutableStateOf(false) }
+    var mayPreload by remember(player, currentId, quality) { mutableStateOf(false) }
     var stressed by remember(context) { mutableStateOf(videoDeviceStressed(context)) }
-    LaunchedEffect(player, currentId, foreground, online, playbackAllowed, network, autoQuality) {
+    LaunchedEffect(player, currentId, foreground, online, playbackAllowed, network, quality, preloading) {
+        preloading?.setQualityPreference(quality)
         while (player != null && currentId != null && foreground) {
             stressed = videoDeviceStressed(context)
             mayPreload = shortsPreloadEligible(true, online, playbackAllowed,
                 player.isPlaying && player.currentMediaItem?.mediaId == currentId,
                 com.sautilink.nativeapp.ui.components.videoPreloadRunway(player.totalBufferedDuration,mayPreload),
                 network.saveData, network.isMetered, network.measuredMbps,
-                stressed, autoQuality)
+                stressed, preloading?.qualityAligned(quality) == true)
             kotlinx.coroutines.delay(500L)
         }
         mayPreload = false
     }
     val metadataAllowed = token != null && com.sautilink.nativeapp.ui.components.videoMetadataWarmupEligible(
-        foreground, online, playbackAllowed, network.saveData, stressed, denied || currentIsMp4)
+        foreground, online, playbackAllowed, network.saveData, stressed, denied)
     val reads = com.sautilink.nativeapp.ui.components.rememberVideoLookaheadReads(auth,
         candidates.map { it.second }, retained, metadataAllowed)
     val sources = reads.mapNotNull { (id, read) ->
@@ -147,10 +148,11 @@ private fun PrepareNextShort(auth: StagingAuthClient, candidates: List<Pair<Int,
         }
     }
     LaunchedEffect(preloading, index, sources, mayPreload, foreground, online, playbackAllowed, denied, currentIsMp4,
-        metadataAllowed, autoQuality) {
+        metadataAllowed, quality) {
+        preloading?.setQualityPreference(quality)
         sources.forEach { (_, source) -> resources?.hlsGrants?.authorize(source) }
-        preloading?.updateWindow(index, sources, mayPreload && online && foreground,
-            retainIncoming = metadataAllowed && autoQuality && online && playbackAllowed && foreground && !denied && !currentIsMp4)
+        preloading?.updateWindow(index, sources, mayPreload && preloading.qualityAligned(quality) && online && foreground,
+            retainIncoming = metadataAllowed && online && playbackAllowed && foreground && !denied)
     }
 }
 
@@ -217,7 +219,29 @@ fun ProductionShortVideosScreen(
             "repost" -> repostStates[post.id]
             else -> return
         }
-        val desired = before != true
+        if (before == null) {
+            // An unknown state is a read retry, never an inferred Like/Unlike.
+            busyActions = busyActions + key
+            val owner = auth.account?.id
+            scope.launch {
+                try {
+                    val state = withTimeout(18_000L) { when (kind) {
+                        "like" -> actions.getLikeStates(listOf(post.id))
+                        "save" -> actions.getSavedStates(listOf(post.id))
+                        else -> actions.getRepostStates(listOf(post.id))
+                    } }
+                    if (auth.account?.id == owner) when (kind) {
+                        "like" -> likeStates = state + likeStates
+                        "save" -> saveStates = state + saveStates
+                        else -> repostStates = state + repostStates
+                    }
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { feedback.showSnackbar("Could not check status. Please try again.") }
+                finally { if (auth.account?.id == owner) busyActions = busyActions - key }
+            }
+            return
+        }
+        val desired = !before
         val accountId = auth.account?.id
         busyActions = busyActions + key
         scope.launch {
@@ -233,7 +257,7 @@ fun ProductionShortVideosScreen(
                 when (kind) {
                     "like" -> {
                         likeStates = likeStates + (post.id to desired)
-                        if (before != null) clips = clips.map { clip ->
+                        clips = clips.map { clip ->
                             if (clip.post.id == post.id) clip.copy(post = clip.post.copy(
                                 likes = (clip.post.likes + if (before) -1 else 1).coerceAtLeast(0)))
                             else clip
@@ -413,7 +437,7 @@ fun ProductionShortVideosScreen(
     val replayOwner = com.sautilink.nativeapp.ui.components.LocalNativeVideoReplayOwner.current
     val engine: ShortsPlaybackEngine? = remember(auth, accountId, accessToken, replayOwner) {
         createShortsPlaybackEngine(context, auth, accountId, accessToken, replayOwner,
-            authorizationToken = { latestBearerState.value }, muted = muted)
+            authorizationToken = { latestBearerState.value }, muted = muted, quality = quality)
     }
     val resources: NativeVideoPlaybackResources? = engine?.resources
     val preloading: NativeShortsPreloading? = engine?.preloading
@@ -471,35 +495,46 @@ fun ProductionShortVideosScreen(
     }
     LaunchedEffect(player, muted, clip?.post?.audio) { player?.volume = if (muted) 0f else clip?.post?.audio?.originalVolume ?: 1f }
     LaunchedEffect(player, playbackSpeed) { player?.setPlaybackSpeed(playbackSpeed) }
+    clip?.let { selectedClip ->
+        com.sautilink.nativeapp.feature.music.BindNativePostVideoClock(player, selectedClip.post.id, selectedClip.mediaId,
+            current = true, frameReady = renderedMediaId == selectedClip.mediaId, playing = playing)
+    }
     val authorMetadata = rememberShortsAuthorMetadata(auth, actions, reload, player,
         lifecycleState.isAtLeast(Lifecycle.State.STARTED), online, clip?.post,
         currentFrameReady = clip != null && renderedMediaId == clip.mediaId,
-        wantsPlayback = wantsPlayback)
-    LaunchedEffect(auth.account?.id, clip?.post?.id, online) {
-        val postId = clip?.post?.id ?: return@LaunchedEffect
+        wantsPlayback = wantsPlayback,
+        nearbyPosts = clips.drop(pager.settledPage).take(6).map { it.post })
+    val statusWindow = clips.drop(pager.settledPage).take(6).map { it.post.id }.distinct()
+    val readingStatuses = remember(auth, auth.account?.id) { mutableStateListOf<String>() }
+    LaunchedEffect(auth.account?.id, statusWindow, online) {
         val accountId = auth.account?.id ?: return@LaunchedEffect
         if (!canInteract) return@LaunchedEffect
-        // Independent reads: a slow Save lookup never prevents Like or Repost.
-        if (postId !in likeStates) launch {
-            try {
-                val states = withTimeout(18_000L) { actions.getLikeStates(listOf(postId)) }
-                if (auth.account?.id == accountId) likeStates = states + likeStates
-            } catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { /* An explicit Like remains possible. */ }
-        }
-        if (postId !in saveStates) launch {
-            try {
-                val states = withTimeout(18_000L) { actions.getSavedStates(listOf(postId)) }
-                if (auth.account?.id == accountId) saveStates = states + saveStates
-            } catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { /* An explicit Save remains possible. */ }
-        }
-        if (postId !in repostStates) launch {
-            try {
-                val states = withTimeout(18_000L) { actions.getRepostStates(listOf(postId)) }
-                if (auth.account?.id == accountId) repostStates = states + repostStates
-            } catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { /* An explicit Repost remains possible. */ }
+        // Keep batches alive across a page handoff. Only loaded feed IDs are
+        // read and the current account must still own the response.
+        listOf("like", "save", "repost").forEach { kind ->
+            val known = when (kind) { "like" -> likeStates; "save" -> saveStates; else -> repostStates }
+            val ids = statusWindow.filter { it !in known && "$kind:$it" !in readingStatuses }
+            if (ids.isNotEmpty()) {
+                val keys = ids.map { "$kind:$it" }
+                readingStatuses += keys
+                scope.launch {
+                    try {
+                        val states = withTimeout(18_000L) { when (kind) {
+                            "like" -> actions.getLikeStates(ids)
+                            "save" -> actions.getSavedStates(ids)
+                            else -> actions.getRepostStates(ids)
+                        } }
+                        if (auth.account?.id == accountId) when (kind) {
+                            "like" -> likeStates = states + likeStates
+                            "save" -> saveStates = states + saveStates
+                            else -> repostStates = states + repostStates
+                        }
+                    } catch (_: TimeoutCancellationException) { /* Tap to retry the read. */ }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { /* Unknown stays distinct from unselected. */ }
+                    finally { readingStatuses -= keys }
+                }
+            }
         }
     }
     val selectedMedia = clip?.let { selected -> selected.post.media.firstOrNull { it.id == selected.mediaId } }
@@ -511,7 +546,7 @@ fun ProductionShortVideosScreen(
     upcoming.forEach { (_, id) -> handoff.getOrPut(id) { NativePlaybackRead() } }
     PrepareNextShort(auth, upcoming, handoff, accessToken, player, resources, preloading,
         pager.settledPage, clip?.mediaId, network, lifecycleState.isAtLeast(Lifecycle.State.STARTED),
-        online, autoplay && wantsPlayback, preference == "auto", playbackRead.denied, streamSource?.hls == false)
+        online, autoplay && wantsPlayback, preference, playbackRead.denied, streamSource?.hls == false)
     val baseQuality = remember(clip?.mediaId, preference) {
         NativeVideoQualityPolicy.selectQuality(preference, metadata, network)
     }
@@ -682,16 +717,21 @@ fun ProductionShortVideosScreen(
                         VideoRailAction(
                             Icons.Rounded.FavoriteBorder,
                             if (liked) "Unlike" else "Like", formatVideoCount(post.likes), liked,
+                            statusKnown = post.id in likeStates,
+                            statusPending = "like:${post.id}" in readingStatuses || "like:${post.id}" in busyActions,
                             enabled = canInteract && "like:${post.id}" !in busyActions
                         ) { togglePostAction(post, "like") }
                         VideoRailAction(Icons.Rounded.ChatBubbleOutline, "Comments",
                             formatVideoCount(post.comments)) { commentsFor = post }
                         VideoRailAction(if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
                             "Save", null, saved,
+                            statusKnown = post.id in saveStates,
+                            statusPending = "save:${post.id}" in readingStatuses || "save:${post.id}" in busyActions,
                             enabled = canInteract && "save:${post.id}" !in busyActions
                         ) { togglePostAction(post, "save") }
                         VideoRailAction(Icons.Rounded.Repeat, "Repost", formatVideoCount(post.reposts),
-                            reposted, enabled = canInteract && "repost:${post.id}" !in busyActions
+                            reposted, statusKnown = post.id in repostStates,
+                            statusPending = "repost:${post.id}" in readingStatuses || "repost:${post.id}" in busyActions, enabled = canInteract && "repost:${post.id}" !in busyActions
                         ) { togglePostAction(post, "repost") }
                         VideoRailAction(SautiPostIcons.Share, "Share") { shareClip(post, false) }
                         VideoRailAction(Icons.Rounded.ContentCopy, "Copy link") { shareClip(post, true) }
@@ -789,16 +829,18 @@ private fun formatVideoCount(value: Int): String = com.sautilink.nativeapp.ui.co
 
 /** Tap animation + explicit semantics for TalkBack and large-screen navigation. */
 @Composable
-private fun VideoRailAction(
+internal fun VideoRailAction(
     icon: ImageVector,
     label: String,
     count: String? = null,
     active: Boolean = false,
+    statusKnown: Boolean = true,
+    statusPending: Boolean = false,
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     val interaction = remember { MutableInteractionSource() }
-    val tint by animateColorAsState(if (active) Color(0xFFFF5964) else Color.White,
+    val tint by animateColorAsState(if (active && icon == Icons.Rounded.Repeat) com.sautilink.nativeapp.ui.theme.SautiColors.LogoOrange else Color.White,
         tween(150), label = "Video action color")
     Column(Modifier.width(56.dp).heightIn(min = 48.dp)
         .clickable(interactionSource = interaction, indication = null,
@@ -806,9 +848,13 @@ private fun VideoRailAction(
         .padding(vertical = 1.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center) {
-        Box(Modifier.size(24.dp).sautiActionFeedback(interaction)) {
+        Box(Modifier.size(26.dp).sautiActionFeedback(interaction)) {
             val heart = icon == Icons.Rounded.FavoriteBorder
-            if (heart) SautiPostHeart(active, label, Modifier.fillMaxSize(), Color.White)
+            if (!statusKnown && statusPending) CircularProgressIndicator(Modifier.size(18.dp).align(Alignment.Center),
+                color = Color.White.copy(alpha = .6f), strokeWidth = 1.2.dp)
+            else if (!statusKnown) Icon(Icons.Rounded.Refresh, contentDescription = "Retry $label status",
+                modifier = Modifier.size(18.dp).align(Alignment.Center), tint = Color.White.copy(alpha = .65f))
+            else if (heart) SautiPostHeart(active, label, Modifier.fillMaxSize(), Color.White)
             else Icon(icon, contentDescription = label, modifier = Modifier.fillMaxSize(), tint = tint, selected = active)
         }
         val caption = count ?: label

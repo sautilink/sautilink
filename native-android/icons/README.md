@@ -1,20 +1,16 @@
-# Native animated icons
+# Native icon artwork
 
-The production native client shares the Web Huge icon family from
-`@animateicons/vanilla@0.1.0` (AnimateIcons). `source.json` preserves the local
-definitions, original package provenance and upstream notices. Native-only
-controls also use selected definitions from the same pinned package.
+Run `node native-android/icons/generate.mjs` from the repository root after updating `source.json`. The generated Compose vectors are cached locally and require no icon network requests.
 
-Run `node native-android/icons/generate.mjs` to translate resting SVG shapes to
-locally cached Compose ImageVectors. No WebView, JavaScript engine, CDN, network
-lookup or new runtime dependency is used. Unsupported precise native symbols
-retain their artwork through the same adapter; original verification/brand
-artwork is preserved.
+- Heart, paper-plane-tilt, chat-circle, bell and user use the official Phosphor **Light** geometry.
+- Repost uses Pulso **Repeat2**, with a 1.35 stroke on its 24-unit grid.
+- Bookmark keeps its existing Hugeicons shape, with a 1.35 stroke and an internal filled variant.
+- Rooms deliberately keeps the original Hugeicons user-group, as requested after the Phosphor version was reviewed.
+- Navigation keeps the existing Home, Search, Messages and Shorts shapes. Its 26dp artwork slots match the 26dp post reaction slots; touch targets remain at least 48dp.
+- The Home Rooms and Stories shortcuts share 25dp slots. Their different silhouettes are checked by painted footprint, rather than forcing a wide group into a circular shape.
+- `opticalScale` centers selected artwork inside its viewport. Its nominal dominant extent is 20.5 units on a 24dp grid. The filled heart uses the outline's outer contour and identical transform, so selection does not change its resting size.
+- Artwork is still when it enters the feed. Finite press and selection motion respects the system animation clock.
 
-`SautiIcon` and `SautiGlyph` supply finite native motion on entry, selection and
-touch. This is a Compose adaptation of the Web motion language; the native app
-does not execute the browser Motion engine. System animation duration controls
-apply. Parent touch events are observed without being consumed, and original
-button callbacks, TalkBack descriptions and touch targets remain in place.
+Other native controls retain the pinned `@animateicons/vanilla@0.1.0` Hugeicons definitions in `source.json`. Brand/verification artwork keeps its original geometry. The adapter observes touches without consuming parent input, and preserves callbacks, TalkBack labels and touch targets. No browser engine or runtime icon dependency is required.
 
-MIT/ISC attribution is retained in LICENSE and THIRD_PARTY_NOTICES.md.
+Original SVGs, Repeat2 sources and licenses are retained under `upstream/`. Release notices are also included under `app/src/main/assets/licenses/`.

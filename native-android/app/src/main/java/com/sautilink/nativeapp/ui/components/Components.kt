@@ -113,7 +113,7 @@ fun SautiBottomBar(selected: Int, unreadNotifications: Int = 0, onSelect: (Int) 
                             SautiNavigationIcon(index = index,
                                 label = if (index == 3 && unreadNotifications > 0)
                                     "Notifications, $unreadNotifications unread" else tab.title,
-                                selected = active, tint = tint, modifier = Modifier.size(24.dp))
+                                selected = active, tint = tint, modifier = Modifier.size(26.dp))
                             if (index == 3 && unreadNotifications > 0) {
                                 Badge(
                                     modifier = Modifier.align(Alignment.TopEnd)

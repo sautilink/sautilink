@@ -940,7 +940,7 @@
         "viewBox": "0 0 24 24",
         "fill": "none",
         "stroke": "currentColor",
-        "stroke-width": "2",
+        "stroke-width": "1.35",
         "stroke-linecap": "round",
         "stroke-linejoin": "round"
       },
@@ -994,7 +994,8 @@
             "originY": "12px"
           }
         }
-      ]
+      ],
+      "opticalScale": 0.957988
     },
     "calendar-0-1": {
       "name": "calendar-0-1",
@@ -2209,52 +2210,21 @@
       ]
     },
     "heart": {
-      "name": "heart",
-      "library": "huge",
       "tag": "svg",
       "attrs": {
-        "xmlns": "http://www.w3.org/2000/svg",
-        "viewBox": "0 0 24 24",
-        "fill": "none",
-        "stroke": "currentColor",
-        "stroke-width": "2",
-        "stroke-linecap": "round",
-        "stroke-linejoin": "round"
+        "viewBox": "0 0 256 256",
+        "fill": "currentColor"
       },
       "children": [
         {
           "tag": "path",
           "attrs": {
-            "d": "M10.4107 19.9677C7.58942 17.858 2 13.0348 2 8.69444C2 5.82563 4.10526 3.5 7 3.5C8.5 3.5 10 4 12 6C14 4 15.5 3.5 17 3.5C19.8947 3.5 22 5.82563 22 8.69444C22 13.0348 16.4106 17.858 13.5893 19.9677C12.6399 20.6776 11.3601 20.6776 10.4107 19.9677Z"
+            "d": "M178,42c-21,0-39.26,9.47-50,25.34C117.26,51.47,99,42,78,42a60.07,60.07,0,0,0-60,60c0,29.2,18.2,59.59,54.1,90.31a334.68,334.68,0,0,0,53.06,37,6,6,0,0,0,5.68,0,334.68,334.68,0,0,0,53.06-37C219.8,161.59,238,131.2,238,102A60.07,60.07,0,0,0,178,42ZM128,217.11C111.59,207.64,30,157.72,30,102A48.05,48.05,0,0,1,78,54c20.28,0,37.31,10.83,44.45,28.27a6,6,0,0,0,11.1,0C140.69,64.83,157.72,54,178,54a48.05,48.05,0,0,1,48,48C226,157.72,144.41,207.64,128,217.11Z"
           },
-          "normal": {
-            "scale": 1
-          },
-          "animate": {
-            "scale": [
-              1,
-              1.1,
-              0.96,
-              1
-            ],
-            "transition": {
-              "duration": 0.6,
-              "ease": "easeInOut",
-              "times": [
-                0,
-                0.35,
-                0.7,
-                1
-              ]
-            }
-          },
-          "style": {
-            "transformBox": "view-box",
-            "originX": "12px",
-            "originY": "12px"
-          }
+          "children": []
         }
-      ]
+      ],
+      "opticalScale": 0.990833
     },
     "help-circle": {
       "name": "help-circle",
@@ -2338,7 +2308,7 @@
         "viewBox": "0 0 24 24",
         "fill": "none",
         "stroke": "currentColor",
-        "stroke-width": "2",
+        "stroke-width": "1.35",
         "stroke-linecap": "round",
         "stroke-linejoin": "round"
       },
@@ -2388,7 +2358,8 @@
             "originY": "21px"
           }
         }
-      ]
+      ],
+      "opticalScale": 1.008115
     },
     "id-verified": {
       "name": "id-verified",
@@ -4099,77 +4070,21 @@
       ]
     },
     "notification": {
-      "name": "notification",
-      "library": "huge",
       "tag": "svg",
       "attrs": {
-        "xmlns": "http://www.w3.org/2000/svg",
-        "viewBox": "0 0 24 24",
-        "fill": "none",
-        "stroke": "currentColor",
-        "stroke-width": "2",
-        "stroke-linecap": "round",
-        "stroke-linejoin": "round"
+        "viewBox": "0 0 256 256",
+        "fill": "currentColor"
       },
       "children": [
         {
           "tag": "path",
           "attrs": {
-            "d": "M19.2311 18H4.76887C3.79195 18 3 17.208 3 16.2311C3 15.762 3.18636 15.3121 3.51809 14.9803L4.12132 14.3771C4.68393 13.8145 5 13.0514 5 12.2558V9.5C5 5.63401 8.13401 2.5 12 2.5C15.866 2.5 19 5.634 19 9.5V12.2558C19 13.0514 19.3161 13.8145 19.8787 14.3771L20.4819 14.9803C20.8136 15.3121 21 15.762 21 16.2311C21 17.208 20.208 18 19.2311 18Z"
+            "d": "M220.07,176.94C214.41,167.2,206,139.73,206,104a78,78,0,1,0-156,0c0,35.74-8.42,63.2-14.08,72.94A14,14,0,0,0,48,198H90.48a38,38,0,0,0,75,0H208a14,14,0,0,0,12.06-21.06ZM128,218a26,26,0,0,1-25.29-20h50.58A26,26,0,0,1,128,218Zm81.71-33a1.9,1.9,0,0,1-1.7,1H48a1.9,1.9,0,0,1-1.7-1,2,2,0,0,1,0-2C53.87,170,62,139.69,62,104a66,66,0,1,1,132,0c0,35.68,8.14,65.95,15.71,79A2,2,0,0,1,209.71,185Z"
           },
-          "normal": {
-            "rotate": 0
-          },
-          "animate": {
-            "rotate": [
-              0,
-              -12,
-              10.2,
-              -6,
-              3,
-              0
-            ],
-            "transition": {
-              "duration": 1.1,
-              "ease": "easeInOut"
-            }
-          },
-          "style": {
-            "transformBox": "view-box",
-            "originX": "12px",
-            "originY": "2.5px"
-          }
-        },
-        {
-          "tag": "path",
-          "attrs": {
-            "d": "M15.5 18C15.5 19.933 13.933 21.5 12 21.5C10.067 21.5 8.5 19.933 8.5 18"
-          },
-          "normal": {
-            "rotate": 0
-          },
-          "animate": {
-            "rotate": [
-              0,
-              -7,
-              6,
-              -3.5,
-              1.8,
-              0
-            ],
-            "transition": {
-              "duration": 1.1,
-              "ease": "easeInOut",
-              "delay": 0.07
-            }
-          },
-          "style": {
-            "transformBox": "view-box",
-            "originX": "12px",
-            "originY": "2.5px"
-          }
+          "children": []
         }
-      ]
+      ],
+      "opticalScale": 1.076993
     },
     "pause": {
       "name": "pause",
@@ -4355,58 +4270,40 @@
       ]
     },
     "repeat": {
-      "name": "repeat",
-      "library": "huge",
       "tag": "svg",
       "attrs": {
-        "xmlns": "http://www.w3.org/2000/svg",
         "viewBox": "0 0 24 24",
         "fill": "none",
         "stroke": "currentColor",
-        "stroke-width": "2",
-        "stroke-linecap": "round",
-        "stroke-linejoin": "round"
+        "stroke-width": "1.35"
       },
       "children": [
         {
-          "tag": "g",
-          "normal": {
-            "rotate": 0,
-            "transition": {
-              "duration": 0
-            }
-          },
-          "animate": {
-            "rotate": [
-              0,
-              180
-            ],
-            "transition": {
-              "duration": 0.6,
-              "ease": "easeInOut"
-            }
-          },
-          "style": {
-            "transformBox": "view-box",
-            "originX": "12px",
-            "originY": "12px"
-          },
-          "children": [
-            {
-              "tag": "path",
-              "attrs": {
-                "d": "M16.3884 3L17.3913 3.97574C17.8393 4.41165 18.0633 4.62961 17.9844 4.81481C17.9056 5 17.5888 5 16.9552 5H9.19422C5.22096 5 2 8.13401 2 12C2 13.4872 2.47668 14.8662 3.2895 16"
-              }
-            },
-            {
-              "tag": "path",
-              "attrs": {
-                "d": "M7.61156 21L6.60875 20.0243C6.16074 19.5883 5.93673 19.3704 6.01557 19.1852C6.09441 19 6.4112 19 7.04478 19H14.8058C18.779 19 22 15.866 22 12C22 10.5128 21.5233 9.13383 20.7105 8"
-              }
-            }
-          ]
+          "tag": "path",
+          "attrs": {
+            "d": "m2 9 3-3 3 3"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M13 18H7a2 2 0 0 1-2-2V6"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "m22 15-3 3-3-3"
+          }
+        },
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M11 6h6a2 2 0 0 1 2 2v10"
+          }
         }
-      ]
+      ],
+      "opticalScale": 0.957988
     },
     "sautilink:justice-scale": {
       "name": "justice-scale",
@@ -4471,7 +4368,7 @@
         "viewBox": "0 0 24 24",
         "fill": "none",
         "stroke": "currentColor",
-        "stroke-width": "2",
+        "stroke-width": "1.35",
         "stroke-linecap": "round",
         "stroke-linejoin": "round"
       },
@@ -4532,7 +4429,8 @@
             }
           ]
         }
-      ]
+      ],
+      "opticalScale": 1.063778
     },
     "security-block": {
       "name": "security-block",
@@ -4593,72 +4491,21 @@
       ]
     },
     "send": {
-      "name": "send",
-      "library": "huge",
       "tag": "svg",
       "attrs": {
-        "xmlns": "http://www.w3.org/2000/svg",
-        "viewBox": "0 0 24 24",
-        "fill": "none",
-        "stroke": "currentColor",
-        "stroke-width": "2",
-        "stroke-linecap": "round",
-        "stroke-linejoin": "round"
+        "viewBox": "0 0 256 256",
+        "fill": "currentColor"
       },
       "children": [
         {
-          "tag": "g",
-          "normal": {
-            "x": 0,
-            "y": 0,
-            "opacity": 1
+          "tag": "path",
+          "attrs": {
+            "d": "M225.88,30.12a13.83,13.83,0,0,0-13.7-3.58l-.11,0L20.14,84.77A14,14,0,0,0,18,110.85l85.56,41.64L145.12,238a13.87,13.87,0,0,0,12.61,8c.4,0,.81,0,1.21-.05a13.9,13.9,0,0,0,12.29-10.09l58.2-191.93,0-.11A13.83,13.83,0,0,0,225.88,30.12Zm-8,10.4L159.73,232.43l0,.11a2,2,0,0,1-3.76.26l-40.68-83.58,49-49a6,6,0,1,0-8.49-8.49l-49,49L23.15,100a2,2,0,0,1,.31-3.74l.11,0L215.48,38.08a1.94,1.94,0,0,1,1.92.52A2,2,0,0,1,217.92,40.52Z"
           },
-          "animate": {
-            "x": [
-              0,
-              4,
-              -4,
-              0
-            ],
-            "y": [
-              0,
-              -4,
-              4,
-              0
-            ],
-            "opacity": [
-              1,
-              0,
-              0,
-              1
-            ],
-            "transition": {
-              "duration": 0.8,
-              "ease": "easeInOut",
-              "times": [
-                0,
-                0.4,
-                0.5,
-                1
-              ]
-            }
-          },
-          "children": [
-            {
-              "tag": "path",
-              "attrs": {
-                "d": "M8.87038 6.13264L14.7327 4.19538C18.033 3.10476 19.6831 2.55945 20.5579 3.43426C21.4327 4.30907 20.8874 5.95922 19.7968 9.25953L17.8595 15.1218C16.6236 18.8619 16.0056 20.7319 14.8796 20.9603C14.6411 21.0087 14.3955 21.0129 14.1549 20.9727C13.019 20.7832 12.3132 18.9359 10.9016 15.2413C10.6328 14.5376 10.4983 14.1858 10.2574 13.9127C10.2018 13.8497 10.1424 13.7903 10.0795 13.7348C9.80638 13.4938 9.45455 13.3594 8.75089 13.0906C5.05627 11.679 3.20896 10.9732 3.01945 9.83727C2.97931 9.59669 2.98353 9.35108 3.03189 9.11259C3.26025 7.98657 5.13029 7.36859 8.87038 6.13264Z"
-              }
-            },
-            {
-              "tag": "path",
-              "attrs": {
-                "d": "M12.8008 11.1865L15.498 8.48926"
-              }
-            }
-          ]
+          "children": []
         }
-      ]
+      ],
+      "opticalScale": 0.990833
     },
     "settings-0-1": {
       "name": "settings-0-1",
@@ -5528,81 +5375,21 @@
       ]
     },
     "user": {
-      "name": "user",
-      "library": "huge",
       "tag": "svg",
       "attrs": {
-        "xmlns": "http://www.w3.org/2000/svg",
-        "viewBox": "0 0 24 24",
-        "fill": "none",
-        "stroke": "currentColor",
-        "stroke-width": "2",
-        "stroke-linecap": "round",
-        "stroke-linejoin": "round"
+        "viewBox": "0 0 256 256",
+        "fill": "currentColor"
       },
       "children": [
         {
           "tag": "path",
           "attrs": {
-            "d": "M20 21.0001C19.713 17.269 16.7289 14.3151 12.995 14.0662L12 13.9999C11.6446 14.0096 11.3134 14.0225 11.0008 14.0378C7.3 14.2192 4.28417 17.3057 4 21.0001"
+            "d": "M229.19,213c-15.81-27.32-40.63-46.49-69.47-54.62a70,70,0,1,0-63.44,0C67.44,166.5,42.62,185.67,26.81,213a6,6,0,1,0,10.38,6C56.4,185.81,90.34,166,128,166s71.6,19.81,90.81,53a6,6,0,1,0,10.38-6ZM70,96a58,58,0,1,1,58,58A58.07,58.07,0,0,1,70,96Z"
           },
-          "normal": {
-            "scaleY": 1
-          },
-          "animate": {
-            "scaleY": [
-              1,
-              0.88,
-              1.04,
-              1
-            ],
-            "transition": {
-              "duration": 0.6,
-              "ease": "easeInOut",
-              "times": [
-                0,
-                0.35,
-                0.7,
-                1
-              ]
-            }
-          },
-          "style": {
-            "transformBox": "view-box",
-            "originX": "12px",
-            "originY": "21px"
-          }
-        },
-        {
-          "tag": "circle",
-          "attrs": {
-            "cx": "12",
-            "cy": "6.99988",
-            "r": "4"
-          },
-          "normal": {
-            "y": 0
-          },
-          "animate": {
-            "y": [
-              0,
-              -2,
-              0.6,
-              0
-            ],
-            "transition": {
-              "duration": 0.6,
-              "ease": "easeInOut",
-              "times": [
-                0,
-                0.35,
-                0.7,
-                1
-              ]
-            }
-          }
+          "children": []
         }
-      ]
+      ],
+      "opticalScale": 1.076993
     },
     "user-add-0-1": {
       "name": "user-add-0-1",
@@ -7151,6 +6938,48 @@
           }
         }
       ]
+    },
+    "chat-circle": {
+      "tag": "svg",
+      "attrs": {
+        "viewBox": "0 0 256 256",
+        "fill": "currentColor"
+      },
+      "children": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M128,26A102,102,0,0,0,38.35,176.69L26.73,211.56a14,14,0,0,0,17.71,17.71l34.87-11.62A102,102,0,1,0,128,26Zm0,192a90,90,0,0,1-45.06-12.08,6.09,6.09,0,0,0-3-.81,6.2,6.2,0,0,0-1.9.31L40.65,217.88a2,2,0,0,1-2.53-2.53L50.58,178a6,6,0,0,0-.5-4.91A90,90,0,1,1,128,218Z"
+          },
+          "children": []
+        }
+      ],
+      "opticalScale": 1.076993
     }
+  },
+  "filledDefinitions": {
+    "heart": {
+      "tag": "svg",
+      "attrs": {
+        "viewBox": "0 0 256 256",
+        "fill": "currentColor"
+      },
+      "children": [
+        {
+          "tag": "path",
+          "attrs": {
+            "d": "M178,42c-21,0-39.26,9.47-50,25.34C117.26,51.47,99,42,78,42a60.07,60.07,0,0,0-60,60c0,29.2,18.2,59.59,54.1,90.31a334.68,334.68,0,0,0,53.06,37,6,6,0,0,0,5.68,0,334.68,334.68,0,0,0,53.06-37C219.8,161.59,238,131.2,238,102A60.07,60.07,0,0,0,178,42Z"
+          },
+          "children": []
+        }
+      ]
+    }
+  },
+  "additionalSources": {
+    "phosphor": "https://github.com/phosphor-icons/core/tree/main/assets/light",
+    "pulsoRepeat2": "https://github.com/CityPulso/PulsoIcon-Package/blob/main/src/icons/repeat-2.ts",
+    "note": "Phosphor Light weight. Heart filled silhouette follows the light asset outer contour to retain identical selected bounds. Bookmark, home, search and Repeat2 preserve their shapes at 1.35 stroke.",
+    "opticalSizing": "Dominant painted extent normalized to 20.5dp within unchanged 24dp slots, measured from native rasterization. Filled and outline hearts share the same transform.",
+    "rooms": "Restored the original Hugeicons user-group at the user request; the Home Rooms shortcut shares the 25dp Stories slot."
   }
 }

@@ -56,9 +56,14 @@ import okhttp3.Request
 class NativeMusicComposer(val create: () -> Unit) {
     var selection by mutableStateOf<NativeAudioSelection?>(null)
     var details by mutableStateOf<NativeAudioSelection?>(null)
-    internal val visiblePosts = mutableStateMapOf<String, VisiblePostAudio>()
+    internal val visiblePosts = VisiblePostAudioRegistry()
     internal fun activeAudio(group: String?): VisiblePostAudio? = visiblePosts.values
         .filter { it.postId == group }.maxWithOrNull(compareBy<VisiblePostAudio> { it.visiblePercent }.thenByDescending { it.distance })
+    internal val videoClocks = mutableStateMapOf<String, NativePostVideoClock>()
+    internal fun currentVideo(postId: String?): NativePostVideoClock? = videoClocks.values
+        .filter { it.postId == postId && it.current }.let { clocks ->
+            clocks.firstOrNull { it.frameReady && it.playing } ?: clocks.firstOrNull()
+        }
     var commentsOpen by mutableStateOf(false)
     var manualPost by mutableStateOf<String?>(null)
 }
@@ -87,13 +92,20 @@ fun NativeMusicSession(auth: StagingAuthClient, onCreate: () -> Unit, feedEnable
     val audio = active?.audio
     val allowed = feedEnabled && foreground && !blocked && !coordinator.isPaused(active?.postId) && !controller.commentsOpen && controller.details == null &&
         (NativePlaybackPreferences.autoplayEnabled || controller.manualPost == active?.postId)
-    LaunchedEffect(audio, feedEnabled, allowed, active?.postId, NativePlaybackPreferences.sessionMuted) {
-        if (audio == null || !feedEnabled) { player.stop(); player.clearMediaItems(); return@LaunchedEffect }
-        preparePostSoundtrack(player, active?.postId.orEmpty(), audio.previewUrl())
-        player.volume = if (NativePlaybackPreferences.sessionMuted) 0f else audio.musicVolume
-        if (allowed && audio != null && active != null) coordinator.play("feed-music", active.postId, player::pause) { player.play() }
-        else player.pause()
-    }
+    val videoClock = controller.currentVideo(active?.postId)
+    NativeSyncedPostSoundtrack(player,
+        playbackKey = listOf(active?.postId, audio, feedEnabled, NativePlaybackPreferences.sessionMuted),
+        allowed = allowed && audio != null, video = videoClock, clipDurationMs = audio?.durationMs ?: 0L,
+        prepare = {
+            if (audio == null || !feedEnabled) { player.stop(); player.clearMediaItems(); false }
+            else {
+                preparePostSoundtrack(player, active?.postId.orEmpty(), audio.previewUrl())
+                player.volume = if (NativePlaybackPreferences.sessionMuted) 0f else audio.musicVolume
+                true
+            }
+        }, start = {
+            active?.let { coordinator.play("feed-music", it.postId, player::pause) { player.play() } }
+        })
     CompositionLocalProvider(LocalNativeMusicComposer provides controller,
         com.sautilink.nativeapp.feature.home.LocalNativeFeedPlayback provides coordinator) {
         CompositionLocalProvider(com.sautilink.nativeapp.ui.components.LocalNativePlaybackBlocked provides

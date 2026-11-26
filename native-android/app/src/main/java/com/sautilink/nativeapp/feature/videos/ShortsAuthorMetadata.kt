@@ -10,6 +10,7 @@ import com.sautilink.nativeapp.feature.home.StagingFeedPost
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 
 internal enum class ShortsFollowResult { CONFIRMED, FAILED, IGNORED }
@@ -34,23 +35,31 @@ internal class ShortsAuthorMetadata(
     fun followFor(authorId: String): ShortsFollowUiState = follows[authorId] ?: ShortsFollowUiState()
     private fun active(): Boolean = stillCurrent() && auth.account?.id == ownerId
 
-    suspend fun readFollow(authorId: String) {
-        if (!active() || authorId == ownerId || authorId in reading) return
-        val before = followFor(authorId)
-        if (before.pending) return
-        reading += authorId
+    suspend fun readFollow(authorId: String) = readFollows(listOf(authorId), retry = true)
+
+    /** One bounded read prepares the current author and five upcoming authors.
+     * In-flight versions prevent late reads from undoing an explicit Follow. */
+    suspend fun readFollows(authorIds: List<String>, retry: Boolean = false) {
+        if (!active()) return
+        val pending = authorIds.distinct().filter { id ->
+            val before = followFor(id)
+            id != ownerId && id !in reading && !before.pending &&
+                (retry || before.following == null && !before.readFailed)
+        }.take(6).associateWith { followFor(it).version }
+        if (pending.isEmpty()) return
+        reading += pending.keys
         try {
-            val result = withTimeout(18_000L) { actions.getFollowingStates(listOf(authorId)) }
-            if (active()) {
-                val following = result[authorId] ?: throw IllegalStateException("Follow read incomplete")
-                follows[authorId] = followFor(authorId).receiveRead(before.version, following)
+            val result = withTimeout(18_000L) { actions.getFollowingStates(pending.keys.toList()) }
+            if (active()) pending.forEach { (id, version) ->
+                follows[id] = result[id]?.let { followFor(id).receiveRead(version, it) }
+                    ?: followFor(id).failRead(version)
             }
         } catch (_: TimeoutCancellationException) {
-            if (active()) follows[authorId] = followFor(authorId).failRead(before.version)
+            if (active()) pending.forEach { (id, version) -> follows[id] = followFor(id).failRead(version) }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) {
-            if (active()) follows[authorId] = followFor(authorId).failRead(before.version)
-        } finally { reading -= authorId }
+            if (active()) pending.forEach { (id, version) -> follows[id] = followFor(id).failRead(version) }
+        } finally { reading -= pending.keys }
     }
 
     /** Exactly one POST follows a user's tap. An uncertain response requires a
@@ -94,7 +103,8 @@ internal class ShortsAuthorMetadata(
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 internal fun rememberShortsAuthorMetadata(auth: StagingAuthClient, actions: PostInteractionsClient,
     refreshGeneration: Int, player: ExoPlayer?, foreground: Boolean, online: Boolean,
-    currentPost: StagingFeedPost?, currentFrameReady: Boolean, wantsPlayback: Boolean): ShortsAuthorMetadata {
+    currentPost: StagingFeedPost?, currentFrameReady: Boolean, wantsPlayback: Boolean,
+    nearbyPosts: List<StagingFeedPost> = listOfNotNull(currentPost)): ShortsAuthorMetadata {
     val ownerId = auth.account?.id
     val requestScope = remember(auth, ownerId, refreshGeneration) {
         ownerId?.let { ShortsAuthorReadScope(it, refreshGeneration) }
@@ -105,13 +115,12 @@ internal fun rememberShortsAuthorMetadata(auth: StagingAuthClient, actions: Post
             requestScope != null && latestScope.value == requestScope
         }
     }
-    // A visible, paused video still permits following its author. Automatic
-    // reads never hold up source/decoder creation or fetch off-screen authors.
-    LaunchedEffect(state, currentPost?.authorId, foreground, online, currentFrameReady, wantsPlayback) {
-        val post = currentPost ?: return@LaunchedEffect
-        if (!foreground || !online || (!currentFrameReady && wantsPlayback)) return@LaunchedEffect
-        val before = state.followFor(post.authorId)
-        if (before.following == null && !before.pending && !before.readFailed) state.readFollow(post.authorId)
+    val readScope = rememberCoroutineScope()
+    val authorIds = nearbyPosts.map { it.authorId }.distinct().take(6)
+    // Independent from first-frame readiness. Scrolling does not cancel a
+    // useful pending batch; state still checks the owning account/generation.
+    LaunchedEffect(state, authorIds, foreground, online) {
+        if (foreground && online) readScope.launch { state.readFollows(authorIds) }
     }
     LaunchedEffect(state, player, foreground, online, currentPost?.id, currentFrameReady) {
         if (player == null || !foreground || !online || ownerId == null || !currentFrameReady || state.rankingAttempted) return@LaunchedEffect

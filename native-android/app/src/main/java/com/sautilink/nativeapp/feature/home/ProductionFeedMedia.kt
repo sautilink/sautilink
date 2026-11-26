@@ -391,6 +391,8 @@ private fun InlineFeedVideo(
             resources?.close()
         }
     }
+    com.sautilink.nativeapp.feature.music.BindNativePostVideoClock(player, group, media.id,
+        current = isCurrent, frameReady = firstFrame, playing = playing)
     val selectedQuality = rememberVideoRecoveryQuality(player, playbackOwner, media.id, metadata, quality, baseQuality,
         enabled = adaptive && !hls && quality == "auto", online = recoveryOnline, eligible = isCurrent && visibleFraction >= .58f &&
             lifecycleState.isAtLeast(Lifecycle.State.STARTED) && wantsToPlay && !manualPaused,

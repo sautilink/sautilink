@@ -2,10 +2,12 @@
 <!-- PulsoIcon square-play, based on Lucide. License in assets/licenses/pulsoicon.txt. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <group android:pivotX="12" android:pivotY="12" android:scaleX="1.0594" android:scaleY="1.0594">
     <path android:pathData="M5,3H19A2,2 0 0,1 21,5V19A2,2 0 0,1 19,21H5A2,2 0 0,1 3,19V5A2,2 0 0,1 5,3Z"
-        android:strokeColor="#FF000000" android:strokeWidth="2"
+        android:strokeColor="#FF000000" android:strokeWidth="1.35"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
     <path android:pathData="M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z"
-        android:strokeColor="#FF000000" android:strokeWidth="2"
+        android:strokeColor="#FF000000" android:strokeWidth="1.35"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
+    </group>
 </vector>

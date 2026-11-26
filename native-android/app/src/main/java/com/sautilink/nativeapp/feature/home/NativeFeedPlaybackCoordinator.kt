@@ -45,10 +45,19 @@ internal class NativeFeedPlaybackCoordinator {
 
     private fun choose() {
         if ((candidates[manual]?.fraction ?: 0f) <= .1f) manual = null
-        val next = candidates[manual] ?: candidates.entries
-            .filter { it.value.fraction >= .58f }
-            .sortedWith(compareByDescending<Map.Entry<String, Candidate>> { it.value.fraction }
-                .thenBy { it.value.distance }.thenBy { it.key }).firstOrNull()?.value
+        var bestKey: String? = null
+        var best: Candidate? = null
+        if (manual == null) for ((key, candidate) in candidates) {
+            if (candidate.fraction < .58f) continue
+            val previous = best
+            if (previous == null || candidate.fraction > previous.fraction ||
+                candidate.fraction == previous.fraction && (candidate.distance < previous.distance ||
+                    candidate.distance == previous.distance && key < bestKey.orEmpty())) {
+                best = candidate
+                bestKey = key
+            }
+        }
+        val next = candidates[manual] ?: best
         val group = next?.group
         if (activeGroup != group) {
             players.values.filter { it.first != group }.forEach { it.second() }

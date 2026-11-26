@@ -35,10 +35,10 @@ class NativeVideoLookaheadTest {
         assertEquals(ShortsPreloadTarget.NONE,videoPreloadTarget(10,10,(11..15).toSet(),true,false,false))
     }
     @Test fun continuingQueueAvoidsThresholdChurnButYieldsBeforeRunwayIsExhausted() {
-        assertEquals(5_999L,videoPreloadRunway(5_999L,false))
-        assertEquals(6_000L,videoPreloadRunway(5_999L,true))
-        assertEquals(6_000L,videoPreloadRunway(3_000L,true))
-        assertEquals(2_999L,videoPreloadRunway(2_999L,true))
+        assertEquals(1_999L,videoPreloadRunway(1_999L,false))
+        assertEquals(2_000L,videoPreloadRunway(1_999L,true))
+        assertEquals(2_000L,videoPreloadRunway(1_000L,true))
+        assertEquals(999L,videoPreloadRunway(999L,true))
         assertEquals(9_000L,videoPreloadRunway(9_000L,true))
     }
     @Test fun completedFutureQueuesSurviveCurrentStartupWithoutStartingUnpreparedSources() {
@@ -118,7 +118,7 @@ class NativeVideoLookaheadTest {
         assertTrue(bytes())
         assertFalse(bytes(idle=false))
         assertFalse(bytes(FeedVideoHealth("video",false,0,true,0)))
-        assertFalse(bytes(FeedVideoHealth("video",true,5_999,true,0)))
+        assertFalse(bytes(FeedVideoHealth("video",true,1_999,true,0)))
         assertTrue(bytes(FeedVideoHealth("video",true,6_000,true,0)))
         assertFalse(bytes(FeedVideoHealth("video",true,10_000,false,0)))
     }

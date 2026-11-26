@@ -72,7 +72,9 @@ internal fun ShortsAuthorIdentityRow(auth: StagingAuthClient, post: StagingFeedP
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                 modifier = Modifier.heightIn(min = 38.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White, disabledContentColor = Color.White.copy(alpha = .8f))) {
-                Text(when (button) {
+                if (button == ShortsFollowPresentation.READING) {
+                    CircularProgressIndicator(Modifier.size(15.dp), color = Color.White.copy(alpha = .65f), strokeWidth = 1.5.dp)
+                } else Text(when (button) {
                     ShortsFollowPresentation.FOLLOWING -> "Following"
                     ShortsFollowPresentation.PENDING -> "Follow…"
                     ShortsFollowPresentation.RETRY_READ -> "Retry"

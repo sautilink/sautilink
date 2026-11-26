@@ -16,8 +16,8 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.sin
 
-/** Native adapter for the same local licensed Huge geometry as Web. Finite entry,
- * selection and touch motion uses Compose's system-duration-aware animation clock.
+/** Native adapter for locally cached licensed icon geometry. Finite selection
+ * and touch motion uses Compose's system-duration-aware animation clock.
  * Parent callbacks, semantics and touch targets are retained without consuming input. */
 @Composable
 fun SautiIcon(imageVector: ImageVector, contentDescription: String?, modifier: Modifier = Modifier,
@@ -51,8 +51,12 @@ internal fun SautiGlyph(name: String, label: String?, modifier: Modifier = Modif
 @Composable
 private fun Modifier.sautiIconMotion(key: String, selected: Boolean): Modifier {
     var activation by remember { mutableIntStateOf(0) }
-    val progress = remember { Animatable(0f) }
+    val progress = remember { Animatable(1f) }
+    var previousSelected by remember(key) { mutableStateOf(selected) }
     LaunchedEffect(key, selected, activation) {
+        val changed = previousSelected != selected
+        previousSelected = selected
+        if (activation == 0 && !changed) return@LaunchedEffect
         progress.snapTo(0f)
         progress.animateTo(1f, tween(if (key == "repeat") 440 else 360))
     }
@@ -68,7 +72,8 @@ private fun Modifier.sautiIconMotion(key: String, selected: Boolean): Modifier {
         scaleY = scaleX
         rotationZ = when (key) {
             "notification", "settings-0-1" -> sin(progress.value * Math.PI * 4).toFloat() * wave * 9f
-            "repeat", "refresh-0-1" -> if (progress.value < 1f) progress.value * 360f else 0f
+            "refresh-0-1" -> if (progress.value < 1f) progress.value * 360f else 0f
+            "repeat" -> wave * 8f
             "edit-0-2", "send" -> -wave * 6f
             else -> 0f
         }
@@ -81,7 +86,8 @@ internal fun nativeHugeIconName(vectorName: String): String? = when (vectorName.
     "Search", "ZoomIn" -> "search"
     "Explore" -> "compass-0-1"
     "Storefront", "Store" -> "store-0-1"
-    "ChatBubbleOutline", "QuestionAnswer", "MarkChatUnread" -> "message-0-1"
+    "ChatBubbleOutline" -> "chat-circle"
+    "QuestionAnswer", "MarkChatUnread" -> "message-0-1"
     "NotificationsNone", "NotificationsActive", "Notifications" -> "notification"
     "PersonOutline", "Person", "AccountCircle" -> "user"
     "People", "PeopleOutline", "Groups" -> "user-group"
