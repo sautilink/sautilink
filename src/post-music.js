@@ -66,6 +66,7 @@ function syncVideo(record, force = false) {
   audio.playbackRate = video.playbackRate || 1;
   video.volume = record.selection.originalVolume ?? 0;
   if (audio.paused) void audio.play().then(() => soundStarted(record)).catch(() => needsGesture(record));
+  else soundStarted(record);
 }
 function begin(record, { gesture = false } = {}) {
   if (!allowed(record)) return;
@@ -180,7 +181,7 @@ export function installPostAudio(card, post, { identity, profileLink, time, shor
       const video = sourceVideo(record); if (video) video.muted = false;
       void audio.play().then(() => { mute.textContent = '♪'; mute.setAttribute('aria-label', 'Mute music'); }).catch(() => needsGesture(record)); return;
     }
-    const video = sourceVideo(record); record.muted = !record.muted;
+    const video = sourceVideo(record); record.muted = video ? !video.muted : !record.muted;
     if (video) video.muted = record.muted;
     if (active === record && audio) audio.muted = record.muted;
     else begin(record, { gesture: true });
