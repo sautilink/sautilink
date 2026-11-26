@@ -60,6 +60,7 @@ android {
         create("production") {
             dimension = "distribution"
             applicationId = "com.sautilink.app"
+            versionName = "1.1.9"
         }
     }
     signingConfigs {
