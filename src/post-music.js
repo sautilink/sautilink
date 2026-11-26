@@ -10,6 +10,14 @@ function stop() {
   audio = null; active = null;
 }
 function allowed(record) {
+  const gallery = record.card.querySelector('.sauti-media-gallery');
+  if (gallery?.classList.contains('loading')) return false;
+  if (gallery) {
+    const tiles = [...gallery.children].filter(node => node.classList.contains('sauti-media-tile'));
+    const index = gallery.classList.contains('is-carousel') && gallery.clientWidth ? Math.round(gallery.scrollLeft / gallery.clientWidth) : 0;
+    const selected = tiles[index];
+    if (selected?.dataset.mediaKind === 'video' && !selected.querySelector('video')) return false;
+  }
   return record.card.isConnected && !document.hidden && !commentsOpen && !record.card.closest('[hidden]')
     && !record.card.closest('dialog:not([open])') && !document.querySelector('dialog[open]')
     && (ratios.get(record.card) || 0) >= .52;
@@ -126,6 +134,17 @@ export function configurePostMusic(value) {
   document.addEventListener('sautilink:music-dialog-toggle', () => { if (document.querySelector('dialog[open]')) { getActivePlaybackVideo()?.pause(); stop(); } else choosePhoto(); });
   document.addEventListener('sautilink:comment-sheet-toggle', event => { commentsOpen = Boolean(event.detail?.open); if (commentsOpen) stop(); else choosePhoto(); });
   window.addEventListener('pagehide', stop);
+  let mediaFrame = 0;
+  new MutationObserver(changes => {
+    if (!changes.some(change => change.target.closest?.('.sauti-media-gallery')
+        || [...change.removedNodes].some(node => node.matches?.('.sauti-media-gallery')))) return;
+    if (mediaFrame) return;
+    mediaFrame = requestAnimationFrame(() => {
+      mediaFrame = 0;
+      if (active && !allowed(active)) stop();
+      choosePhoto();
+    });
+  }).observe(document.body, { childList: true, subtree: true });
   document.addEventListener('scroll', event => {
     if (!event.target.matches?.('.sauti-media-gallery.is-carousel')) return;
     const record = records.get(event.target.closest('.sauti-card'));
