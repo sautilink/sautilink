@@ -71,7 +71,7 @@ body:not(.auth-entry) :is(#profile-edit-button,#profile-dashboard-button,.profil
 .audio-trim-duration { display:table; margin:0 auto 20px; padding:10px 20px; border-radius:40px; color:#111; background:#fff; font-size:26px; font-weight:600; box-shadow:0 0 0 1px #ddd; }
 .audio-trim-position { margin:0 0 25px; text-align:center; color:var(--sl54-muted); font-size:12px; }
 .audio-trim-waveform { position:relative; display:flex; align-items:center; justify-content:space-around; height:94px; touch-action:none; cursor:grab; isolation:isolate; }
-.audio-trim-waveform i { display:block; width:4px; min-height:10px; border-radius:10px; background:#a8a8ac; pointer-events:none; }
+.audio-trim-waveform i { display:block; width:3px; min-height:10px; border-radius:10px; background:#c7c7cb; pointer-events:none; }
 .audio-trim-selection { position:absolute; z-index:-1; top:4px; height:86px; min-width:10px; border:5px solid #cfcfd1; border-radius:12px; background:#fff; box-sizing:border-box; }
 .audio-trim-selection::before { content:''; position:absolute; left:8px; top:22px; width:5px; height:34px; border-radius:8px; background:linear-gradient(#f200a4,#ff9924); }
 .audio-trim-accessible-controls { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:22px; }

@@ -15,9 +15,9 @@ export function createAudioWaveform(root, { track, initial, peaks = [], onChange
   startLabel.append('Start', start); lengthLabel.append('Duration', length);
   const controls = document.createElement('div'); controls.className = 'audio-trim-accessible-controls'; controls.append(startLabel, lengthLabel);
   const waveBars = [];
-  for (let i = 0; i < 72; i++) {
+  for (let i = 0; i < 36; i++) {
     const bar = document.createElement('i');
-    const peak = Number(peaks[Math.min(peaks.length - 1, Math.floor(i / 72 * peaks.length))]);
+    const peak = Number(peaks[Math.min(peaks.length - 1, Math.floor(i / 36 * peaks.length))]);
     bar.style.height = `${12 + (Number.isFinite(peak) ? Math.min(1, peak > 1 ? peak / 255 : peak) * 46 : 20)}px`;
     bars.append(bar);
     waveBars.push(bar);
