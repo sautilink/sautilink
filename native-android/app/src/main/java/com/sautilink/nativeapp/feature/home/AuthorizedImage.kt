@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
@@ -72,6 +73,8 @@ internal fun AuthorizedImage(
     showFailureFallback: Boolean = true,
     onReady: () -> Unit = {},
     showFallbackWhileLoading: Boolean = false,
+    backgroundColor: Color? = null,
+    loadingContent: @Composable () -> Unit = { SautiSkeletonBlock(Modifier.fillMaxSize(), 6.dp) },
     fallback: @Composable () -> Unit = {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
             Icon(Icons.Rounded.ImageNotSupported, contentDescription = null,
@@ -190,7 +193,7 @@ internal fun AuthorizedImage(
         if (image.height > 0) (image.width.toFloat() / image.height).coerceIn(.65f, 2.25f) else 1.35f
     } ?: 1.35f
     Box((if (naturalAspectRatio) modifier.aspectRatio(naturalAspect) else modifier)
-        .background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+        .background(backgroundColor ?: MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
         val image = bitmap
         val blurred = preview
         when {
@@ -202,7 +205,7 @@ internal fun AuthorizedImage(
                 // The cached pixels are already softened off the UI thread.
                 // A second full-size GPU blur made scrolling loaded previews expensive.
                 modifier = Modifier.fillMaxSize())
-            loading -> if (showFallbackWhileLoading) fallback() else SautiSkeletonBlock(Modifier.fillMaxSize(), 6.dp)
+            loading -> if (showFallbackWhileLoading) fallback() else loadingContent()
             showFailureFallback -> AuthorizedImageFailureContent(failed, retry, fallback = fallback)
         }
     }

@@ -600,7 +600,7 @@ fun ProductionShortVideosScreen(
     }
 
     val navClearance = LocalFloatingNavigationPadding.current
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF07101B))) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
         // Keep full-sized actions below the toolbar when landscape reduces height.
         val compactRail = maxHeight - navClearance < 456.dp
         val wideRail = maxHeight - navClearance < 340.dp
@@ -630,14 +630,14 @@ fun ProductionShortVideosScreen(
                     if (page == pager.settledPage && player != null && online) {
                         AndroidView(factory = { viewContext -> PlayerView(viewContext).apply {
                             useController = false
+                            setBackgroundColor(android.graphics.Color.BLACK)
+                            setShutterBackgroundColor(android.graphics.Color.BLACK)
                             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                             this.player = player
                         } }, update = { it.player = player; it.keepScreenOn = playing },
                             onRelease = { it.player = null }, modifier = Modifier.fillMaxSize()
                                 .graphicsLayer { alpha = if (renderedMediaId == item.mediaId) 1f else 0f })
-                        if (renderedMediaId != item.mediaId) com.sautilink.nativeapp.feature.home.AuthorizedImage(
-                            auth, "/api/sauti-media/${item.mediaId}?poster=1", "Video cover", Modifier.fillMaxSize(),
-                            crop = false, showFailureFallback = false)
+                        if (renderedMediaId != item.mediaId) ShortVideoCover(auth, item.mediaId, Modifier.fillMaxSize())
                         val downloadVideo = rememberShortVideoDownloadAction(auth, item.mediaId, item.post.id)
                         SautiVideoGestureSurface(Modifier.fillMaxSize(),
                             playbackLabel = if (playbackRequested) "Pause video" else "Play video",
