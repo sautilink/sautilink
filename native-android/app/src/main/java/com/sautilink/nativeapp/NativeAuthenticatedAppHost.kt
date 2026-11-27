@@ -55,7 +55,7 @@ internal fun NativeAuthenticatedAppHost(
     NativeVideoReplaySession(auth) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
-            containerColor = MaterialTheme.colorScheme.background,
+            containerColor = if (destination == "videos") Color.Black else MaterialTheme.colorScheme.background,
             snackbarHost = { SnackbarHost(snackbar) },
             bottomBar = {
                 if (selectedTab != null) SautiBottomBar(selectedTab, unreadNotifications, onTabSelected)

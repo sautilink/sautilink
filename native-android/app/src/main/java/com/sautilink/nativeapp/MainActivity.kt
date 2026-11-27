@@ -512,7 +512,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
     val showingAuthIntro = !showingStartup && activeAccountId == null && !showLogin &&
         productionAuth.configured && productionAuth.sessionState == StagingSessionState.SIGNED_OUT &&
         detail !in setOf("production-signup", "production-recovery")
-    SideEffect { onSystemBarAppearance(!showingStartup && !showingAuthIntro && !isDark, showingAuthIntro) }
+    SideEffect { onSystemBarAppearance(!showingStartup && !showingAuthIntro && !isDark && detail != "videos", showingAuthIntro) }
     SautiTheme(darkTheme = isDark) {
       CompositionLocalProvider(LocalSautiTextNavigation provides textNavigation,
           LocalUriHandler provides uriHandler,
@@ -580,7 +580,7 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                     "entity-explore" -> entityExploreQuery
                     else -> ""
                 }
-                val selectedTab: Int? = if(detail == null && root == 3 && dmConversationOpen) null
+                val selectedTab: Int? = if(detail == "videos" || detail == null && root == 3 && dmConversationOpen) null
                 else if (detail == null || detail == "notifications" || detail == "videos") {
                     when (detail) {
                         "notifications" -> 3
@@ -766,12 +766,12 @@ private fun SautiNativePreview(pendingPushRoute: String?, onPushRouteConsumed: (
                         onBack = { detail = postReturn }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle ->
                             viewedProfileHandle = handle; memberProfileReturn = "post"; detail = "member-profile"
-                        }, initialComments = postReturn == "videos")
+                        }, initialComments = false)
                     "videos" -> ProductionShortVideosScreen(auth = productionAuth,
                         onBack = { detail = null }, onSignIn = { detail = "production-auth" },
                         onOpenProfile = { handle ->
                             viewedProfileHandle = handle; memberProfileReturn = "videos"; detail = "member-profile"
-                        })
+                        }, onOpenPost = { id -> notificationPostId = id; postReturn = "videos"; detail = "post" })
                     "rooms" -> NativeRoomsScreen(auth = productionAuth,
                         onBack = {
                             detail = if (notificationRoomSlug != null) roomReturn

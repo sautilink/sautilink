@@ -1,5 +1,6 @@
 package com.sautilink.nativeapp.feature.profile
 
+import com.sautilink.nativeapp.ui.theme.SautiColors
 import com.sautilink.nativeapp.ui.components.SautiActionOutlineWidth
 import com.sautilink.nativeapp.ui.components.SautiActionButtonShape
 import com.sautilink.nativeapp.ui.components.SautiActionButtonHeight
@@ -17,7 +18,6 @@ import android.content.Intent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -41,6 +41,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import com.sautilink.nativeapp.ui.theme.sautiChromeInk
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import com.sautilink.nativeapp.ui.theme.SautiHeaderFont
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalUriHandler
@@ -124,6 +125,7 @@ fun NativeProfileScreen(
     var listError by remember(username, accountId) { mutableStateOf<String?>(null) }
     var following by remember(username, accountId) { mutableStateOf<Boolean?>(null) }
     var followBusy by remember(username, accountId) { mutableStateOf(false) }
+    var relationshipRevision by remember(username, accountId) { mutableIntStateOf(0) }
     var actionError by remember(username, accountId) { mutableStateOf<String?>(null) }
     var safetyState by remember(username, accountId) { mutableStateOf<MemberSafetyState?>(null) }
     var safetyBusy by remember(username, accountId) { mutableStateOf(false) }
@@ -463,6 +465,7 @@ fun NativeProfileScreen(
                                     Row(Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     OutlinedButton(onClick = {
+                                        val wasFollowing = following == true
                                         val desired = following != true
                                         followBusy = true; actionError = null
                                         scope.launch {
@@ -470,29 +473,40 @@ fun NativeProfileScreen(
                                                 client.setFollowing(member, desired)
                                                 presentations.invalidate("feed:")
                                                 StagingFeedClient(auth).invalidateFollowing()
-                                                following = client.following(member.id)
-                                                refresh++
+                                                // The write response already confirms the exact member and state.
+                                                // Do not reload the profile, images, scroll or its loaded posts.
+                                                if (auth.account?.id == accountId && profile?.id == member.id) {
+                                                    following = desired
+                                                    profile = profile?.copy(followers = updatedProfileFollowerCount(
+                                                        profile?.followers ?: member.followers, wasFollowing, desired))
+                                                    relationshipRevision++
+                                                }
+                                            } catch (cancelled: CancellationException) { throw cancelled
                                             } catch (e: Exception) {
                                                 actionError = e.message ?: "Could not change Follow."
                                             } finally { followBusy = false }
                                         }
                                     }, enabled = !followBusy && following != null && safetyState?.blocked != true,
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = sautiChromeInk()),
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            containerColor = SautiColors.Blue, contentColor = Color.White,
+                                            disabledContainerColor = SautiColors.Blue.copy(alpha = .5f),
+                                            disabledContentColor = Color.White.copy(alpha = .7f)),
                                         shape = SautiActionButtonShape,
-                                        border = BorderStroke(SautiActionOutlineWidth, sautiChromeInk().copy(alpha = .82f)),
+                                        border = null,
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
                                         modifier = Modifier.weight(1f).heightIn(min = SautiActionButtonHeight)) {
                                         Text(if (following == true) "Following" else "Follow")
                                     }
                                     if (canMessage && safetyState?.blocked != true) {
                                         OutlinedButton(onClick = { onStartMessage(member.id) },
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = sautiChromeInk()),
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                            containerColor = SautiColors.Blue, contentColor = Color.White,
+                                            disabledContainerColor = SautiColors.Blue.copy(alpha = .5f),
+                                            disabledContentColor = Color.White.copy(alpha = .7f)),
                                             shape = SautiActionButtonShape,
-                                            border = BorderStroke(SautiActionOutlineWidth, sautiChromeInk().copy(alpha = .82f)),
+                                            border = null,
                                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
                                             modifier = Modifier.weight(1f).heightIn(min = SautiActionButtonHeight)) {
-                                            Icon(Icons.Rounded.ChatBubbleOutline, null, Modifier.size(18.dp))
-                                            Spacer(Modifier.width(6.dp))
                                             Text("Message")
                                         }
                                     }
@@ -504,6 +518,7 @@ fun NativeProfileScreen(
                     ProfileActivitySection(
                         auth = auth, profile = member, owner = ownerRoute,
                         refreshKey = refresh, onOpenPost = onOpenPost,
+                        relationshipRevision = relationshipRevision, following = following,
                         onManagePosts = onOpenPosts, onOpenProfile = onOpenProfile,
                         onContentReady = { activityReady = true }
                     )

@@ -142,6 +142,7 @@ class NativeProfilesClient(private val auth: StagingAuthClient) {
     }
 
     suspend fun byHandle(username: String): NativeProfile? {
+        ProfileContentReadProbe.read("profile")
         val normalized = username.trim().lowercase()
         if (!handle.matches(normalized)) throw AuthRequestException("Invalid profile address.")
         val result = rows("social_profiles?username=eq.$normalized&is_discoverable=eq.true&select=$select&limit=1")

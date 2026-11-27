@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * an opaque, single-use in-memory ticket ID, never a bearer or account secret.
  */
 internal class NativeShortVideoDownloadTicket(val auth: StagingAuthClient, val owner: String,
-    val mediaId: String, val postId: String) {
+    val mediaId: String, val postId: String, val offline: Boolean = false) {
     val id: String = UUID.randomUUID().toString()
     val cancelled = AtomicBoolean(false)
     @Volatile var cancelNetwork: (() -> Unit)? = null
@@ -36,10 +36,11 @@ internal class NativeShortVideoDownloadTicket(val auth: StagingAuthClient, val o
 
 internal object NativeShortVideoDownloads {
     private var current: NativeShortVideoDownloadTicket? = null
-    @Synchronized fun reserve(auth: StagingAuthClient, owner: String, mediaId: String, postId: String): NativeShortVideoDownloadTicket? {
+    @Synchronized fun reserve(auth: StagingAuthClient, owner: String, mediaId: String, postId: String,
+        offline: Boolean = false): NativeShortVideoDownloadTicket? {
         if (current != null || auth.account?.id != owner || auth.sessionState != StagingSessionState.SIGNED_IN ||
             !nativeShortVideoDownloadIdentityValid(mediaId, postId)) return null
-        return NativeShortVideoDownloadTicket(auth, owner, mediaId, postId).also { current = it }
+        return NativeShortVideoDownloadTicket(auth, owner, mediaId, postId, offline).also { current = it }
     }
     @Synchronized fun find(id: String?): NativeShortVideoDownloadTicket? = current?.takeIf { it.id == id }
     @Synchronized fun release(ticket: NativeShortVideoDownloadTicket) { if (current === ticket) current = null }

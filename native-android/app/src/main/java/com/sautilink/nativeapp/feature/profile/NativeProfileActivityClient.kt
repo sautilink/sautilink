@@ -62,6 +62,7 @@ internal class NativeProfileActivityClient(private val auth: StagingAuthClient) 
     }
 
     suspend fun entries(name: String, tab: String, limit: Int = 12, offset: Int = 0): ProfileActivityFeed {
+        ProfileContentReadProbe.read("content:$tab")
         if (tab !in tabs) throw AuthRequestException("Unsupported profile category.")
         val normalized = username(name)
         val query = JSONObject().put("p_username", normalized)

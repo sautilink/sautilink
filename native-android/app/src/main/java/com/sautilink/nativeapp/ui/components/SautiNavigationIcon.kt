@@ -23,7 +23,7 @@ internal fun SautiNavigationIcon(index: Int, label: String, selected: Boolean, t
         0 -> "home-0-1"
         1 -> "search"
         3 -> "notification"
-        else -> "user"
+        else -> "user-profile-classic"
     }
     SautiGlyph(name, label, modifier, tint, selected)
 }

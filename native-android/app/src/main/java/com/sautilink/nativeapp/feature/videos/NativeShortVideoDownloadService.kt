@@ -158,7 +158,9 @@ class NativeShortVideoDownloadService : Service() {
                     foreground = false
                     try {
                         runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
-                        if (complete) runCatching { notifyProgress(notification("Saved to Movies/SautiLink", 100, false, finished = true, saved = saved)) }
+                        if (complete) runCatching { notifyProgress(notification(
+                            if (selected.offline) "Saved for offline watching in SautiLink" else "Saved to Movies/SautiLink",
+                            100, false, finished = true, saved = saved)) }
                         else if (!selected.cancelled.get() && selected.active()) runCatching { notifyProgress(notification("Download failed. Try again.", 0, false, finished = true, failed = true)) }
                     } finally {
                         NativeShortVideoDownloads.release(selected)
@@ -180,6 +182,28 @@ class NativeShortVideoDownloadService : Service() {
     }
 
     private fun createPendingVideo(selected: NativeShortVideoDownloadTicket): PendingVideo {
+        if (selected.offline) {
+            val folder = NativeOfflineShorts.folder(this, selected.owner)
+            val temporary = File(folder, "${selected.mediaId}-${selected.id}.part")
+            val destination = File(folder, "${selected.mediaId}-${selected.id}.mp4")
+            if (folder.usableSpace < SHORT_VIDEO_DOWNLOAD_MAX_BYTES + 20L * 1024 * 1024)
+                throw IOException("Not enough offline storage")
+            val stream = FileOutputStream(temporary)
+            return object : PendingVideo {
+                override val output = stream
+                override fun publish(active: () -> Boolean): Uri? {
+                    if (!active() || !temporary.renameTo(destination)) throw IOException("Offline save cancelled")
+                    NativeOfflineShorts.record(this@NativeShortVideoDownloadService, selected.owner,
+                        selected.mediaId, selected.postId, destination, active)
+                    return null // Private file URIs must never be sent to an external viewer.
+                }
+                override fun abort() {
+                    runCatching { stream.close() }; temporary.delete(); destination.delete()
+                    NativeOfflineShorts.removeRecordIfFile(this@NativeShortVideoDownloadService, selected.owner,
+                        selected.mediaId, destination.name)
+                }
+            }
+        }
         val name = "SautiLink-${selected.mediaId}-${selected.id.take(8)}.mp4"
         if (Build.VERSION.SDK_INT >= 29) return createMediaStoreVideo(name)
         return createLegacyVideo(name, selected.id)

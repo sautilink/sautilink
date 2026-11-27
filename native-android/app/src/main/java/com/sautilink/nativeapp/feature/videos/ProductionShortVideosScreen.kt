@@ -164,7 +164,8 @@ fun ProductionShortVideosScreen(
     auth: StagingAuthClient,
     onBack: () -> Unit,
     onSignIn: () -> Unit,
-    onOpenProfile: (String) -> Unit
+    onOpenProfile: (String) -> Unit,
+    onOpenPost: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val online = rememberNetworkAvailable()
@@ -177,8 +178,15 @@ fun ProductionShortVideosScreen(
     val feedback = remember { SnackbarHostState() }
     val preferences = remember(context) { context.getSharedPreferences("sautilink_live_video", Context.MODE_PRIVATE) }
     val presentations = rememberSessionScreenPresentationAccess()
+    val hiddenPreferences = remember(context) { context.getSharedPreferences("sautilink_short_interests", Context.MODE_PRIVATE) }
+    var hiddenPosts by remember(auth, accountId) { mutableStateOf(hiddenPreferences.getStringSet("hidden_$accountId", emptySet()).orEmpty().toSet()) }
+    var offlineOpen by remember(auth, accountId) { mutableStateOf(false) }
+    var reportPost by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    var reportBusy by remember { mutableStateOf(false) }
+    var reportError by remember { mutableStateOf<String?>(null) }
+    var offlineSaved by remember { mutableStateOf(false) }
     val initial = rememberShortsInitialPresentation(auth, client, presentations.store)
-    var clips by remember(auth, auth.account?.id) { mutableStateOf(initial.clips) }
+    var clips by remember(auth, auth.account?.id) { mutableStateOf(initial.clips.filterNot { it.post.id in hiddenPosts }) }
     var nextOffset by remember(auth, auth.account?.id) { mutableIntStateOf(initial.nextOffset) }
     var hasMore by remember(auth, auth.account?.id) { mutableStateOf(initial.hasMore) }
     var loading by remember(auth, auth.account?.id) { mutableStateOf(auth.account != null && clips.isEmpty()) }
@@ -194,8 +202,22 @@ fun ProductionShortVideosScreen(
     var autoplay by remember { mutableStateOf(preferences.getBoolean("autoplay", true)) }
     var quality by remember { mutableStateOf(preferences.getString("quality", "auto") ?: "auto") }
     var qualityOpen by remember { mutableStateOf(false) }
+    var autoAdvance by remember { mutableStateOf(preferences.getBoolean("auto_advance", true)) }
+    var captionsEnabled by remember { mutableStateOf(preferences.getBoolean("captions", false)) }
+    var captionsAvailable by remember { mutableStateOf(false) }
+    val viewerActivity = remember(context) { generateSequence(context) { (it as? android.content.ContextWrapper)?.baseContext }
+        .filterIsInstance<android.app.Activity>().firstOrNull() }
+    var fullscreen by remember { mutableStateOf(false) }
+    val originalOrientation = remember(viewerActivity) { viewerActivity?.requestedOrientation }
+    androidx.activity.compose.BackHandler(fullscreen) {
+        viewerActivity?.requestedOrientation = originalOrientation ?: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        fullscreen = false
+    }
+    DisposableEffect(viewerActivity) { onDispose {
+        if (fullscreen) viewerActivity?.requestedOrientation = originalOrientation ?: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+    } }
     var playbackSpeed by remember { mutableFloatStateOf(preferences.getFloat("playback_speed", 1f)
-        .takeIf { it in setOf(.5f, .75f, 1f, 1.25f, 1.5f, 1.75f, 2f) } ?: 1f) }
+        .takeIf { it in ShortsPlaybackSpeeds } ?: 1f) }
     // All interaction state is server-confirmed. Unknown state never implies an Unlike/Undo.
     var likeStates by remember(auth, auth.account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var saveStates by remember(auth, auth.account?.id) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
@@ -333,10 +355,10 @@ fun ProductionShortVideosScreen(
             if (generation != feedGeneration) return@LaunchedEffect
             if (reload == 0 && clips.isNotEmpty()) {
                 clips = com.sautilink.nativeapp.feature.home.mergeReturningFeedRows(
-                    clips.map { it.post }.distinctBy { it.id }, page.posts).toLiveClips()
+                    clips.map { it.post }.distinctBy { it.id }, page.posts).toLiveClips().filterNot { it.post.id in hiddenPosts }
                 nextOffset = maxOf(nextOffset, page.nextOffset)
             } else {
-                clips = page.posts.toLiveClips()
+                clips = page.posts.toLiveClips().filterNot { it.post.id in hiddenPosts }
                 nextOffset = page.nextOffset
                 hasMore = page.hasMore
             }
@@ -380,7 +402,7 @@ fun ProductionShortVideosScreen(
         try {
             val page = client.load("short_videos", nextOffset)
             if (generation != paginationGeneration) return@LaunchedEffect
-            clips = (clips + page.posts.toLiveClips()).distinctBy { it.mediaId }
+            clips = (clips + page.posts.toLiveClips().filterNot { it.post.id in hiddenPosts }).distinctBy { it.mediaId }
             nextOffset = page.nextOffset
             hasMore = page.hasMore
             paginationError = null
@@ -393,12 +415,11 @@ fun ProductionShortVideosScreen(
     }
 
     val clip = clips.getOrNull(pager.settledPage)
-    var timelineExpanded by remember(auth, accountId, clip?.mediaId) { mutableStateOf(false) }
     var playbackIntent by remember(auth, accountId, clip?.mediaId) { mutableStateOf<Boolean?>(null) }
     val musicSession = com.sautilink.nativeapp.feature.music.LocalNativeMusicComposer.current
     val audioCoordinator = com.sautilink.nativeapp.feature.home.LocalNativeFeedPlayback.current
     val overlayBlocked = com.sautilink.nativeapp.ui.components.LocalNativePlaybackBlocked.current
-    val wantsPlayback = commentsFor == null && !overlayBlocked && !qualityOpen && (playbackIntent ?: autoplay)
+    val wantsPlayback = commentsFor == null && !overlayBlocked && !qualityOpen && !offlineOpen && reportPost == null && (playbackIntent ?: autoplay)
     SideEffect { musicSession?.commentsOpen = commentsFor != null }
     DisposableEffect(musicSession) { onDispose { musicSession?.commentsOpen = false } }
     DisposableEffect(clip?.post?.id, musicSession, audioCoordinator) {
@@ -467,6 +488,9 @@ fun ProductionShortVideosScreen(
                     playbackRequested = player.playWhenReady
                     playbackSuppressed = player.playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE
                     currentMediaId = player.currentMediaItem?.mediaId
+                    captionsAvailable = player.currentTracks.groups.any { group ->
+                        group.type == androidx.media3.common.C.TRACK_TYPE_TEXT && (0 until group.length).any { group.isTrackSupported(it) }
+                    }
                     playbackError = player.playerError?.let { "This video could not be played." }
                     // Let Media3 drain the final samples and repeat. Playback may briefly
                     // pass the rounded timeline end; only explicit seek commands are clamped.
@@ -495,6 +519,25 @@ fun ProductionShortVideosScreen(
     }
     LaunchedEffect(player, muted, clip?.post?.audio) { player?.volume = if (muted) 0f else clip?.post?.audio?.originalVolume ?: 1f }
     LaunchedEffect(player, playbackSpeed) { player?.setPlaybackSpeed(playbackSpeed) }
+    LaunchedEffect(player, captionsEnabled) {
+        player?.let { it.trackSelectionParameters = it.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, !captionsEnabled).build() }
+    }
+    val hasNextShort = clips.getOrNull(pager.settledPage + 1) != null
+    LaunchedEffect(player, autoAdvance, hasNextShort) {
+        player?.repeatMode = if (autoAdvance && hasNextShort) Player.REPEAT_MODE_OFF else Player.REPEAT_MODE_ONE
+    }
+    LaunchedEffect(playbackState, autoAdvance, clip?.mediaId, clips.size, wantsPlayback) {
+        if (playbackState == Player.STATE_ENDED && autoAdvance && wantsPlayback &&
+            clips.getOrNull(pager.settledPage + 1) != null && !pager.isScrollInProgress) {
+            pager.animateScrollToPage(pager.settledPage + 1)
+        }
+    }
+    LaunchedEffect(qualityOpen, offlineOpen, clip?.mediaId, accountId) {
+        offlineSaved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            clip?.let { NativeOfflineShorts.contains(context, accountId, it.mediaId) } ?: false
+        }
+    }
     clip?.let { selectedClip ->
         com.sautilink.nativeapp.feature.music.BindNativePostVideoClock(player, selectedClip.post.id, selectedClip.mediaId,
             current = true, frameReady = renderedMediaId == selectedClip.mediaId, playing = playing)
@@ -599,11 +642,11 @@ fun ProductionShortVideosScreen(
             hasError = player.playerError != null)
     }
 
+    val downloadAction = clip?.let { rememberShortVideoDownloadAction(auth, it.mediaId, it.post.id) }
     val navClearance = LocalFloatingNavigationPadding.current
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
         // Keep full-sized actions below the toolbar when landscape reduces height.
         val compactRail = maxHeight - navClearance < 456.dp
-        val wideRail = maxHeight - navClearance < 340.dp
         if (auth.account == null) {
             Column(Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -616,6 +659,7 @@ fun ProductionShortVideosScreen(
                 if (loading) SautiSkeletonBlock(Modifier.fillMaxWidth().height(180.dp))
                 else Text(error ?: "No short videos yet.", color = Color.White)
                 if (!loading) Button(onClick = { reload++ }) { Text("Retry") }
+                TextButton(onClick = { offlineOpen = true }) { Text("Offline videos", color = Color.White) }
             }
         } else {
             VerticalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
@@ -684,92 +728,58 @@ fun ProductionShortVideosScreen(
                         Text("Offline. Reconnect to play this video.", color = Color.White,
                             modifier = Modifier.align(Alignment.Center).padding(24.dp))
                     }
-                    Box(Modifier.fillMaxWidth().height(190.dp + navClearance).align(Alignment.BottomCenter)
-                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .85f)))))
-                    Column(Modifier.align(Alignment.BottomStart).padding(start = 16.dp,
-                        end = if (wideRail) 188.dp else if (compactRail) 132.dp else 76.dp,
-                        bottom = navClearance + if (timelineExpanded) 52.dp else 44.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(Modifier.fillMaxWidth().height(290.dp).align(Alignment.BottomCenter)
+                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .82f)))))
+                    Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 15.dp)
+                        .padding(bottom = 76.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         ShortsAuthorIdentityRow(auth, item.post, authorMetadata.ranks[item.post.id],
                             authorMetadata.followFor(item.post.authorId),
                             enabled = canInteract && page == pager.settledPage && lifecycleState.isAtLeast(Lifecycle.State.STARTED),
                             onOpenProfile = onOpenProfile,
-                            onFollow = {
-                                if (canInteract && page == pager.settledPage) scope.launch {
-                                    if (authorMetadata.follow(item.post) == ShortsFollowResult.FAILED) feedback.showSnackbar(
-                                        "Follow could not be confirmed. Check status before trying again.")
-                                }
-                            },
-                            onRetryRead = {
-                                if (canInteract && page == pager.settledPage) scope.launch {
-                                    authorMetadata.readFollow(item.post.authorId)
-                                }
-                            })
-                        if (item.post.body.isNotBlank()) com.sautilink.nativeapp.ui.components.SautiPostText(item.post.body, color = Color.White,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
-                            maxLines = 2, overflow = TextOverflow.Ellipsis, expandedMaxHeight = 160.dp)
-                    }
-                    val railActions: @Composable () -> Unit = {
-                        val post = item.post
-                        val liked = likeStates[post.id] == true
-                        val saved = saveStates[post.id] == true
-                        val reposted = repostStates[post.id] == true
-                        VideoRailAction(
-                            Icons.Rounded.FavoriteBorder,
-                            if (liked) "Unlike" else "Like", formatVideoCount(post.likes), liked,
-                            statusKnown = post.id in likeStates,
-                            statusPending = "like:${post.id}" in readingStatuses || "like:${post.id}" in busyActions,
-                            enabled = canInteract && "like:${post.id}" !in busyActions
-                        ) { togglePostAction(post, "like") }
-                        VideoRailAction(Icons.Rounded.ChatBubbleOutline, "Comments",
-                            formatVideoCount(post.comments)) { commentsFor = post }
-                        VideoRailAction(if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
-                            "Save", null, saved,
-                            statusKnown = post.id in saveStates,
-                            statusPending = "save:${post.id}" in readingStatuses || "save:${post.id}" in busyActions,
-                            enabled = canInteract && "save:${post.id}" !in busyActions
-                        ) { togglePostAction(post, "save") }
-                        VideoRailAction(Icons.Rounded.Repeat, "Repost", formatVideoCount(post.reposts),
-                            reposted, statusKnown = post.id in repostStates,
-                            statusPending = "repost:${post.id}" in readingStatuses || "repost:${post.id}" in busyActions, enabled = canInteract && "repost:${post.id}" !in busyActions
-                        ) { togglePostAction(post, "repost") }
-                        VideoRailAction(SautiPostIcons.Share, "Share") { shareClip(post, false) }
-                        VideoRailAction(Icons.Rounded.ContentCopy, "Copy link") { shareClip(post, true) }
-                        VideoSettingsButton(onClick = { qualityOpen = true })
-                    }
-                    if (compactRail) {
-                        FlowRow(Modifier.align(Alignment.BottomEnd)
-                            .padding(end = 4.dp, bottom = 48.dp + navClearance).width(if (wideRail) 169.dp else 113.dp),
-                            maxItemsInEachRow = if (wideRail) 3 else 2,
-                            horizontalArrangement = Arrangement.spacedBy(0.dp),
-                            verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                            railActions()
-                        }
-                    } else {
-                        Column(Modifier.align(Alignment.BottomEnd)
-                            .padding(end = 4.dp, bottom = 48.dp + navClearance),
-                            verticalArrangement = Arrangement.spacedBy(0.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally) {
-                            railActions()
-                        }
+                            onFollow = { if (canInteract && page == pager.settledPage) scope.launch {
+                                if (authorMetadata.follow(item.post) == ShortsFollowResult.FAILED)
+                                    feedback.showSnackbar("Follow could not be confirmed. Check status before trying again.")
+                            } }, onRetryRead = { if (canInteract && page == pager.settledPage) scope.launch {
+                                authorMetadata.readFollow(item.post.authorId)
+                            } })
+                        if (item.post.body.isNotBlank()) com.sautilink.nativeapp.ui.components.SautiPostText(item.post.body,
+                            color = Color.White, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
+                            maxLines = if (compactRail) 1 else 2, overflow = TextOverflow.Ellipsis, expandedMaxHeight = 160.dp)
+                        ShortsActionBar(item.post.likes, item.post.comments, item.post.reposts,
+                            liked = likeStates[item.post.id] == true, reposted = repostStates[item.post.id] == true,
+                            saved = saveStates[item.post.id] == true, likeKnown = item.post.id in likeStates,
+                            repostKnown = item.post.id in repostStates, saveKnown = item.post.id in saveStates,
+                            likePending = "like:${item.post.id}" in readingStatuses || "like:${item.post.id}" in busyActions,
+                            repostPending = "repost:${item.post.id}" in readingStatuses || "repost:${item.post.id}" in busyActions,
+                            savePending = "save:${item.post.id}" in readingStatuses || "save:${item.post.id}" in busyActions,
+                            likeEnabled = canInteract && "like:${item.post.id}" !in busyActions,
+                            repostEnabled = canInteract && "repost:${item.post.id}" !in busyActions,
+                            saveEnabled = canInteract && "save:${item.post.id}" !in busyActions,
+                            onLike = { togglePostAction(item.post, "like") }, onComments = { commentsFor = item.post },
+                            onRepost = { togglePostAction(item.post, "repost") }, onShare = { shareClip(item.post, false) },
+                            onSave = { togglePostAction(item.post, "save") })
                     }
                     if (page == pager.settledPage && player != null && online) {
-                        ShortVideoProgressControls(player, paused = !playbackRequested,
-                            onExpandedChanged = { timelineExpanded = it },
-                            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = navClearance))
+                        ShortsBottomPlayback(player, paused = !playbackRequested, playbackSpeed, muted,
+                            onPlay = { playbackIntent = !player.playWhenReady
+                                if (player.playWhenReady) player.pause() else if (player.playerError == null) player.play() },
+                            onSpeed = { qualityOpen = true }, onMute = NativePlaybackPreferences::toggleSessionSound,
+                            onFullscreen = {
+                                fullscreen = !fullscreen
+                                viewerActivity?.requestedOrientation = if (fullscreen)
+                                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                                else originalOrientation ?: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                            }, modifier = Modifier.align(Alignment.BottomCenter), fullscreen = fullscreen)
                     }
                 }
             }
         }
         SnackbarHost(hostState = feedback,
             modifier = Modifier.align(Alignment.TopCenter).padding(top = 54.dp))
-        Row(Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back", tint = Color.White) }
-            Text("Short Videos", fontFamily = SautiHeaderFont, color = Color.White, style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f))
-            IconButton(onClick = NativePlaybackPreferences::toggleSessionSound) { Icon(if (muted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
-                if (muted) "Unmute" else "Mute", tint = Color.White) }
+        Row(Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(horizontal = 15.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            ShortsCircleButton(Icons.AutoMirrored.Rounded.ArrowBack, "Back", onBack)
+            ShortsCircleButton(Icons.Rounded.MoreVert, "Video options", { qualityOpen = true })
         }
     }
     val selectedPost = commentsFor
@@ -792,18 +802,52 @@ fun ProductionShortVideosScreen(
                 }
             })
     }
-    if (qualityOpen) VideoPlaybackSettingsSheet(
-        preference = preference, currentQuality = actualQuality,
-        availableQualities = if (hls) streamQualities.ifEmpty { streamSource?.qualities.orEmpty() }
-            else NativeVideoQualityPolicy.availableQualities(metadata), speed = playbackSpeed,
-        onQuality = { quality = it; preferences.edit().putString("quality", it).apply() },
+    if (qualityOpen) ShortsOptionsSheet(speed = playbackSpeed, preference = preference, currentQuality = actualQuality,
+        qualities = if (hls) streamQualities.ifEmpty { streamSource?.qualities.orEmpty() }
+            else NativeVideoQualityPolicy.availableQualities(metadata),
+        captions = captionsEnabled, captionsAvailable = captionsAvailable, autoAdvance = autoAdvance, offline = offlineSaved,
         onSpeed = { playbackSpeed = it; preferences.edit().putFloat("playback_speed", it).apply() },
-        onDismiss = { qualityOpen = false }, autoplay = autoplay,
-        onAutoplay = {
-            playbackIntent = null
-            autoplay = it; preferences.edit().putBoolean("autoplay", it).apply()
-            if (!it) player?.pause()
-        }, adaptiveStream = hls)
+        onQuality = { quality = it; preferences.edit().putString("quality", it).apply() },
+        onCaptions = { captionsEnabled = it; preferences.edit().putBoolean("captions", it).apply() },
+        onAutoAdvance = { autoAdvance = it; preferences.edit().putBoolean("auto_advance", it).apply() },
+        onPost = { clip?.post?.id?.let { qualityOpen = false; onOpenPost(it) } },
+        onDownload = { qualityOpen = false; downloadAction?.invoke() },
+        onOffline = {
+            qualityOpen = false
+            clip?.let { selected ->
+                if (!offlineSaved && !startOfflineShort(context, auth, selected.mediaId, selected.post.id))
+                    scope.launch { feedback.showSnackbar("Could not start offline save. Check your connection or active download.") }
+                offlineOpen = true
+            }
+        },
+        onNotInterested = {
+            clip?.let { selected ->
+                hiddenPosts = (hiddenPosts + selected.post.id).toList().takeLast(500).toSet()
+                hiddenPreferences.edit().putStringSet("hidden_$accountId", hiddenPosts).apply()
+                clips = clips.filterNot { it.post.id == selected.post.id }
+                presentations.store?.invalidate("short-videos")
+                scope.launch { feedback.showSnackbar("This video is hidden from your Shorts.") }
+            }
+            qualityOpen = false
+        },
+        onReport = { reportPost = clip?.post?.id; reportError = null; qualityOpen = false },
+        onDismiss = { qualityOpen = false })
+    if (offlineOpen) OfflineShortsDialog(auth) { offlineOpen = false }
+    if (reportPost != null) com.sautilink.nativeapp.feature.safety.NativeReportDialog("post", reportBusy, reportError,
+        onDismiss = { if (!reportBusy) reportPost = null }, onSubmit = { reason, details ->
+            val selected = reportPost
+            if (selected != null && !reportBusy) {
+                reportBusy = true
+                scope.launch {
+                    try {
+                        com.sautilink.nativeapp.feature.safety.NativeSafetyClient(auth).report("post", selected, reason, details)
+                        reportPost = null; feedback.showSnackbar("Report received. Thank you for helping keep SautiLink safe.")
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (error: Exception) { reportError = error.message ?: "Could not send report." }
+                    finally { reportBusy = false }
+                }
+            }
+        })
 }
 
 @Composable
@@ -822,46 +866,4 @@ private fun ShortVideosRetryPage(online: Boolean, loading: Boolean, onRetry: () 
 
 private fun List<StagingFeedPost>.toLiveClips(): List<LiveClip> = mapNotNull { post ->
     post.media.firstOrNull { it.kind == "video" }?.let { LiveClip(post, it.id) }
-}
-
-
-private fun formatVideoCount(value: Int): String = com.sautilink.nativeapp.ui.components.sautiReactionCount(value).orEmpty()
-
-/** Tap animation + explicit semantics for TalkBack and large-screen navigation. */
-@Composable
-internal fun VideoRailAction(
-    icon: ImageVector,
-    label: String,
-    count: String? = null,
-    active: Boolean = false,
-    statusKnown: Boolean = true,
-    statusPending: Boolean = false,
-    enabled: Boolean = true,
-    onClick: () -> Unit
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val tint by animateColorAsState(if (active && icon == Icons.Rounded.Repeat) com.sautilink.nativeapp.ui.theme.SautiColors.LogoOrange else Color.White,
-        tween(150), label = "Video action color")
-    Column(Modifier.width(56.dp).heightIn(min = 48.dp)
-        .clickable(interactionSource = interaction, indication = null,
-            enabled = enabled, role = Role.Button, onClick = onClick)
-        .padding(vertical = 1.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center) {
-        Box(Modifier.size(26.dp).sautiActionFeedback(interaction)) {
-            val heart = icon == Icons.Rounded.FavoriteBorder
-            if (!statusKnown && statusPending) CircularProgressIndicator(Modifier.size(18.dp).align(Alignment.Center),
-                color = Color.White.copy(alpha = .6f), strokeWidth = 1.2.dp)
-            else if (!statusKnown) Icon(Icons.Rounded.Refresh, contentDescription = "Retry $label status",
-                modifier = Modifier.size(18.dp).align(Alignment.Center), tint = Color.White.copy(alpha = .65f))
-            else if (heart) SautiPostHeart(active, label, Modifier.fillMaxSize(), Color.White)
-            else Icon(icon, contentDescription = label, modifier = Modifier.fillMaxSize(), tint = tint, selected = active)
-        }
-        val caption = count ?: label
-        if (caption.isNotEmpty()) {
-            Spacer(Modifier.height(2.dp))
-            Text(caption, color = Color.White,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), maxLines = 1)
-        }
-    }
 }

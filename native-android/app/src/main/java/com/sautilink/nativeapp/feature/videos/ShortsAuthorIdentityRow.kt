@@ -71,10 +71,12 @@ internal fun ShortsAuthorIdentityRow(auth: StagingAuthClient, post: StagingFeedP
         if (button != ShortsFollowPresentation.HIDDEN) {
             OutlinedButton(onClick = if (button == ShortsFollowPresentation.RETRY_READ) onRetryRead else onFollow,
                 enabled = enabled && handleValid && button in setOf(ShortsFollowPresentation.FOLLOW, ShortsFollowPresentation.RETRY_READ),
-                shape = SautiActionButtonShape, border = BorderStroke(SautiActionOutlineWidth, Color.White.copy(alpha = .82f)),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                shape = CircleShape, border = null,
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 5.dp),
                 modifier = Modifier.heightIn(min = SautiActionButtonHeight),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White, disabledContentColor = Color.White.copy(alpha = .8f))) {
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFF30363B).copy(alpha = .82f),
+                    contentColor = Color.White, disabledContainerColor = Color(0xFF30363B).copy(alpha = .7f),
+                    disabledContentColor = Color.White.copy(alpha = .8f))) {
                 if (button == ShortsFollowPresentation.READING) {
                     CircularProgressIndicator(Modifier.size(15.dp), color = Color.White.copy(alpha = .65f), strokeWidth = 1.5.dp)
                 } else Text(when (button) {

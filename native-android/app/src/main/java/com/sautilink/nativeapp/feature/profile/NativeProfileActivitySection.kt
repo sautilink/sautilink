@@ -72,6 +72,8 @@ internal fun ProfileActivitySection(
     onManagePosts: () -> Unit,
     onOpenProfile: (String) -> Unit,
     onContentReady: () -> Unit = {},
+    relationshipRevision: Int = 0,
+    following: Boolean? = null,
 ) {
     val client = remember(auth) { NativeProfileActivityClient(auth) }
     val presentations = rememberSessionScreenPresentationAccess()
@@ -111,7 +113,29 @@ internal fun ProfileActivitySection(
             error = e.message ?: "Could not load profile categories."; busy = false; latestContentReady()
         }
     }
-    LaunchedEffect(client, profile.id, selected, revision, refreshKey, state, pageIndex, permissionReadKey) {
+    // Recheck follower-only permissions quietly; an unchanged public tab keeps its
+    // loaded content and media alive. An unfollow immediately drops restricted tabs.
+    LaunchedEffect(client, profile.id, relationshipRevision) {
+        if (relationshipRevision == 0) return@LaunchedEffect
+        if (following == false) {
+            val current = state
+            val restricted = mapOf("likes" to current?.likesPrivacy, "saves" to current?.savesPrivacy,
+                "hashtags" to current?.hashtagsPrivacy).filterValues { it == "followers" }.keys
+            state = current?.copy(allowed = current.allowed.mapValues { (tab, allowed) -> allowed && tab !in restricted })
+            if (selected in restricted) {
+                entries = emptyList(); pinned = emptyList(); hashtags = emptyList(); pageIndex = 0; selected = "posts"
+            }
+        }
+        try {
+            val next = client.state(profile.username)
+            state = next
+            if (next.allowed[selected] != true) {
+                entries = emptyList(); pinned = emptyList(); hashtags = emptyList(); pageIndex = 0; selected = "posts"
+            }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { /* Keep public content and conservatively revoked private permissions. */ }
+    }
+    LaunchedEffect(client, profile.id, selected, revision, refreshKey, state?.allowed?.get(selected), pageIndex, permissionReadKey) {
         if (permissionReadKey != (refreshKey to revision)) return@LaunchedEffect
         val permissions = state ?: return@LaunchedEffect
         if (permissions.allowed[selected] != true) return@LaunchedEffect
@@ -139,7 +163,7 @@ internal fun ProfileActivitySection(
             }
             error = e.message ?: "Could not load profile activity."
         }
-        finally { busy = false; latestContentReady() }
+        finally { busy = false; latestContentReady(); ProfileContentReadProbe.read("activity-ready") }
     }
 
     val permissions = state

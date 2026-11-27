@@ -102,6 +102,7 @@ internal object SautiHugeVectors {
         "folder-0-1" -> icon83().also { cache[name] = it }
         "store-0-1" -> icon84().also { cache[name] = it }
         "chat-circle" -> icon85().also { cache[name] = it }
+        "user-profile-classic" -> icon86().also { cache[name] = it }
         else -> null
     }
 
@@ -137,7 +138,7 @@ internal object SautiHugeVectors {
 
     private fun icon6(filled: Boolean = false) = ImageVector.Builder(name = if (filled) "bookmark-filled" else "bookmark", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f, autoMirror = false).apply {
     group(name = "optical-size", pivotX = 12f, pivotY = 12f, scaleX = 0.957988f, scaleY = 0.957988f) {
-    addPath(PathParser().parsePathString("M4 17.9808V9.70753C4 6.07416 4 4.25748 5.17157 3.12874C6.34315 2 8.22876 2 12 2C15.7712 2 17.6569 2 18.8284 3.12874C20 4.25748 20 6.07416 20 9.70753V17.9808C20 20.2867 20 21.4396 19.2272 21.8523C17.7305 22.6514 14.9232 19.9852 13.59 19.1824C12.8168 18.7168 12.4302 18.484 12 18.484C11.5698 18.484 11.1832 18.7168 10.41 19.1824C9.0768 19.9852 6.26947 22.6514 4.77285 21.8523C4 21.4396 4 20.2867 4 17.9808Z").toNodes(), fill = if (filled) SolidColor(Color.Black) else null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.35f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    addPath(PathParser().parsePathString("M4 17.9808V9.70753C4 6.07416 4 4.25748 5.17157 3.12874C6.34315 2 8.22876 2 12 2C15.7712 2 17.6569 2 18.8284 3.12874C20 4.25748 20 6.07416 20 9.70753V17.9808C20 20.2867 20 21.4396 19.2272 21.8523C17.7305 22.6514 14.9232 19.9852 13.59 19.1824C12.8168 18.7168 12.4302 18.484 12 18.484C11.5698 18.484 11.1832 18.7168 10.41 19.1824C9.0768 19.9852 6.26947 22.6514 4.77285 21.8523C4 21.4396 4 20.2867 4 17.9808Z").toNodes(), fill = if (filled) SolidColor(Color.Black) else null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
     }
     }.build()
 
@@ -237,9 +238,9 @@ internal object SautiHugeVectors {
     private fun icon24(filled: Boolean = false) = ImageVector.Builder(name = if (filled) "heart-filled" else "heart", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 256f, viewportHeight = 256f, autoMirror = false).apply {
     group(name = "optical-size", pivotX = 128f, pivotY = 128f, scaleX = 0.990833f, scaleY = 0.990833f) {
     if (filled) {
-    addPath(PathParser().parsePathString("M178,42c-21,0-39.26,9.47-50,25.34C117.26,51.47,99,42,78,42a60.07,60.07,0,0,0-60,60c0,29.2,18.2,59.59,54.1,90.31a334.68,334.68,0,0,0,53.06,37,6,6,0,0,0,5.68,0,334.68,334.68,0,0,0,53.06-37C219.8,161.59,238,131.2,238,102A60.07,60.07,0,0,0,178,42Z").toNodes(), fill = SolidColor(Color.Black), fillAlpha = 1f, stroke = null, strokeAlpha = 1f, strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    addPath(PathParser().parsePathString("M178,42c-21,0-39.26,9.47-50,25.34C117.26,51.47,99,42,78,42a60.07,60.07,0,0,0-60,60c0,29.2,18.2,59.59,54.1,90.31a334.68,334.68,0,0,0,53.06,37,6,6,0,0,0,5.68,0,334.68,334.68,0,0,0,53.06-37C219.8,161.59,238,131.2,238,102A60.07,60.07,0,0,0,178,42Z").toNodes(), fill = SolidColor(Color.Black), fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 2.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
     } else {
-    addPath(PathParser().parsePathString("M178,42c-21,0-39.26,9.47-50,25.34C117.26,51.47,99,42,78,42a60.07,60.07,0,0,0-60,60c0,29.2,18.2,59.59,54.1,90.31a334.68,334.68,0,0,0,53.06,37,6,6,0,0,0,5.68,0,334.68,334.68,0,0,0,53.06-37C219.8,161.59,238,131.2,238,102A60.07,60.07,0,0,0,178,42ZM128,217.11C111.59,207.64,30,157.72,30,102A48.05,48.05,0,0,1,78,54c20.28,0,37.31,10.83,44.45,28.27a6,6,0,0,0,11.1,0C140.69,64.83,157.72,54,178,54a48.05,48.05,0,0,1,48,48C226,157.72,144.41,207.64,128,217.11Z").toNodes(), fill = SolidColor(Color.Black), fillAlpha = 1f, stroke = null, strokeAlpha = 1f, strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    addPath(PathParser().parsePathString("M178,42c-21,0-39.26,9.47-50,25.34C117.26,51.47,99,42,78,42a60.07,60.07,0,0,0-60,60c0,29.2,18.2,59.59,54.1,90.31a334.68,334.68,0,0,0,53.06,37,6,6,0,0,0,5.68,0,334.68,334.68,0,0,0,53.06-37C219.8,161.59,238,131.2,238,102A60.07,60.07,0,0,0,178,42ZM128,217.11C111.59,207.64,30,157.72,30,102A48.05,48.05,0,0,1,78,54c20.28,0,37.31,10.83,44.45,28.27a6,6,0,0,0,11.1,0C140.69,64.83,157.72,54,178,54a48.05,48.05,0,0,1,48,48C226,157.72,144.41,207.64,128,217.11Z").toNodes(), fill = SolidColor(Color.Black), fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 2.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
     }
     }
     }.build()
@@ -252,7 +253,7 @@ internal object SautiHugeVectors {
 
     private fun icon26() = ImageVector.Builder(name = "home-0-1", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f, autoMirror = false).apply {
     group(name = "optical-size", pivotX = 12f, pivotY = 12f, scaleX = 1.008115f, scaleY = 1.008115f) {
-    addPath(PathParser().parsePathString("M3 11.9896V14.5C3 17.7998 3 19.4497 4.02513 20.4749C5.05025 21.5 6.70017 21.5 10 21.5H14C17.2998 21.5 18.9497 21.5 19.9749 20.4749C21 19.4497 21 17.7998 21 14.5V11.9896C21 10.3083 21 9.46773 20.6441 8.74005C20.2882 8.01237 19.6247 7.49628 18.2976 6.46411L16.2976 4.90855C14.2331 3.30285 13.2009 2.5 12 2.5C10.7991 2.5 9.76689 3.30285 7.70242 4.90855L5.70241 6.46411C4.37533 7.49628 3.71179 8.01237 3.3559 8.74005C3 9.46773 3 10.3083 3 11.9896Z").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.35f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    addPath(PathParser().parsePathString("M3 11.9896V14.5C3 17.7998 3 19.4497 4.02513 20.4749C5.05025 21.5 6.70017 21.5 10 21.5H14C17.2998 21.5 18.9497 21.5 19.9749 20.4749C21 19.4497 21 17.7998 21 14.5V11.9896C21 10.3083 21 9.46773 20.6441 8.74005C20.2882 8.01237 19.6247 7.49628 18.2976 6.46411L16.2976 4.90855C14.2331 3.30285 13.2009 2.5 12 2.5C10.7991 2.5 9.76689 3.30285 7.70242 4.90855L5.70241 6.46411C4.37533 7.49628 3.71179 8.01237 3.3559 8.74005C3 9.46773 3 10.3083 3 11.9896Z").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
     }
     }.build()
 
@@ -366,7 +367,7 @@ internal object SautiHugeVectors {
 
     private fun icon45() = ImageVector.Builder(name = "notification", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 256f, viewportHeight = 256f, autoMirror = false).apply {
     group(name = "optical-size", pivotX = 128f, pivotY = 128f, scaleX = 1.076993f, scaleY = 1.076993f) {
-    addPath(PathParser().parsePathString("M220.07,176.94C214.41,167.2,206,139.73,206,104a78,78,0,1,0-156,0c0,35.74-8.42,63.2-14.08,72.94A14,14,0,0,0,48,198H90.48a38,38,0,0,0,75,0H208a14,14,0,0,0,12.06-21.06ZM128,218a26,26,0,0,1-25.29-20h50.58A26,26,0,0,1,128,218Zm81.71-33a1.9,1.9,0,0,1-1.7,1H48a1.9,1.9,0,0,1-1.7-1,2,2,0,0,1,0-2C53.87,170,62,139.69,62,104a66,66,0,1,1,132,0c0,35.68,8.14,65.95,15.71,79A2,2,0,0,1,209.71,185Z").toNodes(), fill = SolidColor(Color.Black), fillAlpha = 1f, stroke = null, strokeAlpha = 1f, strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    addPath(PathParser().parsePathString("M220.07,176.94C214.41,167.2,206,139.73,206,104a78,78,0,1,0-156,0c0,35.74-8.42,63.2-14.08,72.94A14,14,0,0,0,48,198H90.48a38,38,0,0,0,75,0H208a14,14,0,0,0,12.06-21.06ZM128,218a26,26,0,0,1-25.29-20h50.58A26,26,0,0,1,128,218Zm81.71-33a1.9,1.9,0,0,1-1.7,1H48a1.9,1.9,0,0,1-1.7-1,2,2,0,0,1,0-2C53.87,170,62,139.69,62,104a66,66,0,1,1,132,0c0,35.68,8.14,65.95,15.71,79A2,2,0,0,1,209.71,185Z").toNodes(), fill = SolidColor(Color.Black), fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 2.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
     }
     }.build()
 
@@ -386,10 +387,10 @@ internal object SautiHugeVectors {
 
     private fun icon49() = ImageVector.Builder(name = "repeat", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f, autoMirror = false).apply {
     group(name = "optical-size", pivotX = 12f, pivotY = 12f, scaleX = 0.957988f, scaleY = 0.957988f) {
-    addPath(PathParser().parsePathString("m2 9 3-3 3 3").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.35f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
-    addPath(PathParser().parsePathString("M13 18H7a2 2 0 0 1-2-2V6").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.35f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
-    addPath(PathParser().parsePathString("m22 15-3 3-3-3").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.35f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
-    addPath(PathParser().parsePathString("M11 6h6a2 2 0 0 1 2 2v10").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.35f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    addPath(PathParser().parsePathString("m2 9 3-3 3 3").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    addPath(PathParser().parsePathString("M13 18H7a2 2 0 0 1-2-2V6").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    addPath(PathParser().parsePathString("m22 15-3 3-3-3").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    addPath(PathParser().parsePathString("M11 6h6a2 2 0 0 1 2 2v10").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
     }
     }.build()
 
@@ -400,8 +401,8 @@ internal object SautiHugeVectors {
 
     private fun icon51() = ImageVector.Builder(name = "search", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f, autoMirror = false).apply {
     group(name = "optical-size", pivotX = 12f, pivotY = 12f, scaleX = 1.063778f, scaleY = 1.063778f) {
-    addPath(PathParser().parsePathString("M19 11 A8 8 0 1 0 3 11 A8 8 0 1 0 19 11Z").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.35f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
-    addPath(PathParser().parsePathString("M17 17L21 21").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.35f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    addPath(PathParser().parsePathString("M19 11 A8 8 0 1 0 3 11 A8 8 0 1 0 19 11Z").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    addPath(PathParser().parsePathString("M17 17L21 21").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
     }
     }.build()
 
@@ -412,7 +413,7 @@ internal object SautiHugeVectors {
 
     private fun icon53() = ImageVector.Builder(name = "send", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 256f, viewportHeight = 256f, autoMirror = true).apply {
     group(name = "optical-size", pivotX = 128f, pivotY = 128f, scaleX = 0.990833f, scaleY = 0.990833f) {
-    addPath(PathParser().parsePathString("M225.88,30.12a13.83,13.83,0,0,0-13.7-3.58l-.11,0L20.14,84.77A14,14,0,0,0,18,110.85l85.56,41.64L145.12,238a13.87,13.87,0,0,0,12.61,8c.4,0,.81,0,1.21-.05a13.9,13.9,0,0,0,12.29-10.09l58.2-191.93,0-.11A13.83,13.83,0,0,0,225.88,30.12Zm-8,10.4L159.73,232.43l0,.11a2,2,0,0,1-3.76.26l-40.68-83.58,49-49a6,6,0,1,0-8.49-8.49l-49,49L23.15,100a2,2,0,0,1,.31-3.74l.11,0L215.48,38.08a1.94,1.94,0,0,1,1.92.52A2,2,0,0,1,217.92,40.52Z").toNodes(), fill = SolidColor(Color.Black), fillAlpha = 1f, stroke = null, strokeAlpha = 1f, strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    addPath(PathParser().parsePathString("M225.88,30.12a13.83,13.83,0,0,0-13.7-3.58l-.11,0L20.14,84.77A14,14,0,0,0,18,110.85l85.56,41.64L145.12,238a13.87,13.87,0,0,0,12.61,8c.4,0,.81,0,1.21-.05a13.9,13.9,0,0,0,12.29-10.09l58.2-191.93,0-.11A13.83,13.83,0,0,0,225.88,30.12Zm-8,10.4L159.73,232.43l0,.11a2,2,0,0,1-3.76.26l-40.68-83.58,49-49a6,6,0,1,0-8.49-8.49l-49,49L23.15,100a2,2,0,0,1,.31-3.74l.11,0L215.48,38.08a1.94,1.94,0,0,1,1.92.52A2,2,0,0,1,217.92,40.52Z").toNodes(), fill = SolidColor(Color.Black), fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 2.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
     }
     }.build()
 
@@ -601,7 +602,14 @@ internal object SautiHugeVectors {
 
     private fun icon85() = ImageVector.Builder(name = "chat-circle", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 256f, viewportHeight = 256f, autoMirror = false).apply {
     group(name = "optical-size", pivotX = 128f, pivotY = 128f, scaleX = 1.076993f, scaleY = 1.076993f) {
-    addPath(PathParser().parsePathString("M128,26A102,102,0,0,0,38.35,176.69L26.73,211.56a14,14,0,0,0,17.71,17.71l34.87-11.62A102,102,0,1,0,128,26Zm0,192a90,90,0,0,1-45.06-12.08,6.09,6.09,0,0,0-3-.81,6.2,6.2,0,0,0-1.9.31L40.65,217.88a2,2,0,0,1-2.53-2.53L50.58,178a6,6,0,0,0-.5-4.91A90,90,0,1,1,128,218Z").toNodes(), fill = SolidColor(Color.Black), fillAlpha = 1f, stroke = null, strokeAlpha = 1f, strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    addPath(PathParser().parsePathString("M128,26A102,102,0,0,0,38.35,176.69L26.73,211.56a14,14,0,0,0,17.71,17.71l34.87-11.62A102,102,0,1,0,128,26Zm0,192a90,90,0,0,1-45.06-12.08,6.09,6.09,0,0,0-3-.81,6.2,6.2,0,0,0-1.9.31L40.65,217.88a2,2,0,0,1-2.53-2.53L50.58,178a6,6,0,0,0-.5-4.91A90,90,0,1,1,128,218Z").toNodes(), fill = SolidColor(Color.Black), fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 2.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    }
+    }.build()
+
+    private fun icon86() = ImageVector.Builder(name = "user-profile-classic", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f, autoMirror = false).apply {
+    group(name = "optical-size", pivotX = 12f, pivotY = 12f, scaleX = 1.045918f, scaleY = 1.045918f) {
+    addPath(PathParser().parsePathString("M20 21.0001C19.713 17.269 16.7289 14.3151 12.995 14.0662L12 13.9999C11.6446 14.0096 11.3134 14.0225 11.0008 14.0378C7.3 14.2192 4.28417 17.3057 4 21.0001").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+    addPath(PathParser().parsePathString("M16 6.99988 A4 4 0 1 0 8 6.99988 A4 4 0 1 0 16 6.99988Z").toNodes(), fill = null, fillAlpha = 1f, stroke = SolidColor(Color.Black), strokeAlpha = 1f, strokeLineWidth = 1.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
     }
     }.build()
 

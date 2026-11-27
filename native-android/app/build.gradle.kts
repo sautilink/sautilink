@@ -48,8 +48,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "STAGING_SUPABASE_PUBLISHABLE_KEY", "\"${stagingPublishableKey}\"")
         buildConfigField("String", "PRODUCTION_SUPABASE_PUBLISHABLE_KEY", "\"${productionPublishableKey}\"")
-        versionCode = 54
-        versionName = "1.1.9-preview"
+        versionCode = 55
+        versionName = "1.1.10-preview"
     }
     flavorDimensions += "distribution"
     productFlavors {
@@ -60,7 +60,7 @@ android {
         create("production") {
             dimension = "distribution"
             applicationId = "com.sautilink.app"
-            versionName = "1.1.9"
+            versionName = "1.1.10"
         }
     }
     signingConfigs {

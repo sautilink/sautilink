@@ -92,9 +92,9 @@ class NativeIconPerformanceTest {
         var pending by mutableStateOf(true)
         var reads = 0
         compose.setContent { MaterialTheme {
-            com.sautilink.nativeapp.feature.videos.VideoRailAction(
-                androidx.compose.material.icons.Icons.Rounded.FavoriteBorder, "Like", statusKnown = false,
-                statusPending = pending, onClick = { reads++ })
+            com.sautilink.nativeapp.feature.videos.ShortsActionBar(0,0,0,false,false,false,
+                likeKnown = false, likePending = pending, onLike = { reads++ },
+                onComments = {}, onRepost = {}, onShare = {}, onSave = {})
         } }
         compose.onNodeWithContentDescription("Like").assertDoesNotExist()
         compose.onNode(SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo)).assertExists()
@@ -128,7 +128,7 @@ class NativeIconPerformanceTest {
 
     @Test fun newAndExistingIconsUseMatchingVisualSize() {
         val names = listOf("home-0-1", "search", "heart", "heart-filled", "chat-circle", "repeat",
-            "send", "bookmark", "bookmark-filled", "notification", "user", "nav-messages", "nav-shorts")
+            "send", "bookmark", "bookmark-filled", "notification", "user", "user-profile-classic", "nav-messages", "nav-shorts")
         compose.setContent { MaterialTheme { Column {
             names.chunked(3).forEach { row -> Row { row.forEach { name ->
                 val artwork = Modifier.size(72.dp).background(Color.White).testTag(name)
