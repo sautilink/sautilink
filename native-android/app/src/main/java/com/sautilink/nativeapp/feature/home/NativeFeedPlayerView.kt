@@ -3,6 +3,7 @@ package com.sautilink.nativeapp.feature.home
 import android.content.Context
 import android.os.Trace
 import android.view.LayoutInflater
+import android.view.ViewOutlineProvider
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import com.sautilink.nativeapp.R
@@ -12,7 +13,12 @@ import com.sautilink.nativeapp.R
 internal fun createNativeFeedPlayerView(context: Context): PlayerView {
     Trace.beginSection("Sauti:create-feed-player-view")
     return try {
-        LayoutInflater.from(context).inflate(R.layout.native_feed_player, null) as PlayerView
+        (LayoutInflater.from(context).inflate(R.layout.native_feed_player, null) as PlayerView).apply {
+            // SurfaceView has its own hardware layer: clipChildren alone does
+            // not contain a zoomed decoder surface inside Compose's feed row.
+            outlineProvider = ViewOutlineProvider.BOUNDS
+            clipToOutline = true
+        }
     } finally { Trace.endSection() }
 }
 

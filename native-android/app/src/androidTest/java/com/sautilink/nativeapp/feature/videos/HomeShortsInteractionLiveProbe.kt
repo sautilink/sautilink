@@ -66,7 +66,12 @@ class HomeShortsInteractionLiveProbe {
             SystemClock.sleep(1000)
             val home=requireNotNull(position())
             var originalPlayer:androidx.media3.common.Player?=null
-            instrumentation.runOnMainSync {originalPlayer=players(activity!!.window.decorView).firstNotNullOfOrNull {it.player?.takeIf {p->p.isPlaying}}}
+            var homeViewWidth=0; var homeViewHeight=0; var homeResizeMode=0
+            instrumentation.runOnMainSync {
+                val view=players(activity!!.window.decorView).first {it.player?.isPlaying==true}
+                originalPlayer=view.player
+                homeViewWidth=view.width;homeViewHeight=view.height;homeResizeMode=view.resizeMode
+            }
             startup.clear()
             val handoffStart=SystemClock.elapsedRealtime()
             val handoffNanos=System.nanoTime()
@@ -91,12 +96,27 @@ class HomeShortsInteractionLiveProbe {
             if(InstrumentationRegistry.getArguments().getString("require_player_handoff")=="true") {
                 assertTrue("Home's prepared player must be transferred",retainedPlayer)
                 assertEquals("Warm entry must not request another descriptor",0,handoffDescriptors)
-                assertTrue("Warm entry first frame took ${frameMs}ms",frameMs<1500)
+                // Keep the historical default; comparison runs can supply a
+                // device budget calibrated against the unchanged 4:5 control.
+                val budget=InstrumentationRegistry.getArguments().getString("handoff_budget_ms")
+                    ?.toLongOrNull()?.coerceIn(500L,3000L) ?: 1500L
+                assertTrue("Warm entry first frame took ${frameMs}ms (budget ${budget}ms)",frameMs<budget)
                 compose.waitUntil(3_000) {startup.any {it.mediaId==home.first && it.stage==com.sautilink.nativeapp.ui.components.NativeVideoStartupStage.FIRST_FRAME}}
             }
             assertTrue("Viewer must resume, not restart the video: Home=${home.second} viewer=${viewer.second}",viewer.second>=home.second-600)
             val active=requireNotNull(session.get());val entry=requireNotNull(active.entry)
             assertEquals(home.first,entry.mediaId)
+            if(InstrumentationRegistry.getArguments().getString("home_video_frame")=="true") {
+                val media=entry.posts.flatMap {it.media}.first {it.id==home.first}
+                val expected=com.sautilink.nativeapp.feature.home.homeFeedVideoFrame(media.width,media.height)
+                assertEquals("Inline video must keep its full-width Home frame",expected.aspectRatio,
+                    homeViewWidth.toFloat()/homeViewHeight,.01f)
+                assertEquals("Only over-tall Home videos should crop",if(expected.crop)
+                    androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM else
+                    androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT,homeResizeMode)
+                instrumentation.sendStatus(0,Bundle().apply {putString("homeVideoFrame",
+                    "source=${media.width}x${media.height} frame=${homeViewWidth}x${homeViewHeight} crop=${expected.crop}")})
+            }
             assertNotNull("A decoded Home frame should cover the handoff",entry.poster)
             post=entry.posts.first {p->p.media.any {it.id==home.first}}.id
             val counts=entry.posts.first {it.id==post}

@@ -58,6 +58,9 @@ import com.sautilink.nativeapp.ui.components.SautiPostActionRow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import com.sautilink.nativeapp.ui.components.LocalHomeNavigationScroll
+import com.sautilink.nativeapp.ui.components.rememberHomeNavigationScrollConnection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
@@ -159,6 +162,14 @@ fun StagingFeedScreen(
     var offset by remember(accountId, mode) { mutableIntStateOf(returnInitial.snapshot.nextOffset) }
     var hasMore by remember(accountId, mode) { mutableStateOf(returnInitial.snapshot.hasMore) }
     val feedListState = rememberLazyListState(returnInitial.snapshot.firstIndex, returnInitial.snapshot.firstOffset)
+    val homeNavigation = LocalHomeNavigationScroll.current.takeIf { asHome }
+    val navigationScroll = rememberHomeNavigationScrollConnection(homeNavigation)
+    LaunchedEffect(homeNavigation, mode, feedListState) {
+        homeNavigation?.show()
+        if (homeNavigation != null) snapshotFlow {
+            feedListState.firstVisibleItemIndex == 0 && feedListState.firstVisibleItemScrollOffset == 0
+        }.collect { atTop -> if (atTop) homeNavigation.show() }
+    }
     var lastPresentedMode by rememberSaveable(auth.backend.id, accountId) { mutableStateOf(mode) }
     var userRefreshing by remember(auth, accountId, mode) { mutableStateOf(false) }
     var scrollAfterRefresh by remember(auth, accountId, mode) { mutableStateOf(false) }
@@ -731,7 +742,7 @@ fun StagingFeedScreen(
         CompositionLocalProvider(LocalFeedVideoLookahead provides videoLookahead, LocalFeedAutoplayReady provides autoplayReady,
             LocalShortsFeedContext provides if (asHome) ShortsFeedContext(posts, likeStates, savedStates, repostStates, followingStates) else null) {
         LazyColumn(
-            Modifier.fillMaxSize(),
+            Modifier.fillMaxSize().nestedScroll(navigationScroll),
             state = feedListState,
             contentPadding = PaddingValues(top = 0.dp,
                 bottom = if (asHome) 90.dp else 24.dp),
@@ -1028,6 +1039,7 @@ private fun FeedPostBodyAndMedia(post: StagingFeedPost, auth: StagingAuthClient,
     // Gallery is flush with card edges; caption is never overlaid onto the media.
     if (post.media.isNotEmpty()) {
         PostMediaGallery(auth, post.media, onDoubleTapLike = onDoubleTapLike,
+            homeVideoFraming = feedContext != null,
             bufferingOverlayEnabled = bufferingOverlayEnabled, suppressOriginalAudio = false, playbackGroup = post.id, fillPhotoFrame = true, originalAudioVolume = post.audio?.originalVolume ?: 1f,
             onOpenVideo = if (shortsSession != null && feedContext != null) { media, position, poster ->
                 if (shortsSession.owner == auth.account?.id) shortsSession.open(post, media.id, position, poster, feedContext)

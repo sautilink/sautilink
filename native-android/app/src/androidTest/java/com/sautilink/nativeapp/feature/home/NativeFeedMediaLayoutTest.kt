@@ -29,6 +29,21 @@ class NativeFeedMediaLayoutTest {
         return StagingAuthClient("sb_publishable_offline_ui_fixture", context, SautiBackend.PRODUCTION).apply { forgetSavedSession() }
     }
     private fun image(n: Int) = FeedMedia("00000000-0000-4000-8000-${n.toString().padStart(12,'0')}", "image", n, 1000, 1000)
+    private fun checkVideoFrame(width: Int, height: Int, expectedHeight: Float, home: Boolean = true) {
+        val video = FeedMedia("00000000-0000-4000-8000-000000000099", "video", 0, width, height, 6000)
+        val auth = auth()
+        compose.setContent { MaterialTheme { Box(Modifier.width(240.dp)) {
+            PostMediaGallery(auth, listOf(video), homeVideoFraming = home)
+        } } }
+        val rect = compose.onNodeWithTag("post-media:${video.id}").getUnclippedBoundsInRoot()
+        assertEquals(240f, rect.right.value - rect.left.value, .5f)
+        assertEquals(expectedHeight, rect.bottom.value - rect.top.value, .5f)
+    }
+    @Test fun homeTallVideoUsesFullWidthTwoByThreeFrame() = checkVideoFrame(1080, 1920, 360f)
+    @Test fun homeFourByFiveVideoKeepsItsShorterFrame() = checkVideoFrame(1080, 1350, 300f)
+    @Test fun homeSquareVideoStaysSquare() = checkVideoFrame(1080, 1080, 240f)
+    @Test fun homeLandscapeVideoKeepsItsNaturalHeight() = checkVideoFrame(1920, 1080, 135f)
+    @Test fun otherGalleriesRetainTheirExistingTallVideoFrame() = checkVideoFrame(1080, 1920, 300f, home = false)
     @Test fun oneImageHasNoNestedPager_andKeepsItsFullWidthSquareFrame() {
         val image = image(1)
         val auth = auth()

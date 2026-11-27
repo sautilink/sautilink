@@ -33,7 +33,7 @@ class HomeVideoCoverMatteTest {
         compose.setContent {
             MaterialTheme(colorScheme=if(dark) darkColorScheme(surfaceVariant=photoMatte) else lightColorScheme(surfaceVariant=photoMatte)) {
                 Column(Modifier.width(240.dp)) {
-                    PostMediaGallery(auth,listOf(FeedMedia(video,"video",0,540,960,6000)))
+                    PostMediaGallery(auth,listOf(FeedMedia(video,"video",0,540,960,6000)), homeVideoFraming = true)
                     PostMediaGallery(auth,listOf(FeedMedia(photo,"image",0,540,675)))
                 }
             }

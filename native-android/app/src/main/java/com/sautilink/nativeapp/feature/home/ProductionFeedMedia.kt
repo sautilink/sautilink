@@ -65,11 +65,11 @@ import com.sautilink.nativeapp.ui.components.nativePlaybackNeedsRetry
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
-/** Media dimensions are known from social_post_media before the poster request:
- * ratio >= 4:5 is natural; extra-tall items letterbox inside a fixed 4:5 frame.
- * The layout never changes its height when image bytes finish loading.
- */
-private fun stableFeedAspect(media: FeedMedia): Float {
+/** Size is fixed from attachment metadata, before poster/decoder readiness.
+ * Home videos use their own 2:3 height limit; other media retain their layout. */
+private fun stableFeedAspect(media: FeedMedia, homeVideoFraming: Boolean = false): Float {
+    if (homeVideoFraming && media.kind == "video")
+        return homeFeedVideoFrame(media.width, media.height).aspectRatio
     val original = if (media.width > 0 && media.height > 0)
         media.width.toFloat() / media.height else .8f
     return original.coerceIn(.8f, 3f)
@@ -91,12 +91,13 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
     bufferingOverlayEnabled: Boolean = false,
     adaptivePlaybackEnabled: Boolean = true, suppressOriginalAudio: Boolean = false, playbackGroup: String? = null,
     fillPhotoFrame: Boolean = false, originalAudioVolume: Float = 1f,
+    homeVideoFraming: Boolean = false,
     onOpenVideo: ((FeedMedia, Long, android.graphics.Bitmap?) -> Unit)? = null) {
     if (media.isEmpty()) return
     var expandedPhoto by remember(auth) { mutableStateOf<FeedMedia?>(null) }
     val pager = androidx.compose.foundation.pager.rememberPagerState(pageCount = { media.size })
     // Use one measured frame across carousel pages, preventing vertical layout jumps on swipe.
-    val carouselAspect = media.minOf(::stableFeedAspect)
+    val carouselAspect = media.minOf { stableFeedAspect(it, homeVideoFraming) }
     Column(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth()) {
             if (media.size == 1) {
@@ -104,7 +105,8 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
                     Modifier.fillMaxWidth().aspectRatio(carouselAspect), mediaPath,
                     onDoubleTapLike, bufferingOverlayEnabled, adaptivePlaybackEnabled,
                     suppressOriginalAudio, playbackGroup, originalAudioVolume, fillPhotoFrame,
-                    onPhoto = { expandedPhoto = it }, onOpenVideo = onOpenVideo)
+                    onPhoto = { expandedPhoto = it }, onOpenVideo = onOpenVideo,
+                    homeVideoFraming = homeVideoFraming)
             } else {
                 androidx.compose.foundation.pager.HorizontalPager(
                     state = pager, modifier = Modifier.fillMaxWidth().aspectRatio(carouselAspect),
@@ -113,7 +115,8 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
                     FeedMediaPage(auth, media[page], page, media.size, pager.currentPage == page,
                         Modifier.fillMaxSize(), mediaPath, onDoubleTapLike, bufferingOverlayEnabled,
                         adaptivePlaybackEnabled, suppressOriginalAudio, playbackGroup,
-                        originalAudioVolume, fillPhotoFrame, onPhoto = { expandedPhoto = it }, onOpenVideo = onOpenVideo)
+                        originalAudioVolume, fillPhotoFrame, onPhoto = { expandedPhoto = it }, onOpenVideo = onOpenVideo,
+                        homeVideoFraming = homeVideoFraming)
                 }
             }
             if (media.size > 1) {
@@ -181,7 +184,8 @@ private fun FeedMediaPage(auth: StagingAuthClient, item: FeedMedia, page: Int, c
     onLike: (() -> Unit)?, bufferingOverlayEnabled: Boolean, adaptivePlaybackEnabled: Boolean,
     suppressOriginalAudio: Boolean, playbackGroup: String?, originalAudioVolume: Float,
     fillPhotoFrame: Boolean, onPhoto: (FeedMedia) -> Unit,
-    onOpenVideo: ((FeedMedia, Long, android.graphics.Bitmap?) -> Unit)? = null) {
+    onOpenVideo: ((FeedMedia, Long, android.graphics.Bitmap?) -> Unit)? = null,
+    homeVideoFraming: Boolean = false) {
     val path = checkedPostMediaPath(item.id, mediaPath?.invoke(item))
     Box(modifier.background(if (item.kind == "video") Color.Black else MaterialTheme.colorScheme.surfaceVariant)
         .then(Modifier.testTag("post-media:${item.id}")), contentAlignment = Alignment.Center) {
@@ -190,7 +194,8 @@ private fun FeedMediaPage(auth: StagingAuthClient, item: FeedMedia, page: Int, c
                 onDoubleTapLike = onLike, mediaPath = path,
                 bufferingOverlayEnabled = bufferingOverlayEnabled,
                 adaptivePlaybackEnabled = adaptivePlaybackEnabled, suppressOriginalAudio = suppressOriginalAudio,
-                playbackGroup = playbackGroup, originalAudioVolume = originalAudioVolume, onOpenVideo = onOpenVideo)
+                playbackGroup = playbackGroup, originalAudioVolume = originalAudioVolume, onOpenVideo = onOpenVideo,
+                cropTallVideo = homeVideoFraming && homeFeedVideoFrame(item.width, item.height).crop)
         } else {
             SautiPostGestureSurface(Modifier.fillMaxSize(), onLike = onLike, onTap = { onPhoto(item) }) {
                 AuthorizedImage(auth, "$path?w=960", "Photo ${page + 1} of $count",
@@ -212,7 +217,8 @@ private fun InlineFeedVideo(
     mediaPath: String = "/api/sauti-media/${media.id}",
     bufferingOverlayEnabled: Boolean = false,
     adaptivePlaybackEnabled: Boolean = true, suppressOriginalAudio: Boolean = false, playbackGroup: String? = null, originalAudioVolume: Float = 1f,
-    onOpenVideo: ((FeedMedia, Long, android.graphics.Bitmap?) -> Unit)? = null
+    onOpenVideo: ((FeedMedia, Long, android.graphics.Bitmap?) -> Unit)? = null,
+    cropTallVideo: Boolean = false
 ) {
     val shortsSession = com.sautilink.nativeapp.feature.videos.LocalNativeShortsSession.current
     val videoView = remember(media.id) { arrayOfNulls<androidx.media3.ui.PlayerView>(1) }
@@ -503,14 +509,24 @@ private fun InlineFeedVideo(
                 factory = { ctx -> createNativeFeedPlayerView(ctx).apply {
                     videoView[0] = this
                     useController = false
+                    clipChildren = true
                     this.player = player
-                    resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    resizeMode = if (cropTallVideo) androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        else androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                 } },
-                update = { videoView[0] = it; it.player = player },
+                update = {
+                    videoView[0] = it
+                    it.player = player
+                    it.resizeMode = if (cropTallVideo) androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        else androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                },
                 onReset = { detachNativeFeedPlayerView(it,handedPlayback[0]?.owns(it.player)==true) },
                 onRelease = { detachNativeFeedPlayerView(it,handedPlayback[0]?.owns(it.player)==true) },
                 modifier = Modifier.fillMaxSize()
-                    .graphicsLayer { alpha = if (firstFrame) 1f else 0f }
+                    .graphicsLayer {
+                        alpha = if (firstFrame) 1f else 0f
+                        clip = true
+                    }
             )
         }
         // Poster overlays any decoder/player surface until a real frame has arrived.
@@ -518,7 +534,7 @@ private fun InlineFeedVideo(
             if (mediaPath == "/api/sauti-media/${media.id}") {
                 // Video covers share the same black matte/loading state as playback.
                 // A photo placeholder here used to flash white (and white letterbox bars).
-                com.sautilink.nativeapp.feature.videos.ShortVideoCover(auth,media.id,Modifier.fillMaxSize())
+                com.sautilink.nativeapp.feature.videos.ShortVideoCover(auth,media.id,Modifier.fillMaxSize(), crop = cropTallVideo)
             } else if (!bufferingOverlayEnabled && started && wantsToPlay && requestError == null) {
                 // Protected submissions expose original bytes, not a generated poster.
                 CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)

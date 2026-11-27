@@ -37,6 +37,9 @@ import com.sautilink.nativeapp.ui.state.SessionScreenReturnHost
 import com.sautilink.nativeapp.ui.theme.SautiColors
 import androidx.compose.runtime.CompositionLocalProvider
 import com.sautilink.nativeapp.ui.components.LocalFloatingNavigationPadding
+import com.sautilink.nativeapp.ui.components.HomeNavigationScrollState
+import com.sautilink.nativeapp.ui.components.HomeScrollNavigation
+import com.sautilink.nativeapp.ui.components.LocalHomeNavigationScroll
 
 /** Chrome owns provider placement; the caller continues to own all navigation state. */
 @Composable
@@ -55,6 +58,8 @@ internal fun NativeAuthenticatedAppHost(
     overlayContent: @Composable () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val homeNavigation = remember(auth, accountId, destination) { HomeNavigationScrollState() }
+    val scrollingHome = destination == "home" && selectedTab == 0
     val openVideos by rememberUpdatedState { onTabSelected(4) }
     val reactionActions = remember(auth, accountId) {
         val client = PostInteractionsClient(auth)
@@ -80,7 +85,11 @@ internal fun NativeAuthenticatedAppHost(
             containerColor = if (destination == "videos") Color.Black else MaterialTheme.colorScheme.background,
             snackbarHost = { SnackbarHost(snackbar) },
             bottomBar = {
-                if (selectedTab != null) SautiBottomBar(selectedTab, unreadNotifications, onTabSelected)
+                if (selectedTab != null) {
+                    if (scrollingHome) HomeScrollNavigation(homeNavigation.hidden, enabled = true) {
+                        SautiBottomBar(selectedTab, unreadNotifications, onTabSelected)
+                    } else SautiBottomBar(selectedTab, unreadNotifications, onTabSelected)
+                }
             },
             floatingActionButton = {
                 if (showComposerButton) {
@@ -112,7 +121,8 @@ internal fun NativeAuthenticatedAppHost(
                 end = insets.calculateEndPadding(direction),
             ) else insets
             Box(Modifier.fillMaxSize().padding(contentPadding).consumeWindowInsets(insets)) {
-                CompositionLocalProvider(LocalFloatingNavigationPadding provides
+                CompositionLocalProvider(LocalHomeNavigationScroll provides homeNavigation.takeIf { scrollingHome },
+                    LocalFloatingNavigationPadding provides
                     if (floatsOverContent) insets.calculateBottomPadding() else 0.dp) {
                     SessionScreenReturnHost(auth, auth.backend.id, accountId, destination,
                         { auth.account?.id }, contentRevision, content = destinationContent)
