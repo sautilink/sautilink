@@ -29,3 +29,12 @@ A process-cold 24-second Samsung recording was inspected from launch through act
 ## Boundaries
 
 Captions require actual subtitle tracks. Offline copies retain original video audio, not a separately attached music stream. Offline storage is account scoped and bounded to ten videos / 500 MiB; server download authorization remains enforced. Not interested is local per account. The user reviews the Preview before publication.
+
+
+## Home-to-Shorts playback ownership correction
+
+A warm Home tap now transfers the existing authorized player, resources, live bearer relay and healthy playback read to the viewer. It no longer just transfers a bitmap/position before constructing a replacement player. The old Surface is detached while still valid; the live player continues through the handoff. Home relinquishes its visibility/arbiter teardown, and Shorts retires the transferred tuple on the first swipe or exit. Unclaimed transfers expire after three seconds; owner, auth instance, original grant deadline, credential and retry/failure checks remain enforced. READY and BUFFERING sources can transfer; idle/ended/failed players follow normal startup/recovery.
+
+The normal Shorts preload engine is built after the transferred Surface renders a real frame, with an explicit immediate path if the viewer swipes away before then. The next/back path retains normal preloading and saved positions. This does not create a second playing video.
+
+Validation: 314 JVM checks passed; 13 focused Samsung checks passed, including actual live-player identity, zero duplicate entry descriptors, a real decoded target frame, position continuity, Like/Repost/Save confirmation/restoration, additive double taps, first swipe/return/retirement, direct Shorts revisit/loop/scrub, playback controls, fullscreen/options and offline local decoding. Observed target-frame timings were 944 and 1317 ms after the actual open action in debug instrumentation; these differ from the automation's full wait/idle duration and are not universal latency guarantees. The earlier replacement-player baseline took 3779 ms including automation waits. Android lint completed with zero errors. No backend/web/Play Store changes.

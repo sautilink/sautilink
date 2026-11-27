@@ -70,6 +70,7 @@ internal fun NativeAuthenticatedAppHost(
             } })
     }
     val shortsSession = remember(auth, accountId) { NativeShortsSession(accountId, reactionActions) { openVideos() } }
+    DisposableEffect(shortsSession) {onDispose {shortsSession.close()}}
     SideEffect { if(BuildConfig.DEBUG) NativeShortsSession.testObserver?.invoke(shortsSession) }
     CompositionLocalProvider(LocalNativeShortsSession provides shortsSession) {
     com.sautilink.nativeapp.feature.music.NativeMusicSession(auth, onCreatePost, feedEnabled = true) {

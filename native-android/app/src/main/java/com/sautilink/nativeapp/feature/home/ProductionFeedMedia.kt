@@ -216,6 +216,7 @@ private fun InlineFeedVideo(
 ) {
     val shortsSession = com.sautilink.nativeapp.feature.videos.LocalNativeShortsSession.current
     val videoView = remember(media.id) { arrayOfNulls<androidx.media3.ui.PlayerView>(1) }
+    val handedPlayback = remember(media.id) { arrayOfNulls<com.sautilink.nativeapp.feature.videos.HomeShortsPlayback>(1) }
     val returnPosition = remember(media.id) { shortsSession?.positions?.get(media.id) ?: 0L }
     var returnPositionApplied by remember(media.id) { mutableStateOf(false) }
     val context = LocalContext.current
@@ -329,11 +330,13 @@ private fun InlineFeedVideo(
     }
     val baseQuality = if (adaptive) autoQuality else "original"
     val latestBearer by rememberUpdatedState(playbackRead.bearer ?: token)
+    val liveBearer = remember(auth,accountId,media.id,token) {java.util.concurrent.atomic.AtomicReference<String?>(latestBearer)}
+    SideEffect {if(handedPlayback[0]==null) liveBearer.set(latestBearer)}
     val replayOwner = com.sautilink.nativeapp.ui.components.LocalNativeVideoReplayOwner.current
     val resources = remember(auth, accountId, media.id, token, mediaPath, replayOwner) {
         if (token == null) null else {
             NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.RESOURCES_BEGIN)
-            nativeVideoPlaybackResources(context, auth.mediaOrigin, token, authorizationToken = { latestBearer },
+            nativeVideoPlaybackResources(context, auth.mediaOrigin, token, authorizationToken = { liveBearer.get() },
                 replay = accountId?.let { replayOwner?.bindingFor(auth, it, token) }) {
                 accountId != null && auth.account?.id == accountId
             }.also { NativeVideoStartupProbe.mark(media.id, NativeVideoStartupStage.RESOURCES_READY) }
@@ -414,8 +417,12 @@ private fun InlineFeedVideo(
             owner.lifecycle.removeObserver(observer)
             player.removeListener(listener)
             android.os.Trace.beginSection("Sauti:retire-feed-video")
-            if (auth.account?.id == playbackOwner) shortsSession?.positions?.set(media.id, player.currentPosition.coerceAtLeast(0L))
-            try { retireFeedVideo(player, resources) } finally { android.os.Trace.endSection() }
+            try {
+                if(handedPlayback[0]?.owns(player)!=true) {
+                    if (auth.account?.id == playbackOwner) shortsSession?.positions?.set(media.id, player.currentPosition.coerceAtLeast(0L))
+                    retireFeedVideo(player, resources)
+                }
+            } finally { android.os.Trace.endSection() }
         }
     }
     com.sautilink.nativeapp.feature.music.BindNativePostVideoClock(player, group, media.id,
@@ -431,7 +438,7 @@ private fun InlineFeedVideo(
     val playbackUri = if (hls) streamSource?.url else if (!adaptive || streamSource != null)
         auth.mediaOrigin + videoPlaybackPath(mediaPath, selectedQuality) else null
     LaunchedEffect(player, playbackUri, hls, playbackRead.denied) {
-        if (player == null || auth.account?.id != playbackOwner) return@LaunchedEffect
+        if (player == null || auth.account?.id != playbackOwner || handedPlayback[0]?.owns(player)==true) return@LaunchedEffect
         if (playbackRead.denied) { player.stop(); return@LaunchedEffect }
         val uri = playbackUri ?: return@LaunchedEffect
         streamSource?.let { resources?.hlsGrants?.authorize(it) }
@@ -445,14 +452,14 @@ private fun InlineFeedVideo(
             returnPositionApplied = true
             if (!overlayBlocked && selected && wantsToPlay && !manualPaused && isCurrent &&
                 owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                if (coordinator != null) coordinator.play(candidateKey, group, player::pause) { player.play() } else player.play()
+                if (coordinator != null) coordinator.play(candidateKey, group, {if(handedPlayback[0]?.owns(player)!=true) player.pause()}) { player.play() } else player.play()
             }
         }
     }
     LaunchedEffect(player, muted, suppressOriginalAudio, originalAudioVolume) { player?.volume = if (muted || suppressOriginalAudio) 0f else originalAudioVolume.coerceIn(0f, 1f) }
     LaunchedEffect(player, speed) { player?.setPlaybackSpeed(speed) }
     LaunchedEffect(player, isCurrent, selected, visibleFraction, wantsToPlay, manualPaused, requestError, lifecycleState, streamSource, overlayBlocked) {
-        if (player != null) {
+        if (player != null && handedPlayback[0]?.owns(player)!=true) {
             if (overlayBlocked) {
                 player.pause() // Retain the prepared source and its samples while composing.
             } else if (!isCurrent || visibleFraction < .1f || !lifecycleState.isAtLeast(Lifecycle.State.STARTED)) {
@@ -474,7 +481,7 @@ private fun InlineFeedVideo(
                     player.prepare()
                     stoppedOffscreen = false
                 }
-                if (coordinator != null) coordinator.play(candidateKey, group, player::pause) { player.play() } else player.play()
+                if (coordinator != null) coordinator.play(candidateKey, group, {if(handedPlayback[0]?.owns(player)!=true) player.pause()}) { player.play() } else player.play()
             }
             else player.pause()
         }
@@ -500,8 +507,8 @@ private fun InlineFeedVideo(
                     resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                 } },
                 update = { videoView[0] = it; it.player = player },
-                onReset = { detachNativeFeedPlayerView(it) },
-                onRelease = { detachNativeFeedPlayerView(it) },
+                onReset = { detachNativeFeedPlayerView(it,handedPlayback[0]?.owns(it.player)==true) },
+                onRelease = { detachNativeFeedPlayerView(it,handedPlayback[0]?.owns(it.player)==true) },
                 modifier = Modifier.fillMaxSize()
                     .graphicsLayer { alpha = if (firstFrame) 1f else 0f }
             )
@@ -554,10 +561,24 @@ private fun InlineFeedVideo(
             player?.pause()
         }
         val openViewer = {
+            NativeVideoStartupProbe.mark(media.id,NativeVideoStartupStage.HANDOFF_TAP)
+            if (onOpenVideo != null && handedPlayback[0]==null && shortsSession!=null) {
+                com.sautilink.nativeapp.feature.videos.HomeShortsPlayback.offer(auth,accountId,media.id,player,resources,playbackRead,liveBearer) {position ->
+                    if(auth.account?.id==accountId) shortsSession.positions[media.id]=position
+                }?.let {lease -> handedPlayback[0]=lease;shortsSession.offerPlayback(lease)}
+            }
             val position = player?.currentPosition?.coerceAtLeast(0L) ?: 0L
-            player?.pause()
-            if(firstFrame) captureFeedVideoFrame(videoView[0]) { poster -> onOpenVideo?.invoke(media,position,poster) }
-            else onOpenVideo?.invoke(media,position,null)
+            if(handedPlayback[0]?.owns(player)!=true) player?.pause()
+            val deliver:(android.graphics.Bitmap?)->Unit = {poster ->
+                NativeVideoStartupProbe.mark(media.id,NativeVideoStartupStage.HANDOFF_READY)
+                // Clear the old target while its Surface is still valid. Letting Compose
+                // destroy that Surface first can stall Samsung's decoder for two seconds.
+                videoView[0]?.takeIf {handedPlayback[0]?.owns(it.player)==true}?.let {
+                    detachNativeFeedPlayerView(it,preservePlayback=true)
+                }
+                onOpenVideo?.invoke(media,position,poster)
+            }
+            if(firstFrame) captureFeedVideoFrame(videoView[0],deliver) else deliver(null)
         }
 
         val playRadius = with(density) { 30.dp.toPx() }

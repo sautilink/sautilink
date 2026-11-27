@@ -19,14 +19,19 @@ internal fun createNativeFeedPlayerView(context: Context): PlayerView {
 /** AndroidView may reuse this Surface for another row. Stop its old decoder
  * before detaching it; the next update binds the new row's player. */
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
-internal fun detachNativeFeedPlayerView(view: PlayerView) {
+internal fun detachNativeFeedPlayerView(view: PlayerView, preservePlayback: Boolean = false) {
     Trace.beginSection("Sauti:detach-feed-player-view")
+    val mediaId=view.player?.currentMediaItem?.mediaId.orEmpty()
+    com.sautilink.nativeapp.ui.components.NativeVideoStartupProbe.mark(mediaId,com.sautilink.nativeapp.ui.components.NativeVideoStartupStage.SURFACE_DETACH_BEGIN)
     try {
         view.player?.let {
-            if (it.playbackState != androidx.media3.common.Player.STATE_IDLE) { it.pause(); it.stop() }
+            if (!preservePlayback && it.playbackState != androidx.media3.common.Player.STATE_IDLE) { it.pause(); it.stop() }
         }
         view.player = null
-    } finally { Trace.endSection() }
+    } finally {
+        com.sautilink.nativeapp.ui.components.NativeVideoStartupProbe.mark(mediaId,com.sautilink.nativeapp.ui.components.NativeVideoStartupStage.SURFACE_DETACH_END)
+        Trace.endSection()
+    }
 }
 
 /** One bounded copy on an explicit tap; feed scrolling keeps its faster SurfaceView. */

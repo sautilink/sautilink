@@ -9,7 +9,7 @@ internal data class ShortsFeedContext(val posts: List<StagingFeedPost>, val like
 internal val LocalShortsFeedContext=staticCompositionLocalOf<ShortsFeedContext?> { null }
 internal val LocalNativeShortsSession=staticCompositionLocalOf<NativeShortsSession?> { null }
 internal data class NativeShortsEntry(val id:String, val owner:String, val posts:List<StagingFeedPost>,
-    val mediaId:String, val position:Long, val poster:Bitmap?, val follows:Map<String,Boolean>)
+    val mediaId:String, val position:Long, val poster:Bitmap?, val follows:Map<String,Boolean>, val playback:HomeShortsPlayback? = null)
 
 /** In-memory presentation only. Media authorization still goes through the normal client. */
 internal class NativeShortsSession(val owner:String?, val actions:ShortsReactionController, private val navigate:()->Unit) {
@@ -19,6 +19,10 @@ internal class NativeShortsSession(val owner:String?, val actions:ShortsReaction
     }
     var entry by mutableStateOf<NativeShortsEntry?>(null);private set
     val positions=mutableMapOf<String,Long>()
+    private var pendingPlayback:HomeShortsPlayback?=null
+    fun offerPlayback(playback:HomeShortsPlayback) {pendingPlayback?.close();pendingPlayback=playback}
+    fun close() {pendingPlayback?.close();pendingPlayback=null;entry?.playback?.close()}
+
     fun open(post:StagingFeedPost, mediaId:String, position:Long, poster:Bitmap?, feed:ShortsFeedContext) {
         val account=owner ?: return
         if(post.media.none { it.id==mediaId && it.kind=="video" } || feed.posts.none {it.id==post.id}) return
@@ -28,8 +32,12 @@ internal class NativeShortsSession(val owner:String?, val actions:ShortsReaction
             actions.seed(row.id,"save",feed.saves[row.id],0)
             actions.seed(row.id,"repost",feed.reposts[row.id],row.reposts)
         }
+        val playback=pendingPlayback?.takeIf {it.owner==account && it.mediaId==mediaId}
+        if(pendingPlayback!==playback) pendingPlayback?.close()
+        pendingPlayback=null
+        entry?.playback?.close()
         entry=NativeShortsEntry(java.util.UUID.randomUUID().toString(),account,posts,mediaId,
-            position.coerceAtLeast(0),poster,feed.follows)
+            position.coerceAtLeast(0),poster,feed.follows,playback)
         positions[mediaId]=position.coerceAtLeast(0)
         navigate()
     }
