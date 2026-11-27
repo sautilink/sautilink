@@ -7,6 +7,8 @@ import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
 import androidx.compose.ui.test.*
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.media3.ui.PlayerView
 import androidx.test.platform.app.InstrumentationRegistry
@@ -74,7 +76,20 @@ class HomeShortsInteractionLiveProbe {
                 instrumentation.runOnMainSync {active.actions.request(post!!,kind,original,if(kind=="like")counts.likes else counts.reposts,original)}
                 compose.waitUntil(25_000) {active.actions.state(post!!,kind)?.let {!it.pending && !it.uncertain && it.confirmed==original}==true}
             }
-            instrumentation.sendStatus(0,Bundle().apply {putString("homeShorts","sameMedia=pass resume=pass frameCover=pass ${timings.joinToString(" ")} confirmedAndRestored=pass")})
+            // Exercise the actual viewer gesture while the first Like may still be pending.
+            instrumentation.runOnMainSync {active.actions.request(post!!,"like",false,counts.likes,originals["like"])}
+            compose.waitUntil(25_000) {active.actions.state(post!!,"like")?.let {!it.pending && !it.uncertain && it.confirmed==false}==true}
+            val gesture=compose.onNode(SemanticsMatcher("Video Like gesture") {node ->
+                node.config.getOrNull(SemanticsActions.CustomActions)?.any {it.label=="Like post"}==true
+            })
+            val gestureActions=gesture.fetchSemanticsNode().config[SemanticsActions.CustomActions]
+            compose.runOnIdle {repeat(3) {assertTrue(gestureActions.first {it.label=="Like post"}.action())}}
+
+            assertEquals(true,active.actions.state(post!!,"like")?.desired)
+            compose.waitUntil(25_000) {active.actions.state(post!!,"like")?.let {!it.pending && !it.uncertain && it.confirmed==true}==true}
+            instrumentation.runOnMainSync {active.actions.request(post!!,"like",originals.getValue("like"),counts.likes,originals["like"])}
+            compose.waitUntil(25_000) {active.actions.state(post!!,"like")?.let {!it.pending && !it.uncertain && it.confirmed==originals["like"]}==true}
+            instrumentation.sendStatus(0,Bundle().apply {putString("homeShorts","sameMedia=pass resume=pass frameCover=pass ${timings.joinToString(" ")} confirmedAndRestored=pass additiveDoubleTap=pass")})
             instrumentation.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
             compose.waitUntil(30_000) {position(home.first)!=null && compose.onAllNodes(hasContentDescription("Video options")).fetchSemanticsNodes().isEmpty()}
             compose.onNodeWithTag("open-shorts:${home.first}").assertExists()

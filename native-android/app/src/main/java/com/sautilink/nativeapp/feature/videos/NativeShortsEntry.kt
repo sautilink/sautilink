@@ -13,7 +13,10 @@ internal data class NativeShortsEntry(val id:String, val owner:String, val posts
 
 /** In-memory presentation only. Media authorization still goes through the normal client. */
 internal class NativeShortsSession(val owner:String?, val actions:ShortsReactionController, private val navigate:()->Unit) {
-    companion object { @Volatile var testObserver:((NativeShortsSession)->Unit)?=null }
+    companion object {
+        @Volatile var testObserver:((NativeShortsSession)->Unit)?=null
+        @Volatile var seekObserver:((Long)->Unit)?=null
+    }
     var entry by mutableStateOf<NativeShortsEntry?>(null);private set
     val positions=mutableMapOf<String,Long>()
     fun open(post:StagingFeedPost, mediaId:String, position:Long, poster:Bitmap?, feed:ShortsFeedContext) {

@@ -27,16 +27,17 @@ class ShortsViewerChromeTest {
         compose.onNodeWithText("0").assertDoesNotExist()
     }
     @Test fun optionsExposeTheActualPlayerAndPostActionsInDarkMode() {
-        var chosen=0f;var auto=true
+        var chosen=0f
         compose.setContent { SautiTheme(darkTheme=true) {
-            ShortsOptionsSheet(1f,"auto","480",listOf(360,480,720),false,false,true,false,
-                onSpeed={chosen=it},onQuality={},onCaptions={},onAutoAdvance={auto=it},
+            ShortsOptionsSheet(1f,"auto","480",listOf(360,480,720),false,false,false,
+                onSpeed={chosen=it},onQuality={},onCaptions={},
                 onPost={},onDownload={},onOffline={},onNotInterested={},onReport={},onDismiss={})
         } }
-        listOf("Quality","Captions","Auto-advance","Go to Post","Download video","Add to Offline",
+        listOf("Quality","Captions","Go to Post","Download video","Add to Offline",
             "Not interested in this","Report post").forEach { compose.onNodeWithText(it).assertExists() }
         compose.onNodeWithText("1.5x").performClick()
         assertEquals(1.5f,chosen,0f)
         compose.onNodeWithText("Not available for this video").assertExists()
+        compose.onNodeWithText("Auto-advance").assertDoesNotExist()
     }
 }

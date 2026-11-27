@@ -5,7 +5,7 @@ import java.net.URI
 import java.text.Normalizer
 import java.util.Locale
 
-enum class TextEntityKind { MENTION, HASHTAG, URL }
+enum class TextEntityKind { MENTION, HASHTAG, URL, EMAIL }
 
 /** Offsets are UTF-16 indices, as required by Compose AnnotatedString. */
 data class TextEntity(val kind: TextEntityKind, val start: Int, val end: Int, val target: String)
@@ -14,6 +14,26 @@ private val profileHandle = Regex("^[a-z0-9][a-z0-9._]{2,29}$")
 private val externalUrl = Regex(
     "(?:https?://|www\\.)[^\\s\\p{Z}\\p{Cc}\\p{Cf}<>\"\\u0060]+",
     RegexOption.IGNORE_CASE)
+// Conservative visible email addresses: no header/query syntax or partial matches inside URLs.
+private val emailAddress = Regex(
+    "[a-zA-Z0-9](?:[a-zA-Z0-9_+%!-]|[.](?=[a-zA-Z0-9])){0,63}@" +
+        "(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?[.])+[a-zA-Z]{2,63}")
+
+private fun visibleEmails(text: String): Sequence<MatchResult> = emailAddress.findAll(text).filter { match ->
+    var start = match.range.first
+    // A legacy underline wrapper is outside the address, as it is for mentions/URLs.
+    var before = start
+    while (before > 0 && text[before - 1] == '_') before--
+    if (start - before >= 2) start = before
+    val previous = text.getOrNull(start - 1)
+    val after = match.range.last + 1
+    var end = after
+    while (end < text.length && text[end] == '_') end++
+    val next = text.getOrNull(if (end - after >= 2) end else after)
+    (previous == null || !previous.isLetterOrDigit() && previous !in ".!#$%&'*+/=?^_`{|}~@:-") &&
+        (next == null || !next.isLetterOrDigit() && next !in "_@-")
+}
+
 private fun hashtagPart(codePoint: Int) = Character.isLetterOrDigit(codePoint) || codePoint == '_'.code
 private fun wordPart(codePoint: Int) = hashtagPart(codePoint) || Character.getType(codePoint) in listOf(
     Character.NON_SPACING_MARK.toInt(), Character.COMBINING_SPACING_MARK.toInt(), Character.ENCLOSING_MARK.toInt())
@@ -88,7 +108,7 @@ fun normalizeExternalUrl(value: String): String? {
     }.getOrNull()
 }
 
-/** Ordered, disjoint links. Emails, URL fragments and overlong handles stay out of internal routes. */
+/** Ordered, disjoint links. Emails never become profile routes; URL fragments remain literal. */
 fun parseTextEntities(text: String): List<TextEntity> {
     val candidates = externalUrl.findAll(text).toList()
     val urls = candidates.map { it.range }
@@ -98,11 +118,16 @@ fun parseTextEntities(text: String): List<TextEntity> {
         val target = normalizeExternalUrl(visible) ?: return@mapNotNull null
         TextEntity(TextEntityKind.URL, match.range.first, match.range.first + visible.length, target)
     }.toMutableList()
+    val emails = visibleEmails(text).filter { match ->
+        urls.none { match.range.first in it }
+    }.toList()
+    result += emails.map { TextEntity(TextEntityKind.EMAIL, it.range.first, it.range.last + 1, it.value) }
+    val occupied = urls + emails.map { it.range }
     var index = 0
     while (index < text.length) {
         val char = text[index]
         if (char != '@' && char != '#') { index++; continue }
-        val url = urls.firstOrNull { index in it }
+        val url = occupied.firstOrNull { index in it }
         if (url != null) { index = url.last + 1; continue }
         val previous = if (index == 0) null else text.codePointBefore(index)
         if (previous != null && (wordPart(previous) || previous in listOf('@'.code, '.'.code, '/'.code, '\\'.code))) {
@@ -135,7 +160,7 @@ fun parseTextEntities(text: String): List<TextEntity> {
  */
 fun postFormattingEntityRanges(text: String): List<IntRange> {
     val urls = externalUrl.findAll(text).map { it.range }.toList()
-    val ranges = mutableListOf<IntRange>()
+    val ranges = visibleEmails(text).map { it.range }.toMutableList()
     var index = 0
     while (index < text.length) {
         val marker = text[index]

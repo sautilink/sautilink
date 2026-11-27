@@ -57,7 +57,7 @@ class FeedFreshnessTest {
         assertTrue(feedFollowButtonVisible(false, false, true))
         assertTrue(feedFollowButtonVisible(true, true, null))
         assertFalse(feedFollowButtonVisible(true, false, null))
-        assertTrue(feedFollowButtonVisible(null, false, null))
+        assertFalse(feedFollowButtonVisible(null, false, null))
     }
     @Test fun quietPollingHonorsServerCooldownRatherThanRetryingImmediately() {
         assertEquals(30_000L, feedHeadPollDelay(java.io.IOException(), time))
@@ -80,5 +80,10 @@ class FeedFreshnessTest {
         cache.finishPage("production", owner, "for_you", 0, old, oldStamp, { owner }, now = 103L)
         assertEquals(fresh, cache.cached("production", owner, "for_you", 10_000L, now = 104L))
         assertEquals(2L, cache.ageMs("production", owner, "for_you", now = 104L))
+    }
+
+    @Test fun restoredNonFollowsAreUnknownUntilRevalidated() {
+        assertEquals(mapOf("following" to true),restoredFeedFollowing(mapOf("following" to true,"not-following" to false)))
+        assertFalse(feedFollowButtonVisible(restoredFeedFollowing(mapOf("member" to false))["member"],false,null))
     }
 }

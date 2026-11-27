@@ -9,10 +9,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
 
-import com.sautilink.nativeapp.ui.components.SautiIcon as Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -43,14 +40,10 @@ internal fun SautiPostGestureSurface(
     val like by rememberUpdatedState(onLike)
     val tap by rememberUpdatedState(onTap)
     val longPress by rememberUpdatedState(onLongPress)
-    var pulse by remember { mutableIntStateOf(0) }
-    var showFeedback by remember { mutableStateOf(false) }
-    fun requestLike() { like?.let { it(); pulse++; showFeedback = true } }
-    LaunchedEffect(pulse) {
-        if (pulse > 0) { delay(650); showFeedback = false }
-    }
+    val hearts = remember { DoubleTapHearts() }
+    fun requestLike(point: Offset = Offset.Unspecified) { like?.let { it(); hearts.add(point) } }
     Box(modifier.pointerInput(onLongPress != null) {
-        detectTapGestures(onTap = { tap?.invoke() }, onDoubleTap = { requestLike() },
+        detectTapGestures(onTap = { tap?.invoke() }, onDoubleTap = { requestLike(it) },
             onLongPress = if (onLongPress != null) ({ longPress?.invoke() }) else null)
     }.semantics(mergeDescendants = true) {
         if (onTap != null) onClick(tapLabel) { tap?.invoke(); true }
@@ -58,12 +51,7 @@ internal fun SautiPostGestureSurface(
         if (onLike != null) customActions = listOf(CustomAccessibilityAction("Like post") { requestLike(); true })
     }) {
         content()
-        Box(Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
-            AnimatedVisibility(showFeedback,
-                enter = fadeIn(tween(100)) + scaleIn(initialScale = .7f), exit = fadeOut(tween(120))) {
-                SautiPostHeart(true, null, Modifier.size(48.dp))
-            }
-        }
+        DoubleTapHeartOverlay(hearts, Modifier.matchParentSize())
     }
 }
 
@@ -84,16 +72,20 @@ internal fun SautiVideoGestureSurface(
     val tap by rememberUpdatedState(onTap)
     val seek by rememberUpdatedState(onSeek)
     val like by rememberUpdatedState(onLike)
+    val hearts = remember { DoubleTapHearts() }
     var feedback by remember { mutableStateOf<VideoDoubleTapAction?>(null) }
     var showFeedback by remember { mutableStateOf(false) }
     var pulse by remember { mutableIntStateOf(0) }
-    fun perform(action: VideoDoubleTapAction): Boolean {
+    fun perform(action: VideoDoubleTapAction, point: Offset = Offset.Unspecified): Boolean {
         val accepted = when (action) {
             VideoDoubleTapAction.BACKWARD -> seek(-5_000L)
             VideoDoubleTapAction.FORWARD -> seek(5_000L)
             VideoDoubleTapAction.LIKE -> like?.let { it(); true } ?: false
         }
-        if (accepted) { feedback = action; showFeedback = true; pulse++ }
+        if (accepted) {
+            if (action == VideoDoubleTapAction.LIKE) hearts.add(point)
+            else { feedback = action; showFeedback = true; pulse++ }
+        }
         return accepted
     }
     LaunchedEffect(pulse) { if (pulse > 0) { delay(650); showFeedback = false } }
@@ -111,7 +103,7 @@ internal fun SautiVideoGestureSurface(
             },
             onDoubleTap = { position ->
                 val action = videoDoubleTapAction(position.x, size.width)
-                if (firstTapAction == action) perform(action)
+                if (firstTapAction == action) perform(action, position)
                 firstTapAction = null
             })
     }.semantics {
@@ -132,10 +124,9 @@ internal fun SautiVideoGestureSurface(
                 else -> Alignment.Center
             }).padding(horizontal = 30.dp),
             enter = fadeIn(tween(100)) + scaleIn(initialScale = .7f), exit = fadeOut(tween(120))) {
-            if (effect == VideoDoubleTapAction.LIKE) {
-                SautiPostHeart(true, null, Modifier.size(48.dp))
-            } else Text(if (effect == VideoDoubleTapAction.BACKWARD) "−5s" else "+5s",
+            Text(if (effect == VideoDoubleTapAction.BACKWARD) "−5s" else "+5s",
                 color = Color.White, style = MaterialTheme.typography.titleLarge)
         }
+        DoubleTapHeartOverlay(hearts, Modifier.matchParentSize())
     }
 }

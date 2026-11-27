@@ -180,7 +180,7 @@ fun StagingFeedScreen(
     var likeStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(returnInitial.snapshot.liked) }
     var savedStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(returnInitial.snapshot.saved) }
     var repostStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(returnInitial.snapshot.reposted) }
-    var followingStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(returnInitial.snapshot.following) }
+    var followingStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(restoredFeedFollowing(returnInitial.snapshot.following)) }
     var followFeedbackVersion by remember(auth, accountId) { mutableStateOf<Map<String, Int>>(returnInitial.snapshot.followFeedback) }
     // Pending intent is separate from the state confirmed by the server.
     var pendingFollowStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
@@ -835,8 +835,7 @@ fun StagingFeedScreen(
                         onLike = { if (viewerActions != null)
                             viewerActions.toggle(post.id,"like",post.likes,likeStates[post.id]) else changeAction(post,"like") },
                         onDoubleTapLike = { if(viewerActions!=null) {
-                            if(viewerActions.state(post.id,"like")?.desired ?: likeStates[post.id] != true)
-                                viewerActions.toggle(post.id,"like",post.likes,likeStates[post.id])
+                            viewerActions.like(post.id,post.likes,likeStates[post.id])
                         } else changeAction(post,"like",addOnly=true) },
                         onSave = { if(viewerActions!=null) viewerActions.toggle(post.id,"save",0,savedStates[post.id]) else changeAction(post,"save") },
                         onComments = { commentsFor = post },

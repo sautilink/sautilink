@@ -1,5 +1,10 @@
 package com.sautilink.nativeapp.ui.components
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -54,11 +59,16 @@ val LocalSautiTextNavigation = staticCompositionLocalOf<SautiTextNavigation?> { 
 fun SautiPostText(text: String, modifier: Modifier = Modifier,
     color: Color = Color.Unspecified, style: TextStyle = LocalTextStyle.current,
     maxLines: Int = Int.MAX_VALUE, overflow: TextOverflow = TextOverflow.Clip,
-    linkEntities: Boolean = true, expandedMaxHeight: Dp? = null, renderStickers: Boolean = true) {
+    linkEntities: Boolean = true, expandedMaxHeight: Dp? = null, renderStickers: Boolean = true,
+    tapToExpand:Boolean = false, onExpandedChange:((Boolean)->Unit)? = null) {
     if (renderStickers && com.sautilink.nativeapp.feature.stickers.hasStickerTokens(text)) {
+        val expandedParts=remember(text) {mutableStateMapOf<String,Boolean>()}
         com.sautilink.nativeapp.feature.stickers.NativeStickerText(text, modifier) { part ->
             SautiPostText(part, color = color, style = style, maxLines = maxLines,
-                overflow = overflow, linkEntities = linkEntities, expandedMaxHeight = expandedMaxHeight, renderStickers = false)
+                overflow = overflow, linkEntities = linkEntities, expandedMaxHeight = expandedMaxHeight, renderStickers = false,
+                tapToExpand=tapToExpand,onExpandedChange={ expanded ->
+                    expandedParts[part]=expanded;onExpandedChange?.invoke(expandedParts.values.any {it})
+                })
         }
         return
     }
@@ -87,7 +97,8 @@ fun SautiPostText(text: String, modifier: Modifier = Modifier,
         }
     }
     SautiEntityTextContent(formatted, modifier, color, style, maxLines, overflow,
-        linkEntities, linkSocialEntities = true, expandedMaxHeight = expandedMaxHeight)
+        linkEntities, linkSocialEntities = true, expandedMaxHeight = expandedMaxHeight,
+        tapToExpand=tapToExpand,onExpandedChange=onExpandedChange)
 }
 
 /** Bio/comment text stays literal: formatting markers in these fields are never removed. */
@@ -111,18 +122,21 @@ fun SautiEntityText(text: String, modifier: Modifier = Modifier,
 @Composable
 private fun SautiEntityTextContent(formatted: androidx.compose.ui.text.AnnotatedString,
     modifier: Modifier, color: Color, style: TextStyle, maxLines: Int,
-    overflow: TextOverflow, linkEntities: Boolean, linkSocialEntities: Boolean, expandedMaxHeight: Dp? = null) {
+    overflow: TextOverflow, linkEntities: Boolean, linkSocialEntities: Boolean, expandedMaxHeight: Dp? = null,
+    tapToExpand:Boolean=false,onExpandedChange:((Boolean)->Unit)?=null) {
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
     val navigation = LocalSautiTextNavigation.current
     val currentNavigation by rememberUpdatedState(navigation)
     val lightTextOnMedia = color != Color.Unspecified && color.luminance() > .7f
     val darkSurface = MaterialTheme.colorScheme.surface.luminance() < .5f
     val entityColor = if (lightTextOnMedia || darkSurface) SautiColors.EntityOrangeDark
         else SautiColors.EntityOrangeLight
-    val linked = remember(formatted, linkEntities, linkSocialEntities, navigation != null, entityColor) {
+    val linked = remember(formatted, linkEntities, linkSocialEntities, navigation != null, entityColor, uriHandler) {
         buildAnnotatedString {
             append(formatted)
-            if (linkEntities && navigation != null) parseTextEntities(formatted.text).forEach { entity ->
-                if (entity.kind != TextEntityKind.URL && !linkSocialEntities) return@forEach
+            if (linkEntities) parseTextEntities(formatted.text).forEach { entity ->
+                if (entity.kind !in setOf(TextEntityKind.URL, TextEntityKind.EMAIL) && !linkSocialEntities) return@forEach
+                if (entity.kind != TextEntityKind.EMAIL && navigation == null) return@forEach
                 addLink(LinkAnnotation.Clickable(
                     tag = "${entity.kind}:${entity.target}",
                     styles = TextLinkStyles(style = SpanStyle(color = entityColor),
@@ -132,6 +146,7 @@ private fun SautiEntityTextContent(formatted: androidx.compose.ui.text.Annotated
                             TextEntityKind.MENTION -> currentNavigation?.onProfile?.invoke(entity.target)
                             TextEntityKind.HASHTAG -> currentNavigation?.onHashtag?.invoke(entity.target)
                             TextEntityKind.URL -> currentNavigation?.onUrl?.invoke(entity.target)
+                            TextEntityKind.EMAIL -> runCatching { uriHandler.openUri("mailto:${entity.target}") }.let { Unit }
                         }
                     }), entity.start, entity.end)
             }
@@ -140,13 +155,14 @@ private fun SautiEntityTextContent(formatted: androidx.compose.ui.text.Annotated
     if (expandedMaxHeight == null) {
         Text(linked, modifier = modifier, color = color, style = style, maxLines = maxLines, overflow = overflow)
     } else {
-        ExpandablePostText(linked, modifier, color, style, maxLines, expandedMaxHeight)
+        ExpandablePostText(linked, modifier, color, style, maxLines, expandedMaxHeight,tapToExpand,onExpandedChange)
     }
 }
 
 @Composable
 private fun ExpandablePostText(text: AnnotatedString, modifier: Modifier, color: Color,
-    style: TextStyle, lines: Int, expandedMaxHeight: Dp) {
+    style: TextStyle, lines: Int, expandedMaxHeight: Dp,
+    tapToExpand:Boolean,onExpandedChange:((Boolean)->Unit)?) {
     var expanded by rememberSaveable(text.text) { mutableStateOf(false) }
     val measurer = rememberTextMeasurer()
     BoxWithConstraints(modifier) {
@@ -156,7 +172,17 @@ private fun ExpandablePostText(text: AnnotatedString, modifier: Modifier, color:
                 constraints = size)
             layout.hasVisualOverflow || layout.isLineEllipsized(layout.lineCount - 1)
         }
-        if (expanded && overflows) {
+        LaunchedEffect(expanded,overflows,onExpandedChange) {onExpandedChange?.invoke(expanded && overflows)}
+        if(tapToExpand) {
+            val interaction=remember {MutableInteractionSource()}
+            Text(text,Modifier.animateContentSize(tween(200))
+                .clickable(interactionSource=interaction,indication=null,enabled=overflows,
+                    role=Role.Button,onClickLabel=if(expanded) "Collapse caption" else "Expand caption") {expanded=!expanded}
+                .heightIn(max=expandedMaxHeight)
+                .then(if(expanded) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+                color=color,style=style,maxLines=if(expanded) Int.MAX_VALUE else lines,
+                overflow=TextOverflow.Ellipsis)
+        } else if (expanded && overflows) {
             val linked = buildAnnotatedString {
                 append(text)
                 append(" ")

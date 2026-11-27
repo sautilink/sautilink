@@ -443,7 +443,7 @@ private fun ProfileActivityCard(
             }
             if (item.media.isNotEmpty()) PostMediaGallery(auth, item.media, playbackGroup = item.id,
                 originalAudioVolume = item.audio?.originalVolume ?: 1f,
-                onDoubleTapLike = if (!item.isComment && !busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
+                onDoubleTapLike = if (!item.isComment && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
             if (failure != null) Text(failure.orEmpty(), color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(horizontal = 14.dp), style = MaterialTheme.typography.bodySmall)
             if (!item.isComment) SautiPostActionRow(modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp), actions = {

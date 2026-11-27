@@ -54,7 +54,7 @@ class NativeVideoPlaybackControlsTest {
     private fun screenshot(name: String, tag: String = "short-timeline-capture") {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val supplied = InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")
-        val directory = File(supplied ?: (instrumentation.context.externalCacheDir ?: instrumentation.context.cacheDir).absolutePath,
+        val directory = File(supplied ?: instrumentation.targetContext.cacheDir.absolutePath,
             "sautilink-video-controls").apply { mkdirs() }
         File(directory, "$name.png").outputStream().use {
             assertTrue(compose.onNodeWithTag(tag, useUnmergedTree = true)

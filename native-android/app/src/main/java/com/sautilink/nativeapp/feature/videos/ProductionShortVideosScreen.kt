@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
@@ -233,7 +234,6 @@ private fun ProductionShortVideosBody(
     var autoplay by remember { mutableStateOf(preferences.getBoolean("autoplay", true)) }
     var quality by remember { mutableStateOf(preferences.getString("quality", "auto") ?: "auto") }
     var qualityOpen by remember { mutableStateOf(false) }
-    var autoAdvance by remember { mutableStateOf(preferences.getBoolean("auto_advance", true)) }
     var captionsEnabled by remember { mutableStateOf(preferences.getBoolean("captions", false)) }
     var captionsAvailable by remember { mutableStateOf(false) }
     val viewerActivity = remember(context) { generateSequence(context) { (it as? android.content.ContextWrapper)?.baseContext }
@@ -420,6 +420,8 @@ private fun ProductionShortVideosBody(
     val preloading: NativeShortsPreloading? = engine?.preloading
     val player: ExoPlayer? = engine?.player
     val playbackOwner = remember(player) { accountId }
+    val currentVideoView=remember(player) {arrayOfNulls<PlayerView>(1)}
+    val recentFrames=remember(auth,accountId) {mutableStateMapOf<String,android.graphics.Bitmap>()}
     val actualQuality = rememberVideoPlaybackQuality(player)
     val streamQualities = rememberNativeHlsQualities(player)
     NativeHlsQualitySelection(player, hls, NativeVideoQualityPolicy.normalizePreference(quality))
@@ -435,6 +437,19 @@ private fun ProductionShortVideosBody(
     }
     var currentMediaId by remember(player) { mutableStateOf(player?.currentMediaItem?.mediaId) }
     var renderedMediaId by remember(player) { mutableStateOf<String?>(null) }
+    LaunchedEffect(pager.isScrollInProgress,player) {
+        if(pager.isScrollInProgress && player!=null && auth.account?.id==playbackOwner) {
+            val id=player.currentMediaItem?.mediaId
+            if(id!=null && renderedMediaId==id) com.sautilink.nativeapp.feature.home.captureFeedVideoFrame(currentVideoView[0]) { bitmap ->
+                if(bitmap!=null && auth.account?.id==playbackOwner) {
+                    recentFrames.remove(id);recentFrames[id]=bitmap
+                    while(recentFrames.size>3) recentFrames.remove(recentFrames.keys.first())
+                }
+            }
+        }
+    }
+
+
     DisposableEffect(player) {
         if (player == null) onDispose { } else {
             val listener = object : Player.Listener {
@@ -484,16 +499,8 @@ private fun ProductionShortVideosBody(
         player?.let { it.trackSelectionParameters = it.trackSelectionParameters.buildUpon()
             .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_TEXT, !captionsEnabled).build() }
     }
-    val hasNextShort = clips.getOrNull(pager.settledPage + 1) != null
-    LaunchedEffect(player, autoAdvance, hasNextShort) {
-        player?.repeatMode = if (autoAdvance && hasNextShort) Player.REPEAT_MODE_OFF else Player.REPEAT_MODE_ONE
-    }
-    LaunchedEffect(playbackState, autoAdvance, clip?.mediaId, clips.size, wantsPlayback) {
-        if (playbackState == Player.STATE_ENDED && autoAdvance && wantsPlayback &&
-            clips.getOrNull(pager.settledPage + 1) != null && !pager.isScrollInProgress) {
-            pager.animateScrollToPage(pager.settledPage + 1)
-        }
-    }
+    // Shorts loop in place. Only the viewer's swipe changes the pager page.
+    LaunchedEffect(player) { player?.repeatMode = Player.REPEAT_MODE_ONE }
     LaunchedEffect(qualityOpen, offlineOpen, clip?.mediaId, accountId) {
         offlineSaved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             clip?.let { NativeOfflineShorts.contains(context, accountId, it.mediaId) } ?: false
@@ -592,6 +599,9 @@ private fun ProductionShortVideosBody(
             com.sautilink.nativeapp.ui.components.NativeVideoStartupStage.SOURCE_PREPARE)
         val requested = videoPlaybackRequested(wantsPlayback, autoplay, online,
             owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED), currentMedia = true, hasError = false)
+        if(!sameClip && auth.account?.id==playbackOwner) player.currentMediaItem?.mediaId?.let {previous ->
+            viewerSession?.positions?.set(previous,player.currentPosition.coerceAtLeast(0L))
+        }
         val position = if (sameClip) player.currentPosition.coerceAtLeast(0L)
             else viewerSession?.positions?.get(clip.mediaId) ?: entry?.takeIf {it.mediaId==clip.mediaId}?.position ?: 0L
         val attached = streamSource?.takeIf { hls }?.let {
@@ -627,10 +637,10 @@ private fun ProductionShortVideosBody(
                 if (loading) SautiSkeletonBlock(Modifier.fillMaxWidth().height(180.dp))
                 else Text(error ?: "No short videos yet.", color = Color.White)
                 if (!loading) Button(onClick = { reload++ }) { Text("Retry") }
-                TextButton(onClick = { offlineOpen = true }) { Text("Offline videos", color = Color.White) }
+                if (!loading) TextButton(onClick = { offlineOpen = true }) { Text("Offline videos", color = Color.White) }
             }
         } else {
-            VerticalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
+            VerticalPager(state = pager, modifier = Modifier.fillMaxSize().testTag("shorts-pager")) { page ->
                 val item = clips.getOrNull(page)
                 if (item == null) {
                     if (error != null || paginationError != null) ShortVideosRetryPage(online, loading || paginationLoading) {
@@ -639,17 +649,27 @@ private fun ProductionShortVideosBody(
                     return@VerticalPager
                 }
                 Box(Modifier.fillMaxSize().background(Color.Black)) {
+                    var captionExpanded by remember(item.mediaId) {mutableStateOf(false)}
+                    var seeking by remember(item.mediaId) {mutableStateOf(false)}
+                    val chromeAlpha by androidx.compose.animation.core.animateFloatAsState(if(seeking) 0f else 1f,
+                        animationSpec=androidx.compose.animation.core.tween(120),label="Scrubbing controls")
+                    val captionShade by androidx.compose.animation.core.animateFloatAsState(if(captionExpanded && !seeking) .4f else 0f,
+                        animationSpec=androidx.compose.animation.core.tween(180),label="Caption shade")
+
                     if (page == pager.settledPage && player != null && online) {
                         AndroidView(factory = { viewContext -> PlayerView(viewContext).apply {
+                            currentVideoView[0]=this
                             useController = false
                             setBackgroundColor(android.graphics.Color.BLACK)
                             setShutterBackgroundColor(android.graphics.Color.BLACK)
                             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                             this.player = player
-                        } }, update = { it.player = player; it.keepScreenOn = playing },
+                        } }, update = { currentVideoView[0]=it;it.player = player; it.keepScreenOn = playing },
                             onRelease = { it.player = null }, modifier = Modifier.fillMaxSize()
                                 .graphicsLayer { alpha = if (renderedMediaId == item.mediaId) 1f else 0f })
-                        if (renderedMediaId != item.mediaId) ShortVideoCover(auth, item.mediaId, Modifier.fillMaxSize())
+                        if (renderedMediaId != item.mediaId && recentFrames[item.mediaId]==null &&
+                            entry?.takeIf {it.mediaId==item.mediaId}?.poster==null)
+                            ShortVideoCover(auth, item.mediaId, Modifier.fillMaxSize())
                         val downloadVideo = rememberShortVideoDownloadAction(auth, item.mediaId, item.post.id)
                         SautiVideoGestureSurface(Modifier.fillMaxSize(),
                             playbackLabel = if (playbackRequested) "Pause video" else "Play video",
@@ -666,8 +686,8 @@ private fun ProductionShortVideosBody(
                                     player.seekTo(videoSeekTarget(player.currentPosition, delta, player.duration)); true
                                 } else false
                             },
-                            onLike = if (canInteract && "like:${item.post.id}" !in busyActions) ({
-                                if (likeStates[item.post.id] != true) togglePostAction(item.post, "like")
+                            onLike = if (canInteract) ({
+                                reactionController.like(item.post.id, item.post.likes, likeStates[item.post.id])
                             }) else null,
                             onLongPress = downloadVideo) {
                             val showBuffering = (playbackRead.loading || playbackState == Player.STATE_BUFFERING && playbackRequested &&
@@ -696,19 +716,18 @@ private fun ProductionShortVideosBody(
                         Text("Offline. Reconnect to play this video.", color = Color.White,
                             modifier = Modifier.align(Alignment.Center).padding(24.dp))
                     }
-                    val launchPoster=entry?.takeIf {it.mediaId==item.mediaId}?.poster
+                    val launchPoster=recentFrames[item.mediaId] ?: entry?.takeIf {it.mediaId==item.mediaId}?.poster
                     val posterAlpha by androidx.compose.animation.core.animateFloatAsState(
                         if(renderedMediaId==item.mediaId) 0f else 1f,
                         animationSpec=androidx.compose.animation.core.tween(110),label="Video handoff")
-                    if(launchPoster==null && renderedMediaId!=item.mediaId) com.sautilink.nativeapp.feature.home.AuthorizedImage(
-                        auth,"/api/sauti-media/${item.mediaId}?poster=1","Video cover",modifier=Modifier.fillMaxSize(),crop=false,showFailureFallback=false)
                     if(launchPoster!=null && posterAlpha>0f) androidx.compose.foundation.Image(
                         launchPoster.asImageBitmap(),null,modifier=Modifier.fillMaxSize().graphicsLayer {alpha=posterAlpha},
                         contentScale=androidx.compose.ui.layout.ContentScale.Fit)
-                    Box(Modifier.fillMaxWidth().height(290.dp).align(Alignment.BottomCenter)
+                    if(captionShade>0f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha=captionShade)))
+                    Box(Modifier.fillMaxWidth().height(290.dp).align(Alignment.BottomCenter).graphicsLayer {alpha=chromeAlpha}
                         .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .82f)))))
                     Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 15.dp)
-                        .padding(bottom = 76.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        .graphicsLayer {alpha=chromeAlpha}.padding(bottom = 76.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         ShortsAuthorIdentityRow(auth, item.post, authorMetadata.ranks[item.post.id],
                             authorMetadata.followFor(item.post.authorId),
                             enabled = canInteract && page == pager.settledPage && lifecycleState.isAtLeast(Lifecycle.State.STARTED),
@@ -721,7 +740,8 @@ private fun ProductionShortVideosBody(
                             } })
                         if (item.post.body.isNotBlank()) com.sautilink.nativeapp.ui.components.SautiPostText(item.post.body,
                             color = Color.White, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp),
-                            maxLines = if (compactRail) 1 else 2, overflow = TextOverflow.Ellipsis, expandedMaxHeight = 160.dp)
+                            maxLines = if (compactRail) 1 else 2, overflow = TextOverflow.Ellipsis, expandedMaxHeight = 160.dp,
+                            tapToExpand=true,onExpandedChange={captionExpanded=it})
                         val likeReaction=reactionController.state(item.post.id,"like")
                         val saveReaction=reactionController.state(item.post.id,"save")
                         val repostReaction=reactionController.state(item.post.id,"repost")
@@ -749,7 +769,7 @@ private fun ProductionShortVideosBody(
                                 viewerActivity?.requestedOrientation = if (fullscreen)
                                     android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                                 else originalOrientation ?: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                            }, modifier = Modifier.align(Alignment.BottomCenter), fullscreen = fullscreen)
+                            }, modifier = Modifier.align(Alignment.BottomCenter), fullscreen = fullscreen,onSeekingChanged={seeking=it})
                     }
                 }
             }
@@ -785,11 +805,10 @@ private fun ProductionShortVideosBody(
     if (qualityOpen) ShortsOptionsSheet(speed = playbackSpeed, preference = preference, currentQuality = actualQuality,
         qualities = if (hls) streamQualities.ifEmpty { streamSource?.qualities.orEmpty() }
             else NativeVideoQualityPolicy.availableQualities(metadata),
-        captions = captionsEnabled, captionsAvailable = captionsAvailable, autoAdvance = autoAdvance, offline = offlineSaved,
+        captions = captionsEnabled, captionsAvailable = captionsAvailable, offline = offlineSaved,
         onSpeed = { playbackSpeed = it; preferences.edit().putFloat("playback_speed", it).apply() },
         onQuality = { quality = it; preferences.edit().putString("quality", it).apply() },
         onCaptions = { captionsEnabled = it; preferences.edit().putBoolean("captions", it).apply() },
-        onAutoAdvance = { autoAdvance = it; preferences.edit().putBoolean("auto_advance", it).apply() },
         onPost = { clip?.post?.id?.let { qualityOpen = false; onOpenPost(it) } },
         onDownload = { qualityOpen = false; downloadAction?.invoke() },
         onOffline = {

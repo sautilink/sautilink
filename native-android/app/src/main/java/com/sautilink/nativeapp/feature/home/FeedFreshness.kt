@@ -61,7 +61,7 @@ internal data class FeedReadScope(val accountId: String?, val mode: String, val 
  * followed authors have no feed button; relationship removal lives on profiles.
  */
 internal fun feedFollowButtonVisible(following: Boolean?, confirmedSinceRefresh: Boolean, pending: Boolean?): Boolean =
-    following != true || confirmedSinceRefresh || pending == true
+    following == false || confirmedSinceRefresh || pending == true
 
 /** Honor server cooldowns without foreground retry storms. Pointer failures stay
  * quiet; explicit refresh and account/lifecycle changes own their own requests.
@@ -75,3 +75,7 @@ internal fun feedHeadPollDelay(error: Throwable, now: Instant = Instant.now()): 
     }.getOrNull() ?: 30_000L
     return wait.coerceIn(30_000L, 900_000L)
 }
+
+/** Cached non-following states can be stale after a profile/Shorts follow. Revalidate
+ * them before offering Follow; known follows remain hidden without flashing. */
+internal fun restoredFeedFollowing(states:Map<String,Boolean>):Map<String,Boolean> = states.filterValues {it}

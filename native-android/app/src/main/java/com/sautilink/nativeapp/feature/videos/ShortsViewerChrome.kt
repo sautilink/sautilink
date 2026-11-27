@@ -108,9 +108,9 @@ internal fun ShortsCircleButton(icon: ImageVector, label: String, onClick: () ->
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ShortsOptionsSheet(speed: Float, preference: String, currentQuality: String?,
-    qualities: List<Int>, captions: Boolean, captionsAvailable: Boolean, autoAdvance: Boolean,
+    qualities: List<Int>, captions: Boolean, captionsAvailable: Boolean,
     offline: Boolean, onSpeed: (Float) -> Unit, onQuality: (String) -> Unit,
-    onCaptions: (Boolean) -> Unit, onAutoAdvance: (Boolean) -> Unit,
+    onCaptions: (Boolean) -> Unit,
     onPost: () -> Unit, onDownload: () -> Unit, onOffline: () -> Unit,
     onNotInterested: () -> Unit, onReport: () -> Unit, onDismiss: () -> Unit) {
     var qualityPage by remember { mutableStateOf(false) }
@@ -154,10 +154,6 @@ internal fun ShortsOptionsSheet(speed: Float, preference: String, currentQuality
                     if (!captionsAvailable) "Not available for this video" else null,
                     trailing = { Switch(captions && captionsAvailable, onCheckedChange = if (captionsAvailable) onCaptions else null,
                         enabled = captionsAvailable, colors = SwitchDefaults.colors(checkedTrackColor = SautiColors.Blue)) })
-                ShortsOptionRow(Icons.Rounded.PlayCircleOutline, "Auto-advance", trailing = {
-                    Switch(autoAdvance, onCheckedChange = onAutoAdvance,
-                        colors = SwitchDefaults.colors(checkedTrackColor = SautiColors.Blue))
-                })
                 ShortsOptionRow(Icons.Rounded.ViewSidebar, "Go to Post", onClick = onPost)
                 ShortsOptionRow(Icons.Rounded.DownloadForOffline, "Download video", onClick = onDownload)
                 ShortsOptionRow(if (offline) Icons.Rounded.OfflinePin else Icons.Rounded.Add,
@@ -190,32 +186,79 @@ private fun ShortsOptionRow(icon: ImageVector, title: String, value: String? = n
 @Composable
 internal fun ShortsBottomPlayback(player: Player, paused: Boolean, speed: Float, muted: Boolean,
     onPlay: () -> Unit, onSpeed: () -> Unit, onMute: () -> Unit, onFullscreen: () -> Unit,
-    modifier: Modifier = Modifier, fullscreen: Boolean = false) {
-    var position by remember(player) { mutableLongStateOf(0L) }
-    var duration by remember(player) { mutableLongStateOf(0L) }
-    var draft by remember(player) { mutableStateOf<Long?>(null) }
+    modifier: Modifier = Modifier, fullscreen: Boolean = false,onSeekingChanged:(Boolean)->Unit = {}) {
+    var position by remember(player) {mutableLongStateOf(0L)}
+    var duration by remember(player) {mutableLongStateOf(0L)}
+    var draft by remember(player) {mutableStateOf<Long?>(null)}
+    var pressed by remember(player) {mutableStateOf(false)}
+    var dragging by remember(player) {mutableStateOf(false)}
+    var resumeAfterSeek by remember(player) {mutableStateOf(false)}
+    var scrubOrigin by remember(player) {mutableLongStateOf(0L)}
+    var scrubMedia by remember(player) {mutableStateOf<String?>(null)}
+    var scrubCommitted by remember(player) {mutableStateOf(false)}
+    val seeking=pressed || dragging
+    val seekingChanged by rememberUpdatedState(onSeekingChanged)
+    val latestDraft=rememberUpdatedState(draft)
+    val latestScrubMedia=rememberUpdatedState(scrubMedia)
+    val latestDuration=rememberUpdatedState(duration)
+    LaunchedEffect(player,seeking) {
+        seekingChanged(seeking)
+        if(seeking) {resumeAfterSeek=player.playWhenReady;player.pause()}
+        else if(resumeAfterSeek) {resumeAfterSeek=false;player.play()}
+    }
+    LaunchedEffect(player,dragging) {
+        if(dragging) {
+            var applied:Long?=null
+            while(true) {
+                val target=latestDraft.value
+                if(target!=null && target!=applied && player.currentMediaItem?.mediaId==latestScrubMedia.value) {
+                    val bounded=target.coerceIn(0,(latestDuration.value-1).coerceAtLeast(0))
+                    if(com.sautilink.nativeapp.BuildConfig.DEBUG) NativeShortsSession.seekObserver?.invoke(bounded)
+                    player.seekTo(bounded);applied=target
+                }
+                delay(100)
+            }
+        }
+    }
     LaunchedEffect(player) {
-        while (true) {
-            duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: 0
-            position = player.currentPosition.coerceIn(0, duration)
+        while(true) {
+            duration=player.duration.takeIf {it!=C.TIME_UNSET && it>0} ?: 0
+            position=player.currentPosition.coerceIn(0,duration)
             delay(250)
         }
     }
-    Column(modifier.fillMaxWidth().background(Color.Black).testTag("shorts-bottom-playback")) {
-        ThinVideoSeekBar(draft ?: position, duration, player.isCurrentMediaItemSeekable && duration > 0,
-            modifier = Modifier.fillMaxWidth().height(16.dp), trackTop = 5.dp, thickness = 2.dp,
-            showThumb = false, trackTag = "short-video-seek-track", onPreview = { draft = it },
-            onSeek = { player.seekTo(it.coerceIn(0, (duration - 1).coerceAtLeast(0))); draft = null })
-        Row(Modifier.fillMaxWidth().height(46.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onPlay) { SautiIcon(if (paused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
-                if (paused) "Play video" else "Pause video", tint = Color.White) }
-            Text("-${videoTimeLabel((duration - (draft ?: position)).coerceAtLeast(0))}",
-                color = Color.White.copy(alpha = .7f), fontSize = 13.sp, modifier = Modifier.weight(1f))
-            TextButton(onSpeed) { Text(shortsSpeedLabel(speed), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
-            IconButton(onMute) { SautiIcon(if (muted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
-                if (muted) "Unmute" else "Mute", tint = Color.White) }
-            IconButton(onFullscreen) { SautiIcon(if (fullscreen) Icons.Rounded.FullscreenExit else Icons.Rounded.Fullscreen,
-                if (fullscreen) "Exit fullscreen" else "Fullscreen", tint = Color.White) }
+    Box(modifier.fillMaxWidth().testTag("shorts-bottom-playback")) {
+        if(seeking) Text("${videoTimeLabel(draft ?: position)} / ${videoTimeLabel(duration)}",
+            color=Color.White,fontSize=14.sp,fontWeight=FontWeight.Medium,
+            modifier=Modifier.align(Alignment.TopCenter).offset(y=(-84).dp)
+                .background(Color.Black.copy(alpha=.25f),CircleShape).padding(horizontal=10.dp,vertical=5.dp))
+        Column(Modifier.fillMaxWidth().background(Color.Black)) {
+            ThinVideoSeekBar(draft ?: position,duration,player.isCurrentMediaItemSeekable && duration>0,
+                modifier=Modifier.fillMaxWidth().height(24.dp),trackTop=9.dp,thickness=2.dp,pressedThickness=6.dp,
+                showThumb=false,trackTag="short-video-seek-track",onPressedChanged={down ->
+                    if(down) {scrubOrigin=player.currentPosition;scrubMedia=player.currentMediaItem?.mediaId;scrubCommitted=false}
+                    pressed=down
+                },onScrubbingChanged={active ->
+                    if(!active && !scrubCommitted && player.currentMediaItem?.mediaId==scrubMedia) {
+                        player.seekTo(scrubOrigin);position=scrubOrigin
+                    }
+                    dragging=active
+                },onPreview={draft=it},onSeek={target->
+                    scrubCommitted=true
+                    val bounded=target.coerceIn(0,(duration-1).coerceAtLeast(0))
+                    player.seekTo(bounded);position=bounded;draft=null
+                })
+            Row(Modifier.fillMaxWidth().height(46.dp).padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically) {
+                IconButton(onPlay) {SautiIcon(if(paused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                    if(paused) "Play video" else "Pause video",tint=Color.White)}
+                Text("-${videoTimeLabel((duration-(draft ?: position)).coerceAtLeast(0))}",
+                    color=Color.White.copy(alpha=.7f),fontSize=13.sp,modifier=Modifier.weight(1f))
+                TextButton(onSpeed) {Text(shortsSpeedLabel(speed),color=Color.White,fontSize=16.sp,fontWeight=FontWeight.SemiBold)}
+                IconButton(onMute) {SautiIcon(if(muted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
+                    if(muted) "Unmute" else "Mute",tint=Color.White)}
+                IconButton(onFullscreen) {SautiIcon(if(fullscreen) Icons.Rounded.FullscreenExit else Icons.Rounded.Fullscreen,
+                    if(fullscreen) "Exit fullscreen" else "Fullscreen",tint=Color.White)}
+            }
         }
     }
 }

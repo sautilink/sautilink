@@ -37,6 +37,9 @@ internal class ShortsReactionController(private val scope:CoroutineScope, privat
         if(old?.pending==true || old?.revision!=revision && !(revision==null && old?.revision==0L)) return
         states[key]=ShortsReaction(value,value,if ((old?.revision ?: 0)>0) old!!.count else count.coerceAtLeast(0),revision=old?.revision ?: 0)
     }
+    /** Double taps are always additive, even while the first write is still in flight. */
+    fun like(post:String,count:Int,known:Boolean?) = request(post,"like",true,count,known)
+
     fun toggle(post:String,kind:String,count:Int,known:Boolean?) {
         if(!current() || kind !in setOf("like","save","repost")) return
         seed(post,kind,known,count)

@@ -183,7 +183,7 @@ fun NativePostDetailScreen(
                     }
                     if (item.body.isNotBlank()) item {
                         com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(Modifier.fillMaxWidth(),
-                            onLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null) {
+                            onLike = if (auth.account != null) ({ changeLike(likeOnly = true) }) else null) {
                             com.sautilink.nativeapp.ui.components.SautiPostText(item.body,
                                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 21.sp))
                         }
@@ -193,7 +193,7 @@ fun NativePostDetailScreen(
                         CompositionLocalProvider(playbackBlocked provides (playbackBlocked.current || commentsMode)) {
                             PostMediaGallery(auth, item.media, suppressOriginalAudio = false,
                                 originalAudioVolume = item.audio?.originalVolume ?: 1f, playbackGroup = item.id,
-                                onDoubleTapLike = if (!busy && auth.account != null) ({ changeLike(likeOnly = true) }) else null)
+                                onDoubleTapLike = if (auth.account != null) ({ changeLike(likeOnly = true) }) else null)
                         }
                     }
                     item {

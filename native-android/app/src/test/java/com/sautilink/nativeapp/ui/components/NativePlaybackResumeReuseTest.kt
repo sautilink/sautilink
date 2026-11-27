@@ -178,4 +178,16 @@ class NativePlaybackResumeReuseTest {
         assertTrue(nativePlaybackNeedsRetry(read().apply { source = source!!.copy(hls = false) },
             now, playerFailed = true))
     }
+
+    @Test fun recentlyViewedPublishedMp4ReusesOnlyItsOwnHealthyDescriptor() = runBlocking {
+        val mp4=read().apply {
+            source=NativeVideoSource(id,"$origin/api/sauti-media/$id",false)
+            resolvedAtMillis=now-10_000
+        }
+        assertTrue(resume(mp4))
+        assertFalse(resume(mp4,time=now+120_000))
+        assertFalse(resume(mp4,account="different-owner"))
+        assertFalse(resume(mp4,credential="rotated-credential"))
+        assertFalse(resume(mp4.apply {failure=true}))
+    }
 }

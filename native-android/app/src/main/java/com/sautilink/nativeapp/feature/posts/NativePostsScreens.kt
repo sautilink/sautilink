@@ -23,24 +23,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.sautilink.nativeapp.ui.theme.SautiHeaderFont
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sautilink.nativeapp.feature.auth.StagingAuthClient
 import com.sautilink.nativeapp.ui.components.SautiPostText
-import com.sautilink.nativeapp.ui.text.PostTextFormat
-import com.sautilink.nativeapp.ui.text.insertPostFormatting
 import com.sautilink.nativeapp.ui.theme.SautiShape
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
@@ -81,9 +74,7 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
     }
     // Keep active IME text/selection local; the parent String mirror seeds a reopened composer.
     var editor by remember { mutableStateOf(TextFieldValue(draft, TextRange(draft.length))) }
-    var previewOpen by remember { mutableStateOf(false) }
     val editorFocus = remember { FocusRequester() }
-    val keyboard = LocalSoftwareKeyboardController.current
     val inFlight = busy || mediaItems.any { it.status in setOf("Preparing", "Uploading", "Exporting") }
     SideEffect { onUploadActivity(inFlight) }
     LaunchedEffect(auth.account?.id) {
@@ -171,17 +162,11 @@ fun NativePostComposer(auth: StagingAuthClient, draft: String, onDraftChange: (S
                     hasVideo = mediaItems.any { it.video || it.ready?.kind == "video" }, enabled = !busy,
                     onChange = { music.selection = it })
             }
-            PostComposerTextEditor(editor, draft.length, previewOpen, !busy, editorFocus,
+            PostComposerTextEditor(editor, draft.length, !busy, editorFocus,
                 onValueChange = { value ->
                     editor = value.copy(text = value.text.take(2001))
                     onDraftChange(editor.text)
-                }, onFormat = { format ->
-                    applyComposerFormatting(format, editor, { value ->
-                        editor = value
-                        onDraftChange(value.text)
-                        previewOpen = true
-                    }, editorFocus, keyboard)
-                }, onPreviewToggle = { previewOpen = !previewOpen })
+                })
             OutlinedButton(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
                 shape = SautiShape.Pill, enabled = !busy && mediaItems.size < NativePostMediaPolicy.MAX_ATTACHMENTS) {
                 Icon(Icons.Rounded.PhotoLibrary, null, Modifier.size(20.dp))
@@ -286,53 +271,16 @@ private fun ComposerSectionTitle(label: String, icon: androidx.compose.ui.graphi
     }
 }
 
-private fun applyComposerFormatting(format: PostTextFormat, editor: TextFieldValue,
-    onFormatted: (TextFieldValue) -> Unit, focus: FocusRequester, keyboard: SoftwareKeyboardController?) {
-    val result = insertPostFormatting(editor.text, editor.selection.start, editor.selection.end, format) ?: return
-    onFormatted(TextFieldValue(result.text, TextRange(result.selectionStart, result.selectionEnd)))
-    focus.requestFocus()
-    keyboard?.show()
-}
-
-/** Stateless editor controls keep formatting analysis separate from the media/upload composer. */
+/** Plain caption authoring; historical post formatting remains supported by SautiPostText. */
 @Composable
-private fun PostComposerTextEditor(editor: TextFieldValue, draftLength: Int,
-    previewOpen: Boolean, enabled: Boolean, focus: FocusRequester,
-    onValueChange: (TextFieldValue) -> Unit, onFormat: (PostTextFormat) -> Unit,
-    onPreviewToggle: () -> Unit) {
+internal fun PostComposerTextEditor(editor: TextFieldValue, draftLength: Int,
+    enabled: Boolean, focus: FocusRequester, onValueChange: (TextFieldValue) -> Unit) {
     OutlinedTextField(stickerCaption(editor), { onValueChange(editStickerCaption(editor.text, it, 2000)) }, label = { Text("What's happening?") },
         supportingText = { Text("$draftLength/2000") }, minLines = 4,
         shape = SautiShape.Card,
         textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp, lineHeight = 22.sp),
         modifier = Modifier.fillMaxWidth().focusRequester(focus), enabled = enabled)
     NativeStickerDraftPreview(editor.text, enabled) { onValueChange(TextFieldValue(it, androidx.compose.ui.text.TextRange(stickerCaption(editor).selection.end.coerceAtMost(it.length)))) }
-    ComposerSectionTitle("Text style", Icons.Rounded.TextFields)
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        PostTextFormat.entries.forEach { format ->
-            val insertion = insertPostFormatting(editor.text, editor.selection.start, editor.selection.end, format)
-            IconButton(onClick = { onFormat(format) }, enabled = enabled && insertion != null,
-                modifier = Modifier.semantics { contentDescription = "${format.label} selected text" }) {
-                Text(format.glyph, style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = if (format == PostTextFormat.BOLD) FontWeight.Bold else null,
-                    fontStyle = if (format == PostTextFormat.ITALIC) FontStyle.Italic else null,
-                    textDecoration = when (format) {
-                        PostTextFormat.UNDERLINE -> TextDecoration.Underline
-                        PostTextFormat.STRIKETHROUGH -> TextDecoration.LineThrough
-                        else -> null
-                    }))
-            }
-        }
-        TextButton(onClick = onPreviewToggle, enabled = enabled,
-            modifier = Modifier.weight(1f).semantics {
-                stateDescription = if (previewOpen) "Expanded" else "Collapsed"
-            }) { Text("Preview") }
-    }
-    if (previewOpen) Surface(shape = SautiShape.Card, color = MaterialTheme.colorScheme.surfaceContainer) {
-        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("Post preview", style = MaterialTheme.typography.labelSmall)
-            SautiPostText(editor.text.ifBlank { "Your post will appear here." }, style = MaterialTheme.typography.bodyLarge, linkEntities = false)
-        }
-    }
 }
 
 @Composable

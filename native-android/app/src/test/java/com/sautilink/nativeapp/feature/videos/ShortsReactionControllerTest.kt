@@ -24,6 +24,20 @@ class ShortsReactionControllerTest {
         assertEquals(false,actions.state("post","like")?.pending)
         assertEquals(9,actions.state("post","like")?.visibleCount)
     }
+    @Test fun repeatedDoubleTapLikesNeverQueueAnUnlikeOrDuplicateCount() = runBlocking {
+        val gate=CompletableDeferred<Unit>();val writes=mutableListOf<Boolean>()
+        val actions=ShortsReactionController(this,{true},{_,_->false},{_,_,active->writes+=active;gate.await()})
+        actions.like("post",9,false);yield()
+        repeat(8) {actions.like("post",9,false)}
+        assertEquals(true,actions.state("post","like")?.desired)
+        assertEquals(10,actions.state("post","like")?.visibleCount)
+        gate.complete(Unit);yield()
+        assertEquals(listOf(true),writes)
+        assertEquals(10,actions.state("post","like")?.visibleCount)
+        actions.like("post",9,false);yield()
+        assertEquals(listOf(true),writes)
+        assertEquals(true,actions.state("post","like")?.confirmed)
+    }
     @Test fun failedWriteRollsBackAndExplicitRetryReadsBeforeWriting() = runBlocking {
         var writes=0;var reads=0
         val actions=ShortsReactionController(this,{true},{_,_->reads++;true},{_,_,_->writes++;throw IOException()})

@@ -1,5 +1,7 @@
 package com.sautilink.nativeapp.ui.components
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -37,6 +39,7 @@ internal fun ThinVideoSeekBar(positionMs: Long, durationMs: Long, enabled: Boole
     thumbDiameter: Dp = 8.dp, showThumb: Boolean = true,
     trackTag: String = "video-seek-track", onInteraction: () -> Unit = {},
     onScrubbingChanged: (Boolean) -> Unit = {}, onPreview: (Long?) -> Unit = {},
+    pressedThickness:Dp=thickness,onPressedChanged:(Boolean)->Unit = {},
     onSeek: (Long) -> Unit) {
     val canSeek = enabled && durationMs > 0
     val value = positionMs.coerceIn(0, durationMs.coerceAtLeast(0))
@@ -46,6 +49,10 @@ internal fun ThinVideoSeekBar(positionMs: Long, durationMs: Long, enabled: Boole
     val scrubbing by rememberUpdatedState(onScrubbingChanged)
     val seek by rememberUpdatedState(onSeek)
     var dragTarget by remember { mutableStateOf<Long?>(null) }
+    var pressed by remember {mutableStateOf(false)}
+    val pressedChanged by rememberUpdatedState(onPressedChanged)
+    val visualThickness by animateDpAsState(if(pressed || dragTarget!=null) pressedThickness else thickness,
+        animationSpec=tween(100),label="Timeline press")
     fun bounded(target: Long) = target.coerceIn(0, (durationMs - 1).coerceAtLeast(0))
     Box(modifier.fillMaxWidth().height(44.dp)
         .semantics {
@@ -69,7 +76,10 @@ internal fun ThinVideoSeekBar(positionMs: Long, durationMs: Long, enabled: Boole
             val edge = 5.dp.toPx()
             fun target(x: Float): Long = (((x - edge) / (size.width - edge * 2).coerceAtLeast(1f))
                 .coerceIn(0f, 1f) * durationMs).toLong()
-            detectTapGestures(onPress = { interaction(); tryAwaitRelease() }, onTap = { point ->
+            detectTapGestures(onPress = {
+                if(canSeek) {interaction();pressed=true;pressedChanged(true)}
+                try {tryAwaitRelease()} finally {pressed=false;pressedChanged(false)}
+            }, onTap = { point ->
                 if (canSeek) seek(bounded(target(point.x)))
             })
         }
@@ -86,7 +96,7 @@ internal fun ThinVideoSeekBar(positionMs: Long, durationMs: Long, enabled: Boole
                 if (canSeek) { change.consume(); dragTarget = target(change.position.x); preview(dragTarget) }
             }
         }) {
-        Canvas(Modifier.fillMaxWidth().offset(y = trackTop).height(thickness).testTag(trackTag)) {
+        Canvas(Modifier.fillMaxWidth().offset(y = trackTop+(thickness-visualThickness)/2).height(visualThickness).testTag(trackTag)) {
             val edge = 5.dp.toPx()
             val width = (size.width - edge * 2).coerceAtLeast(0f)
             val y = size.height / 2f

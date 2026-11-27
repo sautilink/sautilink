@@ -307,6 +307,7 @@ internal class NativePlaybackRead {
     internal var bearer by mutableStateOf<String?>(null)
     internal var ownerId: String? = null
     internal var sourceAttempt: Int = -1
+    internal var resolvedAtMillis: Long = 0
     var source by mutableStateOf<NativeVideoSource?>(null)
         internal set
     var loading by mutableStateOf(false)
@@ -337,8 +338,18 @@ internal fun nativePlaybackReusableDelay(read: NativePlaybackRead, owner: String
     origin: String, metadataPath: String, now: Long): Long? {
     val source = read.source ?: return null
     val token = read.bearer ?: return null
-    if (read.ownerId != owner || source.mediaId != mediaId || !source.hls || read.denied ||
-        !trustedPlaybackMetadataPath(metadataPath) || !authenticatedHlsUrl(origin, source.url) ||
+    if (read.ownerId != owner || source.mediaId != mediaId || read.denied ||
+        !trustedPlaybackMetadataPath(metadataPath)) return null
+    if(!source.hls) {
+        // Same open feed viewer only: original bytes still pass their authenticated
+        // endpoint. Preserve a short healthy descriptor across next/back swipes.
+        if(!metadataPath.startsWith("/api/sauti-media/") || read.resolvedAtMillis<=0 ||
+            source.url!=origin+metadataPath.removeSuffix("/playback") || !authenticatedVideoUrl(origin,source.url)) return null
+        val expiry=read.resolvedAtMillis+120_000L
+        if(now<read.resolvedAtMillis || expiry<=now+5_000L) return null
+        return nativePlaybackRefreshDelay(expiry,token,now).takeIf {it>5_000L}
+    }
+    if (!authenticatedHlsUrl(origin, source.url) ||
         !URI(source.url).rawPath.startsWith(metadataPath.removeSuffix("/playback") + "/hls/")) return null
     val expiry = source.expiresAtMillis ?: return null
     if (expiry <= now + 45_000L) return null
@@ -442,6 +453,7 @@ internal fun rememberNativePlaybackSource(auth: StagingAuthClient, mediaId: Stri
                 state.bearer = token
                 state.source = source
                 state.sourceAttempt = requestAttempt
+                state.resolvedAtMillis = System.currentTimeMillis()
                 state.loading = false
                 state.failure = false
                 NativeVideoStartupProbe.mark(mediaId, NativeVideoStartupStage.DESCRIPTOR_READY)
