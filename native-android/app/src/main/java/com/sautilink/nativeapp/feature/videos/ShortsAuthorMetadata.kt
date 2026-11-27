@@ -33,6 +33,9 @@ internal class ShortsAuthorMetadata(
         private set
 
     fun followFor(authorId: String): ShortsFollowUiState = follows[authorId] ?: ShortsFollowUiState()
+    fun seedFollows(initial:Map<String,Boolean>) {
+        if(active()) initial.forEach { (id,value) -> if(id !in follows) follows[id]=ShortsFollowUiState().receiveRead(0,value) }
+    }
     private fun active(): Boolean = stillCurrent() && auth.account?.id == ownerId
 
     suspend fun readFollow(authorId: String) = readFollows(listOf(authorId), retry = true)
@@ -104,7 +107,7 @@ internal class ShortsAuthorMetadata(
 internal fun rememberShortsAuthorMetadata(auth: StagingAuthClient, actions: PostInteractionsClient,
     refreshGeneration: Int, player: ExoPlayer?, foreground: Boolean, online: Boolean,
     currentPost: StagingFeedPost?, currentFrameReady: Boolean, wantsPlayback: Boolean,
-    nearbyPosts: List<StagingFeedPost> = listOfNotNull(currentPost)): ShortsAuthorMetadata {
+    nearbyPosts: List<StagingFeedPost> = listOfNotNull(currentPost), initialFollows:Map<String,Boolean> = emptyMap()): ShortsAuthorMetadata {
     val ownerId = auth.account?.id
     val requestScope = remember(auth, ownerId, refreshGeneration) {
         ownerId?.let { ShortsAuthorReadScope(it, refreshGeneration) }
@@ -113,7 +116,7 @@ internal fun rememberShortsAuthorMetadata(auth: StagingAuthClient, actions: Post
     val state = remember(auth, ownerId, refreshGeneration) {
         ShortsAuthorMetadata(auth, actions, ownerId.orEmpty()) {
             requestScope != null && latestScope.value == requestScope
-        }
+        }.apply {seedFollows(initialFollows)}
     }
     val readScope = rememberCoroutineScope()
     val authorIds = nearbyPosts.map { it.authorId }.distinct().take(6)

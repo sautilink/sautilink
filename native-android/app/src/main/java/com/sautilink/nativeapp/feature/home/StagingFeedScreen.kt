@@ -1,5 +1,9 @@
 package com.sautilink.nativeapp.feature.home
 
+import com.sautilink.nativeapp.feature.videos.LocalNativeShortsSession
+import com.sautilink.nativeapp.feature.videos.LocalShortsFeedContext
+import com.sautilink.nativeapp.feature.videos.ShortsFeedContext
+
 import com.sautilink.nativeapp.feature.music.postAudioVisibility
 import com.sautilink.nativeapp.ui.components.SautiActionOutlineWidth
 import com.sautilink.nativeapp.ui.components.SautiActionButtonShape
@@ -182,6 +186,9 @@ fun StagingFeedScreen(
     var pendingFollowStates by remember(auth, accountId) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     // Keep confirmed artwork across refresh/offline; a late GET cannot undo a confirmed tap.
     val actionStateVersions = remember(auth, accountId) { FeedActionVersions() }
+    val viewerActions = LocalNativeShortsSession.current?.actions
+
+
     var actionReadKey by remember(auth, accountId) { mutableStateOf<Triple<String, Int, Int>?>(
         if (returnInitial.restored && (client.cacheAgeMs(mode) ?: Long.MAX_VALUE) < 45_000L) Triple(mode, 0, 0) else null) }
     var followReadError by remember(auth, accountId) { mutableStateOf<String?>(null) }
@@ -197,6 +204,10 @@ fun StagingFeedScreen(
     var repostCountSyncVersion by remember(auth, accountId) { mutableIntStateOf(0) }
     var actionError by remember(auth, accountId) { mutableStateOf<String?>(null) }
     var actionErrorPostId by remember(auth, accountId) { mutableStateOf<String?>(null) }
+    LaunchedEffect(viewerActions?.error) {
+        viewerActions?.error?.let { actionError=it;actionErrorPostId=null;viewerActions.error=null }
+    }
+
     var actionRetryVersion by remember(auth, accountId) { mutableIntStateOf(0) }
     var busyKeys by remember(auth, accountId) { mutableStateOf<Set<String>>(emptySet()) }
     var commentsFor by remember(auth, accountId) { mutableStateOf<StagingFeedPost?>(null) }
@@ -216,12 +227,19 @@ fun StagingFeedScreen(
         }
     }
 
+    val displayedPosts = if(mode=="saved") posts.filterNot {
+        viewerActions?.state(it.id,"save")?.let {state ->state.confirmed==false && !state.pending}==true
+    } else posts
     val shownPostIds = remember(posts) { posts.map { it.id } }
     // Each request has a deadline and its own result/error. No mutation happens here.
     LaunchedEffect(auth, accountId, shownPostIds, actionRetryVersion, canInteract, refreshVersion, mode) {
         if (!canInteract || shownPostIds.isEmpty()) return@LaunchedEffect
         val expectedId = accountId
         val readVersions = actionStateVersions.snapshot()
+        val viewerReadVersions = listOf("like","save","repost").associateWith { kind ->
+            shownPostIds.associateWith {viewerActions?.state(it,kind)?.revision}
+        }
+
         val key = Triple(mode, refreshVersion, actionRetryVersion)
         val force = actionReadKey != key
         actionReadKey = key
@@ -234,6 +252,10 @@ fun StagingFeedScreen(
                     val loaded = withTimeout(18_000L) { actions.getLikeStates(missingLikes) }
                     if (auth.account?.id == expectedId) {
                         likeStates = actionStateVersions.reconcile("like", likeStates, loaded, readVersions)
+                        loaded.forEach { (id,active) ->
+                            val post=posts.firstOrNull {it.id==id}
+                            viewerActions?.acceptRead(id,"like",active,post?.likes ?: 0,viewerReadVersions["like"]?.get(id))
+                        }
                         likeReadError = null
                     }
                 } catch (_: TimeoutCancellationException) {
@@ -250,6 +272,10 @@ fun StagingFeedScreen(
                     val loaded = withTimeout(18_000L) { actions.getSavedStates(missingSaved) }
                     if (auth.account?.id == expectedId) {
                         savedStates = actionStateVersions.reconcile("saved", savedStates, loaded, readVersions)
+                        loaded.forEach { (id,active) ->
+                            val post=posts.firstOrNull {it.id==id}
+                            viewerActions?.acceptRead(id,"save",active,0,viewerReadVersions["save"]?.get(id))
+                        }
                         savedReadError = null
                     }
                 } catch (_: TimeoutCancellationException) {
@@ -266,6 +292,10 @@ fun StagingFeedScreen(
                     val loaded = withTimeout(18_000L) { actions.getRepostStates(missingReposts) }
                     if (auth.account?.id == expectedId) {
                         repostStates = actionStateVersions.reconcile("repost", repostStates, loaded, readVersions)
+                        loaded.forEach { (id,active) ->
+                            val post=posts.firstOrNull {it.id==id}
+                            viewerActions?.acceptRead(id,"repost",active,post?.reposts ?: 0,viewerReadVersions["repost"]?.get(id))
+                        }
                         repostReadError = null
                     }
                 } catch (_: TimeoutCancellationException) {
@@ -560,6 +590,7 @@ fun StagingFeedScreen(
         if (readScope.refreshVersion > 0) client.beginRefresh(readScope.mode)
         loading = true
         try {
+            val reactionVersions=viewerActions?.revisions().orEmpty()
             val page = client.load(readScope.mode, 0)
             if (!current()) return@LaunchedEffect
             val retainReadingPosition = requested == null && returnInitial.restored && posts.isNotEmpty() && !userRefreshing
@@ -572,6 +603,10 @@ fun StagingFeedScreen(
                 val ownPost = client.loadOne(requested.postId)
                 if (!current()) return@LaunchedEffect
                 if (ownPost != null && ownPost.authorId == accountId) posts = listOf(ownPost) + posts.filterNot { it.id == ownPost.id }
+            }
+            page.posts.forEach { row ->
+                viewerActions?.reconcileCount(row.id,"like",row.likes,reactionVersions["like:${row.id}"])
+                viewerActions?.reconcileCount(row.id,"repost",row.reposts,reactionVersions["repost:${row.id}"])
             }
             if (readScope.mode == "saved") {
                 // The private saved relationship query itself confirms this state.
@@ -693,7 +728,8 @@ fun StagingFeedScreen(
             newPostsAvailable = asHome && farFromTop && newPostsAvailable,
             onRefresh = { requestRefresh(scrollToTop = false) },
             onNewPosts = { requestRefresh(scrollToTop = true) }, modifier = Modifier.fillMaxSize().padding(insets)) {
-        CompositionLocalProvider(LocalFeedVideoLookahead provides videoLookahead, LocalFeedAutoplayReady provides autoplayReady) {
+        CompositionLocalProvider(LocalFeedVideoLookahead provides videoLookahead, LocalFeedAutoplayReady provides autoplayReady,
+            LocalShortsFeedContext provides if (asHome) ShortsFeedContext(posts, likeStates, savedStates, repostStates, followingStates) else null) {
         LazyColumn(
             Modifier.fillMaxSize(),
             state = feedListState,
@@ -747,7 +783,7 @@ fun StagingFeedScreen(
                 if (error != null) item { FeedMessageCard(error.orEmpty()) {
                     OutlinedButton(onClick = { requestRefresh(scrollToTop = true) }, shape = SautiShape.Pill) { Text("Try again") }
                 } }
-                if (!loading && error == null && posts.isEmpty()) item {
+                if (!loading && error == null && displayedPosts.isEmpty()) item {
                     FeedMessageCard(when (mode) {
                         "following" -> "No posts from followed accounts yet."
                         "short_videos" -> "No accessible short videos available yet."
@@ -756,9 +792,10 @@ fun StagingFeedScreen(
                         else -> "No accessible posts available for this account."
                     })
                 }
-                itemsIndexed(posts, key = { _, post -> post.id }) { index, post ->
+                itemsIndexed(displayedPosts, key = { _, post -> post.id }) { index, post ->
                     RealPostCard(
-                        post, auth,
+                        post.copy(likes = viewerActions?.state(post.id,"like")?.visibleCount ?: post.likes,
+                            reposts = viewerActions?.state(post.id,"repost")?.visibleCount ?: post.reposts), auth,
                         trendingRank = if (mode == "trending") index + 1 else null,
                         online = online,
                         bufferingOverlayEnabled = asHome,
@@ -767,9 +804,9 @@ fun StagingFeedScreen(
                         pendingFollow = pendingFollowStates[post.authorId],
                         busyFollow = "follow:${post.authorId}" in busyKeys,
                         followReadError = if (followingStates[post.authorId] == null) followReadError else null,
-                        liked = likeStates[post.id],
-                        saved = savedStates[post.id],
-                        reposted = repostStates[post.id],
+                        liked = viewerActions?.state(post.id,"like")?.desired ?: likeStates[post.id],
+                        saved = viewerActions?.state(post.id,"save")?.desired ?: savedStates[post.id],
+                        reposted = viewerActions?.state(post.id,"repost")?.desired ?: repostStates[post.id],
                         busyLike = "like:${post.id}" in busyKeys,
                         busySave = "save:${post.id}" in busyKeys,
                         busyRepost = "repost:${post.id}" in busyKeys,
@@ -795,11 +832,16 @@ fun StagingFeedScreen(
                             repostStates = repostStates - post.id
                             actionRetryVersion++
                         },
-                        onLike = { changeAction(post, "like") },
-                        onDoubleTapLike = { changeAction(post, "like", addOnly = true) },
-                        onSave = { changeAction(post, "save") },
+                        onLike = { if (viewerActions != null)
+                            viewerActions.toggle(post.id,"like",post.likes,likeStates[post.id]) else changeAction(post,"like") },
+                        onDoubleTapLike = { if(viewerActions!=null) {
+                            if(viewerActions.state(post.id,"like")?.desired ?: likeStates[post.id] != true)
+                                viewerActions.toggle(post.id,"like",post.likes,likeStates[post.id])
+                        } else changeAction(post,"like",addOnly=true) },
+                        onSave = { if(viewerActions!=null) viewerActions.toggle(post.id,"save",0,savedStates[post.id]) else changeAction(post,"save") },
                         onComments = { commentsFor = post },
-                        onRepost = { changeRepost(post) },
+                        onRepost = { if (viewerActions != null)
+                            viewerActions.toggle(post.id,"repost",post.reposts,repostStates[post.id]) else changeRepost(post) },
                         onShare = { sharePost(post) },
                         onUpdated = { body ->
                             if (auth.account?.id == accountId) {
@@ -974,6 +1016,8 @@ internal fun FeedFollowButton(following: Boolean?, pending: Boolean?, enabled: B
 @Composable
 private fun FeedPostBodyAndMedia(post: StagingFeedPost, auth: StagingAuthClient,
     onDoubleTapLike: (() -> Unit)?, bufferingOverlayEnabled: Boolean) {
+    val shortsSession = LocalNativeShortsSession.current
+    val feedContext = LocalShortsFeedContext.current
     if (post.body.isNotBlank()) {
         com.sautilink.nativeapp.ui.components.SautiPostGestureSurface(
             Modifier.fillMaxWidth(), onLike = onDoubleTapLike) {
@@ -985,7 +1029,10 @@ private fun FeedPostBodyAndMedia(post: StagingFeedPost, auth: StagingAuthClient,
     // Gallery is flush with card edges; caption is never overlaid onto the media.
     if (post.media.isNotEmpty()) {
         PostMediaGallery(auth, post.media, onDoubleTapLike = onDoubleTapLike,
-            bufferingOverlayEnabled = bufferingOverlayEnabled, suppressOriginalAudio = false, playbackGroup = post.id, fillPhotoFrame = true, originalAudioVolume = post.audio?.originalVolume ?: 1f)
+            bufferingOverlayEnabled = bufferingOverlayEnabled, suppressOriginalAudio = false, playbackGroup = post.id, fillPhotoFrame = true, originalAudioVolume = post.audio?.originalVolume ?: 1f,
+            onOpenVideo = if (shortsSession != null && feedContext != null) { media, position, poster ->
+                if (shortsSession.owner == auth.account?.id) shortsSession.open(post, media.id, position, poster, feedContext)
+            } else null)
     } else if (post.mediaCount > 0) {
         Surface(color = MaterialTheme.colorScheme.surfaceVariant) {
             Row(Modifier.fillMaxWidth().padding(14.dp),

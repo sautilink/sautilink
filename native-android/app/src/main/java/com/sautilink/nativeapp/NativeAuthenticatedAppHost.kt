@@ -19,6 +19,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.*
+import com.sautilink.nativeapp.feature.videos.*
+import com.sautilink.nativeapp.feature.home.PostInteractionsClient
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +54,24 @@ internal fun NativeAuthenticatedAppHost(
     destinationContent: @Composable () -> Unit,
     overlayContent: @Composable () -> Unit,
 ) {
+    val scope = rememberCoroutineScope()
+    val openVideos by rememberUpdatedState { onTabSelected(4) }
+    val reactionActions = remember(auth, accountId) {
+        val client = PostInteractionsClient(auth)
+        ShortsReactionController(scope, { accountId != null && auth.account?.id == accountId },
+            read = { post, kind -> when(kind) {
+                "like" -> client.getLikeStates(listOf(post))[post] == true
+                "save" -> client.getSavedStates(listOf(post))[post] == true
+                else -> client.getRepostStates(listOf(post))[post] == true
+            } }, write = { post, kind, active -> when(kind) {
+                "like" -> client.setLike(post,active)
+                "save" -> client.setSaved(post,active)
+                else -> client.setRepost(post,active)
+            } })
+    }
+    val shortsSession = remember(auth, accountId) { NativeShortsSession(accountId, reactionActions) { openVideos() } }
+    SideEffect { if(BuildConfig.DEBUG) NativeShortsSession.testObserver?.invoke(shortsSession) }
+    CompositionLocalProvider(LocalNativeShortsSession provides shortsSession) {
     com.sautilink.nativeapp.feature.music.NativeMusicSession(auth, onCreatePost, feedEnabled = true) {
     NativeVideoReplaySession(auth) {
         Scaffold(
@@ -100,5 +121,6 @@ internal fun NativeAuthenticatedAppHost(
         // Composer remains a replay-session sibling of Scaffold, outside destination retention.
         overlayContent()
     }
+}
 }
 }

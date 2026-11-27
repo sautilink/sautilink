@@ -77,7 +77,7 @@ private fun ShortsPill(icon: ImageVector, label: String, count: String? = null,
     val tint by animateColorAsState(if (active && icon == Icons.Rounded.Repeat) SautiColors.LogoOrange else Color.White,
         label = "Shorts reaction color")
     Row(modifier.heightIn(min = 44.dp).clip(CircleShape).background(Color(0xFF30363B).copy(alpha = .82f))
-        .clickable(interactionSource = interaction, indication = null, enabled = enabled && !(pending && !known), role = Role.Button, onClick = onClick)
+        .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
         .semantics { stateDescription = if (!known) "Status not confirmed" else if (active) "Selected" else "Not selected" }
         .padding(horizontal = 6.dp, vertical = 8.dp), horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically) {

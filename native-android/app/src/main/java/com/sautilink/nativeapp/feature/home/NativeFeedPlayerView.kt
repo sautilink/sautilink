@@ -28,3 +28,38 @@ internal fun detachNativeFeedPlayerView(view: PlayerView) {
         view.player = null
     } finally { Trace.endSection() }
 }
+
+/** One bounded copy on an explicit tap; feed scrolling keeps its faster SurfaceView. */
+@androidx.annotation.OptIn(markerClass = [UnstableApi::class])
+internal fun captureFeedVideoFrame(view:PlayerView?, onResult:(android.graphics.Bitmap?)->Unit) {
+    val surface=view?.videoSurfaceView as? android.view.SurfaceView
+    if(surface==null || surface.width<=0 || surface.height<=0 || !surface.holder.surface.isValid) {onResult(null);return}
+    val scale=minOf(1f,720f/maxOf(surface.width,surface.height))
+    val bitmap=runCatching {android.graphics.Bitmap.createBitmap((surface.width*scale).toInt().coerceAtLeast(1),
+        (surface.height*scale).toInt().coerceAtLeast(1),android.graphics.Bitmap.Config.ARGB_8888)}.getOrNull()
+        ?: run {onResult(null);return}
+    val handler=android.os.Handler(android.os.Looper.getMainLooper())
+    val completed=java.util.concurrent.atomic.AtomicBoolean(false)
+    val fallback=Runnable {if(completed.compareAndSet(false,true)) {
+        onResult(null)
+    }}
+    handler.postDelayed(fallback,240)
+    val copySurface=surface.holder.surface
+    FrameCopyExecutor.execute { try {
+        android.view.PixelCopy.request(copySurface,bitmap,{ result ->
+            handler.removeCallbacks(fallback)
+            if(completed.compareAndSet(false,true)) {
+                if(result==android.view.PixelCopy.SUCCESS)onResult(bitmap) else {bitmap.recycle();onResult(null)}
+            } else bitmap.recycle()
+        },handler)
+    } catch(_:Exception) {
+        handler.removeCallbacks(fallback);bitmap.recycle()
+        handler.post {
+            if(completed.compareAndSet(false,true))onResult(null)
+        }
+    } }
+}
+
+private val FrameCopyExecutor=java.util.concurrent.Executors.newSingleThreadExecutor { task ->
+    Thread(task,"Sauti-frame-copy").apply {isDaemon=true}
+}

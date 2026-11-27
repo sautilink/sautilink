@@ -90,7 +90,8 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
     mediaPath: ((FeedMedia) -> String)? = null,
     bufferingOverlayEnabled: Boolean = false,
     adaptivePlaybackEnabled: Boolean = true, suppressOriginalAudio: Boolean = false, playbackGroup: String? = null,
-    fillPhotoFrame: Boolean = false, originalAudioVolume: Float = 1f) {
+    fillPhotoFrame: Boolean = false, originalAudioVolume: Float = 1f,
+    onOpenVideo: ((FeedMedia, Long, android.graphics.Bitmap?) -> Unit)? = null) {
     if (media.isEmpty()) return
     var expandedPhoto by remember(auth) { mutableStateOf<FeedMedia?>(null) }
     val pager = androidx.compose.foundation.pager.rememberPagerState(pageCount = { media.size })
@@ -103,7 +104,7 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
                     Modifier.fillMaxWidth().aspectRatio(carouselAspect), mediaPath,
                     onDoubleTapLike, bufferingOverlayEnabled, adaptivePlaybackEnabled,
                     suppressOriginalAudio, playbackGroup, originalAudioVolume, fillPhotoFrame,
-                    onPhoto = { expandedPhoto = it })
+                    onPhoto = { expandedPhoto = it }, onOpenVideo = onOpenVideo)
             } else {
                 androidx.compose.foundation.pager.HorizontalPager(
                     state = pager, modifier = Modifier.fillMaxWidth().aspectRatio(carouselAspect),
@@ -112,7 +113,7 @@ internal fun PostMediaGallery(auth: StagingAuthClient, media: List<FeedMedia>,
                     FeedMediaPage(auth, media[page], page, media.size, pager.currentPage == page,
                         Modifier.fillMaxSize(), mediaPath, onDoubleTapLike, bufferingOverlayEnabled,
                         adaptivePlaybackEnabled, suppressOriginalAudio, playbackGroup,
-                        originalAudioVolume, fillPhotoFrame, onPhoto = { expandedPhoto = it })
+                        originalAudioVolume, fillPhotoFrame, onPhoto = { expandedPhoto = it }, onOpenVideo = onOpenVideo)
                 }
             }
             if (media.size > 1) {
@@ -179,7 +180,8 @@ private fun FeedMediaPage(auth: StagingAuthClient, item: FeedMedia, page: Int, c
     current: Boolean, modifier: Modifier, mediaPath: ((FeedMedia) -> String)?,
     onLike: (() -> Unit)?, bufferingOverlayEnabled: Boolean, adaptivePlaybackEnabled: Boolean,
     suppressOriginalAudio: Boolean, playbackGroup: String?, originalAudioVolume: Float,
-    fillPhotoFrame: Boolean, onPhoto: (FeedMedia) -> Unit) {
+    fillPhotoFrame: Boolean, onPhoto: (FeedMedia) -> Unit,
+    onOpenVideo: ((FeedMedia, Long, android.graphics.Bitmap?) -> Unit)? = null) {
     val path = checkedPostMediaPath(item.id, mediaPath?.invoke(item))
     Box(modifier.background(if (item.kind == "video") Color.Black else MaterialTheme.colorScheme.surfaceVariant)
         .then(Modifier.testTag("post-media:${item.id}")), contentAlignment = Alignment.Center) {
@@ -188,7 +190,7 @@ private fun FeedMediaPage(auth: StagingAuthClient, item: FeedMedia, page: Int, c
                 onDoubleTapLike = onLike, mediaPath = path,
                 bufferingOverlayEnabled = bufferingOverlayEnabled,
                 adaptivePlaybackEnabled = adaptivePlaybackEnabled, suppressOriginalAudio = suppressOriginalAudio,
-                playbackGroup = playbackGroup, originalAudioVolume = originalAudioVolume)
+                playbackGroup = playbackGroup, originalAudioVolume = originalAudioVolume, onOpenVideo = onOpenVideo)
         } else {
             SautiPostGestureSurface(Modifier.fillMaxSize(), onLike = onLike, onTap = { onPhoto(item) }) {
                 AuthorizedImage(auth, "$path?w=960", "Photo ${page + 1} of $count",
@@ -209,8 +211,13 @@ private fun InlineFeedVideo(
     onDoubleTapLike: (() -> Unit)?,
     mediaPath: String = "/api/sauti-media/${media.id}",
     bufferingOverlayEnabled: Boolean = false,
-    adaptivePlaybackEnabled: Boolean = true, suppressOriginalAudio: Boolean = false, playbackGroup: String? = null, originalAudioVolume: Float = 1f
+    adaptivePlaybackEnabled: Boolean = true, suppressOriginalAudio: Boolean = false, playbackGroup: String? = null, originalAudioVolume: Float = 1f,
+    onOpenVideo: ((FeedMedia, Long, android.graphics.Bitmap?) -> Unit)? = null
 ) {
+    val shortsSession = com.sautilink.nativeapp.feature.videos.LocalNativeShortsSession.current
+    val videoView = remember(media.id) { arrayOfNulls<androidx.media3.ui.PlayerView>(1) }
+    val returnPosition = remember(media.id) { shortsSession?.positions?.get(media.id) ?: 0L }
+    var returnPositionApplied by remember(media.id) { mutableStateOf(false) }
     val context = LocalContext.current
     val lookahead = LocalFeedVideoLookahead.current
     val overlayBlocked = com.sautilink.nativeapp.ui.components.LocalNativePlaybackBlocked.current
@@ -407,6 +414,7 @@ private fun InlineFeedVideo(
             owner.lifecycle.removeObserver(observer)
             player.removeListener(listener)
             android.os.Trace.beginSection("Sauti:retire-feed-video")
+            if (auth.account?.id == playbackOwner) shortsSession?.positions?.set(media.id, player.currentPosition.coerceAtLeast(0L))
             try { retireFeedVideo(player, resources) } finally { android.os.Trace.endSection() }
         }
     }
@@ -433,6 +441,8 @@ private fun InlineFeedVideo(
             replaceVideoPlaybackSource(player, MediaItem.Builder().setMediaId(media.id).setUri(uri)
                 .setMimeType(if (hls) androidx.media3.common.MimeTypes.APPLICATION_M3U8 else androidx.media3.common.MimeTypes.VIDEO_MP4).build(),
                 keepPosition = true, requested = false)
+            if (!returnPositionApplied && returnPosition > 0) player.seekTo(returnPosition)
+            returnPositionApplied = true
             if (!overlayBlocked && selected && wantsToPlay && !manualPaused && isCurrent &&
                 owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
                 if (coordinator != null) coordinator.play(candidateKey, group, player::pause) { player.play() } else player.play()
@@ -484,11 +494,12 @@ private fun InlineFeedVideo(
         if (player != null) {
             AndroidView(
                 factory = { ctx -> createNativeFeedPlayerView(ctx).apply {
+                    videoView[0] = this
                     useController = false
                     this.player = player
                     resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                 } },
-                update = { it.player = player },
+                update = { videoView[0] = it; it.player = player },
                 onReset = { detachNativeFeedPlayerView(it) },
                 onRelease = { detachNativeFeedPlayerView(it) },
                 modifier = Modifier.fillMaxSize()
@@ -542,14 +553,22 @@ private fun InlineFeedVideo(
             userInitiatedPlayback = false
             player?.pause()
         }
+        val openViewer = {
+            val position = player?.currentPosition?.coerceAtLeast(0L) ?: 0L
+            player?.pause()
+            if(firstFrame) captureFeedVideoFrame(videoView[0]) { poster -> onOpenVideo?.invoke(media,position,poster) }
+            else onOpenVideo?.invoke(media,position,null)
+        }
+
         val playRadius = with(density) { 30.dp.toPx() }
         val pauseRequested = playing || playbackState != Player.STATE_ENDED && requestError == null &&
             (playbackRequested || started && wantsToPlay && !manualPaused)
-        SautiVideoGestureSurface(Modifier.fillMaxSize(),
-            playbackLabel = if (pauseRequested) "Pause video in post" else if (playPrompt) "Play video in post" else null,
-            onPlayback = { if (pauseRequested) pausePlayback() else if (playPrompt) startPlayback() },
+        SautiVideoGestureSurface(Modifier.fillMaxSize().then(if(onOpenVideo!=null) Modifier.testTag("open-shorts:${media.id}") else Modifier),
+            playbackLabel = if (onOpenVideo != null) "Open video in Shorts" else if (pauseRequested) "Pause video in post" else if (playPrompt) "Play video in post" else null,
+            onPlayback = { if (onOpenVideo != null) openViewer() else if (pauseRequested) pausePlayback() else if (playPrompt) startPlayback() },
             onTap = { position, frame ->
-                if (pauseRequested) pausePlayback()
+                if (onOpenVideo != null) openViewer()
+                else if (pauseRequested) pausePlayback()
                 else if (playPrompt && (position - androidx.compose.ui.geometry.Offset(frame.width / 2f, frame.height / 2f))
                         .getDistance() <= playRadius) startPlayback()
             },
@@ -651,10 +670,10 @@ internal fun rememberVideoRecoveryQuality(
         if (!valid()) return@LaunchedEffect
         if (playing) {
             delay(10_000)
-            if (valid() && current.isPlaying) recoveries = 0
+            if (valid() && current.isPlaying) { recoveries = 0 }
             return@LaunchedEffect
         }
-        if (playbackState != Player.STATE_BUFFERING || recoveries >= 2) return@LaunchedEffect
+        if (playbackState != Player.STATE_BUFFERING || recoveries >= 2) { return@LaunchedEffect }
         var position = current.currentPosition
         var buffered = current.bufferedPosition
         while (valid() && current.playbackState == Player.STATE_BUFFERING) {
