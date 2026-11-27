@@ -516,11 +516,9 @@ private fun InlineFeedVideo(
         // Poster overlays any decoder/player surface until a real frame has arrived.
         if (!firstFrame) {
             if (mediaPath == "/api/sauti-media/${media.id}") {
-                AuthorizedImage(auth, "$mediaPath?poster=1",
-                    "Video cover", modifier = Modifier.fillMaxSize(), crop = false,
-                    // A missing poster is not a playback error. Keep its error glyph
-                    // from competing with Home's active video-buffering feedback.
-                    showFailureFallback = !showBufferingOverlay)
+                // Video covers share the same black matte/loading state as playback.
+                // A photo placeholder here used to flash white (and white letterbox bars).
+                com.sautilink.nativeapp.feature.videos.ShortVideoCover(auth,media.id,Modifier.fillMaxSize())
             } else if (!bufferingOverlayEnabled && started && wantsToPlay && requestError == null) {
                 // Protected submissions expose original bytes, not a generated poster.
                 CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)

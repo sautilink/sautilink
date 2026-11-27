@@ -16,8 +16,8 @@ internal fun createNativeFeedPlayerView(context: Context): PlayerView {
     } finally { Trace.endSection() }
 }
 
-/** AndroidView may reuse this Surface for another row. Stop its old decoder
- * before detaching it; the next update binds the new row's player. */
+/** Recycled rows stop their decoder before detaching. An explicitly transferred
+ * player only releases the old target while that Surface is still valid. */
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 internal fun detachNativeFeedPlayerView(view: PlayerView, preservePlayback: Boolean = false) {
     Trace.beginSection("Sauti:detach-feed-player-view")
